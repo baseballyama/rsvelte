@@ -69,6 +69,10 @@ pub fn build_sibling_relationships(dom_structure: &mut DomStructure, root_fragme
             dom_structure.elements[dom_idx].possible_next_general = convert_results(&next_gen);
         }
     }
+
+    // Third pass: mark elements that are adjacent to opaque boundaries
+    // (slots, render tags, components). This is used for :global(X) + Y detection.
+    mark_opaque_boundary_adjacency(dom_structure, root_fragment, &node_to_dom_idx);
 }
 
 /// Convert results map to Vec of (dom_idx, certainty) pairs.
@@ -592,4 +596,108 @@ fn higher_existence(a: u8, b: u8) -> u8 {
         return a;
     }
     if a > b { a } else { b }
+}
+
+/// Mark elements that are adjacent to opaque boundaries (slots, render tags, components).
+/// For `:global(X) + Y`, Y must be immediately after an opaque boundary.
+/// For `:global(X) ~ Y`, Y must be somewhere after an opaque boundary.
+fn mark_opaque_boundary_adjacency(
+    dom_structure: &mut DomStructure,
+    root_fragment: &Fragment,
+    node_to_dom_idx: &FxHashMap<NodePtr, usize>,
+) {
+    mark_opaque_in_fragment(dom_structure, root_fragment, node_to_dom_idx);
+}
+
+/// Recursively scan a fragment for opaque boundary adjacency.
+fn mark_opaque_in_fragment(
+    dom_structure: &mut DomStructure,
+    fragment: &Fragment,
+    node_to_dom_idx: &FxHashMap<NodePtr, usize>,
+) {
+    let mut saw_opaque = false;
+    let mut saw_opaque_ever = false;
+
+    for node in &fragment.nodes {
+        let is_opaque = matches!(
+            node,
+            TemplateNode::SlotElement(_)
+                | TemplateNode::RenderTag(_)
+                | TemplateNode::Component(_)
+                | TemplateNode::SvelteComponent(_)
+                | TemplateNode::SvelteSelf(_)
+        );
+
+        if is_opaque {
+            saw_opaque = true;
+            saw_opaque_ever = true;
+        }
+
+        // If this is an element and we just saw an opaque boundary, mark it
+        match node {
+            TemplateNode::RegularElement(el) => {
+                if let Some(&dom_idx) = node_to_dom_idx.get(&node_ptr(node)) {
+                    if saw_opaque {
+                        dom_structure.elements[dom_idx].prev_is_opaque_boundary = true;
+                    }
+                    if saw_opaque_ever {
+                        dom_structure.elements[dom_idx].prev_has_opaque_boundary = true;
+                    }
+                    // After seeing a real element, reset the adjacent flag
+                    // (only the first element after opaque is "adjacent")
+                    saw_opaque = false;
+                }
+                // Recurse into element children
+                mark_opaque_in_fragment(dom_structure, &el.fragment, node_to_dom_idx);
+            }
+            TemplateNode::SvelteElement(el) => {
+                if let Some(&dom_idx) = node_to_dom_idx.get(&node_ptr(node)) {
+                    if saw_opaque {
+                        dom_structure.elements[dom_idx].prev_is_opaque_boundary = true;
+                    }
+                    if saw_opaque_ever {
+                        dom_structure.elements[dom_idx].prev_has_opaque_boundary = true;
+                    }
+                    saw_opaque = false;
+                }
+                mark_opaque_in_fragment(dom_structure, &el.fragment, node_to_dom_idx);
+            }
+            TemplateNode::IfBlock(block) => {
+                mark_opaque_in_fragment(dom_structure, &block.consequent, node_to_dom_idx);
+                if let Some(ref alt) = block.alternate {
+                    mark_opaque_in_fragment(dom_structure, alt, node_to_dom_idx);
+                }
+            }
+            TemplateNode::EachBlock(block) => {
+                mark_opaque_in_fragment(dom_structure, &block.body, node_to_dom_idx);
+                if let Some(ref fallback) = block.fallback {
+                    mark_opaque_in_fragment(dom_structure, fallback, node_to_dom_idx);
+                }
+            }
+            TemplateNode::AwaitBlock(block) => {
+                if let Some(ref pending) = block.pending {
+                    mark_opaque_in_fragment(dom_structure, pending, node_to_dom_idx);
+                }
+                if let Some(ref then) = block.then {
+                    mark_opaque_in_fragment(dom_structure, then, node_to_dom_idx);
+                }
+                if let Some(ref catch) = block.catch {
+                    mark_opaque_in_fragment(dom_structure, catch, node_to_dom_idx);
+                }
+            }
+            TemplateNode::KeyBlock(block) => {
+                mark_opaque_in_fragment(dom_structure, &block.fragment, node_to_dom_idx);
+            }
+            TemplateNode::SlotElement(slot) => {
+                mark_opaque_in_fragment(dom_structure, &slot.fragment, node_to_dom_idx);
+            }
+            TemplateNode::SnippetBlock(snippet) => {
+                mark_opaque_in_fragment(dom_structure, &snippet.body, node_to_dom_idx);
+            }
+            TemplateNode::Component(comp) => {
+                mark_opaque_in_fragment(dom_structure, &comp.fragment, node_to_dom_idx);
+            }
+            _ => {}
+        }
+    }
 }

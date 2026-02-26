@@ -928,6 +928,21 @@ pub fn visit(
         }
     }
 
+    // Check if the element's fragment contains opaque content (render tags, slots, components)
+    // that can inject unknown element children at runtime
+    let has_opaque_content = element.fragment.nodes.iter().any(|node| {
+        use crate::ast::template::TemplateNode;
+        matches!(
+            node,
+            TemplateNode::RenderTag(_)
+                | TemplateNode::Component(_)
+                | TemplateNode::SlotElement(_)
+                | TemplateNode::SvelteComponent(_)
+                | TemplateNode::SvelteSelf(_)
+                | TemplateNode::HtmlTag(_)
+        )
+    });
+
     // Create and track DOM element for CSS sibling combinator detection
     let dom_element = super::super::types::CssDomElement {
         tag_name: element.name.to_string(),
@@ -946,7 +961,10 @@ pub fn visit(
         possible_prev_general: Vec::new(),
         possible_next_general: Vec::new(),
         has_content: !element.fragment.nodes.is_empty(),
+        has_opaque_content,
         is_dynamic_tag: false,
+        prev_is_opaque_boundary: false,
+        prev_has_opaque_boundary: false,
     };
 
     let element_idx = context.add_dom_element(dom_element);

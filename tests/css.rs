@@ -221,11 +221,11 @@ fn test_css() {
             println!("  - {}", result.name);
             if let Some(err) = &result.error_message {
                 // Truncate long error messages
-                let err_lines: Vec<_> = err.lines().take(5).collect();
+                let err_lines: Vec<_> = err.lines().take(500).collect();
                 for line in err_lines {
                     println!("      {}", line);
                 }
-                if err.lines().count() > 5 {
+                if err.lines().count() > 500 {
                     println!("      ...");
                 }
             }

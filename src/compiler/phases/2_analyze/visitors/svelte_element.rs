@@ -108,7 +108,10 @@ pub fn visit(
         possible_prev_general: Vec::new(),
         possible_next_general: Vec::new(),
         has_content: !element.fragment.nodes.is_empty(),
+        has_opaque_content: false, // Dynamic element, conservatively handled via is_dynamic_tag
         is_dynamic_tag: true,
+        prev_is_opaque_boundary: false,
+        prev_has_opaque_boundary: false,
     };
 
     let element_idx = context.add_dom_element(dom_element);

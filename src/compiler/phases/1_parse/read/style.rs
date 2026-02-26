@@ -587,6 +587,31 @@ impl<'a> CssParser<'a> {
                 continue;
             }
 
+            // Handle CSS escape sequences: \XX (backslash followed by hex or any char)
+            // Skip over escape sequences so we don't misinterpret their terminating
+            // whitespace as a descendant combinator.
+            // E.g., `.a\1f642 b` is a SINGLE class selector `.a🙂b`, not `.a🙂` descendant `b`.
+            if c == '\\' && i + 1 < chars.len() {
+                i += 1; // skip backslash
+                if chars[i].is_ascii_hexdigit() {
+                    // Consume up to 6 hex digits
+                    let mut hex_count = 0;
+                    while i < chars.len() && hex_count < 6 && chars[i].is_ascii_hexdigit() {
+                        i += 1;
+                        hex_count += 1;
+                    }
+                    // Consume optional single whitespace terminator
+                    // This whitespace is part of the escape, NOT a combinator
+                    if i < chars.len() && chars[i].is_whitespace() {
+                        i += 1;
+                    }
+                } else {
+                    // \c - escape of a single character
+                    i += 1;
+                }
+                continue;
+            }
+
             // Check for combinators (+, >, ~)
             if c == '+' || c == '>' || c == '~' {
                 let selector_text = text[current_start..i].trim();
@@ -1005,8 +1030,8 @@ impl<'a> CssParser<'a> {
                     // Distinguish between property: value (declaration) and selector :pseudo-class
                     // If the ':' follows whitespace, it's likely a pseudo-class in a selector
                     // (e.g., "p :global", "div :hover")
-                    // If the ':' directly follows a non-whitespace char, it's a declaration
-                    // (e.g., "color:", "font-size:")
+                    // If the ':' directly follows a non-whitespace char, check if it's a pseudo-class
+                    // (e.g., "header:has(&)", "div:hover") or a declaration (e.g., "color:", "font-size:")
                     if i > 0 && chars[i - 1].is_whitespace() {
                         // ':' after whitespace - likely a pseudo-class selector, skip it
                         // Skip past the pseudo-class name
@@ -1018,7 +1043,61 @@ impl<'a> CssParser<'a> {
                         }
                         continue;
                     }
-                    // ':' directly after non-whitespace - this is a property: value declaration
+                    // ':' directly after non-whitespace - could be a declaration OR a pseudo-class
+                    // Check if it's followed by a known CSS pseudo-class pattern
+                    // A pseudo-class is `:<identifier>` optionally followed by `(...)` or `{`
+                    // A declaration is `<property>: <value>`
+                    // Key difference: declarations have whitespace or value after `:`,
+                    // pseudo-classes have an identifier (no whitespace) directly after `:`
+                    let mut j = i + 1;
+                    // Skip any additional ':' (for pseudo-elements like ::before)
+                    while j < chars.len() && chars[j] == ':' {
+                        j += 1;
+                    }
+                    // Check if an identifier follows directly (pseudo-class like :has, :hover, :is)
+                    if j < chars.len()
+                        && (chars[j].is_alphabetic() || chars[j] == '-' || chars[j] == '_')
+                    {
+                        // Skip the identifier
+                        while j < chars.len()
+                            && (chars[j].is_alphanumeric() || chars[j] == '-' || chars[j] == '_')
+                        {
+                            j += 1;
+                        }
+                        // After the identifier, check what follows:
+                        // - '(' means it's a functional pseudo-class like :has(), :is()
+                        // - '{' means it's a selector like div:hover { }
+                        // - whitespace followed by '{' or selector parts means it's a selector
+                        // - ',' means it's a selector list
+                        if j < chars.len()
+                            && (chars[j] == '(' || chars[j] == '{' || chars[j] == ',')
+                        {
+                            // This is a pseudo-class selector, not a declaration
+                            // Skip past the pseudo-class and continue checking
+                            i = j;
+                            continue;
+                        }
+                        // Check if whitespace follows and then eventually a {
+                        if j < chars.len() && chars[j].is_whitespace() {
+                            // Could be "div:hover {" or "font-size: 12px" - look ahead for '{'
+                            let mut k = j;
+                            while k < chars.len() && chars[k].is_whitespace() {
+                                k += 1;
+                            }
+                            if k < chars.len() && chars[k] == '{' {
+                                // "selector:pseudo {" - it's a nested rule
+                                return true;
+                            }
+                            // "selector:pseudo something" or "property: value" - ambiguous
+                            // Continue scanning (could be "div:hover .foo {")
+                            i = j;
+                            continue;
+                        }
+                        // Skip past the pseudo-class content and continue
+                        i = j;
+                        continue;
+                    }
+                    // ':' not followed by identifier - this is a property: value declaration
                     return false;
                 }
                 ';' | '}' if depth == 0 => return false,
@@ -1810,6 +1889,24 @@ impl<'a> SelectorParser<'a> {
                     } else if chars[i] == ')' {
                         depth -= 1;
                     }
+                    i += 1;
+                }
+                continue;
+            }
+
+            // Handle CSS escape sequences in :has()/:is()/:not() argument parsing too
+            if c == '\\' && i + 1 < chars.len() {
+                i += 1;
+                if chars[i].is_ascii_hexdigit() {
+                    let mut hex_count = 0;
+                    while i < chars.len() && hex_count < 6 && chars[i].is_ascii_hexdigit() {
+                        i += 1;
+                        hex_count += 1;
+                    }
+                    if i < chars.len() && chars[i].is_whitespace() {
+                        i += 1;
+                    }
+                } else {
                     i += 1;
                 }
                 continue;

@@ -34,6 +34,11 @@ struct CssContext<'a> {
     has_opaque_sibling_boundaries: bool,
     /// DOM structure for advanced selector matching
     dom_structure: &'a DomStructure,
+    /// Stack of parent rule preludes for resolving NestingSelector (&) in nested CSS rules.
+    /// Each entry is a reference to the prelude Value of an ancestor rule.
+    /// Used to determine unused status of compound selectors containing &.
+    /// Uses RefCell for interior mutability so we can push/pop while passing &CssContext.
+    parent_preludes: std::cell::RefCell<Vec<&'a Value>>,
 }
 
 /// Render the stylesheet for a component.
@@ -82,6 +87,7 @@ fn render_stylesheet_internal(
         has_control_flow: analysis.css.has_control_flow,
         has_opaque_sibling_boundaries: analysis.css.has_opaque_elements,
         dom_structure: &analysis.css.dom_structure,
+        parent_preludes: std::cell::RefCell::new(Vec::new()),
     };
 
     // Extract CSS content and its start position
@@ -405,13 +411,13 @@ fn extract_css_content(source: &str) -> Option<(String, usize)> {
 }
 
 /// Transform CSS by adding scoping to selectors while preserving whitespace
-fn transform_css(
-    children: &[Value],
+fn transform_css<'a>(
+    children: &'a [Value],
     selector: &str,
     hash: &str,
     css_source: &str,
     css_start: usize,
-    ctx: &CssContext,
+    ctx: &CssContext<'a>,
 ) -> String {
     let mut output = String::new();
     let mut specificity_bumped = false;
@@ -445,8 +451,8 @@ fn transform_css(
 
 /// Transform a CSS node while preserving whitespace
 #[allow(clippy::too_many_arguments)]
-fn transform_node_preserving(
-    node: &Value,
+fn transform_node_preserving<'a>(
+    node: &'a Value,
     selector: &str,
     hash: &str,
     css_source: &str,
@@ -454,7 +460,7 @@ fn transform_node_preserving(
     output: &mut String,
     specificity_bumped: &mut bool,
     last_end: &mut usize,
-    ctx: &CssContext,
+    ctx: &CssContext<'a>,
     parent_has_local_selectors: bool,
 ) {
     match node.get("type").and_then(|t| t.as_str()) {
@@ -493,7 +499,7 @@ fn transform_node_preserving(
 
 /// Check if a rule is empty (no declarations, and any nested rules are either unused or empty).
 /// This follows the official Svelte implementation's is_empty() function.
-fn is_rule_empty(rule: &Value, ctx: &CssContext, is_in_global_block: bool) -> bool {
+fn is_rule_empty<'a>(rule: &'a Value, ctx: &CssContext<'a>, is_in_global_block: bool) -> bool {
     let block = match rule.get("block") {
         Some(b) => b,
         None => return true,
@@ -513,6 +519,14 @@ fn is_rule_empty(rule: &Value, ctx: &CssContext, is_in_global_block: bool) -> bo
         match child_type {
             "Declaration" => return false, // Has a declaration, not empty
             "Rule" => {
+                // Push the PARENT rule's prelude for NestingSelector resolution
+                // so that check_selector_unused on the child rule can resolve & correctly.
+                // The parent rule is the current `rule` parameter.
+                let rule_prelude = rule.get("prelude");
+                if let Some(rp) = rule_prelude {
+                    ctx.parent_preludes.borrow_mut().push(rp);
+                }
+
                 // Check if the nested rule is used
                 let is_used = if let Some(prelude) = child.get("prelude") {
                     check_selector_unused(prelude, ctx) == UnusedStatus::Used
@@ -521,9 +535,14 @@ fn is_rule_empty(rule: &Value, ctx: &CssContext, is_in_global_block: bool) -> bo
                 };
 
                 // If it's used (or we're in a global block) AND not empty, then parent is not empty
-                if (is_used || this_is_global_block)
-                    && !is_rule_empty(child, ctx, this_is_global_block)
-                {
+                let is_empty = is_rule_empty(child, ctx, this_is_global_block);
+
+                // Pop the parent rule's prelude
+                if rule_prelude.is_some() {
+                    ctx.parent_preludes.borrow_mut().pop();
+                }
+
+                if (is_used || this_is_global_block) && !is_empty {
                     return false;
                 }
             }
@@ -852,14 +871,30 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
         }
 
         // Check for descendant/child selectors that don't match the DOM structure
-        // Only enabled when there's no control flow (to avoid false positives)
-        if !ctx.has_control_flow && is_descendant_selector_unused(rel_selectors, ctx) {
+        if is_descendant_selector_unused(rel_selectors, ctx) {
             return true;
         }
 
         // :has() unused detection - check if :has() arguments can match within the subject element's subtree
         // This is guarded inside is_has_selector_unused by has_opaque_sibling_boundaries check
         if is_has_selector_unused(rel_selectors, ctx) {
+            return true;
+        }
+
+        // NestingSelector (&) compound check: When a relative selector contains & combined
+        // with other simple selectors (e.g., &.b inside .a {}), the compound meaning is that
+        // the element must satisfy BOTH the parent rule's constraints AND the current ones.
+        // For example, &.b inside .a {} means .a.b - an element with both classes.
+        if is_nesting_compound_unused(rel_selectors, ctx) {
+            return true;
+        }
+
+        // Pure nesting selector check: When a selector consists entirely of NestingSelectors
+        // with descendant combinators (e.g., `& &` or `& & &`), the resolved selector
+        // requires the parent chain to appear multiple times in the ancestor chain.
+        // For example, `& &` inside `.c` inside `& .b` inside `.a` resolves to
+        // `.a .b .c .a .b .c` - which requires a nested `.a .b .c` structure.
+        if is_pure_nesting_selector_unused(rel_selectors, ctx) {
             return true;
         }
 
@@ -952,6 +987,317 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
 }
 
 /// Check if a :host > element selector is unused
+/// Check if a nested rule's selector with NestingSelector (&) compound is unused.
+///
+/// When a relative selector contains NestingSelector (&) combined with other simple selectors
+/// (e.g., `&.b`), the compound meaning is that the element must satisfy BOTH the parent rule's
+/// constraints AND the current ones. For example, `&.b` inside `.a {}` means `.a.b` - an element
+/// with both classes `.a` and `.b`.
+///
+/// This function checks if the parent_preludes in the context, combined with the non-nesting
+/// selectors, can match any DOM element.
+fn is_nesting_compound_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
+    // Only applies when we have parent preludes (i.e., we're inside a nested rule)
+    let parent_preludes = ctx.parent_preludes.borrow();
+    if parent_preludes.is_empty() {
+        return false;
+    }
+
+    // Look for relative selectors that contain NestingSelector combined with other selectors
+    for rel in rel_selectors {
+        if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
+            let has_nesting = selectors
+                .iter()
+                .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"));
+
+            if !has_nesting || selectors.len() < 2 {
+                // No NestingSelector, or NestingSelector alone (no compound)
+                continue;
+            }
+
+            // Collect class requirements from non-nesting selectors in this compound
+            let mut required_classes: Vec<String> = Vec::new();
+            let mut required_ids: Vec<String> = Vec::new();
+            let mut required_elements: Vec<String> = Vec::new();
+
+            for sel in selectors {
+                let sel_type = sel.get("type").and_then(|t| t.as_str());
+                match sel_type {
+                    Some("ClassSelector") => {
+                        if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                            required_classes.push(decode_css_escape(name));
+                        }
+                    }
+                    Some("IdSelector") => {
+                        if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                            required_ids.push(decode_css_escape(name));
+                        }
+                    }
+                    Some("TypeSelector") => {
+                        if let Some(name) = sel.get("name").and_then(|n| n.as_str())
+                            && name != "*"
+                        {
+                            required_elements.push(decode_css_escape(name));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            // If we have no concrete requirements beyond &, can't determine unused
+            if required_classes.is_empty()
+                && required_ids.is_empty()
+                && required_elements.is_empty()
+            {
+                continue;
+            }
+
+            // Collect class/id/element requirements from the IMMEDIATE parent prelude only.
+            // The NestingSelector (&) refers to the immediate parent rule's selector.
+            // The subject element of the parent rule is what the & expands to, and the
+            // compound selector requires that SAME element to also match the current constraints.
+            // We only check the immediate parent because constraints from higher-up ancestors
+            // apply to different elements in the DOM chain, not the same element.
+            let mut parent_classes: Vec<String> = Vec::new();
+            let mut parent_ids: Vec<String> = Vec::new();
+            let mut parent_elements: Vec<String> = Vec::new();
+
+            if let Some(immediate_parent) = parent_preludes.last() {
+                extract_selector_constraints(
+                    immediate_parent,
+                    &mut parent_classes,
+                    &mut parent_ids,
+                    &mut parent_elements,
+                );
+            }
+
+            // Combined: the element must satisfy both parent constraints and current constraints
+            let all_required_classes: Vec<&str> = parent_classes
+                .iter()
+                .chain(required_classes.iter())
+                .map(|s| s.as_str())
+                .collect();
+            let all_required_ids: Vec<&str> = parent_ids
+                .iter()
+                .chain(required_ids.iter())
+                .map(|s| s.as_str())
+                .collect();
+            let all_required_elements: Vec<&str> = parent_elements
+                .iter()
+                .chain(required_elements.iter())
+                .map(|s| s.as_str())
+                .collect();
+
+            // If dynamic classes exist, we can't be sure about class constraints
+            if ctx.has_dynamic_classes && !all_required_classes.is_empty() {
+                continue;
+            }
+
+            // If dynamic elements exist, we can't be sure about element constraints
+            if ctx.has_dynamic_elements && !all_required_elements.is_empty() {
+                continue;
+            }
+
+            // Check if any DOM element satisfies ALL the combined constraints
+            let any_element_matches = ctx.dom_structure.elements.iter().any(|elem| {
+                // Check all required classes are present on the element
+                let classes_match = all_required_classes
+                    .iter()
+                    .all(|c| elem.classes.contains(*c));
+
+                // Check all required ids match
+                let ids_match = all_required_ids
+                    .iter()
+                    .all(|id| elem.id.as_deref() == Some(*id));
+
+                // Check all required element types match
+                let elements_match = all_required_elements.iter().all(|tag| {
+                    if elem.is_dynamic_tag {
+                        true // Dynamic tag could be anything
+                    } else {
+                        elem.tag_name.eq_ignore_ascii_case(tag)
+                    }
+                });
+
+                classes_match && ids_match && elements_match
+            });
+
+            if !any_element_matches {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+/// Check if a "pure nesting" selector (all relative selectors are NestingSelectors
+/// with descendant combinators, like `& &`) is unused.
+///
+/// When `& &` appears inside a nesting context, it resolves to the full parent chain
+/// repeated with a descendant combinator. For example, `& &` inside `.c` inside `& .b`
+/// inside `.a` resolves to `.a .b .c .a .b .c`. This requires the parent chain to appear
+/// as both the subject and an ancestor, which is often impossible in the actual DOM.
+///
+/// This function checks whether any DOM element matching the parent chain's subject
+/// has ancestors that also match the full parent chain.
+fn is_pure_nesting_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
+    let parent_preludes = ctx.parent_preludes.borrow();
+    if parent_preludes.is_empty() {
+        return false;
+    }
+
+    // Check if this is a "pure nesting" selector: all relative selectors contain
+    // only NestingSelector, with descendant combinators between them
+    if rel_selectors.len() < 2 {
+        return false;
+    }
+
+    let all_nesting = rel_selectors.iter().all(|rel| {
+        if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
+            selectors.len() == 1
+                && selectors.first().is_some_and(|s| {
+                    s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector")
+                })
+        } else {
+            false
+        }
+    });
+
+    if !all_nesting {
+        return false;
+    }
+
+    // All combinators must be descendant (space) combinators
+    let all_descendant = rel_selectors.iter().skip(1).all(|rel| {
+        let comb = rel.get("combinator");
+        match comb {
+            None => true, // No combinator = implicit descendant
+            Some(c) => c.get("name").and_then(|n| n.as_str()).unwrap_or(" ") == " ",
+        }
+    });
+
+    if !all_descendant {
+        return false;
+    }
+
+    // Collect the full parent chain constraints: walk all parent preludes to build
+    // the chain of class/id/element requirements at each level
+    // For `.a { & .b { .c { & & {} } } }`, the chain is: [.a, .b, .c]
+    // The `& &` means we need .a .b .c .a .b .c in the DOM
+
+    // Collect subject constraints from each parent prelude level
+    let mut chain_classes: Vec<Vec<String>> = Vec::new();
+
+    for pp in parent_preludes.iter() {
+        let mut classes = Vec::new();
+        let mut ids = Vec::new();
+        let mut elements = Vec::new();
+        extract_selector_constraints(pp, &mut classes, &mut ids, &mut elements);
+        chain_classes.push(classes);
+    }
+
+    // For the `& &` pattern, we need the full chain to appear twice in the DOM.
+    // Check if any DOM element matching the deepest parent's constraints has an
+    // ancestor chain that can accommodate the full chain repeated.
+
+    // Simple heuristic: collect ALL unique class requirements from the chain
+    // and check if there's a DOM element whose ancestor chain includes all
+    // these classes at the required nesting depth.
+    // For simplicity, check if the total chain depth * (number of & selectors)
+    // exceeds the maximum DOM depth of matching elements.
+    let chain_depth = parent_preludes.len();
+    let nesting_count = rel_selectors.len(); // number of & selectors
+
+    // Total required depth: chain_depth * nesting_count
+    // (each & expands to the full parent chain)
+    let required_depth = chain_depth * nesting_count;
+
+    // Find the maximum depth any matching element can have
+    // An element's depth is the number of ancestors it has
+    for elem in &ctx.dom_structure.elements {
+        // Check if this element could be the subject (matches the deepest constraint)
+        let empty_vec = Vec::new();
+        let deepest_classes = chain_classes.last().unwrap_or(&empty_vec);
+        let matches_deepest = deepest_classes.is_empty()
+            || deepest_classes
+                .iter()
+                .all(|c| elem.classes.contains(c.as_str()));
+
+        if !matches_deepest {
+            continue;
+        }
+
+        // Count ancestors
+        let mut depth = 0;
+        let mut current_idx = elem.parent_idx;
+        while let Some(idx) = current_idx {
+            if idx < ctx.dom_structure.elements.len() {
+                depth += 1;
+                current_idx = ctx.dom_structure.elements[idx].parent_idx;
+            } else {
+                break;
+            }
+        }
+
+        // If the element's depth (plus 1 for the element itself) is enough
+        // to accommodate the required chain, it's potentially used
+        if depth + 1 >= required_depth {
+            return false;
+        }
+    }
+
+    // No element has enough depth to accommodate the repeated nesting chain
+    true
+}
+
+/// Extract class, id, and element constraints from a CSS prelude (selector list).
+/// This extracts the simple selector requirements from the LAST relative selector
+/// of each complex selector in the prelude (the "subject" of the selector).
+fn extract_selector_constraints(
+    prelude: &Value,
+    classes: &mut Vec<String>,
+    ids: &mut Vec<String>,
+    elements: &mut Vec<String>,
+) {
+    if let Some(children) = prelude.get("children").and_then(|c| c.as_array()) {
+        for complex in children {
+            if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) {
+                // The last relative selector is the "subject" - the element the rule applies to
+                // For `.a .b .c`, the subject is `.c`
+                // For a simple selector like `.a`, the subject is `.a`
+                if let Some(last_rel) = rel_selectors.last()
+                    && let Some(selectors) = last_rel.get("selectors").and_then(|s| s.as_array())
+                {
+                    for sel in selectors {
+                        let sel_type = sel.get("type").and_then(|t| t.as_str());
+                        match sel_type {
+                            Some("ClassSelector") => {
+                                if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                                    classes.push(decode_css_escape(name));
+                                }
+                            }
+                            Some("IdSelector") => {
+                                if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                                    ids.push(decode_css_escape(name));
+                                }
+                            }
+                            Some("TypeSelector") => {
+                                if let Some(name) = sel.get("name").and_then(|n| n.as_str())
+                                    && name != "*"
+                                {
+                                    elements.push(decode_css_escape(name));
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// This is true when the element after :host > is not a direct child of the component root
 fn is_host_child_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
     if rel_selectors.len() < 2 {
@@ -1153,14 +1499,21 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
 
             // When there are opaque boundaries (slots, components, render tags),
             // :global(X) could be from any slot/component. Check if Y matches
-            // any element in the template that could be a sibling of a slot/component.
+            // an element that is adjacent to (for +) or following (for ~) an opaque boundary.
             if ctx.has_opaque_sibling_boundaries {
-                let matches_any = ctx
-                    .dom_structure
-                    .elements
-                    .iter()
-                    .any(|el| selector_matches_element(&second_info, el));
-                return !matches_any;
+                let matches = ctx.dom_structure.elements.iter().any(|el| {
+                    if !selector_matches_element(&second_info, el) {
+                        return false;
+                    }
+                    if combinator == "+" {
+                        // For + combinator, Y must be immediately after an opaque boundary
+                        el.prev_is_opaque_boundary
+                    } else {
+                        // For ~ combinator, Y must be somewhere after an opaque boundary
+                        el.prev_has_opaque_boundary
+                    }
+                });
+                return !matches;
             }
 
             // Without opaque boundaries, check if Y matches a root-level element
@@ -1177,15 +1530,6 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
 
     // For other :global() patterns, skip the unused check (too complex)
     if first_is_global {
-        return false;
-    }
-
-    // If there are opaque sibling boundaries (slots, snippets, render tags, or
-    // non-exhaustive await blocks), be conservative. Phase 2 uses separate fragment
-    // paths for these constructs, so sibling relationships across them can't be
-    // reliably detected. For simple control flow (if/each/exhaustive await), Phase 2
-    // correctly computes sibling relationships via possible_next_adjacent/general.
-    if ctx.has_opaque_sibling_boundaries {
         return false;
     }
 
@@ -1261,8 +1605,11 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
         // so we check: does any element matching 'after' have 'before' as a prev sibling?
 
         // Find all elements that match 'after' selector
+        let mut found_after_element = false;
+        let mut any_after_has_incomplete_siblings = false;
         for el in ctx.dom_structure.elements.iter() {
             if selector_matches_element(&after_info, el) {
+                found_after_element = true;
                 // Check possible previous siblings based on combinator type
                 let possible_siblings = if combinator == "+" {
                     &el.possible_prev_adjacent
@@ -1279,14 +1626,155 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
                         return false; // Found a match, not unused
                     }
                 }
+
+                // If this element has empty sibling lists AND there are opaque boundaries,
+                // Phase 2 may not have complete sibling data for this element
+                // (e.g., it's inside a snippet that breaks sibling walking)
+                if ctx.has_opaque_sibling_boundaries
+                    && el.possible_prev_adjacent.is_empty()
+                    && el.possible_prev_general.is_empty()
+                    && el.possible_next_adjacent.is_empty()
+                    && el.possible_next_general.is_empty()
+                {
+                    any_after_has_incomplete_siblings = true;
+                }
             }
         }
 
-        // No matching sibling relationship found
+        // If no elements match 'after', check 'before' direction too
+        if !found_after_element {
+            // Also check forward: do any 'before' elements have 'after' as next sibling?
+            let mut found_before_element = false;
+            for el in ctx.dom_structure.elements.iter() {
+                if selector_matches_element(&before_info, el) {
+                    found_before_element = true;
+                    let possible_siblings = if combinator == "+" {
+                        &el.possible_next_adjacent
+                    } else {
+                        &el.possible_next_general
+                    };
+                    for (sibling_idx, _certainty) in possible_siblings {
+                        if let Some(sibling) = ctx.dom_structure.elements.get(*sibling_idx)
+                            && selector_matches_element(&after_info, sibling)
+                        {
+                            return false; // Found a match
+                        }
+                    }
+                    // Check for incomplete siblings
+                    if ctx.has_opaque_sibling_boundaries
+                        && el.possible_prev_adjacent.is_empty()
+                        && el.possible_prev_general.is_empty()
+                        && el.possible_next_adjacent.is_empty()
+                        && el.possible_next_general.is_empty()
+                    {
+                        any_after_has_incomplete_siblings = true;
+                    }
+                }
+            }
+            if !found_before_element {
+                // Neither element exists in template at all - can't be siblings
+                // But be conservative with opaque boundaries
+                if ctx.has_opaque_sibling_boundaries {
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        // No matching sibling relationship found from Phase 2 data
+        // If there are opaque boundaries and some elements have incomplete sibling data,
+        // be conservative (the elements might be siblings across opaque content)
+        if ctx.has_opaque_sibling_boundaries && any_after_has_incomplete_siblings {
+            return false;
+        }
+
         return true;
     }
 
-    // For complex cases with multiple sibling combinators, be conservative
+    // If there are opaque sibling boundaries (slots, snippets, render tags),
+    // be conservative with multi-sibling chains - the Phase 2 data may be incomplete.
+    if ctx.has_opaque_sibling_boundaries {
+        return false;
+    }
+
+    // For complex cases with multiple sibling combinators (e.g., .g + .h + .i + .j),
+    // check each consecutive sibling pair. If ANY pair is impossible, the whole chain is unused.
+    // Walk through pairs: for N relative selectors with sibling combinators between them,
+    // check if each adjacent pair (A + B, B + C, C + D, ...) has valid sibling relationships.
+    for pair in sibling_pairs.windows(2) {
+        let (_idx_a, _comb_a) = pair[0];
+        let (idx_b, comb_b) = pair[1];
+
+        // Check the pair: the "before" element for this pair is the selector at idx_b - 1,
+        // and the "after" element is at idx_b
+        let before = &rel_selectors[idx_b - 1];
+        let after = &rel_selectors[idx_b];
+        let before_info = extract_selector_info(before);
+        let after_info = extract_selector_info(after);
+
+        // Check if any element matching 'after' has 'before' as a possible previous sibling
+        let mut found_match = false;
+        for el in ctx.dom_structure.elements.iter() {
+            if selector_matches_element(&after_info, el) {
+                let possible_siblings = if comb_b == "+" {
+                    &el.possible_prev_adjacent
+                } else {
+                    &el.possible_prev_general
+                };
+                for (sibling_idx, _certainty) in possible_siblings {
+                    if let Some(sibling) = ctx.dom_structure.elements.get(*sibling_idx)
+                        && selector_matches_element(&before_info, sibling)
+                    {
+                        found_match = true;
+                        break;
+                    }
+                }
+                if found_match {
+                    break;
+                }
+            }
+        }
+
+        if !found_match {
+            return true; // This pair is impossible, so the whole chain is unused
+        }
+    }
+
+    // Also check the first pair in the chain
+    if !sibling_pairs.is_empty() {
+        let (first_idx, first_comb) = sibling_pairs[0];
+        let before = &rel_selectors[first_idx - 1];
+        let after = &rel_selectors[first_idx];
+        let before_info = extract_selector_info(before);
+        let after_info = extract_selector_info(after);
+
+        let mut found_match = false;
+        for el in ctx.dom_structure.elements.iter() {
+            if selector_matches_element(&after_info, el) {
+                let possible_siblings = if first_comb == "+" {
+                    &el.possible_prev_adjacent
+                } else {
+                    &el.possible_prev_general
+                };
+                for (sibling_idx, _certainty) in possible_siblings {
+                    if let Some(sibling) = ctx.dom_structure.elements.get(*sibling_idx)
+                        && selector_matches_element(&before_info, sibling)
+                    {
+                        found_match = true;
+                        break;
+                    }
+                }
+                if found_match {
+                    break;
+                }
+            }
+        }
+
+        if !found_match {
+            return true;
+        }
+    }
+
     false
 }
 
@@ -1524,6 +2012,20 @@ fn is_descendant_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
 
     // Check based on combinator type
     for parent_idx in &parent_indices {
+        let parent_el = &ctx.dom_structure.elements[*parent_idx];
+
+        // If the parent has opaque content (render tags, slots, components),
+        // it could have any element as a descendant at runtime - be conservative
+        if parent_el.has_opaque_content {
+            return false;
+        }
+
+        // Also check ancestors: if any ancestor has opaque content,
+        // the parent itself could receive unknown descendants via render tags
+        if has_opaque_ancestor(ctx, *parent_idx) {
+            return false;
+        }
+
         if is_universal_pseudo {
             // Universal pseudo (like :not()) matches any element
             // Check if parent has any children at all
@@ -1599,6 +2101,15 @@ fn has_direct_child_with_tag(ctx: &CssContext, parent_idx: usize, tag_name: &str
         }
     }
 
+    // Special handling for <selectedcontent>: also check <option> descendants in parent <select>
+    if element.tag_name == "selectedcontent" {
+        for option_idx in find_option_elements_for_selectedcontent(ctx, parent_idx) {
+            if has_direct_child_with_tag(ctx, option_idx, tag_name) {
+                return true;
+            }
+        }
+    }
+
     false
 }
 
@@ -1619,13 +2130,35 @@ fn has_descendant_with_tag(ctx: &CssContext, parent_idx: usize, tag_name: &str) 
         }
     }
 
+    // Special handling for <selectedcontent>: also check <option> descendants in parent <select>
+    if element.tag_name == "selectedcontent" {
+        for option_idx in find_option_elements_for_selectedcontent(ctx, parent_idx) {
+            if has_descendant_with_tag(ctx, option_idx, tag_name) {
+                return true;
+            }
+        }
+    }
+
     false
 }
 
 /// Check if an element has any direct children (elements, not text nodes)
 fn has_any_direct_child(ctx: &CssContext, parent_idx: usize) -> bool {
     let element = &ctx.dom_structure.elements[parent_idx];
-    !element.children_idx.is_empty()
+    if !element.children_idx.is_empty() {
+        return true;
+    }
+
+    // Special handling for <selectedcontent>
+    if element.tag_name == "selectedcontent" {
+        for option_idx in find_option_elements_for_selectedcontent(ctx, parent_idx) {
+            if has_any_direct_child(ctx, option_idx) {
+                return true;
+            }
+        }
+    }
+
+    false
 }
 
 /// Check if an element has any descendants (elements, not text nodes)
@@ -1638,7 +2171,68 @@ fn has_any_descendant(ctx: &CssContext, parent_idx: usize) -> bool {
         }
     }
 
+    // Special handling for <selectedcontent>
+    if element.tag_name == "selectedcontent" {
+        for option_idx in find_option_elements_for_selectedcontent(ctx, parent_idx) {
+            if has_any_descendant(ctx, option_idx) {
+                return true;
+            }
+        }
+    }
+
     false
+}
+
+/// Check if any ancestor of the given element has opaque content
+/// (render tags, slots, components that can inject unknown children)
+fn has_opaque_ancestor(ctx: &CssContext, element_idx: usize) -> bool {
+    let mut current = element_idx;
+    while let Some(parent) = ctx.dom_structure.elements[current].parent_idx {
+        if ctx.dom_structure.elements[parent].has_opaque_content {
+            return true;
+        }
+        current = parent;
+    }
+    false
+}
+
+/// For a <selectedcontent> element, find <option> elements in the ancestor <select>.
+/// <selectedcontent> clones the content of the selected <option>, so descendants of
+/// <option> elements should also be considered as potential descendants.
+fn find_option_elements_for_selectedcontent(ctx: &CssContext, sc_idx: usize) -> Vec<usize> {
+    let mut options = Vec::new();
+
+    // Walk up to find the ancestor <select>
+    let mut current = sc_idx;
+    let mut select_idx = None;
+    while let Some(parent) = ctx.dom_structure.elements[current].parent_idx {
+        if ctx.dom_structure.elements[parent].tag_name == "select" {
+            select_idx = Some(parent);
+            break;
+        }
+        current = parent;
+    }
+
+    if let Some(select_idx) = select_idx {
+        // Find all <option> descendants of <select>
+        collect_option_descendants(ctx, select_idx, &mut options);
+    }
+
+    options
+}
+
+/// Recursively collect <option> element indices from descendants
+fn collect_option_descendants(ctx: &CssContext, parent_idx: usize, options: &mut Vec<usize>) {
+    let element = &ctx.dom_structure.elements[parent_idx];
+    for &child_idx in &element.children_idx {
+        if child_idx < ctx.dom_structure.elements.len() {
+            let child = &ctx.dom_structure.elements[child_idx];
+            if child.tag_name == "option" {
+                options.push(child_idx);
+            }
+            collect_option_descendants(ctx, child_idx, options);
+        }
+    }
 }
 
 /// Check if a relative selector is a universal pseudo-class (like :not())
@@ -1736,13 +2330,10 @@ fn is_has_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
         return false;
     }
 
-    // When there are opaque boundaries (render tags, slots, components),
-    // the DOM structure is incomplete - elements from rendered content may appear
-    // in unexpected places, so we can't reliably prune :has() selectors.
-    // Even sibling checks can be affected when render tags create recursive content.
-    if ctx.has_opaque_sibling_boundaries {
-        return false;
-    }
+    // Note: We no longer bail out entirely for opaque boundaries.
+    // Instead, individual checks below handle opaque boundaries appropriately.
+    // For descendant/child :has() arguments with opaque boundaries, we're conservative.
+    // For sibling :has() arguments, we use Phase 2 sibling data when available.
 
     // Find relative selectors that contain :has()
     for rel in rel_selectors.iter() {
@@ -1761,12 +2352,56 @@ fn is_has_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
                     continue;
                 };
 
+                // If any :has() argument contains a NestingSelector (&), we can't resolve it
+                // through the DOM structure since & refers to the parent CSS rule, not an HTML element.
+                // Be conservative and treat such selectors as potentially used.
+                let has_nesting_in_args = has_children.iter().any(|complex| {
+                    if let Some(rels) = complex.get("children").and_then(|c| c.as_array()) {
+                        rels.iter().any(|rel| {
+                            if let Some(sels) = rel.get("selectors").and_then(|s| s.as_array()) {
+                                sels.iter().any(|s| {
+                                    s.get("type").and_then(|t| t.as_str())
+                                        == Some("NestingSelector")
+                                })
+                            } else {
+                                false
+                            }
+                        })
+                    } else {
+                        false
+                    }
+                });
+                if has_nesting_in_args {
+                    continue; // Can't determine unused status, skip
+                }
+
                 // Get the subject element info (selectors in this relative selector EXCLUDING :has)
                 let subject_info = extract_selector_info_from_selectors(selectors);
 
-                // Also consider any preceding selectors for context
-                // For now, just check the subject element
-                // Find all elements that match the subject
+                // Check if the subject is :root or :global(.foo) (no tag/class/id from DOM elements)
+                let subject_is_root = selectors.iter().any(|s| {
+                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                        && s.get("name").and_then(|n| n.as_str()) == Some("root")
+                });
+                let subject_is_global = selectors.iter().any(|s| {
+                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                        && s.get("name").and_then(|n| n.as_str()) == Some("global")
+                        && s.get("args").is_some()
+                });
+
+                // For :root:has() or :global(.foo):has(), the subject is the document root
+                // or an external element. Check if :has() arguments exist anywhere
+                // in the template using simple element existence checks.
+                if subject_is_root || subject_is_global {
+                    let all_has_args_unused = has_children
+                        .iter()
+                        .all(|has_complex| is_has_argument_unused_globally(has_complex, ctx));
+                    if all_has_args_unused && !has_children.is_empty() {
+                        return true;
+                    }
+                    continue;
+                }
+
                 let subject_elements: Vec<usize> = ctx
                     .dom_structure
                     .elements
@@ -1795,6 +2430,23 @@ fn is_has_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
                     continue;
                 }
 
+                // When subject is empty (just pseudo-classes like standalone :has()),
+                // use global check since any element could be the subject
+                if subject_elements.is_empty()
+                    && subject_info.tag_name.is_none()
+                    && subject_info.classes.is_empty()
+                    && subject_info.id.is_none()
+                    && !subject_info.is_universal
+                {
+                    let all_has_args_unused = has_children
+                        .iter()
+                        .all(|has_complex| is_has_argument_unused_globally(has_complex, ctx));
+                    if all_has_args_unused && !has_children.is_empty() {
+                        return true;
+                    }
+                    continue;
+                }
+
                 // Check if ANY :has() argument can match within any subject element's subtree
                 let all_has_args_unused = has_children
                     .iter()
@@ -1808,6 +2460,94 @@ fn is_has_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
     }
 
     false
+}
+
+/// Check if a :has() argument is unused when the subject is :root or :global
+/// (i.e., the entire template is the scope).
+/// For descendant/child :has() arguments, check if the element exists anywhere.
+/// For sibling :has() arguments, check if sibling relationships exist.
+fn is_has_argument_unused_globally(has_complex: &Value, ctx: &CssContext) -> bool {
+    let Some(rel_selectors) = has_complex.get("children").and_then(|c| c.as_array()) else {
+        return false;
+    };
+
+    if rel_selectors.is_empty() {
+        return false;
+    }
+
+    // If any relative selector contains a NestingSelector (&), we can't resolve it
+    // through the DOM structure. Be conservative and treat as potentially used.
+    for rel in rel_selectors {
+        if let Some(sels) = rel.get("selectors").and_then(|s| s.as_array())
+            && sels
+                .iter()
+                .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
+        {
+            return false;
+        }
+    }
+
+    let first = &rel_selectors[0];
+    let combinator = first
+        .get("combinator")
+        .and_then(|c| c.get("name"))
+        .and_then(|n| n.as_str())
+        .unwrap_or(" ");
+
+    let first_info = extract_selector_info(first);
+
+    // Handle :global() arguments - always potentially used
+    if let Some(selectors) = first.get("selectors").and_then(|s| s.as_array()) {
+        let is_global = selectors.first().is_some_and(|s| {
+            s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                && s.get("name").and_then(|n| n.as_str()) == Some("global")
+        });
+        if is_global {
+            return false;
+        }
+    }
+
+    // For descendant/child selectors from :root/:global context,
+    // the element just needs to exist anywhere in the template
+    match combinator {
+        " " | ">" => {
+            // Check if any element in the template matches
+            let matches = ctx
+                .dom_structure
+                .elements
+                .iter()
+                .any(|el| selector_matches_element(&first_info, el));
+            if !matches {
+                return true;
+            }
+            // If there are more parts, we'd need to check them too,
+            // but for simple single-selector :has(), this is enough
+            false
+        }
+        "+" | "~" => {
+            // For sibling selectors from :root/:global context,
+            // check if any root-level element has matching siblings
+            for el in ctx.dom_structure.elements.iter() {
+                if !el.is_root_child {
+                    continue;
+                }
+                let possible_siblings = if combinator == "+" {
+                    &el.possible_next_adjacent
+                } else {
+                    &el.possible_next_general
+                };
+                for (sibling_idx, _) in possible_siblings {
+                    if let Some(sibling) = ctx.dom_structure.elements.get(*sibling_idx)
+                        && selector_matches_element(&first_info, sibling)
+                    {
+                        return false; // Found a match
+                    }
+                }
+            }
+            true
+        }
+        _ => false,
+    }
 }
 
 /// Check if a :has() argument is unused relative to the subject elements.
@@ -1888,6 +2628,16 @@ fn is_has_argument_unused(
                         return false; // Found a match
                     }
                 }
+                // If opaque boundaries exist and this element has incomplete sibling data,
+                // be conservative - elements from render tags/slots could be siblings
+                if ctx.has_opaque_sibling_boundaries
+                    && subject.possible_next_adjacent.is_empty()
+                    && subject.possible_next_general.is_empty()
+                    && subject.possible_prev_adjacent.is_empty()
+                    && subject.possible_prev_general.is_empty()
+                {
+                    return false; // Conservative: sibling data may be incomplete
+                }
             }
             true // No match found
         }
@@ -1901,6 +2651,16 @@ fn is_has_argument_unused(
                     {
                         return false; // Found a match
                     }
+                }
+                // If opaque boundaries exist and this element has incomplete sibling data,
+                // be conservative
+                if ctx.has_opaque_sibling_boundaries
+                    && subject.possible_next_adjacent.is_empty()
+                    && subject.possible_next_general.is_empty()
+                    && subject.possible_prev_adjacent.is_empty()
+                    && subject.possible_prev_general.is_empty()
+                {
+                    return false; // Conservative: sibling data may be incomplete
                 }
             }
             true // No match found
@@ -2013,6 +2773,16 @@ fn has_matching_descendant(parent_idx: usize, info: &SelectorInfo, ctx: &CssCont
             }
         }
     }
+
+    // Special handling for <selectedcontent>: also check <option> descendants in parent <select>
+    if parent.tag_name == "selectedcontent" {
+        for option_idx in find_option_elements_for_selectedcontent(ctx, parent_idx) {
+            if has_matching_descendant(option_idx, info, ctx) {
+                return true;
+            }
+        }
+    }
+
     false
 }
 
@@ -2427,8 +3197,8 @@ fn is_is_inner_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
 
 /// Transform a CSS rule while preserving whitespace from source
 #[allow(clippy::too_many_arguments)]
-fn transform_rule_preserving(
-    node: &Value,
+fn transform_rule_preserving<'a>(
+    node: &'a Value,
     selector: &str,
     hash: &str,
     css_source: &str,
@@ -2436,7 +3206,7 @@ fn transform_rule_preserving(
     output: &mut String,
     specificity_bumped: &mut bool,
     last_end: &mut usize,
-    ctx: &CssContext,
+    ctx: &CssContext<'a>,
     parent_has_local_selectors: bool,
     is_in_global_block: bool,
     is_in_bare_global_block: bool,
@@ -2569,6 +3339,9 @@ fn transform_rule_preserving(
                 let current_has_local = rule_has_local_selectors(node);
                 let nested_parent_has_local = parent_has_local_selectors || current_has_local;
 
+                // Push this rule's prelude for NestingSelector resolution in nested rules
+                ctx.parent_preludes.borrow_mut().push(prelude);
+
                 // Process the block recursively
                 transform_block_with_nested_rules(
                     block,
@@ -2583,6 +3356,9 @@ fn transform_rule_preserving(
                     nested_parent_has_local,
                     nested_in_bare_global_block,
                 );
+
+                // Pop the prelude after processing
+                ctx.parent_preludes.borrow_mut().pop();
             } else {
                 // Copy the entire block from source (including braces and content)
                 let blk_start = block_start.saturating_sub(css_start);
@@ -2599,15 +3375,15 @@ fn transform_rule_preserving(
 
 /// Transform a block that contains nested rules
 #[allow(clippy::too_many_arguments)]
-fn transform_block_with_nested_rules(
-    block: &Value,
+fn transform_block_with_nested_rules<'a>(
+    block: &'a Value,
     selector: &str,
     hash: &str,
     css_source: &str,
     css_start: usize,
     output: &mut String,
     specificity_bumped: &mut bool,
-    ctx: &CssContext,
+    ctx: &CssContext<'a>,
     is_in_global_block: bool,
     parent_has_local_selectors: bool,
     is_in_bare_global_block: bool,
@@ -2770,8 +3546,8 @@ fn transform_global_block(
 
 /// Transform an at-rule while preserving whitespace
 #[allow(clippy::too_many_arguments)]
-fn transform_atrule_preserving(
-    node: &Value,
+fn transform_atrule_preserving<'a>(
+    node: &'a Value,
     selector: &str,
     hash: &str,
     css_source: &str,
@@ -2779,7 +3555,7 @@ fn transform_atrule_preserving(
     output: &mut String,
     specificity_bumped: &mut bool,
     last_end: &mut usize,
-    ctx: &CssContext,
+    ctx: &CssContext<'a>,
 ) {
     let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
@@ -2943,8 +3719,19 @@ fn transform_selector_list(
         let mut all_unused = true;
         let mut unused_buffer = String::new();
         let mut has_output = false;
+        // Track the end position of the last processed selector for source preservation
+        let mut last_selector_end: Option<usize> = None;
 
         for complex_selector in children.iter() {
+            let sel_start = complex_selector
+                .get("start")
+                .and_then(|s| s.as_u64())
+                .unwrap_or(0) as usize;
+            let sel_end = complex_selector
+                .get("end")
+                .and_then(|e| e.as_u64())
+                .unwrap_or(0) as usize;
+
             // Check if this individual selector is unused
             // Skip unused check when inside a bare :global {} block
             let is_unused =
@@ -2982,7 +3769,20 @@ fn transform_selector_list(
                 }
                 // Output separator if not first (only when no unused prefix was flushed)
                 else if has_output {
-                    result.push_str(separator);
+                    // Preserve the original text between selectors (including comments)
+                    if let Some(prev_end) = last_selector_end {
+                        let between_start = prev_end.saturating_sub(css_start);
+                        let between_end = sel_start.saturating_sub(css_start);
+                        if between_end <= css_source.len() && between_start < between_end {
+                            let between = &css_source[between_start..between_end];
+                            // The between text should contain a comma - preserve it with comments
+                            result.push_str(between);
+                        } else {
+                            result.push_str(separator);
+                        }
+                    } else {
+                        result.push_str(separator);
+                    }
                 }
                 // Output the transformed selector
                 result.push_str(&transform_complex_selector(
@@ -2997,6 +3797,7 @@ fn transform_selector_list(
                     Some(ctx),
                 ));
                 has_output = true;
+                last_selector_end = Some(sel_end);
             }
         }
 
@@ -3012,6 +3813,20 @@ fn transform_selector_list(
                 result.push_str(" /* (unused) ");
                 result.push_str(&unused_buffer);
                 result.push_str("*/");
+            }
+        }
+
+        // Preserve any trailing content after the last selector but within the prelude
+        // (e.g., comments after the last selector like `.bar /* comment */ {`)
+        if let Some(last_end) = last_selector_end {
+            let trailing_start = last_end.saturating_sub(css_start);
+            let trailing_end = prelude_end.saturating_sub(css_start);
+            if trailing_end <= css_source.len() && trailing_start < trailing_end {
+                let trailing = &css_source[trailing_start..trailing_end];
+                // Only append if there's meaningful content (comments), not just whitespace
+                if trailing.contains("/*") {
+                    result.push_str(trailing);
+                }
             }
         }
     } else {
@@ -3255,6 +4070,10 @@ fn transform_complex_selector(
             {
                 if name == " " {
                     result.push(' ');
+                } else if result.is_empty() {
+                    // First combinator at start (e.g., "> nav" as a nested selector)
+                    // Don't add leading space
+                    result.push_str(&format!("{} ", name));
                 } else {
                     result.push_str(&format!(" {} ", name));
                 }
@@ -3416,7 +4235,7 @@ fn transform_complex_selector(
                             // Skip if has nesting selector - it inherits scoping from parent
                             if needs_scoping && !has_nesting && Some(idx) == last_non_pseudo_idx {
                                 let modifier = get_modifier(selector, &local_specificity_bumped);
-                                selector_parts.push_str(&modifier);
+                                append_modifier(&mut selector_parts, &modifier);
                                 local_specificity_bumped = true;
                             }
                         }
@@ -3478,7 +4297,7 @@ fn transform_complex_selector(
                             // After :global(), use direct class (not :where())
                             let should_use_where = local_specificity_bumped && !seen_global;
                             let modifier = get_modifier(selector, &should_use_where);
-                            selector_parts.push_str(&modifier);
+                            append_modifier(&mut selector_parts, &modifier);
                             local_specificity_bumped = true;
                             seen_global = false;
                         }
@@ -3494,13 +4313,21 @@ fn transform_complex_selector(
                             if needs_scoping {
                                 // Replace * with the scoping selector
                                 let modifier = get_modifier(selector, &local_specificity_bumped);
-                                selector_parts.push_str(&modifier);
+                                append_modifier(&mut selector_parts, &modifier);
                                 local_specificity_bumped = true;
                             } else {
                                 selector_parts.push('*');
                             }
                             continue;
                         }
+
+                        // When a relative selector has a NestingSelector (&) and
+                        // specificity hasn't been bumped yet, pseudo-class arguments
+                        // like :has() should use direct class because the & inherits
+                        // scoping from parent and doesn't add its own scope - so the
+                        // :has() content is the first scoping point.
+                        let effective_use_direct = has_global_anywhere
+                            || (has_nesting_selector && !local_specificity_bumped);
 
                         selector_parts.push_str(&format_simple_selector_with_scope(
                             sel,
@@ -3509,7 +4336,7 @@ fn transform_complex_selector(
                             Some(css_start),
                             0,
                             ctx,
-                            has_global_anywhere, // Use direct class if any part has :global()
+                            effective_use_direct,
                             local_specificity_bumped,
                         ));
 
@@ -3522,7 +4349,7 @@ fn transform_complex_selector(
                         {
                             let should_use_where = local_specificity_bumped && !seen_global;
                             let modifier = get_modifier(selector, &should_use_where);
-                            selector_parts.push_str(&modifier);
+                            append_modifier(&mut selector_parts, &modifier);
                             local_specificity_bumped = true;
                             // After using direct class following :global(), subsequent selectors should use :where()
                             seen_global = false;
@@ -3545,6 +4372,60 @@ fn transform_complex_selector(
     result
 }
 
+/// Check if a string ends with a CSS hex escape sequence that would require a space
+/// separator before appending a class/id selector.
+///
+/// CSS escape sequences like `\31\32\33` (representing "123") consume up to 6 hex digits
+/// after the backslash. If followed by another hex digit or a character that could be
+/// confused as part of the escape (like `.` which starts a class), the browser may
+/// misparse. The official Svelte compiler adds a space in this situation.
+///
+/// For example: `#\31\32\33` + `.svelte-hash` would be misread; it needs to be
+/// `#\31\32\33 .svelte-hash`.
+fn ends_with_css_hex_escape(text: &str) -> bool {
+    // Walk FORWARD through the string, tracking escape sequences.
+    // Return true if the string ends with hex digits that are part of a CSS escape
+    // (i.e., \HH where HH are hex digits and the escape has consumed fewer than 6 digits
+    // without a whitespace terminator).
+    let chars: Vec<char> = text.chars().collect();
+    let len = chars.len();
+    if len < 2 {
+        return false;
+    }
+
+    let mut i = 0;
+    while i < len {
+        if chars[i] == '\\' && i + 1 < len {
+            i += 1; // skip backslash
+            if chars[i].is_ascii_hexdigit() {
+                // Hex escape: consume up to 6 hex digits
+                let start = i;
+                let mut hex_count = 0;
+                while i < len && hex_count < 6 && chars[i].is_ascii_hexdigit() {
+                    i += 1;
+                    hex_count += 1;
+                }
+                // If we've reached the end of the string, the escape is unterminated
+                if i == len {
+                    return true;
+                }
+                // Consume optional single whitespace terminator
+                if chars[i] == ' ' || chars[i] == '\t' || chars[i] == '\n' {
+                    i += 1;
+                }
+                // Otherwise the escape is fully terminated, continue
+                let _ = start; // suppress unused warning
+            } else {
+                // Single-char escape (e.g., \. or \@) - skip the escaped char
+                i += 1;
+            }
+        } else {
+            i += 1;
+        }
+    }
+    false
+}
+
 /// Get the modifier for specificity bumping
 fn get_modifier(selector: &str, specificity_bumped: &bool) -> String {
     if *specificity_bumped {
@@ -3552,6 +4433,20 @@ fn get_modifier(selector: &str, specificity_bumped: &bool) -> String {
     } else {
         selector.to_string()
     }
+}
+
+/// Append a CSS scope modifier to a selector string, adding a space separator
+/// if needed to avoid CSS escape sequence ambiguity.
+fn append_modifier(target: &mut String, modifier: &str) {
+    // If the modifier starts with . or # (direct class/id, not :where()),
+    // and the target ends with a CSS hex escape, we need a space separator.
+    if !modifier.is_empty()
+        && (modifier.starts_with('.') || modifier.starts_with('#'))
+        && ends_with_css_hex_escape(target)
+    {
+        target.push(' ');
+    }
+    target.push_str(modifier);
 }
 
 /// Format a simple selector
@@ -3890,6 +4785,11 @@ fn transform_is_not_complex_selector(
                         && s.get("name").and_then(|n| n.as_str()) == Some("global")
                 });
 
+                // Check if any selector in this relative selector is a NestingSelector
+                let has_nesting = selectors
+                    .iter()
+                    .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"));
+
                 if is_global {
                     // Handle :global() - extract inner content without scoping
                     for sel in selectors {
@@ -3902,6 +4802,12 @@ fn transform_is_not_complex_selector(
                         } else {
                             result.push_str(&format_simple_selector(sel));
                         }
+                    }
+                } else if has_nesting {
+                    // NestingSelector (&) inherits scoping from the parent rule.
+                    // Don't add any additional scoping - just output the selectors as-is.
+                    for sel in selectors {
+                        result.push_str(&format_simple_selector(sel));
                     }
                 } else if should_scope {
                     // Add :where() scoping for complex selectors
@@ -4148,6 +5054,7 @@ mod tests {
                 has_control_flow: false,
                 has_opaque_sibling_boundaries: false,
                 dom_structure: &dom_structure,
+                parent_preludes: std::cell::RefCell::new(Vec::new()),
             };
             let output = transform_css(&children, selector, hash, &css_content, css_start, &ctx);
             println!("CSS Output:\n{}", output);
@@ -4187,6 +5094,7 @@ mod tests {
                 has_control_flow: false,
                 has_opaque_sibling_boundaries: false,
                 dom_structure: &dom_structure,
+                parent_preludes: std::cell::RefCell::new(Vec::new()),
             };
             let output = transform_css(&children, selector, hash, &css_content, css_start, &ctx);
             println!("CSS Output:\n{}", output);

@@ -1534,9 +1534,18 @@ pub struct CssDomElement {
     pub possible_next_general: Vec<(usize, SiblingCertainty)>,
     /// Whether this element has content (non-empty children)
     pub has_content: bool,
+    /// Whether this element contains render tags, slots, or components that can inject
+    /// unknown element content. Used to be conservative in descendant selector pruning.
+    pub has_opaque_content: bool,
     /// Whether this element has a dynamic tag name (svelte:element)
     /// When true, any type selector matches this element
     pub is_dynamic_tag: bool,
+    /// Whether this element can be immediately preceded by an opaque boundary
+    /// (slot, render tag, component) - used for :global(X) + Y detection
+    pub prev_is_opaque_boundary: bool,
+    /// Whether this element can be preceded (not necessarily immediately) by an opaque boundary
+    /// (slot, render tag, component) - used for :global(X) ~ Y detection
+    pub prev_has_opaque_boundary: bool,
 }
 
 /// Export information.
