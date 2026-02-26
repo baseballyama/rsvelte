@@ -2120,21 +2120,22 @@ fn transform_instance_script_for_visitors(
             transformed
         };
 
-        // Transform prop assignments to prop(prop() + value) syntax
-        // This handles props declared with `export let` in legacy mode
-        // Note: We use prop_assignment_transform_vars which excludes RestProp bindings
-        // because rest_props use $.rest_props() which returns a plain object, not getter/setter
-        let transformed = transform_prop_assignments(&transformed, prop_assignment_transform_vars);
-
-        // Transform prop source variable reads to prop() calls
-        // This handles runes-mode props declared via $props() that become $.prop() getters
-        // e.g., `console.log(n)` where `n = $.prop(...)` becomes `console.log(n())`
-        // Must come after transform_prop_assignments which handles assignments
+        // Transform prop source variable reads to prop() calls BEFORE prop assignments.
+        // This handles props used as function calls: `callback(args)` → `callback()(args)`.
+        // Must come BEFORE transform_prop_assignments so that `callback = value` (assignment)
+        // doesn't get incorrectly double-wrapped as `callback()(value)`.
+        // The is_assignment_target check in wrap_prop_source_reads correctly skips assignments.
         let transformed = if !prop_assignment_transform_vars.is_empty() {
             wrap_prop_source_reads(&transformed, prop_assignment_transform_vars)
         } else {
             transformed
         };
+
+        // Transform prop assignments to prop(prop() + value) syntax
+        // This handles props declared with `export let` in legacy mode
+        // Note: We use prop_assignment_transform_vars which excludes RestProp bindings
+        // because rest_props use $.rest_props() which returns a plain object, not getter/setter
+        let transformed = transform_prop_assignments(&transformed, prop_assignment_transform_vars);
 
         // Filter out store_sub_vars that appear as function parameters in this statement.
         // Function parameters like `function bar($derived, $effect)` shadow the store
@@ -4612,10 +4613,13 @@ fn transform_reactive_statement(
         let temp = transform_prop_update_expressions(body, prop_assignment_transform_vars);
         // Also transform state update expressions before compound assignments
         let temp = transform_state_update_expressions(&temp, state_vars, non_reactive_state_vars);
+        // Transform prop reads BEFORE prop assignments, so that function calls like
+        // `callback(args)` become `callback()(args)` (double-invoke for prop getters).
+        // This must happen before transform_prop_assignments to avoid double-wrapping
+        // assignment-generated calls like `callback = value` → `callback(value)`.
+        let temp = transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars);
         // Then transform prop compound assignments (e.g., `count += 1` → `count(count() + 1)`)
         let temp = transform_prop_assignments(&temp, prop_assignment_transform_vars);
-        // Then transform reads
-        let temp = transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars);
         // Transform state member-expression mutations (e.g., `object[key] = []`)
         // to `$.mutate(object, $.get(object)[key] = [])`. Must run before wrap_state_vars_in_expr
         // so identifiers are still in their original form.
@@ -6384,18 +6388,6 @@ fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> String {
                     !next_char.is_alphanumeric() && next_char != '_' && next_char != '$'
                 };
 
-                // Check if it's NOT already followed by ()
-                let is_already_call = if after_idx < chars.len() {
-                    // Skip whitespace
-                    let mut check_idx = after_idx;
-                    while check_idx < chars.len() && chars[check_idx].is_whitespace() {
-                        check_idx += 1;
-                    }
-                    check_idx < chars.len() && chars[check_idx] == '('
-                } else {
-                    false
-                };
-
                 // Check if this is a target of an update expression (++ or --)
                 // e.g., x++ or ++x - these should not be wrapped with ()
                 // as they need special $.update_prop() handling
@@ -6450,7 +6442,6 @@ fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> String {
 
                 if before_ok
                     && after_ok
-                    && !is_already_call
                     && !is_update_target
                     && !is_assignment_target
                     && !is_inside_update_call
@@ -6664,18 +6655,6 @@ fn wrap_prop_source_reads(expr: &str, prop_vars: &[String]) -> String {
                             && chars[i - 1] == '.'
                             && !(i >= 3 && chars[i - 3..i].iter().collect::<String>() == "...");
 
-                        // Check if already followed by ( (already a call)
-                        let after_idx = i + var_chars.len();
-                        let is_already_call = if after_idx < chars.len() {
-                            let mut check_idx = after_idx;
-                            while check_idx < chars.len() && chars[check_idx].is_whitespace() {
-                                check_idx += 1;
-                            }
-                            check_idx < chars.len() && chars[check_idx] == '('
-                        } else {
-                            false
-                        };
-
                         // Check if in function parameter position
                         let in_param_position =
                             is_in_function_param_position(&chars, i, i + var_chars.len());
@@ -6728,7 +6707,6 @@ fn wrap_prop_source_reads(expr: &str, prop_vars: &[String]) -> String {
                             || new_result.ends_with("$.update_pre_prop(");
 
                         if !preceded_by_dot
-                            && !is_already_call
                             && !in_param_position
                             && !is_assignment_target
                             && !is_getter_setter_name
@@ -14119,6 +14097,7 @@ fn find_and_transform_one_destructure(
                         pattern_str,
                         rhs_str,
                         is_standalone,
+                        store_sub_vars,
                     );
 
                     // Replace the destructure expression with the IIFE
@@ -14452,6 +14431,7 @@ fn generate_destructure_iife(
     pattern_str: &str,
     rhs_str: &str,
     is_standalone: bool,
+    store_sub_vars: &[String],
 ) -> String {
     let trimmed = pattern_str.trim();
 
@@ -14531,6 +14511,92 @@ fn generate_destructure_iife(
         format!("(($$value) => {{\n{}\n}})({})", body, rhs_str)
     } else {
         // Object destructure
+        //
+        // Optimization: when the RHS is a simple identifier and the pattern has only
+        // simple targets (no defaults, no nested patterns, no rest elements), we can
+        // generate a comma/sequence expression instead of an IIFE.
+        // This matches the official Svelte compiler output:
+        //   `({$a, $b} = obj)` → `($.store_set(a, obj.$a), $.store_set(b, obj.$b));`
+        // instead of:
+        //   `(($$value) => { ... })(obj);`
+        let rhs_is_simple_identifier = rhs_str
+            .trim()
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '$');
+        let all_parts_simple = !parts.is_empty()
+            && parts.iter().all(|p| {
+                let p = p.trim();
+                if p.is_empty() {
+                    return true;
+                }
+                // No rest elements
+                if p.starts_with("...") {
+                    return false;
+                }
+                // No defaults (top-level = sign)
+                if find_top_level_equals(p).is_some() {
+                    return false;
+                }
+                // If key-value, target must be simple identifier (no nested patterns)
+                if let Some(colon_pos) = find_top_level_colon(p) {
+                    let target = p[colon_pos + 1..].trim();
+                    // No nested array/object patterns
+                    if target.starts_with('[')
+                        || target.starts_with('{')
+                        || find_top_level_equals(target).is_some()
+                    {
+                        return false;
+                    }
+                }
+                true
+            });
+
+        if rhs_is_simple_identifier && all_parts_simple && is_standalone {
+            // Generate comma expression with direct $.store_set() calls for store variables.
+            // This avoids the downstream transform_store_assignments_client misinterpreting
+            // comma-separated assignments as nested function call arguments.
+            //
+            // For store variables: `$userName1 = obj.key` -> `$.store_set(userName1, obj.key)`
+            // For state variables: `x = obj.key` -> `x = obj.key` (transformed later by $.set)
+            //
+            // Use a single line to avoid issues with downstream transforms that treat
+            // newlines as statement boundaries (find_statement_end_client).
+            let mut assignments: Vec<String> = Vec::new();
+            for part in &parts {
+                let part = part.trim();
+                if part.is_empty() {
+                    continue;
+                }
+                let (key, target) = if let Some(colon_pos) = find_top_level_colon(part) {
+                    (
+                        part[..colon_pos].trim().to_string(),
+                        part[colon_pos + 1..].trim().to_string(),
+                    )
+                } else {
+                    // Shorthand: {x} means key=x, target=x
+                    (part.to_string(), part.to_string())
+                };
+
+                // Check if the target is a store subscription variable ($storeName)
+                if store_sub_vars.contains(&target) && target.starts_with('$') {
+                    // Generate $.store_set(storeName, rhs.key) directly
+                    let store_name = &target[1..]; // Remove the $ prefix
+                    assignments.push(format!("$.store_set({}, {}.{})", store_name, rhs_str, key));
+                } else {
+                    assignments.push(format!("{} = {}.{}", target, rhs_str, key));
+                }
+            }
+            if assignments.len() == 1 {
+                return format!("({})", assignments[0]);
+            } else {
+                // Single-line comma expression format.
+                // IMPORTANT: Must be single-line because downstream processing in
+                // process_accumulated/find_statement_end_client treats newlines at depth 0
+                // as statement boundaries, which would break multi-line expressions.
+                return format!("({})", assignments.join(", "));
+            }
+        }
+
         let mut body_lines = Vec::new();
         let mut prepend_lines: Vec<String> = Vec::new();
 

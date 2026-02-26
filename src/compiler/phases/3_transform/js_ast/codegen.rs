@@ -55,6 +55,9 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     // user source code (via Raw() statements) will have double quotes.
     let original_imports = collect_import_lines(source);
     let original_lines = collect_source_lines_for_quote_restore(source);
+    // Collect parenthesized sequence expression statements that OXC will strip parens from.
+    // E.g., `($.store_set(a, b), $.store_set(c, d));` → OXC emits `$.store_set(a, b), $.store_set(c, d);`
+    let paren_seq_stmts = collect_paren_sequence_stmts(source);
 
     let allocator = Allocator::default();
     let source_type = SourceType::mjs();
@@ -122,6 +125,9 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     // OXC strips parentheses from IIFEs: `(function (...) { ... })()` becomes
     // `function (...) { ... }()`. Restore them to match Svelte's esrap output.
     let code = restore_iife_parens(&code);
+    // OXC strips parentheses from sequence expression statements:
+    // `(a, b, c);` becomes `a, b, c;`. Restore them to match Svelte's esrap output.
+    let code = restore_paren_sequence_stmts(&code, &paren_seq_stmts);
     // OXC incorrectly formats labeled block statements like `$: { foo = bar;, baz = qux; }`
     // by adding commas between statements (treating them like sequence expressions).
     // Fix this by removing the spurious semicolon-comma sequences: `;,` -> `;`
@@ -341,6 +347,87 @@ fn find_next_comma_at_depth_zero(s: &str, start: usize) -> Option<usize> {
     }
 
     None
+}
+
+/// Collect parenthesized expression statements from the source.
+///
+/// OXC strips outer parentheses from parenthesized expression statements:
+///   `(a, b, c);` → `a, b, c;`
+///   `($.store_set(x, y));` → `$.store_set(x, y);`
+/// But the official Svelte compiler (esrap) preserves them.
+///
+/// This collects the "inner content" of such statements so we can restore them.
+/// Returns a set of normalized strings that should be wrapped in parens when
+/// found as bare statements in OXC output.
+fn collect_paren_sequence_stmts(source: &str) -> Vec<String> {
+    let mut results = Vec::new();
+    for line in source.lines() {
+        let trimmed = line.trim();
+        // Match lines like `(expr);` or `(expr1, expr2, ...);`
+        // Must start with `(` and end with `);`
+        if trimmed.starts_with('(') && trimmed.ends_with(");") {
+            let inner = &trimmed[1..trimmed.len() - 2]; // strip outer `(` and `);`
+            // Verify the inner content has balanced parens (not just a function call)
+            let mut depth = 0i32;
+            let mut balanced = true;
+            for ch in inner.chars() {
+                match ch {
+                    '(' | '[' | '{' => depth += 1,
+                    ')' | ']' | '}' => {
+                        depth -= 1;
+                        if depth < 0 {
+                            balanced = false;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            if balanced && depth == 0 {
+                // Also skip cases like `(function (...) { ... })()` (IIFEs) which are
+                // handled separately by restore_iife_parens
+                if !inner.starts_with("function ") && !inner.starts_with("function(") {
+                    // Normalize whitespace to a single space for matching
+                    let normalized: String = inner.split_whitespace().collect::<Vec<_>>().join(" ");
+                    results.push(normalized);
+                }
+            }
+        }
+    }
+    results
+}
+
+/// Restore parentheses around sequence expression statements that OXC stripped.
+///
+/// Finds lines in the OXC output that match collected sequence expressions
+/// (after whitespace normalization) and wraps them back in parentheses.
+fn restore_paren_sequence_stmts(code: &str, paren_stmts: &[String]) -> String {
+    if paren_stmts.is_empty() {
+        return code.to_string();
+    }
+
+    let mut result_lines: Vec<String> = Vec::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Check if this line (without trailing semicolon) matches any collected sequence
+        if let Some(without_semi) = trimmed.strip_suffix(';') {
+            // Don't re-wrap if already wrapped in parens
+            if !without_semi.starts_with('(') {
+                let normalized: String = without_semi
+                    .split_whitespace()
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                if paren_stmts.contains(&normalized) {
+                    // Restore the parentheses
+                    let indent = &line[..line.len() - trimmed.len()];
+                    result_lines.push(format!("{}({});", indent, without_semi));
+                    continue;
+                }
+            }
+        }
+        result_lines.push(line.to_string());
+    }
+    result_lines.join("\n")
 }
 
 /// Collect source lines that contain double-quoted strings.
