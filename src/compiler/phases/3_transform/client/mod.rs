@@ -6706,6 +6706,14 @@ fn wrap_prop_source_reads(expr: &str, prop_vars: &[String]) -> String {
                         let is_inside_update_call = new_result.ends_with("$.update_prop(")
                             || new_result.ends_with("$.update_pre_prop(");
 
+                        // Check if this variable is the base of a member expression being
+                        // assigned to, e.g., `foo[bar] = 1` or `foo.prop = value`.
+                        // In that case, skip the read transform here and let
+                        // transform_prop_assignments handle the full mutation wrapping
+                        // (e.g., `foo(foo()[bar] = 1, true)`).
+                        let is_member_mutation =
+                            is_base_of_assigned_member(&chars, i, var_chars.len());
+
                         if !preceded_by_dot
                             && !in_param_position
                             && !is_assignment_target
@@ -6713,6 +6721,7 @@ fn wrap_prop_source_reads(expr: &str, prop_vars: &[String]) -> String {
                             && !is_property_key
                             && !is_shadowed
                             && !is_inside_update_call
+                            && !is_member_mutation
                         {
                             if is_shorthand_property {
                                 // Expand shorthand property: { answer } -> { answer: answer() }
@@ -11495,6 +11504,118 @@ fn is_on_left_side_of_assignment(chars: &[char], var_start: usize, var_len: usiz
         }
         // It's %= or similar
         return true;
+    }
+
+    false
+}
+
+/// Check if a variable is the base of a member expression that is being assigned to.
+///
+/// For example, in `foo[bar] = 1` or `foo.prop = value`, `foo` is the base of the
+/// member expression `foo[bar]` or `foo.prop`, and these are on the LHS of an assignment.
+///
+/// This is used by `wrap_prop_source_reads` to skip the read transform (`foo` -> `foo()`)
+/// when the variable is a prop that's being mutated via a member expression.
+/// In that case, `transform_prop_assignments` will handle the full mutation wrapping
+/// (e.g., `foo(foo()[bar] = 1, true)`).
+fn is_base_of_assigned_member(chars: &[char], var_start: usize, var_len: usize) -> bool {
+    let var_end = var_start + var_len;
+    if var_end >= chars.len() {
+        return false;
+    }
+
+    let next_char = chars[var_end];
+    // Only applies when the variable is followed by `.` or `[` (member access)
+    if next_char != '.' && next_char != '[' {
+        return false;
+    }
+
+    // Scan forward past the member expression chain to find an assignment operator.
+    // Handle chains like `foo.a.b[c].d = value` or `foo[bar] = 1`.
+    let mut j = var_end;
+    let mut depth = 0i32;
+
+    while j < chars.len() {
+        let c = chars[j];
+
+        match c {
+            // Handle bracket member access: skip to matching ]
+            '[' => {
+                depth += 1;
+                j += 1;
+            }
+            ']' => {
+                depth -= 1;
+                j += 1;
+            }
+            '(' => {
+                depth += 1;
+                j += 1;
+            }
+            ')' => {
+                depth -= 1;
+                j += 1;
+            }
+            // Dot member access: continue scanning
+            '.' if depth == 0 => {
+                j += 1;
+            }
+            // Identifier characters: continue scanning (property names)
+            c if depth == 0 && is_identifier_char(c) => {
+                j += 1;
+            }
+            // Whitespace at depth 0: skip
+            c if depth == 0 && c.is_whitespace() => {
+                j += 1;
+            }
+            // At depth 0, check for assignment operators
+            _ if depth == 0 => {
+                // Check for assignment operators: = += -= *= /= %= **= ||= &&= ??= etc.
+                if c == '=' {
+                    // Check it's not == or ===
+                    if j + 1 < chars.len() && chars[j + 1] == '=' {
+                        return false;
+                    }
+                    // Check it's not => (arrow)
+                    if j + 1 < chars.len() && chars[j + 1] == '>' {
+                        return false;
+                    }
+                    // Check it's not != or <= or >=
+                    if j > 0 && matches!(chars[j - 1], '!' | '<' | '>') {
+                        return false;
+                    }
+                    return true;
+                }
+                // Compound assignments: +=, -=, *=, /=, %=
+                if matches!(c, '+' | '-' | '*' | '/' | '%' | '^')
+                    && j + 1 < chars.len()
+                    && chars[j + 1] == '='
+                {
+                    // Make sure it's not **= for just * (check for **)
+                    if c == '*' && j + 2 < chars.len() && chars[j + 2] == '=' {
+                        // Could be **= - still an assignment
+                        return true;
+                    }
+                    if j + 2 < chars.len() && chars[j + 2] == '=' {
+                        return false; // e.g., !== - not an assignment
+                    }
+                    return true;
+                }
+                // ||= &&= ??=
+                if matches!(c, '|' | '&' | '?')
+                    && j + 2 < chars.len()
+                    && chars[j + 1] == c
+                    && chars[j + 2] == '='
+                {
+                    return true;
+                }
+                // Not an assignment - reached some other token
+                return false;
+            }
+            _ => {
+                j += 1;
+            }
+        }
     }
 
     false
