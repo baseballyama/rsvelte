@@ -1520,8 +1520,15 @@ fn transform_instance_script_for_visitors(
     // Reset the destructure assignment array counter
     DESTRUCTURE_ARRAY_COUNTER.with(|c| c.set(0));
 
+    // Strip single-line comments from the script before applying text-based transforms.
+    // The official compiler uses an AST-based approach (acorn/esrap) so comments don't
+    // appear in the output. Our text-based transforms can break when comments containing
+    // braces/parens appear inside multi-line expressions (e.g., `$value = { ... } // { ... }`
+    // becomes invalid after wrapping in `$.store_set(...)`).
+    let script = strip_js_single_line_comments(script);
+
     // First, transform class fields with $state and $derived
-    let script = transform_class_fields_client(script);
+    let script = transform_class_fields_client(&script);
 
     // Extract imports from script (they will be hoisted separately)
     let (_script_imports, script_rest) = extract_imports(&script);
@@ -5562,6 +5569,11 @@ fn body_references_identifier(body: &str, identifier: &str) -> bool {
     // expression parts but blank out the literal text.
     let stripped_body = strip_string_literal_text(&stripped_body);
 
+    // Strip non-shorthand, non-computed object property keys to avoid false positives.
+    // In `{ details: null }`, `details` is a property key, NOT a variable reference.
+    // But in `{ details }` (shorthand), `details` IS a variable reference.
+    let stripped_body = strip_object_property_keys(&stripped_body);
+
     // Check if identifier appears in the stripped body at all
     if !re.is_match(&stripped_body) {
         return false;
@@ -5693,6 +5705,91 @@ fn strip_string_literal_text(code: &str) -> String {
                 i += 1;
             }
         }
+    }
+
+    result.into_iter().collect()
+}
+
+/// Strip non-shorthand, non-computed object property keys from code.
+///
+/// In `{ details: null }`, `details` is a property key and not a variable reference.
+/// In `{ details }` (shorthand), `details` IS a variable reference.
+///
+/// This function replaces property key identifiers with spaces to avoid false positive
+/// dependency detection. It handles:
+/// - `{ key: value }` -> `{     value }` (non-shorthand key blanked)
+/// - `{ key }` -> `{ key }` (shorthand preserved)
+/// - `{ [expr]: value }` -> `{ [expr]: value }` (computed preserved)
+fn strip_object_property_keys(code: &str) -> String {
+    let chars: Vec<char> = code.chars().collect();
+    let len = chars.len();
+    let mut result: Vec<char> = chars.clone();
+    let mut i = 0;
+    let mut in_string = false;
+    let mut string_char = '"';
+
+    while i < len {
+        let c = chars[i];
+
+        // Handle string literals
+        if !in_string && (c == '\'' || c == '"' || c == '`') {
+            in_string = true;
+            string_char = c;
+            i += 1;
+            continue;
+        }
+        if in_string {
+            if c == '\\' {
+                i += 2;
+                continue;
+            }
+            if c == string_char {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        // Look for patterns like: identifier followed by `:` followed by non-`:` (not shorthand)
+        // This matches `key: value` in object literals but NOT `key` in shorthand properties.
+        // We need to be careful not to match ternary operators or labels.
+        if c.is_alphabetic() || c == '_' || c == '$' {
+            let id_start = i;
+            // Read the identifier
+            while i < len && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '$') {
+                i += 1;
+            }
+            let id_end = i;
+
+            // Skip whitespace
+            let mut j = i;
+            while j < len && chars[j].is_whitespace() {
+                j += 1;
+            }
+
+            // Check if followed by `:` but NOT `::` (not a label in a switch, not ternary)
+            if j < len && chars[j] == ':' && (j + 1 >= len || chars[j + 1] != ':') {
+                // Check what comes BEFORE the identifier to see if this is in an object context.
+                // We look for `{`, `,`, or newline before the identifier (skipping whitespace).
+                let mut k = id_start;
+                while k > 0 && chars[k - 1].is_whitespace() {
+                    k -= 1;
+                }
+                let in_object_context = k == 0
+                    || (k > 0
+                        && (chars[k - 1] == '{' || chars[k - 1] == ',' || chars[k - 1] == '\n'));
+
+                if in_object_context {
+                    // This looks like a property key - blank it out
+                    for ch in result.iter_mut().take(id_end).skip(id_start) {
+                        *ch = ' ';
+                    }
+                }
+            }
+            continue;
+        }
+
+        i += 1;
     }
 
     result.into_iter().collect()
@@ -15339,6 +15436,92 @@ fn find_matching_close_paren(s: &str) -> Option<usize> {
     }
 
     None
+}
+
+/// Strip single-line `//` comments from JavaScript source code.
+///
+/// This is needed because our text-based transforms (e.g., wrapping store assignments
+/// in `$.store_set(...)`) can create invalid JS when comments containing braces
+/// appear mid-expression. The official Svelte compiler avoids this because it uses
+/// an AST-based approach where comments are naturally excluded from the output.
+///
+/// The function preserves:
+/// - `//` inside string literals (`'`, `"`, `` ` ``)
+/// - The line structure (newlines are preserved)
+///
+/// It also handles `/* ... */` block comments.
+fn strip_js_single_line_comments(source: &str) -> String {
+    let mut result = String::with_capacity(source.len());
+    let chars: Vec<char> = source.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+    let mut in_string = false;
+    let mut string_char = '"';
+
+    while i < len {
+        let c = chars[i];
+
+        // Handle string literals
+        if !in_string && (c == '\'' || c == '"' || c == '`') {
+            in_string = true;
+            string_char = c;
+            result.push(c);
+            i += 1;
+            continue;
+        }
+
+        if in_string {
+            result.push(c);
+            if c == '\\' && i + 1 < len {
+                // Push the escaped character too
+                result.push(chars[i + 1]);
+                i += 2;
+                continue;
+            }
+            if c == string_char {
+                in_string = false;
+            }
+            // Handle template literal expressions: `${...}`
+            if string_char == '`' && c == '$' && i + 1 < len && chars[i + 1] == '{' {
+                // Don't exit string mode for template expression - the backtick
+                // string continues after the closing }
+            }
+            i += 1;
+            continue;
+        }
+
+        // Detect // single-line comments
+        if c == '/' && i + 1 < len && chars[i + 1] == '/' {
+            // Skip until end of line, but keep the newline
+            i += 2;
+            while i < len && chars[i] != '\n' {
+                i += 1;
+            }
+            // Don't push the comment, but the newline will be pushed in the next iteration
+            continue;
+        }
+
+        // Detect /* block comments */
+        if c == '/' && i + 1 < len && chars[i + 1] == '*' {
+            i += 2;
+            while i + 1 < len && !(chars[i] == '*' && chars[i + 1] == '/') {
+                // Preserve newlines inside block comments to maintain line structure
+                if chars[i] == '\n' {
+                    result.push('\n');
+                }
+                i += 1;
+            }
+            if i + 1 < len {
+                i += 2; // Skip */
+            }
+            continue;
+        }
+
+        result.push(c);
+        i += 1;
+    }
+
+    result
 }
 
 #[cfg(test)]
