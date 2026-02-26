@@ -16,6 +16,7 @@ use crate::ast::template::{
     AwaitBlock, ConstTag, DebugTag, EachBlock, ExpressionTag, Fragment, FragmentType, HtmlTag,
     IfBlock, KeyBlock, RenderTag, SnippetBlock, TemplateNode,
 };
+use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
 use crate::error::ParseResult;
 
 use super::super::parser::{Parser, StackEntry};
@@ -53,20 +54,11 @@ impl Parser<'_> {
 
         // Regular expression tag
         let expr_start = self.index;
-        let mut depth = 1;
 
-        while !self.is_eof() && depth > 0 {
-            let c = self.current_char();
-            if c == '{' {
-                depth += 1;
-            } else if c == '}' {
-                depth -= 1;
-                if depth == 0 {
-                    break;
-                }
-            }
-            self.advance();
-        }
+        // Use find_matching_bracket to properly handle strings, comments, and regex
+        // inside the expression (the naive depth counter breaks on e.g. {'{'})
+        let end = find_matching_bracket(self.source, expr_start, '{').unwrap_or(self.source.len());
+        self.index = end;
 
         let expr_content = &self.source[expr_start..self.index];
         self.advance(); // consume '}'
