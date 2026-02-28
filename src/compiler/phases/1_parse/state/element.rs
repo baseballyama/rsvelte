@@ -2107,45 +2107,20 @@ impl Parser<'_> {
                 // Reset position after whitespace check (we only peeked)
                 self.index = expr_start + 1;
 
-                // Parse expression content with string-aware depth counting.
-                // JS string literals (single-quoted, double-quoted, template literals)
-                // may contain `{` and `}` characters that should NOT affect the brace
-                // depth counter. We track the current string delimiter to skip over
-                // their contents correctly.
-                let mut depth = 1;
-                let mut string_char: Option<char> = None;
-                let mut prev_was_backslash = false;
-                while !self.is_eof() && depth > 0 {
-                    let c = self.current_char();
-                    if let Some(sc) = string_char {
-                        // Inside a string literal: look for the closing quote,
-                        // handling backslash escapes.
-                        if prev_was_backslash {
-                            prev_was_backslash = false;
-                        } else if c == '\\' {
-                            prev_was_backslash = true;
-                        } else if c == sc {
-                            string_char = None;
-                        }
-                    } else {
-                        match c {
-                            '\'' | '"' | '`' => {
-                                string_char = Some(c);
-                            }
-                            '{' => {
-                                depth += 1;
-                            }
-                            '}' => {
-                                depth -= 1;
-                            }
-                            _ => {}
-                        }
-                    }
-                    self.advance();
-                }
-
-                // Check if we found a closing brace
-                if depth > 0 {
+                // Use find_matching_bracket which properly handles strings,
+                // comments (// and /* */), and regex expressions.
+                // The simple depth-tracking approach fails when JS comments
+                // contain quote characters (e.g., `don't` in a // comment).
+                if let Some(close_pos) =
+                    crate::compiler::phases::phase1_parse::utils::find_matching_bracket(
+                        self.source,
+                        expr_start + 1,
+                        '{',
+                    )
+                {
+                    self.index = close_pos + 1;
+                } else {
+                    self.index = self.source.len();
                     return Err(crate::error::ParseError::svelte(
                         "expected_token",
                         "Expected token }",

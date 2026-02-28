@@ -472,6 +472,8 @@ impl<'a> ServerCodeGenerator<'a> {
         element: &RegularElement,
     ) -> Result<(), TransformError> {
         let name = element.name.as_str();
+        let is_textarea = name == "textarea";
+        let is_select = name == "select";
 
         // Build the object literal for $.attributes()
         let mut object_parts: Vec<String> = Vec::new();
@@ -479,6 +481,8 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut class_directive_parts: Vec<String> = Vec::new();
         // Collect style directives: { styleName: expression }
         let mut style_directive_parts: Vec<String> = Vec::new();
+        // For textarea: value expression to be rendered as body content
+        let mut textarea_content: Option<String> = None;
 
         for attr in &element.attributes {
             match attr {
@@ -499,6 +503,25 @@ impl<'a> ServerCodeGenerator<'a> {
                         continue;
                     }
                     let attr_name = node.name.as_str();
+                    // Skip defaultValue and defaultChecked - these are pseudo-properties,
+                    // not real HTML attributes.
+                    // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/server/visitors/shared/element.js L78-79
+                    if attr_name == "defaultValue" || attr_name == "defaultChecked" {
+                        continue;
+                    }
+                    // For textarea, value becomes body content, not an attribute
+                    // For select, value is omitted entirely (it has no effect on HTML output)
+                    // Reference: element.js lines 48-68
+                    if attr_name == "value" {
+                        if is_textarea {
+                            let value = self.extract_attribute_value_as_string(node)?;
+                            // Don't wrap in $.escape() here - TextareaBody output part handles that
+                            textarea_content = Some(value);
+                            continue;
+                        } else if is_select {
+                            continue;
+                        }
+                    }
                     let value = self.extract_attribute_value_as_string(node)?;
                     // Wrap class attribute dynamic expressions in $.clsx()
                     let value = if attr_name == "class" && needs_clsx(&node.value) {
@@ -598,6 +621,21 @@ impl<'a> ServerCodeGenerator<'a> {
                                 object_parts.push(format!("checked: {}", checked_expr));
                             }
                         }
+                        continue;
+                    }
+                    // For textarea, bind:value becomes body content
+                    // For select, bind:value is skipped (handled via $$renderer.select)
+                    if bind_name == "value" && is_textarea {
+                        let expr_start = bind.expression.start().unwrap_or(0) as usize;
+                        let expr_end = bind.expression.end().unwrap_or(0) as usize;
+                        if expr_end > expr_start && expr_end <= self.source.len() {
+                            let expr = self.source[expr_start..expr_end].trim().to_string();
+                            // Don't wrap in $.escape() here - TextareaBody output part handles that
+                            textarea_content = Some(expr);
+                        }
+                        continue;
+                    }
+                    if bind_name == "value" && is_select {
                         continue;
                     }
                     // Skip other omitted SSR bindings
@@ -777,6 +815,16 @@ impl<'a> ServerCodeGenerator<'a> {
 
         if is_void_element(name) {
             self.output_parts.push(OutputPart::Html("/>".to_string()));
+        } else if is_textarea && textarea_content.is_some() {
+            // For textarea with value/bind:value and spread, output body as content
+            // Reference: element.js lines 48-63
+            let content_expr = textarea_content.unwrap();
+            self.output_parts.push(OutputPart::Html(">".to_string()));
+            self.output_parts.push(OutputPart::TextareaBody {
+                value_expr: content_expr,
+            });
+            self.output_parts
+                .push(OutputPart::Html("</textarea>".to_string()));
         } else {
             self.output_parts.push(OutputPart::Html(">".to_string()));
 

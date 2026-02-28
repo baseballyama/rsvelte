@@ -434,6 +434,11 @@ fn apply_combinator_chain(
 /// Mark RegularElement nodes in the fragment as scoped based on CSS selector matching.
 pub fn mark_elements_scoped(fragment: &mut Fragment, css_selectors: &[CssComplexSelector]) {
     mark_elements_scoped_with_ancestors(fragment, css_selectors, &[]);
+
+    // Second pass: propagate scoping to ancestor elements in combinator chains.
+    // When a child element is scoped via a selector like `.parent > .child`,
+    // the parent element also needs to be scoped (it needs the CSS hash class).
+    propagate_scoping_to_ancestors(fragment, css_selectors, &[]);
 }
 
 fn mark_elements_scoped_with_ancestors(
@@ -507,4 +512,178 @@ fn mark_elements_scoped_with_ancestors(
             _ => {}
         }
     }
+}
+
+/// Check if an element matches a non-subject (ancestor) part of a selector that has
+/// a matching descendant. This is used to mark parent elements as scoped when they
+/// appear in combinator chains like `.parent > .child`.
+fn element_is_ancestor_in_matching_selector(
+    element: &ElementInfo,
+    selector: &CssComplexSelector,
+) -> bool {
+    let children = &selector.children;
+    if children.len() < 2 {
+        return false;
+    }
+
+    // Truncate trailing :global selectors
+    let last_non_global = children
+        .iter()
+        .rposition(|rel| !is_relative_selector_global(rel));
+    let effective_children = match last_non_global {
+        Some(idx) => &children[..=idx],
+        None => return false,
+    };
+
+    if effective_children.len() < 2 {
+        return false;
+    }
+
+    // Check if the element matches any NON-LAST relative selector in the chain
+    for i in 0..effective_children.len() - 1 {
+        if element_matches_simple_selectors(element, &effective_children[i].selectors) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Second pass: propagate scoping to ancestor elements.
+/// When an element is scoped and it was matched via a selector with combinators,
+/// mark the matching ancestor elements as scoped too.
+fn propagate_scoping_to_ancestors(
+    fragment: &mut Fragment,
+    css_selectors: &[CssComplexSelector],
+    ancestors: &[ElementInfo],
+) {
+    // Collect indices and info for RegularElement nodes
+    let mut element_indices: Vec<(usize, ElementInfo)> = Vec::new();
+    for (idx, node) in fragment.nodes.iter().enumerate() {
+        if let TemplateNode::RegularElement(el) = node {
+            element_indices.push((idx, ElementInfo::from_element(el)));
+        }
+    }
+
+    for node in &mut fragment.nodes {
+        match node {
+            TemplateNode::RegularElement(el) => {
+                let element_info = ElementInfo::from_element(el);
+
+                // Check if this element is an ancestor in any matching selector.
+                // An element should be scoped if it matches a non-subject part of a selector
+                // that could match elements in its subtree.
+                if !el.metadata.scoped {
+                    el.metadata.scoped = css_selectors.iter().any(|selector| {
+                        element_is_ancestor_in_matching_selector(&element_info, selector)
+                            && subtree_has_matching_subject(
+                                &el.fragment,
+                                selector,
+                                &[element_info.clone()],
+                            )
+                    });
+                }
+
+                let mut new_ancestors = vec![element_info];
+                new_ancestors.extend_from_slice(ancestors);
+                propagate_scoping_to_ancestors(&mut el.fragment, css_selectors, &new_ancestors);
+            }
+            TemplateNode::Component(comp) => {
+                propagate_scoping_to_ancestors(&mut comp.fragment, css_selectors, ancestors);
+            }
+            TemplateNode::IfBlock(if_block) => {
+                propagate_scoping_to_ancestors(&mut if_block.consequent, css_selectors, ancestors);
+                if let Some(ref mut alt) = if_block.alternate {
+                    propagate_scoping_to_ancestors(alt, css_selectors, ancestors);
+                }
+            }
+            TemplateNode::EachBlock(each) => {
+                propagate_scoping_to_ancestors(&mut each.body, css_selectors, ancestors);
+                if let Some(ref mut fallback) = each.fallback {
+                    propagate_scoping_to_ancestors(fallback, css_selectors, ancestors);
+                }
+            }
+            TemplateNode::AwaitBlock(await_block) => {
+                if let Some(ref mut pending) = await_block.pending {
+                    propagate_scoping_to_ancestors(pending, css_selectors, ancestors);
+                }
+                if let Some(ref mut then) = await_block.then {
+                    propagate_scoping_to_ancestors(then, css_selectors, ancestors);
+                }
+                if let Some(ref mut catch) = await_block.catch {
+                    propagate_scoping_to_ancestors(catch, css_selectors, ancestors);
+                }
+            }
+            TemplateNode::KeyBlock(key) => {
+                propagate_scoping_to_ancestors(&mut key.fragment, css_selectors, ancestors);
+            }
+            TemplateNode::SnippetBlock(snippet) => {
+                propagate_scoping_to_ancestors(&mut snippet.body, css_selectors, ancestors);
+            }
+            TemplateNode::SvelteHead(head) => {
+                propagate_scoping_to_ancestors(&mut head.fragment, css_selectors, ancestors);
+            }
+            TemplateNode::SvelteElement(el) => {
+                propagate_scoping_to_ancestors(&mut el.fragment, css_selectors, ancestors);
+            }
+            TemplateNode::SlotElement(slot) => {
+                propagate_scoping_to_ancestors(&mut slot.fragment, css_selectors, ancestors);
+            }
+            TemplateNode::TitleElement(title) => {
+                propagate_scoping_to_ancestors(&mut title.fragment, css_selectors, ancestors);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Check if any element in the subtree matches the subject of a selector,
+/// with the given ancestors in the combinator chain.
+fn subtree_has_matching_subject(
+    fragment: &Fragment,
+    selector: &CssComplexSelector,
+    ancestors: &[ElementInfo],
+) -> bool {
+    for node in &fragment.nodes {
+        match node {
+            TemplateNode::RegularElement(el) => {
+                let element_info = ElementInfo::from_element(el);
+                if complex_selector_matches_element(selector, &element_info, ancestors) {
+                    return true;
+                }
+                let mut new_ancestors = vec![element_info];
+                new_ancestors.extend_from_slice(ancestors);
+                if subtree_has_matching_subject(&el.fragment, selector, &new_ancestors) {
+                    return true;
+                }
+            }
+            TemplateNode::Component(comp) => {
+                if subtree_has_matching_subject(&comp.fragment, selector, ancestors) {
+                    return true;
+                }
+            }
+            TemplateNode::IfBlock(if_block) => {
+                if subtree_has_matching_subject(&if_block.consequent, selector, ancestors) {
+                    return true;
+                }
+                if let Some(ref alt) = if_block.alternate {
+                    if subtree_has_matching_subject(alt, selector, ancestors) {
+                        return true;
+                    }
+                }
+            }
+            TemplateNode::EachBlock(each) => {
+                if subtree_has_matching_subject(&each.body, selector, ancestors) {
+                    return true;
+                }
+                if let Some(ref fallback) = each.fallback {
+                    if subtree_has_matching_subject(fallback, selector, ancestors) {
+                        return true;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    false
 }

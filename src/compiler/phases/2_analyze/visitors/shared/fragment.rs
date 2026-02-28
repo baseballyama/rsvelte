@@ -67,44 +67,44 @@ pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<
     let runes = context.analysis.runes;
 
     // Pre-compute ignore info for each node (requires immutable borrow of fragment.nodes).
-    // For non-Comment nodes (including Text), collect preceding svelte-ignore comments.
+    //
     // The official Svelte (2-analyze/index.js L99) only applies the general ignore mechanism
-    // to non-Comment, non-Text nodes. However, Text nodes need ignore info too because
+    // to non-Comment, non-Text nodes. However, Text nodes also need ignore info because
     // the Text visitor checks for bidirectional_control_characters and needs to know if
     // a preceding svelte-ignore comment suppresses it (see Text.js L33-45).
-    let ignore_info: Vec<Option<PrecedingIgnores>> = (0..fragment.nodes.len())
+    //
+    // We collect preceding ignores for both non-Comment/non-Text nodes AND Text nodes,
+    // but only emit legacy_code/unknown_code warnings for non-Comment/non-Text nodes.
+    let ignore_info: Vec<Option<(PrecedingIgnores, bool)>> = (0..fragment.nodes.len())
         .map(|idx| {
-            // The official Svelte (2-analyze/index.js L99) only applies the general ignore mechanism
-            // to non-Comment AND non-Text nodes. Text nodes should not collect preceding ignores
-            // for the purpose of emitting legacy_code/unknown_code warnings (those warnings should
-            // only be emitted once by the first actual element node after the comment).
-            // However, Text nodes DO need ignore info for bidirectional_control_characters checks.
-            // We handle this by only collecting preceding ignores (and thus emitting warnings)
-            // for non-Comment and non-Text nodes.
-            let is_ignorable = !matches!(
-                &fragment.nodes[idx],
-                TemplateNode::Comment(_) | TemplateNode::Text(_)
-            );
-            if is_ignorable {
-                Some(collect_preceding_ignores(&fragment.nodes, idx, runes))
-            } else {
-                None
+            let is_comment = matches!(&fragment.nodes[idx], TemplateNode::Comment(_));
+            if is_comment {
+                return None;
             }
+            let is_text = matches!(&fragment.nodes[idx], TemplateNode::Text(_));
+            Some((
+                collect_preceding_ignores(&fragment.nodes, idx, runes),
+                is_text,
+            ))
         })
         .collect();
 
     // Emit warnings from svelte-ignore comment validation (legacy_code, unknown_code).
     // These are emitted only once per comment because only the first
     // non-Comment/non-Text node collects from preceding comments.
-    for preceding in ignore_info.iter().flatten() {
-        for warning in &preceding.warnings {
-            context
-                .analysis
-                .warnings
-                .push(warnings::AnalysisWarning::new(
-                    warning.code.clone(),
-                    warning.message.clone(),
-                ));
+    for entry in ignore_info.iter().flatten() {
+        let (preceding, is_text) = entry;
+        // Only emit legacy_code/unknown_code warnings for non-Text nodes
+        if !is_text {
+            for warning in &preceding.warnings {
+                context
+                    .analysis
+                    .warnings
+                    .push(warnings::AnalysisWarning::new(
+                        warning.code.clone(),
+                        warning.message.clone(),
+                    ));
+            }
         }
     }
 
@@ -112,9 +112,9 @@ pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<
         // Push ignores for this node
         let has_ignores = ignore_info[idx]
             .as_ref()
-            .is_some_and(|p| !p.ignores.is_empty());
+            .is_some_and(|(p, _)| !p.ignores.is_empty());
         if has_ignores {
-            context.push_ignore(ignore_info[idx].as_ref().unwrap().ignores.clone());
+            context.push_ignore(ignore_info[idx].as_ref().unwrap().0.ignores.clone());
         }
 
         // Visit the node
