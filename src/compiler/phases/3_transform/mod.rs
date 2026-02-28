@@ -95,7 +95,7 @@ pub fn transform_component(
     };
 
     // Convert Phase 2 analysis warnings to transform warnings
-    let warnings = analysis
+    let mut warnings: Vec<TransformWarning> = analysis
         .warnings
         .iter()
         .map(|w| TransformWarning {
@@ -103,6 +103,21 @@ pub fn transform_component(
             message: w.message.clone(),
         })
         .collect();
+
+    // Collect CSS unused selector warnings
+    // Corresponds to `warn_unused()` call in Svelte's 2-analyze/index.js L871
+    if analysis.css.has_css {
+        let css_warnings = css::collect_css_unused_warnings(analysis, source);
+        for w in css_warnings {
+            warnings.push(TransformWarning {
+                code: "css_unused_selector".to_string(),
+                message: format!(
+                    "Unused CSS selector \"{}\"\nhttps://svelte.dev/e/css_unused_selector",
+                    w.selector_text
+                ),
+            });
+        }
+    }
 
     Ok(TransformResult {
         js,

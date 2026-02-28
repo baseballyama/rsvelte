@@ -89,10 +89,21 @@ impl<'a> ServerCodeGenerator<'a> {
         // Skip ConstTag and SnippetBlock nodes since they don't produce HTML output
         if !skip_anchor && !is_standalone && start_idx < end_idx {
             let mut first_visible = start_idx;
+            let mut prev_was_hoisted = false;
             while first_visible < end_idx {
                 match nodes[first_visible] {
                     TemplateNode::ConstTag(_) | TemplateNode::SnippetBlock(_) => {
                         first_visible += 1;
+                        prev_was_hoisted = true;
+                    }
+                    // Skip whitespace-only text nodes after ConstTag/SnippetBlock,
+                    // since these will be skipped in the main loop (prev_was_const_tag logic)
+                    // and should not trigger the text-first anchor.
+                    TemplateNode::Text(text)
+                        if prev_was_hoisted && is_svelte_whitespace_only(&text.data) =>
+                    {
+                        first_visible += 1;
+                        prev_was_hoisted = false;
                     }
                     _ => break,
                 }
@@ -259,10 +270,20 @@ impl<'a> ServerCodeGenerator<'a> {
         // Skip ConstTag and SnippetBlock nodes when looking for the first visible content
         // since they don't produce HTML output.
         let mut first_visible_idx = start_idx;
+        let mut prev_was_hoisted = false;
         while first_visible_idx < end_idx {
             match nodes[first_visible_idx] {
                 TemplateNode::ConstTag(_) | TemplateNode::SnippetBlock(_) => {
                     first_visible_idx += 1;
+                    prev_was_hoisted = true;
+                }
+                // Skip whitespace-only text nodes after ConstTag/SnippetBlock,
+                // since these will be skipped in the main loop and should not trigger anchor.
+                TemplateNode::Text(text)
+                    if prev_was_hoisted && is_svelte_whitespace_only(&text.data) =>
+                {
+                    first_visible_idx += 1;
+                    prev_was_hoisted = false;
                 }
                 _ => break,
             }
@@ -328,6 +349,24 @@ impl<'a> ServerCodeGenerator<'a> {
                 let frag_to_process = &frag_children[frag_start..frag_end];
                 let frag_count = frag_to_process.len();
 
+                // Check if the fragment has any ConstTag children - if so, wrap in a BlockScope
+                // to match the official compiler's Fragment visitor which always returns a BlockStatement
+                let has_const_tags = frag_to_process
+                    .iter()
+                    .any(|n| matches!(n, TemplateNode::ConstTag(_)));
+
+                // Generate fragment children into a temporary generator
+                let mut frag_generator = ServerCodeGenerator::new(
+                    body_generator.component_name.clone(),
+                    body_generator.source.clone(),
+                    None,
+                    None,
+                    None,
+                    body_generator.use_async,
+                );
+                frag_generator.constant_vars = body_generator.constant_vars.clone();
+                frag_generator.namespace = body_generator.namespace.clone();
+
                 for (fi, fnode) in frag_to_process.iter().enumerate() {
                     let is_f_first = fi == 0;
                     let is_f_last = fi == frag_count - 1;
@@ -345,15 +384,27 @@ impl<'a> ServerCodeGenerator<'a> {
                             raw
                         };
                         if !raw.is_empty() {
-                            body_generator
+                            frag_generator
                                 .output_parts
                                 .push(OutputPart::Html(escape_html(&sanitize_template_string(
                                     &raw,
                                 ))));
                         }
                     } else {
-                        body_generator.generate_node(fnode, false)?;
+                        frag_generator.generate_node(fnode, false)?;
                     }
+                }
+
+                if has_const_tags && !frag_generator.output_parts.is_empty() {
+                    // Wrap in a BlockScope for proper { } scoping
+                    body_generator.output_parts.push(OutputPart::BlockScope {
+                        body: frag_generator.output_parts,
+                    });
+                } else {
+                    // No const tags - inline directly as before
+                    body_generator
+                        .output_parts
+                        .extend(frag_generator.output_parts);
                 }
                 continue;
             }

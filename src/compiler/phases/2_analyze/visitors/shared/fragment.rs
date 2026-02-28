@@ -67,13 +67,14 @@ pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<
     let runes = context.analysis.runes;
 
     // Pre-compute ignore info for each node (requires immutable borrow of fragment.nodes).
-    // Only collect for non-Comment, non-Text nodes, matching official Svelte (2-analyze/index.js L99).
+    // For non-Comment nodes (including Text), collect preceding svelte-ignore comments.
+    // The official Svelte (2-analyze/index.js L99) only applies the general ignore mechanism
+    // to non-Comment, non-Text nodes. However, Text nodes need ignore info too because
+    // the Text visitor checks for bidirectional_control_characters and needs to know if
+    // a preceding svelte-ignore comment suppresses it (see Text.js L33-45).
     let ignore_info: Vec<Option<PrecedingIgnores>> = (0..fragment.nodes.len())
         .map(|idx| {
-            let is_ignorable = !matches!(
-                &fragment.nodes[idx],
-                TemplateNode::Comment(_) | TemplateNode::Text(_)
-            );
+            let is_ignorable = !matches!(&fragment.nodes[idx], TemplateNode::Comment(_));
             if is_ignorable {
                 Some(collect_preceding_ignores(&fragment.nodes, idx, runes))
             } else {

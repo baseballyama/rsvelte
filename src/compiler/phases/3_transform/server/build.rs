@@ -2352,6 +2352,14 @@ export default function {component_name}($$renderer{props_param}) {{
         let indent = "\t".repeat(indent_level);
         let mut result = String::new();
 
+        // If uses_slots, add $$slots = $.sanitize_slots($$props)
+        if analysis.uses_slots {
+            result.push_str(&format!(
+                "{}const $$slots = $.sanitize_slots($$props);\n",
+                indent
+            ));
+        }
+
         // If uses_props or uses_rest_props, add $$sanitized_props
         if analysis.uses_props || analysis.uses_rest_props {
             result.push_str(&format!(

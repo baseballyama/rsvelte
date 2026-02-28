@@ -815,8 +815,14 @@ fn collect_ignore_codes_from_parent(context: &VisitorContext) -> Vec<String> {
     //     └─ VariableDeclaration (may have leadingComments)
     //          └─ VariableDeclarator
     // We need to check both for leading comments.
+    // Skip the last element in js_path (the VariableDeclarator itself) since
+    // walk_js_node pushes the current node before calling visit().
     let mut codes = Vec::new();
-    for node in context.js_path.iter().rev() {
+    let path_len = context.js_path.len();
+    if path_len < 2 {
+        return codes;
+    }
+    for node in context.js_path[..path_len - 1].iter().rev() {
         let node_type = node.get("type").and_then(|t| t.as_str());
         match node_type {
             Some("VariableDeclaration") | Some("ExportNamedDeclaration") => {

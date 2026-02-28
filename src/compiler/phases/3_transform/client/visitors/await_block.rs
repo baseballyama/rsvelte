@@ -589,6 +589,13 @@ fn is_valid_identifier(s: &str) -> bool {
 /// Convert an Expression to a JsPattern.
 fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
     let Expression::Value(val) = expr;
+    convert_value_to_pattern(val)
+}
+
+/// Convert a JSON AST Value node to a JsPattern.
+/// This handles all pattern node types: Identifier, ObjectPattern, ArrayPattern,
+/// AssignmentPattern, and RestElement.
+fn convert_value_to_pattern(val: &serde_json::Value) -> JsPattern {
     if let serde_json::Value::Object(obj) = val {
         match obj.get("type").and_then(|v| v.as_str()) {
             Some("Identifier") => {
@@ -599,6 +606,17 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
                         return parse_pattern_string(trimmed);
                     }
                     return JsPattern::Identifier(name.to_string());
+                }
+            }
+            Some("AssignmentPattern") => {
+                // Default value pattern: `a = 3` or `{ x } = {}`
+                if let (Some(left), Some(right)) = (obj.get("left"), obj.get("right")) {
+                    let left_pattern = convert_value_to_pattern(left);
+                    let right_expr = convert_value_to_js_expr_simple(right);
+                    return JsPattern::Assignment(JsAssignmentPattern {
+                        left: Box::new(left_pattern),
+                        right: Box::new(right_expr),
+                    });
                 }
             }
             Some("ObjectPattern") => {
@@ -612,44 +630,57 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
                             // Handle RestElement inside ObjectPattern
                             if prop_type == "RestElement" {
                                 if let Some(arg) = prop_obj.get("argument") {
-                                    let inner = convert_expression_to_pattern(&Expression::Value(
-                                        arg.clone(),
-                                    ));
+                                    let inner = convert_value_to_pattern(arg);
                                     return Some(JsObjectPatternProperty::Rest(Box::new(inner)));
                                 }
                                 return None;
                             }
 
                             // Handle regular Property
-                            let key = prop_obj.get("key")?.as_object()?;
-                            let key_name = key.get("name").and_then(|v| v.as_str());
-                            // For string literal keys like 'prop-1', get the value
-                            let key_value = key.get("value").and_then(|v| v.as_str());
-                            let actual_key = key_name.or(key_value)?;
+                            let key_val = prop_obj.get("key")?;
+                            let key = key_val.as_object()?;
                             let value = prop_obj.get("value")?;
-
-                            let value_pattern = if value.is_object() {
-                                convert_expression_to_pattern(&Expression::Value(value.clone()))
-                            } else {
-                                JsPattern::Identifier(actual_key.to_string())
-                            };
 
                             let shorthand = prop_obj
                                 .get("shorthand")
                                 .and_then(|s| s.as_bool())
                                 .unwrap_or(false);
 
-                            // Handle computed/string keys
                             let computed = prop_obj
                                 .get("computed")
                                 .and_then(|c| c.as_bool())
                                 .unwrap_or(false);
 
-                            // For string keys, use Literal
-                            let property_key = if key_name.is_some() {
-                                JsPropertyKey::Identifier(actual_key.to_string())
+                            let value_pattern = convert_value_to_pattern(value);
+
+                            // Determine property key
+                            let key_type = key.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                            let property_key = if computed {
+                                // Computed key: [expr]
+                                JsPropertyKey::Computed(Box::new(convert_value_to_js_expr_simple(
+                                    key_val,
+                                )))
+                            } else if key_type == "Literal" {
+                                // Literal key (number or string)
+                                if let Some(n) = key.get("value").and_then(|v| v.as_f64()) {
+                                    JsPropertyKey::Literal(JsLiteral::Number(n))
+                                } else if let Some(s) = key.get("value").and_then(|v| v.as_str()) {
+                                    JsPropertyKey::Literal(JsLiteral::String(s.to_string()))
+                                } else {
+                                    let raw =
+                                        key.get("raw").and_then(|r| r.as_str()).unwrap_or("0");
+                                    JsPropertyKey::Literal(JsLiteral::String(raw.to_string()))
+                                }
+                            } else if let Some(name) = key.get("name").and_then(|v| v.as_str()) {
+                                JsPropertyKey::Identifier(name.to_string())
+                            } else if let Some(s) = key.get("value").and_then(|v| v.as_str()) {
+                                // String literal key
+                                JsPropertyKey::Literal(JsLiteral::String(s.to_string()))
+                            } else if let Some(n) = key.get("value").and_then(|v| v.as_f64()) {
+                                // Numeric literal key
+                                JsPropertyKey::Literal(JsLiteral::Number(n))
                             } else {
-                                JsPropertyKey::Literal(JsLiteral::String(actual_key.to_string()))
+                                JsPropertyKey::Identifier("unknown".to_string())
                             };
 
                             Some(JsObjectPatternProperty::Property {
@@ -672,9 +703,7 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
                             if elem.is_null() {
                                 None
                             } else {
-                                Some(convert_expression_to_pattern(&Expression::Value(
-                                    elem.clone(),
-                                )))
+                                Some(convert_value_to_pattern(elem))
                             }
                         })
                         .collect();
@@ -684,7 +713,7 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
             }
             Some("RestElement") => {
                 if let Some(arg) = obj.get("argument") {
-                    let inner = convert_expression_to_pattern(&Expression::Value(arg.clone()));
+                    let inner = convert_value_to_pattern(arg);
                     return JsPattern::Rest(Box::new(inner));
                 }
             }
@@ -692,6 +721,336 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
         }
     }
     JsPattern::Identifier("$$unknown".to_string())
+}
+
+/// Convert a JSON AST Value expression to a JsExpr without needing ComponentContext.
+/// This handles common expression types used in destructure patterns (default values, computed keys).
+fn convert_value_to_js_expr_simple(val: &serde_json::Value) -> JsExpr {
+    match val {
+        serde_json::Value::Object(obj) => {
+            let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            match node_type {
+                "Identifier" => {
+                    let name = obj
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("undefined");
+                    JsExpr::Identifier(name.to_string())
+                }
+                "Literal" => {
+                    if let Some(raw) = obj.get("raw").and_then(|r| r.as_str()) {
+                        let value = obj.get("value");
+                        if let Some(n) = value.and_then(|v| v.as_f64()) {
+                            JsExpr::Literal(JsLiteral::Number(n))
+                        } else if let Some(s) = value.and_then(|v| v.as_str()) {
+                            JsExpr::Literal(JsLiteral::String(s.to_string()))
+                        } else if let Some(b) = value.and_then(|v| v.as_bool()) {
+                            JsExpr::Literal(JsLiteral::Boolean(b))
+                        } else if value.is_some_and(|v| v.is_null()) {
+                            JsExpr::Literal(JsLiteral::Null)
+                        } else {
+                            JsExpr::Raw(raw.to_string())
+                        }
+                    } else if let Some(n) = obj.get("value").and_then(|v| v.as_f64()) {
+                        JsExpr::Literal(JsLiteral::Number(n))
+                    } else if let Some(s) = obj.get("value").and_then(|v| v.as_str()) {
+                        JsExpr::Literal(JsLiteral::String(s.to_string()))
+                    } else if let Some(b) = obj.get("value").and_then(|v| v.as_bool()) {
+                        JsExpr::Literal(JsLiteral::Boolean(b))
+                    } else {
+                        JsExpr::Literal(JsLiteral::Null)
+                    }
+                }
+                "TemplateLiteral" => {
+                    // Convert template literal
+                    let quasis_arr = obj
+                        .get("quasis")
+                        .and_then(|q| q.as_array())
+                        .cloned()
+                        .unwrap_or_default();
+                    let expressions_arr = obj
+                        .get("expressions")
+                        .and_then(|e| e.as_array())
+                        .cloned()
+                        .unwrap_or_default();
+
+                    let quasis: Vec<JsTemplateElement> = quasis_arr
+                        .iter()
+                        .enumerate()
+                        .map(|(i, quasi)| {
+                            let raw = quasi
+                                .get("value")
+                                .and_then(|v| v.get("raw"))
+                                .and_then(|r| r.as_str())
+                                .unwrap_or("");
+                            let cooked = quasi
+                                .get("value")
+                                .and_then(|v| v.get("cooked"))
+                                .and_then(|c| c.as_str())
+                                .unwrap_or(raw);
+                            JsTemplateElement {
+                                raw: raw.to_string(),
+                                cooked: cooked.to_string(),
+                                tail: i == quasis_arr.len() - 1,
+                            }
+                        })
+                        .collect();
+
+                    let expressions: Vec<JsExpr> = expressions_arr
+                        .iter()
+                        .map(convert_value_to_js_expr_simple)
+                        .collect();
+
+                    JsExpr::TemplateLiteral(JsTemplateLiteral {
+                        quasis,
+                        expressions,
+                    })
+                }
+                "BinaryExpression" => {
+                    let left = obj
+                        .get("left")
+                        .map(convert_value_to_js_expr_simple)
+                        .unwrap_or(JsExpr::Literal(JsLiteral::Number(0.0)));
+                    let right = obj
+                        .get("right")
+                        .map(convert_value_to_js_expr_simple)
+                        .unwrap_or(JsExpr::Literal(JsLiteral::Number(0.0)));
+                    let op_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("+");
+                    let operator = str_to_binary_op(op_str);
+                    JsExpr::Binary(JsBinaryExpression {
+                        operator,
+                        left: Box::new(left),
+                        right: Box::new(right),
+                    })
+                }
+                "MemberExpression" => {
+                    let object = obj
+                        .get("object")
+                        .map(convert_value_to_js_expr_simple)
+                        .unwrap_or(JsExpr::Identifier("undefined".to_string()));
+                    let prop_val = obj.get("property");
+                    let computed = obj
+                        .get("computed")
+                        .and_then(|c| c.as_bool())
+                        .unwrap_or(false);
+                    let optional = obj
+                        .get("optional")
+                        .and_then(|o| o.as_bool())
+                        .unwrap_or(false);
+                    let property = if computed {
+                        JsMemberProperty::Expression(Box::new(
+                            prop_val
+                                .map(convert_value_to_js_expr_simple)
+                                .unwrap_or(JsExpr::Identifier("undefined".to_string())),
+                        ))
+                    } else {
+                        let prop_name = prop_val
+                            .and_then(|v| v.as_object())
+                            .and_then(|o| o.get("name"))
+                            .and_then(|n| n.as_str())
+                            .unwrap_or("undefined");
+                        JsMemberProperty::Identifier(prop_name.to_string())
+                    };
+                    JsExpr::Member(JsMemberExpression {
+                        object: Box::new(object),
+                        property,
+                        computed,
+                        optional,
+                    })
+                }
+                "CallExpression" => {
+                    let callee = obj
+                        .get("callee")
+                        .map(convert_value_to_js_expr_simple)
+                        .unwrap_or(JsExpr::Identifier("undefined".to_string()));
+                    let args = obj
+                        .get("arguments")
+                        .and_then(|a| a.as_array())
+                        .map(|arr| arr.iter().map(convert_value_to_js_expr_simple).collect())
+                        .unwrap_or_default();
+                    let optional = obj
+                        .get("optional")
+                        .and_then(|o| o.as_bool())
+                        .unwrap_or(false);
+                    JsExpr::Call(JsCallExpression {
+                        callee: Box::new(callee),
+                        arguments: args,
+                        optional,
+                    })
+                }
+                "UpdateExpression" => {
+                    let argument = obj
+                        .get("argument")
+                        .map(convert_value_to_js_expr_simple)
+                        .unwrap_or(JsExpr::Identifier("undefined".to_string()));
+                    let op_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("++");
+                    let operator = if op_str == "--" {
+                        JsUpdateOp::Decrement
+                    } else {
+                        JsUpdateOp::Increment
+                    };
+                    let prefix = obj.get("prefix").and_then(|p| p.as_bool()).unwrap_or(false);
+                    JsExpr::Update(JsUpdateExpression {
+                        operator,
+                        argument: Box::new(argument),
+                        prefix,
+                    })
+                }
+                "ObjectExpression" => {
+                    let props = obj
+                        .get("properties")
+                        .and_then(|p| p.as_array())
+                        .cloned()
+                        .unwrap_or_default();
+                    let members: Vec<JsObjectMember> = props
+                        .iter()
+                        .filter_map(|p| {
+                            let p_obj = p.as_object()?;
+                            let key_val = p_obj.get("key")?;
+                            let key_obj = key_val.as_object()?;
+                            let val = p_obj.get("value")?;
+                            let computed = p_obj
+                                .get("computed")
+                                .and_then(|c| c.as_bool())
+                                .unwrap_or(false);
+                            let shorthand = p_obj
+                                .get("shorthand")
+                                .and_then(|s| s.as_bool())
+                                .unwrap_or(false);
+
+                            let key = if computed {
+                                JsPropertyKey::Computed(Box::new(convert_value_to_js_expr_simple(
+                                    key_val,
+                                )))
+                            } else if let Some(name) = key_obj.get("name").and_then(|n| n.as_str())
+                            {
+                                JsPropertyKey::Identifier(name.to_string())
+                            } else {
+                                JsPropertyKey::Identifier("unknown".to_string())
+                            };
+
+                            Some(JsObjectMember::Property(JsProperty {
+                                key,
+                                value: Box::new(convert_value_to_js_expr_simple(val)),
+                                kind: JsPropertyKind::Init,
+                                shorthand,
+                                method: false,
+                                computed,
+                            }))
+                        })
+                        .collect();
+                    JsExpr::Object(JsObjectExpression {
+                        properties: members,
+                    })
+                }
+                "ArrayExpression" => {
+                    let elems = obj
+                        .get("elements")
+                        .and_then(|e| e.as_array())
+                        .cloned()
+                        .unwrap_or_default();
+                    let items: Vec<Option<JsExpr>> = elems
+                        .iter()
+                        .map(|e| {
+                            if e.is_null() {
+                                None
+                            } else {
+                                Some(convert_value_to_js_expr_simple(e))
+                            }
+                        })
+                        .collect();
+                    JsExpr::Array(JsArrayExpression { elements: items })
+                }
+                "UnaryExpression" => {
+                    let argument = obj
+                        .get("argument")
+                        .map(convert_value_to_js_expr_simple)
+                        .unwrap_or(JsExpr::Literal(JsLiteral::Number(0.0)));
+                    let op_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("-");
+                    let operator = str_to_unary_op(op_str);
+                    let prefix = obj.get("prefix").and_then(|p| p.as_bool()).unwrap_or(true);
+                    JsExpr::Unary(JsUnaryExpression {
+                        operator,
+                        argument: Box::new(argument),
+                        prefix,
+                    })
+                }
+                "ConditionalExpression" => {
+                    let test = obj
+                        .get("test")
+                        .map(convert_value_to_js_expr_simple)
+                        .unwrap_or(JsExpr::Literal(JsLiteral::Boolean(false)));
+                    let consequent = obj
+                        .get("consequent")
+                        .map(convert_value_to_js_expr_simple)
+                        .unwrap_or(JsExpr::Identifier("undefined".to_string()));
+                    let alternate = obj
+                        .get("alternate")
+                        .map(convert_value_to_js_expr_simple)
+                        .unwrap_or(JsExpr::Identifier("undefined".to_string()));
+                    JsExpr::Conditional(JsConditionalExpression {
+                        test: Box::new(test),
+                        consequent: Box::new(consequent),
+                        alternate: Box::new(alternate),
+                    })
+                }
+                _ => {
+                    // Fallback: try to use raw representation based on start/end from source
+                    JsExpr::Raw(format!("/* TODO: {} */", node_type))
+                }
+            }
+        }
+        serde_json::Value::String(s) => JsExpr::Literal(JsLiteral::String(s.clone())),
+        serde_json::Value::Number(n) => {
+            JsExpr::Literal(JsLiteral::Number(n.as_f64().unwrap_or(0.0)))
+        }
+        serde_json::Value::Bool(b) => JsExpr::Literal(JsLiteral::Boolean(*b)),
+        serde_json::Value::Null => JsExpr::Literal(JsLiteral::Null),
+        _ => JsExpr::Raw("undefined".to_string()),
+    }
+}
+
+/// Convert a string operator to JsBinaryOp.
+fn str_to_binary_op(op: &str) -> JsBinaryOp {
+    match op {
+        "+" => JsBinaryOp::Add,
+        "-" => JsBinaryOp::Sub,
+        "*" => JsBinaryOp::Mul,
+        "/" => JsBinaryOp::Div,
+        "%" => JsBinaryOp::Mod,
+        "**" => JsBinaryOp::Pow,
+        "==" => JsBinaryOp::Eq,
+        "!=" => JsBinaryOp::Ne,
+        "===" => JsBinaryOp::StrictEq,
+        "!==" => JsBinaryOp::StrictNe,
+        "<" => JsBinaryOp::Lt,
+        "<=" => JsBinaryOp::Le,
+        ">" => JsBinaryOp::Gt,
+        ">=" => JsBinaryOp::Ge,
+        "&" => JsBinaryOp::BitAnd,
+        "|" => JsBinaryOp::BitOr,
+        "^" => JsBinaryOp::BitXor,
+        "<<" => JsBinaryOp::Shl,
+        ">>" => JsBinaryOp::Shr,
+        ">>>" => JsBinaryOp::UShr,
+        "in" => JsBinaryOp::In,
+        "instanceof" => JsBinaryOp::InstanceOf,
+        _ => JsBinaryOp::Add,
+    }
+}
+
+/// Convert a string operator to JsUnaryOp.
+fn str_to_unary_op(op: &str) -> JsUnaryOp {
+    match op {
+        "-" => JsUnaryOp::Minus,
+        "+" => JsUnaryOp::Plus,
+        "!" => JsUnaryOp::Not,
+        "~" => JsUnaryOp::BitNot,
+        "typeof" => JsUnaryOp::TypeOf,
+        "void" => JsUnaryOp::Void,
+        "delete" => JsUnaryOp::Delete,
+        _ => JsUnaryOp::Minus,
+    }
 }
 
 /// Parse a destructuring pattern string into a JsPattern.

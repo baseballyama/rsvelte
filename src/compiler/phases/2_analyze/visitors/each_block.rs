@@ -7,6 +7,7 @@
 use rustc_hash::FxHashSet;
 
 use super::super::{AnalysisError, Binding, BindingKind, errors};
+use super::script::walk_js_node;
 use super::shared::fragment;
 use super::shared::utils::{validate_block_not_empty, validate_opening_tag, walk_js_expression};
 use super::{EachBlockContext, VisitorContext};
@@ -122,6 +123,14 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
         context.scope = each_scope;
     }
 
+    // Walk the context pattern's default values so that identifiers in defaults
+    // (e.g., `{#each array as { a = default_value_1 }}`) are visited and references counted.
+    // The official Svelte's zimmerframe walker automatically visits the context pattern,
+    // but our implementation needs to explicitly walk the default values.
+    if let Some(ref context_expr) = block.context {
+        walk_pattern_defaults(context_expr.as_json(), context)?;
+    }
+
     // Visit the body and fallback
     fragment::analyze(&mut block.body, context)?;
 
@@ -189,6 +198,61 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     // Mark the subtree as dynamic
     super::shared::fragment::mark_subtree_dynamic(&context.path);
 
+    Ok(())
+}
+
+/// Walk default values in a destructuring pattern using the JS walker.
+///
+/// This visits the `right` side of AssignmentPattern nodes so that identifiers
+/// in default values are properly counted as references. For example, in
+/// `{#each array as { a = default_value_1 }}`, the `default_value_1` identifier
+/// needs to be visited to count as a reference to the outer-scope binding.
+fn walk_pattern_defaults(
+    pattern: &serde_json::Value,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    let pattern_type = pattern.get("type").and_then(|t| t.as_str());
+    match pattern_type {
+        Some("AssignmentPattern") => {
+            // Walk the left side for nested patterns
+            if let Some(left) = pattern.get("left") {
+                walk_pattern_defaults(left, context)?;
+            }
+            // Walk the default value expression - this is the key part
+            if let Some(right) = pattern.get("right") {
+                walk_js_node(right, context)?;
+            }
+        }
+        Some("ObjectPattern") => {
+            if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
+                for prop in properties {
+                    let prop_type = prop.get("type").and_then(|t| t.as_str());
+                    if prop_type == Some("RestElement") {
+                        if let Some(argument) = prop.get("argument") {
+                            walk_pattern_defaults(argument, context)?;
+                        }
+                    } else if let Some(value) = prop.get("value") {
+                        walk_pattern_defaults(value, context)?;
+                    }
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
+                for elem in elements {
+                    if !elem.is_null() {
+                        walk_pattern_defaults(elem, context)?;
+                    }
+                }
+            }
+        }
+        Some("RestElement") => {
+            if let Some(argument) = pattern.get("argument") {
+                walk_pattern_defaults(argument, context)?;
+            }
+        }
+        _ => {}
+    }
     Ok(())
 }
 

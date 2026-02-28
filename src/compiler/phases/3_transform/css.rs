@@ -41,6 +41,131 @@ struct CssContext<'a> {
     parent_preludes: std::cell::RefCell<Vec<&'a Value>>,
 }
 
+/// A CSS unused selector warning.
+pub struct CssUnusedWarning {
+    /// The selector text that is unused
+    pub selector_text: String,
+    /// Start position in source
+    pub start: u32,
+    /// End position in source
+    pub end: u32,
+}
+
+/// Collect CSS unused selector warnings.
+///
+/// This walks the CSS AST and uses the same unused detection logic as
+/// the CSS transform phase to identify selectors that don't match any
+/// template elements.
+///
+/// Corresponds to `warn_unused()` in Svelte's `css-warn.js`.
+pub fn collect_css_unused_warnings(
+    analysis: &ComponentAnalysis,
+    source: &str,
+) -> Vec<CssUnusedWarning> {
+    let mut warnings = Vec::new();
+
+    if !analysis.css.has_css || analysis.css.hash.is_empty() {
+        return warnings;
+    }
+
+    let ctx = CssContext {
+        used_elements: &analysis.css.used_elements,
+        used_classes: &analysis.css.used_classes,
+        used_ids: &analysis.css.used_ids,
+        has_dynamic_elements: analysis.css.has_dynamic_elements,
+        has_dynamic_classes: analysis.css.has_dynamic_classes,
+        has_control_flow: analysis.css.has_control_flow,
+        has_opaque_sibling_boundaries: analysis.css.has_opaque_elements,
+        dom_structure: &analysis.css.dom_structure,
+        parent_preludes: std::cell::RefCell::new(Vec::new()),
+    };
+
+    if let Some((css_content, css_start)) = extract_css_content(source) {
+        let children = parse_css(&css_content, css_start);
+        collect_unused_warnings_from_nodes(&children, &css_content, css_start, &ctx, &mut warnings);
+    }
+
+    warnings
+}
+
+/// Recursively collect unused selector warnings from CSS AST nodes.
+fn collect_unused_warnings_from_nodes<'a>(
+    nodes: &'a [Value],
+    css_source: &str,
+    css_start: usize,
+    ctx: &CssContext<'a>,
+    warnings: &mut Vec<CssUnusedWarning>,
+) {
+    for node in nodes {
+        if let Some(node_type) = node.get("type").and_then(|t| t.as_str()) {
+            match node_type {
+                "Rule" => {
+                    // Check the selector list (prelude) for unused complex selectors
+                    if let Some(prelude) = node.get("prelude")
+                        && let Some(complex_selectors) =
+                            prelude.get("children").and_then(|c| c.as_array())
+                    {
+                        // Push parent prelude for nesting context
+                        ctx.parent_preludes.borrow_mut().push(prelude);
+
+                        for complex_selector in complex_selectors {
+                            if is_complex_selector_unused(complex_selector, ctx) {
+                                let start = complex_selector
+                                    .get("start")
+                                    .and_then(|s| s.as_u64())
+                                    .unwrap_or(0)
+                                    as u32;
+                                let end = complex_selector
+                                    .get("end")
+                                    .and_then(|e| e.as_u64())
+                                    .unwrap_or(0) as u32;
+                                let text = strip_bare_global_from_text(
+                                    complex_selector,
+                                    css_source,
+                                    css_start,
+                                );
+                                warnings.push(CssUnusedWarning {
+                                    selector_text: text,
+                                    start,
+                                    end,
+                                });
+                            }
+                        }
+
+                        ctx.parent_preludes.borrow_mut().pop();
+                    }
+
+                    // Recursively check nested rules
+                    if let Some(block) = node.get("block")
+                        && let Some(children) = block.get("children").and_then(|c| c.as_array())
+                    {
+                        // Push parent prelude for nested context
+                        if let Some(prelude) = node.get("prelude") {
+                            ctx.parent_preludes.borrow_mut().push(prelude);
+                        }
+                        collect_unused_warnings_from_nodes(
+                            children, css_source, css_start, ctx, warnings,
+                        );
+                        if node.get("prelude").is_some() {
+                            ctx.parent_preludes.borrow_mut().pop();
+                        }
+                    }
+                }
+                "Atrule" => {
+                    if let Some(block) = node.get("block")
+                        && let Some(children) = block.get("children").and_then(|c| c.as_array())
+                    {
+                        collect_unused_warnings_from_nodes(
+                            children, css_source, css_start, ctx, warnings,
+                        );
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
 /// Render the stylesheet for a component.
 pub fn render_stylesheet(
     analysis: &ComponentAnalysis,
