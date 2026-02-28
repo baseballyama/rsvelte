@@ -11166,8 +11166,48 @@ fn is_shorthand_object_property(chars: &[char], var_start: usize, var_len: usize
             return false;
         }
 
-        // If preceded by `,`, we're inside an object or array - assume object
-        return true;
+        // If preceded by `,`, we need to distinguish array context from object context.
+        // Scan backwards to find the enclosing unmatched `[` or `{`.
+        // If the enclosing bracket is `[`, this is an array element, not a shorthand property.
+        // If the enclosing bracket is `{`, this is likely a shorthand object property.
+        let mut depth_brace = 0i32; // { }
+        let mut depth_bracket = 0i32; // [ ]
+        let mut depth_paren = 0i32; // ( )
+        let mut scan = j - 1; // start from the `,` position
+        loop {
+            if scan == 0 {
+                // Reached beginning without finding enclosing bracket - not an object
+                return false;
+            }
+            scan -= 1;
+            match chars[scan] {
+                '}' => depth_brace += 1,
+                '{' => {
+                    if depth_brace == 0 {
+                        // Found the enclosing `{` - this is an object context
+                        return true;
+                    }
+                    depth_brace -= 1;
+                }
+                ']' => depth_bracket += 1,
+                '[' => {
+                    if depth_bracket == 0 {
+                        // Found the enclosing `[` - this is an array context
+                        return false;
+                    }
+                    depth_bracket -= 1;
+                }
+                ')' => depth_paren += 1,
+                '(' => {
+                    if depth_paren == 0 {
+                        // Found the enclosing `(` - this is a function call/grouping, not object
+                        return false;
+                    }
+                    depth_paren -= 1;
+                }
+                _ => {}
+            }
+        }
     }
 
     false

@@ -6,7 +6,7 @@ use super::super::types::{ConstantFoldResult, OutputPart};
 use super::shared::utils::has_top_level_comma;
 use crate::ast::template::ExpressionTag;
 use crate::compiler::phases::phase3_transform::TransformError;
-use crate::compiler::phases::phase3_transform::shared::escape_html;
+use crate::compiler::phases::phase3_transform::shared::{escape_html, sanitize_template_string};
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_expression_tag(
@@ -31,8 +31,9 @@ impl<'a> ServerCodeGenerator<'a> {
                 ConstantFoldResult::Constant(content) => {
                     // Output constant with HTML escaping (matches official compiler's
                     // escape_html() call on evaluated values)
-                    self.output_parts
-                        .push(OutputPart::Html(escape_html(&content)));
+                    self.output_parts.push(OutputPart::Html(escape_html(
+                        &sanitize_template_string(&content),
+                    )));
                 }
                 ConstantFoldResult::Dynamic => {
                     // Dynamic expression - needs escaping

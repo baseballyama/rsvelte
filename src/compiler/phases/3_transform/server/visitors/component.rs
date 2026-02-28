@@ -286,8 +286,18 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         // Collect component-level let directive params including aliases (e.g., <Counter let:count={n}> -> "count: n")
-        let component_let_directives: Vec<String> =
-            get_let_directive_params(&component.attributes, &self.source);
+        // BUT: if the component has a slot= attribute (e.g., <Child slot="item" let:item>),
+        // the let: directives belong to the PARENT's slot interface, not this component's
+        // own children. In that case, don't pass them to children processing.
+        let has_slot_attr = component
+            .attributes
+            .iter()
+            .any(|a| matches!(a, Attribute::Attribute(attr) if attr.name.as_str() == "slot"));
+        let component_let_directives: Vec<String> = if has_slot_attr {
+            Vec::new()
+        } else {
+            get_let_directive_params(&component.attributes, &self.source)
+        };
 
         // Extract snippets from the component's fragment and process children
         // Pass component-level let directives so constant folding is suppressed for shadowed vars
@@ -407,6 +417,18 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
                     TemplateNode::SvelteFragment(frag) => {
                         get_let_directive_params(&frag.attributes, &self.source)
+                    }
+                    TemplateNode::Component(comp) => {
+                        get_let_directive_params(&comp.attributes, &self.source)
+                    }
+                    TemplateNode::SvelteElement(elem) => {
+                        get_let_directive_params(&elem.attributes, &self.source)
+                    }
+                    TemplateNode::SvelteSelf(elem) => {
+                        get_let_directive_params(&elem.attributes, &self.source)
+                    }
+                    TemplateNode::SvelteComponent(elem) => {
+                        get_let_directive_params(&elem.attributes, &self.source)
                     }
                     _ => get_let_directives(node),
                 };

@@ -4,7 +4,7 @@ use super::super::ServerCodeGenerator;
 use super::super::types::OutputPart;
 use crate::ast::template::{EachBlock, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
-use crate::compiler::phases::phase3_transform::shared::escape_html;
+use crate::compiler::phases::phase3_transform::shared::{escape_html, sanitize_template_string};
 use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -176,7 +176,9 @@ impl<'a> ServerCodeGenerator<'a> {
                 if !data.is_empty() {
                     body_generator
                         .output_parts
-                        .push(OutputPart::Html(escape_html(&data)));
+                        .push(OutputPart::Html(escape_html(&sanitize_template_string(
+                            &data,
+                        ))));
                 }
             } else {
                 body_generator.generate_node(node, false)?;

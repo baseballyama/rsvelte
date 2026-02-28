@@ -10,6 +10,13 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::LazyLock;
 
+/// Type for semantic role element entries: (element_name, optional_attributes, roles).
+type SemanticRoleElement = (
+    &'static str,
+    Option<&'static [(&'static str, &'static str)]>,
+    &'static [&'static str],
+);
+
 /// ARIA attributes list.
 pub const ARIA_ATTRIBUTES: &[&str] = &[
     "activedescendant",
@@ -1965,3 +1972,72 @@ pub static NON_INTERACTIVE_ELEMENT_AX_OBJECT_SCHEMAS: LazyLock<Vec<RoleRelationC
             },
         ]
     });
+
+/// Map of ARIA roles to their required properties.
+/// Sourced from aria-query roles_map requiredProps.
+/// Only roles that have non-empty requiredProps are included.
+pub static ROLE_REQUIRED_PROPS: LazyLock<FxHashMap<&'static str, &'static [&'static str]>> =
+    LazyLock::new(|| {
+        let mut map = FxHashMap::default();
+        map.insert("checkbox", &["aria-checked"][..]);
+        map.insert("combobox", &["aria-controls", "aria-expanded"][..]);
+        map.insert("heading", &["aria-level"][..]);
+        map.insert("menuitemcheckbox", &["aria-checked"][..]);
+        map.insert("menuitemradio", &["aria-checked"][..]);
+        map.insert("meter", &["aria-valuenow"][..]);
+        map.insert("option", &["aria-selected"][..]);
+        map.insert("radio", &["aria-checked"][..]);
+        map.insert("scrollbar", &["aria-controls", "aria-valuenow"][..]);
+        map.insert("slider", &["aria-valuenow"][..]);
+        map.insert("switch", &["aria-checked"][..]);
+        map.insert("treeitem", &["aria-selected"][..]);
+        map
+    });
+
+/// Map of elements (with optional attributes) to the roles they semantically represent.
+/// Used by `is_semantic_role_element` to determine if an element naturally carries a role.
+/// Derived from axobject-query's elementAXObjects and AXObjectRoles maps.
+///
+/// Format: (element_name, optional_attributes, roles)
+/// If an element matches (name + attributes), it semantically maps to those roles.
+pub static SEMANTIC_ROLE_ELEMENTS: LazyLock<Vec<SemanticRoleElement>> = LazyLock::new(|| {
+    vec![
+        // input[type=checkbox] -> checkbox, switch
+        (
+            "input",
+            Some(&[("type", "checkbox")][..]),
+            &["checkbox", "switch"][..],
+        ),
+        // input[type=radio] -> radio
+        ("input", Some(&[("type", "radio")][..]), &["radio"][..]),
+        // input[type=range] -> slider
+        ("input", Some(&[("type", "range")][..]), &["slider"][..]),
+        // select -> combobox, listbox
+        ("select", None, &["combobox", "listbox"][..]),
+        // option -> option
+        ("option", None, &["option"][..]),
+        // h1-h6 -> heading
+        ("h1", None, &["heading"][..]),
+        ("h2", None, &["heading"][..]),
+        ("h3", None, &["heading"][..]),
+        ("h4", None, &["heading"][..]),
+        ("h5", None, &["heading"][..]),
+        ("h6", None, &["heading"][..]),
+        // meter -> meter
+        ("meter", None, &["meter"][..]),
+        // menuitemcheckbox
+        (
+            "menuitem",
+            Some(&[("type", "checkbox")][..]),
+            &["menuitemcheckbox"][..],
+        ),
+        // menuitemradio
+        (
+            "menuitem",
+            Some(&[("type", "radio")][..]),
+            &["menuitemradio"][..],
+        ),
+        // treeitem -> treeitem
+        ("treeitem", None, &["treeitem"][..]),
+    ]
+});

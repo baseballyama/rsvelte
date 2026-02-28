@@ -19,6 +19,7 @@ pub mod binding_properties;
 pub mod blockers;
 pub mod control_flow;
 pub mod css;
+mod css_scoping;
 pub mod errors;
 pub mod scope;
 mod scope_builder;
@@ -62,6 +63,16 @@ pub fn analyze_component(
     options: &CompileOptions,
 ) -> Result<ComponentAnalysis, AnalysisError> {
     let mut analysis = ComponentAnalysis::new(source, options);
+
+    // Forward parser-level warnings to the analysis warnings.
+    // These include warnings like `element_implicitly_closed` that are
+    // emitted during parsing when elements are auto-closed.
+    for pw in &ast.parse_warnings {
+        analysis.warnings.push(warnings::AnalysisWarning::new(
+            pw.code.clone(),
+            pw.message.clone(),
+        ));
+    }
 
     // Merge svelte:options from the parsed AST into the analysis
     // This handles cases like <svelte:options runes /> that set runes mode
@@ -153,10 +164,15 @@ pub fn analyze_component(
     // const runes = options.runes ?? (has_await || instance.has_await ||
     //     Array.from(module.scope.references.keys()).some(is_rune));
     if options.runes.is_none() && !analysis.runes {
-        let has_rune_bindings = analysis.root.bindings.iter().any(|b| b.is_rune());
-        // Check for rune references in instance and module scripts
-        // This catches cases like standalone $effect(...) or $inspect(...) calls
-        // that don't create bindings but indicate runes mode
+        // Check for rune references in instance and module scripts.
+        // This mirrors the official Svelte compiler's approach at L449-451:
+        //   Array.from(module.scope.references.keys()).some(is_rune)
+        // We check for rune identifier names ($state, $derived, $effect, etc.) in the
+        // AST rather than checking binding kinds. Checking binding kinds (e.g., State,
+        // Derived) would be fragile because other code paths (like legacy state promotion
+        // for each-block collections) can also set bindings to State kind, which would
+        // falsely trigger runes mode and reject `export let` with `legacy_export_invalid`.
+        //
         // Collect store subscription names to exclude them from rune detection.
         // Store auto-subscriptions ($store) look like rune references (dollar prefix)
         // but are NOT runes. If we don't exclude them, a component with $store in the
@@ -198,8 +214,7 @@ pub fn analyze_component(
         // template fragment here.
         let template_has_rune_references =
             fragment_has_rune_reference(&ast.fragment, &store_sub_names);
-        if has_rune_bindings
-            || fragment_has_await
+        if fragment_has_await
             || instance_has_await
             || has_rune_references
             || template_has_rune_references
@@ -483,6 +498,70 @@ pub fn analyze_component(
         }
     }
 
+    // Check for unused export let bindings in instance scope.
+    // Corresponds to Svelte's 2-analyze/index.js L796-808:
+    //   for (const [name, binding] of instance.scope.declarations) {
+    //     if ((binding.kind === 'prop' || binding.kind === 'bindable_prop') && binding.node.name !== '$$props') {
+    //       const references = binding.references.filter(r => r.node !== binding.node && r.path.at(-1)?.type !== 'ExportSpecifier');
+    //       if (!references.length && !instance.scope.declarations.has(`$${name}`)) {
+    //         w.export_let_unused(binding.node, name);
+    //       }
+    //     }
+    //   }
+    if !analysis.runes {
+        let instance_scope_idx = analysis.root.instance_scope_index;
+        let binding_count = analysis.root.bindings.len();
+        for i in 0..binding_count {
+            let binding = &analysis.root.bindings[i];
+            // Only check instance scope bindings
+            if binding.scope_index != instance_scope_idx {
+                continue;
+            }
+            // Only check prop bindings (export let)
+            if !matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp) {
+                continue;
+            }
+            // Skip $$props
+            if binding.name == "$$props" {
+                continue;
+            }
+            // Check if the binding has references other than the declaration and ExportSpecifier.
+            // Corresponds to the official filter:
+            //   binding.references.filter(r => r.node !== binding.node && r.path.at(-1)?.type !== 'ExportSpecifier')
+            // In our implementation, the first reference is typically the self-declaration
+            // (from visiting the VariableDeclarator's id pattern). We count references
+            // that are not ExportSpecifier references and check if there are more than 1
+            // (the self-declaration).
+            let non_export_specifier_refs = binding
+                .references
+                .iter()
+                .filter(|r| !r.is_export_specifier)
+                .count();
+            // More than 1 means there are references beyond the self-declaration
+            let has_external_reference = non_export_specifier_refs > 1;
+            // Also check if there's a store subscription with the same name ($name).
+            // The official Svelte compiler checks: instance.scope.declarations.has(`$${name}`)
+            // In our implementation, $name bindings may not be created as declarations,
+            // so we check all scopes and also look for $name in the source.
+            let store_name = format!("${}", binding.name);
+            let has_store = analysis.root.scope.declarations.contains_key(&store_name) || {
+                // Fallback: check if $name appears in the source (for cases where
+                // we don't create $name bindings but the source uses them)
+                source.contains(&store_name)
+            };
+            if !has_external_reference && !has_store {
+                // Check if the binding has a svelte-ignore comment for this warning
+                if !binding
+                    .ignore_codes
+                    .contains(&"export_let_unused".to_string())
+                {
+                    let name = binding.name.clone();
+                    analysis.warnings.push(warnings::export_let_unused(&name));
+                }
+            }
+        }
+    }
+
     // Check for mixing slot and render tag syntax
     // Corresponds to Svelte's 2-analyze/index.js check for slot_snippet_conflict
     // The official compiler checks: uses_slots || (!custom_element && slot_names.size > 0)
@@ -508,11 +587,11 @@ pub fn analyze_component(
         css::prune_css(stylesheet, &analysis);
 
         // Mark elements as scoped based on CSS selector matching.
-        // Only elements that could potentially match a CSS selector get the
-        // scoped hash class. This is a simplified version of the official
-        // compiler's css-prune.js per-element marking.
+        // Extract CSS selectors and match them against template elements,
+        // properly considering combinators (>, space, +, ~).
         if !analysis.css.hash.is_empty() {
-            mark_elements_scoped(&mut ast.fragment, &analysis);
+            let css_selectors = css_scoping::extract_css_selectors(stylesheet);
+            css_scoping::mark_elements_scoped(&mut ast.fragment, &css_selectors);
         }
     }
 
@@ -1558,155 +1637,7 @@ fn extract_each_pattern_identifiers(node: &serde_json::Value, names: &mut Vec<St
     }
 }
 
-/// Mark RegularElement nodes in the fragment as scoped based on CSS selector matching.
-/// Only elements that could potentially match a CSS selector get the scoped hash.
-///
-/// This is a simplified version of the official compiler's css-prune.js per-element
-/// marking. It checks if an element could match based on tag name, class attributes,
-/// or other properties.
-fn mark_elements_scoped(
-    fragment: &mut crate::ast::template::Fragment,
-    analysis: &ComponentAnalysis,
-) {
-    use crate::ast::template::TemplateNode;
-
-    for node in &mut fragment.nodes {
-        match node {
-            TemplateNode::RegularElement(el) => {
-                // Check if this element could potentially match any CSS selector
-                el.metadata.scoped = element_could_match_css(el, analysis);
-                mark_elements_scoped(&mut el.fragment, analysis);
-            }
-            TemplateNode::Component(comp) => {
-                mark_elements_scoped(&mut comp.fragment, analysis);
-            }
-            TemplateNode::IfBlock(if_block) => {
-                mark_elements_scoped(&mut if_block.consequent, analysis);
-                if let Some(ref mut alt) = if_block.alternate {
-                    mark_elements_scoped(alt, analysis);
-                }
-            }
-            TemplateNode::EachBlock(each) => {
-                mark_elements_scoped(&mut each.body, analysis);
-                if let Some(ref mut fallback) = each.fallback {
-                    mark_elements_scoped(fallback, analysis);
-                }
-            }
-            TemplateNode::AwaitBlock(await_block) => {
-                if let Some(ref mut pending) = await_block.pending {
-                    mark_elements_scoped(pending, analysis);
-                }
-                if let Some(ref mut then) = await_block.then {
-                    mark_elements_scoped(then, analysis);
-                }
-                if let Some(ref mut catch) = await_block.catch {
-                    mark_elements_scoped(catch, analysis);
-                }
-            }
-            TemplateNode::KeyBlock(key) => {
-                mark_elements_scoped(&mut key.fragment, analysis);
-            }
-            TemplateNode::SnippetBlock(snippet) => {
-                mark_elements_scoped(&mut snippet.body, analysis);
-            }
-            TemplateNode::SvelteHead(head) => {
-                mark_elements_scoped(&mut head.fragment, analysis);
-            }
-            TemplateNode::SvelteElement(el) => {
-                mark_elements_scoped(&mut el.fragment, analysis);
-            }
-            TemplateNode::SlotElement(slot) => {
-                mark_elements_scoped(&mut slot.fragment, analysis);
-            }
-            TemplateNode::TitleElement(title) => {
-                mark_elements_scoped(&mut title.fragment, analysis);
-            }
-            _ => {}
-        }
-    }
-}
-
-/// Check if an element could potentially match any CSS selector.
-///
-/// This is a simplified version of the official compiler's per-element CSS pruning.
-/// An element is considered potentially matching if:
-/// 1. CSS has a universal selector (*), OR
-/// 2. The element's tag name matches a CSS type selector, OR
-/// 3. The element has class-related attributes/directives and CSS has class selectors, OR
-/// 4. The element has an id attribute and CSS has id selectors, OR
-/// 5. The element has a spread attribute (could add any class dynamically)
-///
-/// If CSS has ONLY class selectors (no tag selectors, no universal), elements without
-/// class-related attributes won't be scoped.
-fn element_could_match_css(
-    el: &crate::ast::template::RegularElement,
-    analysis: &ComponentAnalysis,
-) -> bool {
-    let css = &analysis.css;
-
-    // If there's a universal selector, all elements match
-    if css.has_universal_selector {
-        return true;
-    }
-
-    // Check if the element's tag name matches a CSS type selector
-    if css.selector_tag_names.contains(el.name.as_str()) {
-        return true;
-    }
-
-    // Check if element has any class-related attribute, class directive, or spread
-    // that could potentially match a CSS class selector
-    if !css.selector_class_names.is_empty() {
-        use crate::ast::template::Attribute;
-
-        let has_class_related = el.attributes.iter().any(|attr| match attr {
-            Attribute::Attribute(a) => a.name == "class",
-            Attribute::ClassDirective(_) => true,
-            Attribute::SpreadAttribute(_) => true,
-            _ => false,
-        });
-
-        if has_class_related {
-            return true;
-        }
-    }
-
-    // Check if element has an id attribute that could match a CSS id selector
-    if !css.selector_id_names.is_empty() {
-        use crate::ast::template::Attribute;
-        let has_id = el
-            .attributes
-            .iter()
-            .any(|attr| matches!(attr, Attribute::Attribute(a) if a.name == "id"));
-        if has_id {
-            return true;
-        }
-    }
-
-    // Check if element has a spread attribute (could add any class or id dynamically)
-    {
-        use crate::ast::template::Attribute;
-        let has_spread = el
-            .attributes
-            .iter()
-            .any(|attr| matches!(attr, Attribute::SpreadAttribute(_)));
-        if has_spread && (!css.selector_class_names.is_empty() || !css.selector_id_names.is_empty())
-        {
-            return true;
-        }
-    }
-
-    // If CSS has no specific selectors at all (only pseudo/attribute selectors),
-    // be conservative and mark as scoped
-    if css.selector_tag_names.is_empty()
-        && css.selector_class_names.is_empty()
-        && css.selector_id_names.is_empty()
-    {
-        return true;
-    }
-
-    false
-}
+// CSS scoping functions moved to css_scoping.rs module.
 
 /// Analyze a Svelte module (context="module" script).
 ///

@@ -369,8 +369,9 @@ impl<'a> CssParser<'a> {
 
     fn parse_selector_list(&self, text: &str, offset: usize) -> Value {
         let start = offset;
-        // Calculate end position excluding trailing whitespace
-        let trailing_ws = text.len() - text.trim_end().len();
+        // Calculate end position excluding trailing whitespace, but preserve
+        // whitespace that terminates a CSS hex escape sequence (e.g., `\33 `).
+        let trailing_ws = Self::css_safe_trailing_ws_and_comments_len(text);
         let end = offset + text.len() - trailing_ws;
 
         // Split by comma for multiple selectors, but respect parentheses and comments
@@ -383,8 +384,9 @@ impl<'a> CssParser<'a> {
                 let leading_skip = Self::leading_ws_and_comments_len(selector);
                 let adjusted_offset = selector_offset + leading_skip;
                 let stripped = &selector[leading_skip..];
-                // Also strip trailing whitespace and comments
-                let trailing_skip = Self::trailing_ws_and_comments_len(stripped);
+                // Also strip trailing whitespace and comments, preserving CSS
+                // escape-terminating whitespace.
+                let trailing_skip = Self::css_safe_trailing_ws_and_comments_len(stripped);
                 let trimmed = &stripped[..stripped.len() - trailing_skip];
                 self.parse_complex_selector(trimmed, adjusted_offset)
             })
@@ -519,6 +521,68 @@ impl<'a> CssParser<'a> {
             break;
         }
         bytes.len() - end
+    }
+
+    /// Check if text ends with an unterminated CSS hex escape sequence.
+    /// In CSS, `\HH` (1-5 hex digits) can be terminated by a whitespace character
+    /// that is consumed as part of the escape. If the text ends with such hex
+    /// digits (fewer than 6) without a whitespace terminator, the next whitespace
+    /// character in the source is the escape terminator and should be preserved
+    /// in position calculations.
+    fn ends_with_css_hex_escape(text: &str) -> bool {
+        let chars: Vec<char> = text.chars().collect();
+        let len = chars.len();
+        if len < 2 {
+            return false;
+        }
+
+        let mut i = 0;
+        while i < len {
+            if chars[i] == '\\' && i + 1 < len {
+                i += 1; // skip backslash
+                if chars[i].is_ascii_hexdigit() {
+                    // Hex escape: consume up to 6 hex digits
+                    let mut hex_count = 0;
+                    while i < len && hex_count < 6 && chars[i].is_ascii_hexdigit() {
+                        i += 1;
+                        hex_count += 1;
+                    }
+                    // If we've reached the end of the string, the escape is unterminated
+                    if i == len {
+                        return true;
+                    }
+                    // Consume optional single whitespace terminator
+                    if chars[i] == ' ' || chars[i] == '\t' || chars[i] == '\n' {
+                        i += 1;
+                    }
+                } else {
+                    // Single-char escape (e.g., \. or \@) - skip the escaped char
+                    i += 1;
+                }
+            } else {
+                i += 1;
+            }
+        }
+        false
+    }
+
+    /// Returns the number of trailing bytes that are whitespace or CSS comments,
+    /// but preserves one whitespace character if it serves as a CSS hex escape
+    /// terminator. This ensures positions in the AST correctly include escape-
+    /// terminating whitespace.
+    fn css_safe_trailing_ws_and_comments_len(text: &str) -> usize {
+        let raw_trailing = Self::trailing_ws_and_comments_len(text);
+        if raw_trailing == 0 {
+            return 0;
+        }
+        let trimmed = &text[..text.len() - raw_trailing];
+        if Self::ends_with_css_hex_escape(trimmed) {
+            // The first whitespace character after the hex escape is the terminator;
+            // preserve it by reducing the amount we trim by 1.
+            raw_trailing.saturating_sub(1)
+        } else {
+            raw_trailing
+        }
     }
 
     fn parse_relative_selectors_with_combinators(

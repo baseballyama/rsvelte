@@ -140,10 +140,9 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
-        // For <style> and <script> elements, emit a Flush marker before the element.
-        // In the official Svelte compiler, these elements generate standalone $$renderer.push()
-        // calls (via build_template), which forces a flush of any preceding template content.
-        // This ensures {@html} followed by <style> produces separate push calls.
+        // For <style> and <script> elements (non-top-level, inside other elements),
+        // emit a Flush marker before the element. The official Svelte compiler outputs
+        // these as separate $$renderer.push() calls.
         let is_style_or_script = name == "style" || name == "script";
         if is_style_or_script {
             self.output_parts.push(OutputPart::Flush);
@@ -269,6 +268,24 @@ impl<'a> ServerCodeGenerator<'a> {
                 return Ok(());
             }
 
+            // For <script> and <style> elements (which are non-top-level raw text elements),
+            // output their content as-is without HTML escaping or whitespace processing.
+            // This matches the official Svelte compiler behavior where these elements
+            // preserve their raw text content.
+            if name == "script" || name == "style" {
+                for child in &element.fragment.nodes {
+                    if let TemplateNode::Text(text) = child {
+                        self.output_parts
+                            .push(OutputPart::Html(sanitize_template_string(&text.data)));
+                    }
+                }
+                self.output_parts
+                    .push(OutputPart::Html(format!("</{}>", name)));
+                // Flush after closing tag to ensure subsequent content starts a new push call
+                self.output_parts.push(OutputPart::Flush);
+                return Ok(());
+            }
+
             // Children - filter and process with position awareness
             // First, filter out comments and find meaningful content boundaries
             let children: Vec<_> = element.fragment.nodes.iter().collect();
@@ -389,8 +406,9 @@ impl<'a> ServerCodeGenerator<'a> {
                         if !trimmed.is_empty() {
                             // Collapse internal whitespace
                             let collapsed = collapse_whitespace(trimmed);
-                            self.output_parts
-                                .push(OutputPart::Html(escape_html(&collapsed)));
+                            self.output_parts.push(OutputPart::Html(escape_html(
+                                &sanitize_template_string(&collapsed),
+                            )));
                         }
                         has_output_content = true;
                         is_first_content = false;
@@ -402,8 +420,9 @@ impl<'a> ServerCodeGenerator<'a> {
                         let trimmed = svelte_trim_end(data);
                         if !trimmed.is_empty() {
                             let collapsed = collapse_whitespace(trimmed);
-                            self.output_parts
-                                .push(OutputPart::Html(escape_html(&collapsed)));
+                            self.output_parts.push(OutputPart::Html(escape_html(
+                                &sanitize_template_string(&collapsed),
+                            )));
                         }
                         has_output_content = true;
                         continue;
@@ -436,12 +455,6 @@ impl<'a> ServerCodeGenerator<'a> {
             // End tag
             self.output_parts
                 .push(OutputPart::Html(format!("</{}>", name)));
-
-            // For <style> and <script>, emit a Flush marker after the closing tag too.
-            // This ensures subsequent content starts a new push call.
-            if is_style_or_script {
-                self.output_parts.push(OutputPart::Flush);
-            }
         }
 
         Ok(())
@@ -827,8 +840,9 @@ impl<'a> ServerCodeGenerator<'a> {
                         };
                         if !trimmed.is_empty() {
                             let collapsed = collapse_whitespace(trimmed);
-                            self.output_parts
-                                .push(OutputPart::Html(escape_html(&collapsed)));
+                            self.output_parts.push(OutputPart::Html(escape_html(
+                                &sanitize_template_string(&collapsed),
+                            )));
                         }
                         has_output_content = true;
                         is_first_content = false;
@@ -840,8 +854,9 @@ impl<'a> ServerCodeGenerator<'a> {
                         let trimmed = svelte_trim_end(data);
                         if !trimmed.is_empty() {
                             let collapsed = collapse_whitespace(trimmed);
-                            self.output_parts
-                                .push(OutputPart::Html(escape_html(&collapsed)));
+                            self.output_parts.push(OutputPart::Html(escape_html(
+                                &sanitize_template_string(&collapsed),
+                            )));
                         }
                         has_output_content = true;
                         continue;
@@ -849,8 +864,9 @@ impl<'a> ServerCodeGenerator<'a> {
 
                     // Middle text - collapse whitespace
                     let collapsed = collapse_whitespace(data);
-                    self.output_parts
-                        .push(OutputPart::Html(escape_html(&collapsed)));
+                    self.output_parts.push(OutputPart::Html(escape_html(
+                        &sanitize_template_string(&collapsed),
+                    )));
                     has_output_content = true;
                     is_first_content = false;
                 } else {
@@ -1400,7 +1416,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         return Ok(Some(format!(
                             " {}=\"{}\"",
                             name,
-                            escape_attr(&literal_value)
+                            escape_attr(&sanitize_template_string(&literal_value))
                         )));
                     }
 
@@ -1489,7 +1505,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     return Ok(Some(format!(
                         " {}=\"{}\"",
                         name,
-                        escape_attr(&literal_value)
+                        escape_attr(&sanitize_template_string(&literal_value))
                     )));
                 }
 
@@ -1534,7 +1550,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     let mut value = String::new();
                     for part in parts {
                         if let AttributeValuePart::Text(text) = part {
-                            value.push_str(&escape_attr(&text.data));
+                            value.push_str(&escape_attr(&sanitize_template_string(&text.data)));
                         }
                     }
                     // Normalize whitespace for class attribute

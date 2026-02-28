@@ -4407,9 +4407,196 @@ pub fn parse_program(
         );
     }
 
+    // Post-process: distribute comments to nested statement bodies.
+    // The top-level comment distribution only handles Program.body.
+    // Comments inside function bodies, if-blocks, etc. are skipped.
+    // This step recursively walks the AST and attaches comments to nested statements.
+    distribute_comments_to_nested_bodies(&mut obj, &all_comments, content, offset);
+
     let program_value = Value::Object(obj);
 
     Expression::Value(program_value)
+}
+
+/// Recursively distribute comments to nested statement bodies.
+///
+/// OXC stores all comments at the program level. The main distribution loop
+/// only attaches comments to top-level Program.body statements. This function
+/// walks the entire AST and attaches leading comments to statements inside
+/// function bodies, if-blocks, loops, etc.
+fn distribute_comments_to_nested_bodies(
+    program_obj: &mut Map<String, Value>,
+    all_comments: &[&oxc_ast::ast::Comment],
+    content: &str,
+    offset: usize,
+) {
+    // Build a list of all comment JSON values with their OXC start positions
+    // (relative to script content, not document)
+    let comment_values: Vec<(u32, Value)> = all_comments
+        .iter()
+        .map(|comment| {
+            let comment_start = offset + comment.span.start as usize;
+            let comment_end = offset + comment.span.end as usize;
+            let comment_type = match comment.kind {
+                oxc_ast::ast::CommentKind::Line => "Line",
+                oxc_ast::ast::CommentKind::SingleLineBlock
+                | oxc_ast::ast::CommentKind::MultiLineBlock => "Block",
+            };
+            let comment_text = if comment_end <= offset + content.len() {
+                let raw = &content[comment.span.start as usize..comment.span.end as usize];
+                match comment.kind {
+                    oxc_ast::ast::CommentKind::Line => {
+                        raw.strip_prefix("//").unwrap_or(raw).to_string()
+                    }
+                    oxc_ast::ast::CommentKind::SingleLineBlock
+                    | oxc_ast::ast::CommentKind::MultiLineBlock => raw
+                        .strip_prefix("/*")
+                        .and_then(|s| s.strip_suffix("*/"))
+                        .unwrap_or(raw)
+                        .to_string(),
+                }
+            } else {
+                String::new()
+            };
+
+            let mut comment_obj = Map::new();
+            comment_obj.insert("type".to_string(), Value::String(comment_type.to_string()));
+            comment_obj.insert("value".to_string(), Value::String(comment_text));
+            comment_obj.insert(
+                "start".to_string(),
+                Value::Number((comment_start as i64).into()),
+            );
+            comment_obj.insert(
+                "end".to_string(),
+                Value::Number((comment_end as i64).into()),
+            );
+            (comment_end as u32, Value::Object(comment_obj))
+        })
+        .collect();
+
+    // Recursively walk the AST and distribute comments
+    if let Some(body) = program_obj.get_mut("body") {
+        distribute_comments_to_body(body, &comment_values);
+    }
+}
+
+/// Distribute comments to statements in a body array, then recurse into nested bodies.
+fn distribute_comments_to_body(body: &mut Value, comments: &[(u32, Value)]) {
+    if let Some(stmts) = body.as_array_mut() {
+        for stmt in stmts.iter_mut() {
+            // Recurse into nested bodies of this statement
+            distribute_comments_to_node(stmt, comments);
+        }
+    }
+}
+
+/// Recursively walk a node and distribute comments to any nested statement bodies.
+fn distribute_comments_to_node(node: &mut Value, comments: &[(u32, Value)]) {
+    let Some(obj) = node.as_object_mut() else {
+        return;
+    };
+
+    let node_type = obj
+        .get("type")
+        .and_then(|t| t.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    // For nodes that contain statement bodies, distribute comments to those bodies.
+    // These are the fields that contain arrays of statements.
+    let body_fields: &[&str] = match node_type.as_str() {
+        "BlockStatement" | "Program" => &["body"],
+        "SwitchCase" => &["consequent"],
+        "SwitchStatement" => &["cases"],
+        "TryStatement" => &["block", "handler", "finalizer"],
+        _ => &[],
+    };
+
+    for &field in body_fields {
+        if let Some(body_val) = obj.get(field).cloned()
+            && let Some(stmts) = body_val.as_array()
+        {
+            let mut new_stmts: Vec<Value> = Vec::with_capacity(stmts.len());
+            for stmt in stmts {
+                let mut stmt = stmt.clone();
+                // Check if this statement doesn't already have leadingComments
+                if let Some(stmt_obj) = stmt.as_object_mut()
+                    && !stmt_obj.contains_key("leadingComments")
+                {
+                    let stmt_start =
+                        stmt_obj.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
+
+                    // Find comments that appear before this statement and after the previous
+                    // statement (or parent start)
+                    let prev_end = new_stmts
+                        .last()
+                        .and_then(|s: &Value| s.get("end"))
+                        .and_then(|e| e.as_u64())
+                        .unwrap_or(0) as u32;
+
+                    let mut leading = Vec::new();
+                    for (comment_end, comment_value) in comments {
+                        let comment_start = comment_value
+                            .get("start")
+                            .and_then(|s| s.as_u64())
+                            .unwrap_or(0) as u32;
+                        // Comment must be between prev statement end and this statement start
+                        if comment_start >= prev_end && *comment_end <= stmt_start {
+                            leading.push(comment_value.clone());
+                        }
+                    }
+
+                    if !leading.is_empty() {
+                        stmt_obj.insert("leadingComments".to_string(), Value::Array(leading));
+                    }
+                }
+                new_stmts.push(stmt);
+            }
+            obj.insert(field.to_string(), Value::Array(new_stmts));
+        }
+    }
+
+    // Recurse into child nodes that might contain nested bodies
+    // We need to walk into specific child fields
+    let child_fields: Vec<String> = match node_type.as_str() {
+        "FunctionDeclaration" | "FunctionExpression" | "ArrowFunctionExpression" => {
+            vec!["body".to_string()]
+        }
+        "IfStatement" => vec!["consequent".to_string(), "alternate".to_string()],
+        "ForStatement" | "ForInStatement" | "ForOfStatement" | "WhileStatement"
+        | "DoWhileStatement" => vec!["body".to_string()],
+        "TryStatement" => vec![
+            "block".to_string(),
+            "handler".to_string(),
+            "finalizer".to_string(),
+        ],
+        "CatchClause" => vec!["body".to_string()],
+        "WithStatement" => vec!["body".to_string()],
+        "LabeledStatement" => vec!["body".to_string()],
+        "SwitchStatement" => vec!["cases".to_string()],
+        "SwitchCase" => vec!["consequent".to_string()],
+        "BlockStatement" | "Program" => vec!["body".to_string()],
+        "ExportNamedDeclaration" | "ExportDefaultDeclaration" => vec!["declaration".to_string()],
+        "VariableDeclaration" => vec!["declarations".to_string()],
+        "ClassDeclaration" | "ClassExpression" => vec!["body".to_string()],
+        "ClassBody" => vec!["body".to_string()],
+        "MethodDefinition" | "PropertyDefinition" => vec!["value".to_string()],
+        _ => vec![],
+    };
+
+    for field in child_fields {
+        if let Some(child) = obj.get_mut(&field) {
+            if child.is_array() {
+                if let Some(items) = child.as_array_mut() {
+                    for item in items {
+                        distribute_comments_to_node(item, comments);
+                    }
+                }
+            } else if child.is_object() {
+                distribute_comments_to_node(child, comments);
+            }
+        }
+    }
 }
 
 /// Convert a statement to JSON value (for program context, no -1 offset adjustment).

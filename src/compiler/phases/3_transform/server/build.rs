@@ -560,6 +560,15 @@ export default function {component_name}($$renderer{props_param}) {{
                 OutputPart::Html(html) => {
                     // Collapse consecutive spaces: if current_html ends with space and html is just a space
                     if !(current_html.ends_with(' ') && html == " ") {
+                        // Guard against accidental `${` sequences formed by concatenation
+                        // of separate Html parts (e.g., text "$" + expression-folded "{").
+                        // This would create a template literal expression in the output.
+                        // Insert `\` before the `$` to produce `\${` which is the standard
+                        // template literal escape for a literal `${`.
+                        if current_html.ends_with('$') && html.starts_with('{') {
+                            let len = current_html.len();
+                            current_html.insert(len - 1, '\\');
+                        }
                         current_html.push_str(html);
                     }
                 }

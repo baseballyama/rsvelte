@@ -5,7 +5,7 @@ use super::super::helpers::strip_ts_type_annotation;
 use super::super::types::{OutputPart, SnippetDef};
 use crate::ast::template::{Fragment, SnippetBlock, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
-use crate::compiler::phases::phase3_transform::shared::escape_html;
+use crate::compiler::phases::phase3_transform::shared::{escape_html, sanitize_template_string};
 use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -120,7 +120,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
                     let trimmed_end = trimmed.trim_end();
                     if !trimmed_end.is_empty() {
-                        let mut content = escape_html(trimmed_end);
+                        let mut content = escape_html(&sanitize_template_string(trimmed_end));
                         if needs_trailing_space {
                             content.push(' ');
                         }
@@ -238,7 +238,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
                     let trimmed_end = trimmed.trim_end();
                     if !trimmed_end.is_empty() {
-                        let mut content = escape_html(trimmed_end);
+                        let mut content = escape_html(&sanitize_template_string(trimmed_end));
                         if needs_trailing_space {
                             content.push(' ');
                         }

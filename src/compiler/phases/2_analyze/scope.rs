@@ -292,6 +292,12 @@ pub struct BindingReference {
     pub is_reactive_declaration_reference: bool,
     /// Whether this reference is in a StyleDirective
     pub is_style_directive_reference: bool,
+    /// Whether this reference is the binding's own declaration node.
+    /// Used to filter self-references in export_let_unused check.
+    pub is_self_declaration: bool,
+    /// Whether this reference is inside an ExportSpecifier (e.g., `export { x }`).
+    /// Used to filter ExportSpecifier references in export_let_unused check.
+    pub is_export_specifier: bool,
 }
 
 impl Binding {
@@ -386,6 +392,29 @@ impl Binding {
             is_template_reference,
             is_reactive_declaration_reference,
             is_style_directive_reference,
+            is_self_declaration: false,
+            is_export_specifier: false,
+        });
+    }
+
+    /// Add a reference with export specifier flag
+    pub fn add_reference_with_flags(
+        &mut self,
+        start: u32,
+        end: u32,
+        is_template_reference: bool,
+        is_reactive_declaration_reference: bool,
+        is_style_directive_reference: bool,
+        is_export_specifier: bool,
+    ) {
+        self.references.push(BindingReference {
+            start,
+            end,
+            is_template_reference,
+            is_reactive_declaration_reference,
+            is_style_directive_reference,
+            is_self_declaration: false,
+            is_export_specifier,
         });
     }
 

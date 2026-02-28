@@ -163,12 +163,19 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     // separately in style_directive.rs.
     let is_style_directive_reference = false;
 
-    context.analysis.root.bindings[binding_idx].add_reference(
+    // Check if this reference is inside an ExportSpecifier (e.g., `export { x }`)
+    // Corresponds to the official compiler's filter: r.path.at(-1)?.type !== 'ExportSpecifier'
+    let is_export_specifier = context.js_path.last().is_some_and(|parent| {
+        parent.get("type").and_then(|t| t.as_str()) == Some("ExportSpecifier")
+    });
+
+    context.analysis.root.bindings[binding_idx].add_reference_with_flags(
         start as u32,
         end as u32,
         is_template_reference,
         is_reactive_declaration_reference,
         is_style_directive_reference,
+        is_export_specifier,
     );
 
     // Mark direct template read when in template scope and not inside a function.

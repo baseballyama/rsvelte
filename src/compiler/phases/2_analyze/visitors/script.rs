@@ -5,6 +5,7 @@
 
 use super::VisitorContext;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
+use crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore;
 use serde_json::Value;
 
 /// Visit a JavaScript script content.
@@ -48,6 +49,23 @@ pub fn visit_script(script_ast: &Value, context: &mut VisitorContext) -> Result<
 /// * `context` - The visitor context
 pub fn walk_js_node(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     let node_type = node.get("type").and_then(|t| t.as_str());
+
+    // Process leadingComments for svelte-ignore directives.
+    // This mirrors the official Svelte compiler's universal `_` visitor (2-analyze/index.js L117-131)
+    // which extracts svelte-ignore codes from JS comments and pushes them to the ignore stack.
+    let mut has_ignores = false;
+    if let Some(comments) = node.get("leadingComments").and_then(|c| c.as_array()) {
+        let mut ignores = Vec::new();
+        for comment in comments {
+            if let Some(value) = comment.get("value").and_then(|v| v.as_str()) {
+                ignores.extend(extract_svelte_ignore(value, context.analysis.runes));
+            }
+        }
+        if !ignores.is_empty() {
+            context.push_ignore(ignores);
+            has_ignores = true;
+        }
+    }
 
     // Push to JS path
     context.js_path.push(node.clone());
@@ -124,6 +142,11 @@ pub fn walk_js_node(node: &Value, context: &mut VisitorContext) -> Result<(), An
 
     // Pop from JS path
     context.js_path.pop();
+
+    // Pop ignores from leadingComments (after visiting children)
+    if has_ignores {
+        context.pop_ignore();
+    }
 
     Ok(())
 }

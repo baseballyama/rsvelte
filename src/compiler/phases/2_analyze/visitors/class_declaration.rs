@@ -4,9 +4,9 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/ClassDeclaration.js`.
 
-use super::VisitorContext;
 use super::shared::utils::validate_identifier_name;
-use crate::compiler::phases::phase2_analyze::AnalysisError;
+use super::{AstType, VisitorContext};
+use crate::compiler::phases::phase2_analyze::{AnalysisError, warnings};
 use serde_json::Value;
 
 /// Visit a class declaration.
@@ -28,16 +28,18 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
-    // Check function depth for performance warning
-    // In modules, we allow top-level module scope only (depth 0)
-    // In components, we allow the component scope (depth 1)
-    // With the exception of `new class` which is not allowed at component scope level either
-    // TODO: Issue warning if nested too deep
-    // For now, we just check the depth but don't issue warnings
-    // let allowed_depth = if context.state.ast_type == 'module' { 0 } else { 1 };
-    // if context.state.scope.function_depth > allowed_depth {
-    //     w.perf_avoid_nested_class(node);
-    // }
+    // Check function depth for performance warning.
+    // In modules, we allow top-level module scope only (depth 0).
+    // In components, we allow the component scope (depth 1).
+    // Corresponds to ClassDeclaration.js L18-22.
+    let allowed_depth = if context.ast_type == AstType::Module {
+        0
+    } else {
+        1
+    };
+    if context.function_depth > allowed_depth {
+        context.emit_warning(warnings::perf_avoid_nested_class());
+    }
 
     // Visit the class body to analyze state fields and detect needs_context
     if let Some(body) = node.get("body") {

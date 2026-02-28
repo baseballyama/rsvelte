@@ -101,6 +101,8 @@ pub struct Parser<'a> {
     /// Corresponds to `last_auto_closed_tag` field in JavaScript Parser.
     #[allow(dead_code)]
     pub(crate) last_auto_closed_tag: Option<LastAutoClosedTag>,
+    /// Parser-level warnings (e.g., element_implicitly_closed).
+    pub(crate) parse_warnings: Vec<crate::ast::template::ParseWarning>,
 }
 
 /// An entry on the parser stack.
@@ -181,6 +183,7 @@ impl<'a> Parser<'a> {
             ts,
             meta_tags: FxHashMap::default(),
             last_auto_closed_tag: None,
+            parse_warnings: Vec::new(),
         }
     }
 

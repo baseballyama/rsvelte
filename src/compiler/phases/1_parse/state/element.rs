@@ -176,9 +176,9 @@ impl Parser<'_> {
             return self.parse_script_tag(start, attributes);
         }
 
-        // Only extract style to root if not inside svelte:head
-        // When inside svelte:head, style should remain as a child element
-        if name == "style" && !self.is_inside_svelte_head() {
+        // Only treat as Svelte style (component CSS) if at root level (not inside another element)
+        // When inside any element (including svelte:head), style should remain as a child element
+        if name == "style" && !self.is_inside_element() {
             return self.parse_style_tag(start, attributes);
         }
 
@@ -193,10 +193,11 @@ impl Parser<'_> {
         let is_void = is_void_element(&name);
         let element_type = self.get_element_type(&name, &attributes);
 
-        // Check if this is a raw text element (textarea, or style inside svelte:head)
-        // These elements parse their content as raw text, not HTML
-        let is_raw_text_element =
-            name == "textarea" || (name == "style" && self.is_inside_svelte_head());
+        // Check if this is a raw text element (textarea, or non-top-level script/style).
+        // Non-top-level <script> and <style> tags have their content parsed as raw text,
+        // matching the official Svelte compiler behavior (element.js L400-417).
+        let is_raw_text_element = name == "textarea"
+            || ((name == "script" || name == "style") && self.is_inside_element());
 
         // Create fragment for children
         let mut fragment = Fragment {
@@ -244,8 +245,17 @@ impl Parser<'_> {
                     }
                     self.eat_optional(">"); // consume '>'
                 } else {
-                    // Mismatched close tag - in loose mode, auto-close current element
-                    // and don't consume the close tag (let parent handle it)
+                    // Mismatched close tag - implicitly close the current element.
+                    // Emit element_implicitly_closed warning.
+                    // Corresponds to element.js L97-104:
+                    //   w.element_implicitly_closed({ start: parent.start, end }, `</${name}>`, `</${parent.name}>`);
+                    self.parse_warnings.push(crate::ast::template::ParseWarning {
+                        code: "element_implicitly_closed".to_string(),
+                        message: format!(
+                            "This element is implicitly closed by the following `</{}>`, which can cause an unexpected DOM structure. Add an explicit `</{}>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+                            closing_name, name
+                        ),
+                    });
                     self.index = close_start; // Reset to before '</...'
                     // Still mark as found for backwards compatibility (auto-close behavior)
                     found_closing_tag = true;
@@ -255,7 +265,17 @@ impl Parser<'_> {
                 // while inside an element, auto-close the element
                 found_closing_tag = true;
             } else if let Some(reason) = self.should_implicitly_close() {
-                // Element was implicitly closed by the next element.
+                // Element was implicitly closed by the next element (sibling).
+                // Emit element_implicitly_closed warning.
+                // Corresponds to element.js L203-205:
+                //   w.element_implicitly_closed({ start: parent.start, end }, `<${tag.name}>`, `</${parent.name}>`);
+                self.parse_warnings.push(crate::ast::template::ParseWarning {
+                    code: "element_implicitly_closed".to_string(),
+                    message: format!(
+                        "This element is implicitly closed by the following `<{}>`, which can cause an unexpected DOM structure. Add an explicit `</{}>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+                        reason, name
+                    ),
+                });
                 // Track which tag was auto-closed so we can raise the correct error later.
                 // Reference: element.js `parser.last_auto_closed_tag` assignment.
                 let auto_closed_tag_name = match self.stack.last() {
@@ -1044,6 +1064,17 @@ impl Parser<'_> {
         let (value, attr_end) = if self.eat_optional("=") {
             self.skip_whitespace();
             (self.parse_attribute_value()?, self.index)
+        } else if !self.is_eof() && (self.current_char() == '"' || self.current_char() == '\'') {
+            // If the next character is a quote but we didn't find '=', the user
+            // likely forgot the equals sign. e.g. <h1 class"foo">
+            // Corresponds to element.js L615-616:
+            //   } else if (parser.match_regex(regex_starts_with_quote_characters)) {
+            //     e.expected_token(parser.index, '=');
+            return Err(crate::error::ParseError::svelte(
+                "expected_token",
+                "Expected token =\nhttps://svelte.dev/e/expected_token",
+                (self.index, self.index),
+            ));
         } else {
             // Boolean attribute - end is at the end of the name, not after whitespace
             (AttributeValue::True(true), name_end)
@@ -2200,10 +2231,10 @@ impl Parser<'_> {
     /// - For textarea: parses {expressions} but treats HTML as text
     pub fn parse_raw_text_content(&mut self, tag_name: &str) -> ParseResult<Fragment> {
         let closing_tag = format!("</{}", tag_name);
-        let is_style = tag_name == "style";
+        let is_raw_content = tag_name == "style" || tag_name == "script";
 
-        // For style elements (inside svelte:head), just get raw content
-        if is_style {
+        // For style and script elements, just get raw content (no expression handling)
+        if is_raw_content {
             let content_start = self.index;
             while !self.is_eof() && !self.match_str(&closing_tag) {
                 self.advance();

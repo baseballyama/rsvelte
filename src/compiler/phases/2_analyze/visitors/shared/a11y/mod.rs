@@ -167,6 +167,33 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                             warnings.push(w::a11y_no_redundant_roles(current_role));
                         }
 
+                        // role-has-required-aria-props
+                        if !is_dynamic_element
+                            && !is_semantic_role_element(current_role, &node.name, &attribute_map)
+                            && let Some(required_props) = ROLE_REQUIRED_PROPS.get(current_role)
+                        {
+                            let missing_props: Vec<&str> = if !has_spread {
+                                required_props
+                                    .iter()
+                                    .filter(|prop| !attribute_map.contains_key(**prop))
+                                    .copied()
+                                    .collect()
+                            } else {
+                                Vec::new()
+                            };
+                            if !missing_props.is_empty() {
+                                let quoted_props: Vec<String> =
+                                    missing_props.iter().map(|p| format!("\"{}\"", p)).collect();
+                                let quoted_refs: Vec<&str> =
+                                    quoted_props.iter().map(|s| s.as_str()).collect();
+                                let props_list = list(&quoted_refs, "and");
+                                warnings.push(w::a11y_role_has_required_aria_props(
+                                    current_role,
+                                    &props_list,
+                                ));
+                            }
+                        }
+
                         // interactive-supports-focus
                         if !has_spread
                             && !has_disabled_attribute(&attribute_map)
@@ -418,6 +445,16 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                         &required_attributes,
                         Some("input type=\"image\""),
                     );
+                }
+            }
+            // autocomplete-valid check (a11y/index.js L431-442)
+            if let Some(autocomplete_attr) = attribute_map.get("autocomplete")
+                && attribute_map.contains_key("type")
+            {
+                let autocomplete_value = get_static_value(autocomplete_attr);
+                if !is_valid_autocomplete(autocomplete_value) {
+                    let display_value = autocomplete_value.unwrap_or("true");
+                    warnings.push(w::a11y_autocomplete_valid(display_value, type_value));
                 }
             }
         }
@@ -702,6 +739,15 @@ fn has_content(element: &RegularElement) -> bool {
                 }
             }
             TemplateNode::RegularElement(el) => {
+                // Elements with `popover` attribute are not visible content
+                // (they appear on hover/focus). Corresponds to a11y/index.js L827
+                let is_popover = el
+                    .attributes
+                    .iter()
+                    .any(|a| matches!(a, AttributeNode::Attribute(attr) if attr.name == "popover"));
+                if is_popover {
+                    continue;
+                }
                 // <img alt="..."> is considered content
                 if el.name == "img"
                     && el
@@ -882,6 +928,38 @@ fn list(strings: &[&str], conjunction: &str) -> String {
     }
 }
 
+/// Check if an element semantically carries the given role based on its tag name and attributes.
+/// For example, `<input type="checkbox">` semantically carries the "checkbox" and "switch" roles.
+/// This is used to skip the `role-has-required-aria-props` check for elements that naturally
+/// satisfy the role's requirements.
+///
+/// Corresponds to `is_semantic_role_element` in the official Svelte compiler's a11y/index.js.
+fn is_semantic_role_element(
+    role: &str,
+    tag_name: &str,
+    attribute_map: &FxHashMap<String, &AttributeNode>,
+) -> bool {
+    for (elem_name, attrs, roles) in SEMANTIC_ROLE_ELEMENTS.iter() {
+        if *elem_name != tag_name {
+            continue;
+        }
+        // Check if all required attributes match
+        let attrs_match = match attrs {
+            Some(required_attrs) => required_attrs.iter().all(|(attr_name, attr_value)| {
+                attribute_map
+                    .get(*attr_name)
+                    .and_then(|a| get_static_value(a))
+                    == Some(attr_value)
+            }),
+            None => true,
+        };
+        if attrs_match && roles.contains(&role) {
+            return true;
+        }
+    }
+    false
+}
+
 /// Validate ARIA attribute value against its schema type.
 /// Corresponds to `validate_aria_attribute_value` in the official Svelte compiler.
 fn validate_aria_attribute_value(
@@ -981,4 +1059,72 @@ fn validate_aria_attribute_value(
             }
         }
     }
+}
+
+/// Validate an autocomplete attribute value.
+/// Corresponds to `is_valid_autocomplete` in the official compiler's a11y/index.js.
+fn is_valid_autocomplete(autocomplete: Option<&str>) -> bool {
+    let autocomplete = match autocomplete {
+        None => return true, // dynamic value
+        Some(v) => v,
+    };
+
+    if autocomplete == "true" {
+        return false;
+    }
+
+    // Empty string is valid (dynamic or intentionally empty)
+    if autocomplete.trim().is_empty() {
+        return true;
+    }
+
+    // We need owned strings since we lowercased
+    let binding = autocomplete.trim().to_lowercase();
+    let mut tokens: Vec<&str> = binding.split_whitespace().collect();
+
+    if tokens.is_empty() {
+        return true; // empty after trimming whitespace
+    }
+
+    // section-* prefix
+    if tokens[0].starts_with("section-") {
+        tokens.remove(0);
+    }
+    if tokens.is_empty() {
+        return false;
+    }
+
+    // address type
+    if ADDRESS_TYPE_TOKENS.contains(&tokens[0]) {
+        tokens.remove(0);
+    }
+    if tokens.is_empty() {
+        return false;
+    }
+
+    // autofill field name
+    if AUTOFILL_FIELD_NAME_TOKENS.contains(&tokens[0]) {
+        tokens.remove(0);
+    } else {
+        // contact type
+        if CONTACT_TYPE_TOKENS.contains(&tokens[0]) {
+            tokens.remove(0);
+        }
+        if tokens.is_empty() {
+            return false;
+        }
+        // autofill contact field name
+        if AUTOFILL_CONTACT_FIELD_NAME_TOKENS.contains(&tokens[0]) {
+            tokens.remove(0);
+        } else {
+            return false;
+        }
+    }
+
+    // webauthn
+    if !tokens.is_empty() && tokens[0] == "webauthn" {
+        tokens.remove(0);
+    }
+
+    tokens.is_empty()
 }

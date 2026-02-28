@@ -152,6 +152,14 @@ pub fn unified_build_bind_this(
                 .find(|ctx| ctx.item_name == *root_name)
             && !each_ctx.invalidation_exprs.is_empty()
         {
+            // Mark that an each item was mutated. In the official compiler, this
+            // happens via the `mutate` transform callback which sets `uses_index = true`.
+            // Since our local_scope shadows the each item transforms, the mutation
+            // isn't detected by apply_transforms_to_expression_with_shadowed.
+            // We must set this flag here so that the each block callback includes
+            // the $$index and $$array parameters.
+            context.state.each_item_assign_or_mutate.set(true);
+
             let invalidation_exprs = each_ctx.invalidation_exprs.clone();
             let invalidation_inner_exprs: Vec<JsExpr> = invalidation_exprs
                 .iter()

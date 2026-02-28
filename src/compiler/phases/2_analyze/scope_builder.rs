@@ -887,10 +887,13 @@ impl<'a> ScopeBuilder<'a> {
                             let scope = &self.scopes[scope_idx];
                             if scope.declarations.contains_key(store_name) {
                                 // Found a binding for the store name
-                                // If this scope is neither module (0) nor instance (1),
+                                // If this scope is neither module (0) nor instance scope,
                                 // and we're inside that scope (not just above it),
-                                // it's a shadowing error
-                                if scope_idx > 1 {
+                                // it's a scoped subscription error.
+                                // Use instance_scope_index instead of hardcoded 1 because
+                                // when a module script creates child scopes (e.g. functions),
+                                // the instance scope index shifts.
+                                if scope_idx != 0 && scope_idx != self.instance_scope_index {
                                     // The store name is declared in a nested scope
                                     // This means the $store reference would refer to this
                                     // local variable, not the outer store - that's an error
@@ -973,7 +976,8 @@ impl<'a> ScopeBuilder<'a> {
                             let scope = &self.scopes[scope_idx];
                             if scope.declarations.contains_key(store_name) {
                                 // Found a binding for the store name in a nested scope
-                                if scope_idx > 1 {
+                                // Use instance_scope_index instead of hardcoded 1
+                                if scope_idx != 0 && scope_idx != self.instance_scope_index {
                                     self.validation_errors
                                         .push(errors::store_invalid_scoped_subscription());
                                 }
@@ -1303,21 +1307,38 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Process an import declaration.
     fn process_import_declaration(&mut self, import_decl: &oxc_ast::ast::ImportDeclaration) {
-        let _source_val = import_decl.source.value.as_str();
+        let source_val = import_decl.source.value.as_str();
         if let Some(specifiers) = &import_decl.specifiers {
             for specifier in specifiers {
-                let name = match specifier {
+                let (name, specifier_type) = match specifier {
                     oxc_ast::ast::ImportDeclarationSpecifier::ImportSpecifier(spec) => {
-                        spec.local.name.to_string()
+                        (spec.local.name.to_string(), "ImportSpecifier")
                     }
                     oxc_ast::ast::ImportDeclarationSpecifier::ImportDefaultSpecifier(spec) => {
-                        spec.local.name.to_string()
+                        (spec.local.name.to_string(), "ImportDefaultSpecifier")
                     }
                     oxc_ast::ast::ImportDeclarationSpecifier::ImportNamespaceSpecifier(spec) => {
-                        spec.local.name.to_string()
+                        (spec.local.name.to_string(), "ImportNamespaceSpecifier")
                     }
                 };
-                self.declare_binding(name, BindingKind::Normal, DeclarationKind::Import);
+                let binding_idx = self.declare_binding(
+                    name.clone(),
+                    BindingKind::Normal,
+                    DeclarationKind::Import,
+                );
+                // Store the ImportDeclaration as a JSON string on binding.initial,
+                // matching the official Svelte compiler where binding.initial is the
+                // ImportDeclaration AST node. This allows ExpressionStatement visitor
+                // to check the import source for legacy_component_creation warning.
+                let import_json = serde_json::json!({
+                    "type": "ImportDeclaration",
+                    "source": { "value": source_val },
+                    "specifiers": [{
+                        "type": specifier_type,
+                        "local": { "name": name }
+                    }]
+                });
+                self.bindings[binding_idx].initial = Some(import_json.to_string());
             }
         }
     }
@@ -1346,6 +1367,10 @@ impl<'a> ScopeBuilder<'a> {
                 // its own scope for snippets. For example, two <Child> instances
                 // can each have a {#snippet children()} without conflicting.
                 let old_scope = self.push_scope();
+                // Declare let: directive bindings in the child scope
+                // This matches the official Svelte compiler's scope.js Component handler
+                // where LetDirective bindings are declared in the child scope.
+                self.declare_let_directive_bindings(&component.attributes);
                 // Visit component children
                 self.visit_fragment(&component.fragment);
                 self.pop_scope(old_scope);
@@ -1373,6 +1398,7 @@ impl<'a> ScopeBuilder<'a> {
             TemplateNode::SvelteFragment(elem) => {
                 self.process_attributes(&elem.attributes);
                 let old_scope = self.push_scope();
+                self.declare_let_directive_bindings(&elem.attributes);
                 self.visit_fragment(&elem.fragment);
                 self.pop_scope(old_scope);
             }
@@ -1380,6 +1406,7 @@ impl<'a> ScopeBuilder<'a> {
                 self.process_attributes(&elem.attributes);
                 // Create a new scope for component children (same as Component)
                 let old_scope = self.push_scope();
+                self.declare_let_directive_bindings(&elem.attributes);
                 self.visit_fragment(&elem.fragment);
                 self.pop_scope(old_scope);
             }
@@ -1387,12 +1414,14 @@ impl<'a> ScopeBuilder<'a> {
                 self.process_attributes(&elem.attributes);
                 // Create a new scope for component children (same as Component)
                 let old_scope = self.push_scope();
+                self.declare_let_directive_bindings(&elem.attributes);
                 self.visit_fragment(&elem.fragment);
                 self.pop_scope(old_scope);
             }
             TemplateNode::SvelteElement(elem) => {
                 self.process_attributes(&elem.attributes);
                 let old_scope = self.push_scope();
+                self.declare_let_directive_bindings(&elem.attributes);
                 self.visit_fragment(&elem.fragment);
                 self.pop_scope(old_scope);
             }
@@ -1420,8 +1449,40 @@ impl<'a> ScopeBuilder<'a> {
         // where each Fragment creates a child scope). This allows snippets inside elements
         // to have the same name as snippets at the parent level.
         let old_scope = self.push_scope();
+        // Declare let: directive bindings in the child scope
+        self.declare_let_directive_bindings(&element.attributes);
         self.visit_fragment(&element.fragment);
         self.pop_scope(old_scope);
+    }
+
+    /// Declare bindings from let: directives in the current scope.
+    ///
+    /// Corresponds to the LetDirective handler in Svelte's scope.js (lines 1048-1072).
+    /// let: directive bindings are declared with kind='template' (BindingKind::Let)
+    /// and declaration_kind='const' (DeclarationKind::Const).
+    fn declare_let_directive_bindings(&mut self, attributes: &[crate::ast::template::Attribute]) {
+        use crate::ast::template::Attribute;
+
+        for attr in attributes {
+            if let Attribute::LetDirective(let_dir) = attr {
+                if let Some(ref expression) = let_dir.expression {
+                    // Destructured let directive: let:x={{ a, b }}
+                    // Extract identifiers from the destructuring pattern
+                    self.declare_bindings_from_pattern(
+                        expression.as_json(),
+                        BindingKind::Let,
+                        false,
+                    );
+                } else {
+                    // Simple let directive: let:bar
+                    self.declare_binding(
+                        let_dir.name.to_string(),
+                        BindingKind::Let,
+                        DeclarationKind::Const,
+                    );
+                }
+            }
+        }
     }
 
     /// Process attributes to find expressions containing updates.
@@ -1573,7 +1634,7 @@ impl<'a> ScopeBuilder<'a> {
         // Declare the item binding(s) - handle destructuring patterns
         if let Some(context) = block.context.as_ref() {
             let context_json = context.as_json();
-            self.declare_bindings_from_pattern(context_json, BindingKind::EachItem);
+            self.declare_bindings_from_pattern(context_json, BindingKind::EachItem, false);
         }
 
         // Declare the index binding if present
@@ -1613,7 +1674,17 @@ impl<'a> ScopeBuilder<'a> {
     /// Declare bindings from a pattern (handles destructuring).
     ///
     /// This is used for EachBlock context, AwaitBlock value/error, and SnippetBlock parameters.
-    fn declare_bindings_from_pattern(&mut self, pattern: &serde_json::Value, kind: BindingKind) {
+    ///
+    /// The `inside_rest` parameter tracks whether we're inside a RestElement in the pattern.
+    /// This is used for the `bind_invalid_each_rest` warning - bindings inside rest elements
+    /// create new objects, so binding to them won't work as expected.
+    /// Corresponds to Svelte's scope.js L1201-1217.
+    fn declare_bindings_from_pattern(
+        &mut self,
+        pattern: &serde_json::Value,
+        kind: BindingKind,
+        inside_rest: bool,
+    ) {
         let pattern_type = pattern.get("type").and_then(|t| t.as_str());
 
         match pattern_type {
@@ -1627,7 +1698,12 @@ impl<'a> ScopeBuilder<'a> {
                             .push(super::errors::state_invalid_placement(name));
                         return;
                     }
-                    self.declare_binding(name.to_string(), kind, DeclarationKind::Const);
+                    let binding_idx =
+                        self.declare_binding(name.to_string(), kind, DeclarationKind::Const);
+                    // Mark if this binding is inside a rest element
+                    if inside_rest {
+                        self.bindings[binding_idx].inside_rest = true;
+                    }
                 }
             }
             Some("ObjectPattern") => {
@@ -1636,10 +1712,10 @@ impl<'a> ScopeBuilder<'a> {
                         let prop_type = prop.get("type").and_then(|t| t.as_str());
                         if prop_type == Some("RestElement") {
                             if let Some(argument) = prop.get("argument") {
-                                self.declare_bindings_from_pattern(argument, kind);
+                                self.declare_bindings_from_pattern(argument, kind, true);
                             }
                         } else if let Some(value) = prop.get("value") {
-                            self.declare_bindings_from_pattern(value, kind);
+                            self.declare_bindings_from_pattern(value, kind, inside_rest);
                         }
                     }
                 }
@@ -1648,19 +1724,19 @@ impl<'a> ScopeBuilder<'a> {
                 if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
                     for elem in elements {
                         if !elem.is_null() {
-                            self.declare_bindings_from_pattern(elem, kind);
+                            self.declare_bindings_from_pattern(elem, kind, inside_rest);
                         }
                     }
                 }
             }
             Some("RestElement") => {
                 if let Some(argument) = pattern.get("argument") {
-                    self.declare_bindings_from_pattern(argument, kind);
+                    self.declare_bindings_from_pattern(argument, kind, true);
                 }
             }
             Some("AssignmentPattern") => {
                 if let Some(left) = pattern.get("left") {
-                    self.declare_bindings_from_pattern(left, kind);
+                    self.declare_bindings_from_pattern(left, kind, inside_rest);
                 }
             }
             _ => {}
@@ -1710,7 +1786,7 @@ impl<'a> ScopeBuilder<'a> {
 
             // Declare the then value binding(s) - handle destructuring patterns
             if let Some(ref value) = block.value {
-                self.declare_bindings_from_pattern(value.as_json(), BindingKind::AwaitThen);
+                self.declare_bindings_from_pattern(value.as_json(), BindingKind::AwaitThen, false);
             }
 
             self.visit_fragment(then);
@@ -1727,7 +1803,7 @@ impl<'a> ScopeBuilder<'a> {
 
             // Declare the error binding(s) - handle destructuring patterns
             if let Some(ref error) = block.error {
-                self.declare_bindings_from_pattern(error.as_json(), BindingKind::AwaitCatch);
+                self.declare_bindings_from_pattern(error.as_json(), BindingKind::AwaitCatch, false);
             }
 
             self.visit_fragment(catch);
@@ -1768,7 +1844,7 @@ impl<'a> ScopeBuilder<'a> {
 
         // Declare snippet parameters - handle destructuring patterns
         for param in &block.parameters {
-            self.declare_bindings_from_pattern(param.as_json(), BindingKind::SnippetParam);
+            self.declare_bindings_from_pattern(param.as_json(), BindingKind::SnippetParam, false);
         }
 
         // Visit body

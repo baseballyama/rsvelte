@@ -5,7 +5,7 @@ use super::super::helpers::strip_ts_type_annotation;
 use super::super::types::OutputPart;
 use crate::ast::template::{Attribute, Fragment, SvelteElement, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
-use crate::compiler::phases::phase3_transform::shared::escape_html;
+use crate::compiler::phases::phase3_transform::shared::{escape_html, sanitize_template_string};
 use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -200,7 +200,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 let trimmed = text.data.trim_start();
                 let trimmed_end = trimmed.trim_end();
                 if !trimmed_end.is_empty() {
-                    let content = escape_html(trimmed_end);
+                    let content = escape_html(&sanitize_template_string(trimmed_end));
                     body_generator.output_parts.push(OutputPart::Html(content));
                 }
                 continue;

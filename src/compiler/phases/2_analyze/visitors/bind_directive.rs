@@ -321,14 +321,22 @@ fn visit_common(
     }
 
     // Check for each block binding with rest
+    // Corresponds to BindDirective.js L271-273:
+    //   if (binding?.kind === 'each' && binding.metadata?.inside_rest) {
+    //     w.bind_invalid_each_rest(binding.node, binding.node.name);
+    //   }
     if let Some(binding) = binding
         && matches!(
             binding.kind,
             crate::compiler::phases::phase2_analyze::BindingKind::EachItem
         )
+        && binding.inside_rest
     {
-        // TODO: Check binding.metadata.inside_rest
-        // if inside_rest { w.bind_invalid_each_rest(binding.node, binding.node.name); }
+        context.emit_warning(
+            crate::compiler::phases::phase2_analyze::warnings::bind_invalid_each_rest(
+                &binding.name,
+            ),
+        );
     }
 
     // Visit child expressions to add template references

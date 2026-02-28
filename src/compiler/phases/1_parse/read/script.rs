@@ -104,6 +104,20 @@ impl Parser<'_> {
         let mut script_attributes = Vec::new();
 
         for attr in attributes {
+            // Spread attributes on script tags are treated as unknown attributes.
+            // Add a dummy attribute with a name that won't match any known attribute,
+            // so validate_script_attributes will emit script_unknown_attribute.
+            // Corresponds to Svelte's 1-parse/read/script.js L55-62.
+            if let crate::ast::Attribute::SpreadAttribute(spread) = &attr {
+                script_attributes.push(crate::ast::template::AttributeNode {
+                    start: spread.start,
+                    end: spread.end,
+                    name: compact_str::CompactString::new("{...}"),
+                    name_loc: None,
+                    value: AttributeValue::True(true),
+                });
+                continue;
+            }
             if let crate::ast::Attribute::Attribute(mut attr_node) = attr {
                 // For script tags, merge expression parts back into text
                 // because {curly braces} in quoted attribute values are NOT expressions

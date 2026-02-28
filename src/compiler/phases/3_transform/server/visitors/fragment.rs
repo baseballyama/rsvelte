@@ -4,7 +4,7 @@ use super::super::ServerCodeGenerator;
 use super::super::types::OutputPart;
 use crate::ast::template::{Fragment, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
-use crate::compiler::phases::phase3_transform::shared::escape_html;
+use crate::compiler::phases::phase3_transform::shared::{escape_html, sanitize_template_string};
 use crate::compiler::phases::phase3_transform::utils::{
     is_svelte_whitespace_only, svelte_trim_end, svelte_trim_start,
 };
@@ -82,20 +82,32 @@ impl<'a> ServerCodeGenerator<'a> {
         );
         body_generator.skip_hydration_boundaries = is_standalone;
 
-        // Check if first meaningful content needs an anchor
-        // If the first node is Text or ExpressionTag, add <!----> to prevent text fusion
+        // Check if first visible content needs an anchor
+        // If the first visible node is Text or ExpressionTag, add <!----> to prevent text fusion
         // Skip this for callbacks (like svelte:element children) since they're isolated
         // Also skip for standalone fragments (single RenderTag/Component)
+        // Skip ConstTag and SnippetBlock nodes since they don't produce HTML output
         if !skip_anchor && !is_standalone && start_idx < end_idx {
-            let first_node = &nodes[start_idx];
-            let needs_anchor = matches!(
-                first_node,
-                TemplateNode::Text(_) | TemplateNode::ExpressionTag(_)
-            );
-            if needs_anchor {
-                body_generator
-                    .output_parts
-                    .push(OutputPart::Html("<!---->".to_string()));
+            let mut first_visible = start_idx;
+            while first_visible < end_idx {
+                match nodes[first_visible] {
+                    TemplateNode::ConstTag(_) | TemplateNode::SnippetBlock(_) => {
+                        first_visible += 1;
+                    }
+                    _ => break,
+                }
+            }
+            if first_visible < end_idx {
+                let first_node = &nodes[first_visible];
+                let needs_anchor = matches!(
+                    first_node,
+                    TemplateNode::Text(_) | TemplateNode::ExpressionTag(_)
+                );
+                if needs_anchor {
+                    body_generator
+                        .output_parts
+                        .push(OutputPart::Html("<!---->".to_string()));
+                }
             }
         }
 
@@ -240,11 +252,22 @@ impl<'a> ServerCodeGenerator<'a> {
         body_generator.constant_vars = self.constant_vars.clone();
         body_generator.namespace = self.namespace.clone();
 
-        // Check if first meaningful content is text/expression
+        // Check if first visible content is text/expression
         // If so, add <!---> anchor to prevent text fusion during hydration.
         // Only add if add_text_anchor is true - some contexts (slot fallback, svelte:fragment)
         // do not need the anchor as the content is isolated in its own function.
-        let first_content = nodes.get(start_idx);
+        // Skip ConstTag and SnippetBlock nodes when looking for the first visible content
+        // since they don't produce HTML output.
+        let mut first_visible_idx = start_idx;
+        while first_visible_idx < end_idx {
+            match nodes[first_visible_idx] {
+                TemplateNode::ConstTag(_) | TemplateNode::SnippetBlock(_) => {
+                    first_visible_idx += 1;
+                }
+                _ => break,
+            }
+        }
+        let first_content = nodes.get(first_visible_idx);
         let needs_anchor = add_text_anchor
             && matches!(
                 first_content,
@@ -324,7 +347,9 @@ impl<'a> ServerCodeGenerator<'a> {
                         if !raw.is_empty() {
                             body_generator
                                 .output_parts
-                                .push(OutputPart::Html(escape_html(&raw)));
+                                .push(OutputPart::Html(escape_html(&sanitize_template_string(
+                                    &raw,
+                                ))));
                         }
                     } else {
                         body_generator.generate_node(fnode, false)?;
@@ -355,7 +380,9 @@ impl<'a> ServerCodeGenerator<'a> {
                 if !raw.is_empty() {
                     body_generator
                         .output_parts
-                        .push(OutputPart::Html(escape_html(&raw)));
+                        .push(OutputPart::Html(escape_html(&sanitize_template_string(
+                            &raw,
+                        ))));
                 }
                 continue;
             }

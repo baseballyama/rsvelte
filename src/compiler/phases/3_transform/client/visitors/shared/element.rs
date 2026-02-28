@@ -934,6 +934,34 @@ fn build_style_attribute_value_with_memoization(
             (value, has_state || has_call)
         }
 
+        AttributeValue::Sequence(parts) if parts.len() == 1 => {
+            // Single part - handle as simple value (avoid wrapping in template literal)
+            match &parts[0] {
+                AttributeValuePart::Text(text) => (b::string(text.data.as_str()), false),
+                AttributeValuePart::ExpressionTag(expr_tag) => {
+                    let converted = convert_expression(&expr_tag.expression, context);
+                    let has_call = super::utils::expression_has_call(&expr_tag.expression, context);
+                    let expr_has_state =
+                        super::utils::expression_has_reactive_state(&expr_tag.expression, context);
+
+                    let mut metadata = ExpressionMetadata::default();
+                    metadata.set_has_state(expr_has_state);
+                    metadata.set_has_call(has_call);
+                    let built = build_expression(context, &converted, &metadata);
+
+                    let value = context.state.memoizer.add_memoized(
+                        built,
+                        has_call,
+                        false, // has_await
+                        false, // memoize_if_state
+                        expr_has_state,
+                    );
+
+                    (value, expr_has_state || has_call)
+                }
+            }
+        }
+
         AttributeValue::Sequence(parts) => {
             // Template literal with multiple parts
             let mut quasis = Vec::with_capacity(parts.len() + 1);

@@ -806,30 +806,41 @@ fn extract_literal_string(node: &Value) -> Option<String> {
     }
 }
 
-/// Collect svelte-ignore codes from the parent VariableDeclaration's leading comments.
+/// Collect svelte-ignore codes from the parent VariableDeclaration's or
+/// ExportNamedDeclaration's leading comments.
 fn collect_ignore_codes_from_parent(context: &VisitorContext) -> Vec<String> {
-    // Look for the parent VariableDeclaration in the js_path
+    // Look for the parent VariableDeclaration or ExportNamedDeclaration in the js_path.
+    // For `export let x`, the AST is:
+    //   ExportNamedDeclaration (may have leadingComments)
+    //     └─ VariableDeclaration (may have leadingComments)
+    //          └─ VariableDeclarator
+    // We need to check both for leading comments.
+    let mut codes = Vec::new();
     for node in context.js_path.iter().rev() {
-        if node.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration") {
-            // Check for leading comments
-            if let Some(comments) = node.get("leadingComments").and_then(|c| c.as_array()) {
-                let mut codes = Vec::new();
-                for comment in comments {
-                    if let Some(value) = comment.get("value").and_then(|v| v.as_str()) {
-                        let extracted =
-                            crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore(
-                                value,
-                                context.analysis.runes,
-                            );
-                        codes.extend(extracted);
+        let node_type = node.get("type").and_then(|t| t.as_str());
+        match node_type {
+            Some("VariableDeclaration") | Some("ExportNamedDeclaration") => {
+                if let Some(comments) = node.get("leadingComments").and_then(|c| c.as_array()) {
+                    for comment in comments {
+                        if let Some(value) = comment.get("value").and_then(|v| v.as_str()) {
+                            let extracted =
+                                crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore(
+                                    value,
+                                    context.analysis.runes,
+                                );
+                            codes.extend(extracted);
+                        }
                     }
                 }
-                return codes;
+                // Stop after ExportNamedDeclaration (we've checked both levels)
+                if node_type == Some("ExportNamedDeclaration") {
+                    break;
+                }
             }
-            break;
+            _ => break,
         }
     }
-    Vec::new()
+    codes
 }
 
 /// Store ignore codes on all bindings declared by a pattern (Identifier, ObjectPattern, ArrayPattern).

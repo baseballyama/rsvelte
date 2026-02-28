@@ -32,17 +32,12 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         let is_reactive_statement = is_instance_script && is_at_top_level;
 
         if !context.analysis.runes && !is_reactive_statement {
-            // In non-runes mode, $: outside of top level of instance script is a warning
-            // Only emit warning if we're in instance script but not at top level
-            // (module script $: will fall into this category)
+            // In non-runes mode, $: outside of top level of instance script is a warning.
+            // This includes:
+            // - $: inside a function in the instance script (not at top level)
+            // - $: in module script
             if is_instance_script || context.ast_type == AstType::Module {
-                // TODO: Check for leading comments with svelte-ignore
-                // For now, we skip emitting warnings inside functions since we can't
-                // properly handle the svelte-ignore comments in JS context
-                // Only emit for module script (the original test case)
-                if context.ast_type == AstType::Module {
-                    context.emit_warning(warnings::reactive_declaration_invalid_placement());
-                }
+                context.emit_warning(warnings::reactive_declaration_invalid_placement());
             }
         }
     }

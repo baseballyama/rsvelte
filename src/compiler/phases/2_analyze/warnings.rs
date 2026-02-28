@@ -441,6 +441,17 @@ pub fn a11y_no_redundant_roles(role: &str) -> AnalysisWarning {
     )
 }
 
+/// Elements with the ARIA role must have required attributes
+pub fn a11y_role_has_required_aria_props(role: &str, props: &str) -> AnalysisWarning {
+    warning(
+        "a11y_role_has_required_aria_props",
+        format!(
+            "Elements with the ARIA role \"{}\" must have the following attributes defined: {}\nhttps://svelte.dev/e/a11y_role_has_required_aria_props",
+            role, props
+        ),
+    )
+}
+
 /// Element with handler must have an ARIA role
 pub fn a11y_no_static_element_interactions(element: &str, handler: &str) -> AnalysisWarning {
     warning(
@@ -684,7 +695,7 @@ pub fn bind_invalid_each_rest(name: &str) -> AnalysisWarning {
     warning(
         "bind_invalid_each_rest",
         format!(
-            "This will create a new object for the `{}` element of the each block on every update, which is not what you want. If possible, bind to a specific property instead\nhttps://svelte.dev/e/bind_invalid_each_rest",
+            "The rest operator (...) will create a new object and binding '{}' with the original object will not work\nhttps://svelte.dev/e/bind_invalid_each_rest",
             name
         ),
     )

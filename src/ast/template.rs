@@ -37,6 +37,19 @@ pub struct Root {
     /// Module script, serialized only if present.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub module: Option<Box<Script>>,
+    /// Parser-level warnings (e.g., element_implicitly_closed).
+    /// These are collected during parsing and forwarded to the analysis phase.
+    #[serde(skip)]
+    pub parse_warnings: Vec<ParseWarning>,
+}
+
+/// A warning emitted during parsing.
+#[derive(Debug, Clone)]
+pub struct ParseWarning {
+    /// Warning code (e.g., "element_implicitly_closed")
+    pub code: String,
+    /// Warning message
+    pub message: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
