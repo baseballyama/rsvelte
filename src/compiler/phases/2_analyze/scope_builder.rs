@@ -1813,8 +1813,13 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Visit a key block.
     fn visit_key_block(&mut self, block: &KeyBlock) {
-        // Key blocks don't create a new scope
+        // Key blocks create a child scope for their fragment, matching the official compiler
+        // where every Fragment node creates a child scope (scope.js line 1304-1308).
+        // This ensures that {@const} declarations inside {#key} blocks are isolated
+        // from sibling scopes (e.g., {#each} blocks at the same level).
+        let old_scope = self.push_scope();
         self.visit_fragment(&block.fragment);
+        self.pop_scope(old_scope);
     }
 
     /// Visit a snippet block.

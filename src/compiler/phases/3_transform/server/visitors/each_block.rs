@@ -55,29 +55,32 @@ impl<'a> ServerCodeGenerator<'a> {
         let len = body_nodes.len();
 
         // Determine indices to process (skip leading/trailing whitespace)
+        // Skip whitespace trimming when preserveWhitespace is set
         let mut start_idx = 0;
         let mut end_idx = len;
 
-        // Skip leading whitespace
-        while start_idx < len {
-            if let TemplateNode::Text(text) = body_nodes[start_idx]
-                && is_svelte_whitespace_only(&text.data)
-            {
-                start_idx += 1;
-                continue;
+        if !self.preserve_whitespace {
+            // Skip leading whitespace
+            while start_idx < len {
+                if let TemplateNode::Text(text) = body_nodes[start_idx]
+                    && is_svelte_whitespace_only(&text.data)
+                {
+                    start_idx += 1;
+                    continue;
+                }
+                break;
             }
-            break;
-        }
 
-        // Skip trailing whitespace
-        while end_idx > start_idx {
-            if let TemplateNode::Text(text) = body_nodes[end_idx - 1]
-                && is_svelte_whitespace_only(&text.data)
-            {
-                end_idx -= 1;
-                continue;
+            // Skip trailing whitespace
+            while end_idx > start_idx {
+                if let TemplateNode::Text(text) = body_nodes[end_idx - 1]
+                    && is_svelte_whitespace_only(&text.data)
+                {
+                    end_idx -= 1;
+                    continue;
+                }
+                break;
             }
-            break;
         }
 
         // Collect trimmed body nodes (owned)
@@ -91,7 +94,8 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Trim leading whitespace from first text node and trailing whitespace from last text node
         // This handles cases like `{#each items as item}\ncontent\n{/each}`
-        if !trimmed_body_nodes.is_empty() {
+        // Skip when preserveWhitespace is set
+        if !self.preserve_whitespace && !trimmed_body_nodes.is_empty() {
             // Trim leading whitespace from first text node
             if let TemplateNode::Text(ref mut text) = trimmed_body_nodes[0] {
                 let trimmed_data = text.data.trim_start().to_string();
@@ -134,8 +138,9 @@ impl<'a> ServerCodeGenerator<'a> {
             if let TemplateNode::ExpressionTag(_) = body_nodes[start_idx] {
                 body_generator.output_parts.push(OutputPart::Comment);
             } else if let TemplateNode::Text(text) = body_nodes[start_idx] {
-                // Only add comment if text has non-whitespace content after trimming
-                if !is_svelte_whitespace_only(&text.data) {
+                // Only add comment if text has non-whitespace content after trimming,
+                // OR if preserveWhitespace is set (whitespace-only text will be output as content)
+                if self.preserve_whitespace || !is_svelte_whitespace_only(&text.data) {
                     body_generator.output_parts.push(OutputPart::Comment);
                 }
             }
@@ -151,8 +156,9 @@ impl<'a> ServerCodeGenerator<'a> {
         let num_nodes = nodes_to_process.len();
 
         for (i, node) in nodes_to_process.into_iter().enumerate() {
-            // Skip whitespace-only text after ConstTag
-            if prev_was_const
+            // Skip whitespace-only text after ConstTag (unless preserving whitespace)
+            if !self.preserve_whitespace
+                && prev_was_const
                 && let TemplateNode::Text(text) = node
                 && is_svelte_whitespace_only(&text.data)
             {
@@ -162,15 +168,18 @@ impl<'a> ServerCodeGenerator<'a> {
             prev_was_const = matches!(node, TemplateNode::ConstTag(_));
 
             // Special handling for first/last text nodes to trim whitespace
+            // Skip when preserveWhitespace is set
             if let TemplateNode::Text(text) = node {
                 let mut data = text.data.to_string();
-                // Trim leading whitespace from first text node
-                if i == 0 {
-                    data = data.trim_start().to_string();
-                }
-                // Trim trailing whitespace from last text node
-                if i == num_nodes - 1 {
-                    data = data.trim_end().to_string();
+                if !self.preserve_whitespace {
+                    // Trim leading whitespace from first text node
+                    if i == 0 {
+                        data = data.trim_start().to_string();
+                    }
+                    // Trim trailing whitespace from last text node
+                    if i == num_nodes - 1 {
+                        data = data.trim_end().to_string();
+                    }
                 }
                 // Output the trimmed text
                 if !data.is_empty() {

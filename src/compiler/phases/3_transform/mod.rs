@@ -106,16 +106,32 @@ pub fn transform_component(
 
     // Collect CSS unused selector warnings
     // Corresponds to `warn_unused()` call in Svelte's 2-analyze/index.js L871
+    // Check if the preceding HTML comment contains `svelte-ignore css_unused_selector`
+    // (corresponds to Svelte's 2-analyze/index.js L863-872)
     if analysis.css.has_css {
-        let css_warnings = css::collect_css_unused_warnings(analysis, source);
-        for w in css_warnings {
-            warnings.push(TransformWarning {
-                code: "css_unused_selector".to_string(),
-                message: format!(
-                    "Unused CSS selector \"{}\"\nhttps://svelte.dev/e/css_unused_selector",
-                    w.selector_text
-                ),
+        let should_ignore_unused = ast
+            .css
+            .as_ref()
+            .and_then(|css| css.content.comment.as_ref())
+            .is_some_and(|comment| {
+                crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore(
+                    comment,
+                    analysis.runes,
+                )
+                .contains(&"css_unused_selector".to_string())
             });
+
+        if !should_ignore_unused {
+            let css_warnings = css::collect_css_unused_warnings(analysis, source);
+            for w in css_warnings {
+                warnings.push(TransformWarning {
+                    code: "css_unused_selector".to_string(),
+                    message: format!(
+                        "Unused CSS selector \"{}\"\nhttps://svelte.dev/e/css_unused_selector",
+                        w.selector_text
+                    ),
+                });
+            }
         }
     }
 

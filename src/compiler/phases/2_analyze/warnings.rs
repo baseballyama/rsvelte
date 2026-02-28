@@ -452,6 +452,32 @@ pub fn a11y_role_has_required_aria_props(role: &str, props: &str) -> AnalysisWar
     )
 }
 
+/// The attribute is not supported by the role (explicit)
+pub fn a11y_role_supports_aria_props(attribute: &str, role: &str) -> AnalysisWarning {
+    warning(
+        "a11y_role_supports_aria_props",
+        format!(
+            "The attribute '{}' is not supported by the role '{}'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+            attribute, role
+        ),
+    )
+}
+
+/// The attribute is not supported by the role (implicit on the element)
+pub fn a11y_role_supports_aria_props_implicit(
+    attribute: &str,
+    role: &str,
+    name: &str,
+) -> AnalysisWarning {
+    warning(
+        "a11y_role_supports_aria_props_implicit",
+        format!(
+            "The attribute '{}' is not supported by the role '{}'. This role is implicit on the element `<{}>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+            attribute, role, name
+        ),
+    )
+}
+
 /// Element with handler must have an ARIA role
 pub fn a11y_no_static_element_interactions(element: &str, handler: &str) -> AnalysisWarning {
     warning(

@@ -263,13 +263,18 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
                             warnings_expected: expected_warnings_count,
                         }
                     } else {
+                        // Debug: print actual warnings for failing tests
+                        let mut detail = format!(
+                            "Expected {} warnings, got {}. Actual warnings:\n",
+                            expected_warnings_count, actual_warnings_count
+                        );
+                        for w in &result.warnings {
+                            detail.push_str(&format!("  [{}] {}\n", w.code, w.message));
+                        }
                         TestResult {
                             name: fixture.name.clone(),
                             passed: false,
-                            error_message: Some(format!(
-                                "Expected {} warnings, got {}",
-                                expected_warnings_count, actual_warnings_count
-                            )),
+                            error_message: Some(detail),
                             skipped: false,
                             warnings_matched: 0,
                             warnings_expected: expected_warnings_count,

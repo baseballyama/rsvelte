@@ -30,6 +30,12 @@ fn transform_script_content_inner(
     is_module: bool,
     reexported_props: &[(String, String)],
 ) -> String {
+    // Split comma-separated variable declarations into individual statements BEFORE
+    // rune transforms. This ensures that `const a = 1, b = 2, c = 3;` is split into
+    // individual statements, but rune-generated comma patterns (e.g., from
+    // destructure-state transforms) are not broken.
+    let script = split_comma_separated_declarations(script);
+
     let script = script.replace("$props()", "$$props");
     let script = transform_rune_call_multiline(&script, "$state.eager(");
     let script = script.replace("$effect.pending()", "false");
@@ -1744,4 +1750,130 @@ fn find_simple_assignment(s: &str) -> Option<usize> {
     }
 
     None
+}
+
+/// Split comma-separated variable declarations into individual statements.
+/// e.g., `const a = 1, b = 2, c = 3;` -> `const a = 1;\nconst b = 2;\nconst c = 3;`
+///
+/// This matches the official Svelte compiler's AST-based VariableDeclaration splitting
+/// where each declarator becomes its own statement.
+fn split_comma_separated_declarations(script: &str) -> String {
+    let mut result = String::new();
+
+    for line in script.lines() {
+        let trimmed = line.trim();
+        let indent = &line[..line.len() - line.trim_start().len()];
+
+        // Check if this is a const/let/var declaration
+        let is_export = trimmed.starts_with("export ");
+        let decl_trimmed = if is_export {
+            trimmed.strip_prefix("export ").unwrap().trim_start()
+        } else {
+            trimmed
+        };
+
+        let keyword = if decl_trimmed.starts_with("const ") {
+            Some("const")
+        } else if decl_trimmed.starts_with("let ") {
+            Some("let")
+        } else if decl_trimmed.starts_with("var ") {
+            Some("var")
+        } else {
+            None
+        };
+
+        if let Some(kw) = keyword {
+            let rest = &decl_trimmed[kw.len()..].trim_start();
+            let rest = rest.trim_end_matches(';');
+
+            // Split by top-level commas
+            let parts = split_top_level_commas(rest);
+
+            if parts.len() > 1 {
+                // Multiple declarators - split into individual statements
+                let prefix = if is_export {
+                    format!("export {} ", kw)
+                } else {
+                    format!("{} ", kw)
+                };
+                for (i, part) in parts.iter().enumerate() {
+                    let part = part.trim();
+                    if !part.is_empty() {
+                        if i > 0 {
+                            result.push('\n');
+                        }
+                        result.push_str(indent);
+                        result.push_str(&prefix);
+                        result.push_str(part);
+                        result.push(';');
+                    }
+                }
+                result.push('\n');
+                continue;
+            }
+        }
+
+        result.push_str(line);
+        result.push('\n');
+    }
+
+    // Remove trailing newline to match input behavior
+    if result.ends_with('\n') {
+        result.pop();
+    }
+
+    result
+}
+
+/// Split a string by top-level commas, respecting nesting.
+fn split_top_level_commas(s: &str) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut depth = 0i32;
+    let mut start = 0;
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    let len = bytes.len();
+
+    while i < len {
+        match bytes[i] {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'\'' | b'"' => {
+                let quote = bytes[i];
+                i += 1;
+                while i < len && bytes[i] != quote {
+                    if bytes[i] == b'\\' {
+                        i += 1;
+                    }
+                    i += 1;
+                }
+            }
+            b'`' => {
+                i += 1;
+                let mut tmpl_depth = 0i32;
+                while i < len {
+                    if bytes[i] == b'`' && tmpl_depth == 0 {
+                        break;
+                    }
+                    if bytes[i] == b'\\' {
+                        i += 1;
+                    } else if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                        tmpl_depth += 1;
+                        i += 1;
+                    } else if bytes[i] == b'}' && tmpl_depth > 0 {
+                        tmpl_depth -= 1;
+                    }
+                    i += 1;
+                }
+            }
+            b',' if depth == 0 => {
+                parts.push(&s[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    parts.push(&s[start..]);
+    parts
 }

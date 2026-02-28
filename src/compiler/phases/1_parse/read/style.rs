@@ -168,6 +168,13 @@ impl Parser<'_> {
         // Parse CSS content
         let css_children = parse_css(style_content, content_start);
 
+        // Capture the preceding HTML comment for svelte-ignore support.
+        // In the official Svelte compiler (element.js L351), the parser stores the preceding
+        // HTML comment in `content.content.comment` so that the analysis phase can check
+        // if `svelte-ignore css_unused_selector` is present.
+        // We use `pending_leading_comments` which accumulates comment data as comments are parsed.
+        let comment = self.pending_leading_comments.last().cloned();
+
         let stylesheet = StyleSheet {
             node_type: StyleSheetType::StyleSheet,
             start: start as u32,
@@ -178,7 +185,7 @@ impl Parser<'_> {
                 start: content_start as u32,
                 end: content_end as u32,
                 styles: style_content.to_string(),
-                comment: None,
+                comment,
             },
         };
 

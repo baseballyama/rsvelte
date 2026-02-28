@@ -73,6 +73,7 @@ fn has_dynamic_children(nodes: &[TemplateNode]) -> bool {
             TemplateNode::SvelteElement(_) => return true,
             TemplateNode::SvelteSelf(_) => return true,
             TemplateNode::SvelteBoundary(_) => return true,
+            TemplateNode::SlotElement(_) => return true,
             TemplateNode::RegularElement(elem) => {
                 // Check if this child element has special attributes that need runtime handling
                 if is_custom_element_node(elem) {

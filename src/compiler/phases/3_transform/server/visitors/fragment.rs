@@ -35,6 +35,7 @@ impl<'a> ServerCodeGenerator<'a> {
             self.use_async,
         );
         body_generator.constant_vars = self.constant_vars.clone();
+        body_generator.preserve_whitespace = self.preserve_whitespace;
 
         // Get the nodes and find meaningful content bounds
         let nodes: Vec<_> = fragment.nodes.iter().collect();
@@ -42,34 +43,39 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Find first meaningful node (skip whitespace-only text, comments, and snippet blocks)
         // Snippet blocks are hoisted and don't produce inline output
+        // When preserveWhitespace is set, don't skip whitespace-only text nodes
         let mut start_idx = 0;
-        while start_idx < len {
-            match nodes[start_idx] {
-                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
-                    start_idx += 1;
-                    continue;
+        if !self.preserve_whitespace {
+            while start_idx < len {
+                match nodes[start_idx] {
+                    TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                        start_idx += 1;
+                        continue;
+                    }
+                    TemplateNode::Comment(_) => {
+                        start_idx += 1;
+                        continue;
+                    }
+                    _ => break,
                 }
-                TemplateNode::Comment(_) => {
-                    start_idx += 1;
-                    continue;
-                }
-                _ => break,
             }
         }
 
         // Find last meaningful node (skip whitespace-only text, comments, and snippet blocks)
         let mut end_idx = len;
-        while end_idx > start_idx {
-            match nodes[end_idx - 1] {
-                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
-                    end_idx -= 1;
-                    continue;
+        if !self.preserve_whitespace {
+            while end_idx > start_idx {
+                match nodes[end_idx - 1] {
+                    TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                        end_idx -= 1;
+                        continue;
+                    }
+                    TemplateNode::Comment(_) => {
+                        end_idx -= 1;
+                        continue;
+                    }
+                    _ => break,
                 }
-                TemplateNode::Comment(_) => {
-                    end_idx -= 1;
-                    continue;
-                }
-                _ => break,
             }
         }
 
@@ -135,8 +141,9 @@ impl<'a> ServerCodeGenerator<'a> {
         for (i, node) in meaningful_nodes.iter().enumerate() {
             let is_last = i == meaningful_nodes.len() - 1;
 
-            // Skip whitespace-only text nodes after ConstTag
-            if prev_was_const_tag
+            // Skip whitespace-only text nodes after ConstTag (unless preserving whitespace)
+            if !self.preserve_whitespace
+                && prev_was_const_tag
                 && let TemplateNode::Text(text) = node
                 && is_svelte_whitespace_only(&text.data)
             {
@@ -145,7 +152,10 @@ impl<'a> ServerCodeGenerator<'a> {
             }
 
             // If we just had a title and this is a text node, trim leading whitespace
-            if just_had_title && let TemplateNode::Text(text) = node {
+            if !self.preserve_whitespace
+                && just_had_title
+                && let TemplateNode::Text(text) = node
+            {
                 let mut modified_text = text.clone();
                 modified_text.data = modified_text.data.trim_start().to_string().into();
                 // Also trim trailing whitespace if this is the last node
@@ -161,7 +171,11 @@ impl<'a> ServerCodeGenerator<'a> {
             prev_was_const_tag = matches!(node, TemplateNode::ConstTag(_));
             // For the last text node in a fragment, trim trailing whitespace
             // Use svelte_trim_end which does NOT trim non-breaking space (\u{00A0})
-            if is_last && let TemplateNode::Text(text) = node {
+            // Skip when preserveWhitespace is true
+            if !self.preserve_whitespace
+                && is_last
+                && let TemplateNode::Text(text) = node
+            {
                 let mut modified_text = text.clone();
                 modified_text.data = svelte_trim_end(&modified_text.data).to_string().into();
                 body_generator.generate_node(&TemplateNode::Text(modified_text), false)?;
@@ -215,34 +229,37 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Find first and last meaningful content
         // Skip whitespace-only text nodes and comment nodes when trimming
+        // Unless preserveWhitespace is set
         let mut start_idx = 0;
         let mut end_idx = len;
 
-        while start_idx < len {
-            match nodes[start_idx] {
-                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
-                    start_idx += 1;
-                    continue;
+        if !self.preserve_whitespace {
+            while start_idx < len {
+                match nodes[start_idx] {
+                    TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                        start_idx += 1;
+                        continue;
+                    }
+                    TemplateNode::Comment(_) => {
+                        start_idx += 1;
+                        continue;
+                    }
+                    _ => break,
                 }
-                TemplateNode::Comment(_) => {
-                    start_idx += 1;
-                    continue;
-                }
-                _ => break,
             }
-        }
 
-        while end_idx > start_idx {
-            match nodes[end_idx - 1] {
-                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
-                    end_idx -= 1;
-                    continue;
+            while end_idx > start_idx {
+                match nodes[end_idx - 1] {
+                    TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                        end_idx -= 1;
+                        continue;
+                    }
+                    TemplateNode::Comment(_) => {
+                        end_idx -= 1;
+                        continue;
+                    }
+                    _ => break,
                 }
-                TemplateNode::Comment(_) => {
-                    end_idx -= 1;
-                    continue;
-                }
-                _ => break,
             }
         }
 
@@ -262,6 +279,7 @@ impl<'a> ServerCodeGenerator<'a> {
         );
         body_generator.constant_vars = self.constant_vars.clone();
         body_generator.namespace = self.namespace.clone();
+        body_generator.preserve_whitespace = self.preserve_whitespace;
 
         // Check if first visible content is text/expression
         // If so, add <!---> anchor to prevent text fusion during hydration.

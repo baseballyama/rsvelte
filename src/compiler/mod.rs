@@ -423,6 +423,16 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
     // See: svelte/packages/svelte/src/compiler/index.js
     remove_typescript_from_ast(&mut ast)?;
 
+    // Merge parsed <svelte:options> into compile options, matching the official compiler's behavior:
+    //   const combined_options = { ...validated, ...parsed_options, customElementOptions };
+    // See: svelte/packages/svelte/src/compiler/index.js
+    let mut options = options;
+    if let Some(ref parsed_options) = ast.options
+        && let Some(pw) = parsed_options.preserve_whitespace
+    {
+        options.preserve_whitespace = pw;
+    }
+
     // Phase 2: Analyze
     let analysis = phases::phase2_analyze::analyze_component(&mut ast, source, &options)?;
 

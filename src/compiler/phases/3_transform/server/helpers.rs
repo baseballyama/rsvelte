@@ -1161,17 +1161,25 @@ pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMa
 
         if let Some(start) = decl_start {
             let rest = &trimmed[start..];
-            if let Some(eq_idx) = rest.find('=') {
-                let name = rest[..eq_idx].trim();
-                let value = rest[eq_idx + 1..].trim().trim_end_matches(';');
 
-                if try_insert_constant_value(value, name, &mut constants) {
-                    if !is_const {
-                        let_vars.push(name.to_string());
+            // Handle comma-separated declarations like `const a = 1, b = 2, c = 3;`
+            // Split at top-level commas (not inside brackets/parens)
+            let declarators = split_declarators(rest);
+
+            for declarator in &declarators {
+                let decl = declarator.trim().trim_end_matches(';');
+                if let Some(eq_idx) = decl.find('=') {
+                    let name = decl[..eq_idx].trim();
+                    let value = decl[eq_idx + 1..].trim();
+
+                    if try_insert_constant_value(value, name, &mut constants) {
+                        if !is_const {
+                            let_vars.push(name.to_string());
+                        }
+                    } else {
+                        // Save for second pass - might be evaluable once we know more constants
+                        unresolved.push((name.to_string(), value.to_string(), is_const));
                     }
-                } else {
-                    // Save for second pass - might be evaluable once we know more constants
-                    unresolved.push((name.to_string(), value.to_string(), is_const));
                 }
             }
         }
@@ -1361,4 +1369,61 @@ fn strip_export_specifiers(script: &str) -> String {
     }
 
     result
+}
+
+/// Split a variable declaration's declarator list by top-level commas.
+/// Handles `a = 1, b = 2, c = 3` -> ["a = 1", "b = 2", "c = 3"]
+/// Respects nesting: commas inside parens, brackets, braces, strings, and template literals
+/// are not treated as separators.
+fn split_declarators(s: &str) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut depth = 0i32;
+    let mut start = 0;
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    let len = bytes.len();
+
+    while i < len {
+        match bytes[i] {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'\'' | b'"' => {
+                let quote = bytes[i];
+                i += 1;
+                while i < len && bytes[i] != quote {
+                    if bytes[i] == b'\\' {
+                        i += 1; // skip escaped char
+                    }
+                    i += 1;
+                }
+            }
+            b'`' => {
+                // Template literal - skip to matching backtick
+                i += 1;
+                let mut tmpl_depth = 0i32;
+                while i < len {
+                    if bytes[i] == b'`' && tmpl_depth == 0 {
+                        break;
+                    }
+                    if bytes[i] == b'\\' {
+                        i += 1;
+                    } else if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                        tmpl_depth += 1;
+                        i += 1;
+                    } else if bytes[i] == b'}' && tmpl_depth > 0 {
+                        tmpl_depth -= 1;
+                    }
+                    i += 1;
+                }
+            }
+            b',' if depth == 0 => {
+                parts.push(&s[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    parts.push(&s[start..]);
+    parts
 }

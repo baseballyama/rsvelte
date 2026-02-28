@@ -53,6 +53,7 @@ pub fn transform_server(
         Some(analysis),
         options.experimental.r#async,
     );
+    generator.preserve_whitespace = options.preserve_whitespace;
 
     // Handle CSS injection for <svelte:options css="injected" />
     if analysis.inject_styles && analysis.css.has_css && !analysis.css.hash.is_empty() {
@@ -98,6 +99,8 @@ pub(crate) struct ServerCodeGenerator<'a> {
     /// Current namespace context (html, svg, mathml).
     /// In SVG namespace, whitespace-only text nodes between elements are entirely removed.
     pub(crate) namespace: String,
+    /// Whether to preserve whitespace (from <svelte:options preserveWhitespace /> or compile option).
+    pub(crate) preserve_whitespace: bool,
 }
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -283,6 +286,7 @@ impl<'a> ServerCodeGenerator<'a> {
             skip_hydration_boundaries: false,
             is_typescript,
             namespace,
+            preserve_whitespace: false,
         }
     }
 
@@ -303,6 +307,7 @@ impl<'a> ServerCodeGenerator<'a> {
             skip_hydration_boundaries,
             is_typescript: self.is_typescript,
             namespace: self.namespace.clone(),
+            preserve_whitespace: self.preserve_whitespace,
         }
     }
 
@@ -549,8 +554,11 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Helper to check if a node is "meaningful" for SSR output purposes
         // SvelteWindow, SvelteDocument, SvelteBody don't render anything in SSR
+        // When preserveWhitespace is true, whitespace-only text IS meaningful
+        let preserve_ws = self.preserve_whitespace;
         let is_ssr_meaningful = |n: &&TemplateNode| {
-            !matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data))
+            (!matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data))
+                || preserve_ws)
                 && !matches!(n, TemplateNode::Comment(_))
                 && !matches!(n, TemplateNode::SvelteWindow(_))
                 && !matches!(n, TemplateNode::SvelteDocument(_))
@@ -566,10 +574,17 @@ impl<'a> ServerCodeGenerator<'a> {
         self.skip_hydration_boundaries = Self::is_standalone_fragment(&fragment.nodes);
 
         // If the first meaningful node is a Text or ExpressionTag, add <!---->
-        // to prevent text fusion during hydration
-        let first_meaningful_node = first_meaningful_idx.map(|i| &nodes[i]);
+        // to prevent text fusion during hydration.
+        // Skip SvelteOptions nodes since they don't produce output.
+        let first_visible_idx = first_meaningful_idx.and_then(|start| {
+            nodes[start..].iter().position(|n| {
+                !matches!(n, TemplateNode::SvelteOptions(_))
+                    && (preserve_ws || !matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data)))
+            }).map(|offset| start + offset)
+        });
+        let first_visible_node = first_visible_idx.map(|i| &nodes[i]);
         let needs_anchor = matches!(
-            first_meaningful_node,
+            first_visible_node,
             Some(TemplateNode::Text(_)) | Some(TemplateNode::ExpressionTag(_))
         );
 
@@ -583,8 +598,9 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut trim_leading_ws = needs_anchor;
 
         for (i, node) in nodes.iter().enumerate() {
-            // Skip whitespace-only text at root level
-            if let TemplateNode::Text(text) = node
+            // Skip whitespace-only text at root level (unless preserveWhitespace is set)
+            if !self.preserve_whitespace
+                && let TemplateNode::Text(text) = node
                 && is_svelte_whitespace_only(&text.data)
             {
                 // Skip if there is no meaningful content at all (e.g. component with only
@@ -654,7 +670,10 @@ impl<'a> ServerCodeGenerator<'a> {
             // Handle text node modifications:
             // 1. Trim leading whitespace from the first text after anchor comment
             // 2. Trim trailing whitespace from the last meaningful text node
-            if let TemplateNode::Text(text) = node {
+            // Skip these modifications when preserveWhitespace is set
+            if !self.preserve_whitespace
+                && let TemplateNode::Text(text) = node
+            {
                 let mut modified_data = text.data.to_string();
                 let mut needs_modification = false;
 

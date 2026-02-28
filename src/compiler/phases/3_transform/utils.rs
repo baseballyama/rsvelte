@@ -556,6 +556,17 @@ pub fn clean_nodes(
         trim_whitespace(parent, &regular, namespace)
     };
 
+    // If first text node inside a <pre> is a single newline, discard it, because otherwise
+    // the browser will do it for us which could break hydration.
+    // Corresponds to lines 253-262 of utils.js in the official compiler.
+    if let Some(TemplateNode::RegularElement(el)) = parent
+        && el.name.as_str() == "pre"
+        && let Some(TemplateNode::Text(text)) = trimmed.first()
+        && (text.data.as_str() == "\n" || text.data.as_str() == "\r\n")
+    {
+        trimmed.remove(0);
+    }
+
     // Special case: Add a comment if this is a lone script tag. This ensures that our
     // run_scripts logic in template.js will always be able to call node.replaceWith()
     // on the script tag in order to make it run. If we don't add this and would still

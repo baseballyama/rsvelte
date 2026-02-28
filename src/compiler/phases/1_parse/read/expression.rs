@@ -3703,6 +3703,59 @@ fn convert_statement(
             }
             Some(Value::Object(obj))
         }
+        oxc_ast::ast::Statement::FunctionDeclaration(func_decl) => {
+            // Filter out TypeScript declare functions and function overload signatures (no body)
+            if func_decl.r#type == oxc_ast::ast::FunctionType::TSDeclareFunction
+                || func_decl.body.is_none()
+            {
+                return None;
+            }
+            let start = offset + func_decl.span.start as usize - 1;
+            let end = offset + func_decl.span.end as usize - 1;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("FunctionDeclaration".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+            if let Some(id) = &func_decl.id {
+                let id_start = offset + id.span.start as usize - 1;
+                let id_end = offset + id.span.end as usize - 1;
+                let id_expr = create_identifier(&id.name, id_start, id_end, line_offsets);
+                obj.insert("id".to_string(), id_expr.as_json().clone());
+            } else {
+                obj.insert("id".to_string(), Value::Null);
+            }
+
+            obj.insert("generator".to_string(), Value::Bool(func_decl.generator));
+            obj.insert("async".to_string(), Value::Bool(func_decl.r#async));
+
+            // Convert params
+            let params: Vec<Value> = func_decl
+                .params
+                .items
+                .iter()
+                .map(|param| {
+                    convert_formal_parameter(param, offset - 1, line_offsets)
+                        .as_json()
+                        .clone()
+                })
+                .collect();
+            obj.insert("params".to_string(), Value::Array(params));
+
+            // Convert body - reuse convert_arrow_body which handles the -1 offset adjustment
+            if let Some(body) = &func_decl.body {
+                let body_value = convert_arrow_body(body, offset, line_offsets);
+                obj.insert("body".to_string(), body_value);
+            } else {
+                obj.insert("body".to_string(), Value::Null);
+            }
+
+            Some(Value::Object(obj))
+        }
         _ => None, // Skip other statement types for now
     }
 }

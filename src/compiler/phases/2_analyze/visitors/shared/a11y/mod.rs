@@ -306,6 +306,41 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
         }
     }
 
+    // role-supports-aria-props
+    // Compute the effective role value: explicit role attribute or implicit role from element name
+    let role_value: Option<&str> = if has_role_attr {
+        role_static_value
+    } else {
+        get_implicit_role(&node.name, &attribute_map)
+    };
+
+    if let Some(rv) = role_value
+        && constants::ROLE_ALLOWED_ARIA_PROPS.contains_key(rv)
+    {
+        let allowed_props = constants::ROLE_ALLOWED_ARIA_PROPS[rv];
+        let is_implicit = !has_role_attr;
+
+        for attr in &attributes {
+            if let AttributeNode::Attribute(a) = attr {
+                let attr_name = a.name.as_str();
+                if let Some(aria_suffix) = attr_name.strip_prefix("aria-") {
+                    // Only check valid ARIA attributes - misspelled ones are caught
+                    // by a11y-aria-props separately
+                    let is_valid_aria = constants::ARIA_ATTRIBUTES.contains(&aria_suffix);
+                    if is_valid_aria && !allowed_props.contains(&attr_name) {
+                        if is_implicit {
+                            warnings.push(w::a11y_role_supports_aria_props_implicit(
+                                attr_name, rv, &node.name,
+                            ));
+                        } else {
+                            warnings.push(w::a11y_role_supports_aria_props(attr_name, rv));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // no-noninteractive-tabindex
     // Check: if tabindex exists AND (value is dynamic/None OR value is >= 0)
     // This matches the official Svelte implementation: (tab_index_value === null || Number(tab_index_value) >= 0)

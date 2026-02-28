@@ -15,6 +15,16 @@ impl<'a> ServerCodeGenerator<'a> {
     ) -> Result<(), TransformError> {
         let data = &text.data;
 
+        // When preserveWhitespace is set, output text as-is without collapsing
+        if self.preserve_whitespace {
+            if !data.is_empty() {
+                let sanitized = sanitize_template_string(data);
+                self.output_parts
+                    .push(OutputPart::Html(escape_html(&sanitized)));
+            }
+            return Ok(());
+        }
+
         // Non-breaking space (U+00A0) is NOT collapsible whitespace - treat as content
         let is_whitespace_only = data.chars().all(|c| c != '\u{00A0}' && c.is_whitespace());
         if is_whitespace_only {

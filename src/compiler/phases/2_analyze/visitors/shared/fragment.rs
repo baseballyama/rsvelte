@@ -74,7 +74,17 @@ pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<
     // a preceding svelte-ignore comment suppresses it (see Text.js L33-45).
     let ignore_info: Vec<Option<PrecedingIgnores>> = (0..fragment.nodes.len())
         .map(|idx| {
-            let is_ignorable = !matches!(&fragment.nodes[idx], TemplateNode::Comment(_));
+            // The official Svelte (2-analyze/index.js L99) only applies the general ignore mechanism
+            // to non-Comment AND non-Text nodes. Text nodes should not collect preceding ignores
+            // for the purpose of emitting legacy_code/unknown_code warnings (those warnings should
+            // only be emitted once by the first actual element node after the comment).
+            // However, Text nodes DO need ignore info for bidirectional_control_characters checks.
+            // We handle this by only collecting preceding ignores (and thus emitting warnings)
+            // for non-Comment and non-Text nodes.
+            let is_ignorable = !matches!(
+                &fragment.nodes[idx],
+                TemplateNode::Comment(_) | TemplateNode::Text(_)
+            );
             if is_ignorable {
                 Some(collect_preceding_ignores(&fragment.nodes, idx, runes))
             } else {

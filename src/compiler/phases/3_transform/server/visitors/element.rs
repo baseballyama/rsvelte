@@ -18,6 +18,13 @@ use crate::compiler::phases::phase3_transform::utils::{
     is_svelte_whitespace_only, svelte_trim, svelte_trim_end, svelte_trim_start,
 };
 
+/// Descendant type for customizable select element checking.
+enum SelectDescendant {
+    RegularElement(String),
+    Text,
+    Other,
+}
+
 /// Check if an element emits `load` and `error` events.
 /// Reference: svelte/src/utils.js - LOAD_ERROR_ELEMENTS
 fn is_load_error_element(name: &str) -> bool {
@@ -369,7 +376,6 @@ impl<'a> ServerCodeGenerator<'a> {
                             || matches!(
                                 name,
                                 "select"
-                                    | "optgroup"
                                     | "tr"
                                     | "table"
                                     | "tbody"
@@ -802,7 +808,6 @@ impl<'a> ServerCodeGenerator<'a> {
                 || matches!(
                     name,
                     "select"
-                        | "optgroup"
                         | "tr"
                         | "table"
                         | "tbody"
@@ -1012,21 +1017,103 @@ impl<'a> ServerCodeGenerator<'a> {
         })
     }
 
-    /// Check if a select or optgroup element contains Components, RenderTags, or HtmlTags
-    /// that require hydration anchor markers (<!>) before the closing tag.
-    /// This does NOT include option elements with rich content - those are handled separately.
+    /// Check if a select, optgroup, or option element has rich content that requires
+    /// special hydration handling. Matches the official compiler's `is_customizable_select_element`
+    /// in `svelte/packages/svelte/src/compiler/phases/nodes.js`.
+    ///
+    /// Rich content is:
+    /// - For `option`: any RegularElement child
+    /// - For `optgroup`: any RegularElement child that isn't `option`, or any Text child
+    /// - For `select`: any RegularElement child that isn't `option`/`optgroup`, or any Text child
+    /// - For all: any Component, RenderTag, HtmlTag, etc.
     fn is_customizable_select_element(element: &RegularElement) -> bool {
         let element_name = element.name.as_str();
-        if element_name == "select" || element_name == "optgroup" {
-            // Check for Components, RenderTags, HtmlTags directly in select/optgroup
-            // or within control flow blocks (if, each, key, boundary)
-            return Self::has_component_or_render_tag(&element.fragment.nodes);
+        if element_name == "select" || element_name == "optgroup" || element_name == "option" {
+            for descendant in Self::find_descendants(&element.fragment.nodes) {
+                match &descendant {
+                    SelectDescendant::RegularElement(name) => {
+                        if element_name == "select" && name != "option" && name != "optgroup" {
+                            return true;
+                        }
+                        if element_name == "optgroup" && name != "option" {
+                            return true;
+                        }
+                        if element_name == "option" {
+                            return true;
+                        }
+                    }
+                    SelectDescendant::Text => {
+                        if element_name == "select" || element_name == "optgroup" {
+                            return true;
+                        }
+                    }
+                    SelectDescendant::Other => {
+                        return true;
+                    }
+                }
+            }
         }
         false
     }
 
+    /// Yields descendant nodes for customizable select element checking.
+    /// Mirrors `find_descendants` in the official compiler's `nodes.js`.
+    /// Skips SnippetBlock, DebugTag, ConstTag, Comment, ExpressionTag.
+    /// Recurses into control flow blocks (if, each, key, boundary).
+    /// Yields RegularElement (with name), non-empty Text, and Other for everything else.
+    fn find_descendants(nodes: &[TemplateNode]) -> Vec<SelectDescendant> {
+        let mut result = Vec::new();
+        for node in nodes {
+            match node {
+                // Skip these
+                TemplateNode::SnippetBlock(_)
+                | TemplateNode::ConstTag(_)
+                | TemplateNode::Comment(_)
+                | TemplateNode::ExpressionTag(_) => {}
+
+                // Text: yield if non-empty after trim
+                TemplateNode::Text(text) => {
+                    if !text.data.trim().is_empty() {
+                        result.push(SelectDescendant::Text);
+                    }
+                }
+
+                // Control flow: recurse into children
+                TemplateNode::IfBlock(block) => {
+                    result.extend(Self::find_descendants(&block.consequent.nodes));
+                    if let Some(alt) = &block.alternate {
+                        result.extend(Self::find_descendants(&alt.nodes));
+                    }
+                }
+                TemplateNode::EachBlock(block) => {
+                    result.extend(Self::find_descendants(&block.body.nodes));
+                    if let Some(fallback) = &block.fallback {
+                        result.extend(Self::find_descendants(&fallback.nodes));
+                    }
+                }
+                TemplateNode::KeyBlock(block) => {
+                    result.extend(Self::find_descendants(&block.fragment.nodes));
+                }
+                TemplateNode::SvelteBoundary(boundary) => {
+                    result.extend(Self::find_descendants(&boundary.fragment.nodes));
+                }
+
+                // RegularElement: yield with name
+                TemplateNode::RegularElement(elem) => {
+                    result.push(SelectDescendant::RegularElement(elem.name.to_string()));
+                }
+
+                // Everything else (Component, RenderTag, HtmlTag, etc.)
+                _ => {
+                    result.push(SelectDescendant::Other);
+                }
+            }
+        }
+        result
+    }
+
     /// Check if nodes contain Component, RenderTag, or HtmlTag (recursively through control flow).
-    /// Does NOT recurse into option/optgroup children - only control flow blocks.
+    /// Used by the `<!>` anchor logic. This is a simpler check than `is_customizable_select_element`.
     pub(crate) fn has_component_or_render_tag(nodes: &[TemplateNode]) -> bool {
         for node in nodes {
             match node {
