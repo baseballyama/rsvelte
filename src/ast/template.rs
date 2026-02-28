@@ -282,8 +282,9 @@ pub struct EachBlockMetadata {
     pub keyed: bool,
     /// Expression metadata for the iterable expression
     pub expression: ExpressionMetadata,
-    /// Transitive dependencies (for legacy reactivity)
-    pub transitive_deps: FxHashSet<usize>,
+    /// Transitive dependencies (for legacy reactivity).
+    /// Uses IndexSet to preserve insertion order (matching JavaScript Set behavior).
+    pub transitive_deps: IndexSet<usize>,
     /// Whether the each block is controlled (has explicit key tracking)
     #[serde(default)]
     pub is_controlled: bool,

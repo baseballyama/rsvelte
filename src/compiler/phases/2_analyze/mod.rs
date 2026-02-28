@@ -1540,6 +1540,24 @@ fn extract_object_root(node: &serde_json::Value) -> Option<String> {
 /// Collect all identifier names from a JavaScript expression (recursively).
 /// This is used to find dependencies in the RHS of reactive declarations.
 fn collect_identifiers_from_expr(node: &serde_json::Value, names: &mut Vec<String>) {
+    collect_identifiers_from_expr_with_locals(node, names, &Vec::new());
+}
+
+/// Collect identifiers from an expression, excluding locally-scoped identifiers.
+///
+/// This function properly handles function scoping: parameters of arrow functions
+/// and function expressions create local bindings that shadow outer bindings.
+/// These local parameter names should NOT be treated as dependencies of the
+/// reactive statement.
+///
+/// For example, in `$: done = items.filter(item => item.done)`:
+/// - `items` is a dependency (from outer scope)
+/// - `item` is NOT a dependency (it's a callback parameter)
+fn collect_identifiers_from_expr_with_locals(
+    node: &serde_json::Value,
+    names: &mut Vec<String>,
+    locals: &Vec<String>,
+) {
     let node_type = match node.get("type").and_then(|t| t.as_str()) {
         Some(t) => t,
         None => return,
@@ -1549,6 +1567,7 @@ fn collect_identifiers_from_expr(node: &serde_json::Value, names: &mut Vec<Strin
         "Identifier" => {
             if let Some(name) = node.get("name").and_then(|n| n.as_str())
                 && !names.contains(&name.to_string())
+                && !locals.contains(&name.to_string())
             {
                 names.push(name.to_string());
             }
@@ -1556,7 +1575,7 @@ fn collect_identifiers_from_expr(node: &serde_json::Value, names: &mut Vec<Strin
         "MemberExpression" => {
             // Only walk the object, not the property (unless computed)
             if let Some(obj) = node.get("object") {
-                collect_identifiers_from_expr(obj, names);
+                collect_identifiers_from_expr_with_locals(obj, names, locals);
             }
             if node
                 .get("computed")
@@ -1564,7 +1583,37 @@ fn collect_identifiers_from_expr(node: &serde_json::Value, names: &mut Vec<Strin
                 .unwrap_or(false)
                 && let Some(prop) = node.get("property")
             {
-                collect_identifiers_from_expr(prop, names);
+                collect_identifiers_from_expr_with_locals(prop, names, locals);
+            }
+        }
+        "ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration" => {
+            // Extract parameter names to create a new local scope
+            let mut new_locals = locals.clone();
+            if let Some(params) = node.get("params").and_then(|p| p.as_array()) {
+                for param in params {
+                    extract_param_names(param, &mut new_locals);
+                }
+            }
+            // Walk the body with the extended locals list
+            if let Some(body) = node.get("body") {
+                collect_identifiers_from_expr_with_locals(body, names, &new_locals);
+            }
+        }
+        "Property" | "MethodDefinition" => {
+            // For object properties like `{ value: 'hello' }`, the `key` is an Identifier
+            // but it's a property name, NOT a variable reference. Only walk the key if it's
+            // computed (e.g., `{ [expr]: 'hello' }`).
+            if node
+                .get("computed")
+                .and_then(|c| c.as_bool())
+                .unwrap_or(false)
+                && let Some(key) = node.get("key")
+            {
+                collect_identifiers_from_expr_with_locals(key, names, locals);
+            }
+            // Always walk the value/body
+            if let Some(value) = node.get("value") {
+                collect_identifiers_from_expr_with_locals(value, names, locals);
             }
         }
         _ => {
@@ -1575,19 +1624,70 @@ fn collect_identifiers_from_expr(node: &serde_json::Value, names: &mut Vec<Strin
                         continue;
                     }
                     if val.is_object() {
-                        collect_identifiers_from_expr(val, names);
+                        collect_identifiers_from_expr_with_locals(val, names, locals);
                     } else if val.is_array()
                         && let Some(arr) = val.as_array()
                     {
                         for item in arr {
                             if item.is_object() {
-                                collect_identifiers_from_expr(item, names);
+                                collect_identifiers_from_expr_with_locals(item, names, locals);
                             }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+/// Extract parameter names from a function parameter node.
+///
+/// Handles simple identifiers, destructured patterns, default values, and rest elements.
+fn extract_param_names(param: &serde_json::Value, names: &mut Vec<String>) {
+    let param_type = param.get("type").and_then(|t| t.as_str());
+    match param_type {
+        Some("Identifier") => {
+            if let Some(name) = param.get("name").and_then(|n| n.as_str())
+                && !names.contains(&name.to_string())
+            {
+                names.push(name.to_string());
+            }
+        }
+        Some("AssignmentPattern") => {
+            // Default parameter: `param = default`
+            if let Some(left) = param.get("left") {
+                extract_param_names(left, names);
+            }
+        }
+        Some("RestElement") => {
+            if let Some(arg) = param.get("argument") {
+                extract_param_names(arg, names);
+            }
+        }
+        Some("ObjectPattern") => {
+            if let Some(props) = param.get("properties").and_then(|p| p.as_array()) {
+                for prop in props {
+                    let prop_type = prop.get("type").and_then(|t| t.as_str());
+                    if prop_type == Some("RestElement") {
+                        if let Some(arg) = prop.get("argument") {
+                            extract_param_names(arg, names);
+                        }
+                    } else if let Some(value) = prop.get("value") {
+                        extract_param_names(value, names);
+                    }
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = param.get("elements").and_then(|e| e.as_array()) {
+                for elem in elements {
+                    if !elem.is_null() {
+                        extract_param_names(elem, names);
+                    }
+                }
+            }
+        }
+        _ => {}
     }
 }
 

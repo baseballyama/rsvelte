@@ -225,7 +225,6 @@ pub(crate) enum OutputPart {
         #[allow(dead_code)]
         // Always true for component bindings - comment marker handled in build_parts
         has_prior_content: bool,
-        #[allow(dead_code)] // TODO: Handle children for components with bindings
         children: Option<Vec<OutputPart>>,
         /// Whether this component is dynamic (could be undefined/null)
         dynamic: bool,

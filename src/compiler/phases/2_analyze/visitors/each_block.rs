@@ -4,7 +4,7 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/EachBlock.js`.
 
-use rustc_hash::FxHashSet;
+use indexmap::IndexSet;
 
 use super::super::{AnalysisError, Binding, BindingKind, errors};
 use super::script::walk_js_node;
@@ -313,7 +313,7 @@ fn extract_identifiers_from_pattern(node: &serde_json::Value, names: &mut Vec<St
 fn collect_transitive_dependencies_impl(
     binding_idx: usize,
     bindings: &[Binding],
-    deps: &mut FxHashSet<usize>,
+    deps: &mut IndexSet<usize>,
 ) {
     if deps.contains(&binding_idx) {
         return;

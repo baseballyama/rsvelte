@@ -6,7 +6,9 @@
 
 use super::helpers::sanitize_identifier;
 use super::transform_legacy::transform_export_let_declarations;
-use super::transform_store::transform_store_assignments;
+use super::transform_store::{
+    transform_store_assignments, transform_store_destructure_assignments,
+};
 
 /// Transform script content for server-side rendering.
 pub(crate) fn transform_script_content(script: &str) -> String {
@@ -49,6 +51,7 @@ fn transform_script_content_inner(
     let script = transform_rune_call_multiline(&script, "$derived.by(");
     let script = transform_rune_call_multiline(&script, "$derived(");
     let script = transform_rune_call_multiline(&script, "$bindable(");
+    let script = transform_store_destructure_assignments(&script);
     let script = transform_store_assignments(&script);
     let script = if is_module {
         script
@@ -1757,10 +1760,26 @@ fn find_simple_assignment(s: &str) -> Option<usize> {
 ///
 /// This matches the official Svelte compiler's AST-based VariableDeclaration splitting
 /// where each declarator becomes its own statement.
+///
+/// Handles both single-line and multi-line declarations:
+/// ```js
+/// let x = 'x',
+///     y = 'y',
+///     z = 'z';
+/// ```
+/// becomes:
+/// ```js
+/// let x = 'x';
+/// let y = 'y';
+/// let z = 'z';
+/// ```
 fn split_comma_separated_declarations(script: &str) -> String {
     let mut result = String::new();
+    let lines: Vec<&str> = script.lines().collect();
+    let mut i = 0;
 
-    for line in script.lines() {
+    while i < lines.len() {
+        let line = lines[i];
         let trimmed = line.trim();
         let indent = &line[..line.len() - line.trim_start().len()];
 
@@ -1783,8 +1802,21 @@ fn split_comma_separated_declarations(script: &str) -> String {
         };
 
         if let Some(kw) = keyword {
-            let rest = &decl_trimmed[kw.len()..].trim_start();
-            let rest = rest.trim_end_matches(';');
+            // Accumulate multi-line declaration.
+            // A declaration continues across lines if the line doesn't end with `;`
+            // and we haven't reached a balanced state (all brackets closed + semicolon).
+            let first_rest = decl_trimmed[kw.len()..].trim_start();
+            let mut full_decl = first_rest.to_string();
+            let mut line_idx = i;
+
+            // Check if the declaration is complete (ends with `;` at balanced depth)
+            while !is_declaration_complete(&full_decl) && line_idx + 1 < lines.len() {
+                line_idx += 1;
+                full_decl.push(' ');
+                full_decl.push_str(lines[line_idx].trim());
+            }
+
+            let rest = full_decl.trim_end_matches(';');
 
             // Split by top-level commas
             let parts = split_top_level_commas(rest);
@@ -1796,10 +1828,10 @@ fn split_comma_separated_declarations(script: &str) -> String {
                 } else {
                     format!("{} ", kw)
                 };
-                for (i, part) in parts.iter().enumerate() {
+                for (j, part) in parts.iter().enumerate() {
                     let part = part.trim();
                     if !part.is_empty() {
-                        if i > 0 {
+                        if j > 0 {
                             result.push('\n');
                         }
                         result.push_str(indent);
@@ -1809,12 +1841,14 @@ fn split_comma_separated_declarations(script: &str) -> String {
                     }
                 }
                 result.push('\n');
+                i = line_idx + 1;
                 continue;
             }
         }
 
         result.push_str(line);
         result.push('\n');
+        i += 1;
     }
 
     // Remove trailing newline to match input behavior
@@ -1823,6 +1857,56 @@ fn split_comma_separated_declarations(script: &str) -> String {
     }
 
     result
+}
+
+/// Check if a declaration string is complete (ends with `;` and all brackets are balanced).
+fn is_declaration_complete(s: &str) -> bool {
+    let trimmed = s.trim();
+    if !trimmed.ends_with(';') {
+        return false;
+    }
+    // Check that all brackets/parens/braces are balanced
+    let mut depth = 0i32;
+    let bytes = trimmed.as_bytes();
+    let mut i = 0;
+    let len = bytes.len();
+    while i < len {
+        match bytes[i] {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'\'' | b'"' => {
+                let quote = bytes[i];
+                i += 1;
+                while i < len && bytes[i] != quote {
+                    if bytes[i] == b'\\' {
+                        i += 1;
+                    }
+                    i += 1;
+                }
+            }
+            b'`' => {
+                i += 1;
+                let mut tmpl_depth = 0i32;
+                while i < len {
+                    if bytes[i] == b'`' && tmpl_depth == 0 {
+                        break;
+                    }
+                    if bytes[i] == b'\\' {
+                        i += 1;
+                    } else if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                        tmpl_depth += 1;
+                        i += 1;
+                    } else if bytes[i] == b'}' && tmpl_depth > 0 {
+                        tmpl_depth -= 1;
+                    }
+                    i += 1;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    depth == 0
 }
 
 /// Split a string by top-level commas, respecting nesting.

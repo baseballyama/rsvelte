@@ -1,15 +1,16 @@
 use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn main() {
-    let src = std::fs::read_to_string("/Users/baseballyama/git/svelte-compiler-rust/svelte/packages/svelte/tests/runtime-legacy/samples/binding-input-text-contextual-reactive/main.svelte").unwrap();
+    let input = "<script>\n\texport let x = 42\n\n\tlet a;\n\tlet b;\n\n\t$: a = b;\n\t$: b = (function(a) {\n\t\treturn a;\n\t}(x));\n</script>\n\n<p>{a} {b}</p>";
+
     let opts = CompileOptions {
-        generate: GenerateMode::Client,
+        generate: GenerateMode::Server,
         filename: Some("main.svelte".to_string()),
         css: CssMode::External,
-        accessors: true,
         ..Default::default()
     };
-    match compile(&src, opts) {
+
+    match compile(input, opts) {
         Ok(r) => println!("{}", r.js.code),
         Err(e) => eprintln!("ERROR: {:?}", e),
     }

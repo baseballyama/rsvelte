@@ -1,7 +1,21 @@
 use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn main() {
-    let src = std::fs::read_to_string("/Users/baseballyama/git/svelte-compiler-rust/svelte/packages/svelte/tests/runtime-legacy/samples/binding-input-text-contextual-reactive/main.svelte").unwrap();
+    let input = r#"<script>
+	let x = 0;
+
+	function foo() {
+		(() => {
+			for (let x = 0; x < 10; x++) {}
+			x = 42;
+		})();
+	}
+</script>
+
+<button on:click={foo}>foo</button>
+
+<p>x: {x}</p>"#;
+
     let opts = CompileOptions {
         generate: GenerateMode::Client,
         filename: Some("main.svelte".to_string()),
@@ -9,7 +23,8 @@ fn main() {
         accessors: true,
         ..Default::default()
     };
-    match compile(&src, opts) {
+
+    match compile(input, opts) {
         Ok(r) => println!("{}", r.js.code),
         Err(e) => eprintln!("ERROR: {:?}", e),
     }

@@ -234,11 +234,16 @@ fn transform_client_with_visitors(
 
         // Check if the store is a derived or state variable - if so, wrap with $.get()
         // e.g., $.get(store) instead of store
+        // LegacyReactive bindings (from `$: z = expr`) are also state variables
+        // that need $.get() wrapping.
         let is_derived_or_state = analysis.root.bindings.iter().any(|b| {
             b.name == store_name
                 && matches!(
                     b.kind,
-                    BindingKind::State | BindingKind::RawState | BindingKind::Derived
+                    BindingKind::State
+                        | BindingKind::RawState
+                        | BindingKind::Derived
+                        | BindingKind::LegacyReactive
                 )
         });
 
@@ -4515,6 +4520,25 @@ fn transform_reactive_statement(
             let temp = transform_state_set_in_reactive(&temp, state_vars, non_reactive_state_vars);
             transformed_body =
                 wrap_state_vars_in_expr(&temp, state_vars, non_reactive_state_vars, proxy_vars);
+        } else if (lhs.starts_with('[') || lhs.starts_with('{')) && {
+            // Check if the LHS contains reactive targets that need destructure expansion
+            let targets = extract_destructure_targets(lhs);
+            targets
+                .iter()
+                .any(|t| state_vars.contains(t) || store_sub_vars.contains(t))
+        } {
+            // Destructure assignment with reactive targets - expand to IIFE
+            let body = &transform_destructure_assignments(body, state_vars, store_sub_vars);
+            let body = body.as_str();
+            let temp = transform_prop_update_expressions(body, prop_assignment_transform_vars);
+            let temp =
+                transform_state_update_expressions(&temp, state_vars, non_reactive_state_vars);
+            let temp = transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars);
+            let temp = transform_prop_assignments(&temp, prop_assignment_transform_vars);
+            let temp = transform_state_member_mutations(&temp, state_vars, non_reactive_state_vars);
+            let temp = transform_state_set_in_reactive(&temp, state_vars, non_reactive_state_vars);
+            transformed_body =
+                wrap_state_vars_in_expr(&temp, state_vars, non_reactive_state_vars, proxy_vars);
         } else {
             // If the LHS is a prop variable, transform to prop(value) call
             if prop_assignment_transform_vars.contains(&lhs.to_string()) {
@@ -4542,7 +4566,20 @@ fn transform_reactive_statement(
                     non_reactive_state_vars,
                     proxy_vars,
                 );
-                transformed_body = format!("$.set({}, {})", lhs, transformed_rhs);
+                let set_expr = format!("$.set({}, {})", lhs, transformed_rhs);
+                // If the LHS has a store subscription, wrap in $.store_unsub()
+                // to clean up the old subscription when the variable is reassigned.
+                // e.g., `$: z = u.id` where $z is a store subscription →
+                // `$.store_unsub($.set(z, ...), '$z', $$stores)`
+                let store_sub_name = format!("${}", lhs);
+                if store_sub_vars.contains(&store_sub_name) {
+                    transformed_body = format!(
+                        "$.store_unsub({}, '{}', $$stores)",
+                        set_expr, store_sub_name
+                    );
+                } else {
+                    transformed_body = set_expr;
+                }
             } else {
                 // Check if LHS is a member expression with a state var base
                 // e.g., `b.foo = a.foo` → `$.mutate(b, $.get(b).foo = $.get(a).foo)`
@@ -4615,6 +4652,11 @@ fn transform_reactive_statement(
     } else {
         // Not a simple assignment - handle compound assignments (+=, -=, etc.),
         // update expressions (++/--), and reads.
+        // First, expand destructure assignments (e.g., `({foo1} = $store)` or `[foo2] = $store`)
+        // into IIFE patterns before other transforms run. This ensures that state var targets
+        // get proper `$.set()` treatment inside the IIFE body.
+        let body = &transform_destructure_assignments(body, state_vars, store_sub_vars);
+        let body = body.as_str();
         // Transform prop update expressions like `x++` to `$.update_prop(x)` FIRST,
         // before transform_prop_assignments runs (which would incorrectly turn `x++` into `x(x() + 1)`)
         let temp = transform_prop_update_expressions(body, prop_assignment_transform_vars);
@@ -6473,7 +6515,14 @@ fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> String {
                     true
                 } else {
                     let prev_char = chars[i - 1];
-                    !prev_char.is_alphanumeric() && prev_char != '_' && prev_char != '$'
+                    // Dot means property access (e.g., items.filter) - don't transform
+                    // But allow spread operator (...filter)
+                    if prev_char == '.' {
+                        // Check if it's a spread operator (...)
+                        i >= 3 && chars[i - 3..i].iter().collect::<String>() == "..."
+                    } else {
+                        !prev_char.is_alphanumeric() && prev_char != '_' && prev_char != '$'
+                    }
                 };
 
                 // Check character after (must be non-identifier char)
@@ -14809,7 +14858,19 @@ fn generate_destructure_iife(
                 true
             });
 
-        if rhs_is_simple_identifier && all_parts_simple && is_standalone {
+        // The comma-expression shortcut is only valid when ALL targets are store sub variables.
+        // For state var targets (e.g., `{foo1} = $store`), we must use the IIFE form so that
+        // downstream transforms can convert `foo1 = $$value.foo1` to `$.set(foo1, $$value.foo1)`.
+        let all_targets_are_store_subs = {
+            let targets = extract_destructure_targets(trimmed);
+            !targets.is_empty() && targets.iter().all(|t| store_sub_vars.contains(t))
+        };
+
+        if rhs_is_simple_identifier
+            && all_parts_simple
+            && is_standalone
+            && all_targets_are_store_subs
+        {
             // Generate comma expression with direct $.store_set() calls for store variables.
             // This avoids the downstream transform_store_assignments_client misinterpreting
             // comma-separated assignments as nested function call arguments.

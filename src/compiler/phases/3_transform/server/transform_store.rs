@@ -166,11 +166,20 @@ pub(crate) fn replace_store_identifier_in_script(
                 } else {
                     false
                 };
+                // Also check if preceded by `.` - this is a property access like `obj.$store`
+                let prev_is_dot = i > 0 && chars[i - 1] == '.';
                 let next_is_ident = if i + store_ref_len < chars.len() {
                     is_js_identifier_char(chars[i + store_ref_len])
                 } else {
                     false
                 };
+
+                // Skip if this is a property access (obj.$store)
+                if prev_is_dot {
+                    result.push_str(store_ref);
+                    i += store_ref_len;
+                    continue;
+                }
 
                 let mut j = i + store_ref_len;
                 while j < chars.len() && chars[j].is_whitespace() {
@@ -212,7 +221,21 @@ pub(crate) fn replace_store_identifier_in_script(
                                 || chars[i - 1] == '<'
                                 || chars[i - 1] == '>')));
 
-                if !prev_is_ident && !next_is_ident && (!is_assignment || is_comparison) {
+                // Check if this is an object property key: `$store:` (followed by `:` but not `::`)
+                // When inside a brace context, `$store:` is a property key, not a store reference.
+                let is_object_prop_key = if brace_depth > 0 && j < chars.len() && chars[j] == ':' {
+                    // Make sure it's not `::` or a ternary colon
+                    let after_colon = chars.get(j + 1).copied().unwrap_or('\0');
+                    after_colon != ':'
+                } else {
+                    false
+                };
+
+                if !prev_is_ident
+                    && !next_is_ident
+                    && (!is_assignment || is_comparison)
+                    && !is_object_prop_key
+                {
                     let preceding: String = result.chars().collect();
                     let is_in_store_call =
                         preceding.ends_with("$.store_set(") || preceding.ends_with("$.store_get(");
@@ -726,6 +749,484 @@ fn transform_store_property_mutations(script: &str) -> String {
     }
 
     result
+}
+
+/// Transform store destructure assignments in server-side rendering.
+///
+/// Expands patterns like:
+/// - `({$userName3} = obj)` → `($.store_set(userName3, obj.$userName3))`
+/// - `({userName1: $userName1, $userName2} = obj)` → `($.store_set(userName1, obj.userName1), $.store_set(userName2, obj.$userName2))`
+/// - `[$u, $v, $w] = rhs` → IIFE with `$.to_array()` and `$.store_set()` calls
+///
+/// This must run BEFORE `replace_store_identifier_in_script` to prevent
+/// `$.store_get()` from appearing on the LHS of destructure assignments.
+pub(crate) fn transform_store_destructure_assignments(script: &str) -> String {
+    let mut result = script.to_string();
+
+    // Keep transforming until no more changes (handles multiple destructures)
+    loop {
+        let new = transform_one_store_destructure(&result);
+        if new == result {
+            break;
+        }
+        result = new;
+    }
+
+    result
+}
+
+/// Find and transform one store destructure assignment.
+fn transform_one_store_destructure(script: &str) -> String {
+    let chars: Vec<char> = script.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+    let mut in_string: Option<char> = None;
+    let mut in_line_comment = false;
+    let mut in_block_comment = false;
+
+    while i < len {
+        let c = chars[i];
+
+        // Handle comments
+        if in_line_comment {
+            if c == '\n' {
+                in_line_comment = false;
+            }
+            i += 1;
+            continue;
+        }
+        if in_block_comment {
+            if c == '*' && i + 1 < len && chars[i + 1] == '/' {
+                in_block_comment = false;
+                i += 2;
+            } else {
+                i += 1;
+            }
+            continue;
+        }
+        if in_string.is_none() && c == '/' && i + 1 < len {
+            if chars[i + 1] == '/' {
+                in_line_comment = true;
+                i += 2;
+                continue;
+            } else if chars[i + 1] == '*' {
+                in_block_comment = true;
+                i += 2;
+                continue;
+            }
+        }
+
+        // Handle strings
+        if let Some(q) = in_string {
+            if c == '\\' {
+                i += 2;
+                continue;
+            }
+            if c == q {
+                in_string = None;
+            }
+            i += 1;
+            continue;
+        }
+        if c == '\'' || c == '"' || c == '`' {
+            in_string = Some(c);
+            i += 1;
+            continue;
+        }
+
+        // Look for `] =` or `} =` patterns (destructure assignments)
+        if (c == ']' || c == '}') && i + 1 < len {
+            let close_bracket = c;
+            let open_bracket = if c == ']' { '[' } else { '{' };
+
+            // Find `=` after the bracket
+            let mut j = i + 1;
+            while j < len && (chars[j] == ' ' || chars[j] == '\t' || chars[j] == '\n') {
+                j += 1;
+            }
+
+            if j < len
+                && chars[j] == '='
+                && (j + 1 >= len || chars[j + 1] != '=' && chars[j + 1] != '>')
+            {
+                // Find the matching opening bracket
+                if let Some(pattern_start) =
+                    find_matching_open(script, i, open_bracket, close_bracket)
+                {
+                    let pattern_str = &script[pattern_start..=i];
+
+                    // For array patterns, check if `[` is actually member access
+                    if open_bracket == '[' && pattern_start > 0 {
+                        let before = chars[pattern_start - 1];
+                        if before.is_ascii_alphanumeric()
+                            || before == '_'
+                            || before == '$'
+                            || before == ')'
+                            || before == ']'
+                        {
+                            i = j + 1;
+                            continue;
+                        }
+                    }
+
+                    // Skip declaration destructures (let/const/var)
+                    let before_pattern = script[..pattern_start].trim_end();
+                    if before_pattern.ends_with("let")
+                        || before_pattern.ends_with("const")
+                        || before_pattern.ends_with("var")
+                    {
+                        i = j + 1;
+                        continue;
+                    }
+
+                    // Check if pattern contains any $store targets
+                    if !has_store_targets(pattern_str) {
+                        i = j + 1;
+                        continue;
+                    }
+
+                    // Find RHS
+                    let rhs_start = j + 1;
+                    let rhs_end = find_expression_end(script, rhs_start);
+                    let rhs_str = script[rhs_start..rhs_end].trim();
+
+                    if rhs_str.is_empty() {
+                        i = j + 1;
+                        continue;
+                    }
+
+                    // Check for surrounding parens
+                    let mut actual_start = pattern_start;
+                    let mut actual_end = rhs_end;
+                    let before = script[..pattern_start].trim_end();
+                    if before.ends_with('(') {
+                        let paren_pos = script[..pattern_start].rfind('(').unwrap();
+                        let after_rhs = &script[rhs_end..];
+                        if let Some(close_paren_offset) = after_rhs.find(')') {
+                            actual_start = paren_pos;
+                            actual_end = rhs_end + close_paren_offset + 1;
+                        }
+                    }
+
+                    // Generate the expansion
+                    let expansion = if close_bracket == '}' {
+                        expand_object_store_destructure(pattern_str, rhs_str)
+                    } else {
+                        expand_array_store_destructure(pattern_str, rhs_str)
+                    };
+
+                    let mut new_script = String::new();
+                    new_script.push_str(&script[..actual_start]);
+                    new_script.push_str(&expansion);
+                    new_script.push_str(&script[actual_end..]);
+                    return new_script;
+                }
+            }
+        }
+
+        i += 1;
+    }
+
+    script.to_string()
+}
+
+/// Check if a destructure pattern contains any $store targets.
+fn has_store_targets(pattern: &str) -> bool {
+    let chars: Vec<char> = pattern.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+    let mut in_string: Option<char> = None;
+
+    while i < len {
+        let c = chars[i];
+        if let Some(q) = in_string {
+            if c == q && (i == 0 || chars[i - 1] != '\\') {
+                in_string = None;
+            }
+            i += 1;
+            continue;
+        }
+        if c == '\'' || c == '"' || c == '`' {
+            in_string = Some(c);
+            i += 1;
+            continue;
+        }
+
+        if c == '$' && i + 1 < len && (chars[i + 1].is_alphabetic() || chars[i + 1] == '_') {
+            // Check it's not preceded by an ident char (would be part of a larger identifier)
+            let prev_is_ident = i > 0 && is_js_identifier_char(chars[i - 1]);
+            if !prev_is_ident {
+                return true;
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
+/// Expand an object destructure `{key: $store, $store2, ...}` into `$.store_set()` calls.
+fn expand_object_store_destructure(pattern: &str, rhs: &str) -> String {
+    // Pattern is like: `{userName1: $userName1, $userName2}`
+    let inner = pattern.trim();
+    let inner = &inner[1..inner.len() - 1]; // strip { }
+
+    let parts = split_top_level_commas(inner);
+
+    // Check if the RHS is a simple identifier (no function calls, object literals, etc.)
+    let rhs_is_simple = rhs
+        .trim()
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '$');
+
+    if rhs_is_simple {
+        // Simple RHS: use comma-expression form for efficiency
+        let mut set_calls = Vec::new();
+
+        for part in &parts {
+            let part = part.trim();
+            if part.is_empty() {
+                continue;
+            }
+
+            // Check for `key: $target` or just `$target` (shorthand)
+            if let Some(colon_pos) = find_top_level_colon_pos(part) {
+                let key = part[..colon_pos].trim();
+                let target = part[colon_pos + 1..].trim();
+
+                if target.starts_with('$')
+                    && target.len() > 1
+                    && (target.as_bytes()[1] as char).is_alphabetic()
+                {
+                    let store_name = &target[1..];
+                    set_calls.push(format!("$.store_set({}, {}.{})", store_name, rhs, key));
+                } else {
+                    // Non-store target, keep the property extraction as regular assignment
+                    set_calls.push(format!("{} = {}.{}", target, rhs, key));
+                }
+            } else {
+                // Shorthand: `$userName2` means `$userName2: $userName2`
+                if part.starts_with('$')
+                    && part.len() > 1
+                    && (part.as_bytes()[1] as char).is_alphabetic()
+                {
+                    let store_name = &part[1..];
+                    // The property key is the full name with $
+                    set_calls.push(format!("$.store_set({}, {}.{})", store_name, rhs, part));
+                } else {
+                    set_calls.push(format!("{} = {}.{}", part, rhs, part));
+                }
+            }
+        }
+
+        if set_calls.len() == 1 {
+            format!("({})", set_calls[0])
+        } else {
+            format!("(\n\t\t\t{}\n\t\t)", set_calls.join(",\n\t\t\t"))
+        }
+    } else {
+        // Complex RHS: use IIFE to evaluate it only once
+        let mut body_lines = Vec::new();
+
+        for part in &parts {
+            let part = part.trim();
+            if part.is_empty() {
+                continue;
+            }
+
+            if let Some(colon_pos) = find_top_level_colon_pos(part) {
+                let key = part[..colon_pos].trim();
+                let target = part[colon_pos + 1..].trim();
+
+                if target.starts_with('$')
+                    && target.len() > 1
+                    && (target.as_bytes()[1] as char).is_alphabetic()
+                {
+                    let store_name = &target[1..];
+                    body_lines.push(format!("$.store_set({}, $$value.{});", store_name, key));
+                } else {
+                    body_lines.push(format!("{} = $$value.{};", target, key));
+                }
+            } else if part.starts_with('$')
+                && part.len() > 1
+                && (part.as_bytes()[1] as char).is_alphabetic()
+            {
+                let store_name = &part[1..];
+                body_lines.push(format!("$.store_set({}, $$value.{});", store_name, part));
+            } else {
+                body_lines.push(format!("{} = $$value.{};", part, part));
+            }
+        }
+
+        let body = body_lines.join("\n\t\t\t");
+        format!("(($$value) => {{\n\t\t\t{}\n\t\t}})({})", body, rhs)
+    }
+}
+
+/// Expand an array destructure `[$u, $v, $w]` into an IIFE with `$.to_array()` and `$.store_set()`.
+fn expand_array_store_destructure(pattern: &str, rhs: &str) -> String {
+    let inner = pattern.trim();
+    let inner = &inner[1..inner.len() - 1]; // strip [ ]
+
+    let parts = split_top_level_commas(inner);
+    let n = parts.len();
+
+    let mut body_lines = Vec::new();
+    body_lines.push(format!("var $$array = $.to_array($$value, {});", n));
+
+    for (idx, part) in parts.iter().enumerate() {
+        let part = part.trim();
+        if part.is_empty() {
+            continue;
+        }
+
+        if part.starts_with('$') && part.len() > 1 && (part.as_bytes()[1] as char).is_alphabetic() {
+            let store_name = &part[1..];
+            body_lines.push(format!("$.store_set({}, $$array[{}]);", store_name, idx));
+        } else {
+            body_lines.push(format!("{} = $$array[{}];", part, idx));
+        }
+    }
+
+    let body = body_lines.join("\n\t\t\t");
+    format!("(($$value) => {{\n\t\t\t{}\n\t\t}})({})", body, rhs)
+}
+
+/// Find matching opening bracket by walking backwards.
+fn find_matching_open(s: &str, close_pos: usize, open: char, close: char) -> Option<usize> {
+    let chars: Vec<char> = s.chars().collect();
+    let mut depth = 1i32;
+    let mut i = close_pos;
+    while i > 0 {
+        i -= 1;
+        if chars[i] == close {
+            depth += 1;
+        } else if chars[i] == open {
+            depth -= 1;
+            if depth == 0 {
+                return Some(i);
+            }
+        }
+    }
+    None
+}
+
+/// Find the end of an expression at the given start position.
+fn find_expression_end(s: &str, start: usize) -> usize {
+    let chars: Vec<char> = s.chars().collect();
+    let len = chars.len();
+    let mut depth = 0i32;
+    let mut i = start;
+    let mut in_string: Option<char> = None;
+
+    while i < len {
+        let c = chars[i];
+        if let Some(q) = in_string {
+            if c == '\\' {
+                i += 2;
+                continue;
+            }
+            if c == q {
+                in_string = None;
+            }
+            i += 1;
+            continue;
+        }
+        if c == '\'' || c == '"' || c == '`' {
+            in_string = Some(c);
+            i += 1;
+            continue;
+        }
+        match c {
+            '(' | '[' | '{' => {
+                depth += 1;
+                i += 1;
+            }
+            ')' | ']' | '}' => {
+                if depth > 0 {
+                    depth -= 1;
+                    i += 1;
+                } else {
+                    return i;
+                }
+            }
+            ';' | '\n' if depth == 0 => return i,
+            _ => {
+                i += 1;
+            }
+        }
+    }
+    len
+}
+
+/// Split a string on top-level commas (not inside brackets, parens, or strings).
+fn split_top_level_commas(s: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0i32;
+    let mut in_string: Option<char> = None;
+
+    for c in s.chars() {
+        if let Some(q) = in_string {
+            current.push(c);
+            if c == q {
+                in_string = None;
+            }
+            continue;
+        }
+        if c == '\'' || c == '"' || c == '`' {
+            in_string = Some(c);
+            current.push(c);
+            continue;
+        }
+        match c {
+            '(' | '[' | '{' => {
+                depth += 1;
+                current.push(c);
+            }
+            ')' | ']' | '}' => {
+                depth -= 1;
+                current.push(c);
+            }
+            ',' if depth == 0 => {
+                parts.push(current.clone());
+                current.clear();
+            }
+            _ => {
+                current.push(c);
+            }
+        }
+    }
+    if !current.is_empty() {
+        parts.push(current);
+    }
+    parts
+}
+
+/// Find the position of a top-level colon in a string (not inside brackets/parens/strings).
+fn find_top_level_colon_pos(s: &str) -> Option<usize> {
+    let chars: Vec<char> = s.chars().collect();
+    let mut depth = 0i32;
+    let mut in_string: Option<char> = None;
+
+    for (i, &c) in chars.iter().enumerate() {
+        if let Some(q) = in_string {
+            if c == q {
+                in_string = None;
+            }
+            continue;
+        }
+        if c == '\'' || c == '"' || c == '`' {
+            in_string = Some(c);
+            continue;
+        }
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            ':' if depth == 0 => return Some(i),
+            _ => {}
+        }
+    }
+    None
 }
 
 /// Transform store assignments in script content for server-side rendering.

@@ -393,6 +393,11 @@ pub fn normalize_js(js: &str) -> String {
         static ref MERGE_COMMENT_PUSH: Regex =
             Regex::new(r#"\$\$renderer\.push\(`([^`]*)`\) \$\$renderer\.push\('<!---->'\)"#)
                 .unwrap();
+        // Normalize parenthesized array destructure assignments: `([x] = expr)` -> `[x] = expr`
+        // OXC preserves explicit parens around array destructure expression statements,
+        // while the official Svelte compiler strips them (unnecessary for disambiguation).
+        static ref PAREN_ARRAY_DESTRUCTURE: Regex =
+            Regex::new(r"\((\[[^\]]+\]\s*=[^;)]+)\)").unwrap();
     }
 
     // Remove block comments (including JSDoc) before other processing
@@ -487,6 +492,11 @@ pub fn normalize_js(js: &str) -> String {
         .replace_all(&result, |caps: &regex::Captures| {
             convert_scientific_to_decimal(&caps[1], &caps[2])
         })
+        .to_string();
+
+    // Normalize parenthesized array destructure assignments
+    let result = PAREN_ARRAY_DESTRUCTURE
+        .replace_all(&result, "$1")
         .to_string();
 
     // Normalize undefined representation (void 0 -> undefined)

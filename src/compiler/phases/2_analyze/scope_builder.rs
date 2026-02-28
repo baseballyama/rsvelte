@@ -605,11 +605,20 @@ impl<'a> ScopeBuilder<'a> {
                 if labeled_stmt.label.name == "$"
                     && !self.runes_mode
                     && let Statement::ExpressionStatement(expr_stmt) = &labeled_stmt.body
-                    && let oxc_ast::ast::Expression::AssignmentExpression(assign) =
-                        &expr_stmt.expression
                 {
-                    // Extract identifiers from the LHS of the assignment
-                    self.collect_assignment_lhs_identifiers(&assign.left);
+                    // Extract identifiers from the LHS of the assignment.
+                    // Handle both direct AssignmentExpression and ParenthesizedExpression
+                    // wrapping (e.g., `$: ({ foo } = expr)` has a ParenthesizedExpression).
+                    let expr = &expr_stmt.expression;
+                    let inner_expr =
+                        if let oxc_ast::ast::Expression::ParenthesizedExpression(paren) = expr {
+                            &paren.expression
+                        } else {
+                            expr
+                        };
+                    if let oxc_ast::ast::Expression::AssignmentExpression(assign) = inner_expr {
+                        self.collect_assignment_lhs_identifiers(&assign.left);
+                    }
                 }
                 self.process_statement(&labeled_stmt.body);
             }

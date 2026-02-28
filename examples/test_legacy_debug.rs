@@ -1,7 +1,7 @@
 use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
-
 fn main() {
-    let src = std::fs::read_to_string("/Users/baseballyama/git/svelte-compiler-rust/svelte/packages/svelte/tests/runtime-legacy/samples/binding-input-text-contextual-reactive/main.svelte").unwrap();
+    let src_path = "/workspace/svelte/packages/svelte/tests/runtime-legacy/samples/each-block-destructured-object-binding/main.svelte";
+    let src = std::fs::read_to_string(src_path).expect("cannot read");
     let opts = CompileOptions {
         generate: GenerateMode::Client,
         filename: Some("main.svelte".to_string()),
@@ -10,7 +10,7 @@ fn main() {
         ..Default::default()
     };
     match compile(&src, opts) {
-        Ok(r) => println!("{}", r.js.code),
+        Ok(r) => println!("SUCCESS:\n{}", r.js.code),
         Err(e) => eprintln!("ERROR: {:?}", e),
     }
 }

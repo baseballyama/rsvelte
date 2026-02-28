@@ -998,6 +998,12 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                     in_reactive_multiline = true;
                     reactive_depth = depth;
                 }
+                // Skip continuation lines (method chaining starting with `.`)
+                i += 1;
+                while i < lines.len() && lines[i].trim().starts_with('.') {
+                    i += 1;
+                }
+                continue;
                 // Single-line reactive statement (depth <= 0), stays as saw_reactive
             } else if saw_reactive && !trimmed.is_empty() {
                 // There is some non-reactive content after a reactive statement
@@ -1062,6 +1068,19 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                 }
             } else {
                 i += 1;
+            }
+
+            // Also collect continuation lines (method chaining that starts with `.`)
+            // For example: `$: ids = new Array(count)\n\t.fill(null)\n\t.map(...);\n`
+            // The `.fill()` and `.map()` lines are continuations of the $: statement.
+            while i < lines.len() {
+                let next_trimmed = lines[i].trim();
+                if next_trimmed.starts_with('.') {
+                    stmt_lines.push(lines[i]);
+                    i += 1;
+                } else {
+                    break;
+                }
             }
 
             reactive_lines.push(stmt_lines);
@@ -1145,6 +1164,11 @@ fn sort_reactive_in_place(script: &str) -> String {
                 }
                 i += 1;
             }
+            // Also collect continuation lines (method chaining starting with `.`)
+            while i < n && lines[i].trim().starts_with('.') {
+                stmt_lines.push(lines[i]);
+                i += 1;
+            }
             groups.push(Group::Reactive(stmt_lines));
         } else {
             // Non-reactive line - merge into or start a NonReactive group
@@ -1222,16 +1246,42 @@ fn extract_reactive_lhs_vars(stmt: &str) -> Vec<String> {
         return Vec::new();
     };
 
-    // Check for `$: varname = expr` (expression statement with assignment)
-    // Or `$: { ... }` (block statement - harder to analyze)
-    if after_dollar.starts_with('{') {
-        // Block statement - try to find assignments inside
-        // Simple heuristic: find all `var = ` patterns
-        extract_simple_assignments(after_dollar)
-    } else {
-        // Expression or declaration: `varname = expr` or `varname += expr` etc.
-        // Find the first identifier before `=`
-        extract_simple_assignments(after_dollar)
+    let mut vars = extract_simple_assignments(after_dollar);
+
+    // Also recognize `$.store_set(name, ...)` patterns as assigning to `$name`.
+    // After store transforms, `$: $a = expr` becomes `$: $.store_set(a, ...)`.
+    // We need to track that this assigns to `$a` (the store subscription variable).
+    extract_store_set_targets(after_dollar, &mut vars);
+
+    vars
+}
+
+/// Extract store subscription variable names from `$.store_set(name, ...)` patterns.
+/// Adds `$name` to the vars list for each store_set call found.
+fn extract_store_set_targets(code: &str, vars: &mut Vec<String>) {
+    let mut search_from = 0;
+    while let Some(pos) = code[search_from..].find("$.store_set(") {
+        let abs_pos = search_from + pos;
+        let after_call = abs_pos + "$.store_set(".len();
+        // Read the first argument (store name)
+        let mut j = after_call;
+        let chars: Vec<char> = code.chars().collect();
+        while j < chars.len() && (chars[j] == ' ' || chars[j] == '\t') {
+            j += 1;
+        }
+        let name_start = j;
+        while j < chars.len() && (chars[j].is_alphanumeric() || chars[j] == '_' || chars[j] == '$')
+        {
+            j += 1;
+        }
+        if j > name_start {
+            let store_name: String = chars[name_start..j].iter().collect();
+            let store_sub = format!("${}", store_name);
+            if !vars.contains(&store_sub) {
+                vars.push(store_sub);
+            }
+        }
+        search_from = abs_pos + 1;
     }
 }
 
@@ -1416,6 +1466,33 @@ fn extract_reactive_rhs_identifiers(stmt: &str) -> Vec<String> {
         return Vec::new();
     };
 
+    // For transformed store expressions, also extract store subscription references.
+    // `$.store_get($$store_subs ??= {}, '$b', b)` means this statement uses `$b`.
+    let mut store_deps = Vec::new();
+    {
+        let mut search_from = 0;
+        while let Some(pos) = after_dollar[search_from..].find("$.store_get(") {
+            let abs_pos = search_from + pos;
+            // Find the second argument (the '$name' string literal)
+            let after_call = abs_pos + "$.store_get(".len();
+            // Skip first arg ($$store_subs ??= {})
+            if let Some(comma_pos) = after_dollar[after_call..].find(',') {
+                let after_first_comma = after_call + comma_pos + 1;
+                let rest = after_dollar[after_first_comma..].trim_start();
+                // Look for '$name' pattern
+                if let Some(rest_inner) = rest.strip_prefix('\'')
+                    && let Some(end_quote) = rest_inner.find('\'')
+                {
+                    let store_sub = rest_inner[..end_quote].to_string();
+                    if store_sub.starts_with('$') && !store_deps.contains(&store_sub) {
+                        store_deps.push(store_sub);
+                    }
+                }
+            }
+            search_from = abs_pos + 1;
+        }
+    }
+
     // Extract all identifiers from the content, skipping object property keys.
     // An identifier is an object property key if it is immediately followed by `:` (after
     // optional whitespace), as in `{ details: null }`. We must NOT treat it as a dependency.
@@ -1491,6 +1568,13 @@ fn extract_reactive_rhs_identifiers(stmt: &str) -> Vec<String> {
             }
         }
     }
+    // Add store subscription dependencies extracted from $.store_get() calls
+    for dep in store_deps {
+        if !idents.contains(&dep) {
+            idents.push(dep);
+        }
+    }
+
     idents
 }
 
@@ -1511,23 +1595,27 @@ fn sort_reactive_statements_topologically(stmts: Vec<Vec<&str>>) -> Vec<Vec<&str
         used.push(extract_reactive_rhs_identifiers(&joined));
     }
 
-    // Build a map from variable name to statement index
-    let mut var_to_stmt: std::collections::HashMap<String, usize> =
+    // Build a map from variable name to all statement indices that declare it
+    let mut var_to_stmts: std::collections::HashMap<String, Vec<usize>> =
         std::collections::HashMap::new();
     for (i, decls) in declared.iter().enumerate() {
         for decl in decls {
-            var_to_stmt.insert(decl.clone(), i);
+            var_to_stmts.entry(decl.clone()).or_default().push(i);
         }
     }
 
-    // Build dependency edges: stmt i depends on stmt j if i uses a variable declared by j
+    // Build dependency edges: stmt i depends on stmt j if i uses a variable declared by j.
+    // Skip if i itself also declares the same variable (no self-dependency through shared
+    // variables - e.g. two reactive statements both assigning to `indirect_double`).
     let mut deps: Vec<Vec<usize>> = vec![Vec::new(); n];
     for (i, uses) in used.iter().enumerate() {
         for var in uses {
-            if let Some(&j) = var_to_stmt.get(var)
-                && j != i
-            {
-                deps[i].push(j);
+            if let Some(declaring_stmts) = var_to_stmts.get(var) {
+                for &j in declaring_stmts {
+                    if j != i && !declared[i].contains(var) && !deps[i].contains(&j) {
+                        deps[i].push(j);
+                    }
+                }
             }
         }
     }

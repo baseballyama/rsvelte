@@ -597,7 +597,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     props_and_spreads,
                     bindings,
                     has_prior_content,
-                    children: _, // TODO: Handle children for components with bindings
+                    children,
                     dynamic,
                     css_custom_props: _, // TODO: Handle CSS custom props for components with bindings
                 } => {
@@ -709,35 +709,56 @@ export default function {component_name}($$renderer{props_param}) {{
 
                         // Regular props first
                         for prop in &all_props {
-                            body_code.push_str(&format!("{}\t{},\n", indent, prop));
+                            body_code.push_str(&format!("{}\t\t{},\n", indent, prop));
                         }
 
                         // Generate getter/setter for each binding
+                        let has_children = children.is_some();
                         let binding_count = bindings.len();
                         for (idx, binding) in bindings.iter().enumerate() {
                             let (prop_name, getter_expr, setter_expr) =
                                 resolve_binding_exprs(binding, store_subs);
                             let is_seq =
                                 matches!(binding, ComponentBinding::SequenceExpression { .. });
-                            body_code.push_str(&format!("{}\tget {}() {{\n", indent, prop_name));
-                            body_code.push_str(&format!("{}\t\treturn {};\n", indent, getter_expr));
-                            body_code.push_str(&format!("{}\t}},\n\n", indent));
+                            body_code.push_str(&format!("{}\t\tget {}() {{\n", indent, prop_name));
                             body_code
-                                .push_str(&format!("{}\tset {}($$value) {{\n", indent, prop_name));
-                            body_code.push_str(&format!("{}\t\t{};\n", indent, setter_expr));
+                                .push_str(&format!("{}\t\t\treturn {};\n", indent, getter_expr));
+                            body_code.push_str(&format!("{}\t\t}},\n\n", indent));
+                            body_code.push_str(&format!(
+                                "{}\t\tset {}($$value) {{\n",
+                                indent, prop_name
+                            ));
+                            body_code.push_str(&format!("{}\t\t\t{};\n", indent, setter_expr));
                             if !is_seq {
-                                body_code.push_str(&format!("{}\t\t$$settled = false;\n", indent));
+                                body_code
+                                    .push_str(&format!("{}\t\t\t$$settled = false;\n", indent));
                             }
-                            if idx < binding_count - 1 {
+                            if idx < binding_count - 1 || has_children {
                                 // Trailing comma + blank line between binding pairs
-                                body_code.push_str(&format!("{}\t}},\n\n", indent));
+                                body_code.push_str(&format!("{}\t\t}},\n\n", indent));
                             } else {
-                                // Last binding - no trailing comma
-                                body_code.push_str(&format!("{}\t}}\n", indent));
+                                // Last binding with no children - no trailing comma
+                                body_code.push_str(&format!("{}\t\t}}\n", indent));
                             }
                         }
 
-                        body_code.push_str(&format!("{}}});\n", indent));
+                        // Add children callback and $$slots if there are children
+                        if let Some(children_parts) = children {
+                            let children_code = Self::build_parts_with_store_subs(
+                                children_parts,
+                                indent_level + 3,
+                                each_counter,
+                                store_subs,
+                            );
+                            body_code
+                                .push_str(&format!("{}\t\tchildren: ($$renderer) => {{\n", indent));
+                            body_code.push_str(&children_code);
+                            body_code.push_str(&format!("{}\t\t}},\n", indent));
+                            body_code
+                                .push_str(&format!("{}\t\t$$slots: {{ default: true }}\n", indent));
+                        }
+
+                        body_code.push_str(&format!("{}\t}});\n", indent));
                     }
 
                     // Add <!---->  marker for hydration boundary after binding component
