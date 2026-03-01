@@ -85,6 +85,11 @@ fn has_dynamic_children(nodes: &[TemplateNode]) -> bool {
                     return true;
                 }
 
+                // <selectedcontent> elements need runtime handling ($.selectedcontent())
+                if elem.name == "selectedcontent" {
+                    return true;
+                }
+
                 // Check for attributes and directives that need runtime handling
                 // Any directive (bind:, on:, use:, class:, style:, transition:, animate:)
                 // makes the element non-static
@@ -162,6 +167,12 @@ pub fn is_static_element(node: &TemplateNode, _state: &ComponentClientTransformS
             // Customizable select elements (select/optgroup/option with rich content)
             // are not static because they need $.customizable_select() handling
             if is_customizable_select_element(elem) {
+                return false;
+            }
+
+            // <selectedcontent> elements are not static because they need
+            // $.selectedcontent() runtime handling
+            if elem.name == "selectedcontent" {
                 return false;
             }
 

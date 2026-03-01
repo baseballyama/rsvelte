@@ -1209,6 +1209,7 @@ impl Parser<'_> {
                     start: start as u32,
                     end: self.index as u32,
                     expression,
+                    metadata: Default::default(),
                 })))
             }
             "render" => {

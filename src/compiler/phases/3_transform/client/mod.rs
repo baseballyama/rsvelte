@@ -2186,6 +2186,24 @@ fn transform_instance_script_for_visitors(
         // e.g., `const answer = $foo` -> `const answer = $foo()`
         let transformed = transform_store_reads_client(&transformed, &effective_store_sub_vars);
 
+        // Expand legacy destructuring declarations with state variables into tmp-based
+        // individual declarations BEFORE mutable_source wrapping.
+        // e.g., `let { foo, bar } = expr` -> `let tmp = expr, foo = $.mutable_source(tmp.foo), bar = tmp.bar`
+        // Reference: create_state_declarators in VariableDeclaration.js
+        let transformed = if !analysis.runes && !legacy_state_vars.is_empty() {
+            let state_var_names: Vec<String> = legacy_state_vars
+                .iter()
+                .map(|(name, _, _)| name.clone())
+                .collect();
+            transform_legacy_destructure_declarations(
+                &transformed,
+                &state_var_names,
+                analysis.immutable,
+            )
+        } else {
+            transformed
+        };
+
         // Transform legacy state declarations to $.mutable_source() BEFORE wrapping reads.
         // This must come before wrap_state_vars_in_expr because multi-variable declarations
         // like `let a, b;` have secondary declarators (b) that are NOT preceded by `let `,
@@ -4528,7 +4546,16 @@ fn transform_reactive_statement(
                 .any(|t| state_vars.contains(t) || store_sub_vars.contains(t))
         } {
             // Destructure assignment with reactive targets - expand to IIFE
-            let body = &transform_destructure_assignments(body, state_vars, store_sub_vars);
+            // Pass prop_assignment_transform_vars so that if the RHS is a prop variable
+            // (will be transformed to a function call), the IIFE form is used instead
+            // of the comma form. This matches the official compiler's behavior where
+            // context.visit(node.right) transforms the RHS before checking should_cache.
+            let body = &transform_destructure_assignments_with_props(
+                body,
+                state_vars,
+                store_sub_vars,
+                prop_assignment_transform_vars,
+            );
             let body = body.as_str();
             let temp = transform_prop_update_expressions(body, prop_assignment_transform_vars);
             let temp =
@@ -4655,7 +4682,12 @@ fn transform_reactive_statement(
         // First, expand destructure assignments (e.g., `({foo1} = $store)` or `[foo2] = $store`)
         // into IIFE patterns before other transforms run. This ensures that state var targets
         // get proper `$.set()` treatment inside the IIFE body.
-        let body = &transform_destructure_assignments(body, state_vars, store_sub_vars);
+        let body = &transform_destructure_assignments_with_props(
+            body,
+            state_vars,
+            store_sub_vars,
+            prop_assignment_transform_vars,
+        );
         let body = body.as_str();
         // Transform prop update expressions like `x++` to `$.update_prop(x)` FIRST,
         // before transform_prop_assignments runs (which would incorrectly turn `x++` into `x(x() + 1)`)
@@ -9048,6 +9080,297 @@ fn split_multi_declarator(line: &str) -> Option<Vec<String>> {
         .collect();
 
     Some(result)
+}
+
+/// Transform legacy destructuring declarations into tmp-based individual declarations.
+///
+/// In legacy mode, when a destructuring declaration contains state variables,
+/// the official Svelte compiler expands it using `extract_paths` (in `create_state_declarators`).
+///
+/// Transforms:
+///   `let { foo, bar } = expr` (where foo is state) ->
+///   `let tmp = expr, foo = $.mutable_source(tmp.foo), bar = tmp.bar;`
+///
+/// Reference: `create_state_declarators` in VariableDeclaration.js
+fn transform_legacy_destructure_declarations(
+    statement: &str,
+    legacy_state_var_names: &[String],
+    immutable: bool,
+) -> String {
+    // Only look at the first line to determine if this is a destructuring declaration
+    let first_line = statement.lines().next().unwrap_or("");
+    let trimmed = first_line.trim();
+
+    // Determine declaration keyword
+    let (keyword, rest_start) = if let Some(r) = trimmed.strip_prefix("let ") {
+        ("let", r)
+    } else if let Some(r) = trimmed.strip_prefix("const ") {
+        ("const", r)
+    } else if let Some(r) = trimmed.strip_prefix("var ") {
+        ("var", r)
+    } else {
+        return statement.to_string();
+    };
+
+    let rest_start = rest_start.trim();
+
+    // Check if this is a destructuring pattern (starts with { or [)
+    if !rest_start.starts_with('{') && !rest_start.starts_with('[') {
+        return statement.to_string();
+    }
+
+    // For the full pattern matching, we need the complete statement (multi-line)
+    let full_trimmed = statement.trim();
+    let keyword_len = keyword.len() + 1; // +1 for space
+    let rest = full_trimmed[keyword_len..].trim();
+
+    let is_object = rest.starts_with('{');
+    let close_bracket = if is_object { '}' } else { ']' };
+
+    // Find the matching close bracket in the PATTERN (not the expression)
+    let mut depth = 0i32;
+    let mut pattern_end = None;
+    let mut in_string: Option<char> = None;
+    for (i, c) in rest.chars().enumerate() {
+        if let Some(quote) = in_string {
+            if c == quote && (i == 0 || rest.as_bytes().get(i - 1) != Some(&b'\\')) {
+                in_string = None;
+            }
+            continue;
+        }
+        if c == '\'' || c == '"' || c == '`' {
+            in_string = Some(c);
+            continue;
+        }
+        if c == '{' || c == '[' || c == '(' {
+            depth += 1;
+        } else if c == '}' || c == ']' || c == ')' {
+            depth -= 1;
+            if depth == 0 && c == close_bracket {
+                pattern_end = Some(i);
+                break;
+            }
+        }
+    }
+
+    let pattern_end = match pattern_end {
+        Some(e) => e,
+        None => return statement.to_string(),
+    };
+
+    let pattern_str = &rest[..=pattern_end];
+    let after_pattern = rest[pattern_end + 1..].trim();
+
+    // Must have `= expr` after the pattern
+    if !after_pattern.starts_with('=') {
+        return statement.to_string();
+    }
+
+    let expr = after_pattern[1..].trim().trim_end_matches(';').trim();
+
+    // Extract variable names from the pattern
+    let var_names = extract_legacy_destructure_var_names(pattern_str);
+
+    // Check if any destructured variable is a state variable
+    let has_state = var_names
+        .iter()
+        .any(|name| legacy_state_var_names.contains(name));
+
+    if !has_state {
+        return statement.to_string();
+    }
+
+    // Generate tmp variable name
+    let tmp_idx = STATE_TMP_COUNTER.with(|c| {
+        let current = c.get();
+        c.set(current + 1);
+        current
+    });
+    let tmp_name = if tmp_idx == 0 {
+        "tmp".to_string()
+    } else {
+        format!("tmp_{}", tmp_idx)
+    };
+
+    let immutable_arg = if immutable { ", true" } else { "" };
+
+    if is_object {
+        // Object destructuring: { a, b: c, d = default, ...rest }
+        let inner = &pattern_str[1..pattern_str.len() - 1];
+        let props = split_derived_object_properties(inner);
+        let mut parts = vec![format!("{} = {}", tmp_name, expr)];
+
+        for prop in &props {
+            let prop = prop.trim();
+            if prop.is_empty() {
+                continue;
+            }
+
+            if let Some(rest_name) = prop.strip_prefix("...") {
+                let rest_name = rest_name.trim();
+                parts.push(format!("{} = {}.{}", rest_name, tmp_name, rest_name));
+                continue;
+            }
+
+            if let Some(colon_pos) = find_derived_property_colon(prop) {
+                let key = prop[..colon_pos].trim();
+                let value_part = prop[colon_pos + 1..].trim();
+                let var_name = if let Some(eq_pos) = value_part.find('=') {
+                    value_part[..eq_pos].trim()
+                } else {
+                    value_part
+                };
+
+                let is_state = legacy_state_var_names.contains(&var_name.to_string());
+                let member = format!("{}.{}", tmp_name, key);
+                if is_state {
+                    parts.push(format!(
+                        "{} = $.mutable_source({}{})",
+                        var_name, member, immutable_arg
+                    ));
+                } else {
+                    parts.push(format!("{} = {}", var_name, member));
+                }
+            } else {
+                let var_name = if let Some(eq_pos) = prop.find('=') {
+                    prop[..eq_pos].trim()
+                } else {
+                    prop
+                };
+
+                let is_state = legacy_state_var_names.contains(&var_name.to_string());
+                let member = format!("{}.{}", tmp_name, var_name);
+                if is_state {
+                    parts.push(format!(
+                        "{} = $.mutable_source({}{})",
+                        var_name, member, immutable_arg
+                    ));
+                } else {
+                    parts.push(format!("{} = {}", var_name, member));
+                }
+            }
+        }
+
+        let trailing = if full_trimmed.ends_with(';') { ";" } else { "" };
+        format!("{} {}{}", keyword, parts.join(", "), trailing)
+    } else {
+        // Array destructuring: [a, b, ...rest]
+        let inner = &pattern_str[1..pattern_str.len() - 1];
+        let elements = split_derived_array_elements(inner);
+
+        let has_rest = elements.iter().any(|e| e.trim().starts_with("..."));
+        let element_count = elements.len();
+
+        let global_counter = DERIVED_ARRAY_COUNTER.with(|c| {
+            let current = c.get();
+            c.set(current + 1);
+            current
+        });
+
+        let array_var = if global_counter == 0 {
+            "$$array".to_string()
+        } else {
+            format!("$$array_{}", global_counter)
+        };
+
+        let to_array_args = if has_rest {
+            format!("$.to_array({})", tmp_name)
+        } else {
+            format!("$.to_array({}, {})", tmp_name, element_count)
+        };
+
+        let mut parts = vec![
+            format!("{} = {}", tmp_name, expr),
+            format!("{} = $.derived(() => {})", array_var, to_array_args),
+        ];
+
+        for (i, element) in elements.iter().enumerate() {
+            let element = element.trim();
+            if element.is_empty() {
+                continue;
+            }
+
+            if let Some(rest_name) = element.strip_prefix("...") {
+                let rest_name = rest_name.trim();
+                let access = format!("$.get({}).slice({})", array_var, i);
+                let is_state = legacy_state_var_names.contains(&rest_name.to_string());
+                if is_state {
+                    parts.push(format!(
+                        "{} = $.mutable_source({}{})",
+                        rest_name, access, immutable_arg
+                    ));
+                } else {
+                    parts.push(format!("{} = {}", rest_name, access));
+                }
+                continue;
+            }
+
+            let access = format!("$.get({})[{}]", array_var, i);
+            let is_state = legacy_state_var_names.contains(&element.to_string());
+            if is_state {
+                parts.push(format!(
+                    "{} = $.mutable_source({}{})",
+                    element, access, immutable_arg
+                ));
+            } else {
+                parts.push(format!("{} = {}", element, access));
+            }
+        }
+
+        let trailing = if full_trimmed.ends_with(';') { ";" } else { "" };
+        format!("{} {}{}", keyword, parts.join(", "), trailing)
+    }
+}
+
+/// Extract variable names from a destructuring pattern.
+fn extract_legacy_destructure_var_names(pattern: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    let pattern = pattern.trim();
+
+    if pattern.starts_with('{') && pattern.ends_with('}') {
+        let inner = &pattern[1..pattern.len() - 1];
+        let props = split_derived_object_properties(inner);
+        for prop in &props {
+            let prop = prop.trim();
+            if prop.is_empty() {
+                continue;
+            }
+            if let Some(rest_name) = prop.strip_prefix("...") {
+                names.push(rest_name.trim().to_string());
+            } else if let Some(colon_pos) = find_derived_property_colon(prop) {
+                let value_part = prop[colon_pos + 1..].trim();
+                let var_name = if let Some(eq_pos) = value_part.find('=') {
+                    value_part[..eq_pos].trim()
+                } else {
+                    value_part
+                };
+                names.push(var_name.to_string());
+            } else {
+                let var_name = if let Some(eq_pos) = prop.find('=') {
+                    prop[..eq_pos].trim()
+                } else {
+                    prop
+                };
+                names.push(var_name.to_string());
+            }
+        }
+    } else if pattern.starts_with('[') && pattern.ends_with(']') {
+        let inner = &pattern[1..pattern.len() - 1];
+        let elements = split_derived_array_elements(inner);
+        for el in &elements {
+            let el = el.trim();
+            if el.is_empty() {
+                continue;
+            }
+            if let Some(rest_name) = el.strip_prefix("...") {
+                names.push(rest_name.trim().to_string());
+            } else {
+                names.push(el.to_string());
+            }
+        }
+    }
+
+    names
 }
 
 /// Transform legacy state declarations to $.mutable_source() calls.
@@ -14229,12 +14552,28 @@ fn transform_destructure_assignments(
     state_vars: &[String],
     store_sub_vars: &[String],
 ) -> String {
+    transform_destructure_assignments_with_props(statement, state_vars, store_sub_vars, &[])
+}
+
+/// Transform destructure assignments, with knowledge of prop variables.
+///
+/// `prop_vars` are variable names that will be transformed to function calls
+/// (e.g., `numbers` → `numbers()` for prop getters). When the RHS of a
+/// destructuring is a prop variable, we must use the IIFE form (with `$$value`
+/// caching) because the official compiler visits the RHS first, transforming it
+/// to a CallExpression, and then checks `should_cache = value.type !== 'Identifier'`.
+fn transform_destructure_assignments_with_props(
+    statement: &str,
+    state_vars: &[String],
+    store_sub_vars: &[String],
+    prop_vars: &[String],
+) -> String {
     let mut result = statement.to_string();
 
     // Process the statement, looking for destructure assignments.
     // We scan for patterns and replace them with IIFEs.
     while let Some(transformed) =
-        find_and_transform_one_destructure(&result, state_vars, store_sub_vars)
+        find_and_transform_one_destructure(&result, state_vars, store_sub_vars, prop_vars)
     {
         result = transformed;
     }
@@ -14255,6 +14594,7 @@ fn find_and_transform_one_destructure(
     statement: &str,
     state_vars: &[String],
     store_sub_vars: &[String],
+    prop_vars: &[String],
 ) -> Option<String> {
     let chars: Vec<char> = statement.chars().collect();
     let len = chars.len();
@@ -14398,6 +14738,15 @@ fn find_and_transform_one_destructure(
                             || after_text.starts_with(';')
                             || after_text.starts_with('\n'));
 
+                    // Check if the RHS is a variable that will be transformed to a
+                    // function call (prop getter or store subscription). If so, force the
+                    // IIFE ($$value caching) form. This matches the official compiler:
+                    // context.visit(node.right) transforms the RHS first, then
+                    // should_cache = value.type !== 'Identifier'.
+                    let rhs_trimmed = rhs_str.trim();
+                    let rhs_will_be_call = prop_vars.iter().any(|p| p == rhs_trimmed)
+                        || store_sub_vars.iter().any(|s| s == rhs_trimmed);
+
                     // Generate the IIFE replacement
                     let iife = generate_destructure_iife(
                         close_bracket,
@@ -14405,6 +14754,7 @@ fn find_and_transform_one_destructure(
                         rhs_str,
                         is_standalone,
                         store_sub_vars,
+                        rhs_will_be_call,
                     );
 
                     // Replace the destructure expression with the IIFE
@@ -14739,6 +15089,7 @@ fn generate_destructure_iife(
     rhs_str: &str,
     is_standalone: bool,
     store_sub_vars: &[String],
+    force_cache_rhs: bool,
 ) -> String {
     let trimmed = pattern_str.trim();
 
@@ -14858,25 +15209,16 @@ fn generate_destructure_iife(
                 true
             });
 
-        // The comma-expression shortcut is only valid when ALL targets are store sub variables.
-        // For state var targets (e.g., `{foo1} = $store`), we must use the IIFE form so that
-        // downstream transforms can convert `foo1 = $$value.foo1` to `$.set(foo1, $$value.foo1)`.
-        let all_targets_are_store_subs = {
-            let targets = extract_destructure_targets(trimmed);
-            !targets.is_empty() && targets.iter().all(|t| store_sub_vars.contains(t))
-        };
-
-        if rhs_is_simple_identifier
-            && all_parts_simple
-            && is_standalone
-            && all_targets_are_store_subs
-        {
-            // Generate comma expression with direct $.store_set() calls for store variables.
-            // This avoids the downstream transform_store_assignments_client misinterpreting
-            // comma-separated assignments as nested function call arguments.
+        if rhs_is_simple_identifier && all_parts_simple && !force_cache_rhs {
+            // Generate comma/sequence expression with individual assignments.
+            // When the RHS is a simple identifier (and won't be transformed to a call),
+            // there's no need for caching in $$value.
+            // This matches the official Svelte compiler output:
+            //   `({$a, $b} = obj)` -> `($.store_set(a, obj.$a), $.store_set(b, obj.$b));`
+            //   `({store1, store2} = context)` -> `(store1 = context.store1, store2 = context.store2)`
             //
-            // For store variables: `$userName1 = obj.key` -> `$.store_set(userName1, obj.key)`
-            // For state variables: `x = obj.key` -> `x = obj.key` (transformed later by $.set)
+            // For store sub targets: generate $.store_set() directly
+            // For state var targets: generate plain assignment (downstream transforms add $.set() etc.)
             //
             // Use a single line to avoid issues with downstream transforms that treat
             // newlines as statement boundaries (find_statement_end_client).
@@ -14905,6 +15247,12 @@ fn generate_destructure_iife(
                     assignments.push(format!("{} = {}.{}", target, rhs_str, key));
                 }
             }
+
+            if !is_standalone {
+                // Part of a larger expression - need the value at the end
+                assignments.push(rhs_str.to_string());
+            }
+
             if assignments.len() == 1 {
                 return format!("({})", assignments[0]);
             } else {

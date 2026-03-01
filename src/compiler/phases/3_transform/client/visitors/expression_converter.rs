@@ -2065,7 +2065,14 @@ fn try_transform_assignment(
     if let Some(mutate_fn) = transform.mutate
         && transform.replacement_id.is_none()
     {
-        let mutation_expr = b::assign_op(operator, left.clone(), right.clone());
+        // Apply transforms to the RIGHT side so that store reads like `$a.foo`
+        // become `$a().foo`. The LEFT side is NOT transformed here because the
+        // mutate transform (e.g., store_sub_mutate) handles replacing the store
+        // reference with $.untrack($store).
+        // This mirrors the official compiler where context.visit(right) is called.
+        use super::shared::utils::apply_transforms_to_expression;
+        let visited_right = apply_transforms_to_expression(right, context);
+        let mutation_expr = b::assign_op(operator, left.clone(), visited_right);
 
         return Some(mutate_fn(b::id(&root_name), mutation_expr));
     }

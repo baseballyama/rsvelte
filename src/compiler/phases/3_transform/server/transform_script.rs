@@ -674,6 +674,7 @@ fn add_statement_semicolon(line: &str) -> String {
         return line.to_string();
     }
 
+    // Lines that are already terminated or are block delimiters
     if trimmed.ends_with(';')
         || trimmed.ends_with('{')
         || trimmed.ends_with('}')
@@ -682,8 +683,19 @@ fn add_statement_semicolon(line: &str) -> String {
         return line.to_string();
     }
 
+    // Skip comment lines
+    if trimmed.starts_with("//") || trimmed.starts_with("/*") {
+        return line.to_string();
+    }
+
+    // Skip labels like `$:`
+    if trimmed.ends_with(':') {
+        return line.to_string();
+    }
+
+    // Variable declarations ending with `)` or `]` need semicolons
     if (trimmed.starts_with("const ") || trimmed.starts_with("let ") || trimmed.starts_with("var "))
-        && trimmed.ends_with(')')
+        && (trimmed.ends_with(')') || trimmed.ends_with(']'))
     {
         return format!("{};", line);
     }
@@ -1859,15 +1871,53 @@ fn split_comma_separated_declarations(script: &str) -> String {
     result
 }
 
-/// Check if a declaration string is complete (ends with `;` and all brackets are balanced).
+/// Check if a declaration string is complete.
+/// A declaration is complete if all brackets are balanced AND either:
+/// 1. It ends with `;`, OR
+/// 2. It doesn't end with a continuation token (operator, comma, etc.)
 fn is_declaration_complete(s: &str) -> bool {
     let trimmed = s.trim();
-    if !trimmed.ends_with(';') {
+    if trimmed.is_empty() {
         return false;
     }
+
     // Check that all brackets/parens/braces are balanced
+    let balanced = are_brackets_balanced(trimmed);
+
+    // If brackets are not balanced, definitely not complete
+    if !balanced {
+        return false;
+    }
+
+    // If ends with semicolon and balanced, it's complete
+    if trimmed.ends_with(';') {
+        return true;
+    }
+
+    // If balanced but no semicolon, check if it ends with a continuation token
+    // that would indicate the declaration continues on the next line
+    let ends_with_continuation = trimmed.ends_with(',')
+        || trimmed.ends_with('+')
+        || trimmed.ends_with('-')
+        || trimmed.ends_with('*')
+        || trimmed.ends_with('/')
+        || trimmed.ends_with('%')
+        || trimmed.ends_with('&')
+        || trimmed.ends_with('|')
+        || trimmed.ends_with('^')
+        || trimmed.ends_with('?')
+        || trimmed.ends_with('=')
+        || trimmed.ends_with("&&")
+        || trimmed.ends_with("||")
+        || trimmed.ends_with("=>");
+
+    !ends_with_continuation
+}
+
+/// Check if all brackets/parens/braces are balanced in the string.
+fn are_brackets_balanced(s: &str) -> bool {
     let mut depth = 0i32;
-    let bytes = trimmed.as_bytes();
+    let bytes = s.as_bytes();
     let mut i = 0;
     let len = bytes.len();
     while i < len {

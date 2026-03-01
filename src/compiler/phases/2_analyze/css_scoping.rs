@@ -540,8 +540,8 @@ fn element_is_ancestor_in_matching_selector(
     }
 
     // Check if the element matches any NON-LAST relative selector in the chain
-    for i in 0..effective_children.len() - 1 {
-        if element_matches_simple_selectors(element, &effective_children[i].selectors) {
+    for child in &effective_children[..effective_children.len() - 1] {
+        if element_matches_simple_selectors(element, &child.selectors) {
             return true;
         }
     }
@@ -579,7 +579,7 @@ fn propagate_scoping_to_ancestors(
                             && subtree_has_matching_subject(
                                 &el.fragment,
                                 selector,
-                                &[element_info.clone()],
+                                std::slice::from_ref(&element_info),
                             )
                     });
                 }
@@ -666,20 +666,20 @@ fn subtree_has_matching_subject(
                 if subtree_has_matching_subject(&if_block.consequent, selector, ancestors) {
                     return true;
                 }
-                if let Some(ref alt) = if_block.alternate {
-                    if subtree_has_matching_subject(alt, selector, ancestors) {
-                        return true;
-                    }
+                if let Some(ref alt) = if_block.alternate
+                    && subtree_has_matching_subject(alt, selector, ancestors)
+                {
+                    return true;
                 }
             }
             TemplateNode::EachBlock(each) => {
                 if subtree_has_matching_subject(&each.body, selector, ancestors) {
                     return true;
                 }
-                if let Some(ref fallback) = each.fallback {
-                    if subtree_has_matching_subject(fallback, selector, ancestors) {
-                        return true;
-                    }
+                if let Some(ref fallback) = each.fallback
+                    && subtree_has_matching_subject(fallback, selector, ancestors)
+                {
+                    return true;
                 }
             }
             _ => {}

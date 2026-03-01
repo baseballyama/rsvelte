@@ -218,6 +218,7 @@ impl<'a> ComponentContext<'a> {
         use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
         use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment as visit_fragment_impl;
         use crate::compiler::phases::phase3_transform::client::visitors::shared::element::build_attribute_effect;
+        use crate::compiler::phases::phase3_transform::client::visitors::shared::element::build_set_class;
         use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
         use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
@@ -423,8 +424,13 @@ impl<'a> ComponentContext<'a> {
             // Temporarily set node to element_id
             self.state.node = element_id.clone();
 
-            // Check for the single static class attribute optimization
-            let is_single_class_text_attr = attributes.len() == 1
+            // Determine which path to use for attributes, matching the official
+            // SvelteElement.js (lines 76-94):
+            // 1. Single text class attribute (no directives) -> fast $.set_class
+            // 2. Single text class attribute + class directives -> build_set_class
+            // 3. Any other attributes/directives -> build_attribute_effect
+            let is_single_text_class = attributes.len() == 1
+                && style_directives.is_empty()
                 && matches!(&attributes[0], Attribute::Attribute(a)
                     if a.name.to_lowercase() == "class" && {
                         use crate::ast::template::AttributeValuePart;
@@ -433,8 +439,9 @@ impl<'a> ComponentContext<'a> {
                     }
                 );
 
-            if is_single_class_text_attr {
-                // Build $.set_class call directly for single static class on svelte:element
+            if is_single_text_class && class_directives.is_empty() {
+                // Fast path: single static class attribute, no class directives
+                // Build $.set_class call directly
                 let css_hash = self.state.analysis.css.hash.clone();
                 let is_scoped = self.state.analysis.css.has_css && !css_hash.is_empty();
 
@@ -471,7 +478,39 @@ impl<'a> ComponentContext<'a> {
                     );
                     self.state.init.push(b::stmt(set_class_call));
                 }
-            } else {
+            } else if is_single_text_class {
+                // Single text class attribute WITH class directives -> build_set_class
+                // This matches the official SvelteElement.js line 82:
+                //   build_set_class(node, element_id, attributes[0], class_directives, inner_context, false)
+                let css_hash = self.state.analysis.css.hash.clone();
+                let is_scoped = self.state.analysis.css.has_css && !css_hash.is_empty();
+                let class_attr_value = if let Attribute::Attribute(a) = &attributes[0] {
+                    Some(&a.value)
+                } else {
+                    None
+                };
+                // Create a dummy RegularElement for the function signature (it's unused)
+                let dummy_element = crate::ast::template::RegularElement {
+                    start: 0,
+                    end: 0,
+                    name: "div".into(),
+                    name_loc: None,
+                    attributes: vec![],
+                    fragment: Default::default(),
+                    metadata: Default::default(),
+                };
+                build_set_class(
+                    &dummy_element,
+                    &element_id_name,
+                    class_attr_value,
+                    &class_directives,
+                    self,
+                    false, // is_html=false for svelte:element
+                    &css_hash,
+                    is_scoped,
+                );
+            } else if !attributes.is_empty() {
+                // Multiple attributes or non-class attributes -> build_attribute_effect
                 let css_hash = self.state.analysis.css.hash.clone();
                 build_attribute_effect(
                     &attributes,

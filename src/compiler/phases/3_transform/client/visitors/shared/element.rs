@@ -422,6 +422,21 @@ pub fn build_class_directives_object(
     class_directives: &[ClassDirective],
     context: &mut ComponentContext,
 ) -> (JsExpr, bool) {
+    build_class_directives_object_with_memoizer(class_directives, context, None)
+}
+
+/// Build class directives object with an optional external memoizer.
+///
+/// When `external_memoizer` is Some, it is used for memoization instead of
+/// `context.state.memoizer`. This matches the official compiler where
+/// `build_class_directives_object` takes an optional `memoizer` parameter:
+/// - Called from `build_attribute_effect`: passes the local memoizer
+/// - Called from `build_set_class`: no memoizer (uses None, result returned as-is)
+pub fn build_class_directives_object_with_memoizer(
+    class_directives: &[ClassDirective],
+    context: &mut ComponentContext,
+    external_memoizer: Option<&mut Memoizer>,
+) -> (JsExpr, bool) {
     use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 
     let mut properties = Vec::with_capacity(class_directives.len());
@@ -464,10 +479,17 @@ pub fn build_class_directives_object(
     // have has_state=true but has_call=false and should NOT be memoized.
     let has_call = has_call_or_state; // has_call_or_state only includes directive_has_call now
     let result_expr = if has_call || has_await {
-        context
-            .state
-            .memoizer
-            .add_memoized(directives_obj, has_call, has_await, false, has_state)
+        if let Some(memoizer) = external_memoizer {
+            memoizer.add(directives_obj, has_call, has_await, false, has_state)
+        } else {
+            context.state.memoizer.add_memoized(
+                directives_obj,
+                has_call,
+                has_await,
+                false,
+                has_state,
+            )
+        }
     } else {
         directives_obj
     };
@@ -484,6 +506,19 @@ pub fn build_class_directives_object(
 pub fn build_style_directives_object(
     style_directives: &[StyleDirective],
     context: &mut ComponentContext,
+) -> JsExpr {
+    build_style_directives_object_with_memoizer(style_directives, context, None)
+}
+
+/// Build style directives object with an optional external memoizer.
+///
+/// When `external_memoizer` is Some, it is used for memoization instead of
+/// `context.state.memoizer`. This matches the official compiler where
+/// `build_style_directives_object` takes an optional `memoizer` parameter.
+pub fn build_style_directives_object_with_memoizer(
+    style_directives: &[StyleDirective],
+    context: &mut ComponentContext,
+    external_memoizer: Option<&mut Memoizer>,
 ) -> JsExpr {
     let mut normal_properties = Vec::with_capacity(style_directives.len());
     let mut important_properties = Vec::with_capacity(2);
@@ -535,10 +570,14 @@ pub fn build_style_directives_object(
     // Memoize through the memoizer, matching the official compiler's behavior:
     // return memoizer.add(directives, metadata)
     // This ensures style directive objects with function calls get $N parameter references
-    context
-        .state
-        .memoizer
-        .add_memoized(directives, has_call, has_await, false, has_state)
+    if let Some(memoizer) = external_memoizer {
+        memoizer.add(directives, has_call, has_await, false, has_state)
+    } else {
+        context
+            .state
+            .memoizer
+            .add_memoized(directives, has_call, has_await, false, has_state)
+    }
 }
 
 /// Check if an AttributeValue contains an await expression.
@@ -1156,16 +1195,24 @@ pub fn build_attribute_effect(
         }
     }
 
-    // Add class directives
+    // Add class directives (using the local memoizer, matching official compiler)
     if !class_directives.is_empty() {
-        let (class_obj, _has_state) = build_class_directives_object(class_directives, context);
+        let (class_obj, _has_state) = build_class_directives_object_with_memoizer(
+            class_directives,
+            context,
+            Some(&mut local_memoizer),
+        );
         // Use $.CLASS as the key - using computed property
         properties.push(b::prop_computed(b::member_path("$.CLASS"), class_obj));
     }
 
-    // Add style directives
+    // Add style directives (using the local memoizer, matching official compiler)
     if !style_directives.is_empty() {
-        let style_obj = build_style_directives_object(style_directives, context);
+        let style_obj = build_style_directives_object_with_memoizer(
+            style_directives,
+            context,
+            Some(&mut local_memoizer),
+        );
         // Use $.STYLE as the key - using computed property
         properties.push(b::prop_computed(b::member_path("$.STYLE"), style_obj));
     }

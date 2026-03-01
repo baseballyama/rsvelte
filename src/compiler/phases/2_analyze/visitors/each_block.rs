@@ -7,7 +7,6 @@
 use indexmap::IndexSet;
 
 use super::super::{AnalysisError, Binding, BindingKind, errors};
-use super::script::walk_js_node;
 use super::shared::fragment;
 use super::shared::utils::{validate_block_not_empty, validate_opening_tag, walk_js_expression};
 use super::{EachBlockContext, VisitorContext};
@@ -218,9 +217,14 @@ fn walk_pattern_defaults(
             if let Some(left) = pattern.get("left") {
                 walk_pattern_defaults(left, context)?;
             }
-            // Walk the default value expression - this is the key part
+            // Walk the default value expression using a lightweight reference-only walker.
+            // We must NOT use walk_js_node here because that would trigger MemberExpression
+            // and CallExpression visitors which incorrectly set needs_context = true.
+            // The official Svelte's EachBlock visitor does NOT visit the context pattern
+            // during analysis — it only visits node.expression, node.body, node.key, and
+            // node.fallback. We only need to count identifier references for the defaults.
             if let Some(right) = pattern.get("right") {
-                walk_js_node(right, context)?;
+                walk_expression_refs_only(right, context);
             }
         }
         Some("ObjectPattern") => {
@@ -254,6 +258,66 @@ fn walk_pattern_defaults(
         _ => {}
     }
     Ok(())
+}
+
+/// Walk an expression, only counting identifier references without triggering
+/// any side effects like setting `needs_context`. This is used for default values
+/// in each block destructuring patterns where we need reference counts but must
+/// not affect the component's context requirements.
+fn walk_expression_refs_only(node: &serde_json::Value, context: &mut VisitorContext) {
+    let node_type = node.get("type").and_then(|t| t.as_str());
+    match node_type {
+        Some("Identifier") => {
+            if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+                // Try to find binding and add a reference
+                if let Some(binding_idx) = context
+                    .analysis
+                    .root
+                    .get_binding(name, context.scope)
+                    .or_else(|| context.analysis.root.find_binding_any_scope(name))
+                {
+                    let (start, end) = node
+                        .get("start")
+                        .and_then(|s| s.as_u64())
+                        .zip(node.get("end").and_then(|e| e.as_u64()))
+                        .unwrap_or((0, 0));
+                    context.analysis.root.bindings[binding_idx].add_reference(
+                        start as u32,
+                        end as u32,
+                        false,
+                        false,
+                        false,
+                    );
+                }
+            }
+        }
+        _ => {
+            // Recurse into child nodes
+            walk_expression_children_refs_only(node, context);
+        }
+    }
+}
+
+/// Recursively walk child nodes of a JSON AST node, visiting only identifiers
+/// for reference counting purposes.
+fn walk_expression_children_refs_only(node: &serde_json::Value, context: &mut VisitorContext) {
+    if let Some(obj) = node.as_object() {
+        for (key, value) in obj {
+            // Skip metadata/position fields
+            if key == "type" || key == "start" || key == "end" || key == "loc" || key == "raw" {
+                continue;
+            }
+            if let Some(arr) = value.as_array() {
+                for item in arr {
+                    if item.get("type").is_some() {
+                        walk_expression_refs_only(item, context);
+                    }
+                }
+            } else if value.get("type").is_some() {
+                walk_expression_refs_only(value, context);
+            }
+        }
+    }
 }
 
 /// Extract identifier names from a destructuring pattern.

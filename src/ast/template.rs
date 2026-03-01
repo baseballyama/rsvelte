@@ -175,6 +175,9 @@ pub struct HtmlTag {
     pub start: u32,
     pub end: u32,
     pub expression: Expression,
+    /// Metadata (not serialized)
+    #[serde(skip)]
+    pub metadata: TagMetadata,
 }
 
 /// Metadata for tags (ConstTag, DebugTag).

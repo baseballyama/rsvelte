@@ -595,7 +595,165 @@ pub fn analyze_component(
         }
     }
 
+    // Post-analysis: synthesize empty class/style attributes for elements that have
+    // class/style directives but no corresponding attribute. This matches the official
+    // Svelte compiler's behavior at 2-analyze/index.js L875-930.
+    //
+    // NOTE: We only synthesize for elements with class/style directives, NOT for
+    // all scoped elements. Scoped elements without class directives get their CSS hash
+    // applied directly in the transform phase (e.g., via class="svelte-hash" in the template).
+    // Synthesizing for all scoped elements causes regressions because RegularElement already
+    // handles CSS hash injection in its transform visitor.
+    synthesize_class_style_attributes(&mut ast.fragment, &analysis);
+
     Ok(analysis)
+}
+
+/// Synthesize empty class/style attributes for elements that need them.
+///
+/// This walks the entire template AST and adds synthetic `class=""` or `style=""`
+/// attributes to elements that:
+/// - Have class directives but no class attribute (need empty class for `$.set_class`)
+/// - Are scoped (CSS hash applied) but have no class attribute (need empty class for hash)
+/// - Have style directives but no style attribute (need empty style for `$.set_style`)
+///
+/// This corresponds to the official Svelte compiler's post-analysis loop at
+/// `2-analyze/index.js` lines 875-930.
+fn synthesize_class_style_attributes(
+    fragment: &mut crate::ast::template::Fragment,
+    analysis: &ComponentAnalysis,
+) {
+    use crate::ast::template::TemplateNode;
+
+    for node in &mut fragment.nodes {
+        match node {
+            TemplateNode::RegularElement(el) => {
+                synthesize_for_element_attrs(&mut el.attributes, el.metadata.scoped);
+                synthesize_class_style_attributes(&mut el.fragment, analysis);
+            }
+            TemplateNode::SvelteElement(el) => {
+                // For svelte:element, scoping depends on whether CSS hash is present
+                // and the element has dynamic tag. In the official compiler, svelte:element
+                // is always in analysis.elements and goes through the same synthesis.
+                // We check if CSS hash is present as the scoping condition.
+                let is_scoped = analysis.css.has_css && !analysis.css.hash.is_empty();
+                synthesize_for_element_attrs(&mut el.attributes, is_scoped);
+                synthesize_class_style_attributes(&mut el.fragment, analysis);
+            }
+            TemplateNode::Component(comp) => {
+                synthesize_class_style_attributes(&mut comp.fragment, analysis);
+            }
+            TemplateNode::IfBlock(if_block) => {
+                synthesize_class_style_attributes(&mut if_block.consequent, analysis);
+                if let Some(ref mut alt) = if_block.alternate {
+                    synthesize_class_style_attributes(alt, analysis);
+                }
+            }
+            TemplateNode::EachBlock(each) => {
+                synthesize_class_style_attributes(&mut each.body, analysis);
+                if let Some(ref mut fallback) = each.fallback {
+                    synthesize_class_style_attributes(fallback, analysis);
+                }
+            }
+            TemplateNode::AwaitBlock(await_block) => {
+                if let Some(ref mut pending) = await_block.pending {
+                    synthesize_class_style_attributes(pending, analysis);
+                }
+                if let Some(ref mut then) = await_block.then {
+                    synthesize_class_style_attributes(then, analysis);
+                }
+                if let Some(ref mut catch) = await_block.catch {
+                    synthesize_class_style_attributes(catch, analysis);
+                }
+            }
+            TemplateNode::KeyBlock(key) => {
+                synthesize_class_style_attributes(&mut key.fragment, analysis);
+            }
+            TemplateNode::SnippetBlock(snippet) => {
+                synthesize_class_style_attributes(&mut snippet.body, analysis);
+            }
+            TemplateNode::SvelteHead(head) => {
+                synthesize_class_style_attributes(&mut head.fragment, analysis);
+            }
+            TemplateNode::SlotElement(slot) => {
+                synthesize_class_style_attributes(&mut slot.fragment, analysis);
+            }
+            TemplateNode::TitleElement(title) => {
+                synthesize_class_style_attributes(&mut title.fragment, analysis);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Synthesize class/style attributes for a single element's attribute list.
+fn synthesize_for_element_attrs(
+    attributes: &mut Vec<crate::ast::template::Attribute>,
+    _is_scoped: bool,
+) {
+    use crate::ast::template::{
+        Attribute, AttributeNode, AttributeValue, AttributeValuePart, Text,
+    };
+
+    let mut has_class = false;
+    let mut has_style = false;
+    let mut has_spread = false;
+    let mut has_class_directive = false;
+    let mut has_style_directive = false;
+
+    for attr in attributes.iter() {
+        match attr {
+            Attribute::SpreadAttribute(_) => {
+                has_spread = true;
+                break;
+            }
+            Attribute::Attribute(a) => {
+                has_class = has_class || a.name.to_lowercase() == "class";
+                has_style = has_style || a.name.to_lowercase() == "style";
+            }
+            Attribute::ClassDirective(_) => {
+                has_class_directive = true;
+            }
+            Attribute::StyleDirective(_) => {
+                has_style_directive = true;
+            }
+            _ => {}
+        }
+    }
+
+    // We need an empty class to generate the set_class() correctly when class directives exist.
+    // NOTE: We do NOT synthesize for scoped-only elements (no class directives) because
+    // the transform phase handles CSS hash injection for those elements directly.
+    if !has_spread && !has_class && has_class_directive {
+        attributes.push(Attribute::Attribute(AttributeNode {
+            start: u32::MAX, // synthetic marker (uses -1 in JS, we use u32::MAX)
+            end: u32::MAX,
+            name: "class".into(),
+            name_loc: None,
+            value: AttributeValue::Sequence(vec![AttributeValuePart::Text(Text {
+                start: u32::MAX,
+                end: u32::MAX,
+                raw: "".into(),
+                data: "".into(),
+            })]),
+        }));
+    }
+
+    // We need an empty style to generate the set_style() correctly
+    if !has_spread && !has_style && has_style_directive {
+        attributes.push(Attribute::Attribute(AttributeNode {
+            start: u32::MAX,
+            end: u32::MAX,
+            name: "style".into(),
+            name_loc: None,
+            value: AttributeValue::Sequence(vec![AttributeValuePart::Text(Text {
+                start: u32::MAX,
+                end: u32::MAX,
+                raw: "".into(),
+                data: "".into(),
+            })]),
+        }));
+    }
 }
 
 /// Validate script attributes and emit warnings for unknown ones.

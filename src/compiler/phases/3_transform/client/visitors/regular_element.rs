@@ -32,7 +32,9 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsLiteral, JsStatement};
+use crate::compiler::phases::phase3_transform::js_ast::nodes::{
+    JsExpr, JsLiteral, JsPattern, JsStatement,
+};
 use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 use crate::compiler::phases::phase3_transform::utils::{
     clean_nodes, determine_namespace_for_children,
@@ -1018,6 +1020,23 @@ pub fn visit_regular_element(
             .state
             .after_update
             .extend(element_state_after_update);
+    }
+
+    // Handle <selectedcontent> element
+    // Corresponds to RegularElement.js lines 451-461
+    if node.name == "selectedcontent" {
+        let node_id = extract_node_id(&context.state.node);
+        // $.selectedcontent(node_id, ($$element) => node_id = $$element)
+        context.state.init.push(b::stmt(b::call(
+            b::member_path("$.selectedcontent"),
+            vec![
+                b::id(&node_id),
+                b::arrow(
+                    vec![JsPattern::Identifier("$$element".to_string())],
+                    b::assign(b::id(&node_id), b::id("$$element")),
+                ),
+            ],
+        )));
     }
 
     // Handle special value attribute for option/select
