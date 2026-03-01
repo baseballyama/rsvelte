@@ -550,12 +550,20 @@ impl<'a> ComponentContext<'a> {
         // This matches the official compiler which visits node.fragment as a separate Fragment,
         // producing its own template block with $.text() / $.append() patterns.
         {
-            // For <svelte:element>, children always use "html" namespace for template generation.
-            // The $.element() runtime function handles the actual namespace (svg/mathml) at runtime,
-            // so templates are always created as HTML and adopted into the correct namespace.
+            // Determine the namespace for children using determine_namespace_for_children logic.
+            // For SvelteElement, there's no `.name` property (it's dynamic via `this`), so
+            // the foreignObject check doesn't apply. We check metadata.svg and metadata.mathml.
+            // This matches the official compiler: determine_namespace_for_children(node, namespace)
+            let child_namespace = if elem.metadata.svg {
+                "svg".to_string()
+            } else if elem.metadata.mathml {
+                "mathml".to_string()
+            } else {
+                "html".to_string()
+            };
             let saved_namespace = self.state.metadata.namespace.clone();
             let saved_svelte_element_child = self.state.metadata.svelte_element_child;
-            self.state.metadata.namespace = "html".to_string();
+            self.state.metadata.namespace = child_namespace;
             self.state.metadata.svelte_element_child = true;
 
             let content_fragment = crate::ast::template::Fragment {
@@ -1458,6 +1466,9 @@ pub struct ComponentClientTransformState<'a> {
     /// output gets $$props injected, not the server output.
     /// Uses `Rc<Cell<bool>>` so the flag is shared across all child states.
     pub needs_props_from_events: Rc<Cell<bool>>,
+
+    /// Binding names hidden from `get_binding()` in named slot contexts.
+    pub hidden_let_bindings: FxHashSet<String>,
 }
 
 /// Context information for generating bindings inside each blocks.
@@ -1585,6 +1596,7 @@ impl<'a> ComponentClientTransformState<'a> {
             local_var_init_types: Vec::new(),
             destructure_array_counter: 0,
             needs_props_from_events: Rc::new(Cell::new(false)),
+            hidden_let_bindings: FxHashSet::default(),
         }
     }
 

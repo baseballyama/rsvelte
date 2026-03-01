@@ -220,8 +220,15 @@ fn prop_source_read(node: JsExpr) -> JsExpr {
 /// Transform a prop source assignment.
 ///
 /// This transforms `x = value` into `x(value)` by calling the setter.
+/// The callee uses `JsExpr::Raw` to prevent `apply_transforms_to_expression`
+/// from applying the prop read transform (`x -> x()`), which would turn
+/// the setter `x(value)` into `x()(value)`.
 fn prop_source_assign(node: JsExpr, value: JsExpr, _needs_proxy: bool) -> JsExpr {
-    b::call(node, vec![value])
+    let callee = match node {
+        JsExpr::Identifier(ref name) => JsExpr::Raw(name.clone()),
+        _ => node,
+    };
+    b::call(callee, vec![value])
 }
 
 /// Transform a prop mutation (non-bindable).
@@ -235,8 +242,13 @@ fn prop_mutate(_node: JsExpr, mutation: JsExpr) -> JsExpr {
 ///
 /// For bindable props, mutations need to notify the parent.
 /// Transforms `x.prop = value` to `x(x.prop = value, true)`
+/// The callee uses `JsExpr::Raw` to prevent double-transformation.
 fn prop_bindable_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
-    b::call(node, vec![mutation, b::boolean(true)])
+    let callee = match node {
+        JsExpr::Identifier(ref name) => JsExpr::Raw(name.clone()),
+        _ => node,
+    };
+    b::call(callee, vec![mutation, b::boolean(true)])
 }
 
 /// Transform a prop update expression (++ or --).

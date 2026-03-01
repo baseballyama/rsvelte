@@ -130,6 +130,10 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
     let mut i = index;
     let bytes = template.as_bytes();
 
+    // Track the previous non-whitespace character to distinguish division from regex.
+    // When `/` follows an identifier char, `)`, `]`, `++`, `--`, it is division.
+    let mut prev_non_ws: Option<u8> = None;
+
     while brackets > 0 && i < template.len() {
         let ch = bytes[i] as char;
 
@@ -139,6 +143,7 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
                 if i == usize::MAX {
                     i = template.len();
                 } else {
+                    prev_non_ws = Some(bytes[i]);
                     i += 1;
                 }
                 continue;
@@ -169,11 +174,34 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
                     continue;
                 }
 
+                // Determine if `/` is a division operator or the start of a regex.
+                // After an identifier, closing paren/bracket, or postfix operator,
+                // `/` is division.
+                let is_division = match prev_non_ws {
+                    Some(c) => {
+                        c.is_ascii_alphanumeric()
+                            || c == b'_'
+                            || c == b'$'
+                            || c == b')'
+                            || c == b']'
+                            || c == b'+'
+                            || c == b'-'
+                    }
+                    None => false,
+                };
+
+                if is_division {
+                    prev_non_ws = Some(b'/');
+                    i += 1;
+                    continue;
+                }
+
                 // Regex
                 i = find_regex_end(template, i + 1);
                 if i == usize::MAX {
                     i = template.len();
                 } else {
+                    prev_non_ws = Some(b'/');
                     i += "/".len();
                 }
                 continue;
@@ -189,6 +217,9 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
                     return Some(i);
                 }
 
+                if !ch.is_ascii_whitespace() {
+                    prev_non_ws = Some(bytes[i]);
+                }
                 i += 1;
             }
         }
@@ -362,5 +393,13 @@ mod tests {
     fn test_find_matching_bracket_with_comments() {
         assert_eq!(find_matching_bracket("{a // }\n}", 1, '{'), Some(8));
         assert_eq!(find_matching_bracket("{a /* } */}", 1, '{'), Some(10));
+    }
+
+    #[test]
+    fn test_find_matching_bracket_with_division() {
+        // Division operator should not be treated as regex
+        assert_eq!(find_matching_bracket("{width/4}", 1, '{'), Some(8));
+        assert_eq!(find_matching_bracket("{width/4*3}", 1, '{'), Some(10));
+        assert_eq!(find_matching_bracket("{a + b/c}", 1, '{'), Some(8));
     }
 }

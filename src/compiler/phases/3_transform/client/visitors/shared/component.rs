@@ -2020,6 +2020,10 @@ fn visit_slot_children(
     // Use memoizer to extract dependencies when available (template_effect hoisting)
     let update_stmts = std::mem::replace(&mut context.state.update, saved_update);
     let slot_memoizer = std::mem::replace(&mut context.state.memoizer, saved_memoizer);
+    // Merge conflicts from the slot memoizer back to the parent memoizer so that
+    // subsequent slots (e.g., named slots) don't reuse identifiers like $$element
+    // that were generated inside a previous slot.
+    context.state.memoizer.merge_conflicts(&slot_memoizer);
     if !update_stmts.is_empty() {
         if slot_memoizer.has_memoized() {
             // Use memoized dependency hoisting:

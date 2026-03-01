@@ -312,12 +312,19 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         // Build: $.attributes({ ... })
-        // For <svelte:element>, no extra flags are needed since the element type
-        // is unknown at compile time (no ELEMENT_IS_INPUT, etc.)
-        Ok(format!(
-            "${{$.attributes({{ {} }})}}",
-            object_parts.join(", ")
-        ))
+        // For <svelte:element> with SVG/MathML metadata, we need to add the namespace flags:
+        // ELEMENT_IS_NAMESPACED (1) | ELEMENT_PRESERVE_ATTRIBUTE_CASE (2) = 3
+        if elem.metadata.svg || elem.metadata.mathml {
+            Ok(format!(
+                "${{$.attributes({{ {} }}, void 0, void 0, void 0, 3)}}",
+                object_parts.join(", ")
+            ))
+        } else {
+            Ok(format!(
+                "${{$.attributes({{ {} }})}}",
+                object_parts.join(", ")
+            ))
+        }
     }
 
     /// Build the base value expression for a class attribute when class directives are present.

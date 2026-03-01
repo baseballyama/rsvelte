@@ -8,6 +8,7 @@ use super::super::helpers::{
 use super::super::types::{ComponentBinding, ComponentPropItem, OutputPart};
 use crate::ast::template::{Attribute, AttributeValue, Component, Fragment, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
+use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 use rustc_hash::FxHashMap;
 
 fn push_component_prop(items: &mut Vec<ComponentPropItem>, prop: String) {
@@ -185,9 +186,11 @@ impl<'a> ServerCodeGenerator<'a> {
                                 );
                             } else {
                                 // Simple string value (including empty strings)
+                                // Escape special characters for JS single-quoted string
+                                let escaped_value = escape_js_string(&value_str);
                                 push_component_prop(
                                     &mut props_and_spreads,
-                                    format!("{}: '{}'", quote_prop_name(name), value_str),
+                                    format!("{}: '{}'", quote_prop_name(name), escaped_value),
                                 );
                             }
                         }

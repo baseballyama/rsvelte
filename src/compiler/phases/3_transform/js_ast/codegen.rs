@@ -106,9 +106,8 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     let code = code.replace("function(", "function (");
     // OXC splits `;;` (inspect placeholder) into two separate lines. Rejoin them.
     let code = rejoin_double_semicolons(code);
-    // OXC has a bug where it doesn't escape tabs in string literals
-    // (it escapes newlines but not tabs). Fix this by post-processing.
-    let code = escape_tabs_in_strings(code);
+    // Note: Tabs in string literals are kept as literal tab characters,
+    // matching the official Svelte compiler's esrap codegen output.
     // OXC strips wrapping parentheses from `new (class Foo { })()` expressions,
     // producing `new class Foo { }()`. Restore them to match Svelte's esrap output.
     let code = wrap_new_class_expressions(code);
@@ -831,122 +830,6 @@ fn rejoin_double_semicolons(code: String) -> String {
     }
 
     result.join("\n")
-}
-
-/// Escape tab characters inside single/double-quoted string literals.
-///
-/// OXC has a bug where it doesn't escape tabs in string literals
-/// (it escapes newlines with \n but leaves tabs as literal characters).
-/// This function post-processes the output to escape tabs to \t.
-///
-/// Note: Template literals (backtick strings) preserve whitespace,
-/// so we don't escape tabs inside them.
-fn escape_tabs_in_strings(code: String) -> String {
-    let mut result = String::with_capacity(code.len());
-    let chars: Vec<char> = code.chars().collect();
-    let mut i = 0;
-    let mut in_string = false;
-    let mut string_char = ' ';
-    let mut in_template_literal = false;
-    let mut template_depth = 0; // Track nested ${...} in template literals
-    let mut in_single_line_comment = false;
-    let mut in_multi_line_comment = false;
-
-    while i < chars.len() {
-        let c = chars[i];
-
-        // Reset single-line comment at newline
-        if in_single_line_comment {
-            result.push(c);
-            if c == '\n' {
-                in_single_line_comment = false;
-            }
-            i += 1;
-            continue;
-        }
-
-        // Check for end of multi-line comment
-        if in_multi_line_comment {
-            result.push(c);
-            if c == '*' && i + 1 < chars.len() && chars[i + 1] == '/' {
-                result.push('/');
-                i += 2;
-                in_multi_line_comment = false;
-            } else {
-                i += 1;
-            }
-            continue;
-        }
-
-        // Check if this character is escaped (preceded by odd number of backslashes)
-        let is_escaped = if i > 0 {
-            let mut bs_count = 0;
-            let mut j = i;
-            while j > 0 && chars[j - 1] == '\\' {
-                bs_count += 1;
-                j -= 1;
-            }
-            bs_count % 2 == 1
-        } else {
-            false
-        };
-
-        // Check for comment start (only when not inside a string or template literal)
-        if !in_string && !in_template_literal && c == '/' && i + 1 < chars.len() {
-            if chars[i + 1] == '/' {
-                in_single_line_comment = true;
-                result.push(c);
-                i += 1;
-                continue;
-            } else if chars[i + 1] == '*' {
-                in_multi_line_comment = true;
-                result.push(c);
-                i += 1;
-                continue;
-            }
-        }
-
-        // Handle template literal tracking
-        if !in_string {
-            if c == '`' && !is_escaped {
-                if !in_template_literal {
-                    in_template_literal = true;
-                    template_depth = 0;
-                } else if template_depth == 0 {
-                    in_template_literal = false;
-                }
-            } else if in_template_literal {
-                // Track ${...} nesting in template literals
-                if c == '$' && i + 1 < chars.len() && chars[i + 1] == '{' && !is_escaped {
-                    template_depth += 1;
-                } else if c == '}' && template_depth > 0 {
-                    template_depth -= 1;
-                }
-            }
-        }
-
-        // Check for string start/end (only single and double quotes, not backticks)
-        // Only check when NOT inside a template literal (or when inside ${...} within template)
-        if (!in_template_literal || template_depth > 0) && (c == '"' || c == '\'') && !is_escaped {
-            if !in_string {
-                in_string = true;
-                string_char = c;
-            } else if c == string_char {
-                in_string = false;
-            }
-        }
-
-        // Escape tab characters inside single/double-quoted strings
-        if in_string && c == '\t' {
-            result.push_str("\\t");
-        } else {
-            result.push(c);
-        }
-
-        i += 1;
-    }
-
-    result
 }
 
 /// Wrap `new class` expressions with parentheses to match Svelte's esrap output.
@@ -3040,7 +2923,8 @@ fn escape_string_single(s: &str) -> String {
             '\\' => result.push_str("\\\\"),
             '\n' => result.push_str("\\n"),
             '\r' => result.push_str("\\r"),
-            '\t' => result.push_str("\\t"),
+            // Tab characters are kept as literal tabs to match the official
+            // Svelte compiler's esrap codegen output.
             _ => result.push(c),
         }
     }

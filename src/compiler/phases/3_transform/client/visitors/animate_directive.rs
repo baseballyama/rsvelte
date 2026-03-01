@@ -6,7 +6,9 @@
 use crate::ast::template::AnimateDirective;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
-use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::parse_directive_name;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
+    apply_transforms_to_expression, parse_directive_name,
+};
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 
@@ -63,16 +65,17 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 pub fn animate_directive(node: &AnimateDirective, context: &mut ComponentContext) {
     // Build the expression: either null or a thunk containing the visited expression
     let expression = if let Some(ref expr) = node.expression {
-        // Convert the expression using the expression converter
+        // Convert the expression using the expression converter, then apply transforms
+        // so that reactive references like each-block index get $.get() wrapping
         let visited_expr = convert_expression(expr, context);
-        b::thunk(visited_expr)
+        let transformed_expr = apply_transforms_to_expression(&visited_expr, context);
+        b::thunk(transformed_expr)
     } else {
         b::null()
     };
 
     // Parse the directive name (e.g., "fade" or "custom.animation")
     // Apply transforms so that $state/$derived references get $.get() wrapping
-    use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
     let name_expr = apply_transforms_to_expression(&parse_directive_name(&node.name), context);
 
     // Build the animation call: $.animation(node, () => name, expression)
