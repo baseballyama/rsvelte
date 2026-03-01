@@ -932,7 +932,20 @@ pub fn visit_regular_element(
     } else {
         // Process trimmed child nodes
         // These statements go directly into context.state (child_state in JS)
-        let current_node = context.state.node.clone();
+        let mut current_node = context.state.node.clone();
+
+        // For <template> elements, needs_reset is always true and we need to call
+        // $.hydrate_template() and use element.content as the child arg.
+        // Reference: RegularElement.js lines 414-418
+        let is_template_element = node.name == "template";
+        if is_template_element {
+            context.state.init.push(b::stmt(b::call(
+                b::member_path("$.hydrate_template"),
+                vec![current_node.clone()],
+            )));
+            current_node = b::member(current_node, "content");
+        }
+
         process_children(
             &cleaned.trimmed,
             |is_text| {
@@ -950,10 +963,12 @@ pub fn visit_regular_element(
         // Reset after processing children if needed
         // A reset is only needed if any child would actually advance the hydrate_node cursor.
         // Static elements don't advance the cursor, so they don't need a reset.
-        let needs_reset = cleaned.trimmed.iter().any(|n| {
-            !matches!(n, TemplateNode::Text(_) | TemplateNode::Comment(_))
-                && !is_static_element(n, &context.state)
-        });
+        // <template> elements always need reset.
+        let needs_reset = is_template_element
+            || cleaned.trimmed.iter().any(|n| {
+                !matches!(n, TemplateNode::Text(_) | TemplateNode::Comment(_))
+                    && !is_static_element(n, &context.state)
+            });
 
         if needs_reset {
             context.state.init.push(b::stmt(b::call(
