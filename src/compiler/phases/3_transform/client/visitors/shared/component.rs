@@ -152,7 +152,7 @@ pub fn build_component(
             }
 
             Attribute::SpreadAttribute(spread) => {
-                process_spread_attribute(spread, context, &mut props_and_spreads);
+                process_spread_attribute(spread, context, &mut props_and_spreads, &mut memoizer);
             }
 
             Attribute::Attribute(attr) => {
@@ -728,10 +728,11 @@ fn process_spread_attribute(
     spread: &SpreadAttribute,
     context: &mut ComponentContext,
     props_and_spreads: &mut Vec<PropsEntry>,
+    memoizer: &mut crate::compiler::phases::phase3_transform::client::types::Memoizer,
 ) {
     let expression = convert_expression(&spread.expression, context);
 
-    // Check if the expression has reactive state.
+    // Check if the expression has reactive state and function calls.
     // This mirrors the official Svelte compiler behavior in component.js lines 131-146:
     //   const memoized_expression = memoizer.add(expression, attribute.metadata.expression);
     //   const is_memoized = expression !== memoized_expression;
@@ -741,12 +742,39 @@ fn process_spread_attribute(
     //       props_and_spreads.push(expression);
     //   }
     let has_state = super::utils::expression_has_reactive_state(&spread.expression, context);
+    let has_call = super::utils::expression_has_call(&spread.expression, context);
+    let has_await = false; // TODO: detect await
 
     if has_state {
         // Apply transforms to get the proper reactive expression (e.g., state -> $.get(state))
         let transformed = super::utils::apply_transforms_to_expression(&expression, context);
-        // Wrap in thunk for reactivity tracking
-        props_and_spreads.push(PropsEntry::Spread(b::thunk(transformed)));
+
+        // Use memoizer to potentially wrap in $.derived_safe_equal
+        let memo_id = memoizer.add(
+            transformed.clone(),
+            has_call,
+            has_await,
+            false, // memoize_if_state
+            has_state,
+        );
+
+        // Check if memoization happened (memo_id is $N)
+        let is_memoized = if let JsExpr::Identifier(name) = &memo_id {
+            name.starts_with('$') && name.chars().skip(1).all(|c| c.is_ascii_digit())
+        } else {
+            false
+        };
+
+        if is_memoized {
+            // Wrap in thunk with $.get()
+            props_and_spreads.push(PropsEntry::Spread(b::thunk(b::call(
+                b::member_path("$.get"),
+                vec![memo_id],
+            ))));
+        } else {
+            // Wrap in thunk for reactivity tracking
+            props_and_spreads.push(PropsEntry::Spread(b::thunk(transformed)));
+        }
     } else {
         // No reactive state - push the expression directly without thunk wrapping
         props_and_spreads.push(PropsEntry::Spread(expression));
