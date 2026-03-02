@@ -720,6 +720,7 @@ impl Parser<'_> {
             }
         }
 
+        self.skip_whitespace();
         self.eat_optional("}"); // consume closing '}'
 
         // Push block to stack
@@ -765,6 +766,7 @@ impl Parser<'_> {
                         value = Some(self.parse_binding_pattern(value_content.trim(), value_start));
                     }
                 }
+                self.skip_whitespace();
                 self.eat_optional("}");
 
                 then_fragment = Some(self.parse_fragment()?);
@@ -782,6 +784,7 @@ impl Parser<'_> {
                         error = Some(self.parse_binding_pattern(error_content.trim(), error_start));
                     }
                 }
+                self.skip_whitespace();
                 self.eat_optional("}");
 
                 catch_fragment = Some(self.parse_fragment()?);

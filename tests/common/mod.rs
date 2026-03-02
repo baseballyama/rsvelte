@@ -326,6 +326,10 @@ pub fn normalize_js(js: &str) -> String {
     lazy_static::lazy_static! {
         // Simple patterns only - avoid complex patterns that can cause backtracking
         static ref MULTI_SPACE: Regex = Regex::new(r"[ \t\n]+").unwrap();
+        // Normalize \t escape sequences (backslash + 't') to literal tab characters.
+        // OXC outputs literal tabs in strings, while the official compiler may use \t escapes.
+        // Both are semantically equivalent; normalizing \t to a literal tab lets MULTI_SPACE
+        // collapse them the same way.
         // Normalize compiler-generated variable names with numeric suffixes
         // Include common loop variables like $$index_N and $$length
         static ref VAR_SUFFIX: Regex = Regex::new(r"\b(root|node|text|button|div|span|p|a|input|form|fragment|consequent|alternate|each|if_block|component|each_array|snippets|spread_props|select|details|summary|h\d|ul|ol|li|thead|tbody|tr|td|th|table|label|textarea|option|img|section|article|nav|header|footer|main|aside|figure|figcaption|video|audio|source|canvas|svg|path|circle|rect|line|polyline|polygon|g|use|defs|symbol|pattern|marker|title|desc|tspan|hr|br|pre|code|blockquote|head|html|body|slot|template|style|script|link|meta|base|area|map|embed|object|param|picture|dialog|menu|fieldset|legend)_(\d+)\b").unwrap();
@@ -455,6 +459,14 @@ pub fn normalize_js(js: &str) -> String {
         .filter(|line| !line.trim().is_empty())
         .collect::<Vec<_>>()
         .join("\n");
+
+    // Normalize \t escape sequences to literal tab characters so that both forms
+    // are treated equivalently by the MULTI_SPACE whitespace collapse below.
+    // Protect \\t (literal backslash + t) by replacing it with a placeholder first,
+    // then converting \t to a literal tab, then restoring the placeholder.
+    let result = result.replace("\\\\t", "\x00BSLASH_T\x00");
+    let result = result.replace("\\t", "\t");
+    let result = result.replace("\x00BSLASH_T\x00", "\\\\t");
 
     // Then join all lines into one continuous string with spaces
     // This handles multiline vs single-line formatting differences

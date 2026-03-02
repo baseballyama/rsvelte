@@ -1057,6 +1057,7 @@ fn expand_object_store_destructure(pattern: &str, rhs: &str) -> String {
             }
         }
 
+        body_lines.push("return $$value;".to_string());
         let body = body_lines.join("\n\t\t\t");
         format!("(($$value) => {{\n\t\t\t{}\n\t\t}})({})", body, rhs)
     }
@@ -1087,6 +1088,7 @@ fn expand_array_store_destructure(pattern: &str, rhs: &str) -> String {
         }
     }
 
+    body_lines.push("return $$value;".to_string());
     let body = body_lines.join("\n\t\t\t");
     format!("(($$value) => {{\n\t\t\t{}\n\t\t}})({})", body, rhs)
 }

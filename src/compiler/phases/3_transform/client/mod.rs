@@ -2407,6 +2407,14 @@ fn transform_shadowed_local_state_vars(script: &str, shadowed_vars: &[String]) -
             format!("let {} = $.derived(", var),
             format!("var {} = $.state(", var),
             format!("var {} = $.derived(", var),
+            format!("const {} = $.state(", var),
+            format!("const {} = $.derived(", var),
+            format!("let {} = $.state.raw(", var),
+            format!("let {} = $.derived.by(", var),
+            format!("var {} = $.state.raw(", var),
+            format!("var {} = $.derived.by(", var),
+            format!("const {} = $.state.raw(", var),
+            format!("const {} = $.derived.by(", var),
         ];
 
         for pattern in &state_patterns {
@@ -2416,7 +2424,7 @@ fn transform_shadowed_local_state_vars(script: &str, shadowed_vars: &[String]) -
                     find_enclosing_function_body(&result, decl_pos)
                 {
                     let func_body = &result[func_start..func_end];
-                    let is_state = pattern.contains("$.state(");
+                    let is_state = pattern.contains("$.state(") || pattern.contains("$.state.raw(");
                     let transformed_body = apply_local_state_transforms(func_body, var, is_state);
 
                     if transformed_body != func_body {

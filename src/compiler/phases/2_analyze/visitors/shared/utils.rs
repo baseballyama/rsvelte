@@ -1542,6 +1542,9 @@ pub fn walk_js_expression(
                     if name == "$$restProps" {
                         context.analysis.uses_rest_props = true;
                     }
+                    if name == "$$slots" {
+                        context.analysis.uses_slots = true;
+                    }
                 }
 
                 // Check for store scoped subscription errors
