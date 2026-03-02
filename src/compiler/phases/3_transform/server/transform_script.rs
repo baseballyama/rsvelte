@@ -599,6 +599,95 @@ pub(crate) fn transform_rune_call_simple(expr: &str, prefix: &str) -> String {
     result
 }
 
+/// Flatten object destructure declarations with `$.store_get()` initializers.
+///
+/// Transforms:
+///   `let { firstNonStore, secondNonStore, firstStore } = $.store_get(...)`
+/// Into:
+///   `let tmp = $.store_get(...), firstNonStore = tmp.firstNonStore, secondNonStore = tmp.secondNonStore, firstStore = tmp.firstStore`
+///
+/// This matches the official Svelte compiler's `create_state_declarators()` behavior.
+pub(crate) fn flatten_store_get_destructures(script: &str) -> String {
+    use regex::Regex;
+    use std::sync::LazyLock;
+
+    // Match: let { ... } = $.store_get(
+    static STORE_GET_DESTRUCT_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?m)^(\s*)(let|const)\s+\{([^}]+)\}\s*=\s*\$\.store_get\(").unwrap()
+    });
+
+    let mut result = script.to_string();
+    let mut offset: i64 = 0;
+
+    for cap in STORE_GET_DESTRUCT_RE.captures_iter(script) {
+        let full_match = cap.get(0).unwrap();
+        let indent = cap.get(1).unwrap().as_str();
+        let _keyword = cap.get(2).unwrap().as_str();
+        let obj_pattern = cap.get(3).unwrap().as_str();
+
+        let start_pos = full_match.end();
+        let remaining = &script[start_pos..];
+
+        // Find the matching closing paren of $.store_get(...)
+        if let Some(paren_end) = find_matching_paren_for_state(remaining) {
+            let store_get_args = &remaining[..paren_end];
+
+            // Parse the object pattern properties
+            let props = parse_object_pattern_properties(obj_pattern);
+
+            // Build: let tmp = $.store_get(...), prop1 = tmp.prop1, prop2 = tmp.prop2, ...
+            let mut transformed = format!("{}let tmp = $.store_get({})", indent, store_get_args);
+
+            for prop in &props {
+                match prop {
+                    ObjectPatternProp::Simple(name) => {
+                        transformed.push_str(&format!(",\n{}\t{} = tmp.{}", indent, name, name));
+                    }
+                    ObjectPatternProp::Renamed { key, value } => {
+                        transformed.push_str(&format!(",\n{}\t{} = tmp.{}", indent, value, key));
+                    }
+                    ObjectPatternProp::WithDefault { name, default } => {
+                        transformed.push_str(&format!(
+                            ",\n{}\t{} = tmp.{} ?? {}",
+                            indent, name, name, default
+                        ));
+                    }
+                    ObjectPatternProp::RenamedWithDefault {
+                        key,
+                        value,
+                        default,
+                    } => {
+                        transformed.push_str(&format!(
+                            ",\n{}\t{} = tmp.{} ?? {}",
+                            indent, value, key, default
+                        ));
+                    }
+                    ObjectPatternProp::Rest(name) => {
+                        transformed.push_str(&format!(",\n{}\t{} = tmp.{}", indent, name, name));
+                    }
+                }
+            }
+
+            let match_start = (full_match.start() as i64 + offset) as usize;
+            // +1 to skip the closing paren of $.store_get()
+            let match_end = (start_pos as i64 + paren_end as i64 + offset + 1) as usize;
+
+            result = format!(
+                "{}{}{}",
+                &result[..match_start],
+                transformed,
+                &result[match_end..]
+            );
+
+            let old_len = (full_match.len() + paren_end + 1) as i64;
+            let new_len = transformed.len() as i64;
+            offset += new_len - old_len;
+        }
+    }
+
+    result
+}
+
 fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
     let mut result = String::new();
     let chars: Vec<char> = script.chars().collect();

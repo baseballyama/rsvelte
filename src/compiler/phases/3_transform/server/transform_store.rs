@@ -908,11 +908,28 @@ fn transform_one_store_destructure(script: &str) -> String {
                         }
                     }
 
+                    // Determine if the destructure result value is consumed
+                    // (i.e., it's in expression position, like inside $.store_set()).
+                    // If it's a standalone expression statement, we don't need `return $$value;`.
+                    let needs_return = {
+                        let before_context = script[..actual_start].trim_end();
+                        // It's in expression position if preceded by something that consumes the value:
+                        // e.g., `= `, `(`, `,`, `? `, `: `, operator, etc.
+                        // It's a statement if preceded by start of string, `;`, `{`, or newline boundary.
+                        if before_context.is_empty() {
+                            false
+                        } else {
+                            let last_char = before_context.chars().last().unwrap();
+                            // Statement boundaries: `;`, `{`, or newline at statement level
+                            !matches!(last_char, ';' | '{' | '\n')
+                        }
+                    };
+
                     // Generate the expansion
                     let expansion = if close_bracket == '}' {
-                        expand_object_store_destructure(pattern_str, rhs_str)
+                        expand_object_store_destructure(pattern_str, rhs_str, needs_return)
                     } else {
-                        expand_array_store_destructure(pattern_str, rhs_str)
+                        expand_array_store_destructure(pattern_str, rhs_str, needs_return)
                     };
 
                     let mut new_script = String::new();
@@ -965,7 +982,8 @@ fn has_store_targets(pattern: &str) -> bool {
 }
 
 /// Expand an object destructure `{key: $store, $store2, ...}` into `$.store_set()` calls.
-fn expand_object_store_destructure(pattern: &str, rhs: &str) -> String {
+/// When `needs_return` is true, the IIFE returns `$$value` (expression position).
+fn expand_object_store_destructure(pattern: &str, rhs: &str, needs_return: bool) -> String {
     // Pattern is like: `{userName1: $userName1, $userName2}`
     let inner = pattern.trim();
     let inner = &inner[1..inner.len() - 1]; // strip { }
@@ -1057,14 +1075,17 @@ fn expand_object_store_destructure(pattern: &str, rhs: &str) -> String {
             }
         }
 
-        body_lines.push("return $$value;".to_string());
+        if needs_return {
+            body_lines.push("return $$value;".to_string());
+        }
         let body = body_lines.join("\n\t\t\t");
         format!("(($$value) => {{\n\t\t\t{}\n\t\t}})({})", body, rhs)
     }
 }
 
 /// Expand an array destructure `[$u, $v, $w]` into an IIFE with `$.to_array()` and `$.store_set()`.
-fn expand_array_store_destructure(pattern: &str, rhs: &str) -> String {
+/// When `needs_return` is true, the IIFE returns `$$value` (expression position).
+fn expand_array_store_destructure(pattern: &str, rhs: &str, needs_return: bool) -> String {
     let inner = pattern.trim();
     let inner = &inner[1..inner.len() - 1]; // strip [ ]
 
@@ -1088,7 +1109,9 @@ fn expand_array_store_destructure(pattern: &str, rhs: &str) -> String {
         }
     }
 
-    body_lines.push("return $$value;".to_string());
+    if needs_return {
+        body_lines.push("return $$value;".to_string());
+    }
     let body = body_lines.join("\n\t\t\t");
     format!("(($$value) => {{\n\t\t\t{}\n\t\t}})({})", body, rhs)
 }
@@ -1233,6 +1256,23 @@ fn find_top_level_colon_pos(s: &str) -> Option<usize> {
 
 /// Transform store assignments in script content for server-side rendering.
 pub(crate) fn transform_store_assignments(script: &str) -> String {
+    // Apply transformations repeatedly until convergence to handle nested store assignments
+    // like `$value = { one: writable($value = { two: ... }) }`
+    let mut result = transform_store_assignments_once(script);
+    let mut iterations = 0;
+    loop {
+        let next = transform_store_assignments_once(&result);
+        if next == result || iterations > 10 {
+            break;
+        }
+        result = next;
+        iterations += 1;
+    }
+    result
+}
+
+/// Single pass of store assignment transformation.
+fn transform_store_assignments_once(script: &str) -> String {
     use regex::Regex;
     use std::sync::LazyLock;
 
@@ -1317,6 +1357,11 @@ pub(crate) fn transform_store_assignments(script: &str) -> String {
                 }
                 let value_end = find_statement_end(rest);
                 let value = rest[..value_end].trim();
+                // Strip trailing `//` comments from the value to prevent them from
+                // ending up inside the $.store_set() call, where they would break
+                // the code structure when comments are stripped by the test normalizer.
+                let value = strip_trailing_line_comments(value);
+                let value = value.trim();
                 new_result.push_str(&format!("$.store_set({}, {})", store_name, value));
                 last_end = end + value_end;
                 continue;
@@ -1343,13 +1388,66 @@ pub(crate) fn transform_store_assignments(script: &str) -> String {
     new_result
 }
 
+/// Strip trailing `//` comments from each line of a multi-line value string,
+/// being careful not to strip `//` inside string literals.
+fn strip_trailing_line_comments(value: &str) -> String {
+    value
+        .lines()
+        .map(|line| {
+            let chars: Vec<char> = line.chars().collect();
+            let len = chars.len();
+            let mut i = 0;
+            let mut in_str: Option<char> = None;
+
+            while i < len {
+                let ch = chars[i];
+
+                // Handle string literals
+                if let Some(q) = in_str {
+                    if ch == '\\' && i + 1 < len {
+                        i += 2;
+                        continue;
+                    }
+                    if ch == q {
+                        in_str = None;
+                    }
+                    i += 1;
+                    continue;
+                }
+
+                if ch == '\'' || ch == '"' || ch == '`' {
+                    in_str = Some(ch);
+                    i += 1;
+                    continue;
+                }
+
+                // Found `//` outside a string - this starts a comment
+                if ch == '/' && i + 1 < len && chars[i + 1] == '/' {
+                    // Return line up to the comment, trimming trailing whitespace
+                    let before_comment: String = chars[..i].iter().collect();
+                    return before_comment.trim_end().to_string();
+                }
+
+                i += 1;
+            }
+
+            line.to_string()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 fn find_statement_end(s: &str) -> usize {
     let mut depth = 0;
     let chars: Vec<char> = s.chars().collect();
     let mut in_string = false;
     let mut string_char = ' ';
+    let len = chars.len();
+    let mut i = 0;
 
-    for (i, &c) in chars.iter().enumerate() {
+    while i < len {
+        let c = chars[i];
+
         if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
             if !in_string {
                 in_string = true;
@@ -1357,10 +1455,34 @@ fn find_statement_end(s: &str) -> usize {
             } else if c == string_char {
                 in_string = false;
             }
+            i += 1;
             continue;
         }
 
         if in_string {
+            i += 1;
+            continue;
+        }
+
+        // Skip single-line comments: `//` to end of line
+        if c == '/' && i + 1 < len && chars[i + 1] == '/' {
+            // Advance past the comment to the newline (or end of string)
+            while i < len && chars[i] != '\n' {
+                i += 1;
+            }
+            // Now i is at the '\n' or past the end; the loop will handle it
+            continue;
+        }
+
+        // Skip multi-line comments: `/* ... */`
+        if c == '/' && i + 1 < len && chars[i + 1] == '*' {
+            i += 2;
+            while i + 1 < len && !(chars[i] == '*' && chars[i + 1] == '/') {
+                i += 1;
+            }
+            if i + 1 < len {
+                i += 2; // skip past `*/`
+            }
             continue;
         }
 
@@ -1374,6 +1496,8 @@ fn find_statement_end(s: &str) -> usize {
             ';' | '\n' if depth == 0 => return i,
             _ => {}
         }
+
+        i += 1;
     }
 
     s.len()

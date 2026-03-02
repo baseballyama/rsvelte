@@ -523,6 +523,21 @@ impl<'a> ScopeBuilder<'a> {
                 self.track_expression_updates(&do_while_stmt.test);
             }
             Statement::ForStatement(for_stmt) => {
+                // Create a new block scope for `let`/`const` declarations in the
+                // for-loop initializer, so that `for (let x = 0; ...)` doesn't
+                // leak `x` into the parent scope.
+                let needs_scope = matches!(
+                    &for_stmt.init,
+                    Some(oxc_ast::ast::ForStatementInit::VariableDeclaration(var_decl))
+                        if matches!(var_decl.kind,
+                            oxc_ast::ast::VariableDeclarationKind::Let
+                            | oxc_ast::ast::VariableDeclarationKind::Const)
+                );
+                let old_scope = if needs_scope {
+                    Some(self.push_scope())
+                } else {
+                    None
+                };
                 if let Some(oxc_ast::ast::ForStatementInit::VariableDeclaration(var_decl)) =
                     &for_stmt.init
                 {
@@ -535,6 +550,9 @@ impl<'a> ScopeBuilder<'a> {
                     self.track_expression_updates(update);
                 }
                 self.process_statement(&for_stmt.body);
+                if let Some(old) = old_scope {
+                    self.pop_scope(old);
+                }
             }
             Statement::ForInStatement(for_in_stmt) => {
                 self.track_expression_updates(&for_in_stmt.right);

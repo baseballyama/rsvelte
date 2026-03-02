@@ -486,6 +486,28 @@ fn is_dollar_ident_parameter(chars: &[char], ident_start: usize, ident_end: usiz
     false
 }
 
+/// Check if a `$xxx` identifier at `ident_end` is being used as an object property key.
+///
+/// Returns true if `$xxx` is followed (ignoring whitespace) by `:` but NOT `::`.
+/// This indicates it's being used as a property key in an object literal like
+/// `{ $userName4: 'value' }` rather than as a store subscription reference.
+fn is_dollar_ident_object_property_key(chars: &[char], ident_end: usize) -> bool {
+    let len = chars.len();
+    // Skip whitespace after the identifier
+    let mut j = ident_end;
+    while j < len && (chars[j] == ' ' || chars[j] == '\t') {
+        j += 1;
+    }
+    // Check for `:` not followed by another `:`
+    if j < len && chars[j] == ':' {
+        // Make sure it's not `::` and not `:`  followed by nothing
+        let next = if j + 1 < len { chars[j + 1] } else { '\0' };
+        // It IS a property key if followed by `:` and not `::`
+        return next != ':';
+    }
+    false
+}
+
 /// Check if a `$xxx` identifier at position `ident_start` is being declared as a
 /// variable (let/const/var $xxx) rather than being a store subscription reference.
 ///
@@ -633,8 +655,10 @@ fn collect_dollar_identifiers_from_js_with_context(
                     // (e.g., `$count => $count * 2` or `($count) => ...`)
                     // Such uses are NOT store subscriptions - they're local parameter names.
                     // Also skip if this is a variable declaration (let/const/var $xxx).
+                    // Also skip if this is an object property key (e.g., `{ $userName4: 'value' }`).
                     if !is_dollar_ident_parameter(&chars, ident_start, i)
                         && !is_dollar_ident_variable_declaration(&chars, ident_start)
+                        && !is_dollar_ident_object_property_key(&chars, i)
                     {
                         refs.push(StoreRef {
                             name: ident,

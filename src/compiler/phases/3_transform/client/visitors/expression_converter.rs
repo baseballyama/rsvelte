@@ -1896,6 +1896,52 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             }
             Some(JsStatement::Block(JsBlockStatement { body: stmts }))
         }
+        "FunctionDeclaration" => {
+            let id = obj
+                .get("id")
+                .and_then(|i| i.as_object())
+                .and_then(|i| i.get("name"))
+                .and_then(|n| n.as_str())
+                .map(|n| n.to_string());
+
+            let params = convert_params(obj, context);
+
+            // Save transforms and remove any for parameter names that shadow outer variables.
+            let saved_transform = context.state.transform.clone();
+            let param_names = extract_param_names_from_json(obj);
+            for name in &param_names {
+                context.state.transform.remove(name);
+            }
+
+            // Push a new local scope frame for the function body
+            context.state.push_local_scope();
+
+            let body = obj
+                .get("body")
+                .and_then(|b| b.as_object())
+                .map(|b| convert_block_statement(b, context))
+                .unwrap_or_default();
+
+            // Pop the local scope frame
+            context.state.pop_local_scope();
+
+            // Restore transforms
+            context.state.transform = saved_transform;
+
+            let is_async = obj.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
+            let is_generator = obj
+                .get("generator")
+                .and_then(|g| g.as_bool())
+                .unwrap_or(false);
+
+            Some(JsStatement::FunctionDeclaration(JsFunctionDeclaration {
+                id,
+                params,
+                body,
+                is_async,
+                is_generator,
+            }))
+        }
         _ => {
             // For unhandled statement types, try to convert as expression statement if possible
             None
@@ -2116,13 +2162,35 @@ fn try_transform_assignment(
         && transform.replacement_id.is_none()
     {
         // Apply transforms to the RIGHT side so that store reads like `$a.foo`
-        // become `$a().foo`. The LEFT side is NOT transformed here because the
-        // mutate transform (e.g., store_sub_mutate) handles replacing the store
-        // reference with $.untrack($store).
-        // This mirrors the official compiler where context.visit(right) is called.
+        // become `$a().foo`.
         use super::shared::utils::apply_transforms_to_expression;
         let visited_right = apply_transforms_to_expression(right, context);
-        let mutation_expr = b::assign_op(operator, left.clone(), visited_right);
+
+        // For Prop/BindableProp bindings, apply read transforms to the LEFT side
+        // so that the base identifier gets the getter call: items -> items().
+        // This produces e.g. `items(items()[0].clicked = true, true)`.
+        // The read-transformed left is needed so that apply_transforms_to_expression
+        // (which runs later via build_expression) can detect the Call in the base chain
+        // and skip double mutation wrapping.
+        //
+        // For store subscriptions, the LEFT side is NOT transformed here because the
+        // store_sub_mutate handles replacing the store reference with $.untrack($store).
+        let is_prop_binding = {
+            use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+            context
+                .state
+                .get_binding(&root_name)
+                .map(|b| matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp))
+                .unwrap_or(false)
+        };
+
+        let visited_left = if is_prop_binding {
+            apply_transforms_to_expression(left, context)
+        } else {
+            left.clone()
+        };
+
+        let mutation_expr = b::assign_op(operator, visited_left, visited_right);
 
         return Some(mutate_fn(b::id(&root_name), mutation_expr));
     }

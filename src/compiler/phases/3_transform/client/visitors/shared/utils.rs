@@ -423,13 +423,16 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // Check if this is $.update_store/$.update_pre_store - transform first arg only
             let is_store_update = is_svelte_runtime_store_update_call(&call.callee);
 
-            // Check if this is a prop/store SETTER call where the callee should NOT be transformed:
-            // - Prop setter call: `propName(value)` - callee should stay as `propName`, not `propName()`
-            //   because `propName(value)` IS the setter pattern in legacy mode.
+            // Check if this is a store subscription SETTER call where the callee should NOT be transformed:
+            // - Store setter call: `$store(value)` - callee should stay as `$store`, not `$store()`
+            //   because store subscriptions use a different setter pattern.
             //
-            // For prop/store GETTER reads (zero-arg calls from source), we DO want to transform
-            // the callee so that `propName()` (source function invocation) becomes `propName()()`
-            // where the first () is the prop getter and the second () is the function invocation.
+            // For Prop/BindableProp, the callee ALWAYS needs the read transform applied.
+            // When a prop identifier is used as a function callee, it's a GETTER read:
+            // `callback(arg)` should become `callback()(arg)` where the first () is the
+            // prop getter and the second () is the function invocation.
+            // The prop SETTER pattern `prop(value)` is only generated explicitly in the
+            // JsExpr::Assignment arm using JsExpr::Raw, not through JsExpr::Call.
             //
             // IMPORTANT: This does NOT apply to state variables ($state, $derived, etc.)!
             // For state variables, `read` wraps `x` -> `$.get(x)`, which is different from props/stores
@@ -439,22 +442,17 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 && !local_scope.contains(name)
                 && let Some(transform) = context.state.transform.get(name)
             {
-                // Check if this is a prop or store subscription binding
-                // Only those use the "call as getter" pattern (x -> x())
+                // Only skip callee transform for StoreSub setter calls (calls with arguments).
+                // Prop/BindableProp calls should ALWAYS have the callee transformed.
                 let binding = context.state.get_binding(name);
-                let is_prop_or_store = binding
-                    .map(|b| {
-                        matches!(
-                            b.kind,
-                            BindingKind::Prop | BindingKind::BindableProp | BindingKind::StoreSub
-                        )
-                    })
+                let is_store_sub = binding
+                    .map(|b| matches!(b.kind, BindingKind::StoreSub))
                     .unwrap_or(false);
 
-                // Only skip callee transform for setter calls (calls with arguments).
+                // Only skip for store subscriptions with setter calls (calls with arguments).
                 // For zero-arg calls, the callee should be transformed so that
                 // source `name()` becomes `name()()` (getter + invocation).
-                is_prop_or_store && transform.assign.is_some() && !call.arguments.is_empty()
+                is_store_sub && transform.assign.is_some() && !call.arguments.is_empty()
             } else {
                 false
             };
@@ -714,9 +712,55 @@ pub fn apply_transforms_to_expression_with_shadowed(
                         let current = read_fn(JsExpr::Identifier(name.clone()));
                         b::binary(JsBinaryOp::Mod, current, transformed_right)
                     }
-                    _ => {
-                        // For other operators, just use the right side
-                        transformed_right
+                    JsAssignmentOp::PowAssign => {
+                        let read_fn = transform.read.unwrap_or(|e| e);
+                        let current = read_fn(JsExpr::Identifier(name.clone()));
+                        b::binary(JsBinaryOp::Pow, current, transformed_right)
+                    }
+                    JsAssignmentOp::BitAndAssign => {
+                        let read_fn = transform.read.unwrap_or(|e| e);
+                        let current = read_fn(JsExpr::Identifier(name.clone()));
+                        b::binary(JsBinaryOp::BitAnd, current, transformed_right)
+                    }
+                    JsAssignmentOp::BitOrAssign => {
+                        let read_fn = transform.read.unwrap_or(|e| e);
+                        let current = read_fn(JsExpr::Identifier(name.clone()));
+                        b::binary(JsBinaryOp::BitOr, current, transformed_right)
+                    }
+                    JsAssignmentOp::BitXorAssign => {
+                        let read_fn = transform.read.unwrap_or(|e| e);
+                        let current = read_fn(JsExpr::Identifier(name.clone()));
+                        b::binary(JsBinaryOp::BitXor, current, transformed_right)
+                    }
+                    JsAssignmentOp::ShlAssign => {
+                        let read_fn = transform.read.unwrap_or(|e| e);
+                        let current = read_fn(JsExpr::Identifier(name.clone()));
+                        b::binary(JsBinaryOp::Shl, current, transformed_right)
+                    }
+                    JsAssignmentOp::ShrAssign => {
+                        let read_fn = transform.read.unwrap_or(|e| e);
+                        let current = read_fn(JsExpr::Identifier(name.clone()));
+                        b::binary(JsBinaryOp::Shr, current, transformed_right)
+                    }
+                    JsAssignmentOp::UShrAssign => {
+                        let read_fn = transform.read.unwrap_or(|e| e);
+                        let current = read_fn(JsExpr::Identifier(name.clone()));
+                        b::binary(JsBinaryOp::UShr, current, transformed_right)
+                    }
+                    JsAssignmentOp::OrAssign => {
+                        let read_fn = transform.read.unwrap_or(|e| e);
+                        let current = read_fn(JsExpr::Identifier(name.clone()));
+                        b::or(current, transformed_right)
+                    }
+                    JsAssignmentOp::AndAssign => {
+                        let read_fn = transform.read.unwrap_or(|e| e);
+                        let current = read_fn(JsExpr::Identifier(name.clone()));
+                        b::and(current, transformed_right)
+                    }
+                    JsAssignmentOp::NullishAssign => {
+                        let read_fn = transform.read.unwrap_or(|e| e);
+                        let current = read_fn(JsExpr::Identifier(name.clone()));
+                        b::nullish(current, transformed_right)
                     }
                 };
 
@@ -915,6 +959,21 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
                         return b::sequence(seq_exprs);
                     }
+                }
+
+                // If the left side's base chain already goes through a Call node,
+                // the read transform was already applied by expression_converter.rs
+                // (e.g., items()[0].clicked). The mutation wrapping was also already done
+                // by try_transform_assignment. We must NOT recurse into the left side again
+                // (which would double-apply read transforms), and must NOT mutation-wrap again.
+                // Just transform the right side and return.
+                if has_call_in_base_chain(assign.left.as_ref()) {
+                    let transformed_right = recurse!(&assign.right);
+                    return JsExpr::Assignment(JsAssignmentExpression {
+                        operator: assign.operator,
+                        left: assign.left.clone(),
+                        right: Box::new(transformed_right),
+                    });
                 }
 
                 if let JsExpr::Identifier(name) = base_object
@@ -1374,6 +1433,26 @@ fn get_base_object(expr: &JsExpr) -> JsExpr {
         JsExpr::Member(member) => get_base_object(&member.object),
         JsExpr::Call(call) => get_base_object(&call.callee),
         _ => expr.clone(),
+    }
+}
+
+/// Check if the chain from the expression to its base Identifier goes through
+/// a read-transform Call node. This indicates the base object has already been
+/// read-transformed (e.g., `items()` for a prop), meaning the mutation wrapping
+/// was already applied by expression_converter.rs and should NOT be applied again.
+///
+/// Only detects calls where the callee is a simple Identifier (e.g., `items()`),
+/// which indicates a prop read transform. Method calls like `list.at(-1)` where
+/// the callee is a Member expression are NOT considered read transforms.
+fn has_call_in_base_chain(expr: &JsExpr) -> bool {
+    match expr {
+        JsExpr::Member(member) => has_call_in_base_chain(&member.object),
+        JsExpr::Call(call) => {
+            // Only consider it a read-transform if the callee is a simple Identifier.
+            // Method calls like `list.at()` have a Member callee and should not count.
+            matches!(call.callee.as_ref(), JsExpr::Identifier(_))
+        }
+        _ => false,
     }
 }
 

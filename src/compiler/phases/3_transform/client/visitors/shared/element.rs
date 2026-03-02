@@ -635,37 +635,52 @@ pub fn build_set_class(
         // Check if we need to wrap in $.clsx() before building the value
         let should_clsx = needs_clsx(attr_value);
 
-        // Capture the metadata from build_attribute_value to correctly determine
-        // has_call for the memoizer. In the reference implementation, the memoize
-        // callback receives `metadata` from `chunk.metadata.expression` and passes
-        // it directly to `memoizer.add(value, metadata)`.
-        let mut captured_metadata: Option<ExpressionMetadata> = None;
+        // In the official compiler, the memoize callback in build_set_class calls
+        // `context.state.analysis.memoizer.add(value, metadata)` per-expression.
+        // This means each individual expression inside a template literal is memoized
+        // separately (e.g., `myHelper(y())` becomes `$0`), not the whole template.
+        //
+        // To work around Rust borrow checker (context is mutably borrowed by
+        // build_attribute_value, and the closure also needs context.state.memoizer),
+        // we temporarily take the memoizer out of context, use it in the closure,
+        // then put it back.
+        let mut memoizer = std::mem::take(&mut context.state.memoizer);
+        let mut any_has_call = false;
+        let mut any_has_await = false;
         let result = build_attribute_value(attr_value, context, |expr, metadata| {
-            captured_metadata = Some(metadata.clone());
-            expr
+            let has_call = metadata.has_call();
+            let has_await = metadata.has_await();
+            let has_state = metadata.has_state();
+            if has_call {
+                any_has_call = true;
+            }
+            if has_await {
+                any_has_await = true;
+            }
+            // Wrap in $.clsx() BEFORE memoization so it becomes part of the memoized source.
+            // In the official compiler, clsx wrapping happens per-expression inside the memoize
+            // callback, so the memoized array contains `() => $.clsx(expr)` and the callback
+            // parameter `$0` already has the clsx'd value.
+            let expr_to_memoize = if should_clsx {
+                b::call(b::member_path("$.clsx"), vec![expr])
+            } else {
+                expr
+            };
+            memoizer.add_memoized(
+                expr_to_memoize,
+                has_call,
+                has_await,
+                false, // memoize_if_state
+                has_state,
+            )
         });
-        let value = if should_clsx {
-            // Wrap in $.clsx() for dynamic class expressions
-            b::call(b::member_path("$.clsx"), vec![result.value])
-        } else {
-            result.value
-        };
-        // Route through memoizer with the correct metadata.
-        // Use the captured metadata to determine has_call and has_await correctly.
-        let meta = captured_metadata.unwrap_or_default();
-        let has_call = meta.has_call();
-        let has_await = meta.has_await();
-        let value = context.state.memoizer.add_memoized(
-            value,
-            has_call,  // Use actual has_call from expression metadata
-            has_await, // Use actual has_await from expression metadata
-            false,     // memoize_if_state
-            result.has_state,
-        );
+        // Restore the memoizer
+        context.state.memoizer = memoizer;
+        let value = result.value;
         // Include has_call in has_state check: in the official compiler, the CallExpression
         // analyze visitor sets has_state = true for non-pure calls, ensuring memoized expressions
         // (which reference $N template_effect parameters) go to update, not init.
-        (value, result.has_state || has_await || has_call)
+        (value, result.has_state || any_has_await || any_has_call)
     } else {
         // No class attribute - use empty string
         (b::string(""), false)
@@ -956,11 +971,13 @@ fn build_style_attribute_value_with_memoization(
             let has_call = super::utils::expression_has_call(&expr_tag.expression, context);
             let has_state =
                 super::utils::expression_has_reactive_state(&expr_tag.expression, context);
+            let has_member = super::utils::expression_has_member(&expr_tag.expression);
 
             // Build the expression with transforms applied
             let mut metadata = ExpressionMetadata::default();
             metadata.set_has_state(has_state);
             metadata.set_has_call(has_call);
+            metadata.set_has_member_expression(has_member);
             let built = build_expression(context, &converted, &metadata);
 
             // Memoize if has call
@@ -982,10 +999,12 @@ fn build_style_attribute_value_with_memoization(
                     let has_call = super::utils::expression_has_call(&expr_tag.expression, context);
                     let expr_has_state =
                         super::utils::expression_has_reactive_state(&expr_tag.expression, context);
+                    let has_member = super::utils::expression_has_member(&expr_tag.expression);
 
                     let mut metadata = ExpressionMetadata::default();
                     metadata.set_has_state(expr_has_state);
                     metadata.set_has_call(has_call);
+                    metadata.set_has_member_expression(has_member);
                     let built = build_expression(context, &converted, &metadata);
 
                     let value = context.state.memoizer.add_memoized(
@@ -1026,10 +1045,12 @@ fn build_style_attribute_value_with_memoization(
                             &expr_tag.expression,
                             context,
                         );
+                        let has_member = super::utils::expression_has_member(&expr_tag.expression);
 
                         let mut metadata = ExpressionMetadata::default();
                         metadata.set_has_state(expr_has_state);
                         metadata.set_has_call(has_call);
+                        metadata.set_has_member_expression(has_member);
                         let built = build_expression(context, &converted, &metadata);
 
                         // Memoize the expression if it has a function call

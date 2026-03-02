@@ -441,7 +441,13 @@ fn prop_read(node: JsExpr) -> JsExpr {
 /// * `value` - The value being assigned
 /// * `_needs_proxy` - Whether the value needs to be proxified (not used for props)
 fn prop_assign(node: JsExpr, value: JsExpr, _needs_proxy: bool) -> JsExpr {
-    b::call(node, vec![value])
+    // Use Raw callee to prevent apply_transforms_to_expression from applying
+    // the prop read transform (which would turn `items(value)` into `items()(value)`).
+    let callee = match node {
+        JsExpr::Identifier(ref name) => JsExpr::Raw(name.clone()),
+        _ => node,
+    };
+    b::call(callee, vec![value])
 }
 
 /// Transform a prop update expression (++ or --).
@@ -503,7 +509,14 @@ fn prop_mutate(_node: JsExpr, mutation: JsExpr) -> JsExpr {
 /// * `node` - The prop identifier (e.g., `foo`)
 /// * `mutation` - The mutation expression (e.g., `foo()[0] = value`)
 fn prop_bindable_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
-    b::call(node, vec![mutation, b::boolean(true)])
+    // Use Raw callee to prevent apply_transforms_to_expression from applying
+    // the prop read transform (which would turn `items(mutation, true)` into
+    // `items()(mutation, true)`).
+    let callee = match node {
+        JsExpr::Identifier(ref name) => JsExpr::Raw(name.clone()),
+        _ => node,
+    };
+    b::call(callee, vec![mutation, b::boolean(true)])
 }
 
 // ============================================================================

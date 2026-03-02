@@ -8825,94 +8825,123 @@ fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
         // Transform bracket-notation member mutations: varname[expr] = value to varname(varname()[expr] = value, true)
         // This is needed for bindable props when the member access uses bracket notation
         // e.g., `rows[row] = ''` -> `rows(rows()[row] = '', true)`
-        let bracket_pattern = format!("{}[", var);
-        let mut bracket_search_start = 0;
+        //
+        // Also handle the case where prop reads have already been transformed:
+        // e.g., `foo()[bar()] = true` -> `foo(foo()[bar()] = true, true)`
+        // The pattern `{var}()[` matches when transform_prop_reads_in_expr has already
+        // converted `foo` to `foo()` before this function runs.
+        //
+        // We try both patterns: `{var}()[` first (already read-transformed), then `{var}[` (original).
+        for bracket_suffix in &["()[", "["] {
+            let bracket_pattern = format!("{}{}", var, bracket_suffix);
+            let mut bracket_search_start = 0;
 
-        while let Some(relative_pos) = result[bracket_search_start..].find(&bracket_pattern) {
-            let pos = bracket_search_start + relative_pos;
+            while let Some(relative_pos) = result[bracket_search_start..].find(&bracket_pattern) {
+                let pos = bracket_search_start + relative_pos;
 
-            // Check that this is a word boundary (not part of another identifier)
-            let before = &result[..pos];
-            if !before.is_empty() && is_identifier_char(before.chars().last().unwrap()) {
-                bracket_search_start = pos + bracket_pattern.len();
-                continue;
-            }
-
-            // Check if this is already wrapped (e.g., varname(varname()[...)
-            if before.ends_with(&format!("{}({}()", var, var)) {
-                bracket_search_start = pos + bracket_pattern.len();
-                continue;
-            }
-
-            // Find the matching closing bracket
-            let after_bracket = &result[pos + bracket_pattern.len()..];
-            let mut bracket_depth = 1i32;
-            let mut close_bracket_pos = None;
-            for (i, c) in after_bracket.char_indices() {
-                match c {
-                    '[' => bracket_depth += 1,
-                    ']' => {
-                        bracket_depth -= 1;
-                        if bracket_depth == 0 {
-                            close_bracket_pos = Some(i);
-                            break;
-                        }
-                    }
-                    _ => {}
+                // Check that this is a word boundary (not part of another identifier)
+                let before = &result[..pos];
+                if !before.is_empty() && is_identifier_char(before.chars().last().unwrap()) {
+                    bracket_search_start = pos + bracket_pattern.len();
+                    continue;
                 }
-            }
 
-            let Some(close_pos) = close_bracket_pos else {
-                bracket_search_start = pos + bracket_pattern.len();
-                continue;
-            };
+                // Check if this is already wrapped (e.g., varname(varname()[...)
+                // This catches both the full pattern `var(var()[` and the case where
+                // we're inside an already-generated mutation wrapper `var(var()[...]...)`
+                // where `before` is just `var(`.
+                let already_wrapped_pattern = format!("{}({}()", var, var);
+                let short_wrapped_pattern = format!("{}(", var);
+                if before.ends_with(&already_wrapped_pattern) {
+                    bracket_search_start = pos + bracket_pattern.len();
+                    continue;
+                }
+                // Also check the shorter pattern: if `before` ends with `var(` at a word boundary,
+                // then the current `var()[` is inside an existing mutation wrapper.
+                // For example: `items(items()[2] = ...)` - inner `items()` at position 6
+                // has before = `items(`. Verify it's at a word boundary by checking the
+                // character before `var(`.
+                if before.ends_with(&short_wrapped_pattern) {
+                    let prefix_before = &before[..before.len() - short_wrapped_pattern.len()];
+                    if prefix_before.is_empty()
+                        || !is_identifier_char(prefix_before.chars().last().unwrap())
+                    {
+                        bracket_search_start = pos + bracket_pattern.len();
+                        continue;
+                    }
+                }
 
-            // After the closing bracket, look for an assignment operator
-            let after_close = &after_bracket[close_pos + 1..];
-            let trimmed_after = after_close.trim_start();
-            let whitespace_len = after_close.len() - trimmed_after.len();
+                // Find the matching closing bracket
+                let after_bracket = &result[pos + bracket_pattern.len()..];
+                let mut bracket_depth = 1i32;
+                let mut close_bracket_pos = None;
+                for (i, c) in after_bracket.char_indices() {
+                    match c {
+                        '[' => bracket_depth += 1,
+                        ']' => {
+                            bracket_depth -= 1;
+                            if bracket_depth == 0 {
+                                close_bracket_pos = Some(i);
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
 
-            // Check for assignment operator (simple `=` or compound `+=`, `-=`, `*=`, etc.)
-            // but not ==, ===, =>, etc.
-            let (assign_op, assign_op_len) = detect_assignment_operator(trimmed_after);
+                let Some(close_pos) = close_bracket_pos else {
+                    bracket_search_start = pos + bracket_pattern.len();
+                    continue;
+                };
 
-            if let Some(op) = assign_op {
-                let op_len = assign_op_len;
-                let after_eq = &trimmed_after[op_len..];
-                let after_eq_trimmed = after_eq.trim_start();
-                let eq_whitespace = after_eq.len() - after_eq_trimmed.len();
+                // After the closing bracket, look for an assignment operator
+                let after_close = &after_bracket[close_pos + 1..];
+                let trimmed_after = after_close.trim_start();
+                let whitespace_len = after_close.len() - trimmed_after.len();
 
-                // Find the value expression end
-                let value_end = find_statement_end_client(after_eq_trimmed);
-                let value = after_eq_trimmed[..value_end].trim();
+                // Check for assignment operator (simple `=` or compound `+=`, `-=`, `*=`, etc.)
+                // but not ==, ===, =>, etc.
+                let (assign_op, assign_op_len) = detect_assignment_operator(trimmed_after);
 
-                let bracket_content = &after_bracket[..close_pos];
+                if let Some(op) = assign_op {
+                    let op_len = assign_op_len;
+                    let after_eq = &trimmed_after[op_len..];
+                    let after_eq_trimmed = after_eq.trim_start();
+                    let eq_whitespace = after_eq.len() - after_eq_trimmed.len();
 
-                // Build: varname(varname()[bracket_content] OP value, true)
-                let replacement = format!(
-                    "{}({}()[{}] {} {}, true)",
-                    var, var, bracket_content, op, value
-                );
+                    // Find the value expression end
+                    let value_end = find_statement_end_client(after_eq_trimmed);
+                    let value = after_eq_trimmed[..value_end].trim();
 
-                // Calculate original length from the start of varname to end of value
-                let original_len = bracket_pattern.len()
-                    + close_pos
-                    + 1
-                    + whitespace_len
-                    + op_len
-                    + eq_whitespace
-                    + value_end;
+                    let bracket_content = &after_bracket[..close_pos];
 
-                let new_result = format!(
-                    "{}{}{}",
-                    &result[..pos],
-                    replacement,
-                    &result[pos + original_len..]
-                );
-                bracket_search_start = pos + replacement.len();
-                result = new_result;
-            } else {
-                bracket_search_start = pos + bracket_pattern.len();
+                    // Build: varname(varname()[bracket_content] OP value, true)
+                    // The inner varname() is always with () for the read getter.
+                    let replacement = format!(
+                        "{}({}()[{}] {} {}, true)",
+                        var, var, bracket_content, op, value
+                    );
+
+                    // Calculate original length from the start of varname to end of value
+                    let original_len = bracket_pattern.len()
+                        + close_pos
+                        + 1
+                        + whitespace_len
+                        + op_len
+                        + eq_whitespace
+                        + value_end;
+
+                    let new_result = format!(
+                        "{}{}{}",
+                        &result[..pos],
+                        replacement,
+                        &result[pos + original_len..]
+                    );
+                    bracket_search_start = pos + replacement.len();
+                    result = new_result;
+                } else {
+                    bracket_search_start = pos + bracket_pattern.len();
+                }
             }
         }
     }

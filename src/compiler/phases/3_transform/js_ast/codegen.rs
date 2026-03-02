@@ -47,6 +47,12 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     use oxc_parser::Parser;
     use oxc_span::SourceType;
 
+    // Pre-extract `$: { ... }` labeled block statements before OXC processing.
+    // OXC collapses these to a single line, destroying `//` comments.
+    // We replace them with placeholder variables and restore after OXC.
+    let (source_for_oxc, labeled_blocks) = extract_labeled_blocks(source);
+    let source = &source_for_oxc;
+
     // Collect original import lines with double quotes to preserve quote styles.
     // The official Svelte compiler (esrap) preserves the original quote style
     // from the user's source code, but OXC normalizes all quotes to single quotes.
@@ -125,13 +131,244 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     // OXC strips parentheses from sequence expression statements:
     // `(a, b, c);` becomes `a, b, c;`. Restore them to match Svelte's esrap output.
     let code = restore_paren_sequence_stmts(&code, &paren_seq_stmts);
-    // OXC incorrectly formats labeled block statements like `$: { foo = bar;, baz = qux; }`
-    // by adding commas between statements (treating them like sequence expressions).
-    // Fix this by removing the spurious semicolon-comma sequences: `;,` -> `;`
-    let code = code.replace(";,", ";");
+    // OXC collapses `$: { ... }` labeled block statements to a single line and
+    // inserts commas between the statements (treating them like sequence expressions).
+    // Expand them back to multi-line format to preserve comments and match Svelte's output.
+    let code = expand_labeled_block_statements(&code);
+    // Restore pre-extracted labeled block statements
+    let code = restore_labeled_blocks(&code, &labeled_blocks);
     // Remove trailing newline to match Svelte compiler output
     let code = code.trim_end_matches('\n').to_string();
     Ok(code)
+}
+
+/// Expand `$: { ... }` labeled block statements that OXC collapsed to a single line.
+///
+/// OXC codegen collapses labeled block statement bodies to a single line and adds commas
+/// between the statements (treating them like sequence expressions). For example:
+///   `$: { // comment, foo = []; foo[0] = [false, false]; }`
+///
+/// This function expands them back to multi-line format:
+///   `$: {\n\t// comment\n\tfoo = [];\n\tfoo[0] = [false, false];\n}`
+///
+/// This is critical for preserving `//` comments that would otherwise eat the rest of the line.
+fn expand_labeled_block_statements(code: &str) -> String {
+    let mut result = String::new();
+    let lines: Vec<&str> = code.lines().collect();
+
+    for line in &lines {
+        let trimmed = line.trim();
+
+        // Look for `$: { ... }` on a SINGLE line (OXC collapsed it)
+        // The pattern is: optional indent + `$:` + whitespace + `{` + content + `}`
+        // We need to make sure the `{` and `}` are balanced on this one line.
+        if let Some(after_dollar) = trimmed
+            .strip_prefix("$:")
+            .map(|s| s.trim_start())
+            .filter(|s| s.starts_with('{') && s.ends_with('}'))
+        {
+            // Check that the braces are balanced (the closing } matches the opening {)
+            let mut depth = 0i32;
+            let mut balanced_at_end = false;
+            let chars: Vec<char> = after_dollar.chars().collect();
+            let mut in_str: Option<char> = None;
+            for (ci, &c) in chars.iter().enumerate() {
+                if let Some(q) = in_str {
+                    if c == '\\' {
+                        continue; // next char is escaped
+                    }
+                    if c == q {
+                        in_str = None;
+                    }
+                    continue;
+                }
+                if c == '\'' || c == '"' || c == '`' {
+                    in_str = Some(c);
+                    continue;
+                }
+                match c {
+                    '{' => depth += 1,
+                    '}' => {
+                        depth -= 1;
+                        if depth == 0 && ci == chars.len() - 1 {
+                            balanced_at_end = true;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            if balanced_at_end {
+                // Extract the block body (between the first `{` and last `}`)
+                let body = &after_dollar[1..after_dollar.len() - 1].trim();
+
+                // Only expand if there are multiple statements (contains `;`)
+                // or has comments that would break if kept on one line
+                if body.contains(';') || body.contains("//") {
+                    // Determine the indent of the $: line
+                    let indent = &line[..line.len() - line.trim_start().len()];
+                    let inner_indent = format!("{}\t", indent);
+
+                    // Split the body by `;` or `,` separators, but be smart about it.
+                    // OXC uses `,` between statements in labeled blocks.
+                    // We need to split on statement boundaries.
+                    let stmts = split_labeled_block_body(body);
+
+                    result.push_str(indent);
+                    result.push_str("$: {\n");
+                    for stmt in &stmts {
+                        let stmt = stmt.trim();
+                        if !stmt.is_empty() {
+                            result.push_str(&inner_indent);
+                            result.push_str(stmt);
+                            // Add semicolon if the statement doesn't end with one
+                            // and isn't a comment
+                            if !stmt.ends_with(';')
+                                && !stmt.ends_with('}')
+                                && !stmt.starts_with("//")
+                            {
+                                result.push(';');
+                            }
+                            result.push('\n');
+                        }
+                    }
+                    result.push_str(indent);
+                    result.push_str("}\n");
+                    continue;
+                }
+            }
+        }
+
+        // Also apply the old fix for any remaining `;,` patterns in labeled blocks
+        // that we might not have caught
+        let line_fixed = line.replace(";,", ";");
+        result.push_str(&line_fixed);
+        result.push('\n');
+    }
+
+    // Remove trailing newline
+    if result.ends_with('\n') {
+        result.pop();
+    }
+
+    result
+}
+
+/// Split the body of a labeled block statement (as collapsed by OXC) into individual statements.
+/// OXC separates statements with `,` or `;,` patterns. Single-line comments starting with `//`
+/// extend to the next real statement boundary.
+fn split_labeled_block_body(body: &str) -> Vec<String> {
+    let mut stmts = Vec::new();
+    let chars: Vec<char> = body.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+    let mut current = String::new();
+    let mut depth = 0i32;
+    let mut in_str: Option<char> = None;
+
+    while i < len {
+        let c = chars[i];
+
+        // Handle string literals
+        if let Some(q) = in_str {
+            current.push(c);
+            if c == '\\' && i + 1 < len {
+                current.push(chars[i + 1]);
+                i += 2;
+                continue;
+            }
+            if c == q {
+                in_str = None;
+            }
+            i += 1;
+            continue;
+        }
+        if c == '\'' || c == '"' || c == '`' {
+            in_str = Some(c);
+            current.push(c);
+            i += 1;
+            continue;
+        }
+
+        // Handle single-line comments - collect until end or next `;,`/`,` boundary
+        if c == '/' && i + 1 < len && chars[i + 1] == '/' {
+            // Collect the entire comment text
+            let mut comment = String::new();
+            while i < len
+                && chars[i] != ','
+                && !(chars[i] == ';' && i + 1 < len && chars[i + 1] == ',')
+            {
+                // Also stop at semicolons that are statement boundaries
+                if chars[i] == ';' {
+                    // Check if this is a real statement end (not inside the comment text)
+                    // For comments, the `;` is part of the comment text
+                    comment.push(chars[i]);
+                    i += 1;
+                    continue;
+                }
+                comment.push(chars[i]);
+                i += 1;
+            }
+            // Skip the `,` or `;,` separator
+            if i < len && chars[i] == ',' {
+                i += 1;
+            } else if i < len && chars[i] == ';' && i + 1 < len && chars[i + 1] == ',' {
+                i += 2;
+            }
+            // If current has content, push it first
+            let current_trimmed = current.trim().to_string();
+            if !current_trimmed.is_empty() {
+                stmts.push(current_trimmed);
+                current.clear();
+            }
+            stmts.push(comment.trim().to_string());
+            continue;
+        }
+
+        // Track depth
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            _ => {}
+        }
+
+        // Statement separator: `;,` at depth 0 (OXC pattern)
+        if depth == 0 && c == ';' && i + 1 < len && chars[i + 1] == ',' {
+            current.push(';');
+            let s = current.trim().to_string();
+            if !s.is_empty() {
+                stmts.push(s);
+            }
+            current.clear();
+            i += 2; // skip `;,`
+            continue;
+        }
+
+        // Statement separator: `,` at depth 0 (OXC sometimes uses just `,`)
+        if depth == 0 && c == ',' {
+            // Check if the current content looks like a statement (not a comma expression)
+            let trimmed = current.trim();
+            if trimmed.ends_with(';') || trimmed.ends_with(']') {
+                let s = current.trim().to_string();
+                if !s.is_empty() {
+                    stmts.push(s);
+                }
+                current.clear();
+                i += 1;
+                continue;
+            }
+        }
+
+        current.push(c);
+        i += 1;
+    }
+
+    let s = current.trim().to_string();
+    if !s.is_empty() {
+        stmts.push(s);
+    }
+
+    stmts
 }
 
 /// Restore parentheses around single-expression deps thunks in $.legacy_pre_effect() calls.
@@ -703,6 +940,191 @@ fn normalize_import_line(line: &str) -> String {
     while result.contains("  ") {
         result = result.replace("  ", " ");
     }
+    result
+}
+
+/// Count the net brace depth change ({/}) in a line, properly handling
+/// string literals and comments. Returns the delta depth.
+fn count_brace_depth_in_line(line: &str, in_str: &mut Option<char>) -> i32 {
+    let chars: Vec<char> = line.chars().collect();
+    let len = chars.len();
+    let mut depth = 0i32;
+    let mut i = 0;
+
+    while i < len {
+        let ch = chars[i];
+
+        // Handle string tracking
+        if let Some(q) = *in_str {
+            if ch == '\\' && i + 1 < len {
+                // Skip escaped character
+                i += 2;
+                continue;
+            }
+            if ch == q {
+                *in_str = None;
+            }
+            i += 1;
+            continue;
+        }
+
+        // Skip single-line comments
+        if ch == '/' && i + 1 < len && chars[i + 1] == '/' {
+            break; // Rest of line is comment
+        }
+
+        // Skip multi-line comment start (we handle only same-line for simplicity)
+        if ch == '/' && i + 1 < len && chars[i + 1] == '*' {
+            // Skip to end of comment or end of line
+            i += 2;
+            while i + 1 < len && !(chars[i] == '*' && chars[i + 1] == '/') {
+                i += 1;
+            }
+            if i + 1 < len {
+                i += 2; // Skip past `*/`
+            }
+            continue;
+        }
+
+        // Start string
+        if ch == '\'' || ch == '"' || ch == '`' {
+            *in_str = Some(ch);
+            i += 1;
+            continue;
+        }
+
+        match ch {
+            '{' => depth += 1,
+            '}' => depth -= 1,
+            _ => {}
+        }
+
+        i += 1;
+    }
+
+    depth
+}
+
+/// Pre-extract `$: { ... }` labeled block statements from source code before OXC processing.
+///
+/// OXC collapses multi-line `$: { ... }` blocks to a single line, destroying `//` comments
+/// and potentially breaking the code. We replace each block with a placeholder variable
+/// declaration and restore it after OXC processing.
+///
+/// Returns the modified source and a vector of (placeholder, original_text) pairs.
+fn extract_labeled_blocks(source: &str) -> (String, Vec<(String, String)>) {
+    let mut result = String::with_capacity(source.len());
+    let mut blocks: Vec<(String, String)> = Vec::new();
+    let lines: Vec<&str> = source.lines().collect();
+    let num_lines = lines.len();
+    let mut i = 0;
+
+    while i < num_lines {
+        let trimmed = lines[i].trim();
+
+        // Look for `$: {` that starts a labeled block (possibly multi-line)
+        if trimmed
+            .strip_prefix("$:")
+            .map(|s| s.trim_start())
+            .is_some_and(|s| s.starts_with('{'))
+        {
+            // Check if block closes on same line using proper comment-aware counting
+            let mut in_str_check: Option<char> = None;
+            let line_depth = count_brace_depth_in_line(lines[i], &mut in_str_check);
+
+            if line_depth <= 0 {
+                // Already on one line (balanced or no braces) - pass through
+                result.push_str(lines[i]);
+                result.push('\n');
+                i += 1;
+                continue;
+            }
+
+            // Multi-line block: collect until closing brace at depth 0
+            let indent = &lines[i][..lines[i].len() - lines[i].trim_start().len()];
+            let mut block_lines = vec![lines[i].to_string()];
+            let mut block_depth = line_depth;
+            let mut in_str_ml: Option<char> = in_str_check;
+
+            i += 1;
+            let mut found_end = false;
+
+            while i < num_lines && block_depth > 0 {
+                block_lines.push(lines[i].to_string());
+                block_depth += count_brace_depth_in_line(lines[i], &mut in_str_ml);
+                i += 1;
+                if block_depth == 0 {
+                    found_end = true;
+                }
+            }
+
+            if found_end {
+                let block_id = blocks.len();
+                let placeholder = format!("var $$_labeled_block_{} = 0;", block_id);
+                let original = block_lines.join("\n");
+                blocks.push((format!("$$_labeled_block_{}", block_id), original));
+                result.push_str(indent);
+                result.push_str(&placeholder);
+                result.push('\n');
+            } else {
+                // Didn't find closing brace - just pass through original lines
+                for bl in &block_lines {
+                    result.push_str(bl);
+                    result.push('\n');
+                }
+            }
+            continue;
+        }
+
+        result.push_str(lines[i]);
+        result.push('\n');
+        i += 1;
+    }
+
+    // Remove trailing newline to match original if it didn't have one
+    if !source.ends_with('\n') && result.ends_with('\n') {
+        result.pop();
+    }
+
+    (result, blocks)
+}
+
+/// Restore pre-extracted `$: { ... }` labeled block statements after OXC processing.
+///
+/// Replaces placeholder variable declarations with the original block text.
+fn restore_labeled_blocks(code: &str, blocks: &[(String, String)]) -> String {
+    if blocks.is_empty() {
+        return code.to_string();
+    }
+
+    let mut result = String::with_capacity(code.len());
+    let lines: Vec<&str> = code.lines().collect();
+
+    for line in &lines {
+        let trimmed = line.trim();
+        let mut replaced = false;
+        for (placeholder_name, original) in blocks {
+            // Match: `var $$_labeled_block_N = 0;` or `let $$_labeled_block_N = 0;`
+            let pattern_var = format!("var {} = 0;", placeholder_name);
+            let pattern_let = format!("let {} = 0;", placeholder_name);
+            if trimmed == pattern_var || trimmed == pattern_let {
+                result.push_str(original);
+                result.push('\n');
+                replaced = true;
+                break;
+            }
+        }
+        if !replaced {
+            result.push_str(line);
+            result.push('\n');
+        }
+    }
+
+    // Remove trailing newline
+    if result.ends_with('\n') && !code.ends_with('\n') {
+        result.pop();
+    }
+
     result
 }
 

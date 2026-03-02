@@ -5,6 +5,7 @@
 use super::super::js_ast::normalize_js;
 use super::ServerCodeGenerator;
 use super::helpers::*;
+use super::transform_script;
 use super::transform_store::resolve_binding_exprs;
 use super::types::{
     ComponentBinding, ComponentPropItem, OutputPart, collect_all_props, has_spreads,
@@ -187,6 +188,10 @@ impl<'a> ServerCodeGenerator<'a> {
 
             // Transform store subscriptions in script content ($store -> $.store_get())
             let transformed = self.transform_store_refs_in_script(&transformed);
+
+            // Flatten destructure declarations with $.store_get() initializers
+            // e.g., `let { a, b } = $.store_get(...)` -> `let tmp = $.store_get(...), a = tmp.a, b = tmp.b`
+            let transformed = transform_script::flatten_store_get_destructures(&transformed);
 
             (
                 transformed,
