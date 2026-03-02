@@ -1492,6 +1492,86 @@ fn apply_transforms_to_statement_with_shadowed(
             })
         }
 
+        JsStatement::For(for_stmt) => {
+            // For `for (let/const x = ...; ...; ...) { ... }`, the init variables
+            // should shadow outer transforms within the test, update, and body.
+            // `var` declarations are hoisted and don't create block scope.
+            let mut for_scope = local_scope.clone();
+            let needs_scope = matches!(
+                &for_stmt.init,
+                Some(JsForInit::Variable(decl))
+                if !matches!(decl.kind, JsVariableKind::Var)
+            );
+            if needs_scope && let Some(JsForInit::Variable(decl)) = &for_stmt.init {
+                for d in &decl.declarations {
+                    extract_pattern_names_to_scope(&d.id, &mut for_scope);
+                }
+            }
+
+            let transformed_init = for_stmt.init.as_ref().map(|init| match init {
+                JsForInit::Variable(decl) => {
+                    // Transform the init expressions but keep declarations as-is
+                    // (the variable names are local, only initializer exprs need transform)
+                    let transformed_decls: Vec<JsVariableDeclarator> = decl
+                        .declarations
+                        .iter()
+                        .map(|d| JsVariableDeclarator {
+                            id: d.id.clone(),
+                            init: d.init.as_ref().map(|e| {
+                                // Init expressions in the for-loop header are evaluated in
+                                // the OUTER scope (before the loop var is in scope), but for
+                                // simplicity we use for_scope here since the init variable
+                                // shadowing itself in its own initializer is a no-op anyway.
+                                Box::new(apply_transforms_to_expression_with_shadowed(
+                                    e, context, &for_scope,
+                                ))
+                            }),
+                        })
+                        .collect();
+                    JsForInit::Variable(JsVariableDeclaration {
+                        kind: decl.kind,
+                        declarations: transformed_decls,
+                    })
+                }
+                JsForInit::Expression(expr) => JsForInit::Expression(Box::new(
+                    apply_transforms_to_expression_with_shadowed(expr, context, &for_scope),
+                )),
+            });
+            let transformed_test = for_stmt.test.as_ref().map(|t| {
+                Box::new(apply_transforms_to_expression_with_shadowed(
+                    t, context, &for_scope,
+                ))
+            });
+            let transformed_update = for_stmt.update.as_ref().map(|u| {
+                Box::new(apply_transforms_to_expression_with_shadowed(
+                    u, context, &for_scope,
+                ))
+            });
+            let transformed_body = Box::new(apply_transforms_to_statement_with_shadowed(
+                &for_stmt.body,
+                context,
+                &for_scope,
+            ));
+            JsStatement::For(JsForStatement {
+                init: transformed_init,
+                test: transformed_test,
+                update: transformed_update,
+                body: transformed_body,
+            })
+        }
+
+        JsStatement::While(while_stmt) => JsStatement::While(JsWhileStatement {
+            test: Box::new(transform_expr(&while_stmt.test)),
+            body: Box::new(transform_stmt(&while_stmt.body)),
+        }),
+
+        JsStatement::DoWhile(do_while) => JsStatement::DoWhile(JsDoWhileStatement {
+            body: Box::new(transform_stmt(&do_while.body)),
+            test: Box::new(transform_expr(&do_while.test)),
+        }),
+
+        JsStatement::Throw(expr) => JsStatement::Throw(Box::new(transform_expr(expr))),
+
         // Statements that don't need transformation
         JsStatement::Empty
         | JsStatement::Break(_)

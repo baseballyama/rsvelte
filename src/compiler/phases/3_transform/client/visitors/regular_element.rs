@@ -1585,15 +1585,19 @@ fn find_descendants_recursive(nodes: &[TemplateNode], result: &mut Vec<TemplateN
 }
 
 /// Checks if a transformed value expression is guaranteed to be defined (not undefined).
-/// This is a simplified version of scope.evaluate().is_defined from the official compiler.
-/// Returns true for values that are definitely defined (numbers, strings, booleans, null, objects, arrays).
-/// Returns false for values that might be undefined (identifiers, function calls, $.get() calls, etc).
-/// Checks if a value is known to be defined (not null/undefined).
 /// Approximates scope.evaluate().is_defined from the official compiler.
 /// In the official compiler, is_defined is false when value == null (loose comparison)
 /// or when value is UNKNOWN. So null and undefined are not defined, and any
 /// unresolvable expression is also not defined.
-fn is_value_known_defined(value: &JsExpr) -> bool {
+///
+/// When `scope_root` is provided, identifiers are resolved to their bindings. If a binding
+/// is not updated (neither reassigned nor mutated), not a prop, and has `initial_is_defined`
+/// set, the identifier is considered defined. This mirrors the official compiler's
+/// `scope.evaluate()` behavior which recurses into binding initial values.
+fn is_value_known_defined(
+    value: &JsExpr,
+    scope_root: Option<&crate::compiler::phases::phase2_analyze::scope::ScopeRoot>,
+) -> bool {
     match value {
         // null and undefined literals are explicitly not defined
         JsExpr::Literal(JsLiteral::Null) => false,
@@ -1610,7 +1614,28 @@ fn is_value_known_defined(value: &JsExpr) -> bool {
         JsExpr::Object(_) => true,
         // Template literals are always strings (defined)
         JsExpr::TemplateLiteral(_) => true,
-        // Everything else: identifiers, calls, member access, $.get() - treat as UNKNOWN (not defined)
+        // For identifiers: look up the binding to check if the initial value is defined.
+        // This mirrors the official compiler's scope.evaluate() which, for identifiers,
+        // checks if the binding is not updated, has an initial value, and is not a prop,
+        // then recursively evaluates the initial value.
+        JsExpr::Identifier(name) => {
+            if let Some(root) = scope_root
+                && let Some(binding_idx) = root.find_binding_any_scope(name)
+                && let Some(binding) = root.bindings.get(binding_idx)
+            {
+                use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                let is_prop = matches!(
+                    binding.kind,
+                    BindingKind::Prop | BindingKind::RestProp | BindingKind::BindableProp
+                );
+                let is_updated = binding.reassigned || binding.mutated;
+                if !is_updated && !is_prop && binding.initial_is_defined {
+                    return true;
+                }
+            }
+            false
+        }
+        // Everything else: calls, member access, $.get() - treat as UNKNOWN (not defined)
         _ => false,
     }
 }
@@ -1649,7 +1674,8 @@ fn build_element_special_value_attribute(
     // - Known literals (numbers, strings, booleans): defined
     // - Everything else (identifiers, calls, reactive values): NOT defined (could be UNKNOWN)
     // Reference: svelte/packages/svelte/src/compiler/phases/scope.js L574
-    let value_is_defined = is_value_known_defined(&transformed_value);
+    let value_is_defined =
+        is_value_known_defined(&transformed_value, Some(context.state.scope_root));
 
     // node.__value = transformed_value
     let assignment = b::assign(

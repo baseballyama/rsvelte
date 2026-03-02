@@ -1760,6 +1760,36 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             }))
         }
         "ForStatement" => {
+            // Extract variable names from the init VariableDeclaration (if any)
+            // so we can remove their transforms for the test, update, and body.
+            // This prevents `x++` in `for (let x = 0; x < 10; x++)` from being
+            // transformed to `$.update(x)` when `x` shadows an outer state variable.
+            let mut init_var_names: Vec<String> = Vec::new();
+            if let Some(init_val) = obj.get("init")
+                && let Some(init_obj) = init_val.as_object()
+                && init_obj.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+            {
+                let kind = init_obj
+                    .get("kind")
+                    .and_then(|k| k.as_str())
+                    .unwrap_or("var");
+                // Only let/const create block scope; var is hoisted
+                if (kind == "let" || kind == "const")
+                    && let Some(decls) = init_obj.get("declarations").and_then(|d| d.as_array())
+                {
+                    for decl in decls {
+                        if let Some(id) = decl
+                            .as_object()
+                            .and_then(|d| d.get("id"))
+                            .and_then(|id| id.as_object())
+                            && let Some(name) = id.get("name").and_then(|n| n.as_str())
+                        {
+                            init_var_names.push(name.to_string());
+                        }
+                    }
+                }
+            }
+
             let init = obj.get("init").and_then(|i| {
                 let i_obj = i.as_object()?;
                 let i_type = i_obj.get("type").and_then(|t| t.as_str())?;
@@ -1800,6 +1830,20 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                     ))))
                 }
             });
+
+            // Save transforms and remove for-loop variable transforms so that
+            // test, update, and body expressions don't incorrectly transform
+            // the loop variable (e.g., `x++` should not become `$.update(x)`).
+            let saved_transform = if !init_var_names.is_empty() {
+                let saved = context.state.transform.clone();
+                for name in &init_var_names {
+                    context.state.transform.remove(name);
+                }
+                Some(saved)
+            } else {
+                None
+            };
+
             let test = obj
                 .get("test")
                 .filter(|t| !t.is_null())
@@ -1813,6 +1857,12 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                 .and_then(|b| convert_statement(b, context))
                 .map(Box::new)
                 .unwrap_or_else(|| Box::new(JsStatement::Empty));
+
+            // Restore transforms
+            if let Some(saved) = saved_transform {
+                context.state.transform = saved;
+            }
+
             Some(JsStatement::For(JsForStatement {
                 init,
                 test,

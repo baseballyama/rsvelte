@@ -8121,38 +8121,42 @@ fn transform_state_assignments(
     for var in state_vars {
         // Transform ++varname to $.update_pre(varname)
         let pre_inc_pattern = format!("++{}", var);
-        result = replace_with_word_boundary(
+        result = replace_with_word_boundary_scoped(
             &result,
             &pre_inc_pattern,
             &format!("$.update_pre({})", var),
             true,
+            Some(var),
         );
 
         // Transform --varname to $.update_pre(varname, -1)
         let pre_dec_pattern = format!("--{}", var);
-        result = replace_with_word_boundary(
+        result = replace_with_word_boundary_scoped(
             &result,
             &pre_dec_pattern,
             &format!("$.update_pre({}, -1)", var),
             true,
+            Some(var),
         );
 
         // Transform varname++ to $.update(varname)
         let post_inc_pattern = format!("{}++", var);
-        result = replace_with_word_boundary(
+        result = replace_with_word_boundary_scoped(
             &result,
             &post_inc_pattern,
             &format!("$.update({})", var),
             false,
+            Some(var),
         );
 
         // Transform varname-- to $.update(varname, -1)
         let post_dec_pattern = format!("{}--", var);
-        result = replace_with_word_boundary(
+        result = replace_with_word_boundary_scoped(
             &result,
             &post_dec_pattern,
             &format!("$.update({}, -1)", var),
             false,
+            Some(var),
         );
 
         // Transform compound assignments: varname += expr to $.set(varname, $.get(varname) + (expr))
@@ -8173,6 +8177,14 @@ fn transform_state_assignments(
                             || before.ends_with('#'))
                     {
                         continue;
+                    }
+
+                    // Skip if inside a for-loop scope with the same variable
+                    {
+                        let chars: Vec<char> = result.chars().collect();
+                        if is_shadowed_by_for_loop_var(&chars, pos, var) {
+                            continue;
+                        }
                     }
 
                     let after = &result[pos + pattern.len()..];
@@ -8209,6 +8221,14 @@ fn transform_state_assignments(
                     && (is_identifier_char(before.chars().last().unwrap()) || before.ends_with('#'))
                 {
                     continue;
+                }
+
+                // Skip if inside a for-loop scope with the same variable
+                {
+                    let chars: Vec<char> = result.chars().collect();
+                    if is_shadowed_by_for_loop_var(&chars, pos, var) {
+                        continue;
+                    }
                 }
 
                 let after = &result[pos + pattern.len()..];
@@ -8268,6 +8288,15 @@ fn transform_state_assignments(
             {
                 search_start = pos + assignment_pattern.len();
                 continue;
+            }
+
+            // Skip if the variable is shadowed by a for-loop's let/const declaration
+            {
+                let chars: Vec<char> = result.chars().collect();
+                if is_shadowed_by_for_loop_var(&chars, pos, var) {
+                    search_start = pos + assignment_pattern.len();
+                    continue;
+                }
             }
 
             // If a declaration of this variable exists in the statement, check
@@ -9422,77 +9451,126 @@ fn transform_legacy_state_declarations(
 
             // First, try to match `keyword varname = value` pattern
             let pattern_with_init = format!("{} {} = ", keyword, var);
-            if let Some(pos) = result.find(&pattern_with_init) {
-                // Skip if already wrapped
-                if result[pos + pattern_with_init.len()..].starts_with("$.mutable_source(")
-                    || result[pos + pattern_with_init.len()..].starts_with("$.prop(")
-                {
+            // Use a loop to find the first match that is NOT inside a for-loop header.
+            // For example, in `function foo() { for (let x = 0; ...) {} }`, the `let x = 0`
+            // inside the for-loop should be skipped - it's a loop variable, not a state variable.
+            {
+                let mut search_offset = 0;
+                while let Some(rel_pos) = result[search_offset..].find(&pattern_with_init) {
+                    let pos = search_offset + rel_pos;
+
+                    // Check if already wrapped
+                    if result[pos + pattern_with_init.len()..].starts_with("$.mutable_source(")
+                        || result[pos + pattern_with_init.len()..].starts_with("$.prop(")
+                    {
+                        matched = true;
+                        break;
+                    }
+
+                    // Check if this declaration is inside a for-loop header.
+                    // Scan backwards from `pos` to see if we find `for (` with unmatched parens.
+                    let chars: Vec<char> = result.chars().collect();
+                    if is_shadowed_by_for_loop_var(&chars, pos + keyword.len() + 1, var) {
+                        // This `let x = ...` is inside a for-loop header, skip it
+                        search_offset = pos + pattern_with_init.len();
+                        continue;
+                    }
+
+                    // Find the value expression
+                    let after = &result[pos + pattern_with_init.len()..];
+                    let expr_end = find_statement_end_client(after);
+                    let expr = after[..expr_end].trim();
+
+                    // Remove trailing semicolon from expr
+                    let expr = expr.trim_end_matches(';').trim();
+
+                    // Build the replacement
+                    let replacement = if immutable {
+                        format!("{} {} = $.mutable_source({}, true)", keyword, var, expr)
+                    } else {
+                        format!("{} {} = $.mutable_source({})", keyword, var, expr)
+                    };
+
+                    // Replace the declaration
+                    result = format!(
+                        "{}{}{}",
+                        &result[..pos],
+                        replacement,
+                        &result[pos + pattern_with_init.len() + expr_end..]
+                    );
                     matched = true;
+                    break;
+                }
+                if matched {
                     continue;
                 }
-
-                // Find the value expression
-                let after = &result[pos + pattern_with_init.len()..];
-                let expr_end = find_statement_end_client(after);
-                let expr = after[..expr_end].trim();
-
-                // Remove trailing semicolon from expr
-                let expr = expr.trim_end_matches(';').trim();
-
-                // Build the replacement
-                let replacement = if immutable {
-                    format!("{} {} = $.mutable_source({}, true)", keyword, var, expr)
-                } else {
-                    format!("{} {} = $.mutable_source({})", keyword, var, expr)
-                };
-
-                // Replace the declaration
-                result = format!(
-                    "{}{}{}",
-                    &result[..pos],
-                    replacement,
-                    &result[pos + pattern_with_init.len() + expr_end..]
-                );
-                matched = true;
-                continue;
             }
 
             // Then, try to match `keyword varname;` pattern (declaration without initializer)
             let pattern_no_init = format!("{} {};", keyword, var);
-            if let Some(pos) = result.find(&pattern_no_init) {
-                // Build the replacement - no initial value, so pass nothing to $.mutable_source()
-                let replacement = if immutable {
-                    format!("{} {} = $.mutable_source(undefined, true);", keyword, var)
-                } else {
-                    format!("{} {} = $.mutable_source();", keyword, var)
-                };
+            {
+                let mut search_offset = 0;
+                while let Some(rel_pos) = result[search_offset..].find(&pattern_no_init) {
+                    let pos = search_offset + rel_pos;
 
-                // Replace the declaration
-                result = format!(
-                    "{}{}{}",
-                    &result[..pos],
-                    replacement,
-                    &result[pos + pattern_no_init.len()..]
-                );
-                matched = true;
-                continue;
+                    // Check if this declaration is inside a for-loop header
+                    let chars: Vec<char> = result.chars().collect();
+                    if is_shadowed_by_for_loop_var(&chars, pos + keyword.len() + 1, var) {
+                        search_offset = pos + pattern_no_init.len();
+                        continue;
+                    }
+
+                    // Build the replacement - no initial value, so pass nothing to $.mutable_source()
+                    let replacement = if immutable {
+                        format!("{} {} = $.mutable_source(undefined, true);", keyword, var)
+                    } else {
+                        format!("{} {} = $.mutable_source();", keyword, var)
+                    };
+
+                    // Replace the declaration
+                    result = format!(
+                        "{}{}{}",
+                        &result[..pos],
+                        replacement,
+                        &result[pos + pattern_no_init.len()..]
+                    );
+                    matched = true;
+                    break;
+                }
+                if matched {
+                    continue;
+                }
             }
 
             // Also try to match `keyword varname` without semicolon
             let pattern_no_semi = format!("{} {}", keyword, var);
-            if let Some(pos) = result.find(&pattern_no_semi) {
-                let after_pos = pos + pattern_no_semi.len();
-                let is_end = after_pos >= result.len()
-                    || result[after_pos..]
-                        .starts_with(|c: char| c.is_whitespace() || c == '\n' || c == '\r');
-                if is_end {
+            {
+                let mut search_offset = 0;
+                while let Some(rel_pos) = result[search_offset..].find(&pattern_no_semi) {
+                    let pos = search_offset + rel_pos;
+                    let after_pos = pos + pattern_no_semi.len();
+                    let is_end = after_pos >= result.len()
+                        || result[after_pos..]
+                            .starts_with(|c: char| c.is_whitespace() || c == '\n' || c == '\r');
+                    if !is_end {
+                        search_offset = pos + pattern_no_semi.len();
+                        continue;
+                    }
+
+                    // Check if this declaration is inside a for-loop header
+                    let chars: Vec<char> = result.chars().collect();
+                    if is_shadowed_by_for_loop_var(&chars, pos + keyword.len() + 1, var) {
+                        search_offset = pos + pattern_no_semi.len();
+                        continue;
+                    }
+
                     if after_pos < result.len()
                         && result[after_pos..]
                             .trim_start()
                             .starts_with("= $.mutable_source(")
                     {
                         matched = true;
-                        continue;
+                        break;
                     }
                     let replacement = if immutable {
                         format!("{} {} = $.mutable_source(undefined, true)", keyword, var)
@@ -9501,6 +9579,7 @@ fn transform_legacy_state_declarations(
                     };
                     result = format!("{}{}{}", &result[..pos], replacement, &result[after_pos..]);
                     matched = true;
+                    break;
                 }
             }
         }
@@ -10855,6 +10934,163 @@ fn is_in_function_param_position(chars: &[char], var_start_idx: usize, var_end_i
 /// }
 /// ```
 /// The `count` inside `update` is shadowed by `update`'s parameter.
+/// Check if a variable reference at `var_start` is inside a `for (let/const <same_var> ...)` scope.
+///
+/// In JavaScript, `for (let x = 0; x < 10; x++)` creates a block scope where `x` refers
+/// to the loop variable, not any outer variable with the same name. This function detects
+/// when a variable reference is inside such a for-loop scope and should NOT be transformed.
+///
+/// Strategy: scan backwards from var_start tracking brace depth. At each scope boundary
+/// (opening `{`), look for a `for (let <var>` or `for (const <var>` pattern that would
+/// indicate this scope is a for-loop body with the variable declared in the init.
+/// Also check if we're directly inside the for-loop header (between the `for (` and `)`).
+fn is_shadowed_by_for_loop_var(chars: &[char], var_start: usize, var_name: &str) -> bool {
+    // First, check if we're inside a for-loop HEADER (init, test, or update section)
+    // where the variable is declared as `let`/`const` in the init.
+    // Scan backwards to find an unmatched `(` that might be a for-loop's opening paren.
+    let mut paren_depth: i32 = 0;
+    let mut i = var_start;
+    while i > 0 {
+        i -= 1;
+        let c = chars[i];
+        if c == ')' {
+            paren_depth += 1;
+        } else if c == '(' {
+            if paren_depth == 0 {
+                // Found an unmatched opening paren at position `i`.
+                // Check if it's preceded by `for` keyword.
+                let mut j = i;
+                while j > 0 && chars[j - 1].is_whitespace() {
+                    j -= 1;
+                }
+                if j >= 3 {
+                    let prefix: String = chars[j - 3..j].iter().collect();
+                    if prefix == "for" && (j == 3 || !is_identifier_char(chars[j - 4])) {
+                        // We're inside a `for (...)` header.
+                        // Check if there's a `let <var>` or `const <var>` declaration inside.
+                        // Scan forward from `(` to find `let <var>` or `const <var>`.
+                        let header_start = i + 1;
+                        let header: String = chars[header_start..var_start].iter().collect();
+                        let let_pattern = format!("let {} ", var_name);
+                        let const_pattern = format!("const {} ", var_name);
+                        let let_pattern2 = format!("let {}=", var_name);
+                        let const_pattern2 = format!("const {}=", var_name);
+                        if header.contains(&let_pattern)
+                            || header.contains(&const_pattern)
+                            || header.contains(&let_pattern2)
+                            || header.contains(&const_pattern2)
+                        {
+                            return true;
+                        }
+                        // Also check if var_start IS the declared variable itself:
+                        // e.g., `for (let x = 0; ...)` where var_start points to `x` in `let x`.
+                        // In this case, the header text before var_start ends with `let ` or `const `.
+                        let header_trimmed = header.trim_end();
+                        if header_trimmed == "let"
+                            || header_trimmed == "const"
+                            || header_trimmed == "var"
+                        {
+                            return true;
+                        }
+                    }
+                }
+                break; // Stop scanning - we've left the innermost paren group
+            }
+            paren_depth -= 1;
+        }
+    }
+
+    // Second, check if we're inside a for-loop BODY where the variable is declared in the header.
+    // Track brace depth as we scan backwards.
+    let mut brace_depth: i32 = 0;
+    let mut j = var_start;
+    while j > 0 {
+        j -= 1;
+        let c = chars[j];
+
+        if c == '}' {
+            brace_depth += 1;
+        } else if c == '{' {
+            if brace_depth > 0 {
+                brace_depth -= 1;
+            } else {
+                // Found an opening brace at our scope level.
+                // Check if this is a for-loop body by looking backward for `for (...) {`
+                let mut k = j;
+                while k > 0 && chars[k - 1].is_whitespace() {
+                    k -= 1;
+                }
+                // Should find `)` before the `{`
+                if k > 0 && chars[k - 1] == ')' {
+                    k -= 1;
+                    // Find the matching `(`
+                    let mut p_depth: i32 = 0;
+                    let mut open_paren = None;
+                    let mut m = k;
+                    while m > 0 {
+                        m -= 1;
+                        if chars[m] == ')' {
+                            p_depth += 1;
+                        } else if chars[m] == '(' {
+                            if p_depth == 0 {
+                                open_paren = Some(m);
+                                break;
+                            }
+                            p_depth -= 1;
+                        }
+                    }
+                    if let Some(op) = open_paren {
+                        // Check if preceded by `for` keyword
+                        let mut n = op;
+                        while n > 0 && chars[n - 1].is_whitespace() {
+                            n -= 1;
+                        }
+                        if n >= 3 {
+                            let prefix: String = chars[n - 3..n].iter().collect();
+                            if prefix == "for" && (n == 3 || !is_identifier_char(chars[n - 4])) {
+                                // Found `for (...)`. Check if the header contains `let <var>` or `const <var>`.
+                                let header_start = op + 1;
+                                let header_end = k; // the matching `)` position
+                                if header_end > header_start {
+                                    let header: String =
+                                        chars[header_start..header_end].iter().collect();
+                                    // Check for `let var` or `const var` as a word boundary match
+                                    for keyword in &["let ", "const "] {
+                                        let pattern = format!("{}{}", keyword, var_name);
+                                        if let Some(pos) = header.find(&pattern) {
+                                            let after = pos + pattern.len();
+                                            // Ensure it's a word boundary (next char is not alphanumeric/underscore)
+                                            if after >= header.len()
+                                                || !is_identifier_char(
+                                                    header.chars().nth(after).unwrap_or(' '),
+                                                )
+                                            {
+                                                return true;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                // Whether or not it was a for-loop, we've left a scope boundary -
+                // don't look further up since function scopes are handled elsewhere.
+                // But we DO need to continue looking for outer for-loops, so don't break.
+                // Actually, in JS, a for-loop's `let` only scopes to that for-loop.
+                // If we've exited the for-loop body `{...}`, the var is no longer shadowed.
+                // We should only look at the INNERMOST enclosing `{...}` scope for for-loops.
+                // Actually, we need to check multiple levels for nested for-loops, BUT
+                // each opening `{` at our level is a potential for-loop body.
+                // For simplicity, just check each opening `{` at our brace level.
+                // Continue scanning backwards to handle nested scoping.
+            }
+        }
+    }
+
+    false
+}
+
 fn is_shadowed_by_function_param(chars: &[char], var_start: usize, var_name: &str) -> bool {
     // Strategy: scan backwards from var_start to find the nearest enclosing function scope.
     // If we find a function with this variable as a parameter, it's shadowed.
@@ -11373,7 +11609,8 @@ fn transform_state_in_expr(
                             is_shorthand_object_property(&chars, i, var_chars.len());
 
                         // Check if this variable is shadowed by a function parameter in an inner scope
-                        let is_shadowed = is_shadowed_by_function_param(&chars, i, var);
+                        let is_shadowed = is_shadowed_by_function_param(&chars, i, var)
+                            || is_shadowed_by_for_loop_var(&chars, i, var);
 
                         // Check if this variable is the target of an update expression (++ or --)
                         // e.g., x++ or ++x or x-- or --x
@@ -12140,6 +12377,16 @@ fn replace_with_word_boundary(
     replacement: &str,
     check_before: bool,
 ) -> String {
+    replace_with_word_boundary_scoped(input, pattern, replacement, check_before, None)
+}
+
+fn replace_with_word_boundary_scoped(
+    input: &str,
+    pattern: &str,
+    replacement: &str,
+    check_before: bool,
+    var_name: Option<&str>,
+) -> String {
     let mut result = String::new();
     let chars: Vec<char> = input.chars().collect();
     let pattern_chars: Vec<char> = pattern.chars().collect();
@@ -12167,7 +12414,14 @@ fn replace_with_word_boundary(
                     && (i + pattern_chars.len() >= chars.len()
                         || !is_identifier_char(chars[i + pattern_chars.len()]));
 
-                if before_ok && after_ok {
+                // Check if this variable is inside a for-loop scope with shadowing
+                let is_for_shadowed = if let Some(vn) = var_name {
+                    is_shadowed_by_for_loop_var(&chars, i, vn)
+                } else {
+                    false
+                };
+
+                if before_ok && after_ok && !is_for_shadowed {
                     result.push_str(replacement);
                     i += pattern_chars.len();
                     continue;

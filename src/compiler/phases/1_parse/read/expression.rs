@@ -3594,6 +3594,26 @@ fn convert_statement(
             obj.insert("start".to_string(), Value::Number((start as i64).into()));
             obj.insert("end".to_string(), Value::Number((end as i64).into()));
             obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            // init
+            if let Some(init) = &for_stmt.init {
+                let init_value = match init {
+                    oxc_ast::ast::ForStatementInit::VariableDeclaration(vd) => {
+                        convert_variable_declaration(vd, offset, line_offsets)
+                    }
+                    _ => {
+                        if let Some(expr) = init.as_expression() {
+                            convert_expression(expr, offset, line_offsets)
+                                .as_json()
+                                .clone()
+                        } else {
+                            Value::Null
+                        }
+                    }
+                };
+                obj.insert("init".to_string(), init_value);
+            } else {
+                obj.insert("init".to_string(), Value::Null);
+            }
             if let Some(body_val) = convert_statement(&for_stmt.body, offset, line_offsets) {
                 obj.insert("body".to_string(), body_val);
             }
