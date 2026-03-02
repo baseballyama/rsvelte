@@ -1065,13 +1065,26 @@ pub fn visit_regular_element(
             // We treat the value of that expression as the value of the option.
             // Use AttributeValue::Expression to leverage build_attribute_value's transform handling
             let synthetic_attr_value = AttributeValue::Expression((**synthetic_node).clone());
-            let result =
-                build_attribute_value(&synthetic_attr_value, context, |expr, _metadata| expr);
+            // Capture metadata for memoization (matching official compiler behavior)
+            let mut synthetic_metadata = ExpressionMetadata::default();
+            let result = build_attribute_value(&synthetic_attr_value, context, |expr, metadata| {
+                synthetic_metadata = metadata.clone();
+                expr
+            });
+            let meta_has_call = synthetic_metadata.has_call();
+            let meta_has_await = synthetic_metadata.has_await();
+            let memoized_value = context.state.memoizer.add(
+                result.value,
+                meta_has_call,
+                meta_has_await,
+                false,
+                result.has_state,
+            );
 
             build_element_special_value_attribute(
                 &node.name,
                 &node_id,
-                result.value,
+                memoized_value,
                 result.has_state,
                 true,  // synthetic = true
                 false, // is_select_with_value = false (synthetic is for option)
@@ -1083,8 +1096,27 @@ pub fn visit_regular_element(
                 if let Attribute::Attribute(attr) = attribute
                     && attr.name == "value"
                 {
-                    let result =
-                        build_attribute_value(&attr.value, context, |expr, _metadata| expr);
+                    // Capture metadata for memoization, matching the official Svelte compiler:
+                    // `const { value, has_state } = build_attribute_value(attribute.value, context,
+                    //   (value, metadata) => state.memoizer.add(value, metadata))`
+                    // This ensures expressions like `test()` (function calls) are memoized to `$0`
+                    // and the template_effect gets a dependency array like `[test]`.
+                    let mut captured_metadata = ExpressionMetadata::default();
+                    let result = build_attribute_value(&attr.value, context, |expr, metadata| {
+                        captured_metadata = metadata.clone();
+                        expr
+                    });
+                    let meta_has_call = captured_metadata.has_call();
+                    let meta_has_await = captured_metadata.has_await();
+                    // Memoize the value when needed (has_call or has_await),
+                    // following the JS Memoizer.add() logic.
+                    let memoized_value = context.state.memoizer.add(
+                        result.value,
+                        meta_has_call,
+                        meta_has_await,
+                        false,
+                        result.has_state,
+                    );
 
                     // For select elements: attribute.value !== true && !is_text_attribute(attribute)
                     // means a non-text value attribute on a select element
@@ -1095,7 +1127,7 @@ pub fn visit_regular_element(
                     build_element_special_value_attribute(
                         &node.name,
                         &node_id,
-                        result.value,
+                        memoized_value,
                         result.has_state,
                         false, // synthetic = false
                         is_select_with_value,
@@ -1702,12 +1734,14 @@ fn build_element_special_value_attribute(
     // We use Raw statement to preserve parentheses around the sequence expression,
     // since OXC normalization would strip them (they're technically unnecessary in statement context
     // but the official compiler always emits them).
+    // Use a single-line format with trailing semicolon so `collect_paren_sequence_stmts` can
+    // detect and re-add the parentheses after OXC strips them.
     let update = if is_select_with_value {
         use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr;
         let assign_str = generate_expr(&set_value_assignment);
         let value_str = generate_expr(&transformed_value);
         JsStatement::Raw(format!(
-            "(\n\t{},\n\t$.select_option({}, {})\n)",
+            "({}, $.select_option({}, {}));",
             assign_str, node_id, value_str
         ))
     } else if synthetic {

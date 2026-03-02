@@ -912,7 +912,12 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
             .join("_config.js");
 
         if let Ok(config) = fs::read_to_string(&config_path)
-            && (config.contains("async: true") || config.contains("hmr: true"))
+            && ({
+                let config_without_skip = config
+                    .replace("skip_no_async", "")
+                    .replace("skip_async", "");
+                config_without_skip.contains("async: true")
+            } || config.contains("hmr: true"))
         {
             result.add_sample(SampleResult {
                 name,

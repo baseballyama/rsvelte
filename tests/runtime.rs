@@ -43,8 +43,13 @@ fn requires_unsupported_options(category: &str, sample_name: &str) -> bool {
         .join("_config.js");
 
     if let Ok(config) = fs::read_to_string(&config_path) {
-        if config.contains("async: true") {
-            return true;
+        {
+            let config_without_skip = config
+                .replace("skip_no_async", "")
+                .replace("skip_async", "");
+            if config_without_skip.contains("async: true") {
+                return true;
+            }
         }
         if config.contains("hmr: true") {
             return true;
