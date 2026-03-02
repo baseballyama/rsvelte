@@ -483,7 +483,15 @@ impl<'a> ComponentContext<'a> {
                 // This matches the official SvelteElement.js line 82:
                 //   build_set_class(node, element_id, attributes[0], class_directives, inner_context, false)
                 let css_hash = self.state.analysis.css.hash.clone();
-                let is_scoped = self.state.analysis.css.has_css && !css_hash.is_empty();
+                // For svelte:element, is_scoped depends on element.metadata.scoped (set by CSS pruner).
+                // Since SvelteDynamicElement has a dynamic tag, the CSS pruner can only match it when
+                // the element has explicit class/attribute values that match CSS selectors.
+                // Synthesized class attributes (start == u32::MAX, from class-directive-only elements)
+                // should NOT be scoped because no CSS selector can match the empty class.
+                let is_synthetic =
+                    matches!(&attributes[0], Attribute::Attribute(a) if a.start == u32::MAX);
+                let is_scoped =
+                    !is_synthetic && self.state.analysis.css.has_css && !css_hash.is_empty();
                 let class_attr_value = if let Attribute::Attribute(a) = &attributes[0] {
                     Some(&a.value)
                 } else {
@@ -520,6 +528,30 @@ impl<'a> ComponentContext<'a> {
                     element_id.clone(),
                     &css_hash,
                     false, // should_remove_defaults - not needed for svelte:element
+                );
+            } else if !class_directives.is_empty() {
+                // Class directives only (no class attribute) on svelte:element
+                // For svelte:element, the CSS hash should NOT be included when there's
+                // no static class attribute - pass is_scoped=false to prevent hash injection.
+                let css_hash = self.state.analysis.css.hash.clone();
+                let dummy_element = crate::ast::template::RegularElement {
+                    start: 0,
+                    end: 0,
+                    name: "div".into(),
+                    name_loc: None,
+                    attributes: vec![],
+                    fragment: Default::default(),
+                    metadata: Default::default(),
+                };
+                build_set_class(
+                    &dummy_element,
+                    &element_id_name,
+                    None, // No class attribute
+                    &class_directives,
+                    self,
+                    false, // is_html=false for svelte:element
+                    &css_hash,
+                    false, // is_scoped=false: don't add CSS hash when no class attribute on svelte:element
                 );
             }
 

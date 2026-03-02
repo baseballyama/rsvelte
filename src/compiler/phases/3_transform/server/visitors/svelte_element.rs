@@ -120,7 +120,17 @@ impl<'a> ServerCodeGenerator<'a> {
                         if name == "class" && !class_directives.is_empty() {
                             // Use $.attr_class() when class directives are present
                             handled_class = true;
-                            let base_value = self.build_class_base_value(node, &css_hash)?;
+                            // For synthesized class attributes (start == u32::MAX, from class-directive-only
+                            // elements), don't bake in the CSS hash. The CSS pruner can't match svelte:element
+                            // with only class directives (no explicit class value), so is_scoped would be false
+                            // in the official compiler, meaning no hash in the class value.
+                            let effective_css_hash = if node.start == u32::MAX {
+                                &None
+                            } else {
+                                &css_hash
+                            };
+                            let base_value =
+                                self.build_class_base_value(node, effective_css_hash)?;
                             let directives_obj = self.build_class_directives_obj(&class_directives);
                             let css_hash_arg = if needs_clsx(&node.value) {
                                 // Dynamic class expression: $.attr_class($.clsx(expr), 'hash', { directives })
