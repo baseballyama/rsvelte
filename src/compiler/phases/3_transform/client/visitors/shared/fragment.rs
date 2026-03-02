@@ -586,81 +586,16 @@ fn push_static_element_to_template(
             // trim leading/trailing whitespace-only text nodes)
             let children = &elem.fragment.nodes;
 
-            // Find start index (skip leading whitespace-only text and comments)
-            let start = children
-                .iter()
-                .position(|n| {
-                    if !preserve_comments && matches!(n, TemplateNode::Comment(_)) {
-                        return false;
-                    }
-                    if let TemplateNode::Text(t) = n {
-                        !is_svelte_whitespace_only(&t.data)
-                    } else {
-                        true
-                    }
-                })
-                .unwrap_or(children.len());
+            // Preserve whitespace for <script> elements, matching the official compiler
+            // behavior (RegularElement.js line 317: `name === 'script' || state.preserve_whitespace`)
+            let preserve_ws = elem.name == "script";
 
-            // Find end index (skip trailing whitespace-only text and comments)
-            let end = children
-                .iter()
-                .rposition(|n| {
-                    if !preserve_comments && matches!(n, TemplateNode::Comment(_)) {
-                        return false;
+            if preserve_ws {
+                // For script elements, add all children without whitespace trimming
+                for child in children.iter() {
+                    if !preserve_comments && matches!(child, TemplateNode::Comment(_)) {
+                        continue;
                     }
-                    if let TemplateNode::Text(t) = n {
-                        !is_svelte_whitespace_only(&t.data)
-                    } else {
-                        true
-                    }
-                })
-                .map(|i| i + 1)
-                .unwrap_or(0);
-
-            let range = &children[start..end.max(start)];
-            // Collect non-comment children indices for boundary trimming
-            let meaningful_indices: Vec<usize> = range
-                .iter()
-                .enumerate()
-                .filter(|(_, c)| preserve_comments || !matches!(c, TemplateNode::Comment(_)))
-                .map(|(i, _)| i)
-                .collect();
-
-            let first_meaningful = meaningful_indices.first().copied();
-            let last_meaningful = meaningful_indices.last().copied();
-
-            for (i, child) in range.iter().enumerate() {
-                if !preserve_comments && matches!(child, TemplateNode::Comment(_)) {
-                    continue;
-                }
-                // Trim leading/trailing whitespace from boundary text nodes
-                // to match clean_nodes/trim_whitespace behavior for Fragment children
-                if let TemplateNode::Text(text) = child {
-                    let mut data = text.data.to_string();
-                    let mut raw = text.raw.to_string();
-                    if Some(i) == first_meaningful {
-                        let ws = |c: char| c == ' ' || c == '\t' || c == '\n' || c == '\r';
-                        data = data.trim_start_matches(ws).to_string();
-                        raw = raw.trim_start_matches(ws).to_string();
-                    }
-                    if Some(i) == last_meaningful {
-                        let ws = |c: char| c == ' ' || c == '\t' || c == '\n' || c == '\r';
-                        data = data.trim_end_matches(ws).to_string();
-                        raw = raw.trim_end_matches(ws).to_string();
-                    }
-                    if !data.is_empty() {
-                        let mut trimmed = text.clone();
-                        trimmed.data = compact_str::CompactString::new(&data);
-                        trimmed.raw = compact_str::CompactString::new(&raw);
-                        push_static_element_to_template(
-                            &TemplateNode::Text(trimmed),
-                            template,
-                            &child_namespace,
-                            css_hash,
-                            preserve_comments,
-                        );
-                    }
-                } else {
                     push_static_element_to_template(
                         child,
                         template,
@@ -668,6 +603,91 @@ fn push_static_element_to_template(
                         css_hash,
                         preserve_comments,
                     );
+                }
+            } else {
+                // Find start index (skip leading whitespace-only text and comments)
+                let start = children
+                    .iter()
+                    .position(|n| {
+                        if !preserve_comments && matches!(n, TemplateNode::Comment(_)) {
+                            return false;
+                        }
+                        if let TemplateNode::Text(t) = n {
+                            !is_svelte_whitespace_only(&t.data)
+                        } else {
+                            true
+                        }
+                    })
+                    .unwrap_or(children.len());
+
+                // Find end index (skip trailing whitespace-only text and comments)
+                let end = children
+                    .iter()
+                    .rposition(|n| {
+                        if !preserve_comments && matches!(n, TemplateNode::Comment(_)) {
+                            return false;
+                        }
+                        if let TemplateNode::Text(t) = n {
+                            !is_svelte_whitespace_only(&t.data)
+                        } else {
+                            true
+                        }
+                    })
+                    .map(|i| i + 1)
+                    .unwrap_or(0);
+
+                let range = &children[start..end.max(start)];
+                // Collect non-comment children indices for boundary trimming
+                let meaningful_indices: Vec<usize> = range
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, c)| preserve_comments || !matches!(c, TemplateNode::Comment(_)))
+                    .map(|(i, _)| i)
+                    .collect();
+
+                let first_meaningful = meaningful_indices.first().copied();
+                let last_meaningful = meaningful_indices.last().copied();
+
+                for (i, child) in range.iter().enumerate() {
+                    if !preserve_comments && matches!(child, TemplateNode::Comment(_)) {
+                        continue;
+                    }
+                    // Trim leading/trailing whitespace from boundary text nodes
+                    // to match clean_nodes/trim_whitespace behavior for Fragment children
+                    if let TemplateNode::Text(text) = child {
+                        let mut data = text.data.to_string();
+                        let mut raw = text.raw.to_string();
+                        if Some(i) == first_meaningful {
+                            let ws = |c: char| c == ' ' || c == '\t' || c == '\n' || c == '\r';
+                            data = data.trim_start_matches(ws).to_string();
+                            raw = raw.trim_start_matches(ws).to_string();
+                        }
+                        if Some(i) == last_meaningful {
+                            let ws = |c: char| c == ' ' || c == '\t' || c == '\n' || c == '\r';
+                            data = data.trim_end_matches(ws).to_string();
+                            raw = raw.trim_end_matches(ws).to_string();
+                        }
+                        if !data.is_empty() {
+                            let mut trimmed = text.clone();
+                            trimmed.data = compact_str::CompactString::new(&data);
+                            trimmed.raw = compact_str::CompactString::new(&raw);
+                            push_static_element_to_template(
+                                &TemplateNode::Text(trimmed),
+                                template,
+                                &child_namespace,
+                                css_hash,
+                                preserve_comments,
+                            );
+                        }
+                    } else {
+                        push_static_element_to_template(
+                            child,
+                            template,
+                            &child_namespace,
+                            css_hash,
+                            preserve_comments,
+                        );
+                    }
                 }
             }
 
