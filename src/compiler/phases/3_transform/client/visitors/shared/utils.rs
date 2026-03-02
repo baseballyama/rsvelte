@@ -1915,10 +1915,20 @@ fn collect_reactive_references_from_metadata(
         };
 
         // Check if we need to wrap in $.deep_read_state()
-        // Matches the official compiler's check:
+        // Matches the official compiler's check at utils.js lines 466-474:
         //   binding.kind === 'bindable_prop' || binding.kind === 'template' ||
         //   binding.declaration_kind === 'import' ||
         //   binding.node.name === '$$props' || binding.node.name === '$$restProps'
+        //
+        // NOTE: In the official compiler, keyed each block indices have kind 'template'
+        // while non-keyed have kind 'static'. Our Rust code uses EachIndex for both.
+        // We distinguish by checking if a read transform was registered: keyed (reactive)
+        // indices have a $.get() read transform, non-keyed (static) indices don't.
+        let has_read_transform = context
+            .state
+            .transform
+            .get(name.as_str())
+            .is_some_and(|t| t.read.is_some());
         let needs_deep_read = if name == "$$props" || name == "$$restProps" {
             true
         } else {
@@ -1929,7 +1939,8 @@ fn collect_reactive_references_from_metadata(
                     | BindingKind::AwaitThen
                     | BindingKind::AwaitCatch
                     | BindingKind::Let
-            ) || binding.declaration_kind == DeclarationKind::Import
+            ) || (binding.kind == BindingKind::EachIndex && has_read_transform)
+                || binding.declaration_kind == DeclarationKind::Import
         };
 
         let final_getter = if needs_deep_read {
@@ -2047,6 +2058,11 @@ fn collect_reactive_references_inner(
 
             // Build the getter by applying the read transform if one exists
             // (mirrors build_getter in the official compiler)
+            let has_read_transform = context
+                .state
+                .transform
+                .get(name)
+                .is_some_and(|t| t.read.is_some());
             let getter = if let Some(transform) = context.state.transform.get(name) {
                 if let Some(read_fn) = transform.read {
                     // If this transform has a replacement_id, use it instead of the original name.
@@ -2071,6 +2087,11 @@ fn collect_reactive_references_inner(
             // - template bindings
             // - imports (declaration_kind === 'import')
             // - $$props / $$restProps
+            //
+            // NOTE: In the official compiler, keyed each block indices have kind 'template'
+            // while non-keyed have kind 'static'. Our Rust code uses EachIndex for both.
+            // We distinguish by checking if a transform was registered: keyed indices have
+            // a $.get() transform, non-keyed indices don't.
             let needs_deep_read = if name == "$$props" || name == "$$restProps" {
                 true
             } else if let Some(binding) = binding_info {
@@ -2089,7 +2110,8 @@ fn collect_reactive_references_inner(
                         | BindingKind::AwaitThen
                         | BindingKind::AwaitCatch
                         | BindingKind::Let
-                ) || binding.declaration_kind == DeclarationKind::Import
+                ) || (binding.kind == BindingKind::EachIndex && has_read_transform)
+                    || binding.declaration_kind == DeclarationKind::Import
             } else {
                 false
             };
@@ -2881,9 +2903,33 @@ pub fn build_template_chunk(
                         return TemplateChunkResult { value, has_state };
                     }
 
-                    // Check if expression is guaranteed to be non-null (like each block index)
-                    // This corresponds to Svelte's `state.scope.evaluate(value).is_defined` check
-                    let is_defined = is_expression_defined(&expr_tag.expression, context);
+                    // Check if the expression is guaranteed to be non-null.
+                    // This corresponds to Svelte's `state.scope.evaluate(value).is_defined` check.
+                    //
+                    // We use a two-step approach:
+                    // 1. Check the ORIGINAL expression with full binding context (knows EachIndex
+                    //    is always a number, const bindings with defined values, etc.)
+                    // 2. If the original was defined, check if a transform made it potentially
+                    //    undefined by wrapping it in $.get() (which returns a Call expression).
+                    //
+                    // This correctly handles:
+                    // - Non-keyed each index `i`: original=defined, built=Identifier => defined
+                    // - Keyed each index `$.get(index)`: original=defined, built=Call => NOT defined
+                    // - Normal variables: original=not defined => NOT defined
+                    // Determine defined-ness by checking the built (transformed) expression.
+                    //
+                    // For simple identifiers that weren't transformed (like non-keyed each
+                    // index `i`), we check the original expression which has binding context
+                    // (knows EachIndex is always a number). For everything else, we check
+                    // the built JsExpr.
+                    let is_defined = if let JsExpr::Identifier(_) = &value {
+                        // Value is still a plain identifier (no $.get() wrapping).
+                        // Use the original expression check which has binding context.
+                        is_expression_defined(&expr_tag.expression, context)
+                    } else {
+                        // Value was transformed. Check the built expression.
+                        is_js_expr_defined(&value)
+                    };
 
                     // Add ?? '' where necessary (only if not guaranteed to be defined)
                     let final_value = if is_defined {
@@ -3263,6 +3309,34 @@ pub(crate) fn get_literal_value(
                 _ => None,
             }
         }
+    }
+}
+
+/// Check if a BUILT JsExpr is guaranteed to be defined (non-null/undefined).
+///
+/// This evaluates the transformed expression (after build_expression), matching
+/// the official Svelte compiler's `scope.evaluate(value).is_defined` behavior.
+/// Function calls (like `$.get(index)`) are NOT considered defined because they
+/// could theoretically return undefined.
+fn is_js_expr_defined(expr: &JsExpr) -> bool {
+    match expr {
+        JsExpr::Literal(lit) => match lit {
+            JsLiteral::Null | JsLiteral::Undefined => false,
+            _ => true, // String, Number, Boolean are always defined
+        },
+        JsExpr::Identifier(_) => false,     // Could be undefined
+        JsExpr::Call(_) => false,           // Function calls could return undefined
+        JsExpr::TemplateLiteral(_) => true, // Always a string
+        JsExpr::Binary(_) => true,          // Always produces a result
+        JsExpr::Unary(u) => !matches!(u.operator, JsUnaryOp::Void),
+        JsExpr::Logical(log) => {
+            // Check both sides
+            is_js_expr_defined(&log.left) && is_js_expr_defined(&log.right)
+        }
+        JsExpr::Conditional(cond) => {
+            is_js_expr_defined(&cond.consequent) && is_js_expr_defined(&cond.alternate)
+        }
+        _ => false,
     }
 }
 

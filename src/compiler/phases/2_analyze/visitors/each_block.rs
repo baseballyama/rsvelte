@@ -174,9 +174,15 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
             let binding_idx = *binding_idx;
             if binding_idx < context.analysis.root.bindings.len() {
                 let decl_kind = context.analysis.root.bindings[binding_idx].declaration_kind;
+                // Skip function declarations and function parameters.
+                // Function parameters (e.g., `card` in `cards.filter((card) => !card.fav)`)
+                // are local to their arrow/function expressions and should NOT be included
+                // in transitive dependencies for invalidation. Only external bindings
+                // (state variables, props, etc.) need invalidation tracking.
                 if !matches!(
                     decl_kind,
                     super::super::super::phase2_analyze::scope::DeclarationKind::Function
+                        | super::super::super::phase2_analyze::scope::DeclarationKind::Param
                 ) {
                     collect_transitive_dependencies_impl(
                         binding_idx,

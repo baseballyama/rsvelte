@@ -11128,6 +11128,327 @@ fn is_shadowed_by_for_loop_var(chars: &[char], var_start: usize, var_name: &str)
     false
 }
 
+/// Check if a variable at position `var_start` is shadowed by a local variable declaration
+/// (`const`, `let`, or `var`) inside an enclosing function/arrow scope.
+///
+/// This handles cases like:
+/// ```js
+/// let foo = $.mutable_source(tmp.foo);  // outer `foo` is a state variable
+/// let result = (() => {
+///     const foo = writable(false);      // inner `foo` is a local const
+///     return { foo };                    // this `foo` should NOT be $.get(foo)
+/// })();
+/// ```
+fn is_shadowed_by_local_var_decl(chars: &[char], var_start: usize, var_name: &str) -> bool {
+    let var_len = var_name.len();
+    let mut brace_depth: i32 = 0;
+    let mut i = var_start;
+    while i > 0 {
+        i -= 1;
+        let c = chars[i];
+
+        if c == '}' {
+            brace_depth += 1;
+        } else if c == '{' {
+            // Skip template literal interpolation `${`
+            if i > 0 && chars[i - 1] == '$' {
+                if brace_depth > 0 {
+                    brace_depth -= 1;
+                }
+                continue;
+            }
+            if brace_depth > 0 {
+                brace_depth -= 1;
+            } else {
+                // We've entered an enclosing scope. Check if this is a function/arrow body.
+                let mut j = i;
+                while j > 0 && chars[j - 1].is_whitespace() {
+                    j -= 1;
+                }
+
+                // Check for arrow function body: `) => {` or `param => {`
+                let is_arrow = j >= 2 && chars[j - 2] == '=' && chars[j - 1] == '>';
+
+                // Check for function body: `) {` preceded by `function` or identifier
+                let is_function_body = if j > 0 && chars[j - 1] == ')' {
+                    // Find matching (
+                    let mut pd = 0;
+                    let mut k = j - 1;
+                    let mut found_open = false;
+                    while k > 0 {
+                        k -= 1;
+                        if chars[k] == ')' {
+                            pd += 1;
+                        } else if chars[k] == '(' {
+                            if pd == 0 {
+                                found_open = true;
+                                break;
+                            }
+                            pd -= 1;
+                        }
+                    }
+                    if found_open {
+                        // Check for `function` keyword before (
+                        let mut m = k;
+                        while m > 0 && chars[m - 1].is_whitespace() {
+                            m -= 1;
+                        }
+                        // Skip optional function name
+                        while m > 0 && is_identifier_char(chars[m - 1]) {
+                            m -= 1;
+                        }
+                        while m > 0 && chars[m - 1].is_whitespace() {
+                            m -= 1;
+                        }
+                        if m >= 8 {
+                            let prefix: String = chars[m - 8..m].iter().collect();
+                            prefix == "function"
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                if is_arrow || is_function_body {
+                    // We're inside a function/arrow body. Now scan forward from `i+1`
+                    // to find local `const/let/var varname` declarations at depth 0 within
+                    // this function body, before our variable reference.
+                    let mut scan = i + 1;
+                    let mut inner_depth: i32 = 0;
+                    let mut in_str: Option<char> = None;
+                    let mut tmpl_stack: Vec<i32> = Vec::new();
+                    let mut in_line_comment = false;
+                    let mut in_block_comment = false;
+                    let mut found_decl = false;
+                    // Track how many nested function scopes we're inside.
+                    // A "function scope" is a {} body that follows =>, function keyword,
+                    // or a method/getter/setter definition.
+                    let mut func_scope_depth: i32 = 0;
+                    // Stack to track which brace depths correspond to function scopes
+                    let mut func_scope_brace_depths: Vec<i32> = Vec::new();
+
+                    while scan < var_start {
+                        let sc = chars[scan];
+
+                        // Handle comments
+                        if in_line_comment {
+                            if sc == '\n' {
+                                in_line_comment = false;
+                            }
+                            scan += 1;
+                            continue;
+                        }
+                        if in_block_comment {
+                            if sc == '*' && scan + 1 < chars.len() && chars[scan + 1] == '/' {
+                                in_block_comment = false;
+                                scan += 2;
+                                continue;
+                            }
+                            scan += 1;
+                            continue;
+                        }
+
+                        // Handle template literal depth tracking
+                        if !tmpl_stack.is_empty() && in_str.is_none() {
+                            if sc == '{' {
+                                if let Some(d) = tmpl_stack.last_mut() {
+                                    *d += 1;
+                                }
+                            } else if sc == '}' {
+                                let should_pop = if let Some(d) = tmpl_stack.last_mut() {
+                                    *d -= 1;
+                                    *d < 0
+                                } else {
+                                    false
+                                };
+                                if should_pop {
+                                    tmpl_stack.pop();
+                                    in_str = Some('`');
+                                    scan += 1;
+                                    continue;
+                                }
+                            }
+                        }
+
+                        // Handle string boundaries
+                        if in_str.is_none() {
+                            if sc == '/' && scan + 1 < chars.len() {
+                                if chars[scan + 1] == '/' {
+                                    in_line_comment = true;
+                                    scan += 1;
+                                    continue;
+                                } else if chars[scan + 1] == '*' {
+                                    in_block_comment = true;
+                                    scan += 1;
+                                    continue;
+                                }
+                            }
+                            if sc == '\'' || sc == '"' || sc == '`' {
+                                in_str = Some(sc);
+                                scan += 1;
+                                continue;
+                            }
+                        } else if in_str == Some('`')
+                            && sc == '$'
+                            && scan + 1 < chars.len()
+                            && chars[scan + 1] == '{'
+                        {
+                            in_str = None;
+                            tmpl_stack.push(0);
+                            scan += 2;
+                            continue;
+                        } else if Some(sc) == in_str {
+                            // Check for escape
+                            let escaped = if scan > 0 && chars[scan - 1] == '\\' {
+                                let mut bc = 0;
+                                let mut bk = scan - 1;
+                                while bk > 0 && chars[bk] == '\\' {
+                                    bc += 1;
+                                    bk -= 1;
+                                }
+                                bc % 2 == 1
+                            } else {
+                                false
+                            };
+                            if !escaped {
+                                in_str = None;
+                            }
+                            scan += 1;
+                            continue;
+                        }
+
+                        if in_str.is_some() {
+                            scan += 1;
+                            continue;
+                        }
+
+                        // Track brace depth within the function body
+                        if sc == '{' {
+                            inner_depth += 1;
+                            // Check if this `{` opens a function scope by looking
+                            // at what precedes it (arrow `=>`, function keyword,
+                            // getter/setter/method pattern)
+                            let mut bk = scan;
+                            while bk > 0 && chars[bk - 1].is_whitespace() {
+                                bk -= 1;
+                            }
+                            let opens_func_scope =
+                                if bk >= 2 && chars[bk - 2] == '=' && chars[bk - 1] == '>' {
+                                    true // arrow function
+                                } else if bk > 0 && chars[bk - 1] == ')' {
+                                    // Could be function/method/getter/setter: check for `)` pattern
+                                    // Simple heuristic: any `) {` that isn't a control structure
+                                    // (if/for/while/switch) is likely a function scope
+                                    let mut pd = 0;
+                                    let mut pk = bk - 1;
+                                    let mut found_open = false;
+                                    while pk > 0 {
+                                        pk -= 1;
+                                        if chars[pk] == ')' {
+                                            pd += 1;
+                                        } else if chars[pk] == '(' {
+                                            if pd == 0 {
+                                                found_open = true;
+                                                break;
+                                            }
+                                            pd -= 1;
+                                        }
+                                    }
+                                    if found_open {
+                                        let mut mk = pk;
+                                        while mk > 0 && chars[mk - 1].is_whitespace() {
+                                            mk -= 1;
+                                        }
+                                        // Check for get/set/function/identifier before (
+                                        let word_end = mk;
+                                        while mk > 0 && is_identifier_char(chars[mk - 1]) {
+                                            mk -= 1;
+                                        }
+                                        let word: String = chars[mk..word_end].iter().collect();
+                                        // If it's a control structure keyword, it's NOT a function scope
+                                        !matches!(
+                                            word.as_str(),
+                                            "if" | "for" | "while" | "switch" | "catch"
+                                        )
+                                    } else {
+                                        false
+                                    }
+                                } else {
+                                    false
+                                };
+                            if opens_func_scope {
+                                func_scope_depth += 1;
+                                func_scope_brace_depths.push(inner_depth);
+                            }
+                        } else if sc == '}' {
+                            if func_scope_brace_depths.last() == Some(&inner_depth) {
+                                func_scope_brace_depths.pop();
+                                func_scope_depth -= 1;
+                            }
+                            inner_depth -= 1;
+                        }
+
+                        // Only look at top-level declarations (depth 0) within this function
+                        if inner_depth == 0 {
+                            // Check for `const varname` or `let varname` or `var varname`
+                            for keyword in &["const ", "let ", "var "] {
+                                let kw_len = keyword.len();
+                                if scan + kw_len + var_len <= var_start {
+                                    let potential_kw: String =
+                                        chars[scan..scan + kw_len].iter().collect();
+                                    if potential_kw == *keyword {
+                                        // Make sure it's a standalone keyword
+                                        let before_ok =
+                                            scan == i + 1 || !is_identifier_char(chars[scan - 1]);
+                                        if before_ok {
+                                            // Now check if var_name follows (possibly after whitespace)
+                                            let mut vp = scan + kw_len;
+                                            // Skip optional destructuring or whitespace
+                                            while vp < var_start && chars[vp].is_whitespace() {
+                                                vp += 1;
+                                            }
+                                            if vp + var_len <= var_start {
+                                                let potential_var: String =
+                                                    chars[vp..vp + var_len].iter().collect();
+                                                if potential_var == var_name {
+                                                    let after_ok = vp + var_len >= chars.len()
+                                                        || !is_identifier_char(chars[vp + var_len]);
+                                                    if after_ok {
+                                                        found_decl = true;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        scan += 1;
+                    }
+
+                    // Only report as shadowed if the declaration was found AND the
+                    // variable reference is NOT inside a nested function scope
+                    // (getter, method, inner function, arrow, etc.). If the reference
+                    // is inside a nested function, it accesses the declaration via closure,
+                    // not via shadowing.
+                    if found_decl && func_scope_depth == 0 {
+                        return true;
+                    }
+                    // If we found this is a function scope but didn't find the var declaration,
+                    // or the reference is in a nested function scope, continue scanning backwards.
+                }
+            }
+        }
+    }
+
+    false
+}
+
 fn is_shadowed_by_function_param(chars: &[char], var_start: usize, var_name: &str) -> bool {
     // Strategy: scan backwards from var_start to find the nearest enclosing function scope.
     // If we find a function with this variable as a parameter, it's shadowed.
@@ -11645,9 +11966,11 @@ fn transform_state_in_expr(
                         let is_shorthand_property =
                             is_shorthand_object_property(&chars, i, var_chars.len());
 
-                        // Check if this variable is shadowed by a function parameter in an inner scope
+                        // Check if this variable is shadowed by a function parameter or local
+                        // variable declaration in an inner scope
                         let is_shadowed = is_shadowed_by_function_param(&chars, i, var)
-                            || is_shadowed_by_for_loop_var(&chars, i, var);
+                            || is_shadowed_by_for_loop_var(&chars, i, var)
+                            || is_shadowed_by_local_var_decl(&chars, i, var);
 
                         // Check if this variable is the target of an update expression (++ or --)
                         // e.g., x++ or ++x or x-- or --x

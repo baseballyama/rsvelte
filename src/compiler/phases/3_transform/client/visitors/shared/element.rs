@@ -1022,6 +1022,10 @@ fn build_style_attribute_value_with_memoization(
 
         AttributeValue::Sequence(parts) => {
             // Template literal with multiple parts
+            // Following the official Svelte compiler's build_template_chunk logic:
+            // 1. Literal expressions are inlined directly into the quasi text
+            // 2. Known constant identifiers (scope.evaluate().is_known) are inlined
+            // 3. Only unknown/reactive expressions become template literal interpolations
             let mut quasis = Vec::with_capacity(parts.len() + 1);
             let mut expressions = Vec::with_capacity(parts.len());
             let mut has_state = false;
@@ -1033,6 +1037,21 @@ fn build_style_attribute_value_with_memoization(
                         current_text.push_str(&text.data);
                     }
                     AttributeValuePart::ExpressionTag(expr_tag) => {
+                        // Check if the expression can be evaluated to a known constant value.
+                        // This matches the official compiler's build_template_chunk logic:
+                        // - Literal nodes are inlined directly (lines 121-124)
+                        // - Identifiers referencing constant bindings are evaluated via
+                        //   scope.evaluate() and inlined if is_known (lines 135-163)
+                        if let Some(lit_value) =
+                            super::utils::get_literal_value(&expr_tag.expression, context)
+                        {
+                            if let Some(val) = lit_value {
+                                current_text.push_str(&val);
+                            }
+                            // None means null/undefined - skip (matching official: if value != null)
+                            continue;
+                        }
+
                         // Push accumulated text as quasi
                         quasis.push(b::quasi(&current_text, false));
                         current_text.clear();
@@ -1071,6 +1090,12 @@ fn build_style_attribute_value_with_memoization(
                         }
                     }
                 }
+            }
+
+            // If all expressions were inlined (no template interpolations),
+            // return a plain string instead of a template literal
+            if expressions.is_empty() {
+                return (b::string(&current_text), false);
             }
 
             // Push final quasi
