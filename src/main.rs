@@ -29,9 +29,8 @@ fn main() {
     };
 
     match parse(&source, options) {
-        Ok(ast) => {
-            let json = serde_json::to_string_pretty(&ast).unwrap();
-            println!("{}", json);
+        Ok(_ast) => {
+            println!("Parsed successfully");
         }
         Err(e) => {
             eprintln!("Parse error: {:?}", e);

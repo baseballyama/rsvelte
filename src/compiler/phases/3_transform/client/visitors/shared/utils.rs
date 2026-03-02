@@ -3274,6 +3274,7 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                 // detailed binding kind check below.
                 if let Some(transform) = context.state.transform.get(name) {
                     // Check if this is a Derived binding - if so, skip the early return
+                    // and fall through to the detailed binding kind check below.
                     let is_derived = context.state.get_binding(name).is_some_and(|b| {
                         matches!(
                             b.kind,
@@ -3281,6 +3282,24 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                         )
                     });
                     if !is_derived {
+                        // For Template bindings (@const), check if the initial value is known
+                        // instead of blindly using transform.is_reactive.
+                        // This matches the official Svelte compiler's scope.evaluate() behavior.
+                        if let Some(binding) = context.state.get_binding(name)
+                            && matches!(
+                                binding.kind,
+                                crate::compiler::phases::phase2_analyze::scope::BindingKind::Template
+                            )
+                        {
+                            if let Some(ref initial_str) = binding.initial
+                                && let Ok(initial_json) =
+                                    serde_json::from_str::<serde_json::Value>(initial_str)
+                            {
+                                return !is_expression_known_json(&initial_json, context);
+                            }
+                            // No initial stored → conservatively treat as reactive
+                            return true;
+                        }
                         // Use the is_reactive flag from the transform
                         // Non-reactive transforms (like unkeyed each block index) should not be treated as reactive
                         return transform.is_reactive;
@@ -3332,6 +3351,23 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                         {
                             // Check if the expression is "known" (compile-time evaluable)
                             // If known, the derived value is effectively constant → not reactive
+                            return !is_expression_known_json(&initial_json, context);
+                        }
+                        // If no initial or couldn't parse, conservatively treat as reactive
+                        return true;
+                    }
+
+                    // For Template bindings (@const tag), apply the same scope.evaluate()
+                    // logic as Derived bindings. @const values are wrapped in
+                    // $.derived_safe_equal() and accessed via $.get(), but their reactivity
+                    // depends on whether their initial expression depends on reactive state.
+                    // E.g., `@const bar = 'world'` → is_known=true (non-reactive)
+                    //        `@const doubled = count * 2` → is_known depends on `count`
+                    if matches!(binding.kind, BindingKind::Template) {
+                        if let Some(ref initial_str) = binding.initial
+                            && let Ok(initial_json) =
+                                serde_json::from_str::<serde_json::Value>(initial_str)
+                        {
                             return !is_expression_known_json(&initial_json, context);
                         }
                         // If no initial or couldn't parse, conservatively treat as reactive
@@ -4240,6 +4276,17 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
 
                     // For Derived bindings, recursively check the initial
                     if matches!(binding.kind, BindingKind::Derived) {
+                        if let Some(ref initial_str) = binding.initial
+                            && let Ok(initial_json) =
+                                serde_json::from_str::<serde_json::Value>(initial_str)
+                        {
+                            return is_expression_known_json(&initial_json, context);
+                        }
+                        return false;
+                    }
+
+                    // For Template bindings (@const), recursively check the initial
+                    if matches!(binding.kind, BindingKind::Template) {
                         if let Some(ref initial_str) = binding.initial
                             && let Ok(initial_json) =
                                 serde_json::from_str::<serde_json::Value>(initial_str)

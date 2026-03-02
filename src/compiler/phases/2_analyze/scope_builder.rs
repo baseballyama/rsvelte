@@ -1882,6 +1882,10 @@ impl<'a> ScopeBuilder<'a> {
             // Extract binding from left side
             if let Some(left) = value.get("left") {
                 self.process_binding_pattern_from_json(left);
+                // Store the initial value (right side) on the binding for scope.evaluate()
+                if let Some(right) = value.get("right") {
+                    self.set_const_tag_initial(left, right);
+                }
             }
         }
         // Check if it's a VariableDeclaration
@@ -1891,8 +1895,27 @@ impl<'a> ScopeBuilder<'a> {
             // Extract identifier names from the pattern
             if let Some(id) = declaration.get("id") {
                 self.process_binding_pattern_from_json(id);
+                // Store the initial value on the binding for scope.evaluate()
+                if let Some(init) = declaration.get("init") {
+                    self.set_const_tag_initial(id, init);
+                }
             }
         }
+    }
+
+    /// Set the initial value on @const bindings for scope.evaluate() support.
+    /// This stores the init expression as a JSON string on binding.initial,
+    /// enabling is_expression_known_json to recursively evaluate const values.
+    fn set_const_tag_initial(&mut self, pattern: &serde_json::Value, init: &serde_json::Value) {
+        if let Some("Identifier") = pattern.get("type").and_then(|t| t.as_str())
+            && let Some(name) = pattern.get("name").and_then(|n| n.as_str())
+            && let Some(&idx) = self.scopes[self.current_scope].declarations.get(name)
+        {
+            self.bindings[idx].initial = Some(init.to_string());
+            self.bindings[idx].initial_is_defined = true;
+        }
+        // For destructuring patterns, we don't store initial per-binding
+        // (the whole expression is too complex to decompose per-identifier)
     }
 
     /// Process a binding pattern from a JSON value.
