@@ -209,9 +209,7 @@ fn run_snapshot_tests() -> CategoryResult {
             .join("_config.js");
 
         if let Ok(config) = fs::read_to_string(&config_path)
-            && (config.contains("async: true")
-                || config.contains("hmr: true")
-                || config.contains("fragments:"))
+            && config.contains("async: true")
         {
             result.add_sample(SampleResult {
                 name,

@@ -2029,24 +2029,35 @@ fn analyze_each_binding_expression(
                     // This is a reactive (destructured) variable being accessed as member
                     // The getter needs to call the function: root()
                     // Build the access expression and assign expression
-                    let access_expr = if property_path.starts_with('[') {
-                        format!("{}(){}", root_name, property_path)
-                    } else {
-                        format!("{}().{}", root_name, property_path)
-                    };
-                    // For the assign expression, use the update_path (not the getter call)
-                    // so we write to the original location, not via the getter function
-                    let assign_expr = if let Some(base_path) =
-                        each_ctx.destructured_update_paths.get(&root_name)
-                    {
-                        if property_path.starts_with('[') {
-                            format!("{}{}", base_path, property_path)
+
+                    // If the property is a computed access like [key], check if the identifier
+                    // inside the brackets also has a destructured getter transform and apply it.
+                    // e.g., [key] -> [key()] when key is a destructured getter function.
+                    let transformed_property_path = if property_path.starts_with('[') {
+                        let inner = &property_path[1..property_path.len() - 1];
+                        if each_ctx.destructured_update_paths.contains_key(inner)
+                            && context
+                                .state
+                                .transform
+                                .get(inner)
+                                .is_some_and(|t| t.is_reactive)
+                        {
+                            format!("[{}()]", inner)
                         } else {
-                            format!("{}.{}", base_path, property_path)
+                            property_path.clone()
                         }
                     } else {
-                        access_expr.clone()
+                        property_path.clone()
                     };
+
+                    let access_expr = if transformed_property_path.starts_with('[') {
+                        format!("{}(){}", root_name, transformed_property_path)
+                    } else {
+                        format!("{}().{}", root_name, transformed_property_path)
+                    };
+                    // For the assign expression, also use getter calls so the setter writes
+                    // through the getter functions (e.g., a()[key()] = $$value).
+                    let assign_expr = access_expr.clone();
                     return Some((
                         EachBindingExprInfo::ComputedAccess {
                             access_expr,
