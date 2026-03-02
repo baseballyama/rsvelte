@@ -106,8 +106,10 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     let code = code.replace("function(", "function (");
     // OXC splits `;;` (inspect placeholder) into two separate lines. Rejoin them.
     let code = rejoin_double_semicolons(code);
-    // Note: Tabs in string literals are kept as literal tab characters,
-    // matching the official Svelte compiler's esrap codegen output.
+    // OXC codegen outputs literal tab characters in string literals (e.g., '\t' → '	'),
+    // but the official Svelte compiler preserves escape sequences ('\t' stays as '\t').
+    // Convert literal tabs back to \t escape sequences in single/double-quoted strings.
+    let code = escape_tabs_in_string_literals(&code);
     // OXC strips wrapping parentheses from `new (class Foo { })()` expressions,
     // producing `new class Foo { }()`. Restore them to match Svelte's esrap output.
     let code = wrap_new_class_expressions(code);
@@ -835,6 +837,172 @@ fn rejoin_double_semicolons(code: String) -> String {
 /// Wrap `new class` expressions with parentheses to match Svelte's esrap output.
 ///
 /// OXC's codegen strips "unnecessary" parentheses from `new (class Foo { ... })()`,
+/// Escape literal tab characters inside single-quoted and double-quoted string literals.
+///
+/// OXC's codegen outputs literal tab characters (0x09) in string literals instead of
+/// the `\t` escape sequence. The official Svelte compiler (esrap) preserves escape
+/// sequences, so we need to convert literal tabs back to `\t` in string contexts.
+///
+/// This only affects single-quoted and double-quoted strings, NOT template literals
+/// (backtick strings) where literal tabs are used for indentation.
+fn escape_tabs_in_string_literals(code: &str) -> String {
+    if !code.contains('\t') {
+        return code.to_string();
+    }
+
+    let mut result = String::with_capacity(code.len());
+    let chars: Vec<char> = code.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        let ch = chars[i];
+
+        // Track string literals (single or double quoted)
+        if ch == '\'' || ch == '"' {
+            let quote = ch;
+            result.push(ch);
+            i += 1;
+
+            // Process characters inside the string literal
+            while i < len && chars[i] != quote {
+                if chars[i] == '\\' && i + 1 < len {
+                    // Escaped character - push both the backslash and next char
+                    result.push(chars[i]);
+                    result.push(chars[i + 1]);
+                    i += 2;
+                } else if chars[i] == '\t' {
+                    // Literal tab inside string literal - convert to \t
+                    result.push('\\');
+                    result.push('t');
+                    i += 1;
+                } else {
+                    result.push(chars[i]);
+                    i += 1;
+                }
+            }
+
+            // Push closing quote
+            if i < len {
+                result.push(chars[i]);
+                i += 1;
+            }
+        } else if ch == '`' {
+            // Template literal - don't modify tabs inside
+            result.push(ch);
+            i += 1;
+
+            while i < len && chars[i] != '`' {
+                if chars[i] == '\\' && i + 1 < len {
+                    result.push(chars[i]);
+                    result.push(chars[i + 1]);
+                    i += 2;
+                } else if chars[i] == '$' && i + 1 < len && chars[i + 1] == '{' {
+                    // Template expression - skip through it respecting nesting
+                    result.push(chars[i]);
+                    result.push(chars[i + 1]);
+                    i += 2;
+                    let mut depth = 1;
+                    while i < len && depth > 0 {
+                        if chars[i] == '{' {
+                            depth += 1;
+                        } else if chars[i] == '}' {
+                            depth -= 1;
+                        } else if chars[i] == '`' {
+                            // Nested template literal inside expression
+                            result.push(chars[i]);
+                            i += 1;
+                            while i < len && chars[i] != '`' {
+                                if chars[i] == '\\' && i + 1 < len {
+                                    result.push(chars[i]);
+                                    result.push(chars[i + 1]);
+                                    i += 2;
+                                } else {
+                                    result.push(chars[i]);
+                                    i += 1;
+                                }
+                            }
+                            if i < len {
+                                result.push(chars[i]);
+                                i += 1;
+                            }
+                            continue;
+                        } else if chars[i] == '\'' || chars[i] == '"' {
+                            // String inside template expression
+                            let inner_quote = chars[i];
+                            result.push(chars[i]);
+                            i += 1;
+                            while i < len && chars[i] != inner_quote {
+                                if chars[i] == '\\' && i + 1 < len {
+                                    result.push(chars[i]);
+                                    result.push(chars[i + 1]);
+                                    i += 2;
+                                } else if chars[i] == '\t' {
+                                    // Literal tab inside string inside template expr
+                                    result.push('\\');
+                                    result.push('t');
+                                    i += 1;
+                                } else {
+                                    result.push(chars[i]);
+                                    i += 1;
+                                }
+                            }
+                            if i < len {
+                                result.push(chars[i]);
+                                i += 1;
+                            }
+                            continue;
+                        }
+                        if depth > 0 {
+                            result.push(chars[i]);
+                            i += 1;
+                        }
+                    }
+                    // Push the closing }
+                    if depth == 0 {
+                        result.push('}');
+                        i += 1;
+                    }
+                } else {
+                    result.push(chars[i]);
+                    i += 1;
+                }
+            }
+
+            // Push closing backtick
+            if i < len {
+                result.push(chars[i]);
+                i += 1;
+            }
+        } else if ch == '/' && i + 1 < len && chars[i + 1] == '/' {
+            // Single-line comment - skip to end of line
+            while i < len && chars[i] != '\n' {
+                result.push(chars[i]);
+                i += 1;
+            }
+        } else if ch == '/' && i + 1 < len && chars[i + 1] == '*' {
+            // Multi-line comment - skip to end
+            result.push(chars[i]);
+            result.push(chars[i + 1]);
+            i += 2;
+            while i + 1 < len && !(chars[i] == '*' && chars[i + 1] == '/') {
+                result.push(chars[i]);
+                i += 1;
+            }
+            if i + 1 < len {
+                result.push(chars[i]);
+                result.push(chars[i + 1]);
+                i += 2;
+            }
+        } else {
+            result.push(ch);
+            i += 1;
+        }
+    }
+
+    result
+}
+
 /// producing `new class Foo { ... }()`. While semantically equivalent, Svelte's
 /// official compiler output includes the wrapping parens. This function restores them.
 ///
