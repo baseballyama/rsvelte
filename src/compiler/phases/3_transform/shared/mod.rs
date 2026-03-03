@@ -4,6 +4,7 @@
 //! code generation.
 
 pub mod assignments;
+pub mod async_body;
 pub mod template;
 
 pub use template::*;

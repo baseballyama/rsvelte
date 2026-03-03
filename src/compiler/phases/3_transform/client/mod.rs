@@ -544,8 +544,20 @@ fn transform_client_with_visitors(
         // Only add if there's actual content (not just whitespace)
         let trimmed = transformed_script.trim();
         if !trimmed.is_empty() {
-            // Parse transformed script as raw JavaScript statement
-            component_body.push(JsStatement::Raw(trimmed.to_string()));
+            // Apply async body transformation if experimental.async is enabled
+            // This splits the instance script at the first top-level `await`
+            if options.experimental.r#async {
+                if let Some(async_result) =
+                    super::shared::async_body::transform_async_body(trimmed, "$.run")
+                {
+                    component_body.push(JsStatement::Raw(async_result.output.trim().to_string()));
+                } else {
+                    component_body.push(JsStatement::Raw(trimmed.to_string()));
+                }
+            } else {
+                // Parse transformed script as raw JavaScript statement
+                component_body.push(JsStatement::Raw(trimmed.to_string()));
+            }
         }
     }
 

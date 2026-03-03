@@ -204,6 +204,22 @@ impl<'a> ServerCodeGenerator<'a> {
             (String::new(), Vec::new(), false, false, false)
         };
 
+        // Apply async body transformation if experimental.async is enabled
+        let script_code = if self.use_async && !script_code.trim().is_empty() {
+            if let Some(async_result) =
+                crate::compiler::phases::phase3_transform::shared::async_body::transform_async_body(
+                    script_code.trim(),
+                    "$$renderer.run",
+                )
+            {
+                async_result.output.trim().to_string()
+            } else {
+                script_code
+            }
+        } else {
+            script_code
+        };
+
         // Determine if we need $$renderer.component() wrapper
         // This matches the official compiler's should_inject_context logic (line 259):
         //   should_inject_context = dev || analysis.needs_context
