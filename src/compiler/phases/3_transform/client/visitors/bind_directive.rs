@@ -432,12 +432,15 @@ pub fn bind_directive(
     };
 
     // Check if any referenced variables are blocked by async promises.
-    // We check the getter and setter expressions for blocker references.
+    // Extract identifiers from the raw AST expression (node.expression) rather than
+    // from the converted JsExpr, because the converted expression may contain arrow
+    // functions (e.g., sequence expressions for getter/setter pairs) and
+    // collect_expr_identifiers intentionally does NOT cross function boundaries.
+    // Walking the raw AST JSON ensures we find all referenced variable names.
     {
-        use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::get_blockers_for_exprs;
-        let set_or_get = set.clone().unwrap_or_else(|| get.clone());
-        let blocker_check_exprs: Vec<&JsExpr> = vec![&get, &set_or_get];
-        let blocker_exprs = get_blockers_for_exprs(&blocker_check_exprs, context);
+        let ast_names = collect_ast_identifiers(&node.expression);
+        let name_refs: Vec<&str> = ast_names.iter().map(|s| s.as_str()).collect();
+        let blocker_exprs = context.state.get_blockers_for_names(&name_refs);
 
         if !blocker_exprs.is_empty() {
             let blockers_array = b::array(blocker_exprs);
@@ -2213,6 +2216,51 @@ fn get_expression_root_identifier(expr: &JsExpr) -> Option<String> {
         JsExpr::Identifier(name) => Some(name.clone()),
         JsExpr::Member(member) => get_expression_root_identifier(&member.object),
         _ => None,
+    }
+}
+
+/// Collect all identifier names from a raw AST Expression (JSON-based).
+/// Unlike `collect_expr_identifiers` in transition_directive.rs, this DOES cross
+/// arrow/function boundaries because we need to find all referenced variable names
+/// for blocker checking in bind directives (e.g., `bind:value={() => value, v => value = v}`
+/// where `value` is inside arrow functions).
+fn collect_ast_identifiers(expr: &Expression) -> Vec<String> {
+    let mut names = Vec::new();
+    let Expression::Value(val) = expr;
+    collect_ast_identifiers_recursive(val, &mut names);
+    names
+}
+
+fn collect_ast_identifiers_recursive(val: &serde_json::Value, names: &mut Vec<String>) {
+    match val {
+        serde_json::Value::Object(obj) => {
+            let node_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
+            match node_type {
+                "Identifier" => {
+                    if let Some(name) = obj.get("name").and_then(|v| v.as_str())
+                        && !names.contains(&name.to_string())
+                    {
+                        names.push(name.to_string());
+                    }
+                }
+                _ => {
+                    // Recurse into all object values to find nested identifiers
+                    for (key, value) in obj {
+                        // Skip metadata and location fields
+                        if key == "type" || key == "start" || key == "end" || key == "loc" {
+                            continue;
+                        }
+                        collect_ast_identifiers_recursive(value, names);
+                    }
+                }
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for item in arr {
+                collect_ast_identifiers_recursive(item, names);
+            }
+        }
+        _ => {}
     }
 }
 

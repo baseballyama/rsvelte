@@ -62,6 +62,12 @@ pub fn build_component(
 ) -> JsStatement {
     use crate::compiler::phases::phase3_transform::client::types::Memoizer;
 
+    eprintln!(
+        "[DEBUG build_component] name={}, blocker_map_empty={}",
+        component_name,
+        context.state.blocker_map.borrow().is_empty()
+    );
+
     let anchor = context.state.node.clone();
 
     let mut props_and_spreads: Vec<PropsEntry> = Vec::new();
@@ -545,6 +551,10 @@ pub fn build_component(
                     &mut component_names,
                 );
             }
+            eprintln!(
+                "[DEBUG component async] blocker_map={:?}, component_names={:?}",
+                *blocker_map, component_names
+            );
             let mut blocker_indices: Vec<usize> = Vec::new();
             for name in &component_names {
                 if let Some(&idx) = blocker_map.get(name.as_str())

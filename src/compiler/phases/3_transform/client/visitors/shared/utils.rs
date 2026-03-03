@@ -2879,8 +2879,16 @@ pub fn build_template_chunk(
                     let converted_expr = convert_expression(&expr_tag.expression, context);
 
                     // Check if the expression references reactive state, contains calls, member expressions, or await
+                    // Special case: $effect.pending() is inherently reactive (has_state=true)
+                    // but NOT a "call" for memoization. This matches the official Svelte compiler's
+                    // phase 2 analysis where $effect.pending() explicitly sets has_state = true.
+                    let is_pending_rune = is_effect_pending_expr(&expr_tag.expression);
+                    if is_pending_rune {
+                        eprintln!("DEBUG: Found $effect.pending() expression in template chunk");
+                    }
                     let expr_has_state =
-                        expression_has_reactive_state(&expr_tag.expression, context);
+                        expression_has_reactive_state(&expr_tag.expression, context)
+                            || is_pending_rune;
                     let expr_has_call = expression_has_call(&expr_tag.expression, context);
                     let expr_has_member = expression_has_member(&expr_tag.expression);
                     let expr_has_await = expression_has_await(&expr_tag.expression);
@@ -3494,6 +3502,52 @@ pub fn expression_has_reactive_state(
     }
 }
 
+/// Check if an expression is a `$effect.pending()` rune call.
+///
+/// The official Svelte compiler treats `$effect.pending()` as inherently reactive
+/// (has_state = true) in phase 2 analysis, but it does NOT set has_call = true
+/// (since the callee is a pure global). This function detects this rune call
+/// so the caller can set has_state = true without affecting has_call.
+#[inline]
+pub fn is_effect_pending_expr(expr: &crate::ast::js::Expression) -> bool {
+    use crate::ast::js::Expression;
+
+    match expr {
+        Expression::Value(json_value) => {
+            let Some(obj) = json_value.as_object() else {
+                return false;
+            };
+            if obj.get("type").and_then(|v| v.as_str()) != Some("CallExpression") {
+                return false;
+            }
+            let Some(callee) = obj.get("callee").and_then(|c| c.as_object()) else {
+                return false;
+            };
+            if callee.get("type").and_then(|t| t.as_str()) != Some("MemberExpression") {
+                return false;
+            }
+            if callee.get("computed").and_then(|v| v.as_bool()) == Some(true) {
+                return false;
+            }
+            let is_pending = callee
+                .get("property")
+                .and_then(|p| p.as_object())
+                .is_some_and(|p_obj| {
+                    p_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                        && p_obj.get("name").and_then(|n| n.as_str()) == Some("pending")
+                });
+            let is_effect_obj = callee
+                .get("object")
+                .and_then(|o| o.as_object())
+                .is_some_and(|o_obj| {
+                    o_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                        && o_obj.get("name").and_then(|n| n.as_str()) == Some("$effect")
+                });
+            is_pending && is_effect_obj
+        }
+    }
+}
+
 /// Internal helper that processes JSON values directly, avoiding serde_json::from_value overhead.
 /// This eliminates expensive cloning and deserialization in recursive calls.
 #[inline]
@@ -3978,16 +4032,10 @@ fn is_pure_json(json_value: &serde_json::Value, context: &ComponentContext) -> b
         | "BigIntLiteral" | "RegExpLiteral" => true,
         "Identifier" => {
             if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                // Svelte rune identifiers are NOT pure ($effect, $state, etc.)
-                // In particular, $effect.tracking() is reactive
-                if name.starts_with('$')
-                    && matches!(
-                        name,
-                        "$effect" | "$state" | "$derived" | "$props" | "$bindable" | "$inspect"
-                    )
-                {
-                    return false;
-                }
+                // Rune identifiers ($effect, $state, etc.) are globals with no scope
+                // binding, so they are treated as pure. This matches the official
+                // Svelte compiler's is_pure() which considers globals (binding === null)
+                // as safe. The $effect.tracking exception is in the MemberExpression case.
                 // Check if it has a local binding - globals are pure
                 context.state.get_binding(name).is_none()
                     && !context.state.transform.contains_key(name)
@@ -3996,6 +4044,28 @@ fn is_pure_json(json_value: &serde_json::Value, context: &ComponentContext) -> b
             }
         }
         "MemberExpression" => {
+            // Special case: $effect.tracking is NOT pure, matching the official compiler's
+            // check in is_pure(). This ensures $effect.tracking() gets has_call=true.
+            if obj.get("computed").and_then(|v| v.as_bool()) != Some(true) {
+                let is_tracking =
+                    obj.get("property")
+                        .and_then(|p| p.as_object())
+                        .is_some_and(|p_obj| {
+                            p_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                                && p_obj.get("name").and_then(|n| n.as_str()) == Some("tracking")
+                        });
+                let is_effect_obj =
+                    obj.get("object")
+                        .and_then(|o| o.as_object())
+                        .is_some_and(|o_obj| {
+                            o_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                                && o_obj.get("name").and_then(|n| n.as_str()) == Some("$effect")
+                        });
+                if is_tracking && is_effect_obj {
+                    return false;
+                }
+            }
+
             // Walk to the leftmost object
             let mut left = json_value;
             while let Some(left_obj) = left.as_object()
