@@ -1899,7 +1899,14 @@ fn collect_reactive_references_from_metadata(
         // Build the getter by applying the read transform if one exists
         // (mirrors build_getter in the official compiler)
         let getter = if let Some(transform) = context.state.transform.get(name.as_str()) {
-            if let Some(read_fn) = transform.read {
+            if let Some(ref read_source) = transform.read_source {
+                // read_source is set for destructured @const and let directive bindings.
+                // The getter should be $.get(read_source).name instead of $.get(name).
+                b::member(
+                    b::call(b::member_path("$.get"), vec![b::id(read_source)]),
+                    name,
+                )
+            } else if let Some(read_fn) = transform.read {
                 let input_id = if let Some(ref replacement) = transform.replacement_id {
                     JsExpr::Identifier(replacement.clone())
                 } else {
@@ -2064,7 +2071,14 @@ fn collect_reactive_references_inner(
                 .get(name)
                 .is_some_and(|t| t.read.is_some());
             let getter = if let Some(transform) = context.state.transform.get(name) {
-                if let Some(read_fn) = transform.read {
+                if let Some(ref read_source) = transform.read_source {
+                    // read_source is set for destructured @const and let directive bindings.
+                    // The getter should be $.get(read_source).name instead of $.get(name).
+                    b::member(
+                        b::call(b::member_path("$.get"), vec![b::id(read_source)]),
+                        name,
+                    )
+                } else if let Some(read_fn) = transform.read {
                     // If this transform has a replacement_id, use it instead of the original name.
                     // This is used for legacy reactive imports where `numbers` -> `$$_import_numbers()`.
                     let input_id = if let Some(ref replacement) = transform.replacement_id {

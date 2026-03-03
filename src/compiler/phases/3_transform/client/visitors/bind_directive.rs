@@ -422,7 +422,7 @@ pub fn bind_directive(
     let defer = binding_name != "this" && is_regular_element(parent) && has_use_directive(parent);
 
     // Wrap in effect if deferred
-    let statement = if defer {
+    let mut statement = if defer {
         b::stmt(b::call(
             b::member_path("$.effect"),
             vec![b::thunk(call.clone())],
@@ -431,19 +431,23 @@ pub fn bind_directive(
         b::stmt(call.clone())
     };
 
-    // TODO: Handle async expressions with blockers
-    // if node.metadata.expression.is_async() {
-    //     statement = b::stmt(b::call(
-    //         b::member_path("$.run_after_blockers"),
-    //         vec![
-    //             node.metadata.expression.blockers(),
-    //             b::thunk_block(vec![statement]),
-    //         ],
-    //     ));
-    // }
+    // Check if any referenced variables are blocked by async promises.
+    // We check the getter and setter expressions for blocker references.
+    {
+        use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::get_blockers_for_exprs;
+        let set_or_get = set.clone().unwrap_or_else(|| get.clone());
+        let blocker_check_exprs: Vec<&JsExpr> = vec![&get, &set_or_get];
+        let blocker_exprs = get_blockers_for_exprs(&blocker_check_exprs, context);
 
-    // Bindings need to happen after attribute updates, in order with events/actions.
-    // bind:this is special as it's one-way and could influence the render effect.
+        if !blocker_exprs.is_empty() {
+            let blockers_array = b::array(blocker_exprs);
+            statement = b::stmt(b::call(
+                b::member_path("$.run_after_blockers"),
+                vec![blockers_array, b::arrow_block(vec![], vec![statement])],
+            ));
+        }
+    }
+
     // Bindings need to happen after attribute updates, in order with events/actions.
     // bind:this is special as it's one-way and could influence the render effect.
     if binding_name == "this" || defer {

@@ -499,7 +499,7 @@ pub fn fragment(
 
 /// Collect all identifier names from a JS statement.
 /// Used for finding blocked variable references in template_effect callbacks.
-fn collect_identifiers_from_statement(stmt: &JsStatement, names: &mut Vec<String>) {
+pub fn collect_identifiers_from_statement(stmt: &JsStatement, names: &mut Vec<String>) {
     match stmt {
         JsStatement::Expression(expr_stmt) => {
             collect_ids_from_expr(&expr_stmt.expression, names);

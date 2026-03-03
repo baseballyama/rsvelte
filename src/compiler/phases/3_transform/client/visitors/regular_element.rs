@@ -48,11 +48,23 @@ use rustc_hash::FxHashMap;
 /// and registers `$.get()` transforms for each let-bound variable.
 ///
 /// Corresponds to LetDirective handling in RegularElement.js lines 115-118 and 207.
+/// Return type for process_element_let_directives, containing
+/// the bound names and saved transforms to restore after children are visited.
+struct LetDirectiveResult {
+    saved_transforms: Vec<(
+        String,
+        Option<crate::compiler::phases::phase3_transform::client::types::IdentifierTransform>,
+    )>,
+}
+
 fn process_element_let_directives(
     let_directives: &[LetDirective],
     context: &mut ComponentContext,
-) -> Vec<String> {
-    let mut let_bound_names: Vec<String> = Vec::new();
+) -> LetDirectiveResult {
+    let mut saved_transforms: Vec<(
+        String,
+        Option<crate::compiler::phases::phase3_transform::client::types::IdentifierTransform>,
+    )> = Vec::new();
 
     for let_dir in let_directives {
         let prop_name = &let_dir.name;
@@ -86,7 +98,8 @@ fn process_element_let_directives(
                 None => prop_name.to_string(),
             };
 
-            let_bound_names.push(name.clone());
+            // Save existing transform before overwriting
+            saved_transforms.push((name.clone(), context.state.transform.get(&name).cloned()));
 
             let derived_fn = if context.state.analysis.runes {
                 "$.derived"
@@ -116,7 +129,7 @@ fn process_element_let_directives(
         }
     }
 
-    let_bound_names
+    LetDirectiveResult { saved_transforms }
 }
 
 /// Visit a regular element node.
@@ -227,7 +240,7 @@ pub fn visit_regular_element(
     }
 
     // Process let directives (mirrors RegularElement.js line 207)
-    let let_bound_names = process_element_let_directives(&element_let_directives, context);
+    let let_directive_result = process_element_let_directives(&element_let_directives, context);
 
     // Check if value attribute needs special handling (option, select, or bindings)
     let needs_special_value_handling = node.name == "option"
@@ -1171,9 +1184,16 @@ pub fn visit_regular_element(
     // Restore namespace after processing children
     context.state.metadata.namespace = saved_namespace;
 
-    // Clean up let directive transforms to avoid leaking into sibling/parent scopes
-    for name in &let_bound_names {
-        context.state.transform.remove(name);
+    // Restore original transforms that were saved before let: directives
+    for (name, saved) in &let_directive_result.saved_transforms {
+        if let Some(original_transform) = saved {
+            context
+                .state
+                .transform
+                .insert(name.clone(), original_transform.clone());
+        } else {
+            context.state.transform.remove(name);
+        }
     }
 
     context.state.template.pop_element();

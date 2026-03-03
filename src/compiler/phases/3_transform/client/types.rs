@@ -1011,6 +1011,9 @@ impl<'a> ComponentContext<'a> {
         // and registers read transforms so the children can access the slot props
         let mut let_stmts: Vec<JsStatement> = Vec::new();
         let mut let_names: Vec<String> = Vec::new();
+        // Save existing transforms that will be shadowed by let directives,
+        // so we can restore them after visiting children.
+        let mut saved_transforms: Vec<(String, Option<IdentifierTransform>)> = Vec::new();
 
         for attribute in &frag.attributes {
             if let Attribute::LetDirective(let_dir) = attribute {
@@ -1058,6 +1061,9 @@ impl<'a> ComponentContext<'a> {
                         "const {} = {}(() => $$slotProps.{});",
                         name, derived_fn, prop_name,
                     )));
+
+                    // Save existing transform before overwriting
+                    saved_transforms.push((name.clone(), self.state.transform.get(&name).cloned()));
 
                     // Register transform so children can read this variable via $.get()
                     self.state.transform.insert(
@@ -1114,12 +1120,22 @@ impl<'a> ComponentContext<'a> {
                                 // Generate unique name for the derived variable
                                 let derived_name = self.state.memoizer.generate_id(prop_name);
                                 let_names.push(derived_name.clone());
+                                // Save existing transform for derived_name (if any) before it could be shadowed
+                                saved_transforms.push((
+                                    derived_name.clone(),
+                                    self.state.transform.get(&derived_name).cloned(),
+                                ));
 
                                 // Register transforms for each binding:
                                 // binding_name -> $.get(derived_name).binding_name
                                 for binding_name in &binding_names {
                                     let derived_name_clone = derived_name.clone();
                                     let_names.push(binding_name.clone());
+                                    // Save existing transform before overwriting
+                                    saved_transforms.push((
+                                        binding_name.clone(),
+                                        self.state.transform.get(binding_name).cloned(),
+                                    ));
                                     self.state.transform.insert(
                                         binding_name.clone(),
                                         IdentifierTransform {
@@ -1183,9 +1199,15 @@ impl<'a> ComponentContext<'a> {
         let block = visit_fragment_impl(&inner_fragment, self, false);
         self.state.init.extend(block.body);
 
-        // Clean up transforms registered by let: directives
-        for name in &let_names {
-            self.state.transform.remove(name);
+        // Restore original transforms that were saved before let: directives
+        for (name, saved) in &saved_transforms {
+            if let Some(original_transform) = saved {
+                self.state
+                    .transform
+                    .insert(name.clone(), original_transform.clone());
+            } else {
+                self.state.transform.remove(name);
+            }
         }
 
         TransformResult::None
@@ -2353,7 +2375,9 @@ impl Memoizer {
 
     /// Get the async values array.
     ///
-    /// Returns an array of thunked async expressions.
+    /// Returns an array of thunked async expressions with `$.save()` wrapping applied.
+    /// The `$.save()` wrapping is handled internally by `async_thunk()`.
+    ///
     /// Returns `None` if there are no async expressions.
     pub fn async_values(&self) -> Option<JsExpr> {
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
@@ -2374,6 +2398,19 @@ impl Memoizer {
     /// Check if there are any memoized expressions.
     pub fn has_memoized(&self) -> bool {
         !self.sync.is_empty() || !self.async_entries.is_empty()
+    }
+
+    /// Check if there are any async memoized expressions.
+    pub fn has_async(&self) -> bool {
+        !self.async_entries.is_empty()
+    }
+
+    /// Get the async parameter identifiers for the $.async() arrow function.
+    ///
+    /// Returns the list of async parameter identifiers ($0, $1, etc.) that will
+    /// be passed as parameters to the arrow function in $.async() calls.
+    pub fn async_ids(&self) -> Vec<JsExpr> {
+        self.async_entries.iter().map(|e| e.id.clone()).collect()
     }
 
     /// Clear all memoized expressions (but keep conflicts).

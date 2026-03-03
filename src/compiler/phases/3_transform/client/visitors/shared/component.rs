@@ -110,6 +110,10 @@ pub fn build_component(
     // Check if component has a slot property (named slot within another component)
     let slot_scope_applies_to_itself = determine_slot_from_attributes(attributes);
 
+    // Save transforms that will be shadowed by let directives when slot_scope_applies_to_itself.
+    // This allows us to restore them after the component is processed.
+    let mut saved_self_slot_transforms: Vec<(String, Option<IdentifierTransform>)> = Vec::new();
+
     // Process let directives first if slot scope applies to component itself
     // This must happen before attribute processing so transforms are available
     // for attribute expressions like `thing={data}` where `data` comes from `let:thing={data}`
@@ -121,6 +125,10 @@ pub fn build_component(
         }
         // Register transforms immediately so they're available for attribute processing
         for (name, read_source) in &let_names {
+            // Save existing transform before overwriting
+            saved_self_slot_transforms
+                .push((name.clone(), context.state.transform.get(name).cloned()));
+
             context.state.transform.insert(
                 name.clone(),
                 crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
@@ -507,11 +515,82 @@ pub fn build_component(
         }
     }
 
-    // Clean up transforms registered for slot_scope_applies_to_itself
+    // Restore original transforms after slot_scope_applies_to_itself processing
     if slot_scope_applies_to_itself {
-        for (name, _) in &let_names {
-            context.state.transform.remove(name);
+        for (name, saved) in &saved_self_slot_transforms {
+            if let Some(original_transform) = saved {
+                context
+                    .state
+                    .transform
+                    .insert(name.clone(), original_transform.clone());
+            } else {
+                context.state.transform.remove(name);
+            }
         }
+    }
+
+    // Wrap in $.async() if there are async memoized expressions or blockers
+    // This corresponds to the official Svelte compiler's async wrapping in component.js lines 514-533
+    let async_values = memoizer.async_values();
+    let component_blockers = {
+        let blocker_map = context.state.blocker_map.borrow();
+        if blocker_map.is_empty() {
+            None
+        } else {
+            // Check if any of the component's prop expressions reference blocked variables
+            let mut component_names = Vec::new();
+            for stmt in &statements {
+                super::super::fragment::collect_identifiers_from_statement(
+                    stmt,
+                    &mut component_names,
+                );
+            }
+            let mut blocker_indices: Vec<usize> = Vec::new();
+            for name in &component_names {
+                if let Some(&idx) = blocker_map.get(name.as_str())
+                    && !blocker_indices.contains(&idx)
+                {
+                    blocker_indices.push(idx);
+                }
+            }
+            blocker_indices.sort();
+            if blocker_indices.is_empty() {
+                None
+            } else {
+                Some(b::array(
+                    blocker_indices
+                        .into_iter()
+                        .map(|idx| b::member_computed(b::id("$$promises"), b::number(idx as f64)))
+                        .collect(),
+                ))
+            }
+        }
+    };
+
+    if async_values.is_some() || component_blockers.is_some() {
+        let blockers_expr = component_blockers.unwrap_or_else(b::undefined);
+        let async_values_expr = async_values.unwrap_or_else(b::undefined);
+
+        // Build the arrow function parameters: [$$anchor, ...async_ids]
+        let mut arrow_params = vec![b::id_pattern("$$anchor")];
+        for async_id in memoizer.async_ids() {
+            if let JsExpr::Identifier(name) = async_id {
+                arrow_params.push(b::id_pattern(&name));
+            }
+        }
+
+        let async_call = b::call(
+            b::member_path("$.async"),
+            vec![
+                anchor.clone(),
+                blockers_expr,
+                async_values_expr,
+                b::arrow_block(arrow_params, statements),
+            ],
+        );
+
+        // Replace statements with the $.async() wrapped version
+        statements = vec![b::stmt(async_call)];
     }
 
     // Return single statement or block
@@ -1599,9 +1678,23 @@ fn build_slot_function(
     let should_apply_let_transforms =
         !let_names.is_empty() && (slot_name == "default" || slot_scope_applies_to_itself);
 
+    // Save existing transforms that will be shadowed by let directives,
+    // so we can restore them after visiting children.
+    // This is critical because let directives may shadow outer bindings
+    // (e.g., `let:box` shadows the outer `box` prop), and we must restore
+    // the original transform after the slot scope ends.
+    let mut saved_transforms: Vec<(
+        String,
+        Option<crate::compiler::phases::phase3_transform::client::types::IdentifierTransform>,
+    )> = Vec::new();
+
     // Register let directive transforms if this is the appropriate slot
     if should_apply_let_transforms {
         for (name, read_source) in let_names {
+            // Save the existing transform (if any) before overwriting
+            let existing = context.state.transform.get(name).cloned();
+            saved_transforms.push((name.clone(), existing));
+
             context.state.transform.insert(
                 name.clone(),
                 crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
@@ -1623,10 +1716,17 @@ fn build_slot_function(
     // This pattern mirrors visit_fragment in snippet_block.rs
     let child_statements = visit_slot_children(children, context);
 
-    // Remove let directive transforms after visiting children
+    // Restore original transforms after visiting children
     if should_apply_let_transforms {
-        for (name, _) in let_names {
-            context.state.transform.remove(name);
+        for (name, saved) in &saved_transforms {
+            if let Some(original_transform) = saved {
+                context
+                    .state
+                    .transform
+                    .insert(name.clone(), original_transform.clone());
+            } else {
+                context.state.transform.remove(name);
+            }
         }
     }
 

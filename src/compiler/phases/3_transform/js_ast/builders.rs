@@ -481,16 +481,321 @@ pub fn strip_await(expr: JsExpr) -> JsExpr {
     }
 }
 
+/// Wrap an expression in the `$.save()` pattern.
+///
+/// Turns `await expr` into `(await $.save(expr))()`.
+///
+/// Corresponds to the `save()` function in
+/// `svelte/packages/svelte/src/compiler/utils/ast.js:637`.
+pub fn save(expression: JsExpr) -> JsExpr {
+    // (await $.save(expression))()
+    call(
+        JsExpr::Await(Box::new(call(member_path("$.save"), vec![expression]))),
+        vec![],
+    )
+}
+
+/// Apply `$.save()` wrapping to await expressions in an expression tree.
+///
+/// In async template effect values, `await X` expressions that are NOT in
+/// "tail position" (i.e., not the last evaluated sub-expression) should be
+/// wrapped as `(await $.save(X))()` to preserve reactivity.
+///
+/// This corresponds to the `pickled_awaits` mechanism in the official Svelte
+/// compiler, which marks await expressions in Phase 2 analysis and transforms
+/// them in Phase 3 via the `AwaitExpression` visitor.
+///
+/// The `is_last_evaluated_expression` logic from the official compiler is
+/// replicated here as a top-down tree transformation.
+pub fn apply_save_wrapping(expr: JsExpr) -> JsExpr {
+    // Only process if there are await expressions
+    if !has_await_expression(&expr) {
+        return expr;
+    }
+    apply_save_recursive(expr, true)
+}
+
+/// Recursively apply save wrapping.
+///
+/// `is_tail` indicates whether this expression is in "tail position"
+/// (the last evaluated sub-expression). Await expressions in tail
+/// position do NOT need `$.save()` wrapping.
+fn apply_save_recursive(expr: JsExpr, is_tail: bool) -> JsExpr {
+    match expr {
+        JsExpr::Await(inner) => {
+            if is_tail {
+                // Tail position: leave as plain `await X`
+                JsExpr::Await(Box::new(apply_save_recursive(*inner, true)))
+            } else {
+                // Non-tail position: wrap as `(await $.save(X))()`
+                save(*inner)
+            }
+        }
+
+        JsExpr::Binary(bin) => {
+            // In binary expressions, left is NOT in tail position,
+            // right inherits the parent's tail status
+            let left = apply_save_recursive(*bin.left, false);
+            let right = apply_save_recursive(*bin.right, is_tail);
+            JsExpr::Binary(JsBinaryExpression {
+                operator: bin.operator,
+                left: Box::new(left),
+                right: Box::new(right),
+            })
+        }
+
+        JsExpr::Logical(log) => {
+            // Same as binary: left is NOT tail, right inherits
+            let left = apply_save_recursive(*log.left, false);
+            let right = apply_save_recursive(*log.right, is_tail);
+            JsExpr::Logical(JsLogicalExpression {
+                operator: log.operator,
+                left: Box::new(left),
+                right: Box::new(right),
+            })
+        }
+
+        JsExpr::Assignment(assign) => {
+            // Left is NOT tail, right inherits
+            let left = apply_save_recursive(*assign.left, false);
+            let right = apply_save_recursive(*assign.right, is_tail);
+            JsExpr::Assignment(JsAssignmentExpression {
+                operator: assign.operator,
+                left: Box::new(left),
+                right: Box::new(right),
+            })
+        }
+
+        JsExpr::Call(call_expr) => {
+            // Callee is NOT in tail position
+            // All arguments except the last are NOT in tail position
+            // The last argument inherits the parent's tail status
+            let callee = apply_save_recursive(*call_expr.callee, false);
+            let len = call_expr.arguments.len();
+            let arguments: Vec<JsExpr> = call_expr
+                .arguments
+                .into_iter()
+                .enumerate()
+                .map(|(i, arg)| {
+                    let arg_is_tail = is_tail && i == len - 1;
+                    apply_save_recursive(arg, arg_is_tail)
+                })
+                .collect();
+            JsExpr::Call(JsCallExpression {
+                callee: Box::new(callee),
+                arguments,
+                optional: call_expr.optional,
+            })
+        }
+
+        JsExpr::New(new_expr) => {
+            // Same as Call: callee NOT tail, last argument inherits tail
+            let callee = apply_save_recursive(*new_expr.callee, false);
+            let len = new_expr.arguments.len();
+            let arguments: Vec<JsExpr> = new_expr
+                .arguments
+                .into_iter()
+                .enumerate()
+                .map(|(i, arg)| {
+                    let arg_is_tail = is_tail && i == len - 1;
+                    apply_save_recursive(arg, arg_is_tail)
+                })
+                .collect();
+            JsExpr::New(JsNewExpression {
+                callee: Box::new(callee),
+                arguments,
+            })
+        }
+
+        JsExpr::Array(arr) => {
+            // All elements except the last are NOT in tail position
+            let len = arr.elements.len();
+            let elements: Vec<Option<JsExpr>> = arr
+                .elements
+                .into_iter()
+                .enumerate()
+                .map(|(i, elem)| {
+                    elem.map(|e| {
+                        let elem_is_tail = is_tail && i == len - 1;
+                        apply_save_recursive(e, elem_is_tail)
+                    })
+                })
+                .collect();
+            JsExpr::Array(JsArrayExpression { elements })
+        }
+
+        JsExpr::Conditional(cond) => {
+            // Test is NOT in tail position
+            // Consequent and alternate are NOT directly in tail position for save purposes
+            // (they represent branches, each of which could be the "last" independently)
+            let test = apply_save_recursive(*cond.test, false);
+            // consequent and alternate: each branch acts as its own tail context
+            let consequent = apply_save_recursive(*cond.consequent, is_tail);
+            let alternate = apply_save_recursive(*cond.alternate, is_tail);
+            JsExpr::Conditional(JsConditionalExpression {
+                test: Box::new(test),
+                consequent: Box::new(consequent),
+                alternate: Box::new(alternate),
+            })
+        }
+
+        JsExpr::Member(member) => {
+            // Object is NOT in tail position when computed
+            let object_is_tail = if member.computed { false } else { is_tail };
+            let object = apply_save_recursive(*member.object, object_is_tail);
+            let property = match member.property {
+                JsMemberProperty::Expression(e) => {
+                    JsMemberProperty::Expression(Box::new(apply_save_recursive(*e, is_tail)))
+                }
+                other => other,
+            };
+            JsExpr::Member(JsMemberExpression {
+                object: Box::new(object),
+                property,
+                computed: member.computed,
+                optional: member.optional,
+            })
+        }
+
+        JsExpr::Sequence(seq) => {
+            // All expressions except the last are NOT in tail position
+            let len = seq.expressions.len();
+            let expressions: Vec<JsExpr> = seq
+                .expressions
+                .into_iter()
+                .enumerate()
+                .map(|(i, e)| {
+                    let e_is_tail = is_tail && i == len - 1;
+                    apply_save_recursive(e, e_is_tail)
+                })
+                .collect();
+            JsExpr::Sequence(JsSequenceExpression { expressions })
+        }
+
+        JsExpr::TemplateLiteral(tmpl) => {
+            // All expressions except the last are NOT in tail position
+            let len = tmpl.expressions.len();
+            let expressions: Vec<JsExpr> = tmpl
+                .expressions
+                .into_iter()
+                .enumerate()
+                .map(|(i, e)| {
+                    let e_is_tail = is_tail && i == len - 1;
+                    apply_save_recursive(e, e_is_tail)
+                })
+                .collect();
+            JsExpr::TemplateLiteral(JsTemplateLiteral {
+                quasis: tmpl.quasis,
+                expressions,
+            })
+        }
+
+        JsExpr::TaggedTemplate(tt) => {
+            // Tag is NOT in tail position
+            let tag = apply_save_recursive(*tt.tag, false);
+            let len = tt.quasi.expressions.len();
+            let expressions: Vec<JsExpr> = tt
+                .quasi
+                .expressions
+                .into_iter()
+                .enumerate()
+                .map(|(i, e)| {
+                    let e_is_tail = is_tail && i == len - 1;
+                    apply_save_recursive(e, e_is_tail)
+                })
+                .collect();
+            JsExpr::TaggedTemplate(JsTaggedTemplate {
+                tag: Box::new(tag),
+                quasi: JsTemplateLiteral {
+                    quasis: tt.quasi.quasis,
+                    expressions,
+                },
+            })
+        }
+
+        JsExpr::Object(obj) => {
+            // Properties: last property inherits tail
+            let len = obj.properties.len();
+            let properties: Vec<JsObjectMember> = obj
+                .properties
+                .into_iter()
+                .enumerate()
+                .map(|(i, prop)| {
+                    let prop_is_tail = is_tail && i == len - 1;
+                    match prop {
+                        JsObjectMember::Property(p) => {
+                            let key_is_tail = false;
+                            let key = match p.key {
+                                JsPropertyKey::Computed(e) => JsPropertyKey::Computed(Box::new(
+                                    apply_save_recursive(*e, key_is_tail),
+                                )),
+                                other => other,
+                            };
+                            let value = apply_save_recursive(*p.value, prop_is_tail);
+                            JsObjectMember::Property(JsProperty {
+                                key,
+                                value: Box::new(value),
+                                kind: p.kind,
+                                computed: p.computed,
+                                shorthand: p.shorthand,
+                                method: p.method,
+                            })
+                        }
+                        JsObjectMember::SpreadElement(e) => JsObjectMember::SpreadElement(
+                            Box::new(apply_save_recursive(*e, prop_is_tail)),
+                        ),
+                    }
+                })
+                .collect();
+            JsExpr::Object(JsObjectExpression { properties })
+        }
+
+        JsExpr::Unary(un) => {
+            // Unary argument: NOT in tail position (the result is transformed by the operator)
+            let argument = apply_save_recursive(*un.argument, false);
+            JsExpr::Unary(JsUnaryExpression {
+                operator: un.operator,
+                argument: Box::new(argument),
+                prefix: un.prefix,
+            })
+        }
+
+        JsExpr::Update(up) => {
+            let argument = apply_save_recursive(*up.argument, false);
+            JsExpr::Update(JsUpdateExpression {
+                operator: up.operator,
+                argument: Box::new(argument),
+                prefix: up.prefix,
+            })
+        }
+
+        JsExpr::Spread(inner) => JsExpr::Spread(Box::new(apply_save_recursive(*inner, is_tail))),
+
+        JsExpr::Void(inner) => JsExpr::Void(Box::new(apply_save_recursive(*inner, false))),
+
+        // Don't cross function boundaries
+        JsExpr::Arrow(_) | JsExpr::Function(_) => expr,
+
+        // Leaf nodes and others that don't contain sub-expressions to transform
+        _ => expr,
+    }
+}
+
 /// Create a thunk with a block body.
 pub fn thunk_block(statements: Vec<JsStatement>) -> JsExpr {
     arrow_block(vec![], statements)
 }
 
-/// Create an async thunk.
-/// Applies unthunk optimization: `async () => await x()` becomes `() => x()`.
-/// Corresponds to Svelte's `thunk(expression, true)`.
+/// Create an async thunk with `$.save()` wrapping.
+///
+/// First applies `$.save()` wrapping to non-tail await expressions,
+/// then applies unthunk optimization: `async () => await x()` becomes `() => x()`.
+///
+/// Corresponds to Svelte's `thunk(expression, true)` combined with
+/// the `pickled_awaits` mechanism.
 pub fn async_thunk(expr: JsExpr) -> JsExpr {
-    unthunk(async_arrow(vec![], expr))
+    let saved_expr = apply_save_wrapping(expr);
+    unthunk(async_arrow(vec![], saved_expr))
 }
 
 /// Create a function expression.

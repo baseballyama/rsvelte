@@ -14,6 +14,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
     apply_transforms_to_expression, build_expression, expression_has_reactive_state,
     parse_directive_name,
 };
+use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::get_blockers_for_exprs;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::{
     JsExpr, JsMemberExpression, JsMemberProperty, JsPattern, JsStatement,
@@ -111,7 +112,7 @@ pub fn use_directive(node: &UseDirective, context: &mut ComponentContext) -> JsS
 
     // Build the maybe_call: action?.($$node) or action?.($$node, $$action_arg)
     // This is equivalent to b.maybe_call() in the JS builder
-    let maybe_call = b::optional_call(action_name, arrow_args);
+    let maybe_call = b::optional_call(action_name.clone(), arrow_args);
 
     // Build the arrow function: ($$node, $$action_arg) => action?.($$node, $$action_arg)
     let action_callback = b::arrow(params, maybe_call);
@@ -120,6 +121,7 @@ pub fn use_directive(node: &UseDirective, context: &mut ComponentContext) -> JsS
     let mut action_args = vec![context.state.node.clone(), action_callback];
 
     // If there's an expression argument, add the thunk
+    let expr_for_blockers;
     if let Some(ref expr) = node.expression {
         // Convert the expression and apply transforms (e.g., $.get() for state variables)
         let converted = convert_expression(expr, context);
@@ -133,14 +135,34 @@ pub fn use_directive(node: &UseDirective, context: &mut ComponentContext) -> JsS
         // Build the expression with transforms applied
         let built_expr = build_expression(context, &converted, &metadata);
 
+        expr_for_blockers = Some(built_expr.clone());
+
         // Wrap in a thunk: () => expression
         action_args.push(b::thunk(built_expr));
+    } else {
+        expr_for_blockers = None;
     }
 
     // Build the $.action() call
     let action_call = b::call(b::member_path("$.action"), action_args);
 
-    // Return the statement
-    // TODO: Handle async case with $.run_after_blockers when metadata is available
-    b::stmt(action_call)
+    let mut statement = b::stmt(action_call);
+
+    // Check if any referenced variables are blocked by async promises.
+    // We check both the directive name and expression for blocker references.
+    let mut blocker_check_exprs: Vec<&JsExpr> = vec![&action_name];
+    if let Some(ref expr) = expr_for_blockers {
+        blocker_check_exprs.push(expr);
+    }
+    let blocker_exprs = get_blockers_for_exprs(&blocker_check_exprs, context);
+
+    if !blocker_exprs.is_empty() {
+        let blockers_array = b::array(blocker_exprs);
+        statement = b::stmt(b::call(
+            b::member_path("$.run_after_blockers"),
+            vec![blockers_array, b::arrow_block(vec![], vec![statement])],
+        ));
+    }
+
+    statement
 }

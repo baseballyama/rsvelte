@@ -9,6 +9,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::expression_conv
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
     apply_transforms_to_expression, parse_directive_name,
 };
+use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::get_blockers_for_exprs;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 
@@ -64,13 +65,16 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 /// ```
 pub fn animate_directive(node: &AnimateDirective, context: &mut ComponentContext) {
     // Build the expression: either null or a thunk containing the visited expression
+    let expr_for_blockers;
     let expression = if let Some(ref expr) = node.expression {
         // Convert the expression using the expression converter, then apply transforms
         // so that reactive references like each-block index get $.get() wrapping
         let visited_expr = convert_expression(expr, context);
         let transformed_expr = apply_transforms_to_expression(&visited_expr, context);
+        expr_for_blockers = Some(transformed_expr.clone());
         b::thunk(transformed_expr)
     } else {
+        expr_for_blockers = None;
         b::null()
     };
 
@@ -81,16 +85,22 @@ pub fn animate_directive(node: &AnimateDirective, context: &mut ComponentContext
     // Build the animation call: $.animation(node, () => name, expression)
     let mut statement = b::stmt(b::call(
         b::member_path("$.animation"),
-        vec![context.state.node.clone(), b::thunk(name_expr), expression],
+        vec![
+            context.state.node.clone(),
+            b::thunk(name_expr.clone()),
+            expression,
+        ],
     ));
 
-    // Check if the expression is async and wrap in $.run_after_blockers if needed
-    if let Some(ref metadata) = node.metadata
-        && metadata.expression.is_async()
-    {
-        // Convert blockers to JsExpr array
-        let blockers_array = convert_blockers(&metadata.expression.blockers, context);
+    // Check if any referenced variables are blocked by async promises.
+    let mut blocker_check_exprs: Vec<&JsExpr> = vec![&name_expr];
+    if let Some(ref expr) = expr_for_blockers {
+        blocker_check_exprs.push(expr);
+    }
+    let blocker_exprs = get_blockers_for_exprs(&blocker_check_exprs, context);
 
+    if !blocker_exprs.is_empty() {
+        let blockers_array = b::array(blocker_exprs);
         statement = b::stmt(b::call(
             b::member_path("$.run_after_blockers"),
             vec![blockers_array, b::arrow_block(vec![], vec![statement])],
@@ -99,23 +109,4 @@ pub fn animate_directive(node: &AnimateDirective, context: &mut ComponentContext
 
     // Add to after_update to ensure it runs after bind:this
     context.state.after_update.push(statement);
-}
-
-/// Convert Expression blockers to a JS array expression.
-///
-/// This helper converts the blocking dependencies from the directive metadata
-/// into a JS array that can be passed to $.run_after_blockers.
-///
-/// Each blocker expression is converted from the parser's Expression type
-/// to the transform phase's JsExpr type using the expression converter.
-fn convert_blockers(
-    blockers: &[crate::ast::js::Expression],
-    context: &mut ComponentContext,
-) -> JsExpr {
-    let blocker_exprs: Vec<_> = blockers
-        .iter()
-        .map(|blocker| convert_expression(blocker, context))
-        .collect();
-
-    b::array(blocker_exprs)
 }

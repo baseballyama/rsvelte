@@ -98,28 +98,35 @@ pub fn transition_directive(node: &TransitionDirective, context: &mut ComponentC
     let mut args = vec![
         b::number(flags as f64),
         context.state.node.clone(),
-        b::thunk(visited_name),
+        b::thunk(visited_name.clone()),
     ];
 
     // If expression is provided, add it as a thunk
     // We apply transforms first so that prop getters like `foo` become `foo()`,
     // which allows the unthunk optimization to simplify `() => foo()` to `foo`.
+    let expr_for_blockers;
     if let Some(ref expr) = node.expression {
         let visited_expr = convert_expression(expr, context);
         let transformed_expr = apply_transforms_to_expression(&visited_expr, context);
+        expr_for_blockers = Some(transformed_expr.clone());
         args.push(b::thunk(transformed_expr));
+    } else {
+        expr_for_blockers = None;
     }
 
     // Build the transition call: $.transition(flags, node, () => name, (() => expr)?)
     let mut statement = b::stmt(b::call(b::member_path("$.transition"), args));
 
-    // Check if the expression is async and wrap in $.run_after_blockers if needed
-    if let Some(ref metadata) = node.metadata
-        && metadata.expression.is_async()
-    {
-        // Convert blockers to JsExpr array
-        let blockers_array = convert_blockers(&metadata.expression.blockers, context);
+    // Check if any referenced variables are blocked by async promises.
+    // We check both the directive name and expression for blocker references.
+    let mut blocker_check_exprs: Vec<&JsExpr> = vec![&visited_name];
+    if let Some(ref expr) = expr_for_blockers {
+        blocker_check_exprs.push(expr);
+    }
+    let blocker_exprs = get_blockers_for_exprs(&blocker_check_exprs, context);
 
+    if !blocker_exprs.is_empty() {
+        let blockers_array = b::array(blocker_exprs);
         statement = b::stmt(b::call(
             b::member_path("$.run_after_blockers"),
             vec![blockers_array, b::arrow_block(vec![], vec![statement])],
@@ -130,23 +137,93 @@ pub fn transition_directive(node: &TransitionDirective, context: &mut ComponentC
     context.state.after_update.push(statement);
 }
 
-/// Convert Expression blockers to a JS array expression.
+/// Collect blocker expressions for a set of JS expressions by checking
+/// all referenced identifiers against the blocker_map.
 ///
-/// This helper converts the blocking dependencies from the directive metadata
-/// into a JS array that can be passed to $.run_after_blockers.
-///
-/// Each blocker expression is converted from the parser's Expression type
-/// to the transform phase's JsExpr type using the expression converter.
-fn convert_blockers(
-    blockers: &[crate::ast::js::Expression],
-    context: &mut ComponentContext,
-) -> JsExpr {
-    let blocker_exprs: Vec<_> = blockers
-        .iter()
-        .map(|blocker| convert_expression(blocker, context))
-        .collect();
+/// This collects identifiers from all provided expressions and calls
+/// `get_blockers_for_names` once, which handles deduplication.
+pub fn get_blockers_for_exprs(exprs: &[&JsExpr], context: &ComponentContext) -> Vec<JsExpr> {
+    // Collect all identifiers from all expressions
+    let mut all_names: Vec<String> = Vec::new();
+    for expr in exprs {
+        let names = collect_expr_identifiers(expr);
+        for name in names {
+            if !all_names.contains(&name) {
+                all_names.push(name);
+            }
+        }
+    }
+    let name_refs: Vec<&str> = all_names.iter().map(|s| s.as_str()).collect();
+    context.state.get_blockers_for_names(&name_refs)
+}
 
-    b::array(blocker_exprs)
+/// Collect all identifier names from a JsExpr without crossing function boundaries.
+/// This is used to find which variables a directive references for blocker checking.
+fn collect_expr_identifiers(expr: &JsExpr) -> Vec<String> {
+    let mut names = Vec::new();
+    collect_expr_identifiers_recursive(expr, &mut names);
+    names
+}
+
+fn collect_expr_identifiers_recursive(expr: &JsExpr, names: &mut Vec<String>) {
+    use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+    match expr {
+        JsExpr::Identifier(name) => {
+            if !names.contains(name) {
+                names.push(name.clone());
+            }
+        }
+        JsExpr::Call(call) => {
+            collect_expr_identifiers_recursive(&call.callee, names);
+            for arg in &call.arguments {
+                collect_expr_identifiers_recursive(arg, names);
+            }
+        }
+        JsExpr::Member(member) => {
+            collect_expr_identifiers_recursive(&member.object, names);
+            if member.computed
+                && let JsMemberProperty::Expression(prop_expr) = &member.property
+            {
+                collect_expr_identifiers_recursive(prop_expr, names);
+            }
+        }
+        JsExpr::Binary(bin) => {
+            collect_expr_identifiers_recursive(&bin.left, names);
+            collect_expr_identifiers_recursive(&bin.right, names);
+        }
+        JsExpr::Logical(log) => {
+            collect_expr_identifiers_recursive(&log.left, names);
+            collect_expr_identifiers_recursive(&log.right, names);
+        }
+        JsExpr::Unary(un) => {
+            collect_expr_identifiers_recursive(&un.argument, names);
+        }
+        JsExpr::Conditional(cond) => {
+            collect_expr_identifiers_recursive(&cond.test, names);
+            collect_expr_identifiers_recursive(&cond.consequent, names);
+            collect_expr_identifiers_recursive(&cond.alternate, names);
+        }
+        JsExpr::Sequence(seq) => {
+            for e in &seq.expressions {
+                collect_expr_identifiers_recursive(e, names);
+            }
+        }
+        JsExpr::Array(arr) => {
+            for e in arr.elements.iter().flatten() {
+                collect_expr_identifiers_recursive(e, names);
+            }
+        }
+        JsExpr::Assignment(assign) => {
+            collect_expr_identifiers_recursive(&assign.right, names);
+        }
+        JsExpr::Spread(inner) => {
+            collect_expr_identifiers_recursive(inner, names);
+        }
+        // Don't cross function boundaries
+        JsExpr::Arrow(_) | JsExpr::Function(_) => {}
+        // Literals and other nodes don't contain identifier references we care about
+        _ => {}
+    }
 }
 
 #[cfg(test)]
