@@ -95,14 +95,14 @@ Current compatibility with the official Svelte compiler test suite:
 |------------|---------|-------|----------|-------|
 | Parser Modern | 22 | 22 | 100% |  |
 | Parser Legacy | 82 | 82 | 100% | 1 skipped |
-| Compiler Snapshot | 18 | 18 | 100% | 10 skipped |
-| CSS | 178 | 179 | 99% |  |
-| Validator | 291 | 313 | 93% | 12 skipped |
+| Compiler Snapshot | 20 | 20 | 100% | 8 skipped |
+| CSS | 179 | 179 | 100% |  |
+| Validator | 313 | 313 | 100% | 12 skipped |
 | Compiler Errors | 118 | 118 | 100% | 26 skipped |
-| Runtime Runes | 775 | 838 | 92% | 28 skipped |
-| Runtime Legacy | 1146 | 1202 | 95% |  |
-| Runtime Browser | 28 | 31 | 90% |  |
-| Hydration | 71 | 77 | 92% | 1 skipped |
+| Runtime Runes | 833 | 861 | 97% | 4 skipped |
+| Runtime Legacy | 1202 | 1202 | 100% |  |
+| Runtime Browser | 31 | 31 | 100% |  |
+| Hydration | 77 | 77 | 100% | 1 skipped |
 | SSR | 82 | 82 | 100% |  |
 | Sourcemaps | 0 | 0 | 0% |  |
 | Preprocess | 0 | 0 | 0% | Not implemented |

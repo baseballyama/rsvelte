@@ -39,3 +39,6 @@ playground/build/
 # Generated fixtures (run `npm run generate-fixtures` to regenerate)
 fixtures/
 test_css_debug
+
+# pnpm store
+.pnpm-store/
