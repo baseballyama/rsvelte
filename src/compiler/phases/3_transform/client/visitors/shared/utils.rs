@@ -1921,6 +1921,10 @@ fn collect_reactive_references_from_metadata(
             JsExpr::Identifier(name.clone())
         };
 
+        if binding.kind == BindingKind::Let {
+            eprintln!("[DEBUG deep_read] Let binding '{}' idx={}, getter built, needs_deep_read will be checked", name, binding_index);
+        }
+
         // Check if we need to wrap in $.deep_read_state()
         // Matches the official compiler's check at utils.js lines 466-474:
         //   binding.kind === 'bindable_prop' || binding.kind === 'template' ||

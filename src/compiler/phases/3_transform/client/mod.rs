@@ -15550,16 +15550,21 @@ fn extract_destructure_targets(pattern: &str) -> Vec<String> {
             part
         };
 
-        // Handle object property with rename: key: value
-        let part = if let Some(colon_pos) = find_top_level_colon(part) {
-            part[colon_pos + 1..].trim()
+        // Handle default value BEFORE colon check: target = default
+        // This is critical because a default value may contain a ternary expression
+        // with a colon (e.g., `j = "19" ? 10 : await Promise.resolve(11)`).
+        // If we checked colon first, we'd mistake the ternary `:` for a key:value separator.
+        // In valid destructuring syntax, `key: target = default` always has `:` before `=`,
+        // so if `=` appears first, any `:` is part of the default expression.
+        let part = if let Some(eq_pos) = find_top_level_equals(part) {
+            part[..eq_pos].trim()
         } else {
             part
         };
 
-        // Handle default value: target = default
-        let part = if let Some(eq_pos) = find_top_level_equals(part) {
-            part[..eq_pos].trim()
+        // Handle object property with rename: key: value
+        let part = if let Some(colon_pos) = find_top_level_colon(part) {
+            part[colon_pos + 1..].trim()
         } else {
             part
         };
@@ -15791,6 +15796,21 @@ fn find_destructure_rhs_end(statement: &str, start: usize) -> usize {
     end
 }
 
+/// Generate a member access expression for a destructuring key.
+/// For computed keys like `[expr]`, generates `obj[expr]` (bracket notation).
+/// For static keys like `prop`, generates `obj.prop` (dot notation).
+fn member_access(obj: &str, key: &str) -> String {
+    if key.starts_with('[') && key.ends_with(']') {
+        // Computed property key: obj[expr]
+        // Strip the outer brackets to get the expression
+        let expr = &key[1..key.len() - 1];
+        format!("{}[{}]", obj, expr)
+    } else {
+        // Static property key: obj.prop
+        format!("{}.{}", obj, key)
+    }
+}
+
 /// Check if a generated code string contains `await` as a keyword (not inside string literals).
 ///
 /// This is used to determine if a destructuring IIFE needs to be async.
@@ -15807,27 +15827,66 @@ fn code_contains_await(code: &str) -> bool {
     }
 
     let mut i = 0;
+    // Track string context: None = not in string, Some(quote) = in string
     let mut in_string: Option<u8> = None;
+    // Stack for template literal interpolation depth tracking.
+    // When we encounter `${` inside a template literal, we push the brace depth.
+    // When the matching `}` is found, we pop back into the template literal.
+    let mut template_depth_stack: Vec<u32> = Vec::new();
+    let mut brace_depth: u32 = 0;
 
     while i < len {
         let c = bytes[i];
 
-        // Track string boundaries
-        if in_string.is_none() {
-            if c == b'\'' || c == b'"' || c == b'`' {
-                in_string = Some(c);
-                i += 1;
-                continue;
+        if let Some(quote) = in_string {
+            if quote == b'`' {
+                // Inside template literal - check for `${` interpolation
+                if c == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                    // Enter interpolation expression - push current state
+                    template_depth_stack.push(brace_depth);
+                    brace_depth = 0;
+                    in_string = None;
+                    i += 2; // skip `${`
+                    continue;
+                }
+                // Check for end of template literal
+                if c == b'`' && (i == 0 || bytes[i - 1] != b'\\') {
+                    in_string = None;
+                    i += 1;
+                    continue;
+                }
+            } else {
+                // Inside single or double quoted string
+                if c == quote && (i == 0 || bytes[i - 1] != b'\\') {
+                    in_string = None;
+                    i += 1;
+                    continue;
+                }
             }
-        } else if Some(c) == in_string && (i == 0 || bytes[i - 1] != b'\\') {
-            in_string = None;
+            // Skip content inside strings
             i += 1;
             continue;
         }
 
-        if in_string.is_some() {
+        // Not inside a string - check for string openings
+        if c == b'\'' || c == b'"' || c == b'`' {
+            in_string = Some(c);
             i += 1;
             continue;
+        }
+
+        // Track brace depth for template literal interpolation
+        if c == b'{' {
+            brace_depth += 1;
+        } else if c == b'}' {
+            if brace_depth == 0 && !template_depth_stack.is_empty() {
+                // Closing `}` of a template interpolation - back to template literal
+                brace_depth = template_depth_stack.pop().unwrap();
+                in_string = Some(b'`');
+                i += 1;
+                continue;
+            }
+            brace_depth = brace_depth.saturating_sub(1);
         }
 
         // Check for "await" keyword with word boundaries
@@ -16085,12 +16144,14 @@ fn generate_destructure_iife(
                 let target = part[colon_pos + 1..].trim();
 
                 // Handle default value
+                // Use member_access to handle computed property keys like [expr]
+                let value_access = member_access("$$value", key);
                 if let Some(eq_pos) = find_top_level_equals(target) {
                     let actual_target = target[..eq_pos].trim();
                     let default_val = target[eq_pos + 1..].trim();
                     body_lines.push(format!(
-                        "\t{} = $.fallback($$value.{}, {});",
-                        actual_target, key, default_val
+                        "\t{} = $.fallback({}, {});",
+                        actual_target, value_access, default_val
                     ));
                 } else if target.starts_with('[') && target.ends_with(']') {
                     // Nested array pattern: key: [a, b, c]
@@ -16113,9 +16174,9 @@ fn generate_destructure_iife(
                         .map(|p| p.trim().starts_with("..."))
                         .unwrap_or(false);
                     let to_array_args = if has_rest {
-                        format!("$.to_array($$value.{})", key)
+                        format!("$.to_array({})", value_access)
                     } else {
-                        format!("$.to_array($$value.{}, {})", key, inner_parts.len())
+                        format!("$.to_array({}, {})", value_access, inner_parts.len())
                     };
                     // We need to insert the var declaration before the assignments
                     // Store it as a "prepend" item
@@ -16145,7 +16206,7 @@ fn generate_destructure_iife(
                         }
                     }
                 } else {
-                    body_lines.push(format!("\t{} = $$value.{};", target, key));
+                    body_lines.push(format!("\t{} = {};", target, value_access));
                 }
             } else {
                 // Shorthand: {x} means key=x, target=x

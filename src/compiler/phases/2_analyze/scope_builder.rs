@@ -1390,13 +1390,10 @@ impl<'a> ScopeBuilder<'a> {
                 // Process expressions in component attributes
                 self.process_attributes(&component.attributes);
                 // Create a new scope for component children
-                // This is necessary because each component instance should have
-                // its own scope for snippets. For example, two <Child> instances
-                // can each have a {#snippet children()} without conflicting.
                 let old_scope = self.push_scope();
+                self.template_scope_map
+                    .insert(component.start, self.current_scope);
                 // Declare let: directive bindings in the child scope
-                // This matches the official Svelte compiler's scope.js Component handler
-                // where LetDirective bindings are declared in the child scope.
                 self.declare_let_directive_bindings(&component.attributes);
                 // Visit component children
                 self.visit_fragment(&component.fragment);
@@ -1408,6 +1405,8 @@ impl<'a> ScopeBuilder<'a> {
             TemplateNode::SvelteBoundary(elem) => {
                 self.process_attributes(&elem.attributes);
                 let old_scope = self.push_scope();
+                self.template_scope_map
+                    .insert(elem.start, self.current_scope);
                 self.visit_fragment(&elem.fragment);
                 self.pop_scope(old_scope);
             }
@@ -1425,22 +1424,26 @@ impl<'a> ScopeBuilder<'a> {
             TemplateNode::SvelteFragment(elem) => {
                 self.process_attributes(&elem.attributes);
                 let old_scope = self.push_scope();
+                self.template_scope_map
+                    .insert(elem.start, self.current_scope);
                 self.declare_let_directive_bindings(&elem.attributes);
                 self.visit_fragment(&elem.fragment);
                 self.pop_scope(old_scope);
             }
             TemplateNode::SvelteSelf(elem) => {
                 self.process_attributes(&elem.attributes);
-                // Create a new scope for component children (same as Component)
                 let old_scope = self.push_scope();
+                self.template_scope_map
+                    .insert(elem.start, self.current_scope);
                 self.declare_let_directive_bindings(&elem.attributes);
                 self.visit_fragment(&elem.fragment);
                 self.pop_scope(old_scope);
             }
             TemplateNode::SvelteComponent(elem) => {
                 self.process_attributes(&elem.attributes);
-                // Create a new scope for component children (same as Component)
                 let old_scope = self.push_scope();
+                self.template_scope_map
+                    .insert(elem.start, self.current_scope);
                 self.declare_let_directive_bindings(&elem.attributes);
                 self.visit_fragment(&elem.fragment);
                 self.pop_scope(old_scope);
@@ -1448,6 +1451,8 @@ impl<'a> ScopeBuilder<'a> {
             TemplateNode::SvelteElement(elem) => {
                 self.process_attributes(&elem.attributes);
                 let old_scope = self.push_scope();
+                self.template_scope_map
+                    .insert(elem.start, self.current_scope);
                 self.declare_let_directive_bindings(&elem.attributes);
                 self.visit_fragment(&elem.fragment);
                 self.pop_scope(old_scope);
@@ -1459,6 +1464,8 @@ impl<'a> ScopeBuilder<'a> {
             TemplateNode::SlotElement(elem) => {
                 self.process_attributes(&elem.attributes);
                 let old_scope = self.push_scope();
+                self.template_scope_map
+                    .insert(elem.start, self.current_scope);
                 self.visit_fragment(&elem.fragment);
                 self.pop_scope(old_scope);
             }
@@ -1472,10 +1479,10 @@ impl<'a> ScopeBuilder<'a> {
         // Process expressions in attributes (for tracking updates)
         self.process_attributes(&element.attributes);
 
-        // Create a new scope for element children (matching the official Svelte compiler
-        // where each Fragment creates a child scope). This allows snippets inside elements
-        // to have the same name as snippets at the parent level.
+        // Create a new scope for element children
         let old_scope = self.push_scope();
+        self.template_scope_map
+            .insert(element.start, self.current_scope);
         // Declare let: directive bindings in the child scope
         self.declare_let_directive_bindings(&element.attributes);
         self.visit_fragment(&element.fragment);
@@ -1733,11 +1740,13 @@ impl<'a> ScopeBuilder<'a> {
                     }
                 }
             }
-            Some("ObjectPattern") => {
+            // Handle both ObjectPattern (official AST) and ObjectExpression (our parser's AST
+            // for destructured let directive patterns like let:box={{width, height}})
+            Some("ObjectPattern") | Some("ObjectExpression") => {
                 if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
                     for prop in properties {
                         let prop_type = prop.get("type").and_then(|t| t.as_str());
-                        if prop_type == Some("RestElement") {
+                        if prop_type == Some("RestElement") || prop_type == Some("SpreadElement") {
                             if let Some(argument) = prop.get("argument") {
                                 self.declare_bindings_from_pattern(argument, kind, true);
                             }
@@ -1747,7 +1756,8 @@ impl<'a> ScopeBuilder<'a> {
                     }
                 }
             }
-            Some("ArrayPattern") => {
+            // Handle both ArrayPattern (official AST) and ArrayExpression (our parser's AST)
+            Some("ArrayPattern") | Some("ArrayExpression") => {
                 if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
                     for elem in elements {
                         if !elem.is_null() {
@@ -1756,7 +1766,8 @@ impl<'a> ScopeBuilder<'a> {
                     }
                 }
             }
-            Some("RestElement") => {
+            // Handle both RestElement (official AST) and SpreadElement (our parser's AST)
+            Some("RestElement") | Some("SpreadElement") => {
                 if let Some(argument) = pattern.get("argument") {
                     self.declare_bindings_from_pattern(argument, kind, true);
                 }
@@ -1950,7 +1961,7 @@ impl<'a> ScopeBuilder<'a> {
                     );
                 }
             }
-            Some("ObjectPattern") => {
+            Some("ObjectPattern") | Some("ObjectExpression") => {
                 if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
                     for prop in properties {
                         if let Some(value) = prop.get("value") {
@@ -1959,7 +1970,7 @@ impl<'a> ScopeBuilder<'a> {
                     }
                 }
             }
-            Some("ArrayPattern") => {
+            Some("ArrayPattern") | Some("ArrayExpression") => {
                 if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
                     for element in elements {
                         if !element.is_null() {

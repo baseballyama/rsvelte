@@ -460,29 +460,68 @@ impl<'a> ServerCodeGenerator<'a> {
         // When component has let directives (e.g., <Counter let:count>), the destructured
         // parameter shadows any outer constant variable. We need to temporarily remove
         // those names from constant_vars so they're not constant-folded.
-        let children = if let Some((default_nodes, _let_dirs)) = slot_children.remove("default") {
-            let mut saved_constants: Vec<(String, String)> = Vec::new();
-            for param in component_let_directives {
-                // For aliased params like "thing: x", the local variable is "x"
-                // For non-aliased params like "thing", the local variable is "thing"
-                let local_name = if let Some(colon_pos) = param.find(':') {
-                    param[colon_pos + 1..].trim().to_string()
-                } else {
-                    param.clone()
-                };
-                if let Some(value) = self.constant_vars.remove(&local_name) {
-                    saved_constants.push((local_name.clone(), value));
+        //
+        // There are two cases for let directives on the default slot:
+        // 1. Component-level: <Component let:box> ... </Component>
+        //    - component_let_directives is non-empty
+        // 2. Fragment-level: <svelte:fragment let:box={{width, height}}> ... </svelte:fragment>
+        //    - The fragment_let_dirs from the default slot entry are non-empty
+        //
+        // In both cases, the default slot needs to go into $$slots.default with params,
+        // and children should be $.invalid_default_snippet.
+        let children = if let Some((default_nodes, fragment_let_dirs)) =
+            slot_children.remove("default")
+        {
+            if !fragment_let_dirs.is_empty() && component_let_directives.is_empty() {
+                // Fragment-level let directives (e.g., <svelte:fragment let:box={{width, height}}>)
+                // Treat as a $$slots.default snippet instead of plain children.
+                let mut saved_constants: Vec<(String, String)> = Vec::new();
+                for param in &fragment_let_dirs {
+                    let local_name = if let Some(colon_pos) = param.find(':') {
+                        param[colon_pos + 1..].trim().to_string()
+                    } else {
+                        param.clone()
+                    };
+                    if let Some(value) = self.constant_vars.remove(&local_name) {
+                        saved_constants.push((local_name.clone(), value));
+                    }
                 }
+
+                let result = self.generate_children_from_nodes(&default_nodes)?;
+
+                // Restore removed constants
+                for (name, value) in saved_constants {
+                    self.constant_vars.insert(name, value);
+                }
+
+                if let Some(slot_parts) = result {
+                    slot_names.push("default".to_string());
+                    snippets.push(("default".to_string(), fragment_let_dirs, slot_parts, false));
+                }
+                None // No plain children - content is in $$slots.default
+            } else {
+                // Component-level let directives or no let directives
+                let mut saved_constants: Vec<(String, String)> = Vec::new();
+                for param in component_let_directives {
+                    let local_name = if let Some(colon_pos) = param.find(':') {
+                        param[colon_pos + 1..].trim().to_string()
+                    } else {
+                        param.clone()
+                    };
+                    if let Some(value) = self.constant_vars.remove(&local_name) {
+                        saved_constants.push((local_name.clone(), value));
+                    }
+                }
+
+                let result = self.generate_children_from_nodes(&default_nodes)?;
+
+                // Restore removed constants
+                for (name, value) in saved_constants {
+                    self.constant_vars.insert(name, value);
+                }
+
+                result
             }
-
-            let result = self.generate_children_from_nodes(&default_nodes)?;
-
-            // Restore removed constants
-            for (name, value) in saved_constants {
-                self.constant_vars.insert(name, value);
-            }
-
-            result
         } else {
             None
         };

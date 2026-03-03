@@ -1119,8 +1119,17 @@ pub fn visit(
         super::FragmentOwnerType::RegularElement
     });
 
+    // Set context.scope to the scope created by scope_builder for this element
+    let old_scope = context.scope;
+    if let Some(&elem_scope) = context.analysis.root.template_scope_map.get(&element.start) {
+        context.scope = elem_scope;
+    }
+
     // Analyze children
     analyze(&mut element.fragment, context)?;
+
+    // Restore scope
+    context.scope = old_scope;
 
     // Special case: `<select bind:value={foo}><option>{bar}</option>`
     // means we need to invalidate `bar` whenever `foo` is mutated.

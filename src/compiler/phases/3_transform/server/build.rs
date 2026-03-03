@@ -1271,7 +1271,15 @@ export default function {component_name}($$renderer{props_param}) {{
                             body_code.push_str(&format!("{}}}\n", indent));
                         } else if has_slot_children && !has_children {
                             // Only named slot children (no default children, no true snippets)
+                            // Note: the "default" slot may be among slot_children when it has
+                            // fragment-level let directives (e.g., <svelte:fragment let:box>)
                             let all_props = collect_all_props(props_and_spreads);
+
+                            // Check if default slot is among slot_children with let directives
+                            let default_has_let_dirs = slot_children
+                                .iter()
+                                .any(|(n, params, _, _)| n == "default" && !params.is_empty());
+
                             body_code.push_str(&format!(
                                 "{}{}{}($$renderer, {{\n",
                                 indent, name, call_syntax
@@ -1280,6 +1288,14 @@ export default function {component_name}($$renderer{props_param}) {{
                             // Props
                             for prop in &all_props {
                                 body_code.push_str(&format!("{}\t{},\n", indent, prop));
+                            }
+
+                            // When default slot has let directives, add children: $.invalid_default_snippet
+                            if default_has_let_dirs {
+                                body_code.push_str(&format!(
+                                    "{}\tchildren: $.invalid_default_snippet,\n",
+                                    indent
+                                ));
                             }
 
                             // $$slots with inline functions (with params for let directives)

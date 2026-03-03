@@ -242,7 +242,20 @@ pub fn visit_component(
     context
         .fragment_owner_stack
         .push(super::super::FragmentOwnerType::Component);
+    // Set context.scope to the scope created by scope_builder for this component.
+    // This ensures that Let directive bindings declared in scope_builder are visible
+    // when analyzing children (e.g., {@const} tags that reference let: variables).
+    let scope_before_component = context.scope;
+    if let Some(&comp_scope) = context
+        .analysis
+        .root
+        .template_scope_map
+        .get(&component.start)
+    {
+        context.scope = comp_scope;
+    }
     fragment::analyze(&mut component.fragment, context)?;
+    context.scope = scope_before_component;
     context.fragment_owner_stack.pop();
     context.slot_owner_ancestors.pop();
     context.component_depth -= 1;

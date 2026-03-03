@@ -25,8 +25,19 @@ pub fn visit(frag: &mut SvelteElement, context: &mut VisitorContext) -> Result<(
         .fragment_owner_stack
         .push(super::FragmentOwnerType::SvelteFragment);
 
+    // Set context.scope to the scope created by scope_builder for this svelte:fragment.
+    // This ensures that Let directive bindings declared in scope_builder are visible
+    // when analyzing children (e.g., {@const} tags that reference let: variables).
+    let old_scope = context.scope;
+    if let Some(&frag_scope) = context.analysis.root.template_scope_map.get(&frag.start) {
+        context.scope = frag_scope;
+    }
+
     // Analyze children
     fragment::analyze(&mut frag.fragment, context)?;
+
+    // Restore scope
+    context.scope = old_scope;
 
     // Pop fragment owner type
     context.fragment_owner_stack.pop();
