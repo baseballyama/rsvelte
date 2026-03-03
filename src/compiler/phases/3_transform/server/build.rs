@@ -142,6 +142,33 @@ impl<'a> ServerCodeGenerator<'a> {
             // $$props references, not the generated ones.
             let rest = self.transform_special_vars(&rest);
 
+            // In legacy mode (non-runes), decompose object destructuring patterns
+            // when any destructured variable is later reassigned. This matches the
+            // official compiler's create_state_declarators behavior.
+            let rest = if let Some(analysis) = self.analysis {
+                if !analysis.runes {
+                    let reassigned_vars: Vec<String> = analysis
+                        .root
+                        .bindings
+                        .iter()
+                        .filter(|b| {
+                            b.reassigned
+                                && matches!(b.kind, BindingKind::Normal | BindingKind::State)
+                        })
+                        .map(|b| b.name.clone())
+                        .collect();
+                    if !reassigned_vars.is_empty() {
+                        transform_script::transform_reassigned_destructures(&rest, &reassigned_vars)
+                    } else {
+                        rest
+                    }
+                } else {
+                    rest
+                }
+            } else {
+                rest
+            };
+
             // Collect reexported prop names from `export { x }` patterns only
             // (NOT from `export let x` which is handled by transform_export_let_declarations)
             // Collect (local_name, prop_name) pairs for `export { x as y }` patterns.
@@ -487,6 +514,7 @@ export default function {component_name}($$renderer{props_param}) {{
     /// Hoist ConstDeclaration parts to the front of a parts slice.
     /// This mirrors the official Svelte compiler's behavior where @const declarations
     /// are pushed to state.init (before template) in the EachBlock visitor.
+    #[allow(dead_code)]
     fn hoist_const_declarations(parts: &[OutputPart]) -> Vec<OutputPart> {
         let mut consts: Vec<OutputPart> = Vec::new();
         let mut rest: Vec<OutputPart> = Vec::new();
@@ -558,6 +586,7 @@ export default function {component_name}($$renderer{props_param}) {{
     /// Hoist SnippetFunction declarations to the front of a parts vector.
     /// This mirrors the official Svelte compiler's behavior where snippet functions
     /// are placed in state.init (before template rendering) via the Fragment visitor.
+    #[allow(dead_code)]
     fn hoist_snippet_functions(parts: Vec<OutputPart>) -> Vec<OutputPart> {
         let mut snippets: Vec<OutputPart> = Vec::new();
         let mut rest: Vec<OutputPart> = Vec::new();
@@ -573,6 +602,40 @@ export default function {component_name}($$renderer{props_param}) {{
         }
         snippets.extend(rest);
         snippets
+    }
+
+    /// Hoist both ConstDeclaration and SnippetFunction parts to the front of a
+    /// parts slice, preserving their relative order. Whitespace-only Html parts
+    /// interspersed among hoisted declarations are stripped.
+    ///
+    /// This combines the logic of `hoist_const_declarations_and_strip_ws` and
+    /// `hoist_snippet_functions` into a single pass so that both kinds of
+    /// declarations end up before template-rendering code while keeping their
+    /// original relative ordering (e.g., a const that appears before a snippet
+    /// in source stays before it).
+    fn hoist_const_and_snippet_declarations(parts: &[OutputPart]) -> Vec<OutputPart> {
+        let mut hoisted: Vec<OutputPart> = Vec::new();
+        let mut rest: Vec<OutputPart> = Vec::new();
+        let mut in_hoisted_region = true;
+
+        for part in parts {
+            match part {
+                OutputPart::ConstDeclaration(_) | OutputPart::SnippetFunction { .. } => {
+                    hoisted.push(part.clone());
+                    in_hoisted_region = true;
+                }
+                OutputPart::Html(html) if in_hoisted_region && html.trim().is_empty() => {
+                    // Skip whitespace-only Html between hoisted declarations
+                }
+                _ => {
+                    in_hoisted_region = false;
+                    rest.push(part.clone());
+                }
+            }
+        }
+
+        hoisted.extend(rest);
+        hoisted
     }
 
     /// Check if a list of output parts contains any async expressions
@@ -619,15 +682,13 @@ export default function {component_name}($$renderer{props_param}) {{
         each_counter: &mut usize,
         store_subs: &[(&str, &str)],
     ) -> String {
-        // Hoist @const declarations to the front and strip whitespace-only Html
-        // between them. This mirrors the official Svelte compiler's behavior where
-        // ConstTag nodes are hoisted out of the fragment and placed in state.init
-        // (before template rendering). Without this, whitespace text nodes between
-        // consecutive @const tags would be flushed as $$renderer.push(` `) calls.
-        let hoisted_parts = Self::hoist_const_declarations_and_strip_ws(parts);
-        // Also hoist SnippetFunction declarations before other content
-        // (matching official compiler's behavior where snippets are in state.init)
-        let hoisted_parts = Self::hoist_snippet_functions(hoisted_parts);
+        // Hoist @const declarations and SnippetFunction declarations to the front,
+        // preserving their relative source order among each other. This mirrors the
+        // official Svelte compiler's behavior where ConstTag nodes and snippet functions
+        // are placed in state.init (before template rendering). Whitespace-only Html
+        // parts that appear in the "hoisted region" (between const/snippet declarations)
+        // are stripped so they don't emit spurious $$renderer.push(` `) calls.
+        let hoisted_parts = Self::hoist_const_and_snippet_declarations(parts);
         let parts = &hoisted_parts;
 
         let mut body_code = String::new();

@@ -3567,6 +3567,15 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                         return true;
                     }
 
+                    // Let directive bindings (let:thing) are only reactive when
+                    // they have a corresponding transform registered. If there's
+                    // no transform, it means we're in a context where the let
+                    // directive doesn't apply (e.g., a named slot), so the binding
+                    // is effectively an undefined/static reference.
+                    if matches!(binding.kind, BindingKind::Let) {
+                        return context.state.transform.contains_key(name);
+                    }
+
                     // For Derived bindings, check if the derived value is "known"
                     // (i.e., its dependencies are all non-reactive constants).
                     // This matches the official Svelte compiler's scope.evaluate() behavior

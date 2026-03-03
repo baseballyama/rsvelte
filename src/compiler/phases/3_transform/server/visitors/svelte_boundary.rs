@@ -109,10 +109,11 @@ impl<'a> ServerCodeGenerator<'a> {
                 // Generate body parts for the failed snippet
                 let body_parts = self.generate_snippet_body_parts(&failed.body)?;
 
-                // Insert the `failed` snippet function after any ConstDeclaration parts
+                // Insert the `failed` snippet function after the last ConstDeclaration part
                 let insert_pos = body
                     .iter()
-                    .position(|p| !matches!(p, OutputPart::ConstDeclaration(_)))
+                    .rposition(|p| matches!(p, OutputPart::ConstDeclaration(_)))
+                    .map(|pos| pos + 1)
                     .unwrap_or(0);
                 body.insert(
                     insert_pos,

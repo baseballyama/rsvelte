@@ -105,6 +105,22 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
     let crate::ast::js::Expression::Value(value) = &block.expression;
     walk_js_expression(value, context, &mut block.metadata.expression)?;
 
+    // Walk the value pattern's computed property key expressions to detect mutations.
+    // For example: {#await promise then { [`prop${num++}`]: ... }}
+    // The `num++` in the computed key needs to be detected as a reassignment.
+    if let Some(ref value_pattern) = block.value {
+        let crate::ast::js::Expression::Value(pattern_json) = value_pattern;
+        let mut dummy_metadata = crate::ast::template::ExpressionMetadata::default();
+        walk_pattern_computed_keys(pattern_json, context, &mut dummy_metadata)?;
+    }
+
+    // Also walk the error pattern's computed property key expressions
+    if let Some(ref error_pattern) = block.error {
+        let crate::ast::js::Expression::Value(pattern_json) = error_pattern;
+        let mut dummy_metadata = crate::ast::template::ExpressionMetadata::default();
+        walk_pattern_computed_keys(pattern_json, context, &mut dummy_metadata)?;
+    }
+
     // Increment block depth for child analysis
     context.block_depth += 1;
 
@@ -165,6 +181,163 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
     context.block_depth -= 1;
 
     Ok(())
+}
+
+/// Walk a destructuring pattern and visit any computed property key expressions.
+/// This ensures that expressions like `num++` inside `{ [`prop${num++}`]: ... }`
+/// are properly analyzed for mutations and reassignments.
+fn walk_pattern_computed_keys(
+    pattern: &serde_json::Value,
+    context: &mut VisitorContext,
+    metadata: &mut crate::ast::template::ExpressionMetadata,
+) -> Result<(), AnalysisError> {
+    let pattern_type = pattern.get("type").and_then(|t| t.as_str());
+
+    match pattern_type {
+        Some("ObjectPattern") => {
+            if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
+                for prop in properties {
+                    let prop_type = prop.get("type").and_then(|t| t.as_str());
+                    if prop_type == Some("RestElement") {
+                        if let Some(argument) = prop.get("argument") {
+                            walk_pattern_computed_keys(argument, context, metadata)?;
+                        }
+                    } else {
+                        // Property node - check if it has a computed key
+                        let computed = prop
+                            .get("computed")
+                            .and_then(|c| c.as_bool())
+                            .unwrap_or(false);
+                        if computed && let Some(key) = prop.get("key") {
+                            walk_expression_for_mutations(key, context, metadata)?;
+                        }
+                        // Also recurse into the value pattern
+                        if let Some(value) = prop.get("value") {
+                            walk_pattern_computed_keys(value, context, metadata)?;
+                        }
+                    }
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
+                for elem in elements {
+                    if !elem.is_null() {
+                        walk_pattern_computed_keys(elem, context, metadata)?;
+                    }
+                }
+            }
+        }
+        Some("AssignmentPattern") => {
+            if let Some(left) = pattern.get("left") {
+                walk_pattern_computed_keys(left, context, metadata)?;
+            }
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
+/// Walk a JavaScript expression and detect mutations (UpdateExpression, AssignmentExpression).
+/// This first calls walk_js_expression for metadata tracking, then recursively looks for
+/// mutation expressions and marks the affected bindings.
+fn walk_expression_for_mutations(
+    expression: &serde_json::Value,
+    context: &mut VisitorContext,
+    metadata: &mut crate::ast::template::ExpressionMetadata,
+) -> Result<(), AnalysisError> {
+    // Walk for metadata (dependency tracking, state detection, etc.)
+    walk_js_expression(expression, context, metadata)?;
+
+    // Additionally, recursively walk all sub-expressions looking for mutations
+    mark_mutations_recursive(expression, context);
+
+    Ok(())
+}
+
+/// Recursively walk an expression tree to find and mark UpdateExpression and
+/// AssignmentExpression nodes, calling mark_binding_mutation for each.
+fn mark_mutations_recursive(expression: &serde_json::Value, context: &mut VisitorContext) {
+    let expr_type = expression.get("type").and_then(|t| t.as_str());
+
+    match expr_type {
+        Some("UpdateExpression") => {
+            if let Some(argument) = expression.get("argument") {
+                super::assignment_expression::mark_binding_mutation(argument, context);
+            }
+        }
+        Some("AssignmentExpression") => {
+            if let Some(left) = expression.get("left") {
+                super::assignment_expression::mark_binding_mutation(left, context);
+            }
+            // Also recurse into the right-hand side
+            if let Some(right) = expression.get("right") {
+                mark_mutations_recursive(right, context);
+            }
+        }
+        Some("TemplateLiteral") => {
+            if let Some(expressions) = expression.get("expressions").and_then(|e| e.as_array()) {
+                for expr in expressions {
+                    mark_mutations_recursive(expr, context);
+                }
+            }
+        }
+        Some("BinaryExpression") | Some("LogicalExpression") => {
+            if let Some(left) = expression.get("left") {
+                mark_mutations_recursive(left, context);
+            }
+            if let Some(right) = expression.get("right") {
+                mark_mutations_recursive(right, context);
+            }
+        }
+        Some("ConditionalExpression") => {
+            if let Some(test) = expression.get("test") {
+                mark_mutations_recursive(test, context);
+            }
+            if let Some(consequent) = expression.get("consequent") {
+                mark_mutations_recursive(consequent, context);
+            }
+            if let Some(alternate) = expression.get("alternate") {
+                mark_mutations_recursive(alternate, context);
+            }
+        }
+        Some("CallExpression") | Some("NewExpression") => {
+            if let Some(callee) = expression.get("callee") {
+                mark_mutations_recursive(callee, context);
+            }
+            if let Some(arguments) = expression.get("arguments").and_then(|a| a.as_array()) {
+                for arg in arguments {
+                    mark_mutations_recursive(arg, context);
+                }
+            }
+        }
+        Some("SequenceExpression") => {
+            if let Some(expressions) = expression.get("expressions").and_then(|e| e.as_array()) {
+                for expr in expressions {
+                    mark_mutations_recursive(expr, context);
+                }
+            }
+        }
+        Some("MemberExpression") => {
+            if let Some(object) = expression.get("object") {
+                mark_mutations_recursive(object, context);
+            }
+            let computed = expression
+                .get("computed")
+                .and_then(|c| c.as_bool())
+                .unwrap_or(false);
+            if computed && let Some(property) = expression.get("property") {
+                mark_mutations_recursive(property, context);
+            }
+        }
+        Some("UnaryExpression") => {
+            if let Some(argument) = expression.get("argument") {
+                mark_mutations_recursive(argument, context);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// Alias for visit function.

@@ -191,6 +191,220 @@ fn format_js_line(line: &str) -> String {
     result
 }
 
+/// Transform object destructuring for variables that are later reassigned (legacy mode).
+/// When any variable in an object destructuring pattern is later reassigned,
+/// the destructuring must be decomposed into individual assignments via a temp variable.
+/// e.g., `let { foo, toggleFoo } = expr;` -> `let tmp = expr, foo = tmp.foo, toggleFoo = tmp.toggleFoo;`
+/// This matches the official Svelte compiler's `create_state_declarators` behavior.
+pub(crate) fn transform_reassigned_destructures(
+    script: &str,
+    reassigned_vars: &[String],
+) -> String {
+    if reassigned_vars.is_empty() {
+        return script.to_string();
+    }
+
+    use regex::Regex;
+    use std::sync::LazyLock;
+
+    // Match patterns like: let { ... } = expr
+    // But NOT: let { ... } = $state( or let { ... } = $state.raw( (already handled)
+    static OBJ_DESTRUCT_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?m)^(\s*)(let|var)\s+\{([^}]+)\}\s*=\s*").unwrap());
+
+    let mut result = script.to_string();
+    let mut offset: i64 = 0;
+    let mut tmp_counter: usize = 0;
+
+    for cap in OBJ_DESTRUCT_RE.captures_iter(script) {
+        let full_match = cap.get(0).unwrap();
+
+        // Skip if this is a $state() or $state.raw() destructuring (already handled elsewhere)
+        let after_eq = &script[full_match.end()..];
+        if after_eq.starts_with("$state(") || after_eq.starts_with("$state.raw(") {
+            continue;
+        }
+
+        let indent = cap.get(1).unwrap().as_str();
+        let _keyword = cap.get(2).unwrap().as_str();
+        let obj_pattern = cap.get(3).unwrap().as_str();
+
+        // Parse properties and check if any are in the reassigned set
+        let props = parse_object_pattern_properties(obj_pattern);
+        let has_reassigned = props.iter().any(|p| {
+            let name = match p {
+                ObjectPatternProp::Simple(n) => n.as_str(),
+                ObjectPatternProp::Renamed { value, .. } => value.as_str(),
+                ObjectPatternProp::WithDefault { name, .. } => name.as_str(),
+                ObjectPatternProp::RenamedWithDefault { value, .. } => value.as_str(),
+                ObjectPatternProp::Rest(n) => n.as_str(),
+            };
+            reassigned_vars.iter().any(|rv| rv == name)
+        });
+
+        if !has_reassigned {
+            continue;
+        }
+
+        // Find the end of the initializer expression (up to the semicolon or end of line)
+        let init_start = full_match.end();
+        let remaining = &script[init_start..];
+        // Find the end of the expression - need to handle nested parens, brackets, braces
+        let init_end = find_expression_end(remaining);
+        let init_expr = remaining[..init_end].trim_end_matches(';').trim();
+
+        // Generate tmp variable name
+        let tmp_name = if tmp_counter == 0 {
+            "tmp".to_string()
+        } else {
+            format!("tmp_{}", tmp_counter)
+        };
+        tmp_counter += 1;
+
+        let mut transformed = format!("{}let {} = {}", indent, tmp_name, init_expr);
+
+        for prop in &props {
+            match prop {
+                ObjectPatternProp::Simple(name) => {
+                    transformed
+                        .push_str(&format!(",\n{}\t{} = {}.{}", indent, name, tmp_name, name));
+                }
+                ObjectPatternProp::Renamed { key, value } => {
+                    transformed
+                        .push_str(&format!(",\n{}\t{} = {}.{}", indent, value, tmp_name, key));
+                }
+                ObjectPatternProp::WithDefault { name, default } => {
+                    transformed.push_str(&format!(
+                        ",\n{}\t{} = {}.{} ?? {}",
+                        indent, name, tmp_name, name, default
+                    ));
+                }
+                ObjectPatternProp::RenamedWithDefault {
+                    key,
+                    value,
+                    default,
+                } => {
+                    transformed.push_str(&format!(
+                        ",\n{}\t{} = {}.{} ?? {}",
+                        indent, value, tmp_name, key, default
+                    ));
+                }
+                ObjectPatternProp::Rest(name) => {
+                    transformed
+                        .push_str(&format!(",\n{}\t{} = {}.{}", indent, name, tmp_name, name));
+                }
+            }
+        }
+
+        transformed.push(';');
+
+        let match_start = (full_match.start() as i64 + offset) as usize;
+        let match_end = (init_start as i64 + init_end as i64 + offset) as usize;
+
+        // If the match_end char is a semicolon, include it
+        let match_end = if match_end < result.len() && result.as_bytes()[match_end] == b';' {
+            match_end + 1
+        } else {
+            match_end
+        };
+
+        result = format!(
+            "{}{}{}",
+            &result[..match_start],
+            transformed,
+            &result[match_end..]
+        );
+
+        let old_len = match_end as i64 - match_start as i64;
+        let new_len = transformed.len() as i64;
+        offset += new_len - old_len;
+    }
+
+    result
+}
+
+/// Find the end of a JavaScript expression (handles nested parens, brackets, braces).
+/// Returns the index after the expression (at the semicolon or newline).
+fn find_expression_end(s: &str) -> usize {
+    let mut depth_paren = 0i32;
+    let mut depth_bracket = 0i32;
+    let mut depth_brace = 0i32;
+    let mut in_string = false;
+    let mut string_char = ' ';
+    let mut i = 0;
+    let bytes = s.as_bytes();
+
+    while i < bytes.len() {
+        let c = bytes[i] as char;
+
+        if in_string {
+            if c == '\\' {
+                i += 2;
+                continue;
+            }
+            if c == string_char {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        match c {
+            '\'' | '"' | '`' => {
+                in_string = true;
+                string_char = c;
+            }
+            '(' => depth_paren += 1,
+            ')' => {
+                depth_paren -= 1;
+                if depth_paren < 0 {
+                    return i;
+                }
+            }
+            '[' => depth_bracket += 1,
+            ']' => {
+                depth_bracket -= 1;
+                if depth_bracket < 0 {
+                    return i;
+                }
+            }
+            '{' => depth_brace += 1,
+            '}' => {
+                depth_brace -= 1;
+                if depth_brace < 0 {
+                    return i;
+                }
+            }
+            ';' if depth_paren == 0 && depth_bracket == 0 && depth_brace == 0 => {
+                return i;
+            }
+            '\n' if depth_paren == 0 && depth_bracket == 0 && depth_brace == 0 => {
+                // Check if the next non-whitespace is not a continuation
+                let rest = &s[i + 1..];
+                let trimmed = rest.trim_start();
+                if trimmed.is_empty()
+                    || trimmed.starts_with("let ")
+                    || trimmed.starts_with("const ")
+                    || trimmed.starts_with("var ")
+                    || trimmed.starts_with("export ")
+                    || trimmed.starts_with("function ")
+                    || trimmed.starts_with("class ")
+                    || trimmed.starts_with("import ")
+                    || trimmed.starts_with("//")
+                    || trimmed.starts_with("/*")
+                {
+                    return i;
+                }
+            }
+            _ => {}
+        }
+
+        i += 1;
+    }
+
+    s.len()
+}
+
 /// Transform object destructuring with $state() or $state.raw() in server-side rendering.
 /// e.g., `let { num } = $state(setup())` -> `let tmp = setup(), num = tmp.num`
 /// e.g., `let { num: x } = $state(setup())` -> `let tmp = setup(), x = tmp.num`

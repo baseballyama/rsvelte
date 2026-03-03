@@ -49,7 +49,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::expression_conv
 use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::declarations::get_value;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
-    add_svelte_meta, build_expression,
+    add_svelte_meta, apply_transforms_to_expression, build_expression,
 };
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -251,7 +251,7 @@ fn create_derived_block_argument(
     }
 
     let _pattern_expr = convert_expression(pattern, context);
-    let pattern_js = convert_expression_to_pattern(pattern);
+    let pattern_js = convert_expression_to_pattern_with_context(pattern, context);
 
     let source_id = b::id("$$source");
     let value_id = b::id("$$value");
@@ -586,9 +586,143 @@ fn is_valid_identifier(s: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
 }
 
-/// Convert an Expression to a JsPattern.
-fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
+/// Convert an Expression to a JsPattern, applying reactive transforms for computed keys.
+fn convert_expression_to_pattern_with_context(
+    expr: &Expression,
+    context: &mut ComponentContext,
+) -> JsPattern {
     let Expression::Value(val) = expr;
+    convert_value_to_pattern_with_context(val, context)
+}
+
+/// Convert a JSON AST Value to a JsPattern, using reactive transforms for computed keys.
+/// This ensures that expressions like `num++` in computed property keys are converted
+/// to `$.update(num)` when `num` is a mutable_source.
+fn convert_value_to_pattern_with_context(
+    val: &serde_json::Value,
+    context: &mut ComponentContext,
+) -> JsPattern {
+    if let serde_json::Value::Object(obj) = val {
+        match obj.get("type").and_then(|v| v.as_str()) {
+            Some("Identifier") => {
+                if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                    let trimmed = name.trim();
+                    if trimmed.starts_with('{') || trimmed.starts_with('[') {
+                        return parse_pattern_string(trimmed);
+                    }
+                    return JsPattern::Identifier(name.to_string());
+                }
+            }
+            Some("AssignmentPattern") => {
+                if let (Some(left), Some(right)) = (obj.get("left"), obj.get("right")) {
+                    let left_pattern = convert_value_to_pattern_with_context(left, context);
+                    let right_expr = convert_value_to_js_expr_simple(right);
+                    return JsPattern::Assignment(JsAssignmentPattern {
+                        left: Box::new(left_pattern),
+                        right: Box::new(right_expr),
+                    });
+                }
+            }
+            Some("ObjectPattern") => {
+                if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+                    let properties = props
+                        .iter()
+                        .filter_map(|prop| {
+                            let prop_obj = prop.as_object()?;
+                            let prop_type = prop_obj.get("type").and_then(|t| t.as_str())?;
+
+                            if prop_type == "RestElement" {
+                                if let Some(arg) = prop_obj.get("argument") {
+                                    let inner = convert_value_to_pattern_with_context(arg, context);
+                                    return Some(JsObjectPatternProperty::Rest(Box::new(inner)));
+                                }
+                                return None;
+                            }
+
+                            let key_val = prop_obj.get("key")?;
+                            let key = key_val.as_object()?;
+                            let value = prop_obj.get("value")?;
+
+                            let shorthand = prop_obj
+                                .get("shorthand")
+                                .and_then(|s| s.as_bool())
+                                .unwrap_or(false);
+
+                            let computed = prop_obj
+                                .get("computed")
+                                .and_then(|c| c.as_bool())
+                                .unwrap_or(false);
+
+                            let value_pattern =
+                                convert_value_to_pattern_with_context(value, context);
+
+                            let key_type = key.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                            let property_key = if computed {
+                                // Computed key: use convert_expression to apply reactive transforms
+                                // This converts num++ to $.update(num) and num to $.get(num) etc.
+                                let key_expr = Expression::Value(key_val.clone());
+                                let converted = convert_expression(&key_expr, context);
+                                let converted = apply_transforms_to_expression(&converted, context);
+                                JsPropertyKey::Computed(Box::new(converted))
+                            } else if key_type == "Literal" {
+                                if let Some(n) = key.get("value").and_then(|v| v.as_f64()) {
+                                    JsPropertyKey::Literal(JsLiteral::Number(n))
+                                } else if let Some(s) = key.get("value").and_then(|v| v.as_str()) {
+                                    JsPropertyKey::Literal(JsLiteral::String(s.to_string()))
+                                } else {
+                                    let raw =
+                                        key.get("raw").and_then(|r| r.as_str()).unwrap_or("0");
+                                    JsPropertyKey::Literal(JsLiteral::String(raw.to_string()))
+                                }
+                            } else if let Some(name) = key.get("name").and_then(|v| v.as_str()) {
+                                JsPropertyKey::Identifier(name.to_string())
+                            } else if let Some(s) = key.get("value").and_then(|v| v.as_str()) {
+                                JsPropertyKey::Literal(JsLiteral::String(s.to_string()))
+                            } else if let Some(n) = key.get("value").and_then(|v| v.as_f64()) {
+                                JsPropertyKey::Literal(JsLiteral::Number(n))
+                            } else {
+                                JsPropertyKey::Identifier("unknown".to_string())
+                            };
+
+                            Some(JsObjectPatternProperty::Property {
+                                key: property_key,
+                                value: value_pattern,
+                                computed,
+                                shorthand,
+                            })
+                        })
+                        .collect();
+
+                    return JsPattern::Object(JsObjectPattern { properties });
+                }
+            }
+            Some("ArrayPattern") => {
+                if let Some(elems) = obj.get("elements").and_then(|e| e.as_array()) {
+                    let elements = elems
+                        .iter()
+                        .map(|elem| {
+                            if elem.is_null() {
+                                None
+                            } else {
+                                Some(convert_value_to_pattern_with_context(elem, context))
+                            }
+                        })
+                        .collect();
+
+                    return JsPattern::Array(JsArrayPattern { elements });
+                }
+            }
+            Some("RestElement") => {
+                if let Some(arg) = obj.get("argument") {
+                    let inner = convert_value_to_pattern_with_context(arg, context);
+                    return JsPattern::Rest(Box::new(inner));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Fallback to simple conversion
     convert_value_to_pattern(val)
 }
 
@@ -1489,7 +1623,8 @@ mod tests {
             "name": "value"
         }));
 
-        let pattern = convert_expression_to_pattern(&expr);
+        let Expression::Value(val) = &expr;
+        let pattern = convert_value_to_pattern(val);
         match pattern {
             JsPattern::Identifier(name) => assert_eq!(name, "value"),
             _ => panic!("Expected identifier pattern"),
