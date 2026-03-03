@@ -33,6 +33,11 @@ pub fn compute_blocker_map(raw_script: &str) -> std::collections::HashMap<String
     }
 
     let statements = split_top_level_statements(trimmed);
+
+    // First pass: collect all declared variable names from the entire script.
+    // This is used to identify which referenced identifiers are instance-scope variables.
+    let all_declared_vars = collect_all_declared_variables(&statements);
+
     let mut found_await = false;
     let mut blocker_map = std::collections::HashMap::new();
     let mut async_index: usize = 0;
@@ -69,6 +74,7 @@ pub fn compute_blocker_map(raw_script: &str) -> std::collections::HashMap<String
 
         if is_variable_declaration(trimmed_stmt) {
             let decls = extract_var_declarations(trimmed_stmt);
+            let current_async_index = async_index;
             for decl in &decls {
                 if decl.hoist_only {
                     continue;
@@ -78,6 +84,16 @@ pub fn compute_blocker_map(raw_script: &str) -> std::collections::HashMap<String
                 // the thunk (and all prior thunks) complete.
                 blocker_map.insert(decl.name.clone(), async_index);
                 async_index += 1;
+            }
+
+            // Also add referenced variables that are instance-scope declarations.
+            // This mimics the official compiler's trace_references which walks
+            // CallExpressions with touch() and adds all referenced bindings to writes.
+            let referenced_ids = extract_all_identifiers_from_statement(trimmed_stmt);
+            for ref_id in &referenced_ids {
+                if all_declared_vars.contains(ref_id) && !blocker_map.contains_key(ref_id) {
+                    blocker_map.insert(ref_id.clone(), current_async_index);
+                }
             }
         } else {
             async_index += 1;
@@ -237,11 +253,14 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
         return None;
     }
 
+    // Collect all declared variable names from the entire script for reference tracking.
+    let all_declared_vars = collect_all_declared_variables(&statements);
+
     // Build blocker_map: variable name -> promise index
     // Each async statement gets a promise index (its position in the $.run() array).
     // Variables assigned in an async thunk are "blocked" by that promise.
-    // Additionally, variables assigned in later sync thunks inherit the max blocker
-    // index of their dependencies.
+    // Additionally, variables referenced in call expressions within async statements
+    // get the same blocker (mimicking the official compiler's trace_references/touch).
     let mut blocker_map = std::collections::HashMap::new();
 
     for (idx, stmt) in async_stmts.iter().enumerate() {
@@ -254,6 +273,18 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
                 // Templates reference $$promises[idx] which resolves when
                 // the thunk (and all prior thunks) complete.
                 blocker_map.insert(decl.name.clone(), idx);
+
+                // Also add referenced variables that are instance-scope declarations.
+                // This mimics the official compiler's trace_references which walks
+                // CallExpressions with touch() and adds all referenced bindings to writes.
+                if let Some(init) = &decl.init {
+                    let referenced_ids = extract_all_identifiers_from_statement(init);
+                    for ref_id in &referenced_ids {
+                        if all_declared_vars.contains(ref_id) && !blocker_map.contains_key(ref_id) {
+                            blocker_map.insert(ref_id.clone(), idx);
+                        }
+                    }
+                }
             }
             AsyncStmtKind::ExprAwait(_)
             | AsyncStmtKind::ExprSimple(_)
@@ -1198,6 +1229,231 @@ fn extract_identifiers_from_pattern(pattern: &str) -> Vec<String> {
     names
 }
 
+/// Extract all identifier-like tokens from a statement, excluding JS keywords,
+/// built-in globals, and Svelte rune identifiers. This is used to find references
+/// to instance-scope variables in async statements (mimicking the official compiler's
+/// `trace_references` which walks CallExpressions with `touch()` to add all referenced
+/// bindings to `writes`).
+fn extract_all_identifiers_from_statement(stmt: &str) -> Vec<String> {
+    let bytes = stmt.as_bytes();
+    let len = bytes.len();
+    let mut identifiers = Vec::new();
+    let mut i = 0;
+
+    while i < len {
+        let ch = bytes[i];
+
+        // Skip string literals
+        if ch == b'\'' || ch == b'"' || ch == b'`' {
+            i = skip_string(bytes, i);
+            continue;
+        }
+
+        // Skip single-line comments
+        if ch == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+            while i < len && bytes[i] != b'\n' {
+                i += 1;
+            }
+            continue;
+        }
+
+        // Skip multi-line comments
+        if ch == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+            i += 2;
+            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            i += 2;
+            continue;
+        }
+
+        // Extract identifier tokens
+        if is_ident_start(ch) {
+            let start = i;
+            while i < len && is_ident_char(bytes[i]) {
+                i += 1;
+            }
+            let token = &stmt[start..i];
+
+            // Skip JS keywords, built-in globals, and Svelte runes
+            if !is_js_keyword(token) && !is_builtin_global(token) && !is_svelte_rune(token) {
+                identifiers.push(token.to_string());
+            }
+            continue;
+        }
+
+        i += 1;
+    }
+
+    identifiers
+}
+
+/// Check if a byte can start a JS identifier (letter, underscore, or dollar sign).
+fn is_ident_start(c: u8) -> bool {
+    c.is_ascii_alphabetic() || c == b'_' || c == b'$'
+}
+
+/// Check if a token is a JavaScript keyword that should be excluded from identifier extraction.
+fn is_js_keyword(s: &str) -> bool {
+    matches!(
+        s,
+        "let"
+            | "const"
+            | "var"
+            | "await"
+            | "async"
+            | "function"
+            | "return"
+            | "if"
+            | "else"
+            | "for"
+            | "while"
+            | "do"
+            | "switch"
+            | "case"
+            | "break"
+            | "continue"
+            | "throw"
+            | "try"
+            | "catch"
+            | "finally"
+            | "new"
+            | "delete"
+            | "typeof"
+            | "void"
+            | "in"
+            | "of"
+            | "instanceof"
+            | "this"
+            | "class"
+            | "extends"
+            | "super"
+            | "import"
+            | "export"
+            | "default"
+            | "from"
+            | "with"
+            | "yield"
+            | "debugger"
+            | "true"
+            | "false"
+            | "null"
+            | "undefined"
+    )
+}
+
+/// Check if a token is a built-in global that should be excluded from identifier extraction.
+fn is_builtin_global(s: &str) -> bool {
+    matches!(
+        s,
+        "Promise"
+            | "Array"
+            | "Object"
+            | "String"
+            | "Number"
+            | "Boolean"
+            | "Symbol"
+            | "BigInt"
+            | "Map"
+            | "Set"
+            | "WeakMap"
+            | "WeakSet"
+            | "Date"
+            | "RegExp"
+            | "Error"
+            | "TypeError"
+            | "RangeError"
+            | "SyntaxError"
+            | "ReferenceError"
+            | "JSON"
+            | "Math"
+            | "Infinity"
+            | "NaN"
+            | "parseInt"
+            | "parseFloat"
+            | "isNaN"
+            | "isFinite"
+            | "encodeURI"
+            | "decodeURI"
+            | "encodeURIComponent"
+            | "decodeURIComponent"
+            | "console"
+            | "window"
+            | "document"
+            | "globalThis"
+            | "Proxy"
+            | "Reflect"
+            | "fetch"
+            | "setTimeout"
+            | "setInterval"
+            | "clearTimeout"
+            | "clearInterval"
+            | "queueMicrotask"
+            | "URL"
+            | "URLSearchParams"
+            | "AbortController"
+            | "AbortSignal"
+            | "Headers"
+            | "Request"
+            | "Response"
+            | "FormData"
+            | "Blob"
+            | "File"
+            | "ReadableStream"
+            | "WritableStream"
+            | "TextEncoder"
+            | "TextDecoder"
+            | "Event"
+            | "EventTarget"
+            | "CustomEvent"
+            | "Intl"
+            | "ArrayBuffer"
+            | "SharedArrayBuffer"
+            | "DataView"
+            | "Float32Array"
+            | "Float64Array"
+            | "Int8Array"
+            | "Int16Array"
+            | "Int32Array"
+            | "Uint8Array"
+            | "Uint16Array"
+            | "Uint32Array"
+            | "WeakRef"
+            | "FinalizationRegistry"
+            | "Iterator"
+            | "Generator"
+            | "AsyncGenerator"
+            | "AsyncIterator"
+    )
+}
+
+/// Check if a token is a Svelte rune identifier that should be excluded.
+fn is_svelte_rune(s: &str) -> bool {
+    // $state, $derived, $effect, $props, $bindable, $inspect, $host
+    // Also $$props, $$restProps, $$slots, $$promises, $$renderer, $$async_noop
+    s.starts_with('$')
+}
+
+/// Collect all declared variable names from a list of statements.
+/// This scans all statements for variable declarations (`let`, `const`, `var`)
+/// and collects the declared names. Used to determine which identifiers in
+/// async statements correspond to actual instance-scope variables.
+fn collect_all_declared_variables(statements: &[String]) -> std::collections::HashSet<String> {
+    let mut vars = std::collections::HashSet::new();
+
+    for stmt in statements {
+        let trimmed = stmt.trim();
+        if is_variable_declaration(trimmed) {
+            let decls = extract_var_declarations(trimmed);
+            for decl in &decls {
+                vars.insert(decl.name.clone());
+            }
+        }
+    }
+
+    vars
+}
+
 /// Extract the identifier name from a destructuring item.
 fn extract_ident_from_item(item: &str) -> String {
     let item = item.trim();
@@ -1347,5 +1603,114 @@ mod tests {
             "Object literal should stay together. Output: {}",
             result.output
         );
+    }
+
+    #[test]
+    fn test_compute_blocker_map_includes_referenced_variables() {
+        // Mimics the async-if-nested test case:
+        // let foo = $state(false);
+        // let blocking = $derived(await foo);
+        // let bar = Promise.resolve(true);
+        //
+        // After rune transforms, this becomes something like:
+        // let foo = false;
+        // let blocking = await $.async_derived(() => foo);
+        // let bar = Promise.resolve(true);
+        //
+        // The blocker_map should include `foo` (referenced in the $derived call)
+        // with the same promise index as `blocking`.
+        let script = "let foo = false;\nlet blocking = await $.async_derived(() => foo);\nlet bar = Promise.resolve(true);";
+        let map = compute_blocker_map(script);
+
+        assert!(
+            map.contains_key("blocking"),
+            "Should contain 'blocking'. Map: {:?}",
+            map
+        );
+        assert!(
+            map.contains_key("foo"),
+            "Should contain 'foo' as a referenced variable. Map: {:?}",
+            map
+        );
+        assert!(
+            map.contains_key("bar"),
+            "Should contain 'bar'. Map: {:?}",
+            map
+        );
+
+        // foo should have the same index as blocking (both blocked by the same promise)
+        assert_eq!(
+            map.get("foo"),
+            map.get("blocking"),
+            "foo and blocking should have the same promise index. Map: {:?}",
+            map
+        );
+    }
+
+    #[test]
+    fn test_transform_blocker_map_includes_referenced_variables() {
+        // Same test but for transform_async_body
+        let script = "let foo = false;\nlet blocking = await $.async_derived(() => foo);\nlet bar = Promise.resolve(true);";
+        let result = transform_async_body(script, "$.run").unwrap();
+
+        assert!(
+            result.blocker_map.contains_key("blocking"),
+            "Should contain 'blocking'. Map: {:?}",
+            result.blocker_map
+        );
+        assert!(
+            result.blocker_map.contains_key("foo"),
+            "Should contain 'foo' as a referenced variable. Map: {:?}",
+            result.blocker_map
+        );
+        assert!(
+            result.blocker_map.contains_key("bar"),
+            "Should contain 'bar'. Map: {:?}",
+            result.blocker_map
+        );
+
+        // foo should have the same index as blocking
+        assert_eq!(
+            result.blocker_map.get("foo"),
+            result.blocker_map.get("blocking"),
+            "foo and blocking should have the same promise index. Map: {:?}",
+            result.blocker_map
+        );
+    }
+
+    #[test]
+    fn test_referenced_var_gets_lowest_index() {
+        // A variable referenced in multiple async statements should get the lowest promise index
+        let script = "let a = await fetch();\nlet b = await transform(a);\nlet c = await use(a);";
+        let map = compute_blocker_map(script);
+
+        // 'a' is referenced in both the 'b' and 'c' statements
+        // It should get index 0 (from the first statement where it's declared)
+        assert!(map.contains_key("a"), "Should contain 'a'. Map: {:?}", map);
+        assert_eq!(
+            map.get("a").copied(),
+            Some(0),
+            "a should have index 0 (its own declaration). Map: {:?}",
+            map
+        );
+    }
+
+    #[test]
+    fn test_extract_all_identifiers_excludes_keywords() {
+        let ids =
+            extract_all_identifiers_from_statement("let foo = await bar + Promise.resolve(baz)");
+        assert!(ids.contains(&"foo".to_string()));
+        assert!(ids.contains(&"bar".to_string()));
+        assert!(ids.contains(&"baz".to_string()));
+        assert!(!ids.iter().any(|id| id == "let"));
+        assert!(!ids.iter().any(|id| id == "await"));
+        assert!(!ids.iter().any(|id| id == "Promise"));
+    }
+
+    #[test]
+    fn test_extract_all_identifiers_excludes_svelte_runes() {
+        let ids = extract_all_identifiers_from_statement("$derived(await foo)");
+        assert!(ids.contains(&"foo".to_string()));
+        assert!(!ids.iter().any(|id| id.starts_with('$')));
     }
 }
