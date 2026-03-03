@@ -442,7 +442,7 @@ pub fn build_class_directives_object_with_memoizer(
     let mut properties = Vec::with_capacity(class_directives.len());
     let mut has_state = false;
     let mut has_call_or_state = false;
-    let has_await = false;
+    let mut has_await = false;
 
     for directive in class_directives {
         // Check if this directive has reactive state
@@ -453,6 +453,9 @@ pub fn build_class_directives_object_with_memoizer(
         // In the official compiler, the CallExpression analyze visitor sets has_state = true
         // when there are non-pure calls, so we include has_call in has_state.
         let directive_has_call = super::utils::expression_has_call(&directive.expression, context);
+
+        // Check if directive has await
+        has_await = has_await || super::utils::expression_has_await(&directive.expression);
 
         if directive_has_state || directive_has_call {
             has_state = true;
@@ -524,7 +527,7 @@ pub fn build_style_directives_object_with_memoizer(
     let mut important_properties = Vec::with_capacity(2);
     let mut has_call = false;
     let mut has_state = false;
-    let has_await = false;
+    let mut has_await = false;
 
     for directive in style_directives {
         // Track metadata for memoization decision
@@ -533,6 +536,7 @@ pub fn build_style_directives_object_with_memoizer(
         has_state = has_state
             || super::utils::expression_has_reactive_state(expr, context)
             || super::utils::expression_has_call(expr, context);
+        has_await = has_await || super::utils::expression_has_await(expr);
 
         // Build the expression for this directive
         let expression = if matches!(&directive.value, AttributeValue::True(true)) {
@@ -1184,12 +1188,13 @@ pub fn build_attribute_effect(
         match attribute {
             Attribute::Attribute(attr) => {
                 // Build the attribute value with local memoization
+                let attr_has_await = attr_has_await_expr(&attr.value);
                 let result = build_attribute_value(&attr.value, context, |expr, metadata| {
                     // Use the local memoizer to extract complex expressions
                     local_memoizer.add(
                         expr,
                         metadata.has_call(),
-                        false, // has_await - TODO: detect
+                        attr_has_await || metadata.has_await(),
                         false, // memoize_if_state
                         metadata.has_state(),
                     )
@@ -1225,12 +1230,15 @@ pub fn build_attribute_effect(
                 let has_state =
                     super::utils::expression_has_reactive_state(&spread.expression, context);
 
+                // Check if spread expression has await
+                let spread_has_await = super::utils::expression_has_await(&spread.expression);
+
                 // Memoize the spread expression if it has calls (like getter functions)
                 // This ensures the expression is only evaluated once per render cycle
                 let memoized_expr = local_memoizer.add(
                     transformed_expr,
                     has_call,
-                    false, // has_await - TODO: detect
+                    spread_has_await,
                     false, // memoize_if_state
                     has_state,
                 );
@@ -1268,9 +1276,20 @@ pub fn build_attribute_effect(
         context.state.init.push(decl);
     }
 
-    // Get memoizer parameters ($0, $1, etc.) and sync values
+    // Get memoizer parameters ($0, $1, etc.) and sync/async values
     let params = local_memoizer.apply();
     let sync_values = local_memoizer.sync_values();
+    let async_values = local_memoizer.async_values();
+
+    // Get blockers from expression metadata
+    let blocker_exprs = context
+        .state
+        .get_blockers_for_expr(&b::object(properties.clone()));
+    let blockers = if !blocker_exprs.is_empty() {
+        Some(b::array(blocker_exprs))
+    } else {
+        None
+    };
 
     // Convert params (JsExpr) to patterns (JsPattern) for arrow function
     let param_patterns: Vec<JsPattern> = params
@@ -1294,16 +1313,22 @@ pub fn build_attribute_effect(
     // Add sync_values if we have memoized expressions
     // Otherwise, we still need to add placeholders if css_hash is present or should_remove_defaults
     let has_memoized = sync_values.is_some();
+    let has_async = async_values.is_some();
+    let has_blockers = blockers.is_some();
 
-    if has_memoized || !css_hash.is_empty() || should_remove_defaults {
+    if has_memoized || has_async || has_blockers || !css_hash.is_empty() || should_remove_defaults {
         // Add sync_values (or undefined if none)
         args.push(sync_values.unwrap_or_else(b::undefined));
 
-        // Add async_values (not yet implemented)
-        args.push(b::undefined());
+        // Add async_values if present
+        if has_async || has_blockers || !css_hash.is_empty() || should_remove_defaults {
+            args.push(async_values.unwrap_or_else(b::undefined));
+        }
 
-        // Add blockers (not yet implemented)
-        args.push(b::undefined());
+        // Add blockers if present
+        if has_blockers || !css_hash.is_empty() || should_remove_defaults {
+            args.push(blockers.unwrap_or_else(b::undefined));
+        }
 
         // Add CSS hash if present, or undefined if we need should_remove_defaults
         if !css_hash.is_empty() {
