@@ -50,30 +50,6 @@ pub fn visit(tag: &mut ConstTag, context: &mut VisitorContext) -> Result<(), Ana
     // Visit the declaration expression with in_const_tag flag set
     context.in_const_tag = true;
 
-    // DEBUG: Show scope info for this const tag
-    eprintln!(
-        "[DEBUG phase2 const_tag] start={}, scope={}, fragment_owner={:?}",
-        tag.start, context.scope, fragment_owner
-    );
-    // Show bindings in current scope and parents
-    {
-        let mut cur = Some(context.scope);
-        while let Some(idx) = cur {
-            if let Some(scope) = context.analysis.root.all_scopes.get(idx) {
-                for (name, &binding_idx) in &scope.declarations {
-                    let b = &context.analysis.root.bindings[binding_idx];
-                    eprintln!(
-                        "[DEBUG phase2 const_tag]   scope[{}] has '{}' binding_idx={} kind={:?}",
-                        idx, name, binding_idx, b.kind
-                    );
-                }
-                cur = scope.parent;
-            } else {
-                break;
-            }
-        }
-    }
-
     let crate::ast::js::Expression::Value(value) = &tag.declaration;
 
     let decl_type = value.get("type").and_then(|t| t.as_str());

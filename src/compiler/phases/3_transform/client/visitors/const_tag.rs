@@ -145,32 +145,6 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
         let converted_init = convert_expression(&parsed.init_expr, context);
         let expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
 
-        // Debug: print references info
-        eprintln!(
-            "[DEBUG const_tag destructure] identifiers={:?}, references count={}",
-            identifiers,
-            expr_metadata.references.len()
-        );
-        for &binding_idx in &expr_metadata.references {
-            if let Some(binding) = context.state.scope_root.bindings.get(binding_idx) {
-                eprintln!(
-                    "[DEBUG const_tag destructure]   ref[{}]: name={}, kind={:?}, decl_kind={:?}",
-                    binding_idx, binding.name, binding.kind, binding.declaration_kind
-                );
-                let has_transform = context.state.transform.get(binding.name.as_str()).is_some();
-                let has_read_source = context
-                    .state
-                    .transform
-                    .get(binding.name.as_str())
-                    .and_then(|t| t.read_source.as_ref())
-                    .is_some();
-                eprintln!(
-                    "[DEBUG const_tag destructure]     has_transform={}, has_read_source={}",
-                    has_transform, has_read_source
-                );
-            }
-        }
-
         let built_init = build_expression(context, &converted_init, &expr_metadata);
 
         // Restore the original transform
