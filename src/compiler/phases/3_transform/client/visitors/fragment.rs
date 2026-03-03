@@ -564,10 +564,20 @@ fn collect_ids_from_expr(expr: &JsExpr, names: &mut Vec<String>) {
         }
         JsExpr::Member(member) => {
             collect_ids_from_expr(&member.object, names);
-            if member.computed
-                && let JsMemberProperty::Expression(prop) = &member.property
-            {
-                collect_ids_from_expr(prop, names);
+            match &member.property {
+                JsMemberProperty::Expression(prop) => {
+                    if member.computed {
+                        collect_ids_from_expr(prop, names);
+                    }
+                }
+                JsMemberProperty::Identifier(id) => {
+                    // Also collect non-computed property names since they might
+                    // match blocker_map entries (e.g., $$props.name -> "name")
+                    if !names.contains(id) {
+                        names.push(id.clone());
+                    }
+                }
+                JsMemberProperty::PrivateIdentifier(_) => {}
             }
         }
         JsExpr::Binary(bin) => {

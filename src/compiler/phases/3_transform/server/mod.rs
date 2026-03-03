@@ -248,6 +248,22 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
+        // When experimental.async is enabled, remove variables that are in the
+        // blocker_map from constant_vars. These variables are assigned asynchronously
+        // in $$promises thunks and should NOT be constant-folded, because they need to
+        // be rendered via $$renderer.async() wrappers.
+        if use_async && let Some(script) = instance_script {
+            let start = script.content.start().unwrap_or(0) as usize;
+            let end = script.content.end().unwrap_or(0) as usize;
+            if end > start && end <= source.len() {
+                let raw_script = &source[start..end];
+                let blocker_map = crate::compiler::phases::phase3_transform::shared::async_body::compute_blocker_map(raw_script);
+                for name in blocker_map.keys() {
+                    constant_vars.remove(name);
+                }
+            }
+        }
+
         // Check if the analysis has any StoreSub bindings
         let uses_store_subs = analysis
             .map(|a| {

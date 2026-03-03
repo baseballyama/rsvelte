@@ -36,7 +36,6 @@ pub fn compute_blocker_map(raw_script: &str) -> std::collections::HashMap<String
     let mut found_await = false;
     let mut blocker_map = std::collections::HashMap::new();
     let mut async_index: usize = 0;
-    let mut current_max_blocker: Option<usize> = None;
 
     for stmt in &statements {
         let trimmed_stmt = stmt.trim();
@@ -74,29 +73,13 @@ pub fn compute_blocker_map(raw_script: &str) -> std::collections::HashMap<String
                 if decl.hoist_only {
                     continue;
                 }
-                let has_await_in_init = decl.init.as_ref().is_some_and(|i| has_await_in_expr(i));
-                let blocker_idx = if has_await_in_init {
-                    current_max_blocker = Some(async_index);
-                    async_index
-                } else if let Some(max) = current_max_blocker {
-                    max
-                } else {
-                    async_index
-                };
-                blocker_map.insert(decl.name.clone(), blocker_idx);
+                // Each variable's blocker is its own thunk index.
+                // Templates reference $$promises[idx] which resolves when
+                // the thunk (and all prior thunks) complete.
+                blocker_map.insert(decl.name.clone(), async_index);
                 async_index += 1;
             }
-        } else if is_expression_statement(trimmed_stmt) {
-            let expr = strip_trailing_semicolon(trimmed_stmt);
-            let is_await_expr = is_await_expression(expr);
-            if is_await_expr || has_await_in_stmt {
-                current_max_blocker = Some(async_index);
-            }
-            async_index += 1;
         } else {
-            if has_await_in_stmt {
-                current_max_blocker = Some(async_index);
-            }
             async_index += 1;
         }
     }
@@ -170,6 +153,29 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
                 continue;
             }
 
+            // Handle async noop placeholder (from $props() that transformed to empty)
+            // Format: /* $$async_noop */ or /* $$async_noop:var1,var2 */
+            if trimmed_stmt.contains("$$async_noop") {
+                // Extract variable names for hoisting if present
+                if let Some(colon_pos) = trimmed_stmt.find("$$async_noop:") {
+                    let start = colon_pos + "$$async_noop:".len();
+                    if let Some(end) = trimmed_stmt[start..].find("*/") {
+                        let vars_str = trimmed_stmt[start..start + end].trim();
+                        for var in vars_str.split(',') {
+                            let var = var.trim();
+                            if !var.is_empty() {
+                                hoisted_vars.push(var.to_string());
+                            }
+                        }
+                    }
+                }
+                async_stmts.push(AsyncStmt {
+                    kind: AsyncStmtKind::Noop,
+                    has_await: false,
+                });
+                continue;
+            }
+
             // Handle different statement types
             if is_variable_declaration(trimmed_stmt) {
                 // Extract variable names and init expressions
@@ -237,9 +243,6 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
     // Additionally, variables assigned in later sync thunks inherit the max blocker
     // index of their dependencies.
     let mut blocker_map = std::collections::HashMap::new();
-    // Track the running max blocker index - once we see an await, all subsequent
-    // variables are blocked by at least that index
-    let mut current_max_blocker: Option<usize> = None;
 
     for (idx, stmt) in async_stmts.iter().enumerate() {
         match &stmt.kind {
@@ -247,35 +250,17 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
                 if decl.hoist_only {
                     continue;
                 }
-                // The variable is assigned in this thunk at index `idx`
-                // Its blocker is the max of: its own index (if it has await),
-                // or the previous max blocker index
-                let blocker_idx = if stmt.has_await {
-                    current_max_blocker = Some(idx);
-                    idx
-                } else if let Some(max) = current_max_blocker {
-                    // Non-await thunk after an await: it depends on previous promises
-                    // The blocker is the thunk that resolves before this one can run
-                    // In $.run(), thunks execute sequentially, so a sync thunk after
-                    // an async thunk is blocked by that async thunk
-                    max
-                } else {
-                    // No await seen yet - shouldn't happen since we only enter async
-                    // section after seeing await, but handle gracefully
-                    idx
-                };
-                blocker_map.insert(decl.name.clone(), blocker_idx);
+                // Each variable's blocker is its own thunk index.
+                // Templates reference $$promises[idx] which resolves when
+                // the thunk (and all prior thunks) complete.
+                blocker_map.insert(decl.name.clone(), idx);
             }
-            AsyncStmtKind::ExprAwait(_) | AsyncStmtKind::ExprSimple(_) => {
-                // Pure expression statements (like `await 0`) update the max blocker
-                if stmt.has_await {
-                    current_max_blocker = Some(idx);
-                }
-            }
-            AsyncStmtKind::ExprVoid(_) | AsyncStmtKind::Block(_) => {
-                if stmt.has_await {
-                    current_max_blocker = Some(idx);
-                }
+            AsyncStmtKind::ExprAwait(_)
+            | AsyncStmtKind::ExprSimple(_)
+            | AsyncStmtKind::ExprVoid(_)
+            | AsyncStmtKind::Block(_)
+            | AsyncStmtKind::Noop => {
+                // Non-variable statements don't contribute to blocker_map
             }
         }
     }
@@ -350,6 +335,8 @@ enum AsyncStmtKind {
     ExprVoid(String),
     /// Other statement -> `() => { stmt }`
     Block(String),
+    /// Empty thunk placeholder (from $props() that was removed) -> `() => {}`
+    Noop,
 }
 
 struct AsyncStmt {
@@ -399,6 +386,7 @@ fn build_thunk(stmt: &AsyncStmt) -> String {
                 format!("() => {{\n\t\t{}\n\t}}", block)
             }
         }
+        AsyncStmtKind::Noop => "() => {}".to_string(),
     }
 }
 

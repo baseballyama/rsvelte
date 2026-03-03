@@ -360,6 +360,22 @@ pub(crate) enum OutputPart {
         /// Fallback body (None means null fallback)
         fallback: Option<Vec<OutputPart>>,
     },
+    /// Async-wrapped if/each block: `$$renderer.async_block([blockers], ($$renderer) => { ... })`
+    /// Used when a block's test/iterable expression references a blocked async variable.
+    AsyncBlock {
+        /// The blocker indices ($$promises[N]) to wait for
+        blocker_indices: Vec<usize>,
+        /// The inner parts (the if/each block itself)
+        inner: Vec<OutputPart>,
+    },
+    /// Async-wrapped expression: `$$renderer.async([blockers], ($$renderer) => { $$renderer.push(() => $.escape(expr)); })`
+    /// Used when an expression tag references a blocked async variable.
+    AsyncWrappedExpression {
+        /// The blocker indices ($$promises[N]) to wait for
+        blocker_indices: Vec<usize>,
+        /// The expression to render
+        expr: String,
+    },
     /// Raw JavaScript statement(s) to emit directly
     RawStatement(String),
     /// Local snippet function declaration (e.g., `function failed($$renderer, e) { ... }`)

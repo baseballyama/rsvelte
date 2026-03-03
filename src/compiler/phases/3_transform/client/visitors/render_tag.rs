@@ -54,6 +54,12 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
     // Extract arguments and wrap them in thunks
     // Reference: RenderTag.js lines 22-33
     let raw_args = extract_call_arguments(&call_expr);
+
+    // Track async values for $.async() wrapping
+    let mut async_values: Vec<JsExpr> = Vec::new();
+    let mut async_ids: Vec<String> = Vec::new();
+    let mut any_has_await = false;
+
     let mut derived_decls: Vec<JsStatement> = Vec::new();
     let args: Vec<JsExpr> = raw_args
         .iter()
@@ -66,27 +72,34 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
             // Apply transforms ($.get() wrapping for reactive state variables)
             let built = build_expression(context, &converted, &metadata);
 
-            // If the argument expression has a call, we need to memoize it with $.derived()
-            // to avoid re-evaluating the call on every render. This matches the official compiler
-            // behavior in RenderTag.js.
-            // Also check the raw expression type as fallback for cases where analysis didn't
-            // populate the metadata (e.g., when walk_js_expression doesn't find the binding)
-            let has_call_from_expr = match arg {
-                Expression::Value(v) => json_value_has_call(v),
-            };
-            if template_metadata.has_call() || has_call_from_expr {
-                // Generate a unique name like $0, $1, etc.
-                // Use "$0" as the base since plain "$" conflicts with the runtime import.
-                let id_name = context.state.memoizer.generate_id("$0");
-                // Create: let $0 = $.derived(() => expr);
-                derived_decls.push(b::let_decl(
-                    &id_name,
-                    Some(b::call(b::member_path("$.derived"), vec![b::thunk(built)])),
-                ));
-                // Return: () => $.get($0)
+            // Check if this argument has await
+            let arg_has_await =
+                template_metadata.has_await() || super::shared::utils::expression_has_await(arg);
+
+            if arg_has_await {
+                any_has_await = true;
+                // Generate async value id like $0, $1, etc.
+                let id_name = format!("${}", async_values.len());
+                // Strip the top-level await since $.async handles the awaiting
+                async_values.push(b::thunk(b::strip_await(built)));
+                async_ids.push(id_name.clone());
+                // Return: () => $.get($N)
                 b::thunk(b::call(b::member_path("$.get"), vec![b::id(&id_name)]))
             } else {
-                b::thunk(built)
+                // If the argument expression has a call, we need to memoize it with $.derived()
+                let has_call_from_expr = match arg {
+                    Expression::Value(v) => json_value_has_call(v),
+                };
+                if template_metadata.has_call() || has_call_from_expr {
+                    let id_name = context.state.memoizer.generate_id("$0");
+                    derived_decls.push(b::let_decl(
+                        &id_name,
+                        Some(b::call(b::member_path("$.derived"), vec![b::thunk(built)])),
+                    ));
+                    b::thunk(b::call(b::member_path("$.get"), vec![b::id(&id_name)]))
+                } else {
+                    b::thunk(built)
+                }
             }
         })
         .collect();
@@ -116,14 +129,39 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
         b::call(snippet_function, call_args)
     };
 
-    // If there are derived declarations (for call expression arguments),
-    // wrap everything in a block to scope the derived variables
-    if derived_decls.is_empty() {
-        b::stmt(call)
+    // Build the statements list (derived decls + call)
+    let mut statements: Vec<JsStatement> = derived_decls;
+    statements.push(b::stmt(call));
+
+    // If any arguments have await, wrap in $.async()
+    if any_has_await {
+        let node_name = match &context.state.node {
+            JsExpr::Identifier(name) => name.clone(),
+            _ => "$$anchor".to_string(),
+        };
+
+        let mut callback_params: Vec<
+            crate::compiler::phases::phase3_transform::js_ast::nodes::JsPattern,
+        > = vec![b::id_pattern(&node_name)];
+        for id in &async_ids {
+            callback_params.push(b::id_pattern(id));
+        }
+
+        let callback = b::arrow_block(callback_params, statements);
+
+        b::stmt(b::call(
+            b::member_path("$.async"),
+            vec![
+                context.state.node.clone(),
+                b::undefined(), // blockers: void 0
+                b::array(async_values),
+                callback,
+            ],
+        ))
+    } else if statements.len() == 1 {
+        statements.pop().unwrap()
     } else {
-        let mut block_body = derived_decls;
-        block_body.push(b::stmt(call));
-        b::block(block_body)
+        b::block(statements)
     }
 }
 

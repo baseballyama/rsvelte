@@ -569,7 +569,11 @@ fn transform_client_with_visitors(
                         *context.state.blocker_map.borrow_mut() = async_result.blocker_map;
                     }
                 } else {
-                    component_body.push(JsStatement::Raw(trimmed.to_string()));
+                    // No top-level await: strip any async noop placeholders
+                    let cleaned = strip_async_noop_placeholders(trimmed);
+                    if !cleaned.trim().is_empty() {
+                        component_body.push(JsStatement::Raw(cleaned.trim().to_string()));
+                    }
                 }
             } else {
                 // Parse transformed script as raw JavaScript statement
@@ -2109,7 +2113,20 @@ fn transform_instance_script_for_visitors(
         );
 
         // Skip empty transformations (e.g., read-only $props() with no defaults)
+        // In async mode, emit a placeholder so that async_body.rs generates
+        // an empty thunk `() => {}` matching the official compiler
         if transformed.trim().is_empty() {
+            if analysis.experimental_async {
+                // Extract variable names from the original statement for hoisting
+                // e.g., "const { name } = $props()" -> "name"
+                let orig = accumulated.join("\n");
+                let vars = extract_destructured_prop_names(&orig);
+                if vars.is_empty() {
+                    result.push_str("/* $$async_noop */;\n");
+                } else {
+                    result.push_str(&format!("/* $$async_noop:{} */;\n", vars.join(",")));
+                }
+            }
             return;
         }
 
@@ -16669,6 +16686,77 @@ fn strip_js_single_line_comments(source: &str) -> String {
     }
 
     result
+}
+
+/// Strip `/* $$async_noop... */;` placeholders from script output.
+/// Used when async body transform returns None (no top-level await).
+fn strip_async_noop_placeholders(s: &str) -> String {
+    s.lines()
+        .filter(|line| !line.trim().contains("$$async_noop"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Extract variable names from a $props() destructuring pattern.
+/// e.g., "const { name, age } = $props()" -> ["name", "age"]
+/// e.g., "let { a: b, c = 1 } = $props()" -> ["b", "c"]
+fn extract_destructured_prop_names(statement: &str) -> Vec<String> {
+    let trimmed = statement.trim();
+
+    // Look for pattern: (const|let|var) { ... } = $props(...)
+    let brace_start = match trimmed.find('{') {
+        Some(pos) => pos,
+        None => return vec![],
+    };
+
+    let brace_end = match trimmed.find('}') {
+        Some(pos) => pos,
+        None => return vec![],
+    };
+
+    if brace_start >= brace_end {
+        return vec![];
+    }
+
+    let inner = &trimmed[brace_start + 1..brace_end];
+    let mut names = Vec::new();
+
+    for part in inner.split(',') {
+        let part = part.trim();
+        if part.is_empty() {
+            continue;
+        }
+
+        // Handle "...rest" pattern
+        if let Some(rest) = part.strip_prefix("...") {
+            names.push(rest.trim().to_string());
+            continue;
+        }
+
+        // Handle "key: alias" or "key: alias = default" pattern
+        if let Some(colon_pos) = part.find(':') {
+            let after_colon = part[colon_pos + 1..].trim();
+            // May have default: "alias = default"
+            let alias = if let Some(eq_pos) = after_colon.find('=') {
+                after_colon[..eq_pos].trim()
+            } else {
+                after_colon
+            };
+            names.push(alias.to_string());
+            continue;
+        }
+
+        // Handle "name = default" pattern
+        if let Some(eq_pos) = part.find('=') {
+            names.push(part[..eq_pos].trim().to_string());
+            continue;
+        }
+
+        // Simple name
+        names.push(part.to_string());
+    }
+
+    names
 }
 
 #[cfg(test)]

@@ -1253,6 +1253,9 @@ pub struct SvelteDynamicElementMetadata {
     /// Whether this element is in the MathML namespace.
     /// Set during Phase 2 analysis based on xmlns attribute, ancestor context, or component namespace.
     pub mathml: bool,
+    /// Expression metadata for the tag expression (the `this` attribute value).
+    /// Tracks has_await, has_call, etc. for async handling.
+    pub expression: ExpressionMetadata,
 }
 
 /// Metadata for Component nodes, populated during Phase 2 analysis.

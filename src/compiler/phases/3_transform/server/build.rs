@@ -20,8 +20,35 @@ impl<'a> ServerCodeGenerator<'a> {
             .map(|(a, b)| (a.as_str(), b.as_str()))
             .collect();
         let mut each_counter: usize = 0;
+
+        // Pre-compute the blocker_map from the instance script for async wrapping.
+        // This determines which variables are "blocked" by async promises ($$promises[N])
+        // and which template expressions/blocks need to be wrapped in $$renderer.async()/async_block().
+        let blocker_map = if self.use_async {
+            if let Some(script) = self.instance_script {
+                let start = script.content.start().unwrap_or(0) as usize;
+                let end = script.content.end().unwrap_or(0) as usize;
+                if end > start && end <= self.source.len() {
+                    let raw_script = &self.source[start..end];
+                    crate::compiler::phases::phase3_transform::shared::async_body::compute_blocker_map(raw_script)
+                } else {
+                    std::collections::HashMap::new()
+                }
+            } else {
+                std::collections::HashMap::new()
+            }
+        } else {
+            std::collections::HashMap::new()
+        };
+
         // Hoist <svelte:head> parts to the beginning (official Svelte compiler behavior)
         let hoisted_parts = Self::hoist_svelte_head(&self.output_parts);
+        // Apply async wrapping to output parts based on blocker_map
+        let hoisted_parts = if !blocker_map.is_empty() {
+            Self::apply_async_wrapping(&hoisted_parts, &blocker_map)
+        } else {
+            hoisted_parts
+        };
         let body_code = Self::build_parts_with_store_subs(
             &hoisted_parts,
             1,
@@ -325,6 +352,12 @@ impl<'a> ServerCodeGenerator<'a> {
                 let mut each_counter: usize = 0;
                 // Hoist <svelte:head> parts to the beginning (official Svelte compiler behavior)
                 let hoisted_parts_wrapper = Self::hoist_svelte_head(&self.output_parts);
+                // Apply async wrapping to output parts based on blocker_map
+                let hoisted_parts_wrapper = if !blocker_map.is_empty() {
+                    Self::apply_async_wrapping(&hoisted_parts_wrapper, &blocker_map)
+                } else {
+                    hoisted_parts_wrapper
+                };
                 let inner_body = Self::build_parts_with_store_subs(
                     &hoisted_parts_wrapper,
                     2,
@@ -583,6 +616,90 @@ export default function {component_name}($$renderer{props_param}) {{
         heads
     }
 
+    /// Apply async wrapping to output parts based on the blocker_map.
+    ///
+    /// This transforms top-level IfBlock/EachBlock parts whose test/iterable expressions
+    /// reference blocked variables into AsyncBlock parts, and Expression parts that reference
+    /// blocked variables into AsyncWrappedExpression parts.
+    ///
+    /// Corresponds to `create_child_block()` and `PromiseOptimiser.render()` in the official compiler.
+    fn apply_async_wrapping(
+        parts: &[OutputPart],
+        blocker_map: &std::collections::HashMap<String, usize>,
+    ) -> Vec<OutputPart> {
+        let mut result = Vec::with_capacity(parts.len());
+
+        for part in parts {
+            match part {
+                OutputPart::IfBlock {
+                    test_expr,
+                    consequent_body,
+                    alternate_body,
+                    is_elseif,
+                } => {
+                    let blockers = super::helpers::find_expression_blockers(test_expr, blocker_map);
+                    if !blockers.is_empty() {
+                        // Wrap the if-block in $$renderer.async_block([blockers], ...)
+                        result.push(OutputPart::AsyncBlock {
+                            blocker_indices: blockers,
+                            inner: vec![OutputPart::IfBlock {
+                                test_expr: test_expr.clone(),
+                                consequent_body: consequent_body.clone(),
+                                alternate_body: alternate_body.clone(),
+                                is_elseif: *is_elseif,
+                            }],
+                        });
+                    } else {
+                        result.push(part.clone());
+                    }
+                }
+                OutputPart::EachBlock {
+                    iterable,
+                    context_name,
+                    index_name,
+                    index_alias,
+                    body,
+                    fallback,
+                } => {
+                    let blockers = super::helpers::find_expression_blockers(iterable, blocker_map);
+                    if !blockers.is_empty() {
+                        // Wrap the each-block in $$renderer.async_block([blockers], ...)
+                        result.push(OutputPart::AsyncBlock {
+                            blocker_indices: blockers,
+                            inner: vec![OutputPart::EachBlock {
+                                iterable: iterable.clone(),
+                                context_name: context_name.clone(),
+                                index_name: index_name.clone(),
+                                index_alias: index_alias.clone(),
+                                body: body.clone(),
+                                fallback: fallback.clone(),
+                            }],
+                        });
+                    } else {
+                        result.push(part.clone());
+                    }
+                }
+                OutputPart::Expression(expr) => {
+                    let blockers = super::helpers::find_expression_blockers(expr, blocker_map);
+                    if !blockers.is_empty() {
+                        // Wrap the expression in $$renderer.async([blockers], ...)
+                        result.push(OutputPart::AsyncWrappedExpression {
+                            blocker_indices: blockers,
+                            expr: expr.clone(),
+                        });
+                    } else {
+                        result.push(part.clone());
+                    }
+                }
+                _ => {
+                    result.push(part.clone());
+                }
+            }
+        }
+
+        result
+    }
+
     /// Hoist SnippetFunction declarations to the front of a parts vector.
     /// This mirrors the official Svelte compiler's behavior where snippet functions
     /// are placed in state.init (before template rendering) via the Fragment visitor.
@@ -735,6 +852,94 @@ export default function {component_name}($$renderer{props_param}) {{
                         "{}$$renderer.push(async () => $.escape({}));\n",
                         indent, transformed_expr
                     ));
+                }
+                OutputPart::AsyncBlock {
+                    blocker_indices,
+                    inner,
+                } => {
+                    // Async-wrapped block: flush current HTML, then emit
+                    // $$renderer.async_block([$$promises[N], ...], ($$renderer) => { ... })
+                    // The <!--]--> marker is emitted OUTSIDE the callback (after it).
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    let blockers_str = blocker_indices
+                        .iter()
+                        .map(|idx| format!("$$promises[{}]", idx))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+
+                    body_code.push_str(&format!(
+                        "{}$$renderer.async_block([{}], ($$renderer) => {{\n",
+                        indent, blockers_str
+                    ));
+
+                    // Render the inner block (IfBlock/EachBlock) directly using build_if_statement
+                    // to avoid the <!--]--> marker being added inside the callback
+                    if let Some(OutputPart::IfBlock {
+                        test_expr,
+                        consequent_body,
+                        alternate_body,
+                        ..
+                    }) = inner.first()
+                    {
+                        let if_code = Self::build_if_statement(
+                            test_expr,
+                            consequent_body,
+                            alternate_body,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
+                        body_code.push_str(&if_code);
+                    } else {
+                        // Fallback: render inner parts normally
+                        let inner_code = Self::build_parts_with_store_subs(
+                            inner,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
+                        body_code.push_str(&inner_code);
+                    }
+
+                    body_code.push_str(&format!("{}}});\n\n", indent));
+
+                    // The <!--]--> marker is added outside the callback
+                    current_html.push_str("<!--]-->");
+                }
+                OutputPart::AsyncWrappedExpression {
+                    blocker_indices,
+                    expr,
+                } => {
+                    // Async-wrapped expression: flush current HTML, then emit
+                    // $$renderer.async([$$promises[N], ...], ($$renderer) => {
+                    //     $$renderer.push(() => $.escape(expr));
+                    // })
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    let blockers_str = blocker_indices
+                        .iter()
+                        .map(|idx| format!("$$promises[{}]", idx))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+
+                    body_code.push_str(&format!(
+                        "{}$$renderer.async([{}], ($$renderer) => {{\n",
+                        indent, blockers_str
+                    ));
+                    body_code.push_str(&format!(
+                        "{}\t$$renderer.push(() => $.escape({}));\n",
+                        indent, expr
+                    ));
+                    body_code.push_str(&format!("{}}});\n\n", indent));
                 }
                 OutputPart::RawExpression(expr) => {
                     // Raw expressions don't need escaping (e.g., $.attributes())

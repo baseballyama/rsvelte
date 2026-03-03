@@ -1673,3 +1673,77 @@ fn split_declarators(s: &str) -> Vec<&str> {
     parts.push(&s[start..]);
     parts
 }
+
+/// Find all blocker indices referenced by an expression.
+///
+/// Scans an expression string for identifiers that appear in the blocker_map
+/// and returns a deduplicated, sorted list of blocker indices (for $$promises[N]).
+///
+/// This is used to determine if an expression tag or if-block test needs to be
+/// wrapped in `$$renderer.async()` or `$$renderer.async_block()`.
+pub(crate) fn find_expression_blockers(
+    expr: &str,
+    blocker_map: &std::collections::HashMap<String, usize>,
+) -> Vec<usize> {
+    if blocker_map.is_empty() {
+        return Vec::new();
+    }
+
+    let mut blockers = std::collections::BTreeSet::new();
+    let bytes = expr.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+
+    while i < len {
+        let ch = bytes[i];
+
+        // Skip string literals
+        if ch == b'\'' || ch == b'"' || ch == b'`' {
+            i = skip_string_literal(bytes, i);
+            continue;
+        }
+
+        // Skip comments
+        if ch == b'/' && i + 1 < len {
+            if bytes[i + 1] == b'/' {
+                while i < len && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            if bytes[i + 1] == b'*' {
+                i += 2;
+                while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i += 2;
+                continue;
+            }
+        }
+
+        // Check for identifier start
+        if ch.is_ascii_alphabetic() || ch == b'_' || ch == b'$' {
+            let start = i;
+            while i < len
+                && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_' || bytes[i] == b'$')
+            {
+                i += 1;
+            }
+            let ident = &expr[start..i];
+
+            // Check if preceded by a dot (member expression like obj.prop - skip)
+            if start > 0 && bytes[start - 1] == b'.' {
+                continue;
+            }
+
+            if let Some(&blocker_idx) = blocker_map.get(ident) {
+                blockers.insert(blocker_idx);
+            }
+            continue;
+        }
+
+        i += 1;
+    }
+
+    blockers.into_iter().collect()
+}

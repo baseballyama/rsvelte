@@ -620,9 +620,19 @@ impl<'a> ComponentContext<'a> {
         // For let/const variables: convert → tag, transform → tag (no change), thunk → () => tag
         // For template literals: convert → `h${size}`, transform → `h${size()}`, thunk → () => `h${size()}`
         use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
+        use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::expression_has_await;
         let tag_expr = convert_expression(&elem.tag, self);
         let tag_expr = apply_transforms_to_expression(&tag_expr, self);
-        let get_tag = b::thunk(tag_expr);
+
+        let has_await = elem.metadata.expression.has_await() || expression_has_await(&elem.tag);
+        let has_blockers = elem.metadata.expression.has_blockers();
+
+        // When has_await, use $.get($$tag) instead of the original tag expression
+        let get_tag = if has_await {
+            b::thunk(b::call(b::member_path("$.get"), vec![b::id("$$tag")]))
+        } else {
+            b::thunk(tag_expr.clone())
+        };
 
         // Build $.element(...) call
         // $.element(anchor, get_tag, is_svg_or_mathml, callback, namespace)
@@ -659,14 +669,56 @@ impl<'a> ComponentContext<'a> {
             element_args.push(b::thunk(ns_result.value));
         }
 
-        let element_call = b::call(b::member_path("$.element"), element_args);
+        let element_call_stmt = b::stmt(b::call(b::member_path("$.element"), element_args));
 
         // Handle LetDirectives by wrapping in ExpressionStatements
+        let mut statements = Vec::new();
         for _let_dir in &let_directives {
             // TODO: Implement LetDirective handling
         }
+        statements.push(element_call_stmt);
 
-        self.state.init.push(b::stmt(element_call));
+        // If the tag expression has await or blockers, wrap in $.async()
+        if has_await || has_blockers {
+            let metadata = ExpressionMetadata::from_template_metadata(&elem.metadata.expression);
+            let blockers_expr = if has_blockers {
+                metadata.blockers()
+            } else {
+                b::array(vec![])
+            };
+
+            let async_values = if has_await {
+                // Strip the top-level await since $.async handles the awaiting
+                b::array(vec![b::thunk(b::strip_await(tag_expr))])
+            } else {
+                b::undefined()
+            };
+
+            let node_name = match &self.state.node {
+                JsExpr::Identifier(name) => name.clone(),
+                _ => "node".to_string(),
+            };
+            let mut callback_params = vec![b::id_pattern(&node_name)];
+            if has_await {
+                callback_params.push(b::id_pattern("$$tag"));
+            }
+
+            let callback = b::arrow_block(callback_params, statements);
+
+            self.state.init.push(b::stmt(b::call(
+                b::member_path("$.async"),
+                vec![
+                    self.state.node.clone(),
+                    blockers_expr,
+                    async_values,
+                    callback,
+                ],
+            )));
+        } else {
+            for stmt in statements {
+                self.state.init.push(stmt);
+            }
+        }
 
         TransformResult::None
     }

@@ -20,12 +20,21 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 ///    - Legacy reactivity wrapping (deep_read_state/untrack) when needed
 ///    - Thunk optimization
 ///
+/// When the expression contains `await`, wraps in `$.async()`:
+///   $.async(node, blockers, [() => expression], (node, $$html) => {
+///       $.html(node, () => $.get($$html));
+///   });
+///
 /// In the official Svelte compiler (HtmlTag.js):
 ///   const expression = build_expression(context, node.expression, node.metadata.expression);
 ///   b.stmt(b.call('$.html', context.state.node, b.thunk(expression), ...))
 pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
     // Push comment anchor to template
     context.state.template.push_comment(None);
+
+    let has_await = node.metadata.expression.has_await()
+        || super::shared::utils::expression_has_await(&node.expression);
+    let has_blockers = node.metadata.expression.has_blockers();
 
     // Build the expression for the content using convert_expression first
     let expression = convert_expression(&node.expression, context);
@@ -36,29 +45,71 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
     let metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
     let built_expression = build_expression(context, &expression, &metadata);
 
+    // When has_await, the html uses $.get($$html) instead of the original expression
+    let html_expr = if has_await {
+        b::call(b::member_path("$.get"), vec![b::id("$$html")])
+    } else {
+        built_expression.clone()
+    };
+
     // Check namespace for SVG/MathML
     let is_svg = context.state.metadata.namespace == "svg";
     let is_mathml = context.state.metadata.namespace == "mathml";
 
     // Create thunk and apply unthunk optimization
-    // b.thunk creates () => expression, then unthunk optimizes:
-    // - () => foo() becomes foo (if foo is a function call with no args matching params)
-    // - () => expr stays as () => expr otherwise
-    let thunked = b::thunk(built_expression);
+    let thunked = b::thunk(html_expr);
 
     // Build arguments: $.html(node, thunked_expression, is_svg?, is_mathml?)
-    let mut args = vec![context.state.node.clone(), thunked];
+    let mut html_args = vec![context.state.node.clone(), thunked];
 
     if is_svg {
-        args.push(b::boolean(true));
+        html_args.push(b::boolean(true));
     } else if is_mathml {
-        // Need to push false for svg first, then true for mathml
-        args.push(b::boolean(false));
-        args.push(b::boolean(true));
+        html_args.push(b::boolean(false));
+        html_args.push(b::boolean(true));
     }
 
-    // Note: Ignoring `is_ignored(node, 'hydration_html_changed')` for now
-    // as we don't have that infrastructure yet
+    let html_statement = b::stmt(b::call(b::member_path("$.html"), html_args));
 
-    b::stmt(b::call(b::member_path("$.html"), args))
+    // If the expression has await or blockers, wrap in $.async()
+    if has_await || has_blockers {
+        // $.async(node, blockers, async_values, callback)
+        let blockers_expr = if has_blockers {
+            metadata.blockers()
+        } else {
+            b::array(vec![])
+        };
+
+        let async_values = if has_await {
+            // Strip the top-level await from the expression since $.async handles
+            // the awaiting internally. The expression becomes a thunk returning the Promise.
+            b::array(vec![b::thunk(b::strip_await(built_expression))])
+        } else {
+            b::undefined()
+        };
+
+        // Callback params: (node, $$html) when has_await, (node) when only blockers
+        let node_name = match &context.state.node {
+            JsExpr::Identifier(name) => name.clone(),
+            _ => "node".to_string(),
+        };
+        let mut callback_params = vec![b::id_pattern(&node_name)];
+        if has_await {
+            callback_params.push(b::id_pattern("$$html"));
+        }
+
+        let callback = b::arrow_block(callback_params, vec![html_statement]);
+
+        b::stmt(b::call(
+            b::member_path("$.async"),
+            vec![
+                context.state.node.clone(),
+                blockers_expr,
+                async_values,
+                callback,
+            ],
+        ))
+    } else {
+        html_statement
+    }
 }

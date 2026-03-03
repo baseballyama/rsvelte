@@ -20,21 +20,35 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 ///     // fragment body
 /// });
 /// ```
+///
+/// When the expression contains `await`, wraps in `$.async()`:
+/// ```js
+/// $.async(node, blockers, [() => expression], (node, $$key) => {
+///     $.key(node, () => $.get($$key), ($$anchor) => { ... });
+/// });
+/// ```
 pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformResult {
     use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
 
     // Add a comment marker to the template for hydration
     context.state.template.push_comment(None);
 
+    let has_await = node.metadata.expression.has_await()
+        || super::shared::utils::expression_has_await(&node.expression);
+    let has_blockers = node.metadata.expression.has_blockers();
+
     // Build the key expression
-    // TODO: Handle async expressions with blockers
-    // We need to apply transforms (e.g., $.get() for reactive variables)
     let expression = convert_expression(&node.expression, context);
     let transformed_expression = apply_transforms_to_expression(&expression, context);
-    let key = b::thunk(transformed_expression);
+
+    // When has_await, the key uses $.get($$key) instead of the original expression
+    let key_expr = if has_await {
+        b::thunk(b::call(b::member_path("$.get"), vec![b::id("$$key")]))
+    } else {
+        b::thunk(transformed_expression.clone())
+    };
 
     // Visit the fragment - this returns a BlockStatement
-    // The fragment function handles template hoisting internally
     let body_block = fragment(&node.fragment, context, false);
 
     // Convert BlockStatement to arrow function body expression
@@ -49,13 +63,51 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
         },
     );
 
-    // Create the $.key() call
-    let key_call = b::call(
+    // Create the $.key() call statement
+    let key_call_stmt = b::stmt(b::call(
         b::member_path("$.key"),
-        vec![context.state.node.clone(), key, body],
-    );
+        vec![context.state.node.clone(), key_expr, body],
+    ));
 
-    context.state.init.push(b::stmt(key_call));
+    // If the expression has await or blockers, wrap in $.async()
+    if has_await || has_blockers {
+        let metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
+        let blockers_expr = if has_blockers {
+            metadata.blockers()
+        } else {
+            b::array(vec![])
+        };
+
+        let async_values = if has_await {
+            // Strip the top-level await since $.async handles the awaiting
+            b::array(vec![b::thunk(b::strip_await(transformed_expression))])
+        } else {
+            b::undefined()
+        };
+
+        let node_name = match &context.state.node {
+            JsExpr::Identifier(name) => name.clone(),
+            _ => "node".to_string(),
+        };
+        let mut callback_params = vec![b::id_pattern(&node_name)];
+        if has_await {
+            callback_params.push(b::id_pattern("$$key"));
+        }
+
+        let callback = b::arrow_block(callback_params, vec![key_call_stmt]);
+
+        context.state.init.push(b::stmt(b::call(
+            b::member_path("$.async"),
+            vec![
+                context.state.node.clone(),
+                blockers_expr,
+                async_values,
+                callback,
+            ],
+        )));
+    } else {
+        context.state.init.push(key_call_stmt);
+    }
 
     TransformResult::None
 }
