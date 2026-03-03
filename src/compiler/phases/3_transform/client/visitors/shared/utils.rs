@@ -2881,15 +2881,19 @@ pub fn build_template_chunk(
                     // Check if the expression references reactive state, contains calls, member expressions, or await
                     // Special case: $effect.pending() is inherently reactive (has_state=true)
                     // but NOT a "call" for memoization. This matches the official Svelte compiler's
-                    // phase 2 analysis where $effect.pending() explicitly sets has_state = true.
+                    // phase 2 analysis where $effect.pending() explicitly sets has_state = true
+                    // but does NOT set has_call (because is_pure returns true for the callee).
                     let is_pending_rune = is_effect_pending_expr(&expr_tag.expression);
-                    if is_pending_rune {
-                        eprintln!("DEBUG: Found $effect.pending() expression in template chunk");
-                    }
                     let expr_has_state =
                         expression_has_reactive_state(&expr_tag.expression, context)
                             || is_pending_rune;
-                    let expr_has_call = expression_has_call(&expr_tag.expression, context);
+                    // $effect.pending() is treated as a pure call by the official compiler,
+                    // so it should NOT have has_call=true. This prevents it from being memoized.
+                    let expr_has_call = if is_pending_rune {
+                        false
+                    } else {
+                        expression_has_call(&expr_tag.expression, context)
+                    };
                     let expr_has_member = expression_has_member(&expr_tag.expression);
                     let expr_has_await = expression_has_await(&expr_tag.expression);
 

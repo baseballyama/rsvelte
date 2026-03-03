@@ -1583,6 +1583,12 @@ pub struct ComponentClientTransformState<'a> {
     /// `blocker_map["condition"] = 1`.
     /// Uses `Rc<RefCell<...>>` for shared ownership across nested states.
     pub blocker_map: Rc<std::cell::RefCell<std::collections::HashMap<String, usize>>>,
+
+    /// Whether the fragment is standalone (single Component or RenderTag that
+    /// doesn't need a template wrapper). Set by Fragment visitor and consumed by
+    /// component/render-tag visitors to know if `$.next()` is needed after `$.async()`.
+    /// Corresponds to `context.state.is_standalone` in the official Svelte compiler.
+    pub is_standalone: bool,
 }
 
 /// Context information for generating bindings inside each blocks.
@@ -1712,6 +1718,7 @@ impl<'a> ComponentClientTransformState<'a> {
             needs_props_from_events: Rc::new(Cell::new(false)),
             hidden_let_bindings: FxHashSet::default(),
             blocker_map: Rc::new(std::cell::RefCell::new(std::collections::HashMap::new())),
+            is_standalone: false,
         }
     }
 

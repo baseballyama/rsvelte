@@ -181,6 +181,7 @@ pub fn fragment(
         needs_props_from_events: context.state.needs_props_from_events.clone(),
         hidden_let_bindings: context.state.hidden_let_bindings.clone(),
         blocker_map: context.state.blocker_map.clone(),
+        is_standalone: false,
     };
 
     // Swap context.state with our local state so that process_children uses it
@@ -297,7 +298,10 @@ pub fn fragment(
                 vec![b::id("$$anchor"), text_id],
             )));
         } else if cleaned.is_standalone {
-            // No need to create a template, we can just use the existing block's anchor
+            // No need to create a template, we can just use the existing block's anchor.
+            // Set is_standalone on state so component/render-tag visitors know
+            // they need to emit $.next() after $.async() wrapping.
+            context.state.is_standalone = true;
             process_children(
                 &cleaned.trimmed,
                 |_is_text| b::id("$$anchor"),
@@ -637,6 +641,162 @@ fn collect_ids_from_expr(expr: &JsExpr, names: &mut Vec<String>) {
         }
         // Don't cross function boundaries
         JsExpr::Arrow(_) | JsExpr::Function(_) => {}
+        _ => {}
+    }
+}
+
+/// Collect identifiers from a statement, traversing INTO arrow and function bodies.
+///
+/// Unlike `collect_identifiers_from_statement` which stops at function boundaries,
+/// this version crosses into arrow/function bodies. This is needed for component
+/// async wrapping where blocked variables appear inside patterns like `() => $.get(X)`.
+pub fn collect_identifiers_from_statement_deep(stmt: &JsStatement, names: &mut Vec<String>) {
+    match stmt {
+        JsStatement::Expression(expr_stmt) => {
+            collect_ids_from_expr_deep(&expr_stmt.expression, names);
+        }
+        JsStatement::Block(block_stmt) => {
+            for s in &block_stmt.body {
+                collect_identifiers_from_statement_deep(s, names);
+            }
+        }
+        JsStatement::VariableDeclaration(decl) => {
+            for declarator in &decl.declarations {
+                if let Some(init) = &declarator.init {
+                    collect_ids_from_expr_deep(init, names);
+                }
+            }
+        }
+        JsStatement::Return(ret) => {
+            if let Some(expr) = &ret.argument {
+                collect_ids_from_expr_deep(expr, names);
+            }
+        }
+        JsStatement::If(if_stmt) => {
+            collect_ids_from_expr_deep(&if_stmt.test, names);
+            collect_identifiers_from_statement_deep(&if_stmt.consequent, names);
+            if let Some(alt) = &if_stmt.alternate {
+                collect_identifiers_from_statement_deep(alt, names);
+            }
+        }
+        JsStatement::Raw(raw) => {
+            for word in raw.split(|c: char| !c.is_alphanumeric() && c != '_' && c != '$') {
+                if !word.is_empty()
+                    && word
+                        .chars()
+                        .next()
+                        .is_some_and(|c| c.is_alphabetic() || c == '_' || c == '$')
+                    && !names.contains(&word.to_string())
+                {
+                    names.push(word.to_string());
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Collect identifiers from an expression, crossing into arrow/function bodies.
+fn collect_ids_from_expr_deep(expr: &JsExpr, names: &mut Vec<String>) {
+    match expr {
+        JsExpr::Identifier(name) => {
+            if !names.contains(name) {
+                names.push(name.clone());
+            }
+        }
+        JsExpr::Call(call) => {
+            collect_ids_from_expr_deep(&call.callee, names);
+            for arg in &call.arguments {
+                collect_ids_from_expr_deep(arg, names);
+            }
+        }
+        JsExpr::Member(member) => {
+            collect_ids_from_expr_deep(&member.object, names);
+            match &member.property {
+                JsMemberProperty::Expression(prop) => {
+                    if member.computed {
+                        collect_ids_from_expr_deep(prop, names);
+                    }
+                }
+                JsMemberProperty::Identifier(id) => {
+                    if !names.contains(id) {
+                        names.push(id.clone());
+                    }
+                }
+                JsMemberProperty::PrivateIdentifier(_) => {}
+            }
+        }
+        JsExpr::Binary(bin) => {
+            collect_ids_from_expr_deep(&bin.left, names);
+            collect_ids_from_expr_deep(&bin.right, names);
+        }
+        JsExpr::Logical(log) => {
+            collect_ids_from_expr_deep(&log.left, names);
+            collect_ids_from_expr_deep(&log.right, names);
+        }
+        JsExpr::Unary(un) => {
+            collect_ids_from_expr_deep(&un.argument, names);
+        }
+        JsExpr::Conditional(cond) => {
+            collect_ids_from_expr_deep(&cond.test, names);
+            collect_ids_from_expr_deep(&cond.consequent, names);
+            collect_ids_from_expr_deep(&cond.alternate, names);
+        }
+        JsExpr::TemplateLiteral(tl) => {
+            for e in &tl.expressions {
+                collect_ids_from_expr_deep(e, names);
+            }
+        }
+        JsExpr::Sequence(seq) => {
+            for e in &seq.expressions {
+                collect_ids_from_expr_deep(e, names);
+            }
+        }
+        JsExpr::Array(arr) => {
+            for e in arr.elements.iter().flatten() {
+                collect_ids_from_expr_deep(e, names);
+            }
+        }
+        JsExpr::Object(obj) => {
+            for member in &obj.properties {
+                match member {
+                    JsObjectMember::Property(prop) => {
+                        collect_ids_from_expr_deep(&prop.value, names);
+                    }
+                    JsObjectMember::SpreadElement(spread) => {
+                        collect_ids_from_expr_deep(spread, names);
+                    }
+                }
+            }
+        }
+        JsExpr::Assignment(assign) => {
+            collect_ids_from_expr_deep(&assign.right, names);
+        }
+        JsExpr::Update(up) => {
+            collect_ids_from_expr_deep(&up.argument, names);
+        }
+        JsExpr::Await(inner) => {
+            collect_ids_from_expr_deep(inner, names);
+        }
+        JsExpr::Spread(inner) | JsExpr::Void(inner) => {
+            collect_ids_from_expr_deep(inner, names);
+        }
+        // Cross into arrow and function bodies
+        JsExpr::Arrow(arrow) => match &arrow.body {
+            JsArrowBody::Expression(body_expr) => {
+                collect_ids_from_expr_deep(body_expr, names);
+            }
+            JsArrowBody::Block(block) => {
+                for s in &block.body {
+                    collect_identifiers_from_statement_deep(s, names);
+                }
+            }
+        },
+        JsExpr::Function(func) => {
+            for s in &func.body.body {
+                collect_identifiers_from_statement_deep(s, names);
+            }
+        }
         _ => {}
     }
 }

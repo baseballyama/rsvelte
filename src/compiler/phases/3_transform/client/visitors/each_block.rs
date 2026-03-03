@@ -480,8 +480,11 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
         b::thunk(collection.clone())
     };
 
-    // For async expressions, wrap in $.get($$collection)
-    let thunk = if is_async {
+    // When has_await, the collection is passed as an async value and resolved
+    // via $$collection; use $.get($$collection) as the thunk.
+    // When only has_blockers (no literal await), use the regular collection thunk.
+    // Reference: has_await ? b.thunk(b.call('$.get', b.id('$$collection'))) : get_collection
+    let thunk = if has_await {
         b::thunk(b::call(
             b::member_path("$.get"),
             vec![b::id("$$collection")],
@@ -535,17 +538,37 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     }
 
     // Handle async wrapping
+    // Reference: official EachBlock.js lines 337-354
+    // When is_async (has_await || has_blockers), wrap in $.async()
     if is_async {
-        // Get blockers from metadata (Phase 2 analysis)
-        let blockers = b::array(vec![]); // TODO: Implement blockers from metadata
+        // Use blocker expressions from the blocker_map
+        let blockers = if has_blockers || has_await {
+            b::array(blocker_exprs)
+        } else {
+            b::array(vec![])
+        };
 
-        // Create the collection getter array
-        let collection_array = b::array(vec![get_collection]);
+        // Async values: only present when the expression itself has await.
+        // When only has_blockers (no literal await), use void 0.
+        // Reference: has_await ? b.array([get_collection]) : b.void0
+        let async_values = if has_await {
+            b::array(vec![get_collection])
+        } else {
+            b::undefined()
+        };
 
         // Extract anchor parameter
         let anchor_param = match &context.state.node {
             JsExpr::Identifier(name) => b::id_pattern(name),
             _ => b::id_pattern("$$anchor"),
+        };
+
+        // Callback params: include $$collection only when has_await
+        // Reference: has_await ? [context.state.node, b.id('$$collection')] : [context.state.node]
+        let params = if has_await {
+            vec![anchor_param, b::id_pattern("$$collection")]
+        } else {
+            vec![anchor_param]
         };
 
         // Create $.async() call
@@ -554,11 +577,8 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
             vec![
                 context.state.node.clone(),
                 blockers,
-                collection_array,
-                b::arrow_block(
-                    vec![anchor_param, b::id_pattern("$$collection")],
-                    statements,
-                ),
+                async_values,
+                b::arrow_block(params, statements),
             ],
         );
 

@@ -791,7 +791,13 @@ pub fn visit_regular_element(
                 // Check if expression is non-reactive AND has no non-pure calls.
                 // Non-pure calls (to local functions) need to be in a template_effect
                 // for proper execution context, so they can't use the textContent shortcut.
-                !expression_has_reactive_state(&expr_tag.expression, context)
+                //
+                // Special case: $effect.pending() is inherently reactive (tracks async
+                // pending state) even though it has no local bindings or transforms.
+                // It must NOT use the textContent optimization - it needs to be in a
+                // template_effect callback for proper reactivity.
+                !super::shared::utils::is_effect_pending_expr(&expr_tag.expression)
+                    && !expression_has_reactive_state(&expr_tag.expression, context)
                     && !super::shared::utils::expression_has_call(&expr_tag.expression, context)
             }
             _ => false,

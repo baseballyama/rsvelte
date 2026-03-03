@@ -49,6 +49,7 @@ impl<'a> ServerCodeGenerator<'a> {
         } else {
             hoisted_parts
         };
+
         let body_code = Self::build_parts_with_store_subs(
             &hoisted_parts,
             1,
@@ -637,6 +638,13 @@ export default function {component_name}($$renderer{props_param}) {{
                     alternate_body,
                     is_elseif,
                 } => {
+                    // Recursively wrap child bodies
+                    let wrapped_consequent =
+                        Self::apply_async_wrapping(consequent_body, blocker_map);
+                    let wrapped_alternate = alternate_body
+                        .as_ref()
+                        .map(|alt| Self::apply_async_wrapping(alt, blocker_map));
+
                     let blockers = super::helpers::find_expression_blockers(test_expr, blocker_map);
                     if !blockers.is_empty() {
                         // Wrap the if-block in $$renderer.async_block([blockers], ...)
@@ -644,13 +652,18 @@ export default function {component_name}($$renderer{props_param}) {{
                             blocker_indices: blockers,
                             inner: vec![OutputPart::IfBlock {
                                 test_expr: test_expr.clone(),
-                                consequent_body: consequent_body.clone(),
-                                alternate_body: alternate_body.clone(),
+                                consequent_body: wrapped_consequent,
+                                alternate_body: wrapped_alternate,
                                 is_elseif: *is_elseif,
                             }],
                         });
                     } else {
-                        result.push(part.clone());
+                        result.push(OutputPart::IfBlock {
+                            test_expr: test_expr.clone(),
+                            consequent_body: wrapped_consequent,
+                            alternate_body: wrapped_alternate,
+                            is_elseif: *is_elseif,
+                        });
                     }
                 }
                 OutputPart::EachBlock {
@@ -661,6 +674,12 @@ export default function {component_name}($$renderer{props_param}) {{
                     body,
                     fallback,
                 } => {
+                    // Recursively wrap child body
+                    let wrapped_body = Self::apply_async_wrapping(body, blocker_map);
+                    let wrapped_fallback = fallback
+                        .as_ref()
+                        .map(|fb| Self::apply_async_wrapping(fb, blocker_map));
+
                     let blockers = super::helpers::find_expression_blockers(iterable, blocker_map);
                     if !blockers.is_empty() {
                         // Wrap the each-block in $$renderer.async_block([blockers], ...)
@@ -671,12 +690,19 @@ export default function {component_name}($$renderer{props_param}) {{
                                 context_name: context_name.clone(),
                                 index_name: index_name.clone(),
                                 index_alias: index_alias.clone(),
-                                body: body.clone(),
-                                fallback: fallback.clone(),
+                                body: wrapped_body,
+                                fallback: wrapped_fallback,
                             }],
                         });
                     } else {
-                        result.push(part.clone());
+                        result.push(OutputPart::EachBlock {
+                            iterable: iterable.clone(),
+                            context_name: context_name.clone(),
+                            index_name: index_name.clone(),
+                            index_alias: index_alias.clone(),
+                            body: wrapped_body,
+                            fallback: wrapped_fallback,
+                        });
                     }
                 }
                 OutputPart::Expression(expr) => {
@@ -686,6 +712,168 @@ export default function {component_name}($$renderer{props_param}) {{
                         result.push(OutputPart::AsyncWrappedExpression {
                             blocker_indices: blockers,
                             expr: expr.clone(),
+                        });
+                    } else {
+                        result.push(part.clone());
+                    }
+                }
+                OutputPart::Component {
+                    name,
+                    props_and_spreads,
+                    has_prior_content: _,
+                    children,
+                    snippets,
+                    slot_names,
+                    dynamic,
+                    let_directives,
+                    css_custom_props,
+                } => {
+                    // Find blockers from component name and all prop expressions
+                    let mut all_blockers = std::collections::BTreeSet::new();
+                    for idx in super::helpers::find_expression_blockers(name, blocker_map) {
+                        all_blockers.insert(idx);
+                    }
+                    for item in props_and_spreads {
+                        match item {
+                            ComponentPropItem::Props(props) => {
+                                for prop in props {
+                                    for idx in
+                                        super::helpers::find_expression_blockers(prop, blocker_map)
+                                    {
+                                        all_blockers.insert(idx);
+                                    }
+                                }
+                            }
+                            ComponentPropItem::Spread(expr) => {
+                                for idx in
+                                    super::helpers::find_expression_blockers(expr, blocker_map)
+                                {
+                                    all_blockers.insert(idx);
+                                }
+                            }
+                        }
+                    }
+                    let blocker_indices: Vec<usize> = all_blockers.into_iter().collect();
+                    if !blocker_indices.is_empty() {
+                        result.push(OutputPart::AsyncBlock {
+                            blocker_indices,
+                            inner: vec![OutputPart::Component {
+                                name: name.clone(),
+                                props_and_spreads: props_and_spreads.clone(),
+                                has_prior_content: false,
+                                children: children.clone(),
+                                snippets: snippets.clone(),
+                                slot_names: slot_names.clone(),
+                                dynamic: *dynamic,
+                                let_directives: let_directives.clone(),
+                                css_custom_props: css_custom_props.clone(),
+                            }],
+                        });
+                    } else {
+                        result.push(part.clone());
+                    }
+                }
+                OutputPart::ComponentWithBindings {
+                    name,
+                    props_and_spreads,
+                    bindings,
+                    has_prior_content: _,
+                    children,
+                    dynamic,
+                    css_custom_props,
+                } => {
+                    // Find blockers from component name, props, and bindings
+                    let mut all_blockers = std::collections::BTreeSet::new();
+                    for idx in super::helpers::find_expression_blockers(name, blocker_map) {
+                        all_blockers.insert(idx);
+                    }
+                    for item in props_and_spreads {
+                        match item {
+                            ComponentPropItem::Props(props) => {
+                                for prop in props {
+                                    for idx in
+                                        super::helpers::find_expression_blockers(prop, blocker_map)
+                                    {
+                                        all_blockers.insert(idx);
+                                    }
+                                }
+                            }
+                            ComponentPropItem::Spread(expr) => {
+                                for idx in
+                                    super::helpers::find_expression_blockers(expr, blocker_map)
+                                {
+                                    all_blockers.insert(idx);
+                                }
+                            }
+                        }
+                    }
+                    for binding in bindings {
+                        match binding {
+                            ComponentBinding::Simple { var_name, .. } => {
+                                for idx in
+                                    super::helpers::find_expression_blockers(var_name, blocker_map)
+                                {
+                                    all_blockers.insert(idx);
+                                }
+                            }
+                            ComponentBinding::SequenceExpression {
+                                getter_expr,
+                                setter_expr,
+                                ..
+                            } => {
+                                for idx in super::helpers::find_expression_blockers(
+                                    getter_expr,
+                                    blocker_map,
+                                ) {
+                                    all_blockers.insert(idx);
+                                }
+                                for idx in super::helpers::find_expression_blockers(
+                                    setter_expr,
+                                    blocker_map,
+                                ) {
+                                    all_blockers.insert(idx);
+                                }
+                            }
+                        }
+                    }
+                    let blocker_indices: Vec<usize> = all_blockers.into_iter().collect();
+                    if !blocker_indices.is_empty() {
+                        result.push(OutputPart::AsyncBlock {
+                            blocker_indices,
+                            inner: vec![OutputPart::ComponentWithBindings {
+                                name: name.clone(),
+                                props_and_spreads: props_and_spreads.clone(),
+                                bindings: bindings.clone(),
+                                has_prior_content: false,
+                                children: children.clone(),
+                                dynamic: *dynamic,
+                                css_custom_props: css_custom_props.clone(),
+                            }],
+                        });
+                    } else {
+                        result.push(part.clone());
+                    }
+                }
+                OutputPart::AwaitBlock {
+                    promise,
+                    then_param,
+                    pending_body,
+                    then_body,
+                    catch_param,
+                    catch_body,
+                } => {
+                    let blockers = super::helpers::find_expression_blockers(promise, blocker_map);
+                    if !blockers.is_empty() {
+                        result.push(OutputPart::AsyncBlock {
+                            blocker_indices: blockers,
+                            inner: vec![OutputPart::AwaitBlock {
+                                promise: promise.clone(),
+                                then_param: then_param.clone(),
+                                pending_body: pending_body.clone(),
+                                then_body: then_body.clone(),
+                                catch_param: catch_param.clone(),
+                                catch_body: catch_body.clone(),
+                            }],
                         });
                     } else {
                         result.push(part.clone());
@@ -859,7 +1047,30 @@ export default function {component_name}($$renderer{props_param}) {{
                 } => {
                     // Async-wrapped block: flush current HTML, then emit
                     // $$renderer.async_block([$$promises[N], ...], ($$renderer) => { ... })
-                    // The <!--]--> marker is emitted OUTSIDE the callback (after it).
+                    //
+                    // For IfBlock/AwaitBlock/EachBlock: <!--]--> marker is emitted OUTSIDE the callback.
+                    // For Component/ComponentWithBindings: NO <!--]--> marker at all.
+                    //
+                    // Determine if the inner content needs an `async` callback (when it contains await)
+                    let needs_async_callback = Self::parts_contain_async(inner);
+                    let async_keyword = if needs_async_callback { "async " } else { "" };
+
+                    // Determine inner type to decide marker behavior
+                    let inner_is_block = matches!(
+                        inner.first(),
+                        Some(
+                            OutputPart::IfBlock { .. }
+                                | OutputPart::AwaitBlock { .. }
+                                | OutputPart::EachBlock { .. }
+                        )
+                    );
+                    let inner_is_each = matches!(inner.first(), Some(OutputPart::EachBlock { .. }));
+
+                    // For EachBlock inside AsyncBlock, the <!--[--> marker goes BEFORE the async_block
+                    if inner_is_each {
+                        current_html.push_str("<!--[-->");
+                    }
+
                     if !current_html.is_empty() {
                         body_code
                             .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
@@ -873,12 +1084,13 @@ export default function {component_name}($$renderer{props_param}) {{
                         .join(", ");
 
                     body_code.push_str(&format!(
-                        "{}$$renderer.async_block([{}], ($$renderer) => {{\n",
-                        indent, blockers_str
+                        "{}$$renderer.async_block([{}], {}($$renderer) => {{\n",
+                        indent, blockers_str, async_keyword
                     ));
 
-                    // Render the inner block (IfBlock/EachBlock) directly using build_if_statement
-                    // to avoid the <!--]--> marker being added inside the callback
+                    // Render inner content based on type.
+                    // Each type is rendered directly to avoid inner <!--]--> markers
+                    // being placed inside the callback.
                     if let Some(OutputPart::IfBlock {
                         test_expr,
                         consequent_body,
@@ -895,8 +1107,47 @@ export default function {component_name}($$renderer{props_param}) {{
                             store_subs,
                         );
                         body_code.push_str(&if_code);
+                    } else if let Some(OutputPart::AwaitBlock {
+                        promise,
+                        then_param,
+                        pending_body,
+                        then_body,
+                        ..
+                    }) = inner.first()
+                    {
+                        let await_code = Self::build_await_block_inner(
+                            promise,
+                            then_param,
+                            pending_body,
+                            then_body,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
+                        body_code.push_str(&await_code);
+                    } else if let Some(OutputPart::EachBlock {
+                        iterable,
+                        context_name,
+                        index_name,
+                        index_alias,
+                        body,
+                        fallback,
+                    }) = inner.first()
+                    {
+                        let each_code = Self::build_each_block_inner(
+                            iterable,
+                            context_name,
+                            index_name,
+                            index_alias,
+                            body,
+                            fallback,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
+                        body_code.push_str(&each_code);
                     } else {
-                        // Fallback: render inner parts normally
+                        // Component or other types: render inner parts normally
                         let inner_code = Self::build_parts_with_store_subs(
                             inner,
                             indent_level + 1,
@@ -908,8 +1159,11 @@ export default function {component_name}($$renderer{props_param}) {{
 
                     body_code.push_str(&format!("{}}});\n\n", indent));
 
-                    // The <!--]--> marker is added outside the callback
-                    current_html.push_str("<!--]-->");
+                    // Only add <!--]--> outside the callback for block types (IfBlock, AwaitBlock, EachBlock)
+                    // Component types do NOT get a <!--]--> marker
+                    if inner_is_block {
+                        current_html.push_str("<!--]-->");
+                    }
                 }
                 OutputPart::AsyncWrappedExpression {
                     blocker_indices,
@@ -1726,33 +1980,33 @@ export default function {component_name}($$renderer{props_param}) {{
                     // When CSS custom props are present, skip the marker
                     // ($.css_props handles its own boundaries).
                     if !has_css_props {
-                        if *dynamic {
-                            current_html.push_str("<!---->");
-                        } else {
-                            let has_content_after = parts[i + 1..].iter().any(|p| {
-                                matches!(
-                                    p,
-                                    OutputPart::Html(h) if !h.trim().is_empty()
-                                ) || matches!(
-                                    p,
-                                    OutputPart::Expression(_)
-                                        | OutputPart::AsyncExpression { .. }
-                                        | OutputPart::RawExpression(_)
-                                        | OutputPart::HtmlExpression(_)
-                                        | OutputPart::Component { .. }
-                                        | OutputPart::EachBlock { .. }
-                                        | OutputPart::IfBlock { .. }
-                                        | OutputPart::AwaitBlock { .. }
-                                        | OutputPart::SvelteBoundary { .. }
-                                        | OutputPart::SvelteHead { .. }
-                                        | OutputPart::TitleElement { .. }
-                                        | OutputPart::RenderCall { .. }
-                                )
-                            });
+                        let has_content_after = parts[i + 1..].iter().any(|p| {
+                            matches!(
+                                p,
+                                OutputPart::Html(h) if !h.trim().is_empty()
+                            ) || matches!(
+                                p,
+                                OutputPart::Expression(_)
+                                    | OutputPart::AsyncExpression { .. }
+                                    | OutputPart::RawExpression(_)
+                                    | OutputPart::HtmlExpression(_)
+                                    | OutputPart::Component { .. }
+                                    | OutputPart::EachBlock { .. }
+                                    | OutputPart::IfBlock { .. }
+                                    | OutputPart::AwaitBlock { .. }
+                                    | OutputPart::SvelteBoundary { .. }
+                                    | OutputPart::SvelteHead { .. }
+                                    | OutputPart::TitleElement { .. }
+                                    | OutputPart::RenderCall { .. }
+                            )
+                        });
 
-                            if *has_prior_content || has_content_after {
-                                current_html.push_str("<!---->");
-                            }
+                        // Add trailing <!---->  marker only when there's
+                        // surrounding content (prior or subsequent).
+                        // When inside async_block (has_prior_content=false,
+                        // no siblings), this correctly skips the marker.
+                        if *has_prior_content || has_content_after {
+                            current_html.push_str("<!---->");
                         }
                     }
                 }
@@ -2742,6 +2996,248 @@ export default function {component_name}($$renderer{props_param}) {{
                     }
                 }
             }
+        }
+
+        code
+    }
+
+    /// Build an AwaitBlock without trailing `<!--]-->` marker.
+    /// Used when rendering an AwaitBlock inside an AsyncBlock callback,
+    /// where the `<!--]-->` marker should be placed outside the callback.
+    fn build_await_block_inner(
+        promise: &str,
+        then_param: &str,
+        pending_body: &[OutputPart],
+        then_body: &[OutputPart],
+        indent_level: usize,
+        each_counter: &mut usize,
+        store_subs: &[(&str, &str)],
+    ) -> String {
+        let mut code = String::new();
+        let indent = "\t".repeat(indent_level);
+
+        // Generate $.await call with proper callbacks
+        code.push_str(&format!("{}$.await(\n", indent));
+        code.push_str(&format!("{}\t$$renderer,\n", indent));
+        code.push_str(&format!("{}\t{},\n", indent, promise));
+
+        // Pending callback
+        if pending_body.is_empty() {
+            code.push_str(&format!("{}\t() => {{}},\n", indent));
+        } else {
+            code.push_str(&format!("{}\t() => {{\n", indent));
+            let pending_code = Self::build_parts_with_store_subs(
+                pending_body,
+                indent_level + 2,
+                each_counter,
+                store_subs,
+            );
+            code.push_str(&pending_code);
+            code.push_str(&format!("{}\t}},\n", indent));
+        }
+
+        // Then callback (last argument - no catch callback on server)
+        if then_body.is_empty() {
+            if then_param.is_empty() {
+                code.push_str(&format!("{}\t() => {{}}", indent));
+            } else {
+                code.push_str(&format!("{}\t({}) => {{}}", indent, then_param));
+            }
+        } else {
+            if then_param.is_empty() {
+                code.push_str(&format!("{}\t() => {{\n", indent));
+            } else {
+                code.push_str(&format!("{}\t({}) => {{\n", indent, then_param));
+            }
+            let then_code = Self::build_parts_with_store_subs(
+                then_body,
+                indent_level + 2,
+                each_counter,
+                store_subs,
+            );
+            code.push_str(&then_code);
+            code.push_str(&format!("{}\t}}", indent));
+        }
+
+        code.push('\n');
+        code.push_str(&format!("{});\n", indent));
+
+        code
+    }
+
+    /// Build an EachBlock without surrounding `<!--[-->` / `<!--]-->` markers.
+    /// Used when rendering an EachBlock inside an AsyncBlock callback,
+    /// where the markers should be placed outside the callback.
+    #[allow(clippy::too_many_arguments)]
+    fn build_each_block_inner(
+        iterable: &str,
+        context_name: &Option<String>,
+        index_name: &Option<String>,
+        index_alias: &Option<String>,
+        body: &[OutputPart],
+        fallback: &Option<Vec<OutputPart>>,
+        indent_level: usize,
+        each_counter: &mut usize,
+        store_subs: &[(&str, &str)],
+    ) -> String {
+        let mut code = String::new();
+        let indent = "\t".repeat(indent_level);
+
+        // Check if iterable or body contains await - if so, wrap in child_block
+        let iterable_has_await = super::helpers::expr_contains_await(iterable);
+        let body_has_await = Self::parts_contain_async(body);
+        let needs_child_block = iterable_has_await || body_has_await;
+
+        let effective_indent_level = if needs_child_block {
+            indent_level + 1
+        } else {
+            indent_level
+        };
+        let effective_indent = "\t".repeat(effective_indent_level);
+        let transformed_iterable = if iterable_has_await {
+            super::helpers::transform_await_to_save(iterable)
+        } else {
+            iterable.to_string()
+        };
+
+        // Generate unique array variable name
+        let array_var = if *each_counter == 0 {
+            "each_array".to_string()
+        } else {
+            format!("each_array_{}", each_counter)
+        };
+
+        // Generate unique index variable name if not explicitly provided
+        let index_var = match index_name {
+            Some(name) => name.clone(),
+            None => {
+                if *each_counter == 0 {
+                    "$$index".to_string()
+                } else {
+                    format!("$$index_{}", each_counter)
+                }
+            }
+        };
+
+        *each_counter += 1;
+
+        if needs_child_block {
+            code.push_str(&format!(
+                "{}$$renderer.child_block(async ($$renderer) => {{\n",
+                indent
+            ));
+        }
+
+        if fallback.is_some() {
+            code.push_str(&format!(
+                "{}const {} = $.ensure_array_like({});\n\n",
+                effective_indent, array_var, transformed_iterable
+            ));
+
+            code.push_str(&format!(
+                "{}if ({}.length !== 0) {{\n",
+                effective_indent, array_var
+            ));
+            code.push_str(&format!(
+                "{}\t$$renderer.push('<!--[-->');\n\n",
+                effective_indent
+            ));
+
+            code.push_str(&format!(
+                "{}\tfor (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{\n",
+                effective_indent, index_var, array_var, index_var, index_var
+            ));
+
+            if let Some(ctx_name) = context_name {
+                code.push_str(&format!(
+                    "{}\t\tlet {} = {}[{}];\n",
+                    effective_indent, ctx_name, array_var, index_var
+                ));
+            }
+
+            if let Some(alias) = index_alias {
+                code.push_str(&format!(
+                    "{}\t\tlet {} = {};\n",
+                    effective_indent, alias, index_var
+                ));
+            }
+
+            if context_name.is_some() || index_alias.is_some() {
+                code.push('\n');
+            }
+
+            let hoisted_body = Self::hoist_const_declarations_and_strip_ws(body);
+            let body_code_inner = Self::build_parts_with_store_subs(
+                &hoisted_body,
+                effective_indent_level + 2,
+                each_counter,
+                store_subs,
+            );
+            code.push_str(&body_code_inner);
+
+            code.push_str(&format!("{}\t}}\n", effective_indent));
+
+            code.push_str(&format!("{}}} else {{\n", effective_indent));
+            code.push_str(&format!(
+                "{}\t$$renderer.push('<!--[!-->');\n",
+                effective_indent
+            ));
+
+            if let Some(fb) = fallback {
+                let fallback_code = Self::build_parts_with_store_subs(
+                    fb,
+                    effective_indent_level + 1,
+                    each_counter,
+                    store_subs,
+                );
+                code.push_str(&fallback_code);
+            }
+
+            code.push_str(&format!("{}}}\n", effective_indent));
+        } else {
+            // No fallback
+            code.push_str(&format!(
+                "{}const {} = $.ensure_array_like({});\n\n",
+                effective_indent, array_var, transformed_iterable
+            ));
+
+            code.push_str(&format!(
+                "{}for (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{\n",
+                effective_indent, index_var, array_var, index_var, index_var
+            ));
+
+            if let Some(ctx_name) = context_name {
+                code.push_str(&format!(
+                    "{}\tlet {} = {}[{}];\n",
+                    effective_indent, ctx_name, array_var, index_var
+                ));
+            }
+
+            if let Some(alias) = index_alias {
+                code.push_str(&format!(
+                    "{}\tlet {} = {};\n",
+                    effective_indent, alias, index_var
+                ));
+            }
+
+            if context_name.is_some() || index_alias.is_some() {
+                code.push('\n');
+            }
+
+            let hoisted_body = Self::hoist_const_declarations_and_strip_ws(body);
+            let body_code_inner = Self::build_parts_with_store_subs(
+                &hoisted_body,
+                effective_indent_level + 1,
+                each_counter,
+                store_subs,
+            );
+            code.push_str(&body_code_inner);
+
+            code.push_str(&format!("{}}}\n", effective_indent));
+        }
+
+        if needs_child_block {
+            code.push_str(&format!("{}}});\n\n", indent));
         }
 
         code

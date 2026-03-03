@@ -8020,7 +8020,17 @@ fn transform_read_only_props(line: &str, read_only_props: &[String]) -> String {
                     || before_brace.ends_with("var")
                     || before_brace.ends_with(',')
                     || before_brace.ends_with(':')
-                    || before_brace.ends_with('(')
+                    || before_brace.strip_suffix('(').is_some_and(|stripped| {
+                        // Only treat as destructuring if this is a function definition
+                        // parameter, NOT a function call argument.
+                        // e.g., `function({` is destructuring, `resolve({` is NOT
+                        let before_paren = stripped.trim_end();
+                        !before_paren
+                            .chars()
+                            .last()
+                            .map(|c| c.is_alphanumeric() || c == '_' || c == '$' || c == '.')
+                            .unwrap_or(false)
+                    })
             };
             if trimmed_before.ends_with("let")
                 || trimmed_before.ends_with("const")
@@ -8041,10 +8051,29 @@ fn transform_read_only_props(line: &str, read_only_props: &[String]) -> String {
                 continue;
             }
 
+            // Check if this is a shorthand property in an object literal
+            // e.g., `{ environment }` should become `{ environment: $$props.environment }`
+            // not `{ $$props.environment }` (which would be invalid)
+            let is_shorthand = {
+                let before = result[..mat.start()].trim_end();
+                let after = result[mat.end()..].trim_start();
+                let prev_char = before.chars().last();
+                let next_char = after.chars().next();
+                matches!(prev_char, Some('{') | Some(','))
+                    && matches!(next_char, Some('}') | Some(','))
+            };
+
             // Replace with $$props.propName
             new_result.push_str(&result[last_end..mat.start()]);
-            new_result.push_str("$$props.");
-            new_result.push_str(prop_name);
+            if is_shorthand {
+                // Expand shorthand: `{ prop }` -> `{ prop: $$props.prop }`
+                new_result.push_str(prop_name);
+                new_result.push_str(": $$props.");
+                new_result.push_str(prop_name);
+            } else {
+                new_result.push_str("$$props.");
+                new_result.push_str(prop_name);
+            }
             last_end = mat.end();
         }
 
@@ -8105,9 +8134,18 @@ fn is_in_destructuring_pattern(code: &str, pos: usize) -> bool {
             return true;
         }
 
-        // Function parameter destructuring: `function({ prop })`
-        if before_brace.ends_with('(') {
-            return true;
+        // Function parameter destructuring: `function({ prop })` or `({ prop }) =>`
+        // But NOT function call arguments: `resolve({ prop })`, `foo({ prop })`
+        if let Some(stripped) = before_brace.strip_suffix('(') {
+            let before_paren = stripped.trim_end();
+            let is_function_call = before_paren
+                .chars()
+                .last()
+                .map(|c| c.is_alphanumeric() || c == '_' || c == '$' || c == '.')
+                .unwrap_or(false);
+            if !is_function_call {
+                return true;
+            }
         }
 
         // Nested destructuring: `{ outer: { inner } }`

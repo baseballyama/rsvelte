@@ -62,12 +62,6 @@ pub fn build_component(
 ) -> JsStatement {
     use crate::compiler::phases::phase3_transform::client::types::Memoizer;
 
-    eprintln!(
-        "[DEBUG build_component] name={}, blocker_map_empty={}",
-        component_name,
-        context.state.blocker_map.borrow().is_empty()
-    );
-
     let anchor = context.state.node.clone();
 
     let mut props_and_spreads: Vec<PropsEntry> = Vec::new();
@@ -544,17 +538,13 @@ pub fn build_component(
             None
         } else {
             // Check if any of the component's prop expressions reference blocked variables
-            let mut component_names = Vec::new();
+            let mut component_names: Vec<String> = Vec::new();
             for stmt in &statements {
-                super::super::fragment::collect_identifiers_from_statement(
+                super::super::fragment::collect_identifiers_from_statement_deep(
                     stmt,
                     &mut component_names,
                 );
             }
-            eprintln!(
-                "[DEBUG component async] blocker_map={:?}, component_names={:?}",
-                *blocker_map, component_names
-            );
             let mut blocker_indices: Vec<usize> = Vec::new();
             for name in &component_names {
                 if let Some(&idx) = blocker_map.get(name.as_str())
@@ -601,6 +591,13 @@ pub fn build_component(
 
         // Replace statements with the $.async() wrapped version
         statements = vec![b::stmt(async_call)];
+
+        // When the fragment is standalone (single component without template wrapper),
+        // add $.next() after $.async() to advance the cursor past the async block.
+        // Corresponds to official compiler component.js lines 530-532.
+        if context.state.is_standalone {
+            statements.push(b::stmt(b::call(b::member_path("$.next"), vec![])));
+        }
     }
 
     // Return single statement or block
@@ -1565,11 +1562,14 @@ fn process_attach_tag(
 ) {
     let expression = convert_expression(&attach.expression, context);
 
-    // Check if expression has reactive state using the proper check
-    // This mirrors the official Svelte compiler: attribute.metadata.expression.has_state
+    // Check if expression has reactive state using the proper check.
+    // In the official Svelte compiler's phase 2 analysis (CallExpression.js lines 269-272),
+    // non-pure call expressions also set has_state=true. So we need to check both
+    // expression_has_reactive_state AND expression_has_call to match the official behavior.
     let has_state = super::utils::expression_has_reactive_state(&attach.expression, context);
+    let has_call = super::utils::expression_has_call(&attach.expression, context);
 
-    let final_expr = if has_state {
+    let final_expr = if has_state || has_call {
         // Apply transforms to the expression to convert state references to $.get() calls
         // e.g., attachment(message) -> attachment($.get(message))
         let transformed = super::utils::apply_transforms_to_expression(&expression, context);
