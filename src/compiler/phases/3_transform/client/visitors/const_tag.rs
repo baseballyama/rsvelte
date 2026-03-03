@@ -144,6 +144,33 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
         // Convert and build the init expression with the child state
         let converted_init = convert_expression(&parsed.init_expr, context);
         let expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
+
+        // Debug: print references info
+        eprintln!(
+            "[DEBUG const_tag destructure] identifiers={:?}, references count={}",
+            identifiers,
+            expr_metadata.references.len()
+        );
+        for &binding_idx in &expr_metadata.references {
+            if let Some(binding) = context.state.scope_root.bindings.get(binding_idx) {
+                eprintln!(
+                    "[DEBUG const_tag destructure]   ref[{}]: name={}, kind={:?}, decl_kind={:?}",
+                    binding_idx, binding.name, binding.kind, binding.declaration_kind
+                );
+                let has_transform = context.state.transform.get(binding.name.as_str()).is_some();
+                let has_read_source = context
+                    .state
+                    .transform
+                    .get(binding.name.as_str())
+                    .and_then(|t| t.read_source.as_ref())
+                    .is_some();
+                eprintln!(
+                    "[DEBUG const_tag destructure]     has_transform={}, has_read_source={}",
+                    has_transform, has_read_source
+                );
+            }
+        }
+
         let built_init = build_expression(context, &converted_init, &expr_metadata);
 
         // Restore the original transform
@@ -155,14 +182,25 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
         // Build the block body:
         // const { x, y } = init;
         // return { x, y };
+        //
+        // When async, apply save wrapping to the init expression so that
+        // `await X` becomes `(await $.save(X))()` within the async arrow body.
+        // We use non-tail position because the expression is in a const declaration,
+        // not in the return expression, so await expressions need $.save() wrapping.
+        let is_async = node.metadata.expression.has_await();
+        let init_for_const = if is_async {
+            b::apply_save_wrapping_non_tail(built_init)
+        } else {
+            built_init
+        };
         let const_stmt = if let Some(pat) = pattern {
-            b::var_decl_pattern(JsVariableKind::Const, pat, Some(built_init))
+            b::var_decl_pattern(JsVariableKind::Const, pat, Some(init_for_const.clone()))
         } else {
             // Fallback: generate raw destructuring statement
             let pattern_str = render_pattern_as_string(&pattern_json);
             let init_str =
                 crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
-                    &built_init,
+                    &init_for_const,
                 );
             JsStatement::Raw(format!("const {} = {};", pattern_str, init_str))
         };
@@ -179,12 +217,18 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
         // Create the block expression as a thunk with block body: () => { const {...} = init; return {...}; }
         // We use thunk_block directly instead of create_derived + arrow_block to avoid
         // double wrapping (create_derived already wraps in thunk)
-        let block_thunk = b::thunk_block(vec![const_stmt, return_stmt]);
+        let block_thunk = if is_async {
+            // When the body contains await expressions, the thunk must be async:
+            // async () => { const { x, y } = (await $.save(...))(); return { x, y }; }
+            b::async_arrow_block(vec![], vec![const_stmt, return_stmt])
+        } else {
+            b::thunk_block(vec![const_stmt, return_stmt])
+        };
 
         // Create derived expression wrapping the block thunk
-        let is_async = node.metadata.expression.has_await();
         let derived_expr = if is_async {
-            b::svelte_call("async_derived", vec![block_thunk])
+            // Wrap with save(): (await $.save($.async_derived(thunk)))()
+            b::save(b::svelte_call("async_derived", vec![block_thunk]))
         } else if context.state.analysis.runes {
             b::svelte_call("derived", vec![block_thunk])
         } else {
@@ -363,13 +407,19 @@ fn render_pattern_as_string(pattern: &serde_json::Value) -> String {
 /// In runes mode: `$.derived(() => expr)`
 fn create_derived(context: &ComponentContext, expression: JsExpr, is_async: bool) -> JsExpr {
     let thunk = if is_async {
-        b::async_thunk(expression)
+        // For ConstTag, ALL awaits must be save-wrapped (non-tail position)
+        // because is_last_evaluated_expression returns false for ConstTag parent.
+        // Use apply_save_wrapping_non_tail instead of async_thunk's apply_save_wrapping.
+        let saved_expr = b::apply_save_wrapping_non_tail(expression);
+        b::unthunk(b::async_arrow(vec![], saved_expr))
     } else {
         b::thunk(expression)
     };
 
     if is_async {
-        b::svelte_call("async_derived", vec![thunk])
+        // Wrap with save(): (await $.save($.async_derived(thunk)))()
+        // Matches official: save(b.call('$.async_derived', thunk))
+        b::save(b::svelte_call("async_derived", vec![thunk]))
     } else if context.state.analysis.runes {
         b::svelte_call("derived", vec![thunk])
     } else {
@@ -407,8 +457,11 @@ fn add_const_declaration(
         let assignment = b::assign(b::id(id_name), expression);
 
         // Add thunk to async_consts
+        // Note: We use a plain async arrow (not async_thunk) because the expression
+        // from create_derived already has $.save() wrapping applied internally.
+        // Using async_thunk would apply save wrapping again, causing double-save.
         if has_await {
-            async_consts.thunks.push(b::async_thunk(assignment));
+            async_consts.thunks.push(b::async_arrow(vec![], assignment));
         } else {
             async_consts.thunks.push(b::thunk(assignment));
         }

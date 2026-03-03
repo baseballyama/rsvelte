@@ -15791,6 +15791,62 @@ fn find_destructure_rhs_end(statement: &str, start: usize) -> usize {
     end
 }
 
+/// Check if a generated code string contains `await` as a keyword (not inside string literals).
+///
+/// This is used to determine if a destructuring IIFE needs to be async.
+/// The check is simplified since the input is compiler-generated code where
+/// `await` only appears as actual await expressions.
+fn code_contains_await(code: &str) -> bool {
+    let bytes = code.as_bytes();
+    let len = bytes.len();
+    let await_bytes = b"await";
+    let await_len = await_bytes.len();
+
+    if len < await_len {
+        return false;
+    }
+
+    let mut i = 0;
+    let mut in_string: Option<u8> = None;
+
+    while i < len {
+        let c = bytes[i];
+
+        // Track string boundaries
+        if in_string.is_none() {
+            if c == b'\'' || c == b'"' || c == b'`' {
+                in_string = Some(c);
+                i += 1;
+                continue;
+            }
+        } else if Some(c) == in_string && (i == 0 || bytes[i - 1] != b'\\') {
+            in_string = None;
+            i += 1;
+            continue;
+        }
+
+        if in_string.is_some() {
+            i += 1;
+            continue;
+        }
+
+        // Check for "await" keyword with word boundaries
+        if i + await_len <= len && &bytes[i..i + await_len] == await_bytes {
+            // Check that it's not part of a larger identifier
+            let before_ok = i == 0 || !bytes[i - 1].is_ascii_alphanumeric() && bytes[i - 1] != b'_';
+            let after_ok = i + await_len >= len
+                || !bytes[i + await_len].is_ascii_alphanumeric() && bytes[i + await_len] != b'_';
+            if before_ok && after_ok {
+                return true;
+            }
+        }
+
+        i += 1;
+    }
+
+    false
+}
+
 /// Generate an IIFE for a destructure assignment.
 ///
 /// For array patterns: `(($$value) => { var $$array = $.to_array($$value, N); target1 = $$array[0]; ... })(rhs)`
@@ -15881,7 +15937,14 @@ fn generate_destructure_iife(
         }
 
         let body = body_lines.join("\n");
-        format!("(($$value) => {{\n{}\n}})({})", body, rhs_str)
+        // When the IIFE body or RHS contains `await`, the arrow must be async
+        // and the whole call must be `await`ed. This matches the official Svelte
+        // compiler which generates `await (async ($$value) => { ... })(rhs)`.
+        if code_contains_await(&body) || code_contains_await(rhs_str) {
+            format!("await (async ($$value) => {{\n{}\n}})({})", body, rhs_str)
+        } else {
+            format!("(($$value) => {{\n{}\n}})({})", body, rhs_str)
+        }
     } else {
         // Object destructure
         //
@@ -16116,7 +16179,13 @@ fn generate_destructure_iife(
         }
 
         let body = body_lines.join("\n");
-        format!("(($$value) => {{\n{}\n}})({})", body, rhs_str)
+        // When the IIFE body or RHS contains `await`, the arrow must be async
+        // and the whole call must be `await`ed.
+        if code_contains_await(&body) || code_contains_await(rhs_str) {
+            format!("await (async ($$value) => {{\n{}\n}})({})", body, rhs_str)
+        } else {
+            format!("(($$value) => {{\n{}\n}})({})", body, rhs_str)
+        }
     }
 }
 

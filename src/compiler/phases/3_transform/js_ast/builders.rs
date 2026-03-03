@@ -515,6 +515,18 @@ pub fn apply_save_wrapping(expr: JsExpr) -> JsExpr {
     apply_save_recursive(expr, true)
 }
 
+/// Apply `$.save()` wrapping with the expression NOT in tail position.
+///
+/// This is used when the expression is inside a const declaration within an
+/// async arrow body (not the final return value), so ALL await expressions
+/// should be wrapped with `$.save()`.
+pub fn apply_save_wrapping_non_tail(expr: JsExpr) -> JsExpr {
+    if !has_await_expression(&expr) {
+        return expr;
+    }
+    apply_save_recursive(expr, false)
+}
+
 /// Recursively apply save wrapping.
 ///
 /// `is_tail` indicates whether this expression is in "tail position"

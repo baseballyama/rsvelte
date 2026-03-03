@@ -1459,7 +1459,7 @@ fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> 
     // This handles: closing function → $.delegate(), closing function → next statement
     if !raw_current.starts_with('\t')
         && !raw_current.starts_with(' ')
-        && current == "}"
+        && (current == "}" || current == "};")
         && !next.is_empty()
     {
         return true;
