@@ -743,7 +743,8 @@ fn process_spread_attribute(
     //   }
     let has_state = super::utils::expression_has_reactive_state(&spread.expression, context);
     let has_call = super::utils::expression_has_call(&spread.expression, context);
-    let has_await = false; // TODO: detect await
+    let has_await =
+        crate::compiler::phases::phase3_transform::js_ast::builders::js_expr_has_await(&expression);
 
     if has_state {
         // Apply transforms to get the proper reactive expression (e.g., state -> $.get(state))
@@ -853,7 +854,9 @@ fn process_regular_attribute(
     // are NOT memoized because they have no state dependencies.
     let has_call =
         super::utils::expression_has_call(&get_original_expression(&attr.value), context);
-    let has_await = false; // TODO: detect await
+    let has_await = crate::compiler::phases::phase3_transform::js_ast::builders::js_expr_has_await(
+        &transformed_value,
+    );
     let should_memoize =
         (has_call && result.has_state) || has_await || (memoize_if_state && result.has_state);
 

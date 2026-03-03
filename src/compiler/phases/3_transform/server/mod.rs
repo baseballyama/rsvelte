@@ -101,6 +101,9 @@ pub(crate) struct ServerCodeGenerator<'a> {
     pub(crate) namespace: String,
     /// Whether to preserve whitespace (from <svelte:options preserveWhitespace /> or compile option).
     pub(crate) preserve_whitespace: bool,
+    /// Whether we're inside a control-flow block body (if/each block body).
+    /// When true, async expressions use plain `await expr` instead of `(await $.save(expr))()`.
+    pub(crate) in_block_body: bool,
 }
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -287,6 +290,7 @@ impl<'a> ServerCodeGenerator<'a> {
             is_typescript,
             namespace,
             preserve_whitespace: false,
+            in_block_body: false,
         }
     }
 
@@ -308,6 +312,7 @@ impl<'a> ServerCodeGenerator<'a> {
             is_typescript: self.is_typescript,
             namespace: self.namespace.clone(),
             preserve_whitespace: self.preserve_whitespace,
+            in_block_body: self.in_block_body,
         }
     }
 

@@ -464,6 +464,23 @@ fn has_await_expression(expr: &JsExpr) -> bool {
     }
 }
 
+/// Check if a JsExpr contains an await expression (not crossing function boundaries).
+/// Public version of the internal function for use in visitors.
+pub fn js_expr_has_await(expr: &JsExpr) -> bool {
+    has_await_expression(expr)
+}
+
+/// Strip the top-level `await` from a JsExpr.
+///
+/// If the expression is `JsExpr::Await(inner)`, returns the inner expression.
+/// Otherwise returns the original expression unchanged.
+pub fn strip_await(expr: JsExpr) -> JsExpr {
+    match expr {
+        JsExpr::Await(inner) => *inner,
+        other => other,
+    }
+}
+
 /// Create a thunk with a block body.
 pub fn thunk_block(statements: Vec<JsStatement>) -> JsExpr {
     arrow_block(vec![], statements)

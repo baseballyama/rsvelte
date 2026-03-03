@@ -164,6 +164,19 @@ fn transform_client_with_visitors(
         }
     }
 
+    // Pre-compute blocker map for async components.
+    // This must happen BEFORE template generation so that template visitors
+    // (if_block, each_block, etc.) can determine which expressions need $.async() wrapping.
+    if options.experimental.r#async
+        && let Some(ref script_content) = analysis.instance_script_content
+    {
+        let raw = &script_content.raw;
+        let pre_blocker_map = super::shared::async_body::compute_blocker_map(raw);
+        if !pre_blocker_map.is_empty() {
+            *context.state.blocker_map.borrow_mut() = pre_blocker_map;
+        }
+    }
+
     // Call the fragment visitor to transform the template
     // This is the root fragment of the component, so is_root_fragment=true
     let template_body = fragment(&ast.fragment, &mut context, true);
@@ -551,6 +564,10 @@ fn transform_client_with_visitors(
                     super::shared::async_body::transform_async_body(trimmed, "$.run")
                 {
                     component_body.push(JsStatement::Raw(async_result.output.trim().to_string()));
+                    // Store the blocker_map for use during template generation
+                    if !async_result.blocker_map.is_empty() {
+                        *context.state.blocker_map.borrow_mut() = async_result.blocker_map;
+                    }
                 } else {
                     component_body.push(JsStatement::Raw(trimmed.to_string()));
                 }
@@ -3066,12 +3083,43 @@ fn transform_client_runes_with_skip_and_state(
                     let is_object_literal = wrapped_trimmed.starts_with('{');
 
                     let new_derived = if contains_direct_await {
-                        // For async derived: $.async_derived(async () => expr)
-                        // The expression may have await calls that need to be preserved
-                        if is_object_literal {
-                            format!("$.async_derived(async () => ({}))", wrapped_content)
+                        // For async derived: await $.async_derived(() => inner_expr)
+                        // The official compiler applies b.thunk(expression, true) + unthunk
+                        // which strips `async/await` from simple cases:
+                        //   $derived(await Promise.resolve(5))
+                        //   -> thunk: async () => await Promise.resolve(5)
+                        //   -> unthunk: () => Promise.resolve(5)
+                        //   -> await $.async_derived(() => Promise.resolve(5))
+                        //
+                        // For complex cases with nested await:
+                        //   $derived(await fetch(await url))
+                        //   -> async () => await fetch(await url)  (kept as-is)
+                        //   -> await $.async_derived(async () => await fetch(await url))
+                        //
+                        // The outer `await` is important - it tells transform_async_body
+                        // that this statement needs an async thunk in $.run()
+                        let inner_expr = strip_top_level_await_from_expr(wrapped_trimmed);
+                        let inner_has_nested_await =
+                            contains_direct_await_in_expression(&inner_expr);
+
+                        if inner_has_nested_await {
+                            // Complex case: inner expression still has await
+                            if is_object_literal {
+                                format!("await $.async_derived(async () => ({}))", wrapped_content)
+                            } else {
+                                format!("await $.async_derived(async () => {})", wrapped_content)
+                            }
                         } else {
-                            format!("$.async_derived(async () => {})", wrapped_content)
+                            // Simple case: strip await, use sync thunk
+                            let inner_trimmed = inner_expr.trim();
+                            let inner_is_object = inner_trimmed.starts_with('{');
+                            if inner_is_object {
+                                format!("await $.async_derived(() => ({}))", inner_expr)
+                            } else {
+                                // Apply unthunk optimization
+                                let thunk_arg = unthunk_string(&inner_expr);
+                                format!("await $.async_derived({})", thunk_arg)
+                            }
                         }
                     } else if is_object_literal {
                         format!("$.derived(() => ({}))", wrapped_content)
@@ -13507,6 +13555,30 @@ fn contains_direct_await_in_expression(expr: &str) -> bool {
     }
 
     false
+}
+
+/// Strip the top-level `await` keyword from the beginning of an expression string.
+///
+/// For example:
+///   "await Promise.resolve(5)" -> "Promise.resolve(5)"
+///   "await fetch(url)" -> "fetch(url)"
+///   "await (x + y)" -> "(x + y)"
+///
+/// If the expression does not start with `await`, returns the original string.
+fn strip_top_level_await_from_expr(expr: &str) -> String {
+    let trimmed = expr.trim();
+    if let Some(rest) = trimmed.strip_prefix("await ") {
+        rest.trim_start().to_string()
+    } else if let Some(rest) = trimmed.strip_prefix("await\n") {
+        rest.trim_start().to_string()
+    } else if let Some(rest) = trimmed.strip_prefix("await\t") {
+        rest.trim_start().to_string()
+    } else if let Some(rest) = trimmed.strip_prefix("await(") {
+        // `await(expr)` - keep the opening paren
+        format!("({}", rest)
+    } else {
+        trimmed.to_string()
+    }
 }
 
 // ============================================================================

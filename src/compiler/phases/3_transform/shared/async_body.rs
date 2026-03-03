@@ -11,6 +11,97 @@
 pub struct AsyncBodyResult {
     /// The transformed script with sync statements, hoisted var declarations, and $$promises
     pub output: String,
+    /// Mapping from variable names to their promise indices in $$promises.
+    /// e.g., if `condition` is assigned in the 2nd thunk (index 1), then
+    /// `blocker_map["condition"] = 1`.
+    pub blocker_map: std::collections::HashMap<String, usize>,
+}
+
+/// Pre-compute the blocker map from raw instance script content.
+///
+/// This performs a lightweight analysis to determine which variables are
+/// declared after the first `await` expression and assigns them blocker indices.
+/// The map can then be used during template generation to determine which
+/// expressions need `$.async()` wrapping.
+///
+/// This should be called BEFORE template generation but doesn't need the fully
+/// transformed script - it works on the raw instance script content.
+pub fn compute_blocker_map(raw_script: &str) -> std::collections::HashMap<String, usize> {
+    let trimmed = raw_script.trim();
+    if trimmed.is_empty() || !has_top_level_await(trimmed) {
+        return std::collections::HashMap::new();
+    }
+
+    let statements = split_top_level_statements(trimmed);
+    let mut found_await = false;
+    let mut blocker_map = std::collections::HashMap::new();
+    let mut async_index: usize = 0;
+    let mut current_max_blocker: Option<usize> = None;
+
+    for stmt in &statements {
+        let trimmed_stmt = stmt.trim();
+        if trimmed_stmt.is_empty() {
+            continue;
+        }
+
+        let has_await_in_stmt = has_top_level_await_in_statement(trimmed_stmt);
+
+        // Function declarations always go to sync (hoisted)
+        if is_function_declaration(trimmed_stmt) {
+            continue;
+        }
+
+        // Function variable declarations go to sync before first await
+        if !found_await && is_function_var_declaration(trimmed_stmt) {
+            continue;
+        }
+
+        if !found_await && !has_await_in_stmt {
+            // Sync statement, no blocker needed
+            continue;
+        }
+
+        found_await = true;
+
+        // Skip props_id declarations
+        if is_variable_declaration(trimmed_stmt) && is_props_id_declaration(trimmed_stmt) {
+            continue;
+        }
+
+        if is_variable_declaration(trimmed_stmt) {
+            let decls = extract_var_declarations(trimmed_stmt);
+            for decl in &decls {
+                if decl.hoist_only {
+                    continue;
+                }
+                let has_await_in_init = decl.init.as_ref().is_some_and(|i| has_await_in_expr(i));
+                let blocker_idx = if has_await_in_init {
+                    current_max_blocker = Some(async_index);
+                    async_index
+                } else if let Some(max) = current_max_blocker {
+                    max
+                } else {
+                    async_index
+                };
+                blocker_map.insert(decl.name.clone(), blocker_idx);
+                async_index += 1;
+            }
+        } else if is_expression_statement(trimmed_stmt) {
+            let expr = strip_trailing_semicolon(trimmed_stmt);
+            let is_await_expr = is_await_expression(expr);
+            if is_await_expr || has_await_in_stmt {
+                current_max_blocker = Some(async_index);
+            }
+            async_index += 1;
+        } else {
+            if has_await_in_stmt {
+                current_max_blocker = Some(async_index);
+            }
+            async_index += 1;
+        }
+    }
+
+    blocker_map
 }
 
 /// Transform the instance script body for async components.
@@ -69,6 +160,15 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
             sync_stmts.push(stmt.clone());
         } else {
             found_await = true;
+
+            // Special case: `const id = $.props_id($$renderer)` should stay as a sync
+            // const declaration (it needs to be on the first line of the component).
+            // This matches the official compiler where props_id is placed before the
+            // async body transform.
+            if is_variable_declaration(trimmed_stmt) && is_props_id_declaration(trimmed_stmt) {
+                sync_stmts.push(stmt.clone());
+                continue;
+            }
 
             // Handle different statement types
             if is_variable_declaration(trimmed_stmt) {
@@ -131,6 +231,55 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
         return None;
     }
 
+    // Build blocker_map: variable name -> promise index
+    // Each async statement gets a promise index (its position in the $.run() array).
+    // Variables assigned in an async thunk are "blocked" by that promise.
+    // Additionally, variables assigned in later sync thunks inherit the max blocker
+    // index of their dependencies.
+    let mut blocker_map = std::collections::HashMap::new();
+    // Track the running max blocker index - once we see an await, all subsequent
+    // variables are blocked by at least that index
+    let mut current_max_blocker: Option<usize> = None;
+
+    for (idx, stmt) in async_stmts.iter().enumerate() {
+        match &stmt.kind {
+            AsyncStmtKind::VarDecl(decl) => {
+                if decl.hoist_only {
+                    continue;
+                }
+                // The variable is assigned in this thunk at index `idx`
+                // Its blocker is the max of: its own index (if it has await),
+                // or the previous max blocker index
+                let blocker_idx = if stmt.has_await {
+                    current_max_blocker = Some(idx);
+                    idx
+                } else if let Some(max) = current_max_blocker {
+                    // Non-await thunk after an await: it depends on previous promises
+                    // The blocker is the thunk that resolves before this one can run
+                    // In $.run(), thunks execute sequentially, so a sync thunk after
+                    // an async thunk is blocked by that async thunk
+                    max
+                } else {
+                    // No await seen yet - shouldn't happen since we only enter async
+                    // section after seeing await, but handle gracefully
+                    idx
+                };
+                blocker_map.insert(decl.name.clone(), blocker_idx);
+            }
+            AsyncStmtKind::ExprAwait(_) | AsyncStmtKind::ExprSimple(_) => {
+                // Pure expression statements (like `await 0`) update the max blocker
+                if stmt.has_await {
+                    current_max_blocker = Some(idx);
+                }
+            }
+            AsyncStmtKind::ExprVoid(_) | AsyncStmtKind::Block(_) => {
+                if stmt.has_await {
+                    current_max_blocker = Some(idx);
+                }
+            }
+        }
+    }
+
     // Build output
     let mut output = String::new();
 
@@ -172,7 +321,10 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
         output.push_str("]);\n");
     }
 
-    Some(AsyncBodyResult { output })
+    Some(AsyncBodyResult {
+        output,
+        blocker_map,
+    })
 }
 
 struct VarDecl {
@@ -745,6 +897,26 @@ fn is_object_expr_context(stmt: &str) -> bool {
         i += 1;
     }
 
+    false
+}
+
+/// Check if a variable declaration is `const/let/var id = $.props_id($$renderer)`.
+/// This needs to stay as a sync declaration before $$promises.
+fn is_props_id_declaration(s: &str) -> bool {
+    let s = s.trim();
+    // Check for pattern: const/let/var <name> = $.props_id($$renderer)
+    if let Some(rest) = s
+        .strip_prefix("const ")
+        .or_else(|| s.strip_prefix("let "))
+        .or_else(|| s.strip_prefix("var "))
+    {
+        let rest = rest.trim();
+        if let Some(eq_pos) = rest.find('=') {
+            let rhs = rest[eq_pos + 1..].trim();
+            let rhs = rhs.strip_suffix(';').unwrap_or(rhs).trim();
+            return rhs == "$.props_id($$renderer)";
+        }
+    }
     false
 }
 

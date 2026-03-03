@@ -184,6 +184,16 @@ pub(crate) enum ComponentBinding {
 pub(crate) enum OutputPart {
     Html(String),
     Expression(String),
+    /// Async expression tag - an expression containing `await` that needs to be
+    /// rendered as a separate `$$renderer.push(async () => $.escape(...))` call
+    /// instead of being inlined in the template string.
+    /// The `has_save` flag indicates whether `await expr` should be transformed
+    /// to `(await $.save(expr))()` (true when not inside an if/each block test).
+    AsyncExpression {
+        expr: String,
+        /// Whether the expression needs $.save() wrapping
+        has_save: bool,
+    },
     /// Raw expression that doesn't need escaping (e.g., $.attributes())
     RawExpression(String),
     /// Raw HTML expression - {@html expr}

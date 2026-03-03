@@ -180,6 +180,7 @@ pub fn fragment(
         destructure_array_counter: context.state.destructure_array_counter,
         needs_props_from_events: context.state.needs_props_from_events.clone(),
         hidden_let_bindings: context.state.hidden_let_bindings.clone(),
+        blocker_map: context.state.blocker_map.clone(),
     };
 
     // Swap context.state with our local state so that process_children uses it
@@ -406,6 +407,42 @@ pub fn fragment(
 
     // Add render effect if there are updates
     if !state.update.is_empty() {
+        // Compute blockers for the template_effect by scanning update statements
+        // for references to blocked variables
+        let blockers = {
+            let map = state.blocker_map.borrow();
+            if map.is_empty() {
+                None
+            } else {
+                // Collect all identifier names from all update statements
+                let mut all_names = Vec::new();
+                for stmt in &state.update {
+                    collect_identifiers_from_statement(stmt, &mut all_names);
+                }
+                let mut indices: Vec<usize> = Vec::new();
+                for name in &all_names {
+                    if let Some(&idx) = map.get(name.as_str())
+                        && !indices.contains(&idx)
+                    {
+                        indices.push(idx);
+                    }
+                }
+                indices.sort();
+                if indices.is_empty() {
+                    None
+                } else {
+                    Some(b::array(
+                        indices
+                            .into_iter()
+                            .map(|idx| {
+                                b::member_computed(b::id("$$promises"), b::number(idx as f64))
+                            })
+                            .collect(),
+                    ))
+                }
+            }
+        };
+
         // Check if we have memoized expressions
         if state.memoizer.has_memoized() {
             let params = state.memoizer.get_params();
@@ -416,7 +453,15 @@ pub fn fragment(
                 params,
                 sync_values,
                 async_values,
-                None, // blockers
+                blockers,
+            )));
+        } else if blockers.is_some() {
+            body.push(b::stmt(build_render_statement_with_memoizer(
+                state.update,
+                vec![],
+                None,
+                None,
+                blockers,
             )));
         } else {
             body.push(b::stmt(build_render_statement(state.update)));
@@ -450,4 +495,138 @@ pub fn fragment(
     context.state.memoizer.merge_conflicts(&state.memoizer);
 
     JsBlockStatement { body }
+}
+
+/// Collect all identifier names from a JS statement.
+/// Used for finding blocked variable references in template_effect callbacks.
+fn collect_identifiers_from_statement(stmt: &JsStatement, names: &mut Vec<String>) {
+    match stmt {
+        JsStatement::Expression(expr_stmt) => {
+            collect_ids_from_expr(&expr_stmt.expression, names);
+        }
+        JsStatement::Block(block_stmt) => {
+            for s in &block_stmt.body {
+                collect_identifiers_from_statement(s, names);
+            }
+        }
+        JsStatement::VariableDeclaration(decl) => {
+            for declarator in &decl.declarations {
+                if let Some(init) = &declarator.init {
+                    collect_ids_from_expr(init, names);
+                }
+            }
+        }
+        JsStatement::Return(ret) => {
+            if let Some(expr) = &ret.argument {
+                collect_ids_from_expr(expr, names);
+            }
+        }
+        JsStatement::If(if_stmt) => {
+            collect_ids_from_expr(&if_stmt.test, names);
+            collect_identifiers_from_statement(&if_stmt.consequent, names);
+            if let Some(alt) = &if_stmt.alternate {
+                collect_identifiers_from_statement(alt, names);
+            }
+        }
+        JsStatement::Raw(raw) => {
+            // For raw statements, extract identifiers from the raw text
+            // This is a best-effort approach - we look for identifiers that
+            // might be blocked variables
+            for word in raw.split(|c: char| !c.is_alphanumeric() && c != '_' && c != '$') {
+                if !word.is_empty()
+                    && word
+                        .chars()
+                        .next()
+                        .is_some_and(|c| c.is_alphabetic() || c == '_' || c == '$')
+                    && !names.contains(&word.to_string())
+                {
+                    names.push(word.to_string());
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Collect identifiers from an expression (non-recursive across function boundaries).
+fn collect_ids_from_expr(expr: &JsExpr, names: &mut Vec<String>) {
+    match expr {
+        JsExpr::Identifier(name) => {
+            if !names.contains(name) {
+                names.push(name.clone());
+            }
+        }
+        JsExpr::Call(call) => {
+            collect_ids_from_expr(&call.callee, names);
+            for arg in &call.arguments {
+                collect_ids_from_expr(arg, names);
+            }
+        }
+        JsExpr::Member(member) => {
+            collect_ids_from_expr(&member.object, names);
+            if member.computed
+                && let JsMemberProperty::Expression(prop) = &member.property
+            {
+                collect_ids_from_expr(prop, names);
+            }
+        }
+        JsExpr::Binary(bin) => {
+            collect_ids_from_expr(&bin.left, names);
+            collect_ids_from_expr(&bin.right, names);
+        }
+        JsExpr::Logical(log) => {
+            collect_ids_from_expr(&log.left, names);
+            collect_ids_from_expr(&log.right, names);
+        }
+        JsExpr::Unary(un) => {
+            collect_ids_from_expr(&un.argument, names);
+        }
+        JsExpr::Conditional(cond) => {
+            collect_ids_from_expr(&cond.test, names);
+            collect_ids_from_expr(&cond.consequent, names);
+            collect_ids_from_expr(&cond.alternate, names);
+        }
+        JsExpr::TemplateLiteral(tl) => {
+            for e in &tl.expressions {
+                collect_ids_from_expr(e, names);
+            }
+        }
+        JsExpr::Sequence(seq) => {
+            for e in &seq.expressions {
+                collect_ids_from_expr(e, names);
+            }
+        }
+        JsExpr::Array(arr) => {
+            for e in arr.elements.iter().flatten() {
+                collect_ids_from_expr(e, names);
+            }
+        }
+        JsExpr::Object(obj) => {
+            for member in &obj.properties {
+                match member {
+                    JsObjectMember::Property(prop) => {
+                        collect_ids_from_expr(&prop.value, names);
+                    }
+                    JsObjectMember::SpreadElement(spread) => {
+                        collect_ids_from_expr(spread, names);
+                    }
+                }
+            }
+        }
+        JsExpr::Assignment(assign) => {
+            collect_ids_from_expr(&assign.right, names);
+        }
+        JsExpr::Update(up) => {
+            collect_ids_from_expr(&up.argument, names);
+        }
+        JsExpr::Await(inner) => {
+            collect_ids_from_expr(inner, names);
+        }
+        JsExpr::Spread(inner) | JsExpr::Void(inner) => {
+            collect_ids_from_expr(inner, names);
+        }
+        // Don't cross function boundaries
+        JsExpr::Arrow(_) | JsExpr::Function(_) => {}
+        _ => {}
+    }
 }

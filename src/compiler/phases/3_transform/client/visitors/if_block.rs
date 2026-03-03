@@ -97,16 +97,15 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
     let mut statements = Vec::new();
 
     let has_await = node.metadata.expression.has_await();
-    let is_async = has_await;
 
-    // For the async wrapper, we need the expression from the top-level node
-    let async_expression = if is_async {
-        let converted_expr = convert_expression(&node.test, context);
-        let expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
-        Some(build_expression(context, &converted_expr, &expr_metadata))
-    } else {
-        None
-    };
+    // Build the top-level expression to check for blockers
+    let converted_top_expr = convert_expression(&node.test, context);
+    let top_expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
+    let expression = build_expression(context, &converted_top_expr, &top_expr_metadata);
+
+    // Check if the expression has blockers (references variables assigned after await)
+    let blocker_exprs = context.state.get_blockers_for_expr(&expression);
+    let has_blockers = !blocker_exprs.is_empty();
 
     // Collect all flattened if/elseif branches
     let branches = collect_branches(node);
@@ -229,17 +228,32 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
     let if_statement = add_svelte_meta(if_call);
     statements.push(if_statement);
 
-    // If async, wrap in $.async()
-    if is_async {
-        let expression = async_expression.expect("async_expression set when is_async");
-        let blockers = b::array(vec![]);
+    // If async (has_await or has_blockers), wrap in $.async()
+    if has_await || has_blockers {
+        // Blockers array: collect all blocker expressions from the expression
+        let blockers = if has_blockers || has_await {
+            b::array(blocker_exprs)
+        } else {
+            b::array(vec![])
+        };
 
-        // b.array([b.thunk(expression, true)])
-        let expression_array = b::array(vec![b::async_thunk(expression.clone())]);
+        // Async values: only present when has_await
+        let async_values = if has_await {
+            b::array(vec![b::async_thunk(expression)])
+        } else {
+            b::undefined()
+        };
 
+        // Callback params: include $$condition only when has_await
         let anchor_param = match &context.state.node {
             JsExpr::Identifier(name) => b::id_pattern(name),
             _ => b::id_pattern("$$anchor"),
+        };
+
+        let params = if has_await {
+            vec![anchor_param, b::id_pattern("$$condition")]
+        } else {
+            vec![anchor_param]
         };
 
         let async_call = b::call(
@@ -247,8 +261,8 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
             vec![
                 context.state.node.clone(),
                 blockers,
-                expression_array,
-                b::arrow_block(vec![anchor_param, b::id_pattern("$$condition")], statements),
+                async_values,
+                b::arrow_block(params, statements),
             ],
         );
 

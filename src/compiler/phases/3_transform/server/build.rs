@@ -555,6 +555,64 @@ export default function {component_name}($$renderer{props_param}) {{
         heads
     }
 
+    /// Hoist SnippetFunction declarations to the front of a parts vector.
+    /// This mirrors the official Svelte compiler's behavior where snippet functions
+    /// are placed in state.init (before template rendering) via the Fragment visitor.
+    fn hoist_snippet_functions(parts: Vec<OutputPart>) -> Vec<OutputPart> {
+        let mut snippets: Vec<OutputPart> = Vec::new();
+        let mut rest: Vec<OutputPart> = Vec::new();
+        for part in parts {
+            if matches!(part, OutputPart::SnippetFunction { .. }) {
+                snippets.push(part);
+            } else {
+                rest.push(part);
+            }
+        }
+        if snippets.is_empty() {
+            return rest;
+        }
+        snippets.extend(rest);
+        snippets
+    }
+
+    /// Check if a list of output parts contains any async expressions
+    /// (either AsyncExpression variants or expressions with `await`).
+    fn parts_contain_async(parts: &[OutputPart]) -> bool {
+        for part in parts {
+            match part {
+                OutputPart::AsyncExpression { .. } => return true,
+                OutputPart::IfBlock {
+                    test_expr,
+                    consequent_body,
+                    alternate_body,
+                    ..
+                } => {
+                    if super::helpers::expr_contains_await(test_expr) {
+                        return true;
+                    }
+                    if Self::parts_contain_async(consequent_body) {
+                        return true;
+                    }
+                    if let Some(alt) = alternate_body
+                        && Self::parts_contain_async(alt)
+                    {
+                        return true;
+                    }
+                }
+                OutputPart::EachBlock { iterable, body, .. } => {
+                    if super::helpers::expr_contains_await(iterable) {
+                        return true;
+                    }
+                    if Self::parts_contain_async(body) {
+                        return true;
+                    }
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+
     pub(crate) fn build_parts_with_store_subs(
         parts: &[OutputPart],
         indent_level: usize,
@@ -567,6 +625,9 @@ export default function {component_name}($$renderer{props_param}) {{
         // (before template rendering). Without this, whitespace text nodes between
         // consecutive @const tags would be flushed as $$renderer.push(` `) calls.
         let hoisted_parts = Self::hoist_const_declarations_and_strip_ws(parts);
+        // Also hoist SnippetFunction declarations before other content
+        // (matching official compiler's behavior where snippets are in state.init)
+        let hoisted_parts = Self::hoist_snippet_functions(hoisted_parts);
         let parts = &hoisted_parts;
 
         let mut body_code = String::new();
@@ -595,6 +656,24 @@ export default function {component_name}($$renderer{props_param}) {{
                 }
                 OutputPart::Expression(expr) => {
                     current_html.push_str(&format!("${{$.escape({})}}", expr));
+                }
+                OutputPart::AsyncExpression { expr, has_save } => {
+                    // Async expression: flush current HTML, then emit as separate push
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+                    // Transform await to use $.save() if needed
+                    let transformed_expr = if *has_save {
+                        super::helpers::transform_await_to_save(expr)
+                    } else {
+                        expr.clone()
+                    };
+                    body_code.push_str(&format!(
+                        "{}$$renderer.push(async () => $.escape({}));\n",
+                        indent, transformed_expr
+                    ));
                 }
                 OutputPart::RawExpression(expr) => {
                     // Raw expressions don't need escaping (e.g., $.attributes())
@@ -1375,6 +1454,7 @@ export default function {component_name}($$renderer{props_param}) {{
                                 ) || matches!(
                                     p,
                                     OutputPart::Expression(_)
+                                        | OutputPart::AsyncExpression { .. }
                                         | OutputPart::RawExpression(_)
                                         | OutputPart::HtmlExpression(_)
                                         | OutputPart::Component { .. }
@@ -1405,6 +1485,24 @@ export default function {component_name}($$renderer{props_param}) {{
                     body,
                     fallback,
                 } => {
+                    // Check if iterable or body contains await - if so, wrap in child_block
+                    let iterable_has_await = super::helpers::expr_contains_await(iterable);
+                    let body_has_await = Self::parts_contain_async(body);
+                    let needs_child_block = iterable_has_await || body_has_await;
+
+                    // Determine indent level and iterable expression
+                    let effective_indent_level = if needs_child_block {
+                        indent_level + 1
+                    } else {
+                        indent_level
+                    };
+                    let effective_indent = "\t".repeat(effective_indent_level);
+                    let transformed_iterable = if iterable_has_await {
+                        super::helpers::transform_await_to_save(iterable)
+                    } else {
+                        iterable.clone()
+                    };
+
                     // Generate unique array variable name: each_array, each_array_1, each_array_2, ...
                     let array_var = if *each_counter == 0 {
                         "each_array".to_string()
@@ -1438,29 +1536,40 @@ export default function {component_name}($$renderer{props_param}) {{
                             current_html.clear();
                         }
 
+                        if needs_child_block {
+                            body_code.push_str(&format!(
+                                "{}$$renderer.child_block(async ($$renderer) => {{\n",
+                                indent
+                            ));
+                        }
+
                         body_code.push_str(&format!(
                             "{}const {} = $.ensure_array_like({});\n\n",
-                            indent, array_var, iterable
+                            effective_indent, array_var, transformed_iterable
                         ));
 
                         // If there's a fallback, wrap in if-else
-                        body_code
-                            .push_str(&format!("{}if ({}.length !== 0) {{\n", indent, array_var));
+                        body_code.push_str(&format!(
+                            "{}if ({}.length !== 0) {{\n",
+                            effective_indent, array_var
+                        ));
                         // Add block marker for non-empty case INSIDE the if
-                        body_code
-                            .push_str(&format!("{}\t$$renderer.push('<!--[-->');\n\n", indent));
+                        body_code.push_str(&format!(
+                            "{}\t$$renderer.push('<!--[-->');\n\n",
+                            effective_indent
+                        ));
 
                         // For loop (indented)
                         body_code.push_str(&format!(
                             "{}\tfor (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{\n",
-                            indent, index_var, array_var, index_var, index_var
+                            effective_indent, index_var, array_var, index_var, index_var
                         ));
 
                         // Context variable (only if there's a context)
                         if let Some(ctx_name) = context_name {
                             body_code.push_str(&format!(
                                 "{}\t\tlet {} = {}[{}];\n",
-                                indent, ctx_name, array_var, index_var
+                                effective_indent, ctx_name, array_var, index_var
                             ));
                         }
 
@@ -1468,7 +1577,7 @@ export default function {component_name}($$renderer{props_param}) {{
                         if let Some(alias) = index_alias {
                             body_code.push_str(&format!(
                                 "{}\t\tlet {} = {};\n",
-                                indent, alias, index_var
+                                effective_indent, alias, index_var
                             ));
                         }
 
@@ -1480,32 +1589,41 @@ export default function {component_name}($$renderer{props_param}) {{
                         let hoisted_body = Self::hoist_const_declarations_and_strip_ws(body);
                         let body_code_inner = Self::build_parts_with_store_subs(
                             &hoisted_body,
-                            indent_level + 2,
+                            effective_indent_level + 2,
                             each_counter,
                             store_subs,
                         );
                         body_code.push_str(&body_code_inner);
 
                         // Close for loop
-                        body_code.push_str(&format!("{}\t}}\n", indent));
+                        body_code.push_str(&format!("{}\t}}\n", effective_indent));
 
                         // Else branch with fallback
-                        body_code.push_str(&format!("{}}} else {{\n", indent));
+                        body_code.push_str(&format!("{}}} else {{\n", effective_indent));
                         // Add block marker for empty case (note the !)
-                        body_code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
+                        body_code.push_str(&format!(
+                            "{}\t$$renderer.push('<!--[!-->');\n",
+                            effective_indent
+                        ));
 
                         // Fallback body
                         if let Some(fb) = fallback {
                             let fallback_code = Self::build_parts_with_store_subs(
                                 fb,
-                                indent_level + 1,
+                                effective_indent_level + 1,
                                 each_counter,
                                 store_subs,
                             );
                             body_code.push_str(&fallback_code);
                         }
 
-                        body_code.push_str(&format!("{}}}\n\n", indent));
+                        body_code.push_str(&format!("{}}}\n", effective_indent));
+
+                        if needs_child_block {
+                            body_code.push_str(&format!("{}}});\n\n", indent));
+                        } else {
+                            body_code.push('\n');
+                        }
                     } else {
                         // No fallback - add opening marker to current_html before flushing
                         // This combines with any prior content like: `<ul><!--[-->`
@@ -1516,29 +1634,38 @@ export default function {component_name}($$renderer{props_param}) {{
                             .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
                         current_html.clear();
 
+                        if needs_child_block {
+                            body_code.push_str(&format!(
+                                "{}$$renderer.child_block(async ($$renderer) => {{\n",
+                                indent
+                            ));
+                        }
+
                         body_code.push_str(&format!(
                             "{}const {} = $.ensure_array_like({});\n\n",
-                            indent, array_var, iterable
+                            effective_indent, array_var, transformed_iterable
                         ));
 
                         // For loop
                         body_code.push_str(&format!(
                             "{}for (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{\n",
-                            indent, index_var, array_var, index_var, index_var
+                            effective_indent, index_var, array_var, index_var, index_var
                         ));
 
                         // Context variable (only if there's a context)
                         if let Some(ctx_name) = context_name {
                             body_code.push_str(&format!(
                                 "{}\tlet {} = {}[{}];\n",
-                                indent, ctx_name, array_var, index_var
+                                effective_indent, ctx_name, array_var, index_var
                             ));
                         }
 
                         // Index alias (when contains_group_binding: `let original_name = $$index_N`)
                         if let Some(alias) = index_alias {
-                            body_code
-                                .push_str(&format!("{}\tlet {} = {};\n", indent, alias, index_var));
+                            body_code.push_str(&format!(
+                                "{}\tlet {} = {};\n",
+                                effective_indent, alias, index_var
+                            ));
                         }
 
                         if context_name.is_some() || index_alias.is_some() {
@@ -1549,14 +1676,20 @@ export default function {component_name}($$renderer{props_param}) {{
                         let hoisted_body = Self::hoist_const_declarations_and_strip_ws(body);
                         let body_code_inner = Self::build_parts_with_store_subs(
                             &hoisted_body,
-                            indent_level + 1,
+                            effective_indent_level + 1,
                             each_counter,
                             store_subs,
                         );
                         body_code.push_str(&body_code_inner);
 
                         // Close for loop
-                        body_code.push_str(&format!("{}}}\n\n", indent));
+                        body_code.push_str(&format!("{}}}\n", effective_indent));
+
+                        if needs_child_block {
+                            body_code.push_str(&format!("{}}});\n\n", indent));
+                        } else {
+                            body_code.push('\n');
+                        }
                     }
 
                     // Add closing marker to current_html to combine with subsequent content
@@ -1575,16 +1708,49 @@ export default function {component_name}($$renderer{props_param}) {{
                         current_html.clear();
                     }
 
-                    // Generate the if block with proper markers
-                    let if_code = Self::build_if_statement(
-                        test_expr,
-                        consequent_body,
-                        alternate_body,
-                        indent_level,
-                        each_counter,
-                        store_subs,
-                    );
-                    body_code.push_str(&if_code);
+                    // Check if the test expression contains `await`
+                    // If so, wrap the entire if-block in $$renderer.child_block()
+                    // Note: async expressions in body are handled by AsyncExpression parts
+                    // and don't need child_block wrapping.
+                    let test_has_await = super::helpers::expr_contains_await(test_expr);
+
+                    if test_has_await {
+                        // Transform the test expression: await expr -> (await $.save(expr))()
+                        let transformed_test = if test_has_await {
+                            super::helpers::transform_await_to_save(test_expr)
+                        } else {
+                            test_expr.clone()
+                        };
+
+                        // Generate the if-block at one deeper indent level (inside child_block)
+                        let if_code = Self::build_if_statement(
+                            &transformed_test,
+                            consequent_body,
+                            alternate_body,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
+
+                        // Wrap in $$renderer.child_block(async ($$renderer) => { ... })
+                        body_code.push_str(&format!(
+                            "{}$$renderer.child_block(async ($$renderer) => {{\n",
+                            indent
+                        ));
+                        body_code.push_str(&if_code);
+                        body_code.push_str(&format!("{}}});\n\n", indent));
+                    } else {
+                        // Generate the if block with proper markers (no async wrapping)
+                        let if_code = Self::build_if_statement(
+                            test_expr,
+                            consequent_body,
+                            alternate_body,
+                            indent_level,
+                            each_counter,
+                            store_subs,
+                        );
+                        body_code.push_str(&if_code);
+                    }
 
                     // Add closing marker to current_html to combine with subsequent content
                     current_html.push_str("<!--]-->");

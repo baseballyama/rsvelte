@@ -467,8 +467,11 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     );
 
     // Handle async expressions
-    let is_async = node.metadata.expression.is_async();
     let has_await = node.metadata.expression.has_await();
+    // Check for blockers from the blocker_map (variables assigned after await)
+    let blocker_exprs = context.state.get_blockers_for_expr(&collection);
+    let has_blockers = !blocker_exprs.is_empty();
+    let is_async = has_await || has_blockers;
 
     // Build the collection thunk
     let get_collection = if has_await {

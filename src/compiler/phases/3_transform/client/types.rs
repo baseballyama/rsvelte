@@ -1501,6 +1501,14 @@ pub struct ComponentClientTransformState<'a> {
 
     /// Binding names hidden from `get_binding()` in named slot contexts.
     pub hidden_let_bindings: FxHashSet<String>,
+
+    /// Mapping from variable names to their promise indices in $$promises.
+    /// Populated during async body transformation, used by template visitors
+    /// to determine which expressions need `$.async()` wrapping.
+    /// e.g., if `condition` is assigned in the 2nd thunk (index 1), then
+    /// `blocker_map["condition"] = 1`.
+    /// Uses `Rc<RefCell<...>>` for shared ownership across nested states.
+    pub blocker_map: Rc<std::cell::RefCell<std::collections::HashMap<String, usize>>>,
 }
 
 /// Context information for generating bindings inside each blocks.
@@ -1629,6 +1637,7 @@ impl<'a> ComponentClientTransformState<'a> {
             destructure_array_counter: 0,
             needs_props_from_events: Rc::new(Cell::new(false)),
             hidden_let_bindings: FxHashSet::default(),
+            blocker_map: Rc::new(std::cell::RefCell::new(std::collections::HashMap::new())),
         }
     }
 
@@ -1681,6 +1690,159 @@ impl<'a> ComponentClientTransformState<'a> {
         if let Some(frame) = self.local_var_init_types.last_mut() {
             frame.insert(name, init_type);
         }
+    }
+
+    /// Get the blocker expressions for the given variable names.
+    /// Returns a list of unique `$$promises[N]` expressions for variables
+    /// that are blocked by async promises.
+    pub fn get_blockers_for_names(&self, names: &[&str]) -> Vec<JsExpr> {
+        use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+        let map = self.blocker_map.borrow();
+        let mut indices: Vec<usize> = Vec::new();
+        for name in names {
+            if let Some(&idx) = map.get(*name)
+                && !indices.contains(&idx)
+            {
+                indices.push(idx);
+            }
+        }
+        indices.sort();
+        indices
+            .into_iter()
+            .map(|idx| b::member_computed(b::id("$$promises"), b::number(idx as f64)))
+            .collect()
+    }
+
+    /// Check if any of the given variable names are blocked by async promises.
+    pub fn has_blockers_for_names(&self, names: &[&str]) -> bool {
+        let map = self.blocker_map.borrow();
+        names.iter().any(|name| map.contains_key(*name))
+    }
+
+    /// Get blocker expressions for all identifiers referenced in a JS expression.
+    /// Walks the expression tree to find all identifier references and checks
+    /// if any have blockers.
+    pub fn get_blockers_for_expr(&self, expr: &JsExpr) -> Vec<JsExpr> {
+        let names = collect_identifiers_from_expr(expr);
+        let name_refs: Vec<&str> = names.iter().map(|s| s.as_str()).collect();
+        self.get_blockers_for_names(&name_refs)
+    }
+
+    /// Check if a JS expression references any blocked variables.
+    pub fn has_blockers_for_expr(&self, expr: &JsExpr) -> bool {
+        let names = collect_identifiers_from_expr(expr);
+        let name_refs: Vec<&str> = names.iter().map(|s| s.as_str()).collect();
+        self.has_blockers_for_names(&name_refs)
+    }
+}
+
+/// Collect all identifier names referenced in a JS expression.
+/// Does not cross function boundaries (arrows, function expressions).
+fn collect_identifiers_from_expr(expr: &JsExpr) -> Vec<String> {
+    let mut names = Vec::new();
+    collect_identifiers_recursive(expr, &mut names);
+    names
+}
+
+fn collect_identifiers_recursive(expr: &JsExpr, names: &mut Vec<String>) {
+    use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+    match expr {
+        JsExpr::Identifier(name) => {
+            if !names.contains(name) {
+                names.push(name.clone());
+            }
+        }
+        JsExpr::Call(call) => {
+            collect_identifiers_recursive(&call.callee, names);
+            for arg in &call.arguments {
+                collect_identifiers_recursive(arg, names);
+            }
+        }
+        JsExpr::Member(member) => {
+            collect_identifiers_recursive(&member.object, names);
+            if member.computed
+                && let JsMemberProperty::Expression(prop_expr) = &member.property
+            {
+                collect_identifiers_recursive(prop_expr, names);
+            }
+        }
+        JsExpr::Binary(bin) => {
+            collect_identifiers_recursive(&bin.left, names);
+            collect_identifiers_recursive(&bin.right, names);
+        }
+        JsExpr::Logical(log) => {
+            collect_identifiers_recursive(&log.left, names);
+            collect_identifiers_recursive(&log.right, names);
+        }
+        JsExpr::Unary(un) => {
+            collect_identifiers_recursive(&un.argument, names);
+        }
+        JsExpr::Conditional(cond) => {
+            collect_identifiers_recursive(&cond.test, names);
+            collect_identifiers_recursive(&cond.consequent, names);
+            collect_identifiers_recursive(&cond.alternate, names);
+        }
+        JsExpr::TemplateLiteral(tl) => {
+            for e in &tl.expressions {
+                collect_identifiers_recursive(e, names);
+            }
+        }
+        JsExpr::Sequence(seq) => {
+            for e in &seq.expressions {
+                collect_identifiers_recursive(e, names);
+            }
+        }
+        JsExpr::Array(arr) => {
+            for e in arr.elements.iter().flatten() {
+                collect_identifiers_recursive(e, names);
+            }
+        }
+        JsExpr::Object(obj) => {
+            for member in &obj.properties {
+                match member {
+                    JsObjectMember::Property(prop) => {
+                        collect_identifiers_recursive(&prop.value, names);
+                    }
+                    JsObjectMember::SpreadElement(spread) => {
+                        collect_identifiers_recursive(spread, names);
+                    }
+                }
+            }
+        }
+        JsExpr::Assignment(assign) => {
+            collect_identifiers_recursive(&assign.right, names);
+        }
+        JsExpr::Await(inner) => {
+            collect_identifiers_recursive(inner, names);
+        }
+        JsExpr::Update(up) => {
+            collect_identifiers_recursive(&up.argument, names);
+        }
+        JsExpr::Spread(inner) => {
+            collect_identifiers_recursive(inner, names);
+        }
+        JsExpr::Void(inner) => {
+            collect_identifiers_recursive(inner, names);
+        }
+        JsExpr::New(new_expr) => {
+            collect_identifiers_recursive(&new_expr.callee, names);
+            for arg in &new_expr.arguments {
+                collect_identifiers_recursive(arg, names);
+            }
+        }
+        JsExpr::TaggedTemplate(tt) => {
+            collect_identifiers_recursive(&tt.tag, names);
+            for e in &tt.quasi.expressions {
+                collect_identifiers_recursive(e, names);
+            }
+        }
+        JsExpr::Chain(chain) => {
+            collect_identifiers_recursive(&chain.expression, names);
+        }
+        // Don't cross function boundaries
+        JsExpr::Arrow(_) | JsExpr::Function(_) => {}
+        // Literals, this, raw, class, yield don't contain identifier references we care about
+        _ => {}
     }
 }
 

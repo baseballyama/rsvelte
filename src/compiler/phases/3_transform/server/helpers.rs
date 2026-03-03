@@ -13,6 +13,252 @@ pub(crate) use super::transform_legacy::*;
 pub(crate) use super::transform_script::*;
 pub(crate) use super::transform_store::*;
 
+/// Check if a JavaScript expression string contains `await` at the expression level
+/// (not inside nested function expressions or arrow functions).
+/// This is used to detect async expression tags that need special handling.
+pub(crate) fn expr_contains_await(expr: &str) -> bool {
+    let bytes = expr.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+
+    while i < len {
+        let ch = bytes[i];
+
+        // Skip string literals
+        if ch == b'\'' || ch == b'"' || ch == b'`' {
+            i = skip_string_literal(bytes, i);
+            continue;
+        }
+
+        // Skip single-line comments
+        if ch == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+            while i < len && bytes[i] != b'\n' {
+                i += 1;
+            }
+            continue;
+        }
+
+        // Skip multi-line comments
+        if ch == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+            i += 2;
+            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            i += 2;
+            continue;
+        }
+
+        // Check for `function` keyword - skip function body
+        if ch == b'f' && i + 8 <= len && &expr[i..i + 8] == "function" {
+            let next = if i + 8 < len { bytes[i + 8] } else { 0 };
+            if next == b' ' || next == b'(' || next == b'*' {
+                i += 8;
+                // Find the opening brace and skip the body
+                while i < len && bytes[i] != b'{' {
+                    if bytes[i] == b'\'' || bytes[i] == b'"' || bytes[i] == b'`' {
+                        i = skip_string_literal(bytes, i);
+                        continue;
+                    }
+                    i += 1;
+                }
+                if i < len {
+                    i = skip_braces(bytes, i);
+                }
+                continue;
+            }
+        }
+
+        // Check for arrow function `=> {` - skip the block body
+        if ch == b'=' && i + 1 < len && bytes[i + 1] == b'>' {
+            i += 2;
+            // Skip whitespace
+            while i < len && matches!(bytes[i], b' ' | b'\n' | b'\t' | b'\r') {
+                i += 1;
+            }
+            if i < len && bytes[i] == b'{' {
+                i = skip_braces(bytes, i);
+                continue;
+            }
+            continue;
+        }
+
+        // Check for `await` keyword
+        if ch == b'a' && i + 5 <= len && &expr[i..i + 5] == "await" {
+            let before_ok = i == 0
+                || !bytes[i - 1].is_ascii_alphanumeric()
+                    && bytes[i - 1] != b'_'
+                    && bytes[i - 1] != b'$';
+            let after = if i + 5 < len { bytes[i + 5] } else { 0 };
+            let after_ok = !after.is_ascii_alphanumeric() && after != b'_' && after != b'$';
+            if before_ok && after_ok {
+                return true;
+            }
+        }
+
+        i += 1;
+    }
+
+    false
+}
+
+/// Skip a string literal starting at `start` (handling ', ", and ` with interpolation).
+fn skip_string_literal(bytes: &[u8], start: usize) -> usize {
+    let quote = bytes[start];
+    let mut i = start + 1;
+    let len = bytes.len();
+
+    if quote == b'`' {
+        while i < len {
+            if bytes[i] == b'\\' {
+                i += 2;
+                continue;
+            }
+            if bytes[i] == b'`' {
+                return i + 1;
+            }
+            if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                i += 2;
+                let mut depth = 1i32;
+                while i < len && depth > 0 {
+                    if bytes[i] == b'{' {
+                        depth += 1;
+                    } else if bytes[i] == b'}' {
+                        depth -= 1;
+                    } else if matches!(bytes[i], b'\'' | b'"' | b'`') {
+                        i = skip_string_literal(bytes, i);
+                        continue;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+            i += 1;
+        }
+    } else {
+        while i < len {
+            if bytes[i] == b'\\' {
+                i += 2;
+                continue;
+            }
+            if bytes[i] == quote {
+                return i + 1;
+            }
+            i += 1;
+        }
+    }
+
+    i
+}
+
+/// Skip a matched brace pair `{...}` starting at position of `{`.
+fn skip_braces(bytes: &[u8], start: usize) -> usize {
+    let mut depth = 1i32;
+    let mut i = start + 1;
+    let len = bytes.len();
+
+    while i < len && depth > 0 {
+        let c = bytes[i];
+        if matches!(c, b'\'' | b'"' | b'`') {
+            i = skip_string_literal(bytes, i);
+            continue;
+        }
+        if c == b'{' {
+            depth += 1;
+        } else if c == b'}' {
+            depth -= 1;
+        }
+        i += 1;
+    }
+
+    i
+}
+
+/// Transform `await expr` patterns inside an expression to use `$.save()`.
+/// Converts: `await expr` -> `(await $.save(expr))()`
+/// This handles multiple await expressions within the same expression.
+pub(crate) fn transform_await_to_save(expr: &str) -> String {
+    let bytes = expr.as_bytes();
+    let len = bytes.len();
+    let mut result = String::with_capacity(len + 20);
+    let mut i = 0;
+
+    while i < len {
+        let ch = bytes[i];
+
+        // Skip string literals
+        if ch == b'\'' || ch == b'"' || ch == b'`' {
+            let end = skip_string_literal(bytes, i);
+            result.push_str(&expr[i..end]);
+            i = end;
+            continue;
+        }
+
+        // Check for `await` keyword
+        if ch == b'a' && i + 5 <= len && &expr[i..i + 5] == "await" {
+            let before_ok = i == 0
+                || !bytes[i - 1].is_ascii_alphanumeric()
+                    && bytes[i - 1] != b'_'
+                    && bytes[i - 1] != b'$';
+            let after = if i + 5 < len { bytes[i + 5] } else { 0 };
+            let after_ok = !after.is_ascii_alphanumeric() && after != b'_' && after != b'$';
+            if before_ok && after_ok {
+                // Found `await` - extract the argument expression
+                i += 5;
+                // Skip whitespace after `await`
+                while i < len && matches!(bytes[i], b' ' | b'\n' | b'\t' | b'\r') {
+                    i += 1;
+                }
+                // Extract the await argument (everything until end of expression,
+                // respecting parentheses and operator precedence)
+                let arg_start = i;
+                let arg_end = find_await_arg_end(bytes, i, len);
+                let arg = &expr[arg_start..arg_end];
+                result.push_str(&format!("(await $.save({}))()", arg));
+                i = arg_end;
+                continue;
+            }
+        }
+
+        result.push(ch as char);
+        i += 1;
+    }
+
+    result
+}
+
+/// Find the end of an `await` argument expression.
+/// The argument includes everything up to the next operator at the same depth level,
+/// or the end of the expression.
+fn find_await_arg_end(bytes: &[u8], start: usize, len: usize) -> usize {
+    let mut i = start;
+    let mut depth: i32 = 0;
+
+    while i < len {
+        let ch = bytes[i];
+
+        if matches!(ch, b'\'' | b'"' | b'`') {
+            i = skip_string_literal(bytes, i);
+            continue;
+        }
+
+        match ch {
+            b'(' | b'[' => depth += 1,
+            b')' | b']' => {
+                if depth == 0 {
+                    return i;
+                }
+                depth -= 1;
+            }
+            b',' if depth == 0 => return i,
+            _ => {}
+        }
+
+        i += 1;
+    }
+
+    len
+}
+
 /// Check if a property name is a valid JavaScript identifier.
 /// If not, it needs to be quoted in object literals.
 pub(crate) fn is_valid_js_identifier(name: &str) -> bool {

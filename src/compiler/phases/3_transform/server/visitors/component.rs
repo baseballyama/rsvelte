@@ -30,9 +30,16 @@ impl<'a> ServerCodeGenerator<'a> {
         let has_prior_content = self.output_parts.iter().any(|part| {
             matches!(part, OutputPart::Html(s) if !s.trim().is_empty())
                 || matches!(part, OutputPart::Expression(_))
+                || matches!(part, OutputPart::AsyncExpression { .. })
                 || matches!(part, OutputPart::RawExpression(_))
+                || matches!(part, OutputPart::HtmlExpression(_))
                 || matches!(part, OutputPart::Component { .. })
                 || matches!(part, OutputPart::ComponentWithBindings { .. })
+                || matches!(part, OutputPart::IfBlock { .. })
+                || matches!(part, OutputPart::EachBlock { .. })
+                || matches!(part, OutputPart::AwaitBlock { .. })
+                || matches!(part, OutputPart::SvelteBoundary { .. })
+                || matches!(part, OutputPart::RenderCall { .. })
         });
 
         // Extract interleaved props/spreads and bindings
