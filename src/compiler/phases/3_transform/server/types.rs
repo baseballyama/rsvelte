@@ -225,6 +225,10 @@ pub(crate) enum OutputPart {
         let_directives: Vec<String>,
         /// CSS custom properties (e.g., --color="red") to wrap in $.css_props()
         css_custom_props: Vec<(String, String)>,
+        /// Whether this component is inside an async block wrapper.
+        /// When true, the closing <!----> marker is suppressed
+        /// (mirrors `!optimiser.is_async()` in the official compiler).
+        in_async_block: bool,
     },
     /// Component with bind directives - requires do/while settling
     ComponentWithBindings {
@@ -375,6 +379,14 @@ pub(crate) enum OutputPart {
         blocker_indices: Vec<usize>,
         /// The expression to render
         expr: String,
+    },
+    /// Async-wrapped HTML: `$$renderer.async([blockers], ($$renderer) => { $$renderer.push(`html`); })`
+    /// Used when an HTML part references a blocked async variable (e.g., element attributes).
+    AsyncWrappedHtml {
+        /// The blocker indices ($$promises[N]) to wait for
+        blocker_indices: Vec<usize>,
+        /// The HTML string to render
+        html: String,
     },
     /// Raw JavaScript statement(s) to emit directly
     RawStatement(String),

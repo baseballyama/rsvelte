@@ -15944,6 +15944,144 @@ fn code_contains_await(code: &str) -> bool {
     false
 }
 
+/// Check if a string expression contains `await` as a keyword (not inside strings).
+/// This is a simplified check that looks for `await` preceded by a non-identifier char
+/// and followed by a non-identifier char.
+fn string_expr_has_await(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    let len = bytes.len();
+    let await_bytes = b"await";
+    if len < 5 {
+        return false;
+    }
+    let mut i = 0;
+    while i + 5 <= len {
+        // Skip string literals
+        if bytes[i] == b'\'' || bytes[i] == b'"' || bytes[i] == b'`' {
+            let quote = bytes[i];
+            i += 1;
+            while i < len {
+                if bytes[i] == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == quote {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+            continue;
+        }
+        // Check for `await` keyword
+        if &bytes[i..i + 5] == await_bytes {
+            let before_ok = i == 0
+                || !bytes[i - 1].is_ascii_alphanumeric()
+                    && bytes[i - 1] != b'_'
+                    && bytes[i - 1] != b'$';
+            let after_ok = i + 5 >= len
+                || !bytes[i + 5].is_ascii_alphanumeric()
+                    && bytes[i + 5] != b'_'
+                    && bytes[i + 5] != b'$';
+            if before_ok && after_ok {
+                return true;
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
+/// Check if a string expression is a "simple" expression that doesn't need thunk wrapping.
+///
+/// Simple expressions: identifiers, literals (numbers, strings, booleans),
+/// arrow functions, function expressions. Does NOT include call expressions,
+/// member expressions, etc.
+fn string_is_simple_expression(s: &str) -> bool {
+    let trimmed = s.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    // Identifiers: purely alphanumeric + _ + $
+    if trimmed
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+    {
+        return true;
+    }
+
+    // Numeric literals
+    if trimmed.parse::<f64>().is_ok() {
+        return true;
+    }
+
+    // String literals
+    if (trimmed.starts_with('\'') && trimmed.ends_with('\''))
+        || (trimmed.starts_with('"') && trimmed.ends_with('"'))
+    {
+        return true;
+    }
+
+    // Boolean/null literals
+    if trimmed == "true" || trimmed == "false" || trimmed == "null" || trimmed == "undefined" {
+        return true;
+    }
+
+    // Arrow functions and function expressions
+    if trimmed.starts_with("() =>") || trimmed.starts_with("function") {
+        return true;
+    }
+
+    false
+}
+
+/// Build a `$.fallback(expression, default)` string, applying async thunk wrapping
+/// when the default value contains `await`.
+///
+/// Mirrors the official Svelte compiler's `build_fallback()` from `utils/ast.js`:
+/// 1. Simple expression (no await): `$.fallback(access, default)`
+/// 2. Simple `await simple_expr`: `await $.fallback(access, simple_expr)` (unwrap await)
+/// 3. Non-simple with await: `await $.fallback(access, async () => default, true)`
+/// 4. Non-simple, no await: `$.fallback(access, () => default, true)`
+fn build_fallback_string(access: &str, default_val: &str) -> String {
+    let trimmed = default_val.trim();
+
+    // Case 1: Simple expression without await
+    if string_is_simple_expression(trimmed) {
+        return format!("$.fallback({}, {})", access, default_val);
+    }
+
+    // Case 2: `await simple_expr` - unwrap await and pass inner directly
+    if let Some(inner) = trimmed.strip_prefix("await ") {
+        let inner = inner.trim();
+        if string_is_simple_expression(inner) {
+            return format!("await $.fallback({}, {})", access, inner);
+        }
+    }
+
+    // Case 3: Expression contains await -> async thunk (with unthunk optimization)
+    if string_expr_has_await(trimmed) {
+        // Unthunk optimization: `async () => await expr` → `() => expr`
+        // when expr itself has no nested await.
+        // This mirrors the official compiler's `unthunk()` function.
+        if let Some(inner) = trimmed.strip_prefix("await ") {
+            let inner = inner.trim();
+            if !string_expr_has_await(inner) {
+                // Optimized: sync thunk wrapping the non-await inner expression
+                return format!("await $.fallback({}, () => {}, true)", access, inner);
+            }
+        }
+        return format!(
+            "await $.fallback({}, async () => {}, true)",
+            access, default_val
+        );
+    }
+
+    // Case 4: Non-simple, no await -> sync thunk
+    format!("$.fallback({}, () => {}, true)", access, default_val)
+}
+
 /// Generate an IIFE for a destructure assignment.
 ///
 /// For array patterns: `(($$value) => { var $$array = $.to_array($$value, N); target1 = $$array[0]; ... })(rhs)`
@@ -16187,10 +16325,8 @@ fn generate_destructure_iife(
                 if let Some(eq_pos) = find_top_level_equals(target) {
                     let actual_target = target[..eq_pos].trim();
                     let default_val = target[eq_pos + 1..].trim();
-                    body_lines.push(format!(
-                        "\t{} = $.fallback({}, {});",
-                        actual_target, value_access, default_val
-                    ));
+                    let fallback = build_fallback_string(&value_access, default_val);
+                    body_lines.push(format!("\t{} = {};", actual_target, fallback));
                 } else if target.starts_with('[') && target.ends_with(']') {
                     // Nested array pattern: key: [a, b, c]
                     // Inline the array destructuring instead of creating a nested IIFE
@@ -16235,10 +16371,9 @@ fn generate_destructure_iife(
                         } else if let Some(eq_pos) = find_top_level_equals(inner_part) {
                             let actual_target = inner_part[..eq_pos].trim();
                             let default_val = inner_part[eq_pos + 1..].trim();
-                            body_lines.push(format!(
-                                "\t{} = $.fallback({}[{}], {});",
-                                actual_target, array_name, idx, default_val
-                            ));
+                            let access = format!("{}[{}]", array_name, idx);
+                            let fallback = build_fallback_string(&access, default_val);
+                            body_lines.push(format!("\t{} = {};", actual_target, fallback));
                         } else {
                             body_lines.push(format!("\t{} = {}[{}];", inner_part, array_name, idx));
                         }
@@ -16251,10 +16386,9 @@ fn generate_destructure_iife(
                 let name = if let Some(eq_pos) = find_top_level_equals(part) {
                     let actual_name = part[..eq_pos].trim();
                     let default_val = part[eq_pos + 1..].trim();
-                    body_lines.push(format!(
-                        "\t{} = $.fallback($$value.{}, {});",
-                        actual_name, actual_name, default_val
-                    ));
+                    let access = format!("$$value.{}", actual_name);
+                    let fallback = build_fallback_string(&access, default_val);
+                    body_lines.push(format!("\t{} = {};", actual_name, fallback));
                     continue;
                 } else {
                     part

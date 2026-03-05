@@ -2081,8 +2081,11 @@ impl<'a> ServerCodeGenerator<'a> {
             };
 
             // Only quote property names that contain special characters like hyphens
+            // Use shorthand notation when property name equals value (e.g., { color } instead of { color: color })
             let prop_str = if prop_name.contains('-') {
                 format!("'{}': {}", prop_name, value)
+            } else if prop_name == value {
+                prop_name.clone()
             } else {
                 format!("{}: {}", prop_name, value)
             };

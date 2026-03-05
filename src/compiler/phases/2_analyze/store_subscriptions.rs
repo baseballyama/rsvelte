@@ -861,8 +861,11 @@ fn collect_dollar_refs_from_node(node: &TemplateNode, source: &str, refs: &mut F
             collect_dollar_refs_from_attributes(&frag.attributes, source, refs);
             collect_dollar_refs_from_fragment(&frag.fragment, source, refs);
         }
+        TemplateNode::SvelteBoundary(boundary) => {
+            collect_dollar_refs_from_attributes(&boundary.attributes, source, refs);
+            collect_dollar_refs_from_fragment(&boundary.fragment, source, refs);
+        }
         TemplateNode::SvelteOptions(_)
-        | TemplateNode::SvelteBoundary(_)
         | TemplateNode::Text(_)
         | TemplateNode::Comment(_)
         | TemplateNode::AttachTag(_) => {}

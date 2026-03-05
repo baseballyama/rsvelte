@@ -3,6 +3,7 @@
 //! Corresponds to `Fragment.js` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/Fragment.js`.
 //!
+#![allow(clippy::collapsible_if)]
 //! The Fragment visitor handles the transformation of Fragment nodes into client-side
 //! JavaScript code. It creates a template block and processes its children.
 
@@ -391,8 +392,14 @@ pub fn fragment(
     if let Some(async_consts) = state.async_consts
         && !async_consts.thunks.is_empty()
     {
+        // Use the id from async_consts (generated via scope.generate('promises'))
+        // This matches the official: b.var(state.async_consts.id, b.call('$.run', ...))
+        let id_name = match &async_consts.id {
+            JsExpr::Identifier(name) => name.clone(),
+            _ => "promises".to_string(),
+        };
         body.push(b::var_decl(
-            "__async_consts",
+            &id_name,
             Some(b::call(
                 b::member_path("$.run"),
                 vec![b::array(async_consts.thunks)],
@@ -412,13 +419,20 @@ pub fn fragment(
     // Add render effect if there are updates
     if !state.update.is_empty() {
         // Compute blockers for the template_effect by scanning update statements
-        // for references to blocked variables
+        // for identifiers that reference blocked variables.
+        //
+        // We collect all identifiers from the update statements and check them
+        // against the blocker_map. The blocker_map maps variable names to their
+        // promise indices from the instance script's async body transformation.
+        //
+        // Note: this can have false positives when snippet parameters share names
+        // with blocked variables, but in practice this is rare and the extra
+        // blocker doesn't cause correctness issues (just a minor performance cost).
         let blockers = {
             let map = state.blocker_map.borrow();
             if map.is_empty() {
                 None
             } else {
-                // Collect all identifier names from all update statements
                 let mut all_names = Vec::new();
                 for stmt in &state.update {
                     collect_identifiers_from_statement(stmt, &mut all_names);
@@ -797,6 +811,256 @@ fn collect_ids_from_expr_deep(expr: &JsExpr, names: &mut Vec<String>) {
                 collect_identifiers_from_statement_deep(s, names);
             }
         }
+        _ => {}
+    }
+}
+
+/// Collect identifiers that appear as arguments to `$.get()` calls in a statement.
+///
+/// This is used for blocker detection in template_effect. Only identifiers accessed
+/// via `$.get(name)` are considered blocker candidates, because blocker variables
+/// (from instance script async body) are always accessed through `$.get()`.
+/// Other identifiers (snippet parameters, local variables) use different access
+/// patterns and should not be treated as blockers.
+pub fn collect_get_arg_identifiers_from_statement(stmt: &JsStatement, names: &mut Vec<String>) {
+    match stmt {
+        JsStatement::Expression(expr_stmt) => {
+            collect_get_arg_ids_from_expr(&expr_stmt.expression, names);
+        }
+        JsStatement::Block(block_stmt) => {
+            for s in &block_stmt.body {
+                collect_get_arg_identifiers_from_statement(s, names);
+            }
+        }
+        JsStatement::VariableDeclaration(decl) => {
+            for declarator in &decl.declarations {
+                if let Some(init) = &declarator.init {
+                    collect_get_arg_ids_from_expr(init, names);
+                }
+            }
+        }
+        JsStatement::Return(ret) => {
+            if let Some(expr) = &ret.argument {
+                collect_get_arg_ids_from_expr(expr, names);
+            }
+        }
+        JsStatement::If(if_stmt) => {
+            collect_get_arg_ids_from_expr(&if_stmt.test, names);
+            collect_get_arg_identifiers_from_statement(&if_stmt.consequent, names);
+            if let Some(alt) = &if_stmt.alternate {
+                collect_get_arg_identifiers_from_statement(alt, names);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Collect identifiers from `$.get(name)` call patterns in an expression.
+fn collect_get_arg_ids_from_expr(expr: &JsExpr, names: &mut Vec<String>) {
+    match expr {
+        JsExpr::Call(call) => {
+            // Check if this is a $.get(name) call
+            if is_dollar_get_call(call) {
+                if let Some(JsExpr::Identifier(arg_name)) = call.arguments.first() {
+                    if !names.contains(arg_name) {
+                        names.push(arg_name.clone());
+                    }
+                }
+            }
+            // Always recurse into callee and arguments to find nested $.get() calls
+            collect_get_arg_ids_from_expr(&call.callee, names);
+            for arg in &call.arguments {
+                collect_get_arg_ids_from_expr(arg, names);
+            }
+        }
+        JsExpr::Binary(bin) => {
+            collect_get_arg_ids_from_expr(&bin.left, names);
+            collect_get_arg_ids_from_expr(&bin.right, names);
+        }
+        JsExpr::Logical(log) => {
+            collect_get_arg_ids_from_expr(&log.left, names);
+            collect_get_arg_ids_from_expr(&log.right, names);
+        }
+        JsExpr::Unary(un) => {
+            collect_get_arg_ids_from_expr(&un.argument, names);
+        }
+        JsExpr::Conditional(cond) => {
+            collect_get_arg_ids_from_expr(&cond.test, names);
+            collect_get_arg_ids_from_expr(&cond.consequent, names);
+            collect_get_arg_ids_from_expr(&cond.alternate, names);
+        }
+        JsExpr::TemplateLiteral(tl) => {
+            for e in &tl.expressions {
+                collect_get_arg_ids_from_expr(e, names);
+            }
+        }
+        JsExpr::Sequence(seq) => {
+            for e in &seq.expressions {
+                collect_get_arg_ids_from_expr(e, names);
+            }
+        }
+        JsExpr::Array(arr) => {
+            for e in arr.elements.iter().flatten() {
+                collect_get_arg_ids_from_expr(e, names);
+            }
+        }
+        JsExpr::Object(obj) => {
+            for member in &obj.properties {
+                match member {
+                    JsObjectMember::Property(prop) => {
+                        collect_get_arg_ids_from_expr(&prop.value, names);
+                    }
+                    JsObjectMember::SpreadElement(spread) => {
+                        collect_get_arg_ids_from_expr(spread, names);
+                    }
+                }
+            }
+        }
+        JsExpr::Member(member) => {
+            collect_get_arg_ids_from_expr(&member.object, names);
+        }
+        JsExpr::Assignment(assign) => {
+            collect_get_arg_ids_from_expr(&assign.right, names);
+        }
+        JsExpr::Spread(inner) | JsExpr::Void(inner) => {
+            collect_get_arg_ids_from_expr(inner, names);
+        }
+        // Don't cross function boundaries
+        JsExpr::Arrow(_) | JsExpr::Function(_) => {}
+        _ => {}
+    }
+}
+
+/// Check if a call expression is a `$.get(...)` call.
+fn is_dollar_get_call(call: &JsCallExpression) -> bool {
+    if let JsExpr::Member(member) = &*call.callee {
+        if let JsExpr::Identifier(obj) = &*member.object {
+            if obj == "$" {
+                if let JsMemberProperty::Identifier(prop) = &member.property {
+                    return prop == "get";
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Collect property names from `$$props.XXX` member access patterns in a statement.
+///
+/// This is used to detect blocked variables accessed through $$props destructuring.
+/// For example, `$$props.name` yields "name" which can be checked against the blocker_map.
+pub fn collect_props_member_names_from_statement(stmt: &JsStatement, names: &mut Vec<String>) {
+    match stmt {
+        JsStatement::Expression(expr_stmt) => {
+            collect_props_member_names_from_expr(&expr_stmt.expression, names);
+        }
+        JsStatement::Block(block_stmt) => {
+            for s in &block_stmt.body {
+                collect_props_member_names_from_statement(s, names);
+            }
+        }
+        JsStatement::VariableDeclaration(decl) => {
+            for declarator in &decl.declarations {
+                if let Some(init) = &declarator.init {
+                    collect_props_member_names_from_expr(init, names);
+                }
+            }
+        }
+        JsStatement::Return(ret) => {
+            if let Some(expr) = &ret.argument {
+                collect_props_member_names_from_expr(expr, names);
+            }
+        }
+        JsStatement::If(if_stmt) => {
+            collect_props_member_names_from_expr(&if_stmt.test, names);
+            collect_props_member_names_from_statement(&if_stmt.consequent, names);
+            if let Some(alt) = &if_stmt.alternate {
+                collect_props_member_names_from_statement(alt, names);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Collect property names from `$$props.XXX` member access patterns in an expression.
+fn collect_props_member_names_from_expr(expr: &JsExpr, names: &mut Vec<String>) {
+    match expr {
+        JsExpr::Member(member) => {
+            // Check if this is $$props.XXX
+            if let JsExpr::Identifier(obj) = &*member.object {
+                if obj == "$$props" {
+                    if let JsMemberProperty::Identifier(prop_name) = &member.property {
+                        if !names.contains(prop_name) {
+                            names.push(prop_name.clone());
+                        }
+                    }
+                }
+            }
+            // Recurse into object
+            collect_props_member_names_from_expr(&member.object, names);
+            if let JsMemberProperty::Expression(prop_expr) = &member.property {
+                if member.computed {
+                    collect_props_member_names_from_expr(prop_expr, names);
+                }
+            }
+        }
+        JsExpr::Call(call) => {
+            collect_props_member_names_from_expr(&call.callee, names);
+            for arg in &call.arguments {
+                collect_props_member_names_from_expr(arg, names);
+            }
+        }
+        JsExpr::Binary(bin) => {
+            collect_props_member_names_from_expr(&bin.left, names);
+            collect_props_member_names_from_expr(&bin.right, names);
+        }
+        JsExpr::Logical(log) => {
+            collect_props_member_names_from_expr(&log.left, names);
+            collect_props_member_names_from_expr(&log.right, names);
+        }
+        JsExpr::Unary(un) => {
+            collect_props_member_names_from_expr(&un.argument, names);
+        }
+        JsExpr::Conditional(cond) => {
+            collect_props_member_names_from_expr(&cond.test, names);
+            collect_props_member_names_from_expr(&cond.consequent, names);
+            collect_props_member_names_from_expr(&cond.alternate, names);
+        }
+        JsExpr::TemplateLiteral(tl) => {
+            for e in &tl.expressions {
+                collect_props_member_names_from_expr(e, names);
+            }
+        }
+        JsExpr::Sequence(seq) => {
+            for e in &seq.expressions {
+                collect_props_member_names_from_expr(e, names);
+            }
+        }
+        JsExpr::Array(arr) => {
+            for e in arr.elements.iter().flatten() {
+                collect_props_member_names_from_expr(e, names);
+            }
+        }
+        JsExpr::Object(obj) => {
+            for member in &obj.properties {
+                match member {
+                    JsObjectMember::Property(prop) => {
+                        collect_props_member_names_from_expr(&prop.value, names);
+                    }
+                    JsObjectMember::SpreadElement(spread) => {
+                        collect_props_member_names_from_expr(spread, names);
+                    }
+                }
+            }
+        }
+        JsExpr::Assignment(assign) => {
+            collect_props_member_names_from_expr(&assign.right, names);
+        }
+        JsExpr::Spread(inner) | JsExpr::Void(inner) => {
+            collect_props_member_names_from_expr(inner, names);
+        }
+        // Don't cross function boundaries
+        JsExpr::Arrow(_) | JsExpr::Function(_) => {}
         _ => {}
     }
 }

@@ -12,6 +12,118 @@ use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use serde_json::Value;
 
+/// Check if a JSON AST node contains an AwaitExpression anywhere in its tree.
+///
+/// This recursively walks the JSON value looking for `{"type": "AwaitExpression"}`.
+/// It skips into function bodies (ArrowFunctionExpression, FunctionExpression)
+/// since those create new async contexts.
+fn json_has_await_expression(value: &Value) -> bool {
+    match value {
+        Value::Object(obj) => {
+            let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            if node_type == "AwaitExpression" {
+                return true;
+            }
+            // Don't traverse into function bodies - they have their own async context
+            if node_type == "ArrowFunctionExpression" || node_type == "FunctionExpression" {
+                return false;
+            }
+            for (_key, val) in obj {
+                if json_has_await_expression(val) {
+                    return true;
+                }
+            }
+            false
+        }
+        Value::Array(arr) => arr.iter().any(json_has_await_expression),
+        _ => false,
+    }
+}
+
+/// Check if a JSON AST node is a "simple" expression (doesn't need thunk wrapping).
+///
+/// Mirrors `is_simple_expression` from the official Svelte compiler.
+/// Simple expressions: Literal, Identifier, ArrowFunctionExpression, FunctionExpression,
+/// and ConditionalExpression/BinaryExpression/LogicalExpression with simple operands.
+fn json_is_simple_expression(value: &Value) -> bool {
+    match value {
+        Value::Object(obj) => {
+            let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            match node_type {
+                "Literal" | "Identifier" | "ArrowFunctionExpression" | "FunctionExpression" => true,
+                "ConditionalExpression" => {
+                    obj.get("test").is_some_and(json_is_simple_expression)
+                        && obj.get("consequent").is_some_and(json_is_simple_expression)
+                        && obj.get("alternate").is_some_and(json_is_simple_expression)
+                }
+                "BinaryExpression" | "LogicalExpression" => {
+                    obj.get("left").is_some_and(json_is_simple_expression)
+                        && obj.get("right").is_some_and(json_is_simple_expression)
+                }
+                _ => false,
+            }
+        }
+        _ => false,
+    }
+}
+
+/// Build a fallback expression, matching the official Svelte compiler's `build_fallback`.
+///
+/// The behavior depends on whether the default value is simple and/or contains await:
+/// 1. Simple expression: `$.fallback(expr, default)`
+/// 2. `await simple_expr`: `await $.fallback(expr, simple_expr)`
+/// 3. Expression with await: `await $.fallback(expr, async () => default, true)`
+/// 4. Non-simple, no await: `$.fallback(expr, () => default, true)`
+fn build_fallback_expr(
+    expression: &JsExpr,
+    right_json: &Value,
+    right_converted: JsExpr,
+    context: &mut ComponentContext,
+) -> JsExpr {
+    use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+    // Case 1: Simple expression (no thunk needed)
+    if json_is_simple_expression(right_json) {
+        return b::call(
+            b::member_path("$.fallback"),
+            vec![expression.clone(), right_converted],
+        );
+    }
+
+    // Case 2: AwaitExpression with simple argument
+    let right_type = right_json
+        .as_object()
+        .and_then(|o| o.get("type"))
+        .and_then(|t| t.as_str())
+        .unwrap_or("");
+    if right_type == "AwaitExpression"
+        && let Some(argument) = right_json.as_object().and_then(|o| o.get("argument"))
+        && json_is_simple_expression(argument)
+    {
+        let arg_converted = convert_json_value(argument, context);
+        return b::await_expr(b::call(
+            b::member_path("$.fallback"),
+            vec![expression.clone(), arg_converted],
+        ));
+    }
+
+    // Case 3: Expression contains await -> async thunk
+    if json_has_await_expression(right_json) {
+        let thunk = b::async_arrow(vec![], right_converted);
+        return b::await_expr(b::call(
+            b::member_path("$.fallback"),
+            vec![expression.clone(), thunk, b::true_literal()],
+        ));
+    }
+
+    // Case 4: Non-simple, no await -> sync thunk
+    let thunk = b::arrow(vec![], right_converted);
+    b::call(
+        b::member_path("$.fallback"),
+        vec![expression.clone(), thunk, b::true_literal()],
+    )
+}
+
 /// Convert an Expression to JsExpr.
 ///
 /// This is the main entry point for converting parsed JavaScript expressions
@@ -2518,18 +2630,16 @@ fn extract_destructure_paths(
 
         "AssignmentPattern" => {
             // Default value: { x = defaultValue } or [x = defaultValue]
-            // Generate: $.fallback(expression, defaultValue)
-            // This matches the official compiler's use of $.fallback() which checks
-            // if the value is undefined and returns the default if so.
+            // Generate: $.fallback(expression, defaultValue) or async thunk variant
+            // This matches the official compiler's `build_fallback()` which handles
+            // simple values, await expressions, and thunk wrapping.
             let left = obj.get("left");
             let right = obj.get("right");
 
             if let (Some(left_val), Some(right_val)) = (left, right) {
                 let default_val = convert_json_value(right_val, context);
-                let fallback_expr = b::call(
-                    b::member_path("$.fallback"),
-                    vec![expression.clone(), default_val],
-                );
+                let fallback_expr =
+                    build_fallback_expr(expression, right_val, default_val, context);
                 extract_destructure_paths(paths, inserts, left_val, &fallback_expr, context);
             }
         }

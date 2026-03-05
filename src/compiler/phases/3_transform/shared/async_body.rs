@@ -48,6 +48,11 @@ pub fn compute_blocker_map(raw_script: &str) -> std::collections::HashMap<String
             continue;
         }
 
+        // Skip single-line comments (// ...) - they should not affect blocker indices
+        if trimmed_stmt.starts_with("//") {
+            continue;
+        }
+
         let has_await_in_stmt = has_top_level_await_in_statement(trimmed_stmt);
 
         // Function declarations always go to sync (hoisted)
@@ -55,8 +60,8 @@ pub fn compute_blocker_map(raw_script: &str) -> std::collections::HashMap<String
             continue;
         }
 
-        // Function variable declarations go to sync before first await
-        if !found_await && is_function_var_declaration(trimmed_stmt) {
+        // Function variable declarations always go to sync (hoisted like function declarations)
+        if is_function_var_declaration(trimmed_stmt) {
             continue;
         }
 
@@ -140,6 +145,11 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
             continue;
         }
 
+        // Skip single-line comments (// ...) - they should not become thunks
+        if trimmed_stmt.starts_with("//") {
+            continue;
+        }
+
         let has_await = has_top_level_await_in_statement(trimmed_stmt);
 
         // Function declarations always go to sync (they are hoisted)
@@ -149,8 +159,10 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
         }
 
         // If a declarator's init is an arrow function or function expression,
-        // it goes to sync too (mirrors official compiler: these are like function declarations)
-        if !found_await && is_function_var_declaration(trimmed_stmt) {
+        // it goes to sync too (mirrors official compiler: these are like function declarations).
+        // This applies REGARDLESS of whether we've found an await - function-like
+        // declarations are always hoisted to the sync section.
+        if is_function_var_declaration(trimmed_stmt) {
             sync_stmts.push(stmt.clone());
             continue;
         }
@@ -923,7 +935,7 @@ fn is_object_expr_context(stmt: &str) -> bool {
 /// This needs to stay as a sync declaration before $$promises.
 fn is_props_id_declaration(s: &str) -> bool {
     let s = s.trim();
-    // Check for pattern: const/let/var <name> = $.props_id($$renderer)
+    // Check for pattern: const/let/var <name> = $.props_id(...) or $props.id()
     if let Some(rest) = s
         .strip_prefix("const ")
         .or_else(|| s.strip_prefix("let "))
@@ -933,7 +945,9 @@ fn is_props_id_declaration(s: &str) -> bool {
         if let Some(eq_pos) = rest.find('=') {
             let rhs = rest[eq_pos + 1..].trim();
             let rhs = rhs.strip_suffix(';').unwrap_or(rhs).trim();
-            return rhs == "$.props_id($$renderer)";
+            return rhs == "$.props_id($$renderer)"
+                || rhs == "$.props_id()"
+                || rhs == "$props.id()";
         }
     }
     false

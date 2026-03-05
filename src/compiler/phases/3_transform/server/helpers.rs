@@ -102,7 +102,7 @@ pub(crate) fn expr_contains_await(expr: &str) -> bool {
 }
 
 /// Skip a string literal starting at `start` (handling ', ", and ` with interpolation).
-fn skip_string_literal(bytes: &[u8], start: usize) -> usize {
+pub(crate) fn skip_string_literal(bytes: &[u8], start: usize) -> usize {
     let quote = bytes[start];
     let mut i = start + 1;
     let len = bytes.len();

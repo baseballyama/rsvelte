@@ -12,6 +12,12 @@ use super::types::{
 };
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
+/// A segment of an HTML string, either static (no blockers) or blocked.
+enum HtmlSegment {
+    Static(String),
+    Blocked { html: String, blockers: Vec<usize> },
+}
+
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn build(self) -> String {
         let store_subs = self.get_store_sub_names();
@@ -628,9 +634,14 @@ export default function {component_name}($$renderer{props_param}) {{
         parts: &[OutputPart],
         blocker_map: &std::collections::HashMap<String, usize>,
     ) -> Vec<OutputPart> {
+        // Pre-pass: merge Html parts that contain blocked expressions with their
+        // immediately following closing tag Html parts.
+        // This ensures elements like <div${...}></div> are treated as one unit.
+        let parts = Self::merge_html_with_closing_tags(parts, blocker_map);
+
         let mut result = Vec::with_capacity(parts.len());
 
-        for part in parts {
+        for part in &parts {
             match part {
                 OutputPart::IfBlock {
                     test_expr,
@@ -727,6 +738,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     dynamic,
                     let_directives,
                     css_custom_props,
+                    ..
                 } => {
                     // Find blockers from component name and all prop expressions
                     let mut all_blockers = std::collections::BTreeSet::new();
@@ -767,6 +779,7 @@ export default function {component_name}($$renderer{props_param}) {{
                                 dynamic: *dynamic,
                                 let_directives: let_directives.clone(),
                                 css_custom_props: css_custom_props.clone(),
+                                in_async_block: true,
                             }],
                         });
                     } else {
@@ -879,6 +892,59 @@ export default function {component_name}($$renderer{props_param}) {{
                         result.push(part.clone());
                     }
                 }
+                OutputPart::RenderCall { call_str, .. } => {
+                    let blockers = super::helpers::find_expression_blockers(call_str, blocker_map);
+                    if !blockers.is_empty() {
+                        // When wrapping in AsyncBlock, suppress the hydration boundary marker
+                        // (the async wrapping itself acts as the boundary)
+                        result.push(OutputPart::AsyncBlock {
+                            blocker_indices: blockers,
+                            inner: vec![OutputPart::RenderCall {
+                                call_str: call_str.clone(),
+                                skip_boundary: true,
+                            }],
+                        });
+                    } else {
+                        result.push(part.clone());
+                    }
+                }
+                OutputPart::RawStatement(stmt) => {
+                    let blockers = super::helpers::find_expression_blockers(stmt, blocker_map);
+                    if !blockers.is_empty() {
+                        result.push(OutputPart::AsyncBlock {
+                            blocker_indices: blockers,
+                            inner: vec![part.clone()],
+                        });
+                    } else {
+                        result.push(part.clone());
+                    }
+                }
+                OutputPart::Html(html) => {
+                    // Check if the Html part contains references to blocked variables.
+                    // IMPORTANT: Only check ${...} expressions for blockers, not static text.
+                    let blockers = Self::find_html_expression_blockers(html, blocker_map);
+                    if !blockers.is_empty() {
+                        // Split the HTML into segments at element boundaries.
+                        let segments = Self::split_html_by_blockers(html, blocker_map);
+                        for seg in segments {
+                            match seg {
+                                HtmlSegment::Static(s) => {
+                                    if !s.is_empty() {
+                                        result.push(OutputPart::Html(s));
+                                    }
+                                }
+                                HtmlSegment::Blocked { html, blockers } => {
+                                    result.push(OutputPart::AsyncWrappedHtml {
+                                        blocker_indices: blockers,
+                                        html,
+                                    });
+                                }
+                            }
+                        }
+                    } else {
+                        result.push(part.clone());
+                    }
+                }
                 _ => {
                     result.push(part.clone());
                 }
@@ -886,6 +952,247 @@ export default function {component_name}($$renderer{props_param}) {{
         }
 
         result
+    }
+
+    /// Pre-pass: merge Html parts that contain blocked expressions with their
+    /// immediately following closing tag Html parts (e.g., `</div>`).
+    /// This ensures elements like `<div${...}>` + `</div>` are treated as one unit `<div${...}></div>`.
+    fn merge_html_with_closing_tags(
+        parts: &[OutputPart],
+        blocker_map: &std::collections::HashMap<String, usize>,
+    ) -> Vec<OutputPart> {
+        let mut merged = Vec::with_capacity(parts.len());
+        let mut i = 0;
+
+        while i < parts.len() {
+            if let OutputPart::Html(html) = &parts[i] {
+                let has_blockers =
+                    !Self::find_html_expression_blockers(html, blocker_map).is_empty();
+                if has_blockers {
+                    let mut full_html = html.clone();
+                    // Look ahead: consume following Html parts that are closing tags
+                    while i + 1 < parts.len() {
+                        if let OutputPart::Html(next_html) = &parts[i + 1] {
+                            let trimmed = next_html.trim_start();
+                            if trimmed.starts_with("</") {
+                                full_html.push_str(next_html);
+                                i += 1;
+                            } else {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                    merged.push(OutputPart::Html(full_html));
+                } else {
+                    merged.push(parts[i].clone());
+                }
+            } else {
+                merged.push(parts[i].clone());
+            }
+            i += 1;
+        }
+
+        merged
+    }
+
+    /// Find blocker references in HTML, but ONLY within ${...} interpolations.
+    /// Static text is NOT checked (to avoid false positives like "baz: " matching "baz").
+    fn find_html_expression_blockers(
+        html: &str,
+        blocker_map: &std::collections::HashMap<String, usize>,
+    ) -> Vec<usize> {
+        let bytes = html.as_bytes();
+        let len = bytes.len();
+        let mut all_blockers = std::collections::BTreeSet::new();
+        let mut i = 0;
+
+        while i < len {
+            if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                let interp_start = i + 2;
+                i += 2;
+                let mut depth = 1;
+                while i < len && depth > 0 {
+                    match bytes[i] {
+                        b'{' => depth += 1,
+                        b'}' => depth -= 1,
+                        b'\'' | b'"' | b'`' => {
+                            i = super::helpers::skip_string_literal(bytes, i);
+                            continue;
+                        }
+                        _ => {}
+                    }
+                    if depth > 0 {
+                        i += 1;
+                    }
+                }
+                let interp_end = if i > 0 { i - 1 } else { i };
+                if interp_end > interp_start {
+                    let expr = &html[interp_start..interp_end];
+                    for b in super::helpers::find_expression_blockers(expr, blocker_map) {
+                        all_blockers.insert(b);
+                    }
+                }
+                if i < len {
+                    i += 1;
+                }
+            } else {
+                i += 1;
+            }
+        }
+
+        all_blockers.into_iter().collect()
+    }
+
+    /// Split an HTML string into segments based on blocker references.
+    /// Returns segments that are either static (no blockers) or blocked (contain blocker references).
+    ///
+    /// The strategy is to find element boundaries (/>  or > followed by space/< or end)
+    /// and check each element-level segment for blockers. This keeps element tags intact.
+    fn split_html_by_blockers(
+        html: &str,
+        blocker_map: &std::collections::HashMap<String, usize>,
+    ) -> Vec<HtmlSegment> {
+        // First, find all "element segments" - ranges that contain complete element tags.
+        // Split points are after `/>` or `>` (at element boundaries), or before `<`.
+        let bytes = html.as_bytes();
+        let len = bytes.len();
+
+        // Find natural split points: positions right after `/>` or `>` where the next
+        // character is a space or another `<`.
+        let mut split_points: Vec<usize> = Vec::new();
+        let mut i = 0;
+        while i < len {
+            // Skip template interpolations
+            if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                i += 2;
+                let mut depth = 1;
+                while i < len && depth > 0 {
+                    match bytes[i] {
+                        b'{' => depth += 1,
+                        b'}' => depth -= 1,
+                        b'\'' | b'"' | b'`' => {
+                            i = super::helpers::skip_string_literal(bytes, i);
+                            continue;
+                        }
+                        _ => {}
+                    }
+                    if depth > 0 {
+                        i += 1;
+                    }
+                }
+                if i < len {
+                    i += 1;
+                }
+                // After closing }, check if this is at a tag boundary (/>)
+                continue;
+            }
+
+            // Look for self-closing `/>` followed by separator
+            if bytes[i] == b'/' && i + 1 < len && bytes[i + 1] == b'>' {
+                let after = i + 2;
+                if after < len
+                    && (bytes[after] == b' ' || bytes[after] == b'<' || bytes[after] == b'\n')
+                {
+                    split_points.push(after);
+                }
+                i += 2;
+                continue;
+            }
+
+            // Look for closing tag `</...>` followed by separator
+            // But only split here if the closing tag's element is NOT part of the
+            // same element that has a blocked expression (i.e., we only split between
+            // separate elements, not within an opening-closing tag pair)
+            if bytes[i] == b'<' && i + 1 < len && bytes[i + 1] == b'/' {
+                // Find the closing >
+                let mut j = i + 2;
+                while j < len && bytes[j] != b'>' {
+                    j += 1;
+                }
+                if j < len {
+                    let after = j + 1;
+                    // Check: does the content BEFORE this closing tag contain a blocked expression?
+                    // If so, the closing tag belongs with the blocked segment, not as a split point.
+                    let before_segment = &html[if split_points.is_empty() {
+                        0
+                    } else {
+                        *split_points.last().unwrap()
+                    }..i];
+                    let before_blockers =
+                        Self::find_html_expression_blockers(before_segment, blocker_map);
+                    if before_blockers.is_empty()
+                        && (after >= len
+                            || bytes[after] == b' '
+                            || bytes[after] == b'<'
+                            || bytes[after] == b'\n')
+                    {
+                        split_points.push(after);
+                    } else if after < len
+                        && (bytes[after] == b' ' || bytes[after] == b'<' || bytes[after] == b'\n')
+                    {
+                        // The closing tag belongs with the blocked segment,
+                        // so the split point is AFTER the closing tag
+                        split_points.push(after);
+                    }
+                    i = after;
+                    continue;
+                }
+            }
+
+            i += 1;
+        }
+
+        if split_points.is_empty() {
+            // No natural split points, return the whole thing as blocked
+            let blockers = Self::find_html_expression_blockers(html, blocker_map);
+            return vec![HtmlSegment::Blocked {
+                html: html.to_string(),
+                blockers,
+            }];
+        }
+
+        // Build segments from split points
+        let mut segments: Vec<HtmlSegment> = Vec::new();
+        let mut pos = 0;
+
+        for &split_at in &split_points {
+            let segment = &html[pos..split_at];
+            pos = split_at;
+
+            if segment.is_empty() {
+                continue;
+            }
+
+            let blockers = Self::find_html_expression_blockers(segment, blocker_map);
+            if !blockers.is_empty() {
+                segments.push(HtmlSegment::Blocked {
+                    html: segment.to_string(),
+                    blockers,
+                });
+            } else {
+                segments.push(HtmlSegment::Static(segment.to_string()));
+            }
+        }
+
+        // Remaining after last split point
+        if pos < len {
+            let remaining = &html[pos..];
+            if !remaining.is_empty() {
+                let blockers = Self::find_html_expression_blockers(remaining, blocker_map);
+                if !blockers.is_empty() {
+                    segments.push(HtmlSegment::Blocked {
+                        html: remaining.to_string(),
+                        blockers,
+                    });
+                } else {
+                    segments.push(HtmlSegment::Static(remaining.to_string()));
+                }
+            }
+        }
+
+        segments
     }
 
     /// Hoist SnippetFunction declarations to the front of a parts vector.
@@ -1195,12 +1502,60 @@ export default function {component_name}($$renderer{props_param}) {{
                     ));
                     body_code.push_str(&format!("{}}});\n\n", indent));
                 }
+                OutputPart::AsyncWrappedHtml {
+                    blocker_indices,
+                    html,
+                } => {
+                    // Async-wrapped HTML: flush current HTML, then emit
+                    // $$renderer.async([$$promises[N], ...], ($$renderer) => {
+                    //     $$renderer.push(`html`);
+                    // })
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    let blockers_str = blocker_indices
+                        .iter()
+                        .map(|idx| format!("$$promises[{}]", idx))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+
+                    body_code.push_str(&format!(
+                        "{}$$renderer.async([{}], ($$renderer) => {{\n",
+                        indent, blockers_str
+                    ));
+                    body_code.push_str(&format!("{}\t$$renderer.push(`{}`);\n", indent, html));
+                    body_code.push_str(&format!("{}}});\n\n", indent));
+                }
                 OutputPart::RawExpression(expr) => {
                     // Raw expressions don't need escaping (e.g., $.attributes())
                     current_html.push_str(&format!("${{{}}}", expr));
                 }
                 OutputPart::HtmlExpression(expr) => {
-                    current_html.push_str(&format!("${{$.html({})}}", expr));
+                    if super::helpers::expr_contains_await(expr) {
+                        // Async @html: flush current HTML, then emit child_block
+                        if !current_html.is_empty() {
+                            body_code.push_str(&format!(
+                                "{}$$renderer.push(`{}`);\n",
+                                indent, current_html
+                            ));
+                            current_html.clear();
+                        }
+                        let transformed = super::helpers::transform_await_to_save(expr);
+                        body_code.push_str(&format!(
+                            "{}$$renderer.child_block(async ($$renderer) => {{\n",
+                            indent
+                        ));
+                        body_code.push_str(&format!(
+                            "{}\t$$renderer.push($.html({}));\n",
+                            indent, transformed
+                        ));
+                        body_code.push_str(&format!("{}}});\n", indent));
+                    } else {
+                        current_html.push_str(&format!("${{$.html({})}}", expr));
+                    }
                 }
                 OutputPart::Flush => {
                     // Flush the current accumulated HTML buffer as a separate push call.
@@ -1400,6 +1755,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     dynamic,
                     let_directives,
                     css_custom_props,
+                    in_async_block,
                 } => {
                     // Flush current HTML before the component call
                     // For dynamic components, add <!---->  marker before the call (pushed separately)
@@ -1974,39 +2330,44 @@ export default function {component_name}($$renderer{props_param}) {{
                         }
                     }
 
-                    // For dynamic components, ALWAYS add <!---->  marker after
-                    // the call (it's a hydration boundary). For static components,
-                    // add only if there's surrounding content.
+                    // Add trailing <!----> marker after the component call.
+                    // Per the official compiler's clean_nodes logic, dynamic components
+                    // are never "standalone" and always get the closing marker, UNLESS
+                    // the component is inside an async block (optimiser.is_async() in the
+                    // official compiler suppresses the marker).
+                    // For static components, add only if there's surrounding content.
                     // When CSS custom props are present, skip the marker
                     // ($.css_props handles its own boundaries).
                     if !has_css_props {
-                        let has_content_after = parts[i + 1..].iter().any(|p| {
-                            matches!(
-                                p,
-                                OutputPart::Html(h) if !h.trim().is_empty()
-                            ) || matches!(
-                                p,
-                                OutputPart::Expression(_)
-                                    | OutputPart::AsyncExpression { .. }
-                                    | OutputPart::RawExpression(_)
-                                    | OutputPart::HtmlExpression(_)
-                                    | OutputPart::Component { .. }
-                                    | OutputPart::EachBlock { .. }
-                                    | OutputPart::IfBlock { .. }
-                                    | OutputPart::AwaitBlock { .. }
-                                    | OutputPart::SvelteBoundary { .. }
-                                    | OutputPart::SvelteHead { .. }
-                                    | OutputPart::TitleElement { .. }
-                                    | OutputPart::RenderCall { .. }
-                            )
-                        });
-
-                        // Add trailing <!---->  marker only when there's
-                        // surrounding content (prior or subsequent).
-                        // When inside async_block (has_prior_content=false,
-                        // no siblings), this correctly skips the marker.
-                        if *has_prior_content || has_content_after {
+                        if *dynamic && !*in_async_block {
+                            // Dynamic components always need the closing marker
+                            // (they are never "standalone" per clean_nodes)
                             current_html.push_str("<!---->");
+                        } else if !*dynamic {
+                            let has_content_after = parts[i + 1..].iter().any(|p| {
+                                matches!(
+                                    p,
+                                    OutputPart::Html(h) if !h.trim().is_empty()
+                                ) || matches!(
+                                    p,
+                                    OutputPart::Expression(_)
+                                        | OutputPart::AsyncExpression { .. }
+                                        | OutputPart::RawExpression(_)
+                                        | OutputPart::HtmlExpression(_)
+                                        | OutputPart::Component { .. }
+                                        | OutputPart::EachBlock { .. }
+                                        | OutputPart::IfBlock { .. }
+                                        | OutputPart::AwaitBlock { .. }
+                                        | OutputPart::SvelteBoundary { .. }
+                                        | OutputPart::SvelteHead { .. }
+                                        | OutputPart::TitleElement { .. }
+                                        | OutputPart::RenderCall { .. }
+                                )
+                            });
+
+                            if *has_prior_content || has_content_after {
+                                current_html.push_str("<!---->");
+                            }
                         }
                     }
                 }

@@ -3,6 +3,7 @@
 //! This module contains the core type definitions for the client-side
 //! transformation phase (Phase 3).
 //!
+#![allow(clippy::collapsible_if)]
 //! Corresponds to `ComponentContext` and `ComponentClientTransformState` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/types.js`.
 
@@ -1841,10 +1842,22 @@ fn collect_identifiers_recursive(expr: &JsExpr, names: &mut Vec<String>) {
         }
         JsExpr::Member(member) => {
             collect_identifiers_recursive(&member.object, names);
-            if member.computed
-                && let JsMemberProperty::Expression(prop_expr) = &member.property
-            {
-                collect_identifiers_recursive(prop_expr, names);
+            if member.computed {
+                if let JsMemberProperty::Expression(prop_expr) = &member.property {
+                    collect_identifiers_recursive(prop_expr, names);
+                }
+            } else {
+                // Also collect non-computed property names on $$props (e.g., $$props.name)
+                // This is needed for blocker detection of props destructured after await
+                if let JsExpr::Identifier(obj) = &*member.object {
+                    if obj == "$$props" {
+                        if let JsMemberProperty::Identifier(prop_name) = &member.property {
+                            if !names.contains(prop_name) {
+                                names.push(prop_name.clone());
+                            }
+                        }
+                    }
+                }
             }
         }
         JsExpr::Binary(bin) => {
