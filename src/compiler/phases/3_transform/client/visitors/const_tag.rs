@@ -412,7 +412,9 @@ fn add_const_declaration(
     metadata: &crate::ast::template::ExpressionMetadata,
 ) {
     let has_await = metadata.has_await();
-    let has_blockers = metadata.has_blockers();
+    // Check blocker_map for blocked identifiers in the expression
+    let blocker_exprs = context.state.get_blockers_for_expr(&expression);
+    let has_blockers = !blocker_exprs.is_empty();
 
     if has_await || context.state.async_consts.is_some() || has_blockers {
         // Async case: need to handle async consts

@@ -54,7 +54,7 @@
 #[allow(dead_code)]
 pub mod estree_compat;
 mod parser;
-mod read;
+pub(crate) mod read;
 #[allow(dead_code)]
 pub mod remove_typescript_nodes;
 mod state;

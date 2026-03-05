@@ -89,13 +89,18 @@ where
             // This ensures expressions with calls go into template_effect (update) rather than init.
             // See: svelte/src/compiler/phases/2-analyze/visitors/CallExpression.js
             let has_call = super::utils::expression_has_call(&expr_tag.expression, context);
-            let has_state = has_reactive_state || has_call;
-
-            // Update metadata with correct has_state value
-            metadata.set_has_state(has_state);
 
             // Apply transforms via build_expression (handles props: x -> x())
             let transformed = build_expression(context, &expression, &metadata);
+
+            // Also check if the expression references variables that are blocked by async promises.
+            // In the official compiler, this is handled via binding.blocker and is_async(),
+            // which causes has_state to include blocked variables.
+            let has_blockers = context.state.has_blockers_for_expr(&transformed);
+            let has_state = has_reactive_state || has_call || has_blockers;
+
+            // Update metadata with correct has_state value
+            metadata.set_has_state(has_state);
 
             // Memoize if needed
             let memoized = memoize(transformed, &metadata);
@@ -124,13 +129,16 @@ where
 
                     // Include non-pure function calls in has_state (matches official compiler behavior)
                     let has_call = super::utils::expression_has_call(&expr_tag.expression, context);
-                    let has_state = has_reactive_state || has_call;
-
-                    // Update metadata with correct has_state value
-                    metadata.set_has_state(has_state);
 
                     // Apply transforms via build_expression (handles props: x -> x())
                     let transformed = build_expression(context, &expression, &metadata);
+
+                    // Also check for blocked async variables
+                    let has_blockers = context.state.has_blockers_for_expr(&transformed);
+                    let has_state = has_reactive_state || has_call || has_blockers;
+
+                    // Update metadata with correct has_state value
+                    metadata.set_has_state(has_state);
 
                     let memoized = memoize(transformed, &metadata);
 

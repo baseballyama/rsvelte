@@ -54,11 +54,13 @@ impl<'a> ServerCodeGenerator<'a> {
                     // Check if the expression contains `await` - if so, use AsyncExpression
                     // so it gets rendered as a separate $$renderer.push(async () => ...) call
                     if self.use_async && super::super::helpers::expr_contains_await(&transformed) {
-                        // Use $.save() only when NOT inside a block body (if/each).
-                        // Inside block bodies, await is passed through as-is.
+                        // Use $.save() when NOT inside an if block body.
+                        // Inside if block bodies, the condition already gates rendering.
+                        // Inside each block bodies, $.save() is needed to track each iteration.
+                        // `in_if_body` is true only for if blocks, not each blocks.
                         self.output_parts.push(OutputPart::AsyncExpression {
                             expr: transformed,
-                            has_save: !self.in_block_body,
+                            has_save: !self.in_if_body,
                         });
                     } else {
                         self.output_parts.push(OutputPart::Expression(transformed));

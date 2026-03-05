@@ -2420,6 +2420,18 @@ impl Memoizer {
         !self.sync.is_empty() || !self.async_entries.is_empty()
     }
 
+    /// Get all memoized expressions (both sync and async) for blocker scanning.
+    pub fn all_expressions(&self) -> Vec<JsExpr> {
+        let mut exprs = Vec::new();
+        for entry in &self.sync {
+            exprs.push(entry.expression.clone());
+        }
+        for entry in &self.async_entries {
+            exprs.push(entry.expression.clone());
+        }
+        exprs
+    }
+
     /// Check if there are any async memoized expressions.
     pub fn has_async(&self) -> bool {
         !self.async_entries.is_empty()

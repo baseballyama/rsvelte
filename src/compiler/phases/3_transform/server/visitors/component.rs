@@ -332,6 +332,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 dynamic: is_dynamic,
                 let_directives: component_let_directives,
                 css_custom_props,
+                in_async_block: false,
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {

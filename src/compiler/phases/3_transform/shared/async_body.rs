@@ -38,6 +38,12 @@ pub fn compute_blocker_map(raw_script: &str) -> std::collections::HashMap<String
     // This is used to identify which referenced identifiers are instance-scope variables.
     let all_declared_vars = collect_all_declared_variables(&statements);
 
+    // Collect function bodies by name for transitive dependency resolution.
+    // When a function is called from an async thunk, all variables referenced in that
+    // function's body should also be considered blocked (the official compiler traces
+    // mutations through function calls via its AST-based dependency analysis).
+    let function_bodies = collect_function_bodies(&statements);
+
     let mut found_await = false;
     let mut blocker_map = std::collections::HashMap::new();
     let mut async_index: usize = 0;
@@ -100,8 +106,58 @@ pub fn compute_blocker_map(raw_script: &str) -> std::collections::HashMap<String
                     blocker_map.insert(ref_id.clone(), current_async_index);
                 }
             }
+
+            // Transitively resolve function calls: if a function is called in this
+            // async thunk, all instance-scope variables referenced in that function's
+            // body should also be considered blocked.
+            resolve_transitive_function_deps(
+                trimmed_stmt,
+                &function_bodies,
+                &all_declared_vars,
+                &mut blocker_map,
+                current_async_index,
+            );
         } else {
+            // Non-declaration async statement (e.g., bare expression with await)
+            let current_async_index = async_index;
             async_index += 1;
+
+            // Also resolve transitive deps for non-declaration async statements
+            let referenced_ids = extract_all_identifiers_from_statement(trimmed_stmt);
+            for ref_id in &referenced_ids {
+                if all_declared_vars.contains(ref_id) && !blocker_map.contains_key(ref_id) {
+                    blocker_map.insert(ref_id.clone(), current_async_index);
+                }
+            }
+            resolve_transitive_function_deps(
+                trimmed_stmt,
+                &function_bodies,
+                &all_declared_vars,
+                &mut blocker_map,
+                current_async_index,
+            );
+        }
+    }
+
+    // Post-processing: add function names to the blocker_map if their bodies
+    // transitively reference any blocked variable. This ensures that template
+    // expressions like `checkedFactory()()` get properly detected by
+    // `find_expression_blockers` when `checkedFactory` closures over a blocked variable.
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for (func_name, func_body) in &function_bodies {
+            if blocker_map.contains_key(func_name) {
+                continue;
+            }
+            let body_ids = extract_all_identifiers_from_statement(func_body);
+            for body_id in &body_ids {
+                if let Some(&idx) = blocker_map.get(body_id) {
+                    blocker_map.insert(func_name.clone(), idx);
+                    changed = true;
+                    break;
+                }
+            }
         }
     }
 
@@ -1495,6 +1551,122 @@ fn extract_ident_from_item(item: &str) -> String {
 
     // Simple identifier
     item.to_string()
+}
+
+/// Collect function bodies indexed by function name.
+/// This includes both `function foo() { ... }` declarations and
+/// `let foo = function() { ... }` / `let foo = (...) => { ... }` declarations.
+fn collect_function_bodies(statements: &[String]) -> std::collections::HashMap<String, String> {
+    let mut bodies = std::collections::HashMap::new();
+
+    for stmt in statements {
+        let trimmed = stmt.trim();
+
+        // function foo(...) { ... }
+        if is_function_declaration(trimmed)
+            && let Some(name) = extract_function_decl_name(trimmed)
+        {
+            bodies.insert(name, trimmed.to_string());
+        }
+
+        // let foo = function() { ... } or let foo = (...) => { ... }
+        if is_function_var_declaration(trimmed)
+            && let Some(name) = extract_var_decl_name(trimmed)
+        {
+            bodies.insert(name, trimmed.to_string());
+        }
+    }
+
+    bodies
+}
+
+/// Extract the function name from `function foo(...)` or `async function foo(...)`.
+fn extract_function_decl_name(s: &str) -> Option<String> {
+    let s = s.trim();
+    let rest = if let Some(r) = s.strip_prefix("async function ") {
+        r.trim()
+    } else if let Some(r) = s.strip_prefix("function*") {
+        r.trim()
+    } else if let Some(r) = s.strip_prefix("function ") {
+        r.trim()
+    } else {
+        return None;
+    };
+
+    let mut i = 0;
+    let bytes = rest.as_bytes();
+    while i < bytes.len() && is_ident_char(bytes[i]) {
+        i += 1;
+    }
+    if i > 0 {
+        Some(rest[..i].to_string())
+    } else {
+        None
+    }
+}
+
+/// Extract the variable name from `let foo = ...` / `const foo = ...`.
+fn extract_var_decl_name(s: &str) -> Option<String> {
+    let s = s.trim();
+    let rest = if let Some(r) = s.strip_prefix("let ") {
+        r
+    } else if let Some(r) = s.strip_prefix("const ") {
+        r
+    } else if let Some(r) = s.strip_prefix("var ") {
+        r
+    } else {
+        return None;
+    };
+    let rest = rest.trim();
+    let mut i = 0;
+    let bytes = rest.as_bytes();
+    while i < bytes.len() && is_ident_char(bytes[i]) {
+        i += 1;
+    }
+    if i > 0 {
+        Some(rest[..i].to_string())
+    } else {
+        None
+    }
+}
+
+/// Resolve transitive function dependencies.
+/// When a function `foo` is called in an async thunk, all instance-scope variables
+/// referenced in `foo`'s body should be added to the blocker_map.
+/// This mimics the official compiler's trace_references behavior.
+fn resolve_transitive_function_deps(
+    stmt: &str,
+    function_bodies: &std::collections::HashMap<String, String>,
+    all_declared_vars: &std::collections::HashSet<String>,
+    blocker_map: &mut std::collections::HashMap<String, usize>,
+    blocker_index: usize,
+) {
+    // Extract all identifiers from the async statement
+    let direct_ids = extract_all_identifiers_from_statement(stmt);
+
+    // For each identifier, check if it's a known function and scan its body
+    let mut visited = std::collections::HashSet::new();
+    let mut queue: Vec<String> = direct_ids;
+
+    while let Some(id) = queue.pop() {
+        if visited.contains(&id) {
+            continue;
+        }
+        visited.insert(id.clone());
+
+        if let Some(body) = function_bodies.get(&id) {
+            let body_ids = extract_all_identifiers_from_statement(body);
+            for body_id in body_ids {
+                if all_declared_vars.contains(&body_id) && !blocker_map.contains_key(&body_id) {
+                    blocker_map.insert(body_id.clone(), blocker_index);
+                }
+                // Also check if this identifier is itself a function (transitive)
+                if !visited.contains(&body_id) {
+                    queue.push(body_id);
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]

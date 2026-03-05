@@ -8,7 +8,9 @@ use std::path::{Path, PathBuf};
 
 // use rayon::prelude::*;  // Disabled for sequential execution
 use serde::Deserialize;
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use svelte_compiler_rust::{
+    CompileOptions, GenerateMode, ModuleCompileOptions, compile, compile_module,
+};
 use walkdir::WalkDir;
 
 /// Get the path to the Svelte submodule.
@@ -212,16 +214,6 @@ struct TestResult {
 
 /// Run a single compiler error test.
 fn run_error_test(fixture: &ErrorFixture) -> TestResult {
-    // Skip module tests for now (compileModule not implemented)
-    if matches!(fixture.input_type, InputType::Module) {
-        return TestResult {
-            name: fixture.name.clone(),
-            passed: false,
-            error_message: Some("Module compilation not implemented".to_string()),
-            skipped: true,
-        };
-    }
-
     // Skip async tests
     if fixture.requires_async {
         return TestResult {
@@ -232,28 +224,31 @@ fn run_error_test(fixture: &ErrorFixture) -> TestResult {
         };
     }
 
-    // Skip CSS-related tests that may cause hangs (CSS parsing not fully implemented)
-    if fixture.name.starts_with("css") {
-        return TestResult {
-            name: fixture.name.clone(),
-            passed: false,
-            error_message: Some("CSS error tests not yet supported".to_string()),
-            skipped: true,
-        };
-    }
+    // CSS error tests are now supported
 
     let name = fixture.name.clone();
     let input = fixture.input.clone();
 
     // Use panic::catch_unwind to handle panics gracefully
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let options = CompileOptions {
-            generate: GenerateMode::Client,
-            filename: Some(format!("{}/main.svelte", name)),
-            ..Default::default()
-        };
-        compile(&input, options)
-    }));
+    let result =
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match fixture.input_type {
+            InputType::Module => {
+                let options = ModuleCompileOptions {
+                    generate: GenerateMode::Client,
+                    filename: Some(format!("{}/main.svelte.js", name)),
+                    ..Default::default()
+                };
+                compile_module(&input, options)
+            }
+            InputType::Svelte => {
+                let options = CompileOptions {
+                    generate: GenerateMode::Client,
+                    filename: Some(format!("{}/main.svelte", name)),
+                    ..Default::default()
+                };
+                compile(&input, options)
+            }
+        }));
 
     match result {
         Err(_) => TestResult {

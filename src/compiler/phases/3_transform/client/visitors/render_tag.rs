@@ -133,8 +133,33 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
     let mut statements: Vec<JsStatement> = derived_decls;
     statements.push(b::stmt(call));
 
-    // If any arguments have await, wrap in $.async()
-    if any_has_await {
+    // Check for blockers from the blocker_map by scanning the call for identifiers.
+    // We use collect_identifiers_from_statement (which recurses into arrow functions)
+    // rather than collect_get_arg_identifiers_from_statement (which doesn't),
+    // because render tag arguments are often thunked: `child($$anchor, () => $.get(n))`.
+    // The $.get(n) inside the arrow contains the blocker reference.
+    let mut all_blocker_exprs: Vec<JsExpr> = Vec::new();
+    for stmt in &statements {
+        let mut names = Vec::new();
+        super::fragment::collect_identifiers_from_statement_deep(stmt, &mut names);
+        let map = context.state.blocker_map.borrow();
+        for name in &names {
+            if let Some(&idx) = map.get(name.as_str()) {
+                let blocker = b::member_computed(b::id("$$promises"), b::number(idx as f64));
+                let blocker_str = format!("{:?}", blocker);
+                if !all_blocker_exprs
+                    .iter()
+                    .any(|b| format!("{:?}", b) == blocker_str)
+                {
+                    all_blocker_exprs.push(blocker);
+                }
+            }
+        }
+    }
+    let has_blockers = !all_blocker_exprs.is_empty();
+
+    // If any arguments have await or blockers, wrap in $.async()
+    if any_has_await || has_blockers {
         let node_name = match &context.state.node {
             JsExpr::Identifier(name) => name.clone(),
             _ => "$$anchor".to_string(),
@@ -149,15 +174,39 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
 
         let callback = b::arrow_block(callback_params, statements);
 
-        b::stmt(b::call(
+        // Build blockers argument
+        let blockers_arg = if has_blockers {
+            b::array(all_blocker_exprs)
+        } else {
+            b::undefined()
+        };
+
+        // Build async_values argument
+        let async_values_arg = if any_has_await {
+            b::array(async_values)
+        } else {
+            b::undefined()
+        };
+
+        let result = b::stmt(b::call(
             b::member_path("$.async"),
             vec![
                 context.state.node.clone(),
-                b::undefined(), // blockers: void 0
-                b::array(async_values),
+                blockers_arg,
+                async_values_arg,
                 callback,
             ],
-        ))
+        ));
+
+        // If standalone, add $.next() after $.async()
+        if context.state.is_standalone {
+            return b::block(vec![
+                result,
+                b::stmt(b::call(b::member_path("$.next"), vec![])),
+            ]);
+        }
+
+        result
     } else if statements.len() == 1 {
         statements.pop().unwrap()
     } else {

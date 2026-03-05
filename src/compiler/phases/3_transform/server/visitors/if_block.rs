@@ -178,6 +178,7 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut body_generator = self.new_child_generator(is_standalone);
         // Mark that we're inside a block body so async expressions don't use $.save()
         body_generator.in_block_body = true;
+        body_generator.in_if_body = true;
 
         for node in &trimmed_nodes {
             body_generator.generate_node(node, false)?;

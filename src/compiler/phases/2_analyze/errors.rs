@@ -599,11 +599,62 @@ pub fn css_selector_invalid() -> AnalysisError {
     error("css_selector_invalid", "Invalid selector")
 }
 
-/// `:global` is invalid inside a pseudo-class like :has
+/// A `:global` selector cannot be inside a pseudoclass
 pub fn css_global_block_invalid_placement() -> AnalysisError {
     error(
         "css_global_block_invalid_placement",
-        "`:global` is invalid inside a pseudo-class like :has",
+        "A `:global` selector cannot be inside a pseudoclass",
+    )
+}
+
+/// A `:global` selector cannot follow a `%name%` combinator
+pub fn css_global_block_invalid_combinator(combinator_name: &str) -> AnalysisError {
+    error(
+        "css_global_block_invalid_combinator",
+        format!(
+            "A `:global` selector cannot follow a `{}` combinator",
+            combinator_name
+        ),
+    )
+}
+
+/// A top-level `:global {{...}}` block can only contain rules, not declarations
+pub fn css_global_block_invalid_declaration() -> AnalysisError {
+    error(
+        "css_global_block_invalid_declaration",
+        "A top-level `:global {...}` block can only contain rules, not declarations",
+    )
+}
+
+/// A `:global` selector cannot be part of a selector list with entries that don't contain `:global`
+pub fn css_global_block_invalid_list() -> AnalysisError {
+    error(
+        "css_global_block_invalid_list",
+        "A `:global` selector cannot be part of a selector list with entries that don't contain `:global`",
+    )
+}
+
+/// A `:global` selector cannot modify an existing selector
+pub fn css_global_block_invalid_modifier() -> AnalysisError {
+    error(
+        "css_global_block_invalid_modifier",
+        "A `:global` selector cannot modify an existing selector",
+    )
+}
+
+/// A `:global` selector can only be modified if it is a descendant of other selectors
+pub fn css_global_block_invalid_modifier_start() -> AnalysisError {
+    error(
+        "css_global_block_invalid_modifier_start",
+        "A `:global` selector can only be modified if it is a descendant of other selectors",
+    )
+}
+
+/// Nesting selectors can only be used inside a rule or as the first selector inside a lone `:global(...)`
+pub fn css_nesting_selector_invalid_placement() -> AnalysisError {
+    error(
+        "css_nesting_selector_invalid_placement",
+        "Nesting selectors can only be used inside a rule or as the first selector inside a lone `:global(...)`",
     )
 }
 
@@ -732,6 +783,14 @@ pub fn textarea_invalid_content() -> AnalysisError {
     error(
         "textarea_invalid_content",
         "A `<textarea>` can have either a value attribute or (equivalently) child content, but not both\nhttps://svelte.dev/e/textarea_invalid_content",
+    )
+}
+
+/// Cannot reference store value outside a `.svelte` file
+pub fn store_invalid_subscription_module() -> AnalysisError {
+    error(
+        "store_invalid_subscription_module",
+        "Cannot reference store value outside a `.svelte` file\nhttps://svelte.dev/e/store_invalid_subscription_module",
     )
 }
 

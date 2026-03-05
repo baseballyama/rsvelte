@@ -34,12 +34,13 @@ pub use compiler::phases::phase1_parse::{ParseOptions, parse};
 #[cfg(feature = "native")]
 pub use compiler::phases::phase1_parse::{ParseOptions, parse, parse_parallel};
 pub use compiler::print::{PrintError, PrintOptions, PrintResult, print};
-#[cfg(not(feature = "native"))]
-pub use compiler::{
-    CompileError, CompileOptions, CompileResult, ExperimentalOptions, GenerateMode, compile,
-};
 #[cfg(feature = "native")]
 pub use compiler::{
-    CompileError, CompileOptions, CompileResult, ExperimentalOptions, GenerateMode, compile,
-    compile_batch,
+    CompileError, CompileOptions, CompileResult, ExperimentalOptions, GenerateMode,
+    ModuleCompileOptions, compile, compile_batch, compile_module,
+};
+#[cfg(not(feature = "native"))]
+pub use compiler::{
+    CompileError, CompileOptions, CompileResult, ExperimentalOptions, GenerateMode,
+    ModuleCompileOptions, compile, compile_module,
 };

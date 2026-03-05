@@ -85,6 +85,10 @@ pub fn await_block(node: &AwaitBlock, context: &mut ComponentContext) {
 
     let built_expr = build_expression(context, &converted_expr, &expr_metadata);
 
+    // Check for blockers before moving built_expr into thunk
+    let blocker_exprs = context.state.get_blockers_for_expr(&built_expr);
+    let has_blockers = !blocker_exprs.is_empty();
+
     // Wrap in thunk (async if has_await)
     // Note: b::async_thunk() already applies $.save() wrapping internally,
     // so we must NOT apply it separately to avoid double $.save() wrapping.
@@ -128,12 +132,9 @@ pub fn await_block(node: &AwaitBlock, context: &mut ComponentContext) {
     // Add svelte metadata
     let stmt = add_svelte_meta(await_call);
 
-    // Check if expression has blockers (async dependencies)
-    // Note: has_blockers() currently returns false as blocker tracking is not yet implemented
-    if node.metadata.expression.has_blockers() {
+    if has_blockers {
         // Wrap in $.async()
-        // Since blockers field doesn't exist in ExpressionMetadata yet, use empty array
-        let blockers = b::array(vec![]);
+        let blockers = b::array(blocker_exprs);
 
         let async_call = b::call(
             b::member_path("$.async"),

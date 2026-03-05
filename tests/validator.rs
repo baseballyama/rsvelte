@@ -7,7 +7,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use svelte_compiler_rust::{
+    CompileOptions, GenerateMode, ModuleCompileOptions, compile, compile_module,
+};
 use walkdir::WalkDir;
 
 /// Get the path to the Svelte submodule.
@@ -191,34 +193,33 @@ struct TestResult {
 
 /// Run a single validator test.
 fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
-    // Skip module tests for now (compileModule not implemented)
-    if matches!(fixture.input_type, InputType::Module) {
-        return TestResult {
-            name: fixture.name.clone(),
-            passed: false,
-            error_message: Some("Module compilation not implemented".to_string()),
-            skipped: true,
-            warnings_matched: 0,
-            warnings_expected: fixture.expected_warnings.len(),
-        };
-    }
-
     let name = fixture.name.clone();
     let input = fixture.input.clone();
     let runes = fixture.runes;
     let custom_element = fixture.custom_element;
 
     // Use panic::catch_unwind to handle panics gracefully
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let options = CompileOptions {
-            generate: GenerateMode::Client,
-            filename: Some(format!("{}/input.svelte", name)),
-            runes,
-            custom_element,
-            ..Default::default()
-        };
-        compile(&input, options)
-    }));
+    let result =
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match fixture.input_type {
+            InputType::Module => {
+                let options = ModuleCompileOptions {
+                    generate: GenerateMode::Client,
+                    filename: Some(format!("{}/input.svelte.js", name)),
+                    ..Default::default()
+                };
+                compile_module(&input, options)
+            }
+            InputType::Svelte => {
+                let options = CompileOptions {
+                    generate: GenerateMode::Client,
+                    filename: Some(format!("{}/input.svelte", name)),
+                    runes,
+                    custom_element,
+                    ..Default::default()
+                };
+                compile(&input, options)
+            }
+        }));
 
     match result {
         Err(_) => TestResult {

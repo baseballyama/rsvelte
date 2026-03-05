@@ -104,6 +104,10 @@ pub(crate) struct ServerCodeGenerator<'a> {
     /// Whether we're inside a control-flow block body (if/each block body).
     /// When true, async expressions use plain `await expr` instead of `(await $.save(expr))()`.
     pub(crate) in_block_body: bool,
+    /// Whether we're inside an if block body specifically.
+    /// When true, async expressions use plain `await expr` instead of `(await $.save(expr))()`.
+    /// Each block bodies still use $.save().
+    pub(crate) in_if_body: bool,
 }
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -307,6 +311,7 @@ impl<'a> ServerCodeGenerator<'a> {
             namespace,
             preserve_whitespace: false,
             in_block_body: false,
+            in_if_body: false,
         }
     }
 
@@ -329,6 +334,7 @@ impl<'a> ServerCodeGenerator<'a> {
             namespace: self.namespace.clone(),
             preserve_whitespace: self.preserve_whitespace,
             in_block_body: self.in_block_body,
+            in_if_body: self.in_if_body,
         }
     }
 
@@ -422,9 +428,9 @@ impl<'a> ServerCodeGenerator<'a> {
         if result.contains("$effect.tracking()") {
             result = result.replace("$effect.tracking()", "false");
         }
-        // $effect.pending() -> false
+        // $effect.pending() -> 0 (number, matching official compiler)
         if result.contains("$effect.pending()") {
-            result = result.replace("$effect.pending()", "false");
+            result = result.replace("$effect.pending()", "0");
         }
         // Remove $effect(), $effect.pre(), $effect.root(), $inspect(), $inspect.trace() blocks
         // These are client-side only and should be stripped in SSR template expressions too

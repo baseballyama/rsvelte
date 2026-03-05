@@ -96,11 +96,23 @@ pub fn snippet_block(node: &SnippetBlock, context: &mut ComponentContext) {
         }
     }
 
+    // Clear blocker_map for snippet body since snippets are independent functions
+    // that don't share the instance script's async context. Without this, snippet
+    // parameters that share names with blocked instance variables would cause
+    // false positive blocker detection in template_effect.
+    let saved_blocker_map = {
+        let mut map = context.state.blocker_map.borrow_mut();
+        let saved = map.clone();
+        map.clear();
+        saved
+    };
+
     // Visit the snippet body
     let body_statements = visit_fragment(&node.body, context);
 
-    // Restore the transform map to the outer scope
+    // Restore the transform map and blocker_map to the outer scope
     context.state.transform = saved_transform;
+    *context.state.blocker_map.borrow_mut() = saved_blocker_map;
 
     // Build the full body with declarations and visited body
     let mut full_body = Vec::new();

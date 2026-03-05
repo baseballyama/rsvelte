@@ -34,7 +34,6 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
 
     let has_await = node.metadata.expression.has_await()
         || super::shared::utils::expression_has_await(&node.expression);
-    let has_blockers = node.metadata.expression.has_blockers();
 
     // Build the expression for the content using convert_expression first
     let expression = convert_expression(&node.expression, context);
@@ -44,6 +43,10 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
     // This matches the official compiler's: build_expression(context, node.expression, node.metadata.expression)
     let metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
     let built_expression = build_expression(context, &expression, &metadata);
+
+    // Check blocker_map for blocked identifiers referenced in the built expression
+    let blocker_exprs_for_html = context.state.get_blockers_for_expr(&built_expression);
+    let has_blockers = !blocker_exprs_for_html.is_empty();
 
     // When has_await, the html uses $.get($$html) instead of the original expression
     let html_expr = if has_await {
@@ -75,7 +78,7 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
     if has_await || has_blockers {
         // $.async(node, blockers, async_values, callback)
         let blockers_expr = if has_blockers {
-            metadata.blockers()
+            b::array(blocker_exprs_for_html)
         } else {
             b::array(vec![])
         };

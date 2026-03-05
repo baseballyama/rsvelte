@@ -437,6 +437,12 @@ pub fn fragment(
                 for stmt in &state.update {
                     collect_identifiers_from_statement(stmt, &mut all_names);
                 }
+                // Also scan memoized expressions for blocked identifiers.
+                // Memoized values like `[() => checkedFactory()()]` are not in
+                // state.update but still reference blocked variables.
+                for memo_expr in state.memoizer.all_expressions() {
+                    collect_ids_from_expr(&memo_expr, &mut all_names);
+                }
                 let mut indices: Vec<usize> = Vec::new();
                 for name in &all_names {
                     if let Some(&idx) = map.get(name.as_str())

@@ -40,7 +40,7 @@ fn transform_script_content_inner(
 
     let script = script.replace("$props()", "$$props");
     let script = transform_rune_call_multiline(&script, "$state.eager(");
-    let script = script.replace("$effect.pending()", "false");
+    let script = script.replace("$effect.pending()", "0");
     let script = script.replace("$effect.tracking()", "false");
     let script = script.replace("$props.id()", "$.props_id($$renderer)");
     let script = transform_state_snapshot_server(&script);

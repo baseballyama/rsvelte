@@ -623,6 +623,153 @@ export default function {component_name}($$renderer{props_param}) {{
         heads
     }
 
+    /// Collect all blocker indices from an if-else-if chain's test expressions.
+    fn collect_if_chain_blockers_recursive(
+        test_expr: &str,
+        alternate_body: Option<&[OutputPart]>,
+        blocker_map: &std::collections::HashMap<String, usize>,
+        all_blockers: &mut std::collections::BTreeSet<usize>,
+    ) {
+        // Add blockers from this test expression
+        for idx in super::helpers::find_expression_blockers(test_expr, blocker_map) {
+            all_blockers.insert(idx);
+        }
+        // If the alternate is a single else-if, recurse into it
+        if let Some(alt) = alternate_body
+            && alt.len() == 1
+            && let OutputPart::IfBlock {
+                test_expr: alt_test,
+                alternate_body: alt_alt,
+                is_elseif: true,
+                ..
+            } = &alt[0]
+        {
+            Self::collect_if_chain_blockers_recursive(
+                alt_test,
+                alt_alt.as_deref(),
+                blocker_map,
+                all_blockers,
+            );
+        }
+    }
+
+    /// Collect all blocker indices from output parts (recursively).
+    #[allow(dead_code)]
+    fn collect_parts_blockers(
+        parts: &[OutputPart],
+        blocker_map: &std::collections::HashMap<String, usize>,
+        all_blockers: &mut std::collections::BTreeSet<usize>,
+    ) {
+        for part in parts {
+            match part {
+                OutputPart::Expression(expr) | OutputPart::RawExpression(expr) => {
+                    for idx in super::helpers::find_expression_blockers(expr, blocker_map) {
+                        all_blockers.insert(idx);
+                    }
+                }
+                OutputPart::AsyncExpression { expr, .. } => {
+                    for idx in super::helpers::find_expression_blockers(expr, blocker_map) {
+                        all_blockers.insert(idx);
+                    }
+                }
+                OutputPart::Html(html) => {
+                    for idx in super::helpers::find_expression_blockers(html, blocker_map) {
+                        all_blockers.insert(idx);
+                    }
+                }
+                OutputPart::IfBlock {
+                    test_expr,
+                    consequent_body,
+                    alternate_body,
+                    ..
+                } => {
+                    for idx in super::helpers::find_expression_blockers(test_expr, blocker_map) {
+                        all_blockers.insert(idx);
+                    }
+                    Self::collect_parts_blockers(consequent_body, blocker_map, all_blockers);
+                    if let Some(alt) = alternate_body {
+                        Self::collect_parts_blockers(alt, blocker_map, all_blockers);
+                    }
+                }
+                OutputPart::EachBlock { iterable, body, .. } => {
+                    for idx in super::helpers::find_expression_blockers(iterable, blocker_map) {
+                        all_blockers.insert(idx);
+                    }
+                    Self::collect_parts_blockers(body, blocker_map, all_blockers);
+                }
+                OutputPart::Component {
+                    name,
+                    props_and_spreads,
+                    ..
+                } => {
+                    for idx in super::helpers::find_expression_blockers(name, blocker_map) {
+                        all_blockers.insert(idx);
+                    }
+                    for item in props_and_spreads {
+                        match item {
+                            ComponentPropItem::Props(props) => {
+                                for prop in props {
+                                    for idx in
+                                        super::helpers::find_expression_blockers(prop, blocker_map)
+                                    {
+                                        all_blockers.insert(idx);
+                                    }
+                                }
+                            }
+                            ComponentPropItem::Spread(expr) => {
+                                for idx in
+                                    super::helpers::find_expression_blockers(expr, blocker_map)
+                                {
+                                    all_blockers.insert(idx);
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Like apply_async_wrapping but skips wrapping else-if IfBlocks in AsyncBlock.
+    /// The outermost if in the chain handles the wrapping.
+    fn apply_async_wrapping_skip_elseif(
+        parts: &[OutputPart],
+        blocker_map: &std::collections::HashMap<String, usize>,
+    ) -> Vec<OutputPart> {
+        let mut result = Vec::with_capacity(parts.len());
+        for part in parts {
+            match part {
+                OutputPart::IfBlock {
+                    test_expr,
+                    consequent_body,
+                    alternate_body,
+                    is_elseif,
+                } if *is_elseif => {
+                    // Don't wrap this else-if in AsyncBlock - the outer chain handles it.
+                    let wrapped_consequent =
+                        Self::apply_async_wrapping(consequent_body, blocker_map);
+                    let wrapped_alternate = alternate_body
+                        .as_ref()
+                        .map(|alt| Self::apply_async_wrapping_skip_elseif(alt, blocker_map));
+                    result.push(OutputPart::IfBlock {
+                        test_expr: test_expr.clone(),
+                        consequent_body: wrapped_consequent,
+                        alternate_body: wrapped_alternate,
+                        is_elseif: true,
+                    });
+                }
+                _ => {
+                    // For non-elseif parts, use normal wrapping
+                    let mut wrapped =
+                        Self::apply_async_wrapping(std::slice::from_ref(part), blocker_map);
+                    result.append(&mut wrapped);
+                }
+            }
+        }
+        result
+    }
+
     /// Apply async wrapping to output parts based on the blocker_map.
     ///
     /// This transforms top-level IfBlock/EachBlock parts whose test/iterable expressions
@@ -649,18 +796,29 @@ export default function {component_name}($$renderer{props_param}) {{
                     alternate_body,
                     is_elseif,
                 } => {
-                    // Recursively wrap child bodies
+                    // Collect blockers from all test expressions in the if-else-if chain.
+                    // This matches the official compiler's node.metadata.expression.blockers()
+                    // which aggregates blockers from test expressions in the chain.
+                    let mut all_chain_blockers = std::collections::BTreeSet::new();
+                    Self::collect_if_chain_blockers_recursive(
+                        test_expr,
+                        alternate_body.as_deref(),
+                        blocker_map,
+                        &mut all_chain_blockers,
+                    );
+
+                    // Recursively wrap child bodies, but skip else-if wrapping
+                    // since the outermost wrapper handles the entire chain
                     let wrapped_consequent =
                         Self::apply_async_wrapping(consequent_body, blocker_map);
                     let wrapped_alternate = alternate_body
                         .as_ref()
-                        .map(|alt| Self::apply_async_wrapping(alt, blocker_map));
+                        .map(|alt| Self::apply_async_wrapping_skip_elseif(alt, blocker_map));
 
-                    let blockers = super::helpers::find_expression_blockers(test_expr, blocker_map);
-                    if !blockers.is_empty() {
-                        // Wrap the if-block in $$renderer.async_block([blockers], ...)
+                    let blocker_indices: Vec<usize> = all_chain_blockers.into_iter().collect();
+                    if !blocker_indices.is_empty() {
                         result.push(OutputPart::AsyncBlock {
-                            blocker_indices: blockers,
+                            blocker_indices,
                             inner: vec![OutputPart::IfBlock {
                                 test_expr: test_expr.clone(),
                                 consequent_body: wrapped_consequent,
@@ -1405,8 +1563,14 @@ export default function {component_name}($$renderer{props_param}) {{
                         ..
                     }) = inner.first()
                     {
+                        // Apply $.save() to test expression if it contains await
+                        let effective_test = if super::helpers::expr_contains_await(test_expr) {
+                            super::helpers::transform_await_to_save(test_expr)
+                        } else {
+                            test_expr.clone()
+                        };
                         let if_code = Self::build_if_statement(
-                            test_expr,
+                            &effective_test,
                             consequent_body,
                             alternate_body,
                             indent_level + 1,
@@ -2276,13 +2440,62 @@ export default function {component_name}($$renderer{props_param}) {{
                                 ComponentPropItem::Spread(expr) => expr.clone(),
                             })
                             .collect();
-                        body_code.push_str(&format!(
-                            "{}{}{}($$renderer, $.spread_props([{}]));\n",
-                            indent,
-                            name,
-                            call_syntax,
-                            spread_items.join(", ")
-                        ));
+
+                        // Check if any spread item contains await
+                        let has_await_spread = spread_items
+                            .iter()
+                            .any(|s| super::helpers::expr_contains_await(s));
+
+                        if has_await_spread && !*in_async_block {
+                            // PromiseOptimiser pattern for spread props
+                            let mut save_decls = Vec::new();
+                            let mut transformed_items: Vec<String> = Vec::new();
+                            let mut save_counter = 0;
+
+                            for item in &spread_items {
+                                if super::helpers::expr_contains_await(item) {
+                                    let var_name = format!("$${}", save_counter);
+                                    // For spread objects like { thing: await expr },
+                                    // save the entire object
+                                    let await_stripped = item.replace("await ", "");
+                                    save_decls.push(format!(
+                                        "{}\tconst {} = (await $.save({}))();\n",
+                                        indent, var_name, await_stripped
+                                    ));
+                                    transformed_items.push(var_name);
+                                    save_counter += 1;
+                                } else {
+                                    transformed_items.push(item.clone());
+                                }
+                            }
+
+                            body_code.push_str(&format!(
+                                "{}$$renderer.child_block(async ($$renderer) => {{\n",
+                                indent
+                            ));
+                            for decl in &save_decls {
+                                body_code.push_str(decl);
+                            }
+                            if !save_decls.is_empty() {
+                                body_code.push('\n');
+                            }
+                            body_code.push_str(&format!(
+                                "{}\t{}{}($$renderer, $.spread_props([{}]));\n",
+                                indent,
+                                name,
+                                call_syntax,
+                                transformed_items.join(", ")
+                            ));
+                            body_code.push_str(&format!("{}}});\n", indent));
+                        } else {
+                            body_code.push_str(&format!(
+                                "{}{}{}($$renderer, $.spread_props([{}]));\n",
+                                indent,
+                                name,
+                                call_syntax,
+                                spread_items.join(", ")
+                            ));
+                        }
                     } else {
                         // No children, no snippets, no spreads - simple call
                         let all_props = collect_all_props(props_and_spreads);
@@ -2320,15 +2533,85 @@ export default function {component_name}($$renderer{props_param}) {{
                                 indent, name, call_syntax
                             ));
                         } else {
-                            body_code.push_str(&format!(
-                                "{}{}{}($$renderer, {{ {} }});\n",
-                                indent,
-                                name,
-                                call_syntax,
-                                all_props.join(", ")
-                            ));
+                            // Check if any prop value contains await - if so, use PromiseOptimiser pattern
+                            let has_await_props = all_props
+                                .iter()
+                                .any(|p| super::helpers::expr_contains_await(p));
+
+                            if has_await_props && !*in_async_block {
+                                // Extract await expressions from props, wrap in child_block
+                                let mut save_decls = Vec::new();
+                                let mut transformed_props: Vec<String> = Vec::new();
+                                let mut save_counter = 0;
+
+                                for prop in &all_props {
+                                    if super::helpers::expr_contains_await(prop) {
+                                        // Extract: "key: await expr" -> save the expr, use $$N
+                                        if let Some(colon_pos) = prop.find(':') {
+                                            let key = prop[..colon_pos].trim();
+                                            let value = prop[colon_pos + 1..].trim();
+                                            // Strip "await " prefix
+                                            let await_expr =
+                                                value.strip_prefix("await ").unwrap_or(value);
+                                            let var_name = format!("$${}", save_counter);
+                                            save_decls.push(format!(
+                                                "{}\tconst {} = (await $.save({}))();\n",
+                                                indent, var_name, await_expr
+                                            ));
+                                            transformed_props
+                                                .push(format!("{}: {}", key, var_name));
+                                            save_counter += 1;
+                                        } else {
+                                            transformed_props.push(prop.clone());
+                                        }
+                                    } else {
+                                        transformed_props.push(prop.clone());
+                                    }
+                                }
+
+                                body_code.push_str(&format!(
+                                    "{}$$renderer.child_block(async ($$renderer) => {{\n",
+                                    indent
+                                ));
+                                for decl in &save_decls {
+                                    body_code.push_str(decl);
+                                }
+                                if !save_decls.is_empty() {
+                                    body_code.push('\n');
+                                }
+                                body_code.push_str(&format!(
+                                    "{}\t{}{}($$renderer, {{ {} }});\n",
+                                    indent,
+                                    name,
+                                    call_syntax,
+                                    transformed_props.join(", ")
+                                ));
+                                body_code.push_str(&format!("{}}});\n", indent));
+                            } else {
+                                body_code.push_str(&format!(
+                                    "{}{}{}($$renderer, {{ {} }});\n",
+                                    indent,
+                                    name,
+                                    call_syntax,
+                                    all_props.join(", ")
+                                ));
+                            }
                         }
                     }
+
+                    // Check if this component was wrapped in child_block (PromiseOptimiser)
+                    // by checking if any props/spreads contain await (same condition we used above)
+                    let used_child_block = {
+                        let has_await_in_props = props_and_spreads.iter().any(|item| match item {
+                            ComponentPropItem::Props(props) => {
+                                props.iter().any(|p| super::helpers::expr_contains_await(p))
+                            }
+                            ComponentPropItem::Spread(expr) => {
+                                super::helpers::expr_contains_await(expr)
+                            }
+                        });
+                        has_await_in_props && !*in_async_block
+                    };
 
                     // Add trailing <!----> marker after the component call.
                     // Per the official compiler's clean_nodes logic, dynamic components
@@ -2338,7 +2621,9 @@ export default function {component_name}($$renderer{props_param}) {{
                     // For static components, add only if there's surrounding content.
                     // When CSS custom props are present, skip the marker
                     // ($.css_props handles its own boundaries).
-                    if !has_css_props {
+                    // When child_block wrapping is used, skip the marker (child_block
+                    // acts as its own boundary).
+                    if !has_css_props && !used_child_block {
                         if *dynamic && !*in_async_block {
                             // Dynamic components always need the closing marker
                             // (they are never "standalone" per clean_nodes)
@@ -2382,10 +2667,12 @@ export default function {component_name}($$renderer{props_param}) {{
                     body,
                     fallback,
                 } => {
-                    // Check if iterable or body contains await - if so, wrap in child_block
+                    // Only wrap in child_block when the iterable expression has await
+                    // (matching the official compiler's EachBlock visitor which only checks
+                    // node.metadata.expression.has_await, not the body's await status).
+                    // Body-level await expressions are handled by AsyncExpression parts.
                     let iterable_has_await = super::helpers::expr_contains_await(iterable);
-                    let body_has_await = Self::parts_contain_async(body);
-                    let needs_child_block = iterable_has_await || body_has_await;
+                    let needs_child_block = iterable_has_await;
 
                     // Determine indent level and iterable expression
                     let effective_indent_level = if needs_child_block {
@@ -3444,10 +3731,9 @@ export default function {component_name}($$renderer{props_param}) {{
         let mut code = String::new();
         let indent = "\t".repeat(indent_level);
 
-        // Check if iterable or body contains await - if so, wrap in child_block
+        // Only wrap in child_block when iterable has await (matching official compiler)
         let iterable_has_await = super::helpers::expr_contains_await(iterable);
-        let body_has_await = Self::parts_contain_async(body);
-        let needs_child_block = iterable_has_await || body_has_await;
+        let needs_child_block = iterable_has_await;
 
         let effective_indent_level = if needs_child_block {
             indent_level + 1

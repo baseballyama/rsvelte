@@ -35,11 +35,13 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
 
     let has_await = node.metadata.expression.has_await()
         || super::shared::utils::expression_has_await(&node.expression);
-    let has_blockers = node.metadata.expression.has_blockers();
-
     // Build the key expression
     let expression = convert_expression(&node.expression, context);
     let transformed_expression = apply_transforms_to_expression(&expression, context);
+
+    // Check blocker_map for blocked identifiers referenced in the expression
+    let blocker_exprs_for_key = context.state.get_blockers_for_expr(&transformed_expression);
+    let has_blockers = !blocker_exprs_for_key.is_empty();
 
     // When has_await, the key uses $.get($$key) instead of the original expression
     let key_expr = if has_await {
@@ -71,9 +73,8 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
 
     // If the expression has await or blockers, wrap in $.async()
     if has_await || has_blockers {
-        let metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
         let blockers_expr = if has_blockers {
-            metadata.blockers()
+            b::array(blocker_exprs_for_key)
         } else {
             b::array(vec![])
         };
