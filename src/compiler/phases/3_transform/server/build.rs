@@ -700,6 +700,7 @@ export default function {component_name}($$renderer{props_param}) {{
                 OutputPart::Component {
                     name,
                     props_and_spreads,
+                    attach_expressions,
                     ..
                 } => {
                     for idx in super::helpers::find_expression_blockers(name, blocker_map) {
@@ -723,6 +724,11 @@ export default function {component_name}($$renderer{props_param}) {{
                                     all_blockers.insert(idx);
                                 }
                             }
+                        }
+                    }
+                    for expr in attach_expressions {
+                        for idx in super::helpers::find_expression_blockers(expr, blocker_map) {
+                            all_blockers.insert(idx);
                         }
                     }
                 }
@@ -889,16 +895,18 @@ export default function {component_name}($$renderer{props_param}) {{
                 OutputPart::Component {
                     name,
                     props_and_spreads,
-                    has_prior_content: _,
+                    has_prior_content,
                     children,
                     snippets,
                     slot_names,
                     dynamic,
                     let_directives,
                     css_custom_props,
+                    attach_expressions,
                     ..
                 } => {
-                    // Find blockers from component name and all prop expressions
+                    // Find blockers from component name, all prop expressions,
+                    // and attach/bind:this expressions
                     let mut all_blockers = std::collections::BTreeSet::new();
                     for idx in super::helpers::find_expression_blockers(name, blocker_map) {
                         all_blockers.insert(idx);
@@ -923,6 +931,28 @@ export default function {component_name}($$renderer{props_param}) {{
                             }
                         }
                     }
+                    // Check attach/bind:this expressions for blockers
+                    for expr in attach_expressions {
+                        for idx in super::helpers::find_expression_blockers(expr, blocker_map) {
+                            all_blockers.insert(idx);
+                        }
+                    }
+                    // Recursively apply async wrapping to children and snippets
+                    let wrapped_children = children
+                        .as_ref()
+                        .map(|c| Self::apply_async_wrapping(c, blocker_map));
+                    let wrapped_snippets: Vec<_> = snippets
+                        .iter()
+                        .map(|(sname, sparams, sbody, sis_true)| {
+                            (
+                                sname.clone(),
+                                sparams.clone(),
+                                Self::apply_async_wrapping(sbody, blocker_map),
+                                *sis_true,
+                            )
+                        })
+                        .collect();
+
                     let blocker_indices: Vec<usize> = all_blockers.into_iter().collect();
                     if !blocker_indices.is_empty() {
                         result.push(OutputPart::AsyncBlock {
@@ -931,16 +961,33 @@ export default function {component_name}($$renderer{props_param}) {{
                                 name: name.clone(),
                                 props_and_spreads: props_and_spreads.clone(),
                                 has_prior_content: false,
-                                children: children.clone(),
-                                snippets: snippets.clone(),
+                                children: wrapped_children,
+                                snippets: wrapped_snippets,
                                 slot_names: slot_names.clone(),
                                 dynamic: *dynamic,
                                 let_directives: let_directives.clone(),
                                 css_custom_props: css_custom_props.clone(),
                                 in_async_block: true,
+                                attach_expressions: attach_expressions.clone(),
                             }],
                         });
+                    } else if children.is_some() || !snippets.is_empty() {
+                        // Reconstruct with wrapped children/snippets
+                        result.push(OutputPart::Component {
+                            name: name.clone(),
+                            props_and_spreads: props_and_spreads.clone(),
+                            has_prior_content: *has_prior_content,
+                            children: wrapped_children,
+                            snippets: wrapped_snippets,
+                            slot_names: slot_names.clone(),
+                            dynamic: *dynamic,
+                            let_directives: let_directives.clone(),
+                            css_custom_props: css_custom_props.clone(),
+                            in_async_block: false,
+                            attach_expressions: attach_expressions.clone(),
+                        });
                     } else {
+                        // No children to recurse into - just clone the original
                         result.push(part.clone());
                     }
                 }
@@ -948,7 +995,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     name,
                     props_and_spreads,
                     bindings,
-                    has_prior_content: _,
+                    has_prior_content,
                     children,
                     dynamic,
                     css_custom_props,
@@ -1007,6 +1054,11 @@ export default function {component_name}($$renderer{props_param}) {{
                             }
                         }
                     }
+                    // Recursively apply async wrapping to children
+                    let wrapped_children = children
+                        .as_ref()
+                        .map(|c| Self::apply_async_wrapping(c, blocker_map));
+
                     let blocker_indices: Vec<usize> = all_blockers.into_iter().collect();
                     if !blocker_indices.is_empty() {
                         result.push(OutputPart::AsyncBlock {
@@ -1016,10 +1068,20 @@ export default function {component_name}($$renderer{props_param}) {{
                                 props_and_spreads: props_and_spreads.clone(),
                                 bindings: bindings.clone(),
                                 has_prior_content: false,
-                                children: children.clone(),
+                                children: wrapped_children,
                                 dynamic: *dynamic,
                                 css_custom_props: css_custom_props.clone(),
                             }],
+                        });
+                    } else if children.is_some() {
+                        result.push(OutputPart::ComponentWithBindings {
+                            name: name.clone(),
+                            props_and_spreads: props_and_spreads.clone(),
+                            bindings: bindings.clone(),
+                            has_prior_content: *has_prior_content,
+                            children: wrapped_children,
+                            dynamic: *dynamic,
+                            css_custom_props: css_custom_props.clone(),
                         });
                     } else {
                         result.push(part.clone());
@@ -1656,24 +1718,18 @@ export default function {component_name}($$renderer{props_param}) {{
                         .collect::<Vec<_>>()
                         .join(", ");
 
+                    // Use concise arrow body: ($$renderer) => $$renderer.push(...)
                     body_code.push_str(&format!(
-                        "{}$$renderer.async([{}], ($$renderer) => {{\n",
-                        indent, blockers_str
+                        "{}$$renderer.async([{}], ($$renderer) => $$renderer.push(() => $.escape({})));\n",
+                        indent, blockers_str, expr
                     ));
-                    body_code.push_str(&format!(
-                        "{}\t$$renderer.push(() => $.escape({}));\n",
-                        indent, expr
-                    ));
-                    body_code.push_str(&format!("{}}});\n\n", indent));
                 }
                 OutputPart::AsyncWrappedHtml {
                     blocker_indices,
                     html,
                 } => {
                     // Async-wrapped HTML: flush current HTML, then emit
-                    // $$renderer.async([$$promises[N], ...], ($$renderer) => {
-                    //     $$renderer.push(`html`);
-                    // })
+                    // $$renderer.async([$$promises[N], ...], ($$renderer) => $$renderer.push(`html`))
                     if !current_html.is_empty() {
                         body_code
                             .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
@@ -1686,12 +1742,13 @@ export default function {component_name}($$renderer{props_param}) {{
                         .collect::<Vec<_>>()
                         .join(", ");
 
+                    // Use block arrow body: ($$renderer) => { $$renderer.push(...); }
                     body_code.push_str(&format!(
                         "{}$$renderer.async([{}], ($$renderer) => {{\n",
                         indent, blockers_str
                     ));
                     body_code.push_str(&format!("{}\t$$renderer.push(`{}`);\n", indent, html));
-                    body_code.push_str(&format!("{}}});\n\n", indent));
+                    body_code.push_str(&format!("{}}});\n", indent));
                 }
                 OutputPart::RawExpression(expr) => {
                     // Raw expressions don't need escaping (e.g., $.attributes())
@@ -1920,6 +1977,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     let_directives,
                     css_custom_props,
                     in_async_block,
+                    attach_expressions: _,
                 } => {
                     // Flush current HTML before the component call
                     // For dynamic components, add <!---->  marker before the call (pushed separately)
@@ -2640,6 +2698,7 @@ export default function {component_name}($$renderer{props_param}) {{
                                         | OutputPart::RawExpression(_)
                                         | OutputPart::HtmlExpression(_)
                                         | OutputPart::Component { .. }
+                                        | OutputPart::ComponentWithBindings { .. }
                                         | OutputPart::EachBlock { .. }
                                         | OutputPart::IfBlock { .. }
                                         | OutputPart::AwaitBlock { .. }
@@ -2647,6 +2706,9 @@ export default function {component_name}($$renderer{props_param}) {{
                                         | OutputPart::SvelteHead { .. }
                                         | OutputPart::TitleElement { .. }
                                         | OutputPart::RenderCall { .. }
+                                        | OutputPart::AsyncBlock { .. }
+                                        | OutputPart::AsyncWrappedExpression { .. }
+                                        | OutputPart::AsyncWrappedHtml { .. }
                                 )
                             });
 

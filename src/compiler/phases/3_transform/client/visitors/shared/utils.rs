@@ -4195,10 +4195,20 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
         "ObjectExpression" => {
             if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
                 for prop in properties {
-                    if let Some(value) = prop.as_object().and_then(|p| p.get("value"))
-                        && has_call_json(value, context)
-                    {
-                        return true;
+                    if let Some(prop_obj) = prop.as_object() {
+                        // Check property value for calls
+                        if let Some(value) = prop_obj.get("value")
+                            && has_call_json(value, context)
+                        {
+                            return true;
+                        }
+                        // Check computed property key for calls (e.g., [createAttachmentKey()])
+                        if prop_obj.get("computed").and_then(|v| v.as_bool()) == Some(true)
+                            && let Some(key) = prop_obj.get("key")
+                            && has_call_json(key, context)
+                        {
+                            return true;
+                        }
                     }
                 }
             }

@@ -229,6 +229,11 @@ pub(crate) enum OutputPart {
         /// When true, the closing <!----> marker is suppressed
         /// (mirrors `!optimiser.is_async()` in the official compiler).
         in_async_block: bool,
+        /// Expressions from @attach directives and bind:this directives.
+        /// These don't add props on the server, but their blocker dependencies
+        /// need to be tracked so the component gets wrapped in async_block
+        /// for hydration marker consistency with the client.
+        attach_expressions: Vec<String>,
     },
     /// Component with bind directives - requires do/while settling
     ComponentWithBindings {

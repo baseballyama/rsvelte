@@ -50,6 +50,11 @@ impl<'a> ServerCodeGenerator<'a> {
         // used to wrap the component call in $.css_props()
         let mut css_custom_props: Vec<(String, String)> = Vec::new();
 
+        // Collect expressions from @attach and bind:this directives for blocker tracking.
+        // These don't generate props on the server, but their dependencies may have
+        // blockers that require async_block wrapping for hydration marker consistency.
+        let mut attach_expressions: Vec<String> = Vec::new();
+
         for attr in &component.attributes {
             match attr {
                 Attribute::Attribute(node) => {
@@ -224,8 +229,16 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 Attribute::BindDirective(bind) => {
                     let prop_name = bind.name.as_str();
-                    // Skip bind:this - it doesn't require do/while pattern on server
+                    // bind:this is client-only, but we still need to check for blockers
+                    // to ensure the server generates matching hydration markers if the
+                    // client wraps in $.async
                     if prop_name == "this" {
+                        let expr_start = bind.expression.start().unwrap_or(0) as usize;
+                        let expr_end = bind.expression.end().unwrap_or(0) as usize;
+                        if expr_end > expr_start && expr_end <= self.source.len() {
+                            let expr_source = self.source[expr_start..expr_end].trim().to_string();
+                            attach_expressions.push(expr_source);
+                        }
                         continue;
                     }
 
@@ -291,6 +304,18 @@ impl<'a> ServerCodeGenerator<'a> {
                         }
                     }
                 }
+                Attribute::AttachTag(attach) => {
+                    // While we don't run attachments on the server, on the client
+                    // they might generate a surrounding blocker function which generates
+                    // extra comments. To prevent hydration mismatches we need to account
+                    // for them here to generate similar comments on the server.
+                    let expr_start = attach.expression.start().unwrap_or(0) as usize;
+                    let expr_end = attach.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr_source = self.source[expr_start..expr_end].trim().to_string();
+                        attach_expressions.push(expr_source);
+                    }
+                }
                 _ => {}
             }
         }
@@ -333,6 +358,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 let_directives: component_let_directives,
                 css_custom_props,
                 in_async_block: false,
+                attach_expressions,
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {

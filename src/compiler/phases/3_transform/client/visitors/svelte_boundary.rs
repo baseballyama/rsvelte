@@ -94,6 +94,7 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
                     let saved_init = std::mem::take(&mut context.state.init);
                     let saved_instance = std::mem::take(&mut context.state.instance_level_snippets);
                     let saved_module = std::mem::take(&mut context.state.module_level_snippets);
+                    let saved_snippets = std::mem::take(&mut context.state.snippets);
 
                     snippet_block(snippet, context);
 
@@ -102,9 +103,11 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
                     snippet_stmts
                         .extend(std::mem::take(&mut context.state.instance_level_snippets));
                     snippet_stmts.extend(std::mem::take(&mut context.state.module_level_snippets));
+                    snippet_stmts.extend(std::mem::take(&mut context.state.snippets));
                     context.state.init = saved_init;
                     context.state.instance_level_snippets = saved_instance;
                     context.state.module_level_snippets = saved_module;
+                    context.state.snippets = saved_snippets;
 
                     hoisted_snippets.extend(snippet_stmts);
 

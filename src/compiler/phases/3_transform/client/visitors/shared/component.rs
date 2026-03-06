@@ -537,13 +537,43 @@ pub fn build_component(
         if blocker_map.is_empty() {
             None
         } else {
-            // Check if any of the component's prop expressions reference blocked variables
+            // Check if any of the component's DIRECT prop expressions reference blocked variables.
+            // Uses props-aware scanning that enters arrow function bodies generally but
+            // skips children/$$slots callbacks (which handle their own async wrapping).
+            // This mirrors the official Svelte compiler's memoizer.blockers() behavior.
             let mut component_names: Vec<String> = Vec::new();
             for stmt in &statements {
-                super::super::fragment::collect_identifiers_from_statement_deep(
+                super::super::fragment::collect_identifiers_from_statement_props(
                     stmt,
                     &mut component_names,
                 );
+            }
+            // If component references bind_get/bind_set variables, trace through their
+            // initializers to find blocked variables. These declarations are in init,
+            // not in statements, because they need to remain in the outer scope.
+            let bind_vars: Vec<String> = component_names
+                .iter()
+                .filter(|n| n.starts_with("bind_get") || n.starts_with("bind_set"))
+                .cloned()
+                .collect();
+            if !bind_vars.is_empty() {
+                for init_stmt in &context.state.init {
+                    if let JsStatement::VariableDeclaration(decl) = init_stmt {
+                        for declarator in &decl.declarations {
+                            if let JsPattern::Identifier(name) = &declarator.id
+                                && bind_vars.contains(name)
+                                && let Some(init_expr) = &declarator.init
+                            {
+                                super::super::fragment::collect_identifiers_from_statement_deep(
+                                    &JsStatement::Expression(JsExpressionStatement {
+                                        expression: init_expr.clone(),
+                                    }),
+                                    &mut component_names,
+                                );
+                            }
+                        }
+                    }
+                }
             }
             let mut blocker_indices: Vec<usize> = Vec::new();
             for name in &component_names {

@@ -113,6 +113,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 let_directives: component_let_directives,
                 css_custom_props: Vec::new(),
                 in_async_block: false,
+                attach_expressions: Vec::new(),
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
@@ -213,6 +214,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 let_directives: component_let_directives,
                 css_custom_props: Vec::new(),
                 in_async_block: false,
+                attach_expressions: Vec::new(),
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {

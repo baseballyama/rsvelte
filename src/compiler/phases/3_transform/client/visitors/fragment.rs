@@ -665,6 +665,188 @@ fn collect_ids_from_expr(expr: &JsExpr, names: &mut Vec<String>) {
     }
 }
 
+/// Collect identifiers from a statement for component prop blocker detection.
+///
+/// This version enters getter/setter bodies (which are part of component props)
+/// but does NOT enter arrow functions (which are children callbacks).
+/// This matches the official Svelte compiler's memoizer.blockers() behavior,
+/// which only tracks blockers from direct prop expressions.
+pub fn collect_identifiers_from_statement_props(stmt: &JsStatement, names: &mut Vec<String>) {
+    match stmt {
+        JsStatement::Expression(expr_stmt) => {
+            collect_ids_from_expr_props(&expr_stmt.expression, names);
+        }
+        JsStatement::Block(block_stmt) => {
+            for s in &block_stmt.body {
+                collect_identifiers_from_statement_props(s, names);
+            }
+        }
+        JsStatement::VariableDeclaration(decl) => {
+            for declarator in &decl.declarations {
+                if let Some(init) = &declarator.init {
+                    collect_ids_from_expr_props(init, names);
+                }
+            }
+        }
+        JsStatement::Return(ret) => {
+            if let Some(expr) = &ret.argument {
+                collect_ids_from_expr_props(expr, names);
+            }
+        }
+        JsStatement::If(if_stmt) => {
+            collect_ids_from_expr_props(&if_stmt.test, names);
+            collect_identifiers_from_statement_props(&if_stmt.consequent, names);
+            if let Some(alt) = &if_stmt.alternate {
+                collect_identifiers_from_statement_props(alt, names);
+            }
+        }
+        JsStatement::Raw(raw) => {
+            for word in raw.split(|c: char| !c.is_alphanumeric() && c != '_' && c != '$') {
+                if !word.is_empty()
+                    && word
+                        .chars()
+                        .next()
+                        .is_some_and(|c| c.is_alphabetic() || c == '_' || c == '$')
+                    && !names.contains(&word.to_string())
+                {
+                    names.push(word.to_string());
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Collect identifiers from an expression for component prop blocker detection.
+/// Enters getter/setter function bodies and arrow function bodies generally,
+/// but skips arrow functions that are the value of `children` or `$$slots` properties.
+/// This mirrors the official Svelte compiler's memoizer which tracks blockers from
+/// direct prop expressions but not from children callbacks.
+fn collect_ids_from_expr_props(expr: &JsExpr, names: &mut Vec<String>) {
+    match expr {
+        JsExpr::Identifier(name) => {
+            if !names.contains(name) {
+                names.push(name.clone());
+            }
+        }
+        JsExpr::Call(call) => {
+            collect_ids_from_expr_props(&call.callee, names);
+            for arg in &call.arguments {
+                collect_ids_from_expr_props(arg, names);
+            }
+        }
+        JsExpr::Member(member) => {
+            collect_ids_from_expr_props(&member.object, names);
+            match &member.property {
+                JsMemberProperty::Expression(prop) => {
+                    if member.computed {
+                        collect_ids_from_expr_props(prop, names);
+                    }
+                }
+                JsMemberProperty::Identifier(id) => {
+                    if !names.contains(id) {
+                        names.push(id.clone());
+                    }
+                }
+                JsMemberProperty::PrivateIdentifier(_) => {}
+            }
+        }
+        JsExpr::Binary(bin) => {
+            collect_ids_from_expr_props(&bin.left, names);
+            collect_ids_from_expr_props(&bin.right, names);
+        }
+        JsExpr::Logical(log) => {
+            collect_ids_from_expr_props(&log.left, names);
+            collect_ids_from_expr_props(&log.right, names);
+        }
+        JsExpr::Unary(un) => {
+            collect_ids_from_expr_props(&un.argument, names);
+        }
+        JsExpr::Conditional(cond) => {
+            collect_ids_from_expr_props(&cond.test, names);
+            collect_ids_from_expr_props(&cond.consequent, names);
+            collect_ids_from_expr_props(&cond.alternate, names);
+        }
+        JsExpr::TemplateLiteral(tl) => {
+            for e in &tl.expressions {
+                collect_ids_from_expr_props(e, names);
+            }
+        }
+        JsExpr::Sequence(seq) => {
+            for e in &seq.expressions {
+                collect_ids_from_expr_props(e, names);
+            }
+        }
+        JsExpr::Array(arr) => {
+            for e in arr.elements.iter().flatten() {
+                collect_ids_from_expr_props(e, names);
+            }
+        }
+        JsExpr::Object(obj) => {
+            for member in &obj.properties {
+                match member {
+                    JsObjectMember::Property(prop) => {
+                        // Check if this property is named "children" or "$$slots" -
+                        // skip their arrow/function values as children handle their own async
+                        let prop_name = match &prop.key {
+                            JsPropertyKey::Identifier(name) => Some(name.as_str()),
+                            JsPropertyKey::Literal(JsLiteral::String(name)) => Some(name.as_str()),
+                            _ => None,
+                        };
+                        let is_children_prop = matches!(prop_name, Some("children" | "$$slots"));
+
+                        if is_children_prop {
+                            // Skip children/$$slots callback values entirely
+                        } else if matches!(prop.kind, JsPropertyKind::Get | JsPropertyKind::Set) {
+                            // For getters/setters, enter the function body to find references
+                            if let JsExpr::Function(func) = &*prop.value {
+                                for stmt in &func.body.body {
+                                    collect_identifiers_from_statement_props(stmt, names);
+                                }
+                            }
+                        } else {
+                            // For regular properties, recurse (entering arrow bodies)
+                            collect_ids_from_expr_props(&prop.value, names);
+                        }
+                    }
+                    JsObjectMember::SpreadElement(spread) => {
+                        collect_ids_from_expr_props(spread, names);
+                    }
+                }
+            }
+        }
+        JsExpr::Assignment(assign) => {
+            collect_ids_from_expr_props(&assign.right, names);
+        }
+        JsExpr::Update(up) => {
+            collect_ids_from_expr_props(&up.argument, names);
+        }
+        JsExpr::Await(inner) => {
+            collect_ids_from_expr_props(inner, names);
+        }
+        JsExpr::Spread(inner) | JsExpr::Void(inner) => {
+            collect_ids_from_expr_props(inner, names);
+        }
+        // Enter arrow and function bodies (unlike the shallow version)
+        JsExpr::Arrow(arrow) => match &arrow.body {
+            JsArrowBody::Expression(body_expr) => {
+                collect_ids_from_expr_props(body_expr, names);
+            }
+            JsArrowBody::Block(block) => {
+                for s in &block.body {
+                    collect_identifiers_from_statement_props(s, names);
+                }
+            }
+        },
+        JsExpr::Function(func) => {
+            for s in &func.body.body {
+                collect_identifiers_from_statement_props(s, names);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Collect identifiers from a statement, traversing INTO arrow and function bodies.
 ///
 /// Unlike `collect_identifiers_from_statement` which stops at function boundaries,
