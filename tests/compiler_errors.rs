@@ -9,7 +9,8 @@ use std::path::{Path, PathBuf};
 // use rayon::prelude::*;  // Disabled for sequential execution
 use serde::Deserialize;
 use svelte_compiler_rust::{
-    CompileOptions, GenerateMode, ModuleCompileOptions, compile, compile_module,
+    CompileOptions, ExperimentalOptions, GenerateMode, ModuleCompileOptions, compile,
+    compile_module,
 };
 use walkdir::WalkDir;
 
@@ -214,20 +215,11 @@ struct TestResult {
 
 /// Run a single compiler error test.
 fn run_error_test(fixture: &ErrorFixture) -> TestResult {
-    // Skip async tests
-    if fixture.requires_async {
-        return TestResult {
-            name: fixture.name.clone(),
-            passed: false,
-            error_message: Some("Async compilation not supported".to_string()),
-            skipped: true,
-        };
-    }
-
     // CSS error tests are now supported
 
     let name = fixture.name.clone();
     let input = fixture.input.clone();
+    let requires_async = fixture.requires_async;
 
     // Use panic::catch_unwind to handle panics gracefully
     let result =
@@ -244,6 +236,9 @@ fn run_error_test(fixture: &ErrorFixture) -> TestResult {
                 let options = CompileOptions {
                     generate: GenerateMode::Client,
                     filename: Some(format!("{}/main.svelte", name)),
+                    experimental: ExperimentalOptions {
+                        r#async: requires_async,
+                    },
                     ..Default::default()
                 };
                 compile(&input, options)

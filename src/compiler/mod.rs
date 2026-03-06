@@ -679,9 +679,17 @@ fn check_module_store_subscriptions(
     analysis: &phases::phase2_analyze::ComponentAnalysis,
 ) -> Result<(), CompileError> {
     // Check all bindings for StoreSub kind - these indicate $store references
-    // that resolved to a declared store binding
+    // that resolved to a declared store binding.
+    // Corresponds to official Svelte's analyze_module():
+    //   if (binding !== null && !is_rune(name)) {
+    //     e.store_invalid_subscription_module(references[0].node);
+    //   }
     for binding in &analysis.root.bindings {
         if matches!(binding.kind, phases::phase2_analyze::BindingKind::StoreSub) {
+            // Skip rune-named store subs - in module context, rune names are always valid
+            if phases::phase2_analyze::visitors::shared::function::is_rune(&binding.name) {
+                continue;
+            }
             return Err(CompileError::Analysis(
                 phases::phase2_analyze::errors::store_invalid_subscription_module(),
             ));

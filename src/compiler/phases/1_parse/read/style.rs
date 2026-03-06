@@ -165,6 +165,50 @@ impl Parser<'_> {
             })
             .collect();
 
+        // Validate CSS content before parsing.
+        // If the content has non-whitespace, non-comment text but no '{' character,
+        // it cannot be valid CSS (no rules can be formed).
+        // This corresponds to CSS-Tree's error when encountering invalid CSS in the
+        // official Svelte compiler.
+        {
+            let trimmed = style_content.trim();
+            if !trimmed.is_empty() {
+                // Strip CSS comments to check if there's real content
+                let mut stripped = String::new();
+                let chars: Vec<char> = trimmed.chars().collect();
+                let mut i = 0;
+                while i < chars.len() {
+                    if i + 1 < chars.len() && chars[i] == '/' && chars[i + 1] == '*' {
+                        // Skip block comment
+                        i += 2;
+                        while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
+                            i += 1;
+                        }
+                        if i + 1 < chars.len() {
+                            i += 2; // skip */
+                        }
+                    } else {
+                        stripped.push(chars[i]);
+                        i += 1;
+                    }
+                }
+                let stripped = stripped.trim();
+                if !stripped.is_empty()
+                    && !stripped.contains('{')
+                    && !stripped.contains(';')
+                    && !stripped.starts_with('@')
+                {
+                    // Non-empty CSS content with no blocks and no at-rules - invalid
+                    let err_pos = content_start + style_content.len();
+                    return Err(crate::error::ParseError::svelte(
+                        "css_expected_identifier",
+                        "Expected a valid CSS identifier",
+                        (err_pos, err_pos),
+                    ));
+                }
+            }
+        }
+
         // Parse CSS content
         let css_children = parse_css(style_content, content_start);
 

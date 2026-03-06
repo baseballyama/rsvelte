@@ -396,13 +396,28 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     // Store the state fields in the analysis
     // Create a unique key for this class body node
     let node_key = format!("{:?}", node); // Simple key based on the node structure
-    context.analysis.classes.insert(node_key, state_fields);
+    context
+        .analysis
+        .classes
+        .insert(node_key, state_fields.clone());
+
+    // Set state_fields on context before visiting children.
+    // This corresponds to context.next({ ...context.state, state_fields }) in the official compiler.
+    // The state_fields are needed by validate_assignment (in AssignmentExpression visitor)
+    // and PropertyDefinition visitor to detect state_field_invalid_assignment errors.
+    let saved_state_fields = std::mem::replace(
+        &mut context.state_fields,
+        state_fields.into_iter().collect(),
+    );
 
     // Visit children (methods, properties, etc.)
     // This is equivalent to context.next() in the JavaScript implementation
     for child in body {
         super::script::walk_js_node(child, context)?;
     }
+
+    // Restore previous state_fields
+    context.state_fields = saved_state_fields;
 
     Ok(())
 }

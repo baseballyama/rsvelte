@@ -30,9 +30,13 @@ pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(
     context.block_depth += 1;
 
     // Push fragment owner type for const_tag placement validation
+    let snippet_name = super::shared::snippets::get_snippet_name(block).unwrap_or_default();
     context
         .fragment_owner_stack
-        .push(super::FragmentOwnerType::SnippetBlock);
+        .push(super::FragmentOwnerType::SnippetBlock(
+            context.scope,
+            snippet_name,
+        ));
 
     // Reset parent_element to None for snippet body analysis
     // Snippets create their own rendering context, so text node validation

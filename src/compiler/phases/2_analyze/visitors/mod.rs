@@ -227,7 +227,7 @@ pub enum SlotOwnerType {
 
 /// Type of parent that owns the current fragment being visited.
 /// Used for const_tag placement validation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FragmentOwnerType {
     /// Root fragment (top-level)
     Root,
@@ -245,8 +245,8 @@ pub enum FragmentOwnerType {
     AwaitBlock,
     /// Inside a KeyBlock
     KeyBlock,
-    /// Inside a SnippetBlock
-    SnippetBlock,
+    /// Inside a SnippetBlock (scope index, snippet name)
+    SnippetBlock(usize, String),
     /// Inside a SvelteFragment
     SvelteFragment,
     /// Inside a SvelteBoundary

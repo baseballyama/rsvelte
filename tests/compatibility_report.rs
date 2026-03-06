@@ -18,8 +18,8 @@ use common::{
     write_actual_output,
 };
 use svelte_compiler_rust::{
-    CompileOptions, ExperimentalOptions, GenerateMode, ParseOptions, compile, compiler::CssMode,
-    convert_to_legacy, parse,
+    CompileOptions, ExperimentalOptions, GenerateMode, ModuleCompileOptions, ParseOptions, compile,
+    compile_module, compiler::CssMode, convert_to_legacy, parse,
 };
 
 // ============================================================================
@@ -208,18 +208,11 @@ fn run_snapshot_tests() -> CategoryResult {
             .join(&name)
             .join("_config.js");
 
-        if let Ok(config) = fs::read_to_string(&config_path)
-            && config.contains("async: true")
-        {
-            result.add_sample(SampleResult {
-                name,
-                status: TestStatus::Skipped,
-                error: None,
-                skip_reason: Some("Requires unsupported compile options".to_string()),
-                details: None,
-            });
-            continue;
-        }
+        let snapshot_has_async = if let Ok(config) = fs::read_to_string(&config_path) {
+            config.contains("async: true")
+        } else {
+            false
+        };
 
         let input = match fs::read_to_string(&input_path) {
             Ok(s) => s,
@@ -243,6 +236,9 @@ fn run_snapshot_tests() -> CategoryResult {
             let options = CompileOptions {
                 generate: GenerateMode::Client,
                 filename: Some("index.svelte".to_string()),
+                experimental: ExperimentalOptions {
+                    r#async: snapshot_has_async,
+                },
                 ..Default::default()
             };
 
@@ -271,6 +267,9 @@ fn run_snapshot_tests() -> CategoryResult {
             let options = CompileOptions {
                 generate: GenerateMode::Server,
                 filename: Some("index.svelte".to_string()),
+                experimental: ExperimentalOptions {
+                    r#async: snapshot_has_async,
+                },
                 ..Default::default()
             };
 
@@ -481,23 +480,18 @@ fn run_validator_tests() -> CategoryResult {
             continue;
         }
 
-        // Skip module tests
-        if module_path.exists() && !svelte_path.exists() {
-            result.add_sample(SampleResult {
-                name,
-                status: TestStatus::Skipped,
-                error: None,
-                skip_reason: Some("Module compilation not implemented".to_string()),
-                details: None,
-            });
+        let is_module_test = module_path.exists() && !svelte_path.exists();
+
+        if !svelte_path.exists() && !module_path.exists() {
             continue;
         }
 
-        if !svelte_path.exists() {
-            continue;
-        }
-
-        let input = match fs::read_to_string(&svelte_path) {
+        let input_file = if is_module_test {
+            &module_path
+        } else {
+            &svelte_path
+        };
+        let input = match fs::read_to_string(input_file) {
             Ok(s) => s,
             Err(_) => continue,
         };
@@ -561,14 +555,23 @@ fn run_validator_tests() -> CategoryResult {
         }
 
         let compile_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let options = CompileOptions {
-                generate: GenerateMode::Client,
-                filename: Some(format!("{}/input.svelte", name)),
-                runes: config_runes,
-                custom_element: config_custom_element,
-                ..Default::default()
-            };
-            compile(&input, options)
+            if is_module_test {
+                let options = ModuleCompileOptions {
+                    generate: GenerateMode::Client,
+                    filename: Some(format!("{}/input.svelte.js", name)),
+                    ..Default::default()
+                };
+                compile_module(&input, options)
+            } else {
+                let options = CompileOptions {
+                    generate: GenerateMode::Client,
+                    filename: Some(format!("{}/input.svelte", name)),
+                    runes: config_runes,
+                    custom_element: config_custom_element,
+                    ..Default::default()
+                };
+                compile(&input, options)
+            }
         }));
 
         match compile_result {
@@ -723,31 +726,7 @@ fn run_compiler_error_tests() -> CategoryResult {
         let svelte_path = sample_dir.join("main.svelte");
         let module_path = sample_dir.join("main.svelte.js");
 
-        // Skip module tests
-        if module_path.exists() && !svelte_path.exists() {
-            result.add_sample(SampleResult {
-                name,
-                status: TestStatus::Skipped,
-                error: None,
-                skip_reason: Some("Module compilation not implemented".to_string()),
-                details: None,
-            });
-            continue;
-        }
-
-        // Skip CSS tests
-        if name.starts_with("css") {
-            result.add_sample(SampleResult {
-                name,
-                status: TestStatus::Skipped,
-                error: None,
-                skip_reason: Some("CSS error tests not yet supported".to_string()),
-                details: None,
-            });
-            continue;
-        }
-
-        if !svelte_path.exists() || !config_path.exists() {
+        if !svelte_path.exists() && !module_path.exists() || !config_path.exists() {
             continue;
         }
 
@@ -756,35 +735,44 @@ fn run_compiler_error_tests() -> CategoryResult {
             Err(_) => continue,
         };
 
-        // Skip async tests
-        if config_content.contains("async: true") {
-            result.add_sample(SampleResult {
-                name,
-                status: TestStatus::Skipped,
-                error: None,
-                skip_reason: Some("Async compilation not supported".to_string()),
-                details: None,
-            });
-            continue;
-        }
+        let requires_async = config_content.contains("async: true");
 
         let expected_code = match extract_error_code(&config_content) {
             Some(c) => c,
             None => continue,
         };
 
-        let input = match fs::read_to_string(&svelte_path) {
+        let is_module = module_path.exists() && !svelte_path.exists();
+        let input_file = if is_module {
+            &module_path
+        } else {
+            &svelte_path
+        };
+
+        let input = match fs::read_to_string(input_file) {
             Ok(s) => s,
             Err(_) => continue,
         };
 
         let compile_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let options = CompileOptions {
-                generate: GenerateMode::Client,
-                filename: Some(format!("{}/main.svelte", name)),
-                ..Default::default()
-            };
-            compile(&input, options)
+            if is_module {
+                let options = ModuleCompileOptions {
+                    generate: GenerateMode::Client,
+                    filename: Some(format!("{}/main.svelte.js", name)),
+                    ..Default::default()
+                };
+                compile_module(&input, options)
+            } else {
+                let options = CompileOptions {
+                    generate: GenerateMode::Client,
+                    filename: Some(format!("{}/main.svelte", name)),
+                    experimental: ExperimentalOptions {
+                        r#async: requires_async,
+                    },
+                    ..Default::default()
+                };
+                compile(&input, options)
+            }
         }));
 
         match compile_result {
@@ -911,22 +899,18 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
             .join(&name)
             .join("_config.js");
 
-        if let Ok(config) = fs::read_to_string(&config_path)
-            && ({
-                let config_without_skip = config
-                    .replace("skip_no_async", "")
-                    .replace("skip_async", "");
-                config_without_skip.contains("async: true")
-            } || config.contains("hmr: true"))
-        {
-            result.add_sample(SampleResult {
-                name,
-                status: TestStatus::Skipped,
-                error: None,
-                skip_reason: Some("Requires unsupported compile options".to_string()),
-                details: None,
-            });
-            continue;
+        // Detect async and hmr options from config
+        let mut config_has_async = false;
+        let mut config_has_hmr = false;
+        // dev option is not used for runtime tests - fixtures are generated with dev=false equivalent output
+        if let Ok(config) = fs::read_to_string(&config_path) {
+            let config_without_skip = config
+                .replace("skip_no_async", "")
+                .replace("skip_async", "");
+            config_has_async = config_without_skip.contains("async: true");
+            config_has_hmr = config.contains("hmr: true");
+            // Note: dev option is not used - fixtures are generated without dev-specific output
+            let _ = &config;
         }
 
         let input = match fs::read_to_string(&input_path) {
@@ -947,7 +931,9 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         let mut error_msg = None;
 
         // Enable experimental.async for runtime-runes tests (fixtures were generated with it enabled)
+        // Also enable it for individual tests that have async: true in config
         let is_runtime_runes = category == "runtime-runes";
+        let use_async = is_runtime_runes || config_has_async;
 
         // Enable accessors for runtime-legacy tests (matches official test runner behavior)
         // See svelte/packages/svelte/tests/runtime-legacy/shared.ts line 224:
@@ -969,9 +955,8 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
                 generate: GenerateMode::Client,
                 filename: Some("main.svelte".to_string()),
                 css: CssMode::External,
-                experimental: ExperimentalOptions {
-                    r#async: is_runtime_runes,
-                },
+                experimental: ExperimentalOptions { r#async: use_async },
+                hmr: config_has_hmr,
                 accessors: use_accessors,
                 ..Default::default()
             };
@@ -1002,9 +987,8 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
                 generate: GenerateMode::Server,
                 filename: Some("main.svelte".to_string()),
                 css: CssMode::External,
-                experimental: ExperimentalOptions {
-                    r#async: is_runtime_runes,
-                },
+                experimental: ExperimentalOptions { r#async: use_async },
+                hmr: config_has_hmr,
                 ..Default::default()
             };
 

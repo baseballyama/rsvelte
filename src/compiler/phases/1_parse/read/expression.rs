@@ -5917,6 +5917,22 @@ fn convert_declaration_for_program(
                 obj.insert("id".to_string(), Value::Null);
             }
 
+            // superClass
+            if let Some(super_class) = &class_decl.super_class {
+                let super_class_value =
+                    convert_expression_for_program(super_class, offset, line_offsets);
+                obj.insert(
+                    "superClass".to_string(),
+                    super_class_value.as_json().clone(),
+                );
+            } else {
+                obj.insert("superClass".to_string(), Value::Null);
+            }
+
+            // body (ClassBody)
+            let body_value = convert_class_body_for_program(&class_decl.body, offset, line_offsets);
+            obj.insert("body".to_string(), body_value);
+
             Value::Object(obj)
         }
         // TypeScript enum declarations

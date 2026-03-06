@@ -7,14 +7,46 @@
 use super::VisitorContext;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use crate::compiler::phases::phase2_analyze::errors;
+use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use serde_json::Value;
 
 /// Visit an export default declaration.
 ///
+/// In .svelte.js module files, validate state/derived exports.
 /// In Svelte component scripts (both instance and module scripts),
 /// default exports are not allowed.
-pub fn visit(_node: &Value, _context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    // In Svelte component scripts, default exports are not allowed
-    // This applies to both <script> and <script module> contexts
-    Err(errors::module_illegal_default_export())
+pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    if context.analysis.is_module_file {
+        // In .svelte.js module files, check for invalid state/derived exports
+        // Corresponds to: if (!context.state.ast_type) { validate_export(...) }
+        if let Some(declaration) = node.get("declaration")
+            && declaration.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+            && let Some(name) = declaration.get("name").and_then(|n| n.as_str())
+        {
+            validate_export(name, context)?;
+        }
+        Ok(())
+    } else {
+        // In Svelte component scripts, default exports are not allowed
+        // This applies to both <script> and <script module> contexts
+        Err(errors::module_illegal_default_export())
+    }
+}
+
+/// Validate that an exported binding is not derived or reassigned state.
+/// Corresponds to `validate_export()` in the official Svelte compiler.
+fn validate_export(name: &str, context: &VisitorContext) -> Result<(), AnalysisError> {
+    if let Some(binding_idx) = context.analysis.root.get_binding(name, context.scope) {
+        let binding = &context.analysis.root.bindings[binding_idx];
+
+        if binding.kind == BindingKind::Derived {
+            return Err(errors::derived_invalid_export());
+        }
+
+        if matches!(binding.kind, BindingKind::State | BindingKind::RawState) && binding.reassigned
+        {
+            return Err(errors::state_invalid_export());
+        }
+    }
+    Ok(())
 }

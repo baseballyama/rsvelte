@@ -24,14 +24,14 @@ pub fn visit(tag: &mut ConstTag, context: &mut VisitorContext) -> Result<(), Ana
 
     // Validate placement: {@const} must be a direct child of specific block types
     // Get the current fragment owner from the stack
-    let fragment_owner = context.fragment_owner_stack.last().copied();
+    let fragment_owner = context.fragment_owner_stack.last().cloned();
 
     let is_valid_placement = match fragment_owner {
         Some(FragmentOwnerType::IfBlock) => true,
         Some(FragmentOwnerType::EachBlock) => true,
         Some(FragmentOwnerType::AwaitBlock) => true,
         Some(FragmentOwnerType::KeyBlock) => true,
-        Some(FragmentOwnerType::SnippetBlock) => true,
+        Some(FragmentOwnerType::SnippetBlock(_, _)) => true,
         Some(FragmentOwnerType::SvelteFragment) => true,
         Some(FragmentOwnerType::SvelteBoundary) => true,
         Some(FragmentOwnerType::Component) => true,

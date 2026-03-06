@@ -100,13 +100,15 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
                 false
             };
 
-        // Also check for store without $ prefix
-        let has_store_binding = if let Some(store_name) = name.strip_prefix('$') {
+        // Also check if the unprefixed name has a store_sub binding
+        // The official compiler: context.state.scope.get(node.name.slice(1))?.kind !== 'store_sub'
+        let has_store_sub_binding = if let Some(store_name) = name.strip_prefix('$') {
             context
                 .analysis
                 .root
                 .get_binding(store_name, context.scope)
-                .is_some()
+                .map(|idx| context.analysis.root.bindings[idx].kind == BindingKind::StoreSub)
+                .unwrap_or(false)
         } else {
             false
         };
@@ -117,7 +119,7 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
             .get_binding(name, context.scope)
             .is_none()
             && !is_store_sub
-            && !has_store_binding
+            && !has_store_sub_binding
         {
             // This is a rune - validate it
             return validate_rune_usage(node, name, &context.js_path);
@@ -190,6 +192,16 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     // need state since the element reference never changes.
     if is_template_reference && context.function_depth == 0 && !context.in_bind_this {
         context.analysis.root.bindings[binding_idx].has_direct_template_read = true;
+    }
+
+    // Check for const_tag_invalid_reference:
+    // When experimental.async is enabled, a {@const} declaration in a component's/boundary's
+    // implicit children snippet cannot be referenced from within a named snippet at the same level.
+    // Corresponds to Svelte's Identifier.js L162-191
+    if context.analysis.root.bindings[binding_idx].kind == BindingKind::Template
+        && context.analysis.experimental_async
+    {
+        check_const_tag_snippet_reference(name, binding_idx, context)?;
     }
 
     // Handle legacy mode special variables
@@ -464,6 +476,65 @@ fn validate_rune_usage(
         let parent = &js_path[path_idx];
         if parent.get("type").and_then(|t| t.as_str()) != Some("CallExpression") {
             return Err(errors::rune_missing_parentheses());
+        }
+    }
+
+    Ok(())
+}
+
+/// Check if a {@const} binding referenced from within a named snippet of a
+/// Component or SvelteBoundary is invalid.
+///
+/// Uses fragment_owner_stack to detect the pattern: we're inside a SnippetBlock
+/// that is inside a Component or SvelteBoundary. Then checks if the binding's
+/// scope matches the component/boundary's children scope.
+///
+/// The error should only fire when a {@const} from the parent (implicit children snippet)
+/// is referenced from within a named snippet at the same level. {@const} declarations
+/// inside the snippet itself are always valid.
+fn check_const_tag_snippet_reference(
+    name: &str,
+    binding_idx: usize,
+    context: &VisitorContext,
+) -> Result<(), AnalysisError> {
+    let binding_scope = context.analysis.root.bindings[binding_idx].scope_index;
+
+    // Walk up the fragment_owner_stack from the end
+    let stack = &context.fragment_owner_stack;
+    let mut found_snippet = false;
+    let mut snippet_scope: Option<usize> = None;
+    let mut snippet_name: Option<String> = None;
+
+    for i in (0..stack.len()).rev() {
+        match &stack[i] {
+            super::FragmentOwnerType::SnippetBlock(scope, sname) => {
+                found_snippet = true;
+                snippet_scope = Some(*scope);
+                snippet_name = Some(sname.clone());
+            }
+            super::FragmentOwnerType::Component if found_snippet => {
+                // For components, all named snippets trigger this check
+                if snippet_scope == Some(binding_scope) {
+                    return Err(errors::const_tag_invalid_reference(name));
+                }
+                break;
+            }
+            super::FragmentOwnerType::SvelteBoundary if found_snippet => {
+                // For SvelteBoundary, only 'failed' and 'pending' snippets trigger this check
+                // Other named snippets (like 'greet') can freely reference boundary-level {@const}
+                if let Some(ref sn) = snippet_name
+                    && (sn == "failed" || sn == "pending")
+                    && snippet_scope == Some(binding_scope)
+                {
+                    return Err(errors::const_tag_invalid_reference(name));
+                }
+                break;
+            }
+            _ => {
+                if found_snippet {
+                    break;
+                }
+            }
         }
     }
 

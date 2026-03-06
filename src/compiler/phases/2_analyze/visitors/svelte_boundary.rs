@@ -19,8 +19,24 @@ pub fn visit(
         .fragment_owner_stack
         .push(super::FragmentOwnerType::SvelteBoundary);
 
+    // Set context.scope to the scope created by scope_builder for this boundary.
+    // This ensures that {@const} bindings declared in scope_builder are visible
+    // when analyzing children.
+    let scope_before_boundary = context.scope;
+    if let Some(&boundary_scope) = context
+        .analysis
+        .root
+        .template_scope_map
+        .get(&boundary.start)
+    {
+        context.scope = boundary_scope;
+    }
+
     // Analyze children
     fragment::analyze(&mut boundary.fragment, context)?;
+
+    // Restore scope
+    context.scope = scope_before_boundary;
 
     // Pop fragment owner type
     context.fragment_owner_stack.pop();

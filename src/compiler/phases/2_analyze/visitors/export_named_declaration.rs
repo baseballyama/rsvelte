@@ -33,7 +33,7 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
                         exported.get("value").and_then(|v| v.as_str()) == Some("default")
                     };
 
-                if is_default {
+                if is_default && !context.analysis.is_module_file {
                     return Err(errors::module_illegal_default_export());
                 }
             }
@@ -65,6 +65,26 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
                             return Err(errors::export_undefined(local_name));
                         }
                     }
+                }
+            }
+
+            // Validate export bindings for state/derived in non-instance scripts
+            // (module scripts and module files).
+            // Corresponds to ExportSpecifier.js: else { validate_export(...) }
+            if context.ast_type != super::AstType::Instance
+                && let Some(local) = specifier.get("local")
+                && let Some(local_name) = local.get("name").and_then(|n| n.as_str())
+                && let Some(binding_idx) =
+                    context.analysis.root.get_binding(local_name, context.scope)
+            {
+                let binding = &context.analysis.root.bindings[binding_idx];
+                if binding.kind == BindingKind::Derived {
+                    return Err(errors::derived_invalid_export());
+                }
+                if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
+                    && binding.reassigned
+                {
+                    return Err(errors::state_invalid_export());
                 }
             }
 

@@ -244,7 +244,7 @@ pub fn declaration_duplicate_module_import() -> AnalysisError {
 pub fn derived_invalid_export() -> AnalysisError {
     error(
         "derived_invalid_export",
-        "Cannot export derived state from a module. To expose the current derived value, export a function returning its value",
+        "Cannot export derived state from a module. To expose the current derived value, export a function returning its value\nhttps://svelte.dev/e/derived_invalid_export",
     )
 }
 
@@ -370,11 +370,11 @@ pub fn dollar_prefix_invalid() -> AnalysisError {
     )
 }
 
-/// Cannot export reassigned state
+/// Cannot export state from a module if it is reassigned
 pub fn state_invalid_export() -> AnalysisError {
     error(
         "state_invalid_export",
-        "Cannot export reassigned state. To expose the current state value, export a function returning its value",
+        "Cannot export state from a module if it is reassigned. Either export a function returning the state value or only mutate the state value's properties\nhttps://svelte.dev/e/state_invalid_export",
     )
 }
 

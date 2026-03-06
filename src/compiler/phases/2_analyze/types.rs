@@ -1081,6 +1081,11 @@ pub struct ComponentAnalysis {
     /// Used to detect conflicts between instance-level declarations and module imports.
     /// Populated during module script analysis.
     pub module_scope_declarations: FxHashMap<String, usize>,
+
+    /// Whether this is a .svelte.js module file compilation (as opposed to a .svelte component).
+    /// In module files, ast_type is null/undefined in the official compiler, meaning
+    /// certain validations (like ExportDefaultDeclaration) behave differently.
+    pub is_module_file: bool,
 }
 
 impl ComponentAnalysis {
@@ -1154,6 +1159,11 @@ impl ComponentAnalysis {
             component_namespace_is_mathml: options.namespace == crate::compiler::Namespace::Mathml,
             is_typescript: false,
             module_scope_declarations: FxHashMap::default(),
+            is_module_file: options
+                .filename
+                .as_ref()
+                .map(|f| f.ends_with(".svelte.js") || f.ends_with(".svelte.ts"))
+                .unwrap_or(false),
         }
     }
 

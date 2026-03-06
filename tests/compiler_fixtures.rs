@@ -13,7 +13,7 @@ use common::{
     write_actual_output,
 };
 use rayon::prelude::*;
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use svelte_compiler_rust::{CompileOptions, ExperimentalOptions, GenerateMode, compile};
 
 /// Load input from Svelte test suite.
 fn load_input(sample_name: &str) -> Option<String> {
@@ -26,18 +26,20 @@ fn load_input(sample_name: &str) -> Option<String> {
 }
 
 /// Check if a test requires unsupported compile options by reading _config.js
-fn requires_unsupported_options(sample_name: &str) -> bool {
+fn requires_unsupported_options(_sample_name: &str) -> bool {
+    // All options are now supported (async, hmr, fragments)
+    false
+}
+
+/// Check if a test requires experimental.async by reading _config.js
+fn requires_async(sample_name: &str) -> bool {
     let config_path = svelte_path()
         .join("packages/svelte/tests/snapshot/samples")
         .join(sample_name)
         .join("_config.js");
 
     if let Ok(config) = fs::read_to_string(&config_path) {
-        // Check for unsupported options
-        if config.contains("async: true") {
-            return true; // experimental.async not supported
-        }
-        // hmr: true and fragments: are now supported (output matches expected)
+        return config.contains("async: true");
     }
     false
 }
@@ -50,6 +52,8 @@ struct SnapshotFixture {
     expected_server_js: Option<String>,
     /// Indicates if this test requires unsupported compile options
     requires_unsupported_options: bool,
+    /// Indicates if this test requires experimental.async
+    requires_async: bool,
 }
 
 /// Load a snapshot test fixture from fixtures directory.
@@ -74,6 +78,7 @@ fn load_snapshot_fixture(sample_dir: &Path) -> Option<SnapshotFixture> {
         expected_client_js,
         expected_server_js,
         requires_unsupported_options: requires_unsupported_options(&name),
+        requires_async: requires_async(&name),
     })
 }
 
@@ -127,6 +132,9 @@ fn run_snapshot_fixture_test(fixture: &SnapshotFixture) -> TestResult {
         let client_options = CompileOptions {
             generate: GenerateMode::Client,
             filename: Some(format!("{}/index.svelte", fixture.name)),
+            experimental: ExperimentalOptions {
+                r#async: fixture.requires_async,
+            },
             ..Default::default()
         };
 
@@ -167,6 +175,9 @@ fn run_snapshot_fixture_test(fixture: &SnapshotFixture) -> TestResult {
         let server_options = CompileOptions {
             generate: GenerateMode::Server,
             filename: Some(format!("{}/index.svelte", fixture.name)),
+            experimental: ExperimentalOptions {
+                r#async: fixture.requires_async,
+            },
             ..Default::default()
         };
 

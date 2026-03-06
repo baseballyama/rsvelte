@@ -91,7 +91,8 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
             context.has_props_rune = true;
 
             // Check placement: must be top-level VariableDeclarator in instance script
-            if !is_props_valid_placement(context) {
+            // $props() is never valid in module scripts or module files
+            if context.ast_type != super::AstType::Instance || !is_props_valid_placement(context) {
                 return Err(errors::props_invalid_placement());
             }
 
@@ -824,7 +825,23 @@ fn is_class_property_assignment_at_constructor_root(
         return false;
     }
 
-    true
+    // Check property type: must be (Identifier && !computed) || PrivateIdentifier || Literal
+    // This mirrors the official Svelte compiler's is_class_property_assignment_at_constructor_root
+    let computed = left
+        .get("computed")
+        .and_then(|c| c.as_bool())
+        .unwrap_or(false);
+    if let Some(property) = left.get("property") {
+        let prop_type = property.get("type").and_then(|t| t.as_str());
+        match prop_type {
+            Some("Identifier") if !computed => true,
+            Some("PrivateIdentifier") => true,
+            Some("Literal") => true,
+            _ => false,
+        }
+    } else {
+        false
+    }
 }
 
 /// Check if $effect is in a valid placement.

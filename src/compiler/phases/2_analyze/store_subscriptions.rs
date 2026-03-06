@@ -52,6 +52,7 @@ pub fn detect_store_subscriptions(
     ast: &Root,
     analysis: &mut ComponentAnalysis,
     options_runes: Option<bool>,
+    is_module_file: bool,
 ) -> Result<(), AnalysisError> {
     // Collect all $xxx references from the AST with context
     let mut store_refs: Vec<StoreRef> = Vec::new();
@@ -144,6 +145,13 @@ pub fn detect_store_subscriptions(
         // treated as a store subscription.
         //
         // But `let state = $state(0)` creates a State binding, so `$state` is a rune.
+        //
+        // For .svelte.js module files, rune names are always valid and should never
+        // create store subscriptions. The official compiler's analyze_module() simply
+        // checks: if (binding !== null && !is_rune(name)) { error }
+        if is_rune(ref_name) && is_module_file {
+            continue;
+        }
         if is_rune(ref_name) {
             // Look for a binding in the instance scope AND module scope (scope 0).
             // The official Svelte compiler uses `instance.scope.get(store_name)` which
@@ -334,22 +342,37 @@ pub fn detect_store_subscriptions(
             // Store subscriptions are not allowed in module scripts
             // Corresponds to Svelte's L410-420 in 2-analyze/index.js
             if store_ref.in_module {
-                let pos = store_ref.position + ref_name.len();
-                let source_bytes = analysis.source.as_bytes();
-                let mut check_pos = pos;
-                while check_pos < source_bytes.len()
-                    && (source_bytes[check_pos] == b' '
-                        || source_bytes[check_pos] == b'\t'
-                        || source_bytes[check_pos] == b'\n'
-                        || source_bytes[check_pos] == b'\r')
-                {
-                    check_pos += 1;
-                }
-                let is_rune_call = check_pos < source_bytes.len()
-                    && source_bytes[check_pos] == b'('
-                    && is_rune(ref_name);
-                if !is_rune_call {
-                    return Err(errors::store_invalid_subscription());
+                // For rune names ($state, $effect, etc.) used as rune calls in module context,
+                // don't error - just let it fall through to create the store sub.
+                // The official Svelte compiler checks get_rune(path.at(-1), module.scope) !== null.
+                // We approximate by checking if the reference is followed by '(' (i.e., a call).
+                if is_rune(ref_name) {
+                    let pos = store_ref.position + ref_name.len();
+                    let source_bytes = analysis.source.as_bytes();
+                    let mut check_pos = pos;
+                    while check_pos < source_bytes.len()
+                        && matches!(source_bytes[check_pos], b' ' | b'\t' | b'\n' | b'\r')
+                    {
+                        check_pos += 1;
+                    }
+                    let is_call = check_pos < source_bytes.len() && source_bytes[check_pos] == b'(';
+                    if is_call {
+                        // It's a rune call like $state({...}) - don't error, but still
+                        // create the store sub (the official compiler does this)
+                    } else {
+                        // Rune name used as a non-call reference in module context
+                        // This would be invalid, but since it's a rune name, just skip
+                        continue;
+                    }
+                } else {
+                    // Non-rune store reference in module context
+                    // For .svelte.js module files, don't error here - let
+                    // check_module_store_subscriptions() handle it with the correct
+                    // store_invalid_subscription_module error code.
+                    // For <script module> in .svelte files, error with store_invalid_subscription.
+                    if !is_module_file {
+                        return Err(errors::store_invalid_subscription());
+                    }
                 }
             }
 

@@ -134,7 +134,17 @@ pub fn analyze_component(
     // Detect store subscriptions and create synthetic bindings
     // This must happen after scopes are created but before template analysis
     // Corresponds to Svelte's store subscription logic in 2-analyze/index.js L348-444
-    store_subscriptions::detect_store_subscriptions(ast, &mut analysis, options.runes)?;
+    let is_module_file = options
+        .filename
+        .as_ref()
+        .map(|f| f.ends_with(".svelte.js") || f.ends_with(".svelte.ts"))
+        .unwrap_or(false);
+    store_subscriptions::detect_store_subscriptions(
+        ast,
+        &mut analysis,
+        options.runes,
+        is_module_file,
+    )?;
 
     // Detect await expressions in template and instance script.
     // This is needed for:
@@ -255,6 +265,7 @@ pub fn analyze_component(
                 .attributes
                 .iter()
                 .any(|attr| attr.name.as_str() == "module")
+            && !is_module_file
         {
             analysis
                 .warnings
