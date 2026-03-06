@@ -182,7 +182,17 @@ pub(crate) enum ComponentBinding {
 /// A part of the output - either static HTML or dynamic code.
 #[derive(Debug, Clone)]
 pub(crate) enum OutputPart {
+    /// HTML content string. May contain `${...}` interpolations.
+    /// `excluded_blocker_vars` lists variable names that should be excluded from
+    /// blocker detection (e.g., shorthand style directive values like `style:color`
+    /// produce `{ color }` in the output but the variable reference should NOT
+    /// trigger async wrapping, matching the official compiler's PromiseOptimiser behavior).
     Html(String),
+    /// HTML content with variables excluded from blocker detection
+    HtmlWithExclusions {
+        html: String,
+        excluded_blocker_vars: Vec<String>,
+    },
     Expression(String),
     /// Async expression tag - an expression containing `await` that needs to be
     /// rendered as a separate `$$renderer.push(async () => $.escape(...))` call
@@ -250,6 +260,10 @@ pub(crate) enum OutputPart {
         /// CSS custom properties (e.g., --color="red") to wrap in $.css_props()
         #[allow(dead_code)]
         css_custom_props: Vec<(String, String)>,
+        /// Whether SequenceExpression bind_get/bind_set declarations have been
+        /// hoisted out (e.g., when wrapped in an AsyncBlock). When true, the
+        /// build_parts code skips emitting the var declarations.
+        seq_bindings_hoisted: bool,
     },
     Comment,
     /// Each block - produces a for loop
@@ -354,6 +368,8 @@ pub(crate) enum OutputPart {
     },
     /// Const declaration - produces const variable
     ConstDeclaration(String),
+    /// Var declaration - produces var variable (used for bind_get/bind_set hoisting)
+    VarDeclaration(String),
     /// Block scope - wraps content in { } JavaScript block
     BlockScope {
         body: Vec<OutputPart>,

@@ -2830,6 +2830,11 @@ pub struct TemplateChunkResult {
     pub value: JsExpr,
     /// Whether the chunk contains reactive state
     pub has_state: bool,
+    /// Blocker indices from expressions that reference blocker_map variables.
+    /// Even when expression values are evaluated to literals at compile time,
+    /// they may reference variables that depend on async operations and need
+    /// to be blocked until those operations complete.
+    pub blocker_indices: Vec<usize>,
 }
 
 /// Build a template chunk from text/expression nodes.
@@ -2857,6 +2862,7 @@ pub fn build_template_chunk(
     let mut quasis = vec![quasi.clone()];
 
     let mut has_state = false;
+    let mut blocker_indices: Vec<usize> = Vec::new();
 
     for (i, node) in values.iter().enumerate() {
         match node {
@@ -2873,6 +2879,26 @@ pub fn build_template_chunk(
                         let last_quasi = quasis.last_mut().unwrap();
                         last_quasi.raw.push_str(&val);
                         last_quasi.cooked.push_str(&val);
+                    }
+                    // Even when the expression evaluates to a literal, check if it
+                    // references variables in the blocker_map. This corresponds to
+                    // the official compiler's `has_blockers()` check in build_template_chunk:
+                    //   has_await ||= node.metadata.expression.has_blockers();
+                    //   has_state ||= has_await || ...;
+                    {
+                        let map = context.state.blocker_map.borrow();
+                        if !map.is_empty() {
+                            let expr_ids =
+                                collect_expression_identifiers_for_blockers(&expr_tag.expression);
+                            for name in &expr_ids {
+                                if let Some(&idx) = map.get(name.as_str()) {
+                                    if !blocker_indices.contains(&idx) {
+                                        blocker_indices.push(idx);
+                                    }
+                                    has_state = true;
+                                }
+                            }
+                        }
                     }
                 } else {
                     // Convert Expression to JsExpr using the proper converter
@@ -2926,7 +2952,11 @@ pub fn build_template_chunk(
 
                     // For single expression, return directly
                     if values.len() == 1 {
-                        return TemplateChunkResult { value, has_state };
+                        return TemplateChunkResult {
+                            value,
+                            has_state,
+                            blocker_indices,
+                        };
                     }
 
                     // Check if the expression is guaranteed to be non-null.
@@ -2988,7 +3018,48 @@ pub fn build_template_chunk(
         b::string(&last_quasi.cooked)
     };
 
-    TemplateChunkResult { value, has_state }
+    TemplateChunkResult {
+        value,
+        has_state,
+        blocker_indices,
+    }
+}
+
+/// Collect identifiers from an AST Expression for blocker map checking.
+/// This walks the JSON AST to find all Identifier nodes.
+fn collect_expression_identifiers_for_blockers(expr: &crate::ast::js::Expression) -> Vec<String> {
+    let mut names = Vec::new();
+    let crate::ast::js::Expression::Value(val) = expr;
+    collect_expr_ids_recursive(val, &mut names);
+    names
+}
+
+fn collect_expr_ids_recursive(val: &serde_json::Value, names: &mut Vec<String>) {
+    match val {
+        serde_json::Value::Object(obj) => {
+            let node_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
+            if node_type == "Identifier" {
+                if let Some(name) = obj.get("name").and_then(|v| v.as_str())
+                    && !names.contains(&name.to_string())
+                {
+                    names.push(name.to_string());
+                }
+            } else {
+                for (key, value) in obj {
+                    if key == "type" || key == "start" || key == "end" || key == "loc" {
+                        continue;
+                    }
+                    collect_expr_ids_recursive(value, names);
+                }
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for item in arr {
+                collect_expr_ids_recursive(item, names);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// Get literal value from an expression if it can be evaluated at compile time.

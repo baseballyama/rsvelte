@@ -231,7 +231,8 @@ pub(crate) fn transform_await_to_save(expr: &str) -> String {
 /// or the end of the expression.
 fn find_await_arg_end(bytes: &[u8], start: usize, len: usize) -> usize {
     let mut i = start;
-    let mut depth: i32 = 0;
+    let mut paren_depth: i32 = 0; // tracks () and []
+    let mut brace_depth: i32 = 0; // tracks {}
 
     while i < len {
         let ch = bytes[i];
@@ -242,14 +243,30 @@ fn find_await_arg_end(bytes: &[u8], start: usize, len: usize) -> usize {
         }
 
         match ch {
-            b'(' | b'[' => depth += 1,
+            b'(' | b'[' => paren_depth += 1,
             b')' | b']' => {
-                if depth == 0 {
+                if paren_depth == 0 && brace_depth == 0 {
                     return i;
                 }
-                depth -= 1;
+                if paren_depth > 0 {
+                    paren_depth -= 1;
+                }
             }
-            b',' if depth == 0 => return i,
+            b'{' => brace_depth += 1,
+            b'}' => {
+                if brace_depth > 0 {
+                    brace_depth -= 1;
+                    // If brace_depth returns to 0 and paren_depth is also 0,
+                    // the closing } ends the await argument (e.g., `await { x: 1 }`)
+                    if brace_depth == 0 && paren_depth == 0 {
+                        return i + 1; // include the closing }
+                    }
+                } else if paren_depth == 0 {
+                    // Unmatched } at top level - stop before it
+                    return i;
+                }
+            }
+            b',' if paren_depth == 0 && brace_depth == 0 => return i,
             _ => {}
         }
 
@@ -1746,4 +1763,312 @@ pub(crate) fn find_expression_blockers(
     }
 
     blockers.into_iter().collect()
+}
+
+/// Check if an HTML template string contains `await` inside `${...}` expressions.
+/// Only checks expression interpolations, not static text.
+pub(crate) fn html_template_contains_await(html: &str) -> bool {
+    let bytes = html.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+
+    while i < len {
+        // Look for `${` which starts a template expression
+        if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+            i += 2;
+            let start = i;
+            let mut depth = 1;
+            while i < len && depth > 0 {
+                let ch = bytes[i];
+                if ch == b'{' {
+                    depth += 1;
+                } else if ch == b'}' {
+                    depth -= 1;
+                } else if matches!(ch, b'\'' | b'"' | b'`') {
+                    i = skip_string_literal(bytes, i);
+                    continue;
+                }
+                if depth > 0 {
+                    i += 1;
+                }
+            }
+            let expr = &html[start..i];
+            if expr_contains_await(expr) {
+                return true;
+            }
+            if i < len {
+                i += 1; // skip closing }
+            }
+        } else {
+            i += 1;
+        }
+    }
+    false
+}
+
+/// Extract `await` expressions from an HTML template string's `${...}` interpolations.
+/// Returns a tuple of:
+/// - The modified HTML with `await expr` replaced by `$$N` variables
+/// - A vector of (var_name, save_declaration) pairs for the extracted expressions
+///
+/// For example, given `<p${$.attributes({ ...await { class: 'cool'} })}>cool</p>`:
+/// - Returns modified HTML: `<p${$.attributes({ ...$$0 })}>cool</p>`
+/// - Returns declarations: [("$$0", "(await $.save({ class: 'cool' }))()")]
+pub(crate) fn extract_await_from_html_template(html: &str) -> (String, Vec<(String, String)>) {
+    let bytes = html.as_bytes();
+    let len = bytes.len();
+    let mut result = String::with_capacity(len);
+    let mut declarations: Vec<(String, String)> = Vec::new();
+    let mut var_counter = 0;
+    let mut i = 0;
+
+    while i < len {
+        // Look for `${` which starts a template expression
+        if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+            result.push_str("${");
+            i += 2;
+            let expr_start = i;
+            let mut depth = 1;
+            while i < len && depth > 0 {
+                let ch = bytes[i];
+                if ch == b'{' {
+                    depth += 1;
+                } else if ch == b'}' {
+                    depth -= 1;
+                } else if matches!(ch, b'\'' | b'"' | b'`') {
+                    i = skip_string_literal(bytes, i);
+                    continue;
+                }
+                if depth > 0 {
+                    i += 1;
+                }
+            }
+            let expr = &html[expr_start..i];
+
+            if expr_contains_await(expr) {
+                // Transform the expression to extract await and replace with $$N
+                let (new_expr, new_decls) = extract_await_from_expression(expr, &mut var_counter);
+                result.push_str(&new_expr);
+                declarations.extend(new_decls);
+            } else {
+                result.push_str(expr);
+            }
+
+            result.push('}');
+            if i < len {
+                i += 1; // skip closing }
+            }
+        } else {
+            result.push(bytes[i] as char);
+            i += 1;
+        }
+    }
+
+    (result, declarations)
+}
+
+/// Extract `await expr` from a single expression, replacing with `$$N` variables.
+///
+/// This handles patterns like:
+/// - `$.attributes({ ...await { class: 'cool'} })` → `$.attributes({ ...$$0 })`
+///   with decl: `$$0 = (await $.save({ class: 'cool' }))()`
+/// - `$.attr_class($.clsx(await 'awesome'))` → `$.attr_class($$0)`
+///   with decl: `$$0 = $.clsx((await $.save('awesome'))())`
+/// - `$.attributes({ ...{}, class: $.clsx(await 'neato') })` → `$.attributes({ ...{}, class: $$0 })`
+///   with decl: `$$0 = $.clsx((await $.save('neato'))())`
+fn extract_await_from_expression(
+    expr: &str,
+    var_counter: &mut usize,
+) -> (String, Vec<(String, String)>) {
+    let mut decls: Vec<(String, String)> = Vec::new();
+
+    // Strategy: Find the outermost expression that contains `await` and extract it.
+    // The PromiseOptimiser extracts the whole expression passed to `transform()`,
+    // which is usually the attribute value expression.
+
+    // Check for pattern: $.clsx(await expr) or $.clsx(...await expr...)
+    // In this case, the whole $.clsx() call should be extracted as $$N
+    if let Some(new_expr) = try_extract_clsx_with_await(expr, var_counter, &mut decls) {
+        return (new_expr, decls);
+    }
+
+    // Check for pattern: ...await expr (spread with await)
+    // In this case, extract just the `await expr` part
+    if let Some(new_expr) = try_extract_spread_await(expr, var_counter, &mut decls) {
+        return (new_expr, decls);
+    }
+
+    // Fallback: extract each `await expr` individually
+    let transformed = extract_all_awaits(expr, var_counter, &mut decls);
+    (transformed, decls)
+}
+
+/// Try to extract `$.clsx(await expr)` pattern - the whole clsx call becomes $$N
+fn try_extract_clsx_with_await(
+    expr: &str,
+    var_counter: &mut usize,
+    decls: &mut Vec<(String, String)>,
+) -> Option<String> {
+    // Look for $.clsx( pattern
+    if let Some(clsx_pos) = expr.find("$.clsx(") {
+        let inner_start = clsx_pos + 7; // after "$.clsx("
+        let bytes = expr.as_bytes();
+        let mut depth = 1;
+        let mut j = inner_start;
+        while j < bytes.len() && depth > 0 {
+            match bytes[j] {
+                b'(' => depth += 1,
+                b')' => depth -= 1,
+                b'\'' | b'"' | b'`' => {
+                    j = skip_string_literal(bytes, j);
+                    continue;
+                }
+                _ => {}
+            }
+            if depth > 0 {
+                j += 1;
+            }
+        }
+        let clsx_end = j + 1; // include closing )
+        let clsx_inner = &expr[inner_start..j];
+
+        if expr_contains_await(clsx_inner) {
+            // Transform the inner await: await X → (await $.save(X))()
+            let transformed_inner = transform_await_to_save(clsx_inner);
+            let var_name = format!("$${}", *var_counter);
+            *var_counter += 1;
+            let decl_value = format!("$.clsx({})", transformed_inner);
+            decls.push((var_name.clone(), decl_value));
+
+            // Replace the $.clsx(...) with $$N
+            let mut result = String::new();
+            result.push_str(&expr[..clsx_pos]);
+            result.push_str(&var_name);
+            result.push_str(&expr[clsx_end..]);
+            return Some(result);
+        }
+    }
+    None
+}
+
+/// Try to extract `...await expr` pattern - `await expr` becomes $$N
+fn try_extract_spread_await(
+    expr: &str,
+    var_counter: &mut usize,
+    decls: &mut Vec<(String, String)>,
+) -> Option<String> {
+    // Look for ...await pattern
+    let bytes = expr.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+    let mut result = String::with_capacity(len);
+
+    while i < len {
+        // Skip string literals
+        if matches!(bytes[i], b'\'' | b'"' | b'`') {
+            let end = skip_string_literal(bytes, i);
+            result.push_str(&expr[i..end]);
+            i = end;
+            continue;
+        }
+
+        // Look for ...await
+        if i + 8 <= len && &expr[i..i + 3] == "..." {
+            let after_dots = i + 3;
+            // Skip whitespace
+            let mut k = after_dots;
+            while k < len && matches!(bytes[k], b' ' | b'\t' | b'\n' | b'\r') {
+                k += 1;
+            }
+            if k + 5 <= len && &expr[k..k + 5] == "await" {
+                let after_await = k + 5;
+                let next = if after_await < len {
+                    bytes[after_await]
+                } else {
+                    0
+                };
+                if !next.is_ascii_alphanumeric() && next != b'_' && next != b'$' {
+                    // Found ...await - extract the await argument
+                    let mut arg_start = after_await;
+                    while arg_start < len
+                        && matches!(bytes[arg_start], b' ' | b'\t' | b'\n' | b'\r')
+                    {
+                        arg_start += 1;
+                    }
+                    let arg_end = find_await_arg_end(bytes, arg_start, len);
+                    let arg = &expr[arg_start..arg_end];
+
+                    let var_name = format!("$${}", *var_counter);
+                    *var_counter += 1;
+                    let decl_value = format!("(await $.save({}))()", arg);
+                    decls.push((var_name.clone(), decl_value));
+
+                    result.push_str("...");
+                    result.push_str(&var_name);
+                    i = arg_end;
+                    continue;
+                }
+            }
+        }
+
+        result.push(bytes[i] as char);
+        i += 1;
+    }
+
+    if decls.is_empty() { None } else { Some(result) }
+}
+
+/// Fallback: extract all `await expr` occurrences and replace with $$N
+fn extract_all_awaits(
+    expr: &str,
+    var_counter: &mut usize,
+    decls: &mut Vec<(String, String)>,
+) -> String {
+    let bytes = expr.as_bytes();
+    let len = bytes.len();
+    let mut result = String::with_capacity(len);
+    let mut i = 0;
+
+    while i < len {
+        // Skip string literals
+        if matches!(bytes[i], b'\'' | b'"' | b'`') {
+            let end = skip_string_literal(bytes, i);
+            result.push_str(&expr[i..end]);
+            i = end;
+            continue;
+        }
+
+        // Check for `await` keyword
+        if bytes[i] == b'a' && i + 5 <= len && &expr[i..i + 5] == "await" {
+            let before_ok = i == 0
+                || !bytes[i - 1].is_ascii_alphanumeric()
+                    && bytes[i - 1] != b'_'
+                    && bytes[i - 1] != b'$';
+            let after = if i + 5 < len { bytes[i + 5] } else { 0 };
+            let after_ok = !after.is_ascii_alphanumeric() && after != b'_' && after != b'$';
+            if before_ok && after_ok {
+                // Found `await` - extract argument
+                let mut arg_start = i + 5;
+                while arg_start < len && matches!(bytes[arg_start], b' ' | b'\t' | b'\n' | b'\r') {
+                    arg_start += 1;
+                }
+                let arg_end = find_await_arg_end(bytes, arg_start, len);
+                let arg = &expr[arg_start..arg_end];
+
+                let var_name = format!("$${}", *var_counter);
+                *var_counter += 1;
+                let decl_value = format!("(await $.save({}))()", arg);
+                decls.push((var_name.clone(), decl_value));
+
+                result.push_str(&var_name);
+                i = arg_end;
+                continue;
+            }
+        }
+
+        result.push(bytes[i] as char);
+        i += 1;
+    }
+
+    result
 }

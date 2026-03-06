@@ -72,6 +72,7 @@ impl<'a> ServerCodeGenerator<'a> {
         // Collect directives and base attributes
         let mut class_directives: Vec<&ClassDirective> = Vec::new();
         let mut style_directives: Vec<&StyleDirective> = Vec::new();
+        let mut shorthand_style_vars: Vec<String> = Vec::new();
         let mut base_class: Option<String> = None;
         let mut base_style: Option<String> = None;
 
@@ -112,6 +113,11 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 Attribute::StyleDirective(dir) => {
                     style_directives.push(dir);
+                    // Track shorthand style directives (style:color without explicit value)
+                    // These bypass the PromiseOptimiser transform in the official compiler
+                    if matches!(&dir.value, AttributeValue::True(_)) {
+                        shorthand_style_vars.push(dir.name.to_string());
+                    }
                 }
                 Attribute::Attribute(node) if node.name.as_str() == "class" => {
                     base_class = self.extract_attribute_text_value(node);
@@ -253,10 +259,24 @@ impl<'a> ServerCodeGenerator<'a> {
 
         if is_void_element(name) {
             tag.push_str("/>");
-            self.output_parts.push(OutputPart::Html(tag));
+            if shorthand_style_vars.is_empty() {
+                self.output_parts.push(OutputPart::Html(tag));
+            } else {
+                self.output_parts.push(OutputPart::HtmlWithExclusions {
+                    html: tag,
+                    excluded_blocker_vars: shorthand_style_vars.clone(),
+                });
+            }
         } else {
             tag.push('>');
-            self.output_parts.push(OutputPart::Html(tag));
+            if shorthand_style_vars.is_empty() {
+                self.output_parts.push(OutputPart::Html(tag));
+            } else {
+                self.output_parts.push(OutputPart::HtmlWithExclusions {
+                    html: tag,
+                    excluded_blocker_vars: shorthand_style_vars,
+                });
+            }
 
             // If we have a content-editable binding, generate children into a sub-generator
             // and emit ContentEditableBody which will generate the if/else pattern

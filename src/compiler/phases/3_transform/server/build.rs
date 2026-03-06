@@ -18,6 +18,49 @@ enum HtmlSegment {
     Blocked { html: String, blockers: Vec<usize> },
 }
 
+/// A segment of an HTML string for await detection, either static or element with await.
+enum AwaitHtmlSegment {
+    Static(String),
+    ElementWithAwait(String),
+}
+
+impl<'a> ServerCodeGenerator<'a> {
+    /// Split a JS object literal's properties by commas, respecting nesting.
+    fn split_object_props(inner: &str) -> Vec<&str> {
+        let bytes = inner.as_bytes();
+        let len = bytes.len();
+        let mut props = Vec::new();
+        let mut start = 0;
+        let mut depth = 0;
+        let mut i = 0;
+
+        while i < len {
+            match bytes[i] {
+                b'\'' | b'"' | b'`' => {
+                    i = super::helpers::skip_string_literal(bytes, i);
+                    continue;
+                }
+                b'(' | b'[' | b'{' => depth += 1,
+                b')' | b']' | b'}' => {
+                    if depth > 0 {
+                        depth -= 1;
+                    }
+                }
+                b',' if depth == 0 => {
+                    props.push(&inner[start..i]);
+                    start = i + 1;
+                }
+                _ => {}
+            }
+            i += 1;
+        }
+        if start < len {
+            props.push(&inner[start..]);
+        }
+        props
+    }
+}
+
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn build(self) -> String {
         let store_subs = self.get_store_sub_names();
@@ -134,7 +177,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
             // First, remove $effect, $effect.pre, $effect.root, and $inspect.trace blocks
             // These are client-side only and should not appear in SSR output
-            let raw_script = remove_effect_blocks(&raw_script);
+            let raw_script = remove_effect_blocks(&raw_script, self.use_async);
 
             // Check if script uses $props() or export let/export { x } (legacy props)
             let has_bindable_props = self.analysis.is_some_and(|a| {
@@ -587,7 +630,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     consts.push(part.clone());
                     in_const_region = true; // After a const, we're still in const region
                 }
-                OutputPart::Html(html) => {
+                OutputPart::Html(html) | OutputPart::HtmlWithExclusions { html, .. } => {
                     if in_const_region && html.trim().is_empty() {
                         // Skip whitespace-only Html between/after ConstDeclarations
                         // Don't add to rest - it gets discarded
@@ -624,6 +667,8 @@ export default function {component_name}($$renderer{props_param}) {{
     }
 
     /// Collect all blocker indices from an if-else-if chain's test expressions.
+    /// Stops recursion when encountering an else-if with an `await` expression,
+    /// since those branches get their own async block wrapper.
     fn collect_if_chain_blockers_recursive(
         test_expr: &str,
         alternate_body: Option<&[OutputPart]>,
@@ -635,6 +680,7 @@ export default function {component_name}($$renderer{props_param}) {{
             all_blockers.insert(idx);
         }
         // If the alternate is a single else-if, recurse into it
+        // But don't recurse if the else-if's test has await - it gets its own async block
         if let Some(alt) = alternate_body
             && alt.len() == 1
             && let OutputPart::IfBlock {
@@ -643,6 +689,7 @@ export default function {component_name}($$renderer{props_param}) {{
                 is_elseif: true,
                 ..
             } = &alt[0]
+            && !super::helpers::expr_contains_await(alt_test)
         {
             Self::collect_if_chain_blockers_recursive(
                 alt_test,
@@ -675,6 +722,24 @@ export default function {component_name}($$renderer{props_param}) {{
                 OutputPart::Html(html) => {
                     for idx in super::helpers::find_expression_blockers(html, blocker_map) {
                         all_blockers.insert(idx);
+                    }
+                }
+                OutputPart::HtmlWithExclusions {
+                    html,
+                    excluded_blocker_vars,
+                } => {
+                    // Same as Html but exclude certain variable names from blocker detection.
+                    // This implements the PromiseOptimiser pattern where shorthand style
+                    // directives (style:color) bypass the transform callback and should not
+                    // contribute blocker dependencies.
+                    for idx in super::helpers::find_expression_blockers(html, blocker_map) {
+                        // Check if the variable corresponding to this blocker index is excluded
+                        let is_excluded = blocker_map.iter().any(|(var_name, &mapped_idx)| {
+                            mapped_idx == idx && excluded_blocker_vars.contains(var_name)
+                        });
+                        if !is_excluded {
+                            all_blockers.insert(idx);
+                        }
                     }
                 }
                 OutputPart::IfBlock {
@@ -739,6 +804,7 @@ export default function {component_name}($$renderer{props_param}) {{
 
     /// Like apply_async_wrapping but skips wrapping else-if IfBlocks in AsyncBlock.
     /// The outermost if in the chain handles the wrapping.
+    /// Exception: else-if blocks with `await` in their test get their own async wrapping.
     fn apply_async_wrapping_skip_elseif(
         parts: &[OutputPart],
         blocker_map: &std::collections::HashMap<String, usize>,
@@ -751,7 +817,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     consequent_body,
                     alternate_body,
                     is_elseif,
-                } if *is_elseif => {
+                } if *is_elseif && !super::helpers::expr_contains_await(test_expr) => {
                     // Don't wrap this else-if in AsyncBlock - the outer chain handles it.
                     let wrapped_consequent =
                         Self::apply_async_wrapping(consequent_body, blocker_map);
@@ -766,7 +832,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     });
                 }
                 _ => {
-                    // For non-elseif parts, use normal wrapping
+                    // For non-elseif parts (or else-if with await), use normal wrapping
                     let mut wrapped =
                         Self::apply_async_wrapping(std::slice::from_ref(part), blocker_map);
                     result.append(&mut wrapped);
@@ -999,6 +1065,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     children,
                     dynamic,
                     css_custom_props,
+                    ..
                 } => {
                     // Find blockers from component name, props, and bindings
                     let mut all_blockers = std::collections::BTreeSet::new();
@@ -1061,6 +1128,31 @@ export default function {component_name}($$renderer{props_param}) {{
 
                     let blocker_indices: Vec<usize> = all_blockers.into_iter().collect();
                     if !blocker_indices.is_empty() {
+                        // Hoist SequenceExpression bind_get/bind_set declarations
+                        // outside the async_block, matching the official compiler's
+                        // behavior of pushing them to state.init.
+                        let has_seq = bindings
+                            .iter()
+                            .any(|b| matches!(b, ComponentBinding::SequenceExpression { .. }));
+                        if has_seq {
+                            for binding in bindings.iter() {
+                                if let ComponentBinding::SequenceExpression {
+                                    getter_expr,
+                                    setter_expr,
+                                    ..
+                                } = binding
+                                {
+                                    result.push(OutputPart::VarDeclaration(format!(
+                                        "bind_get = {}",
+                                        getter_expr
+                                    )));
+                                    result.push(OutputPart::VarDeclaration(format!(
+                                        "bind_set = {}",
+                                        setter_expr
+                                    )));
+                                }
+                            }
+                        }
                         result.push(OutputPart::AsyncBlock {
                             blocker_indices,
                             inner: vec![OutputPart::ComponentWithBindings {
@@ -1071,6 +1163,7 @@ export default function {component_name}($$renderer{props_param}) {{
                                 children: wrapped_children,
                                 dynamic: *dynamic,
                                 css_custom_props: css_custom_props.clone(),
+                                seq_bindings_hoisted: has_seq,
                             }],
                         });
                     } else if children.is_some() {
@@ -1082,6 +1175,7 @@ export default function {component_name}($$renderer{props_param}) {{
                             children: wrapped_children,
                             dynamic: *dynamic,
                             css_custom_props: css_custom_props.clone(),
+                            seq_bindings_hoisted: false,
                         });
                     } else {
                         result.push(part.clone());
@@ -1139,13 +1233,35 @@ export default function {component_name}($$renderer{props_param}) {{
                         result.push(part.clone());
                     }
                 }
-                OutputPart::Html(html) => {
+                OutputPart::Html(html) | OutputPart::HtmlWithExclusions { html, .. } => {
+                    // Get excluded vars if this is HtmlWithExclusions
+                    let excluded_vars: &[String] = match part {
+                        OutputPart::HtmlWithExclusions {
+                            excluded_blocker_vars,
+                            ..
+                        } => excluded_blocker_vars,
+                        _ => &[],
+                    };
+
+                    // Build a filtered blocker map that excludes specified variables
+                    let effective_blocker_map: std::collections::HashMap<String, usize> =
+                        if excluded_vars.is_empty() {
+                            blocker_map.clone()
+                        } else {
+                            blocker_map
+                                .iter()
+                                .filter(|(name, _)| !excluded_vars.contains(name))
+                                .map(|(k, v)| (k.clone(), *v))
+                                .collect()
+                        };
+
                     // Check if the Html part contains references to blocked variables.
                     // IMPORTANT: Only check ${...} expressions for blockers, not static text.
-                    let blockers = Self::find_html_expression_blockers(html, blocker_map);
+                    let blockers =
+                        Self::find_html_expression_blockers(html, &effective_blocker_map);
                     if !blockers.is_empty() {
                         // Split the HTML into segments at element boundaries.
-                        let segments = Self::split_html_by_blockers(html, blocker_map);
+                        let segments = Self::split_html_by_blockers(html, &effective_blocker_map);
                         for seg in segments {
                             match seg {
                                 HtmlSegment::Static(s) => {
@@ -1185,14 +1301,37 @@ export default function {component_name}($$renderer{props_param}) {{
         let mut i = 0;
 
         while i < parts.len() {
-            if let OutputPart::Html(html) = &parts[i] {
+            let (html_ref, excluded_vars) = match &parts[i] {
+                OutputPart::Html(html) => (Some(html.as_str()), Vec::new()),
+                OutputPart::HtmlWithExclusions {
+                    html,
+                    excluded_blocker_vars,
+                } => (Some(html.as_str()), excluded_blocker_vars.clone()),
+                _ => (None, Vec::new()),
+            };
+            if let Some(html) = html_ref {
+                let effective_map: std::collections::HashMap<String, usize> =
+                    if excluded_vars.is_empty() {
+                        blocker_map.clone()
+                    } else {
+                        blocker_map
+                            .iter()
+                            .filter(|(name, _)| !excluded_vars.contains(name))
+                            .map(|(k, v)| (k.clone(), *v))
+                            .collect()
+                    };
                 let has_blockers =
-                    !Self::find_html_expression_blockers(html, blocker_map).is_empty();
+                    !Self::find_html_expression_blockers(html, &effective_map).is_empty();
                 if has_blockers {
-                    let mut full_html = html.clone();
+                    let mut full_html = html.to_string();
                     // Look ahead: consume following Html parts that are closing tags
                     while i + 1 < parts.len() {
-                        if let OutputPart::Html(next_html) = &parts[i + 1] {
+                        let next_html_ref = match &parts[i + 1] {
+                            OutputPart::Html(h) => Some(h.as_str()),
+                            OutputPart::HtmlWithExclusions { html: h, .. } => Some(h.as_str()),
+                            _ => None,
+                        };
+                        if let Some(next_html) = next_html_ref {
                             let trimmed = next_html.trim_start();
                             if trimmed.starts_with("</") {
                                 full_html.push_str(next_html);
@@ -1452,11 +1591,15 @@ export default function {component_name}($$renderer{props_param}) {{
 
         for part in parts {
             match part {
-                OutputPart::ConstDeclaration(_) | OutputPart::SnippetFunction { .. } => {
+                OutputPart::ConstDeclaration(_)
+                | OutputPart::VarDeclaration(_)
+                | OutputPart::SnippetFunction { .. } => {
                     hoisted.push(part.clone());
                     in_hoisted_region = true;
                 }
-                OutputPart::Html(html) if in_hoisted_region && html.trim().is_empty() => {
+                OutputPart::Html(html) | OutputPart::HtmlWithExclusions { html, .. }
+                    if in_hoisted_region && html.trim().is_empty() =>
+                {
                     // Skip whitespace-only Html between hoisted declarations
                 }
                 _ => {
@@ -1532,7 +1675,77 @@ export default function {component_name}($$renderer{props_param}) {{
         while i < parts.len() {
             let part = &parts[i];
             match part {
-                OutputPart::Html(html) => {
+                OutputPart::Html(html) | OutputPart::HtmlWithExclusions { html, .. } => {
+                    // Check if this Html part contains await in a ${...} expression
+                    // (e.g., from class={await 'awesome'} generating ${$.attr_class($.clsx(await 'awesome'))})
+                    if super::helpers::html_template_contains_await(html)
+                        && html.starts_with('<')
+                        && !html.starts_with("</")
+                        && !html.starts_with("<!")
+                    {
+                        // Element opening tag with await - need $$renderer.child() wrapping
+                        // First flush any accumulated HTML before this element
+                        if !current_html.is_empty() {
+                            Self::flush_html_with_await_detection(
+                                &mut body_code,
+                                &mut current_html,
+                                &indent,
+                            );
+                        }
+
+                        // Collect the complete element: opening tag + children + closing tag
+                        let mut element_html = html.to_string();
+                        let mut j = i + 1;
+                        while j < parts.len() {
+                            match &parts[j] {
+                                OutputPart::Html(h)
+                                | OutputPart::HtmlWithExclusions { html: h, .. } => {
+                                    element_html.push_str(h);
+                                    if h.contains("</") || h.ends_with("/>") {
+                                        j += 1;
+                                        break;
+                                    }
+                                }
+                                OutputPart::Expression(e) => {
+                                    element_html.push_str(&format!("${{$.escape({})}}", e));
+                                }
+                                OutputPart::RawExpression(e) => {
+                                    element_html.push_str(&format!("${{{}}}", e));
+                                }
+                                _ => break,
+                            }
+                            j += 1;
+                        }
+
+                        // Extract await expressions and wrap in $$renderer.child()
+                        let (transformed_html, declarations) =
+                            super::helpers::extract_await_from_html_template(&element_html);
+
+                        if declarations.is_empty() {
+                            current_html.push_str(&element_html);
+                        } else {
+                            body_code.push_str(&format!(
+                                "\n{}$$renderer.child(async ($$renderer) => {{\n",
+                                indent
+                            ));
+                            for (var_name, decl_value) in &declarations {
+                                body_code.push_str(&format!(
+                                    "{}\tconst {} = {};\n",
+                                    indent, var_name, decl_value
+                                ));
+                            }
+                            body_code.push('\n');
+                            body_code.push_str(&format!(
+                                "{}\t$$renderer.push(`{}`);\n",
+                                indent, transformed_html
+                            ));
+                            body_code.push_str(&format!("{}}});\n", indent));
+                        }
+
+                        i = j;
+                        continue;
+                    }
+
                     // Collapse consecutive spaces: if current_html ends with space and html is just a space
                     if !(current_html.ends_with(' ') && html == " ") {
                         // Guard against accidental `${` sequences formed by concatenation
@@ -1751,8 +1964,94 @@ export default function {component_name}($$renderer{props_param}) {{
                     body_code.push_str(&format!("{}}});\n", indent));
                 }
                 OutputPart::RawExpression(expr) => {
-                    // Raw expressions don't need escaping (e.g., $.attributes())
-                    current_html.push_str(&format!("${{{}}}", expr));
+                    if super::helpers::expr_contains_await(expr) {
+                        // Element attribute with await - needs $$renderer.child() wrapping.
+                        // current_html should end with the opening tag prefix (e.g., "<p").
+                        // We need to:
+                        // 1. Split current_html to extract the element tag start
+                        // 2. Collect remaining element parts (close tag, children, etc.)
+                        // 3. Wrap in $$renderer.child() with $.save() for await expressions
+
+                        // Find the element opening tag in current_html
+                        let tag_start_pos = current_html.rfind('<').unwrap_or(0);
+                        let prefix = current_html[..tag_start_pos].to_string();
+                        let tag_start = current_html[tag_start_pos..].to_string();
+                        current_html.clear();
+
+                        // Flush prefix (content before this element)
+                        if !prefix.is_empty() {
+                            body_code
+                                .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, prefix));
+                        }
+
+                        // Collect the full element HTML
+                        let mut element_html = tag_start;
+                        element_html.push_str(&format!("${{{}}}", expr));
+
+                        // Look ahead and consume parts until we find the closing tag
+                        // for this element or a self-closing tag
+                        let mut j = i + 1;
+                        let mut found_close = false;
+                        while j < parts.len() {
+                            match &parts[j] {
+                                OutputPart::Html(h)
+                                | OutputPart::HtmlWithExclusions { html: h, .. } => {
+                                    element_html.push_str(h);
+                                    // Check if this html part contains the closing tag
+                                    if h.contains("</") || h.contains("/>") {
+                                        found_close = true;
+                                        j += 1;
+                                        break;
+                                    }
+                                }
+                                OutputPart::Expression(e) => {
+                                    element_html.push_str(&format!("${{$.escape({})}}", e));
+                                }
+                                OutputPart::RawExpression(e) => {
+                                    element_html.push_str(&format!("${{{}}}", e));
+                                }
+                                _ => break,
+                            }
+                            j += 1;
+                        }
+
+                        if !found_close {
+                            // Self-closing or no closing tag found, just add what we have
+                        }
+
+                        // Extract await expressions and wrap in $$renderer.child()
+                        let (transformed_html, declarations) =
+                            super::helpers::extract_await_from_html_template(&element_html);
+
+                        if declarations.is_empty() {
+                            // No await found (shouldn't happen, but fallback)
+                            current_html.push_str(&element_html);
+                        } else {
+                            body_code.push_str(&format!(
+                                "{}$$renderer.child(async ($$renderer) => {{\n",
+                                indent
+                            ));
+                            for (var_name, decl_value) in &declarations {
+                                body_code.push_str(&format!(
+                                    "{}\tconst {} = {};\n",
+                                    indent, var_name, decl_value
+                                ));
+                            }
+                            body_code.push('\n');
+                            body_code.push_str(&format!(
+                                "{}\t$$renderer.push(`{}`);\n",
+                                indent, transformed_html
+                            ));
+                            body_code.push_str(&format!("{}}});\n", indent));
+                        }
+
+                        // Skip consumed parts
+                        i = j;
+                        continue;
+                    } else {
+                        // Raw expressions don't need escaping (e.g., $.attributes())
+                        current_html.push_str(&format!("${{{}}}", expr));
+                    }
                 }
                 OutputPart::HtmlExpression(expr) => {
                     if super::helpers::expr_contains_await(expr) {
@@ -1796,15 +2095,18 @@ export default function {component_name}($$renderer{props_param}) {{
                     children,
                     dynamic,
                     css_custom_props: _, // TODO: Handle CSS custom props for components with bindings
+                    seq_bindings_hoisted,
                 } => {
                     // Component with bindings - just generate the component call with getter/setters.
                     // The $$settled/$$render_inner loop is handled at the component level in build().
 
                     // For SequenceExpression bindings, declare bind_get/bind_set variables
                     // These must be declared BEFORE any HTML flush (hoisted to top of block)
-                    let has_seq_bindings = bindings
-                        .iter()
-                        .any(|b| matches!(b, ComponentBinding::SequenceExpression { .. }));
+                    // Skip if already hoisted (e.g., when wrapped in AsyncBlock)
+                    let has_seq_bindings = !seq_bindings_hoisted
+                        && bindings
+                            .iter()
+                            .any(|b| matches!(b, ComponentBinding::SequenceExpression { .. }));
                     if has_seq_bindings {
                         for binding in bindings.iter() {
                             if let ComponentBinding::SequenceExpression {
@@ -1961,7 +2263,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Add if there's content before OR content after this component
                     let has_more_content = parts[i + 1..]
                         .iter()
-                        .any(|p| !matches!(p, OutputPart::Html(s) if s.trim().is_empty()));
+                        .any(|p| !matches!(p, OutputPart::Html(s) | OutputPart::HtmlWithExclusions { html: s, .. } if s.trim().is_empty()));
                     if *has_prior_content || has_more_content {
                         current_html.push_str("<!---->");
                     }
@@ -2512,16 +2814,83 @@ export default function {component_name}($$renderer{props_param}) {{
 
                             for item in &spread_items {
                                 if super::helpers::expr_contains_await(item) {
-                                    let var_name = format!("$${}", save_counter);
-                                    // For spread objects like { thing: await expr },
-                                    // save the entire object
-                                    let await_stripped = item.replace("await ", "");
-                                    save_decls.push(format!(
-                                        "{}\tconst {} = (await $.save({}))();\n",
-                                        indent, var_name, await_stripped
-                                    ));
-                                    transformed_items.push(var_name);
-                                    save_counter += 1;
+                                    // Check if this is a props object like `{ thing: await expr }`
+                                    // In that case, extract just the await expression from each prop
+                                    if item.starts_with('{') && item.ends_with('}') {
+                                        let inner = item[1..item.len() - 1].trim();
+                                        // Parse individual prop: value pairs
+                                        let mut new_props = Vec::new();
+                                        let mut all_extracted = true;
+                                        for prop in Self::split_object_props(inner) {
+                                            let prop = prop.trim();
+                                            if super::helpers::expr_contains_await(prop) {
+                                                if let Some(colon_pos) = prop.find(':') {
+                                                    let key = prop[..colon_pos].trim();
+                                                    let val = prop[colon_pos + 1..].trim();
+                                                    if super::helpers::expr_contains_await(val) {
+                                                        // Extract await from the value
+                                                        let (transformed_val, decls) =
+                                                            super::helpers::extract_await_from_html_template(
+                                                                &format!("${{{}}}", val),
+                                                            );
+                                                        if !decls.is_empty() {
+                                                            for (vn, dv) in &decls {
+                                                                save_decls.push(format!(
+                                                                    "{}\tconst {} = {};\n",
+                                                                    indent, vn, dv
+                                                                ));
+                                                            }
+                                                            // The transformed_val is "${$$0}" - extract the inner part
+                                                            let inner_val = &transformed_val
+                                                                [2..transformed_val.len() - 1];
+                                                            new_props.push(format!(
+                                                                "{}: {}",
+                                                                key, inner_val
+                                                            ));
+                                                            save_counter = decls.len();
+                                                        } else {
+                                                            all_extracted = false;
+                                                            new_props.push(prop.to_string());
+                                                        }
+                                                    } else {
+                                                        new_props.push(prop.to_string());
+                                                    }
+                                                } else {
+                                                    // Shorthand or no colon - fallback
+                                                    all_extracted = false;
+                                                    new_props.push(prop.to_string());
+                                                }
+                                            } else {
+                                                new_props.push(prop.to_string());
+                                            }
+                                        }
+                                        if all_extracted && !new_props.is_empty() {
+                                            transformed_items
+                                                .push(format!("{{ {} }}", new_props.join(", ")));
+                                        } else {
+                                            // Fallback: save entire object
+                                            let var_name = format!("$${}", save_counter);
+                                            let transformed =
+                                                super::helpers::transform_await_to_save(item);
+                                            save_decls.push(format!(
+                                                "{}\tconst {} = {};\n",
+                                                indent, var_name, transformed
+                                            ));
+                                            transformed_items.push(var_name);
+                                            save_counter += 1;
+                                        }
+                                    } else {
+                                        // Non-object spread item with await (e.g., `await { class: 'cool' }`)
+                                        let var_name = format!("$${}", save_counter);
+                                        let transformed =
+                                            super::helpers::transform_await_to_save(item);
+                                        save_decls.push(format!(
+                                            "{}\tconst {} = {};\n",
+                                            indent, var_name, transformed
+                                        ));
+                                        transformed_items.push(var_name);
+                                        save_counter += 1;
+                                    }
                                 } else {
                                     transformed_items.push(item.clone());
                                 }
@@ -2690,7 +3059,7 @@ export default function {component_name}($$renderer{props_param}) {{
                             let has_content_after = parts[i + 1..].iter().any(|p| {
                                 matches!(
                                     p,
-                                    OutputPart::Html(h) if !h.trim().is_empty()
+                                    OutputPart::Html(h) | OutputPart::HtmlWithExclusions { html: h, .. } if !h.trim().is_empty()
                                 ) || matches!(
                                     p,
                                     OutputPart::Expression(_)
@@ -3491,6 +3860,17 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Generate the const declaration
                     body_code.push_str(&format!("{}const {};\n", indent, declaration));
                 }
+                OutputPart::VarDeclaration(declaration) => {
+                    // Flush current HTML before var declaration
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    // Generate the var declaration
+                    body_code.push_str(&format!("{}var {};\n", indent, declaration));
+                }
                 OutputPart::BlockScope { body } => {
                     // Flush current HTML before block scope
                     if !current_html.is_empty() {
@@ -3605,7 +3985,7 @@ export default function {component_name}($$renderer{props_param}) {{
 
         // Flush remaining HTML
         if !current_html.is_empty() {
-            body_code.push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+            Self::flush_html_with_await_detection(&mut body_code, &mut current_html, &indent);
         }
 
         body_code
@@ -4154,6 +4534,204 @@ export default function {component_name}($$renderer{props_param}) {{
             indent,
             props.join(", ")
         )
+    }
+
+    /// Flush accumulated HTML to body_code, handling inline `await` expressions.
+    ///
+    /// When the HTML template contains `await` inside `${...}` expressions (e.g.,
+    /// from element attributes like `class={await 'awesome'}`), this method:
+    /// 1. Splits the HTML into segments (elements with await vs. static content)
+    /// 2. Wraps elements with await in `$$renderer.child(async ($$renderer) => { ... })`
+    /// 3. Extracts `await expr` and replaces with `$$N` variables with `$.save()`
+    ///
+    /// This implements the PromiseOptimiser per-element wrapping from the official compiler.
+    fn flush_html_with_await_detection(
+        body_code: &mut String,
+        current_html: &mut String,
+        indent: &str,
+    ) {
+        if current_html.is_empty() {
+            return;
+        }
+
+        if !super::helpers::html_template_contains_await(current_html) {
+            // No await in template expressions - flush normally
+            body_code.push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+            current_html.clear();
+            return;
+        }
+
+        // Split the HTML at element boundaries with await.
+        // We need to identify individual elements whose opening tags contain await
+        // and wrap each one in $$renderer.child().
+        //
+        // Strategy: scan through current_html, finding element opening tags that
+        // contain await in their attributes. Everything before/after gets flushed
+        // as normal push calls.
+        let segments = Self::split_html_by_await_elements(current_html);
+
+        for seg in segments {
+            match seg {
+                AwaitHtmlSegment::Static(s) => {
+                    if !s.is_empty() {
+                        body_code.push_str(&format!("{}$$renderer.push(`{}`);\n", indent, s));
+                    }
+                }
+                AwaitHtmlSegment::ElementWithAwait(html) => {
+                    let (transformed, declarations) =
+                        super::helpers::extract_await_from_html_template(&html);
+                    if declarations.is_empty() {
+                        // Fallback - no await extracted
+                        body_code.push_str(&format!("{}$$renderer.push(`{}`);\n", indent, html));
+                    } else {
+                        body_code.push_str(&format!(
+                            "{}$$renderer.child(async ($$renderer) => {{\n",
+                            indent
+                        ));
+                        for (var_name, decl_value) in &declarations {
+                            body_code.push_str(&format!(
+                                "{}\tconst {} = {};\n",
+                                indent, var_name, decl_value
+                            ));
+                        }
+                        body_code.push('\n');
+                        body_code.push_str(&format!(
+                            "{}\t$$renderer.push(`{}`);\n",
+                            indent, transformed
+                        ));
+                        body_code.push_str(&format!("{}}});\n", indent));
+                    }
+                }
+            }
+        }
+
+        current_html.clear();
+    }
+
+    /// Split an HTML template string into segments, separating elements whose
+    /// opening tags contain `await` from static content.
+    fn split_html_by_await_elements(html: &str) -> Vec<AwaitHtmlSegment> {
+        let bytes = html.as_bytes();
+        let len = bytes.len();
+        let mut segments: Vec<AwaitHtmlSegment> = Vec::new();
+        let mut i = 0;
+        let mut current_static = String::new();
+
+        while i < len {
+            // Look for an element opening tag that contains await
+            if bytes[i] == b'<' && i + 1 < len && bytes[i + 1] != b'/' && bytes[i + 1] != b'!' {
+                // Found potential element start
+                let tag_start = i;
+                // Scan forward to find the end of the opening tag (>)
+                // Also check if any ${...} expression in the tag contains await
+                let mut j = i + 1;
+                let mut has_await = false;
+                let mut tag_end_exclusive = 0; // position after >
+                let mut is_void = false;
+
+                // First pass: find end of opening tag
+                while j < len {
+                    if bytes[j] == b'$' && j + 1 < len && bytes[j + 1] == b'{' {
+                        // Template expression - scan to end and check for await
+                        j += 2;
+                        let expr_start = j;
+                        let mut depth = 1;
+                        while j < len && depth > 0 {
+                            match bytes[j] {
+                                b'{' => depth += 1,
+                                b'}' => depth -= 1,
+                                b'\'' | b'"' | b'`' => {
+                                    j = super::helpers::skip_string_literal(bytes, j);
+                                    continue;
+                                }
+                                _ => {}
+                            }
+                            if depth > 0 {
+                                j += 1;
+                            }
+                        }
+                        let expr = &html[expr_start..j];
+                        if super::helpers::expr_contains_await(expr) {
+                            has_await = true;
+                        }
+                        if j < len {
+                            j += 1; // skip }
+                        }
+                    } else if bytes[j] == b'/' && j + 1 < len && bytes[j + 1] == b'>' {
+                        // Self-closing tag
+                        is_void = true;
+                        tag_end_exclusive = j + 2;
+                        break;
+                    } else if bytes[j] == b'>' {
+                        tag_end_exclusive = j + 1;
+                        break;
+                    } else {
+                        j += 1;
+                    }
+                }
+
+                if has_await && tag_end_exclusive > 0 {
+                    // Flush static content before this element
+                    if !current_static.is_empty() {
+                        segments.push(AwaitHtmlSegment::Static(std::mem::take(
+                            &mut current_static,
+                        )));
+                    }
+
+                    // Find the complete element (including children and closing tag)
+                    let element_html = if is_void {
+                        html[tag_start..tag_end_exclusive].to_string()
+                    } else {
+                        // Find closing tag - extract tag name
+                        let tag_name_start = tag_start + 1;
+                        let mut tag_name_end = tag_name_start;
+                        while tag_name_end < len
+                            && !matches!(
+                                bytes[tag_name_end],
+                                b' ' | b'\t' | b'\n' | b'>' | b'/' | b'$'
+                            )
+                        {
+                            tag_name_end += 1;
+                        }
+                        let tag_name = &html[tag_name_start..tag_name_end];
+
+                        // Find the matching closing tag
+                        let close_tag = format!("</{}>", tag_name);
+                        if let Some(close_pos) = html[tag_end_exclusive..].find(&close_tag) {
+                            let element_end = tag_end_exclusive + close_pos + close_tag.len();
+                            html[tag_start..element_end].to_string()
+                        } else {
+                            // No closing tag found - just use the opening tag
+                            html[tag_start..tag_end_exclusive].to_string()
+                        }
+                    };
+
+                    let element_len = element_html.len();
+                    segments.push(AwaitHtmlSegment::ElementWithAwait(element_html));
+                    i = tag_start + element_len;
+                    continue;
+                } else {
+                    // Not an element with await - add to static content
+                    if tag_end_exclusive > 0 {
+                        current_static.push_str(&html[i..tag_end_exclusive]);
+                        i = tag_end_exclusive;
+                    } else {
+                        current_static.push(bytes[i] as char);
+                        i += 1;
+                    }
+                    continue;
+                }
+            }
+
+            current_static.push(bytes[i] as char);
+            i += 1;
+        }
+
+        if !current_static.is_empty() {
+            segments.push(AwaitHtmlSegment::Static(current_static));
+        }
+
+        segments
     }
 }
 

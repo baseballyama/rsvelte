@@ -11570,6 +11570,105 @@ fn is_shadowed_by_function_param(chars: &[char], var_start: usize, var_name: &st
     // We need to track brace depth to understand scope nesting.
 
     let var_len = var_name.len();
+
+    // Check for concise arrow functions: (a, b) => expr or (a, b) => (expr)
+    // Scan backwards from var_start to find `=>`, tracking paren depth, then check params.
+    {
+        let mut paren_depth = 0i32;
+        let mut j = var_start;
+        let mut found_arrow_at: Option<usize> = None;
+        while j > 0 {
+            j -= 1;
+            let c = chars[j];
+            if c == ')' {
+                paren_depth += 1;
+            } else if c == '(' {
+                if paren_depth == 0 {
+                    // Before breaking, check if `=>` is just before this `(`
+                    // This handles: (a, b) => (expr) where we're inside the parens of (expr)
+                    let mut k2 = j;
+                    while k2 > 0 && chars[k2 - 1].is_whitespace() {
+                        k2 -= 1;
+                    }
+                    if k2 >= 2 && chars[k2 - 1] == '>' && chars[k2 - 2] == '=' {
+                        // Found `=> (` - treat this as an arrow body in parens
+                        found_arrow_at = Some(k2 - 1);
+                    }
+                    break;
+                }
+                paren_depth -= 1;
+            } else if c == '{' || c == '}' {
+                break; // Hit a block boundary
+            } else if c == '>' && j > 0 && chars[j - 1] == '=' && paren_depth == 0 {
+                found_arrow_at = Some(j);
+                break;
+            }
+        }
+
+        if let Some(arrow_j) = found_arrow_at {
+            // `arrow_j` points to the `>` of `=>`
+            // Check if preceded by (params) containing our variable
+            let mut k = arrow_j - 1; // at '='
+            // Skip whitespace before =>
+            while k > 0 && chars[k - 1].is_whitespace() {
+                k -= 1;
+            }
+            if k > 0 && chars[k - 1] == ')' {
+                // Find matching (
+                let close_idx = k - 1;
+                let mut pd = 0;
+                let mut m = close_idx;
+                let mut open_idx = None;
+                while m > 0 {
+                    m -= 1;
+                    if chars[m] == ')' {
+                        pd += 1;
+                    } else if chars[m] == '(' {
+                        if pd == 0 {
+                            open_idx = Some(m);
+                            break;
+                        }
+                        pd -= 1;
+                    }
+                }
+                if let Some(open) = open_idx {
+                    // Check if var_name is in the parameter list
+                    let param_text: String = chars[open + 1..close_idx].iter().collect();
+                    let param_chars: Vec<char> = param_text.chars().collect();
+                    let mut pi = 0;
+                    while pi < param_chars.len() {
+                        while pi < param_chars.len() && param_chars[pi].is_whitespace() {
+                            pi += 1;
+                        }
+                        if pi + var_len <= param_chars.len() {
+                            let potential: String = param_chars[pi..pi + var_len].iter().collect();
+                            if potential == var_name {
+                                let before_ok = pi == 0 || !is_identifier_char(param_chars[pi - 1]);
+                                let after_ok = pi + var_len >= param_chars.len()
+                                    || !is_identifier_char(param_chars[pi + var_len]);
+                                if before_ok && after_ok {
+                                    return true;
+                                }
+                            }
+                        }
+                        pi += 1;
+                    }
+                }
+            } else if k > 0 && is_identifier_char(chars[k - 1]) {
+                // Single param arrow: `x => expr`
+                let end = k;
+                let mut start = k;
+                while start > 0 && is_identifier_char(chars[start - 1]) {
+                    start -= 1;
+                }
+                let param: String = chars[start..end].iter().collect();
+                if param == var_name {
+                    return true;
+                }
+            }
+        }
+    }
+
     // Track brace depth as we scan backwards
     let mut brace_depth = 0;
     let mut i = var_start;
@@ -12999,6 +13098,13 @@ fn find_matching_paren(s: &str) -> Option<usize> {
 /// - Arrow functions and function expressions (even if they contain objects inside)
 fn expression_needs_proxy(expr: &str) -> bool {
     let trimmed = expr.trim();
+
+    // `await expr` needs proxy because the resolved value could be an object/array.
+    // In the official Svelte compiler, AwaitExpression is not in the list of types
+    // that return false from should_proxy, so it always returns true.
+    if trimmed.starts_with("await ") {
+        return true;
+    }
 
     // Arrow functions and function expressions don't need proxy wrapping
     // They're functions themselves, not objects/arrays
@@ -15385,9 +15491,9 @@ fn find_and_transform_one_destructure(
         // Look for `] =` or `} =` (possibly with spaces)
         // But NOT `]= ` or `]=` (without space before =, which could be another pattern)
         if (c == ']' || c == '}') && i + 1 < len {
-            // Find the `=` after the bracket
+            // Find the `=` after the bracket (skipping any whitespace including newlines)
             let mut j = i + 1;
-            while j < len && chars[j] == ' ' {
+            while j < len && chars[j].is_whitespace() {
                 j += 1;
             }
             if j < len && chars[j] == '=' && (j + 1 >= len || chars[j + 1] != '=') {
@@ -15804,6 +15910,23 @@ fn find_destructure_rhs_end(statement: &str, start: usize) -> usize {
                 }
                 depth -= 1;
                 i += 1;
+                // After closing `)` at depth 0, check if followed by `(` (function call)
+                // or `[` (member access). If so, continue parsing as the expression
+                // is not finished yet. E.g., `(async (...) => {...})(args)`.
+                if depth == 0 {
+                    // Skip whitespace
+                    let mut j = i;
+                    while j < len && chars[j].is_whitespace() {
+                        j += 1;
+                    }
+                    if j < len && (chars[j] == '(' || chars[j] == '[' || chars[j] == '.') {
+                        // This is a function call, member access, or property access
+                        // Continue parsing
+                    } else {
+                        // Expression ends here
+                        // But don't return - let the next iteration handle it
+                    }
+                }
             }
             ']' | '}' => {
                 if depth == 0 {
@@ -15948,16 +16071,33 @@ fn code_contains_await(code: &str) -> bool {
 /// This is a simplified check that looks for `await` preceded by a non-identifier char
 /// and followed by a non-identifier char.
 fn string_expr_has_await(s: &str) -> bool {
+    string_expr_has_toplevel_await(s)
+}
+
+/// Check if a string expression has a top-level `await` keyword.
+///
+/// This mirrors the official compiler's `is_expression_async` which does NOT
+/// recurse into nested `async` function/arrow bodies. So `(async (x) => await x)(arg)`
+/// returns `false` because the `await` is inside the async arrow, not at the top level.
+fn string_expr_has_toplevel_await(s: &str) -> bool {
     let bytes = s.as_bytes();
     let len = bytes.len();
-    let await_bytes = b"await";
     if len < 5 {
         return false;
     }
+
+    // We track nested depth (parens, braces, brackets combined) and maintain
+    // a "min safe depth" - the depth at/below which `await` counts as top-level.
+    // When we encounter an `async` keyword, we record the current depth as an
+    // "async scope entry" - any `await` found at a deeper depth within that
+    // async's body should be ignored.
+    //
+    // Strategy: when we see `async`, skip ahead past the entire async
+    // function/arrow body so we never even see its internal `await` keywords.
     let mut i = 0;
-    while i + 5 <= len {
+    while i < len {
         // Skip string literals
-        if bytes[i] == b'\'' || bytes[i] == b'"' || bytes[i] == b'`' {
+        if i < len && (bytes[i] == b'\'' || bytes[i] == b'"' || bytes[i] == b'`') {
             let quote = bytes[i];
             i += 1;
             while i < len {
@@ -15973,8 +16113,28 @@ fn string_expr_has_await(s: &str) -> bool {
             }
             continue;
         }
-        // Check for `await` keyword
-        if &bytes[i..i + 5] == await_bytes {
+
+        // Check for `async` keyword - if found, skip past the async body
+        if i + 5 <= len && &bytes[i..i + 5] == b"async" {
+            let before_ok = i == 0
+                || !bytes[i - 1].is_ascii_alphanumeric()
+                    && bytes[i - 1] != b'_'
+                    && bytes[i - 1] != b'$';
+            let after_ok = i + 5 >= len
+                || !bytes[i + 5].is_ascii_alphanumeric()
+                    && bytes[i + 5] != b'_'
+                    && bytes[i + 5] != b'$';
+            if before_ok && after_ok {
+                // Skip past the entire async function/arrow body
+                if let Some(end) = skip_async_body(bytes, i + 5) {
+                    i = end;
+                    continue;
+                }
+            }
+        }
+
+        // Check for `await` keyword (only reached if not inside an async body)
+        if i + 5 <= len && &bytes[i..i + 5] == b"await" {
             let before_ok = i == 0
                 || !bytes[i - 1].is_ascii_alphanumeric()
                     && bytes[i - 1] != b'_'
@@ -15987,9 +16147,171 @@ fn string_expr_has_await(s: &str) -> bool {
                 return true;
             }
         }
+
         i += 1;
     }
     false
+}
+
+/// Skip past an async function/arrow body starting from the position right after `async`.
+/// Returns the position after the body ends, or None if this isn't a recognizable pattern.
+fn skip_async_body(bytes: &[u8], start: usize) -> Option<usize> {
+    let len = bytes.len();
+    let mut i = start;
+
+    // Skip whitespace
+    while i < len && bytes[i].is_ascii_whitespace() {
+        i += 1;
+    }
+
+    if i >= len {
+        return None;
+    }
+
+    // Case 1: `async function ...` - skip to end of function body
+    if i + 8 <= len && &bytes[i..i + 8] == b"function" {
+        // Skip to the function body `{...}`
+        // Find the opening `{`
+        while i < len && bytes[i] != b'{' {
+            i += 1;
+        }
+        if i >= len {
+            return None;
+        }
+        // Skip the `{...}` block
+        return Some(skip_balanced_braces(bytes, i));
+    }
+
+    // Case 2: `async (params) => body` or `async name => body`
+    if bytes[i] == b'(' {
+        // Skip the params `(...)`
+        i = skip_balanced(bytes, i, b'(', b')');
+    } else if bytes[i].is_ascii_alphabetic() || bytes[i] == b'_' || bytes[i] == b'$' {
+        // Single param: `async x => ...`
+        while i < len && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_' || bytes[i] == b'$')
+        {
+            i += 1;
+        }
+    } else {
+        return None;
+    }
+
+    // Skip whitespace
+    while i < len && bytes[i].is_ascii_whitespace() {
+        i += 1;
+    }
+
+    // Expect `=>`
+    if i + 2 <= len && &bytes[i..i + 2] == b"=>" {
+        i += 2;
+    } else {
+        return None;
+    }
+
+    // Skip whitespace
+    while i < len && bytes[i].is_ascii_whitespace() {
+        i += 1;
+    }
+
+    if i >= len {
+        return Some(i);
+    }
+
+    // Arrow body: either `{...}` block or expression
+    if bytes[i] == b'{' {
+        return Some(skip_balanced_braces(bytes, i));
+    }
+
+    // Expression body: skip to end of expression (up to a comma/paren/bracket at depth 0)
+    Some(skip_expression(bytes, i))
+}
+
+/// Skip a balanced `{...}` block, returning position after closing `}`.
+fn skip_balanced_braces(bytes: &[u8], start: usize) -> usize {
+    skip_balanced(bytes, start, b'{', b'}')
+}
+
+/// Skip balanced brackets from start (which should be the opening bracket).
+/// Returns position after the closing bracket.
+fn skip_balanced(bytes: &[u8], start: usize, open: u8, close: u8) -> usize {
+    let len = bytes.len();
+    let mut depth = 0;
+    let mut i = start;
+    let mut in_string: Option<u8> = None;
+
+    while i < len {
+        if let Some(q) = in_string {
+            if bytes[i] == b'\\' {
+                i += 2;
+                continue;
+            }
+            if bytes[i] == q {
+                in_string = None;
+            }
+            i += 1;
+            continue;
+        }
+        if bytes[i] == b'\'' || bytes[i] == b'"' || bytes[i] == b'`' {
+            in_string = Some(bytes[i]);
+            i += 1;
+            continue;
+        }
+        if bytes[i] == open {
+            depth += 1;
+        } else if bytes[i] == close {
+            depth -= 1;
+            if depth == 0 {
+                return i + 1;
+            }
+        }
+        i += 1;
+    }
+    len
+}
+
+/// Skip an expression (arrow body without braces). Ends at a `,`, `)`, `]`, or `}`
+/// at depth 0, or at end of input.
+fn skip_expression(bytes: &[u8], start: usize) -> usize {
+    let len = bytes.len();
+    let mut depth = 0usize;
+    let mut i = start;
+    let mut in_string: Option<u8> = None;
+
+    while i < len {
+        if let Some(q) = in_string {
+            if bytes[i] == b'\\' {
+                i += 2;
+                continue;
+            }
+            if bytes[i] == q {
+                in_string = None;
+            }
+            i += 1;
+            continue;
+        }
+        if bytes[i] == b'\'' || bytes[i] == b'"' || bytes[i] == b'`' {
+            in_string = Some(bytes[i]);
+            i += 1;
+            continue;
+        }
+        match bytes[i] {
+            b'(' | b'[' | b'{' => {
+                depth += 1;
+            }
+            b')' | b']' | b'}' => {
+                if depth == 0 {
+                    return i;
+                }
+                depth -= 1;
+            }
+            b',' if depth == 0 => {
+                return i;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    len
 }
 
 /// Check if a string expression is a "simple" expression that doesn't need thunk wrapping.
@@ -16141,10 +16463,34 @@ fn generate_destructure_iife(
 
             if let Some(rest_target) = part.strip_prefix("...") {
                 let rest_target = rest_target.trim();
-                body_lines.push(format!(
-                    "\t{} = {}.slice({});",
-                    rest_target, array_name, idx
-                ));
+                if rest_target.starts_with('{') && rest_target.ends_with('}') {
+                    // Rest with object destructure pattern: ...{ z = 26 }
+                    // Generate inline property access from .slice() result
+                    let slice_expr = format!("{}.slice({})", array_name, idx);
+                    let obj_inner = &rest_target[1..rest_target.len() - 1];
+                    let obj_parts = split_on_commas(obj_inner);
+                    for obj_part in &obj_parts {
+                        let obj_part = obj_part.trim();
+                        if obj_part.is_empty() {
+                            continue;
+                        }
+                        if let Some(eq_pos) = find_top_level_equals(obj_part) {
+                            let prop_name = obj_part[..eq_pos].trim();
+                            let default_val = obj_part[eq_pos + 1..].trim();
+                            let access = format!("{}.{}", slice_expr, prop_name);
+                            let fallback = build_fallback_string(&access, default_val);
+                            body_lines.push(format!("\t{} = {};", prop_name, fallback));
+                        } else {
+                            body_lines
+                                .push(format!("\t{} = {}.{};", obj_part, slice_expr, obj_part));
+                        }
+                    }
+                } else {
+                    body_lines.push(format!(
+                        "\t{} = {}.slice({});",
+                        rest_target, array_name, idx
+                    ));
+                }
             } else {
                 // Handle default value: `target = default`
                 let (target, default_val) = if let Some(eq_pos) = find_top_level_equals(part) {
@@ -16156,10 +16502,9 @@ fn generate_destructure_iife(
                 };
 
                 if let Some(default_val) = default_val {
-                    body_lines.push(format!(
-                        "\t{} = $.fallback({}[{}], {});",
-                        target, array_name, idx, default_val
-                    ));
+                    let access = format!("{}[{}]", array_name, idx);
+                    let fallback = build_fallback_string(&access, default_val);
+                    body_lines.push(format!("\t{} = {};", target, fallback));
                 } else {
                     body_lines.push(format!("\t{} = {}[{}];", target, array_name, idx));
                 }
@@ -16194,6 +16539,8 @@ fn generate_destructure_iife(
             .trim()
             .chars()
             .all(|c| c.is_alphanumeric() || c == '_' || c == '$');
+        // Check if all parts are "simple enough" to use direct property access instead of IIFE.
+        // Allow defaults (= sign) since we can use $.fallback() with direct access.
         let all_parts_simple = !parts.is_empty()
             && parts.iter().all(|p| {
                 let p = p.trim();
@@ -16204,19 +16551,29 @@ fn generate_destructure_iife(
                 if p.starts_with("...") {
                     return false;
                 }
-                // No defaults (top-level = sign)
-                if find_top_level_equals(p).is_some() {
-                    return false;
-                }
                 // If key-value, target must be simple identifier (no nested patterns)
                 if let Some(colon_pos) = find_top_level_colon(p) {
                     let target = p[colon_pos + 1..].trim();
+                    // Check for default value in key-value pair
+                    let target_without_default = if let Some(eq_pos) = find_top_level_equals(target)
+                    {
+                        target[..eq_pos].trim()
+                    } else {
+                        target
+                    };
                     // No nested array/object patterns
-                    if target.starts_with('[')
-                        || target.starts_with('{')
-                        || find_top_level_equals(target).is_some()
+                    if target_without_default.starts_with('[')
+                        || target_without_default.starts_with('{')
                     {
                         return false;
+                    }
+                } else {
+                    // Shorthand with default: check the name part
+                    if let Some(eq_pos) = find_top_level_equals(p) {
+                        let name = p[..eq_pos].trim();
+                        if name.starts_with('[') || name.starts_with('{') {
+                            return false;
+                        }
                     }
                 }
                 true
@@ -16241,23 +16598,49 @@ fn generate_destructure_iife(
                 if part.is_empty() {
                     continue;
                 }
-                let (key, target) = if let Some(colon_pos) = find_top_level_colon(part) {
+                let (key, target_with_default) = if let Some(colon_pos) = find_top_level_colon(part)
+                {
                     (
                         part[..colon_pos].trim().to_string(),
                         part[colon_pos + 1..].trim().to_string(),
                     )
                 } else {
-                    // Shorthand: {x} means key=x, target=x
-                    (part.to_string(), part.to_string())
+                    // Shorthand: {x} or {x = default} means key=x
+                    let name = if let Some(eq_pos) = find_top_level_equals(part) {
+                        part[..eq_pos].trim().to_string()
+                    } else {
+                        part.to_string()
+                    };
+                    (name.clone(), part.to_string())
                 };
+
+                // Split target from default value
+                let (target, default_val) =
+                    if let Some(eq_pos) = find_top_level_equals(&target_with_default) {
+                        (
+                            target_with_default[..eq_pos].trim().to_string(),
+                            Some(target_with_default[eq_pos + 1..].trim().to_string()),
+                        )
+                    } else {
+                        (target_with_default.clone(), None)
+                    };
+
+                let access = format!("{}.{}", rhs_str, key);
 
                 // Check if the target is a store subscription variable ($storeName)
                 if store_sub_vars.contains(&target) && target.starts_with('$') {
-                    // Generate $.store_set(storeName, rhs.key) directly
                     let store_name = &target[1..]; // Remove the $ prefix
-                    assignments.push(format!("$.store_set({}, {}.{})", store_name, rhs_str, key));
+                    if let Some(default_val) = &default_val {
+                        let fallback = build_fallback_string(&access, default_val);
+                        assignments.push(format!("$.store_set({}, {})", store_name, fallback));
+                    } else {
+                        assignments.push(format!("$.store_set({}, {})", store_name, access));
+                    }
+                } else if let Some(default_val) = &default_val {
+                    let fallback = build_fallback_string(&access, default_val);
+                    assignments.push(format!("{} = {}", target, fallback));
                 } else {
-                    assignments.push(format!("{} = {}.{}", target, rhs_str, key));
+                    assignments.push(format!("{} = {}", target, access));
                 }
             }
 
