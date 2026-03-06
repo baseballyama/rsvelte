@@ -124,6 +124,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 children,
                 dynamic: true,
                 css_custom_props: Vec::new(),
+                seq_bindings_hoisted: false,
             });
         }
 
@@ -225,6 +226,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 children,
                 dynamic: false,
                 css_custom_props: Vec::new(),
+                seq_bindings_hoisted: false,
             });
         }
 

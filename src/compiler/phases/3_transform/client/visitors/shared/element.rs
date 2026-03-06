@@ -912,13 +912,26 @@ pub fn build_set_style(
         // Build style directives object
         next = Some(build_style_directives_object(style_directives, context));
 
-        // Check if any style directive has state or non-pure function calls
+        // Check if any style directive has state, non-pure function calls, or async blockers
         // In the official compiler, has_call implies has_state for template_effect routing
+        // Also check for async blockers - variables that depend on async promises should be
+        // treated as having state so they end up in template_effect with proper promise deps
         for directive in style_directives {
             let expr = &get_directive_expression(directive);
             if super::utils::expression_has_reactive_state(expr, context)
                 || super::utils::expression_has_call(expr, context)
             {
+                has_state = true;
+                break;
+            }
+            // Check for async blockers: convert directive expression to JS and check blockers
+            let js_expr = if matches!(&directive.value, AttributeValue::True(true)) {
+                b::id(directive.name.as_str())
+            } else {
+                let result = build_attribute_value(&directive.value, context, |expr, _| expr);
+                result.value
+            };
+            if context.state.has_blockers_for_expr(&js_expr) {
                 has_state = true;
                 break;
             }

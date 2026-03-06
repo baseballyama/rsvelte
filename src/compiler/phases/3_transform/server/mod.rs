@@ -108,6 +108,32 @@ pub(crate) struct ServerCodeGenerator<'a> {
     /// When true, async expressions use plain `await expr` instead of `(await $.save(expr))()`.
     /// Each block bodies still use $.save().
     pub(crate) in_if_body: bool,
+    /// Counter for generating unique promise group names (promises, promises_1, promises_2, ...)
+    /// Shared across nested generators via Rc<Cell> to ensure unique names across the component.
+    pub(crate) const_promises_counter: std::rc::Rc<std::cell::Cell<usize>>,
+    /// Mapping from variable names to their const-level blocker expressions.
+    /// When a const tag declares an async variable in a `$$renderer.run()` group,
+    /// the blocker (e.g., "promises[0]") is recorded here for subsequent const tags
+    /// and expression tags to use for `$$renderer.async()` wrapping.
+    /// Shared across nested generators via Rc<RefCell> so blockers from outer boundaries
+    /// are visible in inner boundaries.
+    pub(crate) const_blocker_map:
+        std::rc::Rc<std::cell::RefCell<std::collections::HashMap<String, String>>>,
+    /// Accumulator for async const tag grouping.
+    /// When an async const tag is encountered, subsequent const tags in the same fragment
+    /// are accumulated into this group. Flushed by the fragment visitor after processing all nodes.
+    /// Format: (group_name, thunks, declared_variable_names_with_thunk_indices)
+    pub(crate) async_consts: Option<AsyncConstsGroup>,
+}
+
+/// Accumulator for grouping multiple const tags into a single `$$renderer.run()` call.
+pub(crate) struct AsyncConstsGroup {
+    /// The promise group name (e.g., "promises", "promises_1")
+    pub name: String,
+    /// The accumulated thunks (each is a string like "async () => { ... }" or "() => { ... }")
+    pub thunks: Vec<(String, bool)>, // (thunk_code, is_async)
+    /// Variable names declared in this group, with their thunk index for blocker registration
+    pub declared_vars: Vec<(String, usize)>,
 }
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -312,6 +338,11 @@ impl<'a> ServerCodeGenerator<'a> {
             preserve_whitespace: false,
             in_block_body: false,
             in_if_body: false,
+            const_promises_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
+            const_blocker_map: std::rc::Rc::new(std::cell::RefCell::new(
+                std::collections::HashMap::new(),
+            )),
+            async_consts: None,
         }
     }
 
@@ -335,6 +366,9 @@ impl<'a> ServerCodeGenerator<'a> {
             preserve_whitespace: self.preserve_whitespace,
             in_block_body: self.in_block_body,
             in_if_body: self.in_if_body,
+            const_promises_counter: self.const_promises_counter.clone(),
+            const_blocker_map: self.const_blocker_map.clone(),
+            async_consts: None,
         }
     }
 
@@ -440,7 +474,7 @@ impl<'a> ServerCodeGenerator<'a> {
             || result.contains("$inspect(")
             || result.contains("$inspect.trace(")
         {
-            result = remove_effect_blocks(&result);
+            result = remove_effect_blocks(&result, false);
         }
         result
     }

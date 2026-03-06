@@ -468,8 +468,8 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
 
     // Handle async expressions
     let has_await = node.metadata.expression.has_await();
-    // Check for blockers from the blocker_map (variables assigned after await)
-    let blocker_exprs = context.state.get_blockers_for_expr(&collection);
+    // Check for blockers from both blocker_map and const_blocker_map (variables assigned after await)
+    let blocker_exprs = context.state.get_all_blockers_for_expr(&collection);
     let has_blockers = !blocker_exprs.is_empty();
     let is_async = has_await || has_blockers;
 

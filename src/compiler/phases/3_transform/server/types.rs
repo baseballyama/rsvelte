@@ -393,6 +393,14 @@ pub(crate) enum OutputPart {
         /// The inner parts (the if/each block itself)
         inner: Vec<OutputPart>,
     },
+    /// Async-wrapped if/each block with custom blocker expressions (not just $$promises indices).
+    /// Used for const-tag-level async: `$$renderer.async_block([promises_N[M], ...], ($$renderer) => { ... })`
+    AsyncBlockCustom {
+        /// The blocker expression strings (e.g., "promises[0]", "promises_1[0]")
+        blockers: Vec<String>,
+        /// The inner parts (the if/each block itself)
+        inner: Vec<OutputPart>,
+    },
     /// Async-wrapped expression: `$$renderer.async([blockers], ($$renderer) => { $$renderer.push(() => $.escape(expr)); })`
     /// Used when an expression tag references a blocked async variable.
     AsyncWrappedExpression {
@@ -409,8 +417,22 @@ pub(crate) enum OutputPart {
         /// The HTML string to render
         html: String,
     },
+    /// Async-wrapped expression with custom blocker expressions (not just $$promises indices).
+    /// Used for const-tag-level async: `$$renderer.async([promises_N[M]], ($$renderer) => $$renderer.push(() => $.escape(expr)))`
+    AsyncWrappedExpressionCustom {
+        /// The blocker expression strings (e.g., "promises_2[1]")
+        blockers: Vec<String>,
+        /// The expression to render
+        expr: String,
+    },
     /// Raw JavaScript statement(s) to emit directly
     RawStatement(String),
+    /// Metadata-only part that carries const-tag blocker mappings for a scope.
+    /// This is not rendered but is used by `apply_const_async_wrapping` to build
+    /// a scoped blocker map. `blocker_entries` maps variable names to blocker strings.
+    ConstBlockerMetadata {
+        blocker_entries: Vec<(String, String)>,
+    },
     /// Local snippet function declaration (e.g., `function failed($$renderer, e) { ... }`)
     /// Used for snippets inside svelte:boundary that need to be local functions
     SnippetFunction {

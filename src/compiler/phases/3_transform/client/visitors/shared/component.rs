@@ -1851,6 +1851,8 @@ fn visit_slot_children(
     let saved_hoisted = std::mem::take(&mut context.state.hoisted);
     let saved_consts = std::mem::take(&mut context.state.consts);
     let saved_async_consts = context.state.async_consts.take();
+    let saved_is_standalone = context.state.is_standalone;
+    context.state.is_standalone = false;
     let new_memoizer =
         crate::compiler::phases::phase3_transform::client::types::Memoizer::with_parent_conflicts(
             &context.state.memoizer,
@@ -1944,6 +1946,9 @@ fn visit_slot_children(
         context.visit_node(&cleaned.trimmed[0], None);
     } else if cleaned.is_standalone {
         // Handle standalone case: single component/render tag doesn't need template processing
+        // Set is_standalone on state so component/render-tag visitors know
+        // they need to emit $.next() after $.async() wrapping.
+        context.state.is_standalone = true;
         // For standalone components, just visit them directly
         for node in &cleaned.trimmed {
             let result = context.visit_node(node, None);
@@ -2248,9 +2253,10 @@ fn visit_slot_children(
     let slot_hoisted = std::mem::replace(&mut context.state.hoisted, saved_hoisted);
     context.state.hoisted.extend(slot_hoisted);
 
-    // Restore the template and node
+    // Restore the template, node, and is_standalone
     context.state.template = saved_template;
     context.state.node = saved_node;
+    context.state.is_standalone = saved_is_standalone;
 
     result
 }

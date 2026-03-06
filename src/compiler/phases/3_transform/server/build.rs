@@ -98,6 +98,14 @@ impl<'a> ServerCodeGenerator<'a> {
         } else {
             hoisted_parts
         };
+        // Apply const-tag-level async wrapping based on const_blocker_map
+        let const_blocker_map = self.const_blocker_map.borrow();
+        let hoisted_parts = if !const_blocker_map.is_empty() {
+            Self::apply_const_async_wrapping(&hoisted_parts, &const_blocker_map)
+        } else {
+            hoisted_parts
+        };
+        drop(const_blocker_map);
 
         let body_code = Self::build_parts_with_store_subs(
             &hoisted_parts,
@@ -1290,6 +1298,181 @@ export default function {component_name}($$renderer{props_param}) {{
         result
     }
 
+    /// Apply const-tag-level async wrapping to output parts.
+    ///
+    /// This wraps Expression parts (and expressions within Html parts) that reference
+    /// const-blocked variables in `$$renderer.async([blockers], ...)` calls.
+    /// Unlike `apply_async_wrapping` which uses `$$promises[N]`, this uses custom
+    /// blocker expressions like `promises_N[M]` from const tag run groups.
+    ///
+    /// The blocker map is built incrementally from `ConstBlockerMetadata` parts
+    /// found within the parts array. This handles scoping correctly - each scope
+    /// level contributes its own blocker entries to the map.
+    fn apply_const_async_wrapping(
+        parts: &[OutputPart],
+        parent_blocker_map: &std::collections::HashMap<String, String>,
+    ) -> Vec<OutputPart> {
+        // Build a local blocker map by starting from the parent and adding entries
+        // from ConstBlockerMetadata parts in this scope.
+        // We do a two-pass approach:
+        // 1. First pass: collect all ConstBlockerMetadata entries in this scope
+        // 2. Second pass: apply wrapping using the complete map
+        let mut local_map = parent_blocker_map.clone();
+        for part in parts {
+            if let OutputPart::ConstBlockerMetadata { blocker_entries } = part {
+                for (name, blocker) in blocker_entries {
+                    local_map.insert(name.clone(), blocker.clone());
+                }
+            }
+        }
+
+        let mut result = Vec::with_capacity(parts.len());
+
+        for part in parts {
+            match part {
+                OutputPart::ConstBlockerMetadata { .. } => {
+                    // Don't include metadata parts in output - they're consumed above
+                }
+                OutputPart::Expression(expr) => {
+                    let blockers = super::helpers::find_const_expression_blockers(expr, &local_map);
+                    if !blockers.is_empty() {
+                        result.push(OutputPart::AsyncWrappedExpressionCustom {
+                            blockers,
+                            expr: expr.clone(),
+                        });
+                    } else {
+                        result.push(part.clone());
+                    }
+                }
+                OutputPart::Html(html) => {
+                    let blockers = super::helpers::find_const_html_blockers(html, &local_map);
+                    if !blockers.is_empty() {
+                        if let Some((prefix, expr, suffix)) =
+                            super::helpers::split_html_expression(html)
+                        {
+                            if !prefix.is_empty() {
+                                result.push(OutputPart::Html(prefix));
+                            }
+                            result
+                                .push(OutputPart::AsyncWrappedExpressionCustom { blockers, expr });
+                            if !suffix.is_empty() {
+                                result.push(OutputPart::Html(suffix));
+                            }
+                        } else {
+                            result.push(part.clone());
+                        }
+                    } else {
+                        result.push(part.clone());
+                    }
+                }
+                OutputPart::IfBlock {
+                    test_expr,
+                    consequent_body,
+                    alternate_body,
+                    is_elseif,
+                } => {
+                    let test_blockers =
+                        super::helpers::find_const_expression_blockers(test_expr, &local_map);
+                    if !test_blockers.is_empty() {
+                        let wrapped_consequent =
+                            Self::apply_const_async_wrapping(consequent_body, &local_map);
+                        let wrapped_alternate = alternate_body
+                            .as_ref()
+                            .map(|alt| Self::apply_const_async_wrapping(alt, &local_map));
+                        result.push(OutputPart::AsyncBlockCustom {
+                            blockers: test_blockers,
+                            inner: vec![OutputPart::IfBlock {
+                                test_expr: test_expr.clone(),
+                                consequent_body: wrapped_consequent,
+                                alternate_body: wrapped_alternate,
+                                is_elseif: *is_elseif,
+                            }],
+                        });
+                    } else {
+                        let wrapped_consequent =
+                            Self::apply_const_async_wrapping(consequent_body, &local_map);
+                        let wrapped_alternate = alternate_body
+                            .as_ref()
+                            .map(|alt| Self::apply_const_async_wrapping(alt, &local_map));
+                        result.push(OutputPart::IfBlock {
+                            test_expr: test_expr.clone(),
+                            consequent_body: wrapped_consequent,
+                            alternate_body: wrapped_alternate,
+                            is_elseif: *is_elseif,
+                        });
+                    }
+                }
+                OutputPart::SvelteBoundary { body, is_pending } => {
+                    let wrapped_body = Self::apply_const_async_wrapping(body, &local_map);
+                    result.push(OutputPart::SvelteBoundary {
+                        body: wrapped_body,
+                        is_pending: *is_pending,
+                    });
+                }
+                OutputPart::BlockScope { body } => {
+                    // BlockScope creates a new scope - recurse with current map as parent
+                    let wrapped_body = Self::apply_const_async_wrapping(body, &local_map);
+                    result.push(OutputPart::BlockScope { body: wrapped_body });
+                }
+                OutputPart::SnippetFunction { name, params, body } => {
+                    // SnippetFunction creates a new scope - recurse with current map as parent
+                    let wrapped_body = Self::apply_const_async_wrapping(body, &local_map);
+                    result.push(OutputPart::SnippetFunction {
+                        name: name.clone(),
+                        params: params.clone(),
+                        body: wrapped_body,
+                    });
+                }
+                OutputPart::EachBlock {
+                    iterable,
+                    context_name,
+                    index_name,
+                    index_alias,
+                    body,
+                    fallback,
+                } => {
+                    let iterable_blockers =
+                        super::helpers::find_const_expression_blockers(iterable, &local_map);
+                    if !iterable_blockers.is_empty() {
+                        let wrapped_body = Self::apply_const_async_wrapping(body, &local_map);
+                        let wrapped_fallback = fallback
+                            .as_ref()
+                            .map(|fb| Self::apply_const_async_wrapping(fb, &local_map));
+                        result.push(OutputPart::AsyncBlockCustom {
+                            blockers: iterable_blockers,
+                            inner: vec![OutputPart::EachBlock {
+                                iterable: iterable.clone(),
+                                context_name: context_name.clone(),
+                                index_name: index_name.clone(),
+                                index_alias: index_alias.clone(),
+                                body: wrapped_body,
+                                fallback: wrapped_fallback,
+                            }],
+                        });
+                    } else {
+                        let wrapped_body = Self::apply_const_async_wrapping(body, &local_map);
+                        let wrapped_fallback = fallback
+                            .as_ref()
+                            .map(|fb| Self::apply_const_async_wrapping(fb, &local_map));
+                        result.push(OutputPart::EachBlock {
+                            iterable: iterable.clone(),
+                            context_name: context_name.clone(),
+                            index_name: index_name.clone(),
+                            index_alias: index_alias.clone(),
+                            body: wrapped_body,
+                            fallback: wrapped_fallback,
+                        });
+                    }
+                }
+                _ => {
+                    result.push(part.clone());
+                }
+            }
+        }
+
+        result
+    }
+
     /// Pre-pass: merge Html parts that contain blocked expressions with their
     /// immediately following closing tag Html parts (e.g., `</div>`).
     /// This ensures elements like `<div${...}>` + `</div>` are treated as one unit `<div${...}></div>`.
@@ -1594,6 +1777,13 @@ export default function {component_name}($$renderer{props_param}) {{
                 OutputPart::ConstDeclaration(_)
                 | OutputPart::VarDeclaration(_)
                 | OutputPart::SnippetFunction { .. } => {
+                    hoisted.push(part.clone());
+                    in_hoisted_region = true;
+                }
+                OutputPart::RawStatement(s) if s.starts_with("let ") || s.starts_with("var ") => {
+                    // Hoist `let` and `var` declarations (from async const tags) alongside
+                    // ConstDeclaration and SnippetFunction to match the official
+                    // compiler's state.init ordering.
                     hoisted.push(part.clone());
                     in_hoisted_region = true;
                 }
@@ -1911,6 +2101,99 @@ export default function {component_name}($$renderer{props_param}) {{
                         current_html.push_str("<!--]-->");
                     }
                 }
+                OutputPart::AsyncBlockCustom { blockers, inner } => {
+                    // Async-wrapped block with custom blocker expressions (const-tag-level).
+                    // Similar to AsyncBlock but uses string blockers instead of $$promises indices.
+                    let needs_async_callback = Self::parts_contain_async(inner);
+                    let async_keyword = if needs_async_callback { "async " } else { "" };
+
+                    let inner_is_block = matches!(
+                        inner.first(),
+                        Some(
+                            OutputPart::IfBlock { .. }
+                                | OutputPart::AwaitBlock { .. }
+                                | OutputPart::EachBlock { .. }
+                        )
+                    );
+                    let inner_is_each = matches!(inner.first(), Some(OutputPart::EachBlock { .. }));
+
+                    // For EachBlock inside AsyncBlockCustom, the <!--[--> marker goes BEFORE
+                    if inner_is_each {
+                        current_html.push_str("<!--[-->");
+                    }
+
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    let blockers_str = blockers.join(", ");
+
+                    body_code.push_str(&format!(
+                        "{}$$renderer.async_block([{}], {}($$renderer) => {{\n",
+                        indent, blockers_str, async_keyword
+                    ));
+
+                    // Render inner content
+                    if let Some(OutputPart::IfBlock {
+                        test_expr,
+                        consequent_body,
+                        alternate_body,
+                        ..
+                    }) = inner.first()
+                    {
+                        let effective_test = if super::helpers::expr_contains_await(test_expr) {
+                            super::helpers::transform_await_to_save(test_expr)
+                        } else {
+                            test_expr.clone()
+                        };
+                        let if_code = Self::build_if_statement(
+                            &effective_test,
+                            consequent_body,
+                            alternate_body,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
+                        body_code.push_str(&if_code);
+                    } else if let Some(OutputPart::EachBlock {
+                        iterable,
+                        context_name,
+                        index_name,
+                        index_alias,
+                        body,
+                        fallback,
+                    }) = inner.first()
+                    {
+                        let each_code = Self::build_each_block_inner(
+                            iterable,
+                            context_name,
+                            index_name,
+                            index_alias,
+                            body,
+                            fallback,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
+                        body_code.push_str(&each_code);
+                    } else {
+                        let inner_code = Self::build_parts_with_store_subs(
+                            inner,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
+                        body_code.push_str(&inner_code);
+                    }
+
+                    body_code.push_str(&format!("{}}});\n\n", indent));
+
+                    if inner_is_block {
+                        current_html.push_str("<!--]-->");
+                    }
+                }
                 OutputPart::AsyncWrappedExpression {
                     blocker_indices,
                     expr,
@@ -1932,6 +2215,21 @@ export default function {component_name}($$renderer{props_param}) {{
                         .join(", ");
 
                     // Use concise arrow body: ($$renderer) => $$renderer.push(...)
+                    body_code.push_str(&format!(
+                        "{}$$renderer.async([{}], ($$renderer) => $$renderer.push(() => $.escape({})));\n",
+                        indent, blockers_str, expr
+                    ));
+                }
+                OutputPart::AsyncWrappedExpressionCustom { blockers, expr } => {
+                    // Async-wrapped expression with custom blocker expressions
+                    // (not $$promises indices but const-tag-level like promises_N[M])
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    let blockers_str = blockers.join(", ");
                     body_code.push_str(&format!(
                         "{}$$renderer.async([{}], ($$renderer) => $$renderer.push(() => $.escape({})));\n",
                         indent, blockers_str, expr
@@ -3978,6 +4276,10 @@ export default function {component_name}($$renderer{props_param}) {{
                     }
 
                     body_code.push_str(&format!("{}}}\n\n", indent));
+                }
+                OutputPart::ConstBlockerMetadata { .. } => {
+                    // Metadata-only part, consumed by apply_const_async_wrapping.
+                    // Should not appear in output - skip it.
                 }
             }
             i += 1;

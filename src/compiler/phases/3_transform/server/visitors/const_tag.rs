@@ -205,46 +205,191 @@ impl<'a> ServerCodeGenerator<'a> {
             let mut declaration_source = self.source[start..end].trim().to_string();
 
             // Strip TypeScript type annotations from const declarations
-            // e.g., `area: number = box.width * box.height` -> `area = box.width * box.height`
             if self.is_typescript && !declaration_source.is_empty() {
-                // Wrap as a variable declaration for the TS parser
                 let wrapped = format!("const {};", declaration_source);
                 let stripped =
                     crate::compiler::phases::phase2_analyze::types::strip_typescript(&wrapped);
-                // Unwrap back: remove "const " prefix and ";" suffix
                 let stripped = stripped.trim();
                 if let Some(rest) = stripped.strip_prefix("const ") {
                     declaration_source = rest.trim_end_matches(';').trim().to_string();
                 }
             }
 
-            // Try to extract the variable name and value for constant folding.
-            // If the value is a simple literal, add it to constant_vars so subsequent
-            // expression tags can fold references to this const.
-            if let Some(eq_idx) = declaration_source.find('=') {
-                let var_name = declaration_source[..eq_idx].trim();
-                let var_value = declaration_source[eq_idx + 1..].trim();
+            let has_await = tag.metadata.expression.has_await();
 
-                // Only simple identifiers (no destructuring)
-                if var_name
-                    .chars()
-                    .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
-                    && !var_name.is_empty()
-                {
-                    // Try to evaluate the value using existing constants
-                    if let Some(folded) = super::super::helpers::try_evaluate_with_constants(
-                        var_value,
-                        &self.constant_vars,
-                    ) {
-                        self.constant_vars.insert(var_name.to_string(), folded);
+            // Extract variable names and init expression
+            let (lhs, rhs) = if let Some(eq_idx) = find_assignment_eq(&declaration_source) {
+                (
+                    declaration_source[..eq_idx].trim().to_string(),
+                    declaration_source[eq_idx + 1..].trim().to_string(),
+                )
+            } else {
+                (declaration_source.clone(), String::new())
+            };
+
+            // Extract all declared variable names
+            let declared_names = extract_declared_names(&lhs);
+
+            // Check if any referenced variables have const-level blockers
+            // Only consider blockers from DIFFERENT async_consts groups.
+            // Dependencies within the same group are handled implicitly by
+            // sequential execution in $$renderer.run().
+            let init_refs = extract_identifiers_from_expr(&rhs);
+            let current_group_name = self.async_consts.as_ref().map(|g| g.name.clone());
+            let blockers: Vec<String> = {
+                let const_blocker_map = self.const_blocker_map.borrow();
+                let mut blist = Vec::new();
+                for name in &init_refs {
+                    if let Some(blocker_expr) = const_blocker_map.get(name) {
+                        // Skip blockers from the current group (same promises array)
+                        if let Some(ref group_name) = current_group_name
+                            && blocker_expr.starts_with(&format!("{}[", group_name))
+                        {
+                            continue;
+                        }
+                        if !blist.contains(blocker_expr) {
+                            blist.push(blocker_expr.clone());
+                        }
                     }
                 }
-            }
+                blist
+            };
 
-            self.output_parts
-                .push(OutputPart::ConstDeclaration(declaration_source));
+            let has_blockers = !blockers.is_empty();
+            let async_consts_active = self.async_consts.is_some();
+
+            // Match the official Svelte compiler condition:
+            // if (has_await || context.state.async_consts || blockers.length > 0)
+            if has_await || async_consts_active || has_blockers {
+                // Create or reuse the async_consts group
+                if self.async_consts.is_none() {
+                    let group_name = self.generate_promises_name();
+                    self.async_consts = Some(super::super::AsyncConstsGroup {
+                        name: group_name,
+                        thunks: Vec::new(),
+                        declared_vars: Vec::new(),
+                    });
+                }
+
+                // Emit `let varname;` for each declared variable
+                for name in &declared_names {
+                    self.output_parts
+                        .push(OutputPart::RawStatement(format!("let {};", name)));
+                }
+
+                let group = self.async_consts.as_mut().unwrap();
+
+                // Add blocker wait thunks
+                if blockers.len() == 1 {
+                    group.thunks.push((format!("() => {}", blockers[0]), false));
+                } else if blockers.len() > 1 {
+                    group.thunks.push((
+                        format!("() => Promise.all([{}])", blockers.join(", ")),
+                        false,
+                    ));
+                }
+
+                // Add the assignment thunk
+                let is_destructuring = lhs.starts_with('{') || lhs.starts_with('[');
+                let thunk_code = if has_await {
+                    let save_wrapped = super::super::helpers::transform_await_to_save(&rhs);
+                    if is_destructuring {
+                        format!("async () => {{\n\t\t({} = {});\n\t}}", lhs, save_wrapped)
+                    } else {
+                        format!("async () => {{\n\t\t{} = {};\n\t}}", lhs, save_wrapped)
+                    }
+                } else if is_destructuring {
+                    format!("() => {{\n\t\t({} = {});\n\t}}", lhs, rhs)
+                } else {
+                    format!("() => {{\n\t\t{} = {};\n\t}}", lhs, rhs)
+                };
+                let thunk_index = group.thunks.len();
+                group.thunks.push((thunk_code, has_await));
+
+                // Track declared vars for blocker registration when flushed
+                let group_name = group.name.clone();
+                for name in &declared_names {
+                    group.declared_vars.push((name.clone(), thunk_index));
+                    // Immediately populate const_blocker_map so that snippet body generators
+                    // (which share the same Rc<RefCell>) can see parent-scope blockers even
+                    // before flush_async_consts is called.
+                    let blocker_expr = format!("{}[{}]", group_name, thunk_index);
+                    self.const_blocker_map
+                        .borrow_mut()
+                        .insert(name.clone(), blocker_expr);
+                }
+            } else {
+                // Simple (sync) const declaration
+
+                // Try to extract the variable name and value for constant folding.
+                if !rhs.is_empty()
+                    && !lhs.is_empty()
+                    && lhs
+                        .chars()
+                        .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+                    && let Some(folded) = super::super::helpers::try_evaluate_with_constants(
+                        &rhs,
+                        &self.constant_vars,
+                    )
+                {
+                    self.constant_vars.insert(lhs.clone(), folded);
+                }
+
+                self.output_parts
+                    .push(OutputPart::ConstDeclaration(declaration_source));
+            }
         }
         Ok(())
+    }
+
+    /// Flush accumulated async const tags into a single `$$renderer.run([...])` call.
+    /// This should be called after processing all nodes in a fragment.
+    pub(crate) fn flush_async_consts(&mut self) {
+        if let Some(group) = self.async_consts.take() {
+            if group.thunks.is_empty() {
+                return;
+            }
+
+            // Build the thunks array string
+            let thunks_str = group
+                .thunks
+                .iter()
+                .map(|(code, _)| code.as_str())
+                .collect::<Vec<_>>()
+                .join(",\n\n\t");
+
+            // Emit: var promises_N = $$renderer.run([thunks...])
+            self.output_parts.push(OutputPart::RawStatement(format!(
+                "var {} = $$renderer.run([\n\t{}\n]);",
+                group.name, thunks_str
+            )));
+
+            // Register blockers for declared variables and emit metadata part
+            let mut blocker_entries = Vec::new();
+            {
+                let mut const_blocker_map = self.const_blocker_map.borrow_mut();
+                for (name, thunk_index) in &group.declared_vars {
+                    let blocker_expr = format!("{}[{}]", group.name, thunk_index);
+                    const_blocker_map.insert(name.clone(), blocker_expr.clone());
+                    blocker_entries.push((name.clone(), blocker_expr));
+                }
+            }
+            // Emit a metadata part so apply_const_async_wrapping can build scoped blocker maps
+            self.output_parts
+                .push(OutputPart::ConstBlockerMetadata { blocker_entries });
+        }
+    }
+
+    /// Generate a unique promises group name for async const tags.
+    fn generate_promises_name(&mut self) -> String {
+        let counter = self.const_promises_counter.get();
+        let name = if counter == 0 {
+            "promises".to_string()
+        } else {
+            format!("promises_{}", counter)
+        };
+        self.const_promises_counter.set(counter + 1);
+        name
     }
 }
 

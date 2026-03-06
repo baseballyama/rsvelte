@@ -77,20 +77,35 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
     let mut content_nodes: Vec<TemplateNode> = Vec::new();
     let mut hoisted_snippets: Vec<JsStatement> = Vec::new();
 
+    let use_async = context.state.options.experimental_async;
+
+    // In async mode, check if there are const tags (needed to decide snippet hoisting)
+    let has_const = use_async
+        && node
+            .fragment
+            .nodes
+            .iter()
+            .any(|n| matches!(n, TemplateNode::ConstTag(_)));
+
     // Process fragment children
     for child in &node.fragment.nodes {
         match child {
             TemplateNode::ConstTag(_) => {
-                // Const tags are processed inline
+                // In async mode, const tags live inside the boundary content
+                // In non-async mode, they are also processed inline
                 content_nodes.push(child.clone());
             }
             TemplateNode::SnippetBlock(snippet) => {
-                // Check if this is a special boundary snippet (failed, pending)
                 let snippet_name = get_snippet_name(&snippet.expression);
-                if snippet_name == "failed" || snippet_name == "pending" {
-                    // Process the snippet and hoist it
-                    // Since snippet_block uses place_snippet_declaration which checks path length,
-                    // we capture from all possible snippet locations
+                let is_special = snippet_name == "failed" || snippet_name == "pending";
+
+                // In async mode with const tags, regular (non-failed/pending) snippets
+                // stay in the fragment because they may reference const tags.
+                // This matches the official compiler's SvelteBoundary.js behavior.
+                if use_async && has_const && !is_special {
+                    content_nodes.push(child.clone());
+                } else {
+                    // Hoist the snippet (either it's failed/pending, or non-async mode)
                     let saved_init = std::mem::take(&mut context.state.init);
                     let saved_instance = std::mem::take(&mut context.state.instance_level_snippets);
                     let saved_module = std::mem::take(&mut context.state.module_level_snippets);
@@ -111,18 +126,17 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
 
                     hoisted_snippets.extend(snippet_stmts);
 
-                    // Add to props with shorthand: { pending }
-                    props.push(JsObjectMember::Property(JsProperty {
-                        key: JsPropertyKey::Identifier(snippet_name.clone()),
-                        value: Box::new(b::id(&snippet_name)),
-                        kind: JsPropertyKind::Init,
-                        computed: false,
-                        shorthand: true,
-                        method: false,
-                    }));
-                } else {
-                    // Regular snippet, include in content
-                    content_nodes.push(child.clone());
+                    if is_special {
+                        // Add to props with shorthand: { pending }
+                        props.push(JsObjectMember::Property(JsProperty {
+                            key: JsPropertyKey::Identifier(snippet_name.clone()),
+                            value: Box::new(b::id(&snippet_name)),
+                            kind: JsPropertyKind::Init,
+                            computed: false,
+                            shorthand: true,
+                            method: false,
+                        }));
+                    }
                 }
             }
             _ => {
@@ -142,12 +156,41 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
     // Boundary content needs is_root_fragment=true because SvelteBoundary is in the
     // is_text_first parent type list. The boundary callback creates a new scope with
     // $$anchor, so it needs $.next() when the first child is text/expression.
+    //
+    // When async mode is active and snippets are kept in the fragment (not hoisted),
+    // we need to capture any instance_level_snippets that fragment() would merge to
+    // the parent and instead prepend them to the content block body. This ensures
+    // snippets like `greet` end up inside the boundary callback.
+    let saved_instance_snippets = if use_async && has_const {
+        Some(std::mem::take(&mut context.state.instance_level_snippets))
+    } else {
+        None
+    };
+
     let content_block = fragment(&content_fragment, context, true);
+
+    // Collect any instance-level snippets that were generated inside the boundary
+    // content and should stay inside the callback.
+    let mut content_body = content_block.body;
+    if let Some(saved) = saved_instance_snippets {
+        // The new instance_level_snippets were added by fragment() merging.
+        // Take them and prepend to the boundary callback body.
+        let new_snippets: Vec<JsStatement> = context
+            .state
+            .instance_level_snippets
+            .drain(saved.len()..)
+            .collect();
+        if !new_snippets.is_empty() {
+            let mut new_body = new_snippets;
+            new_body.extend(content_body);
+            content_body = new_body;
+        }
+    }
 
     // Build the boundary call: $.boundary(node, props, ($$anchor) => { ... })
     let props_obj = b::object(props);
 
-    let content_fn = b::arrow_block(vec![b::id_pattern("$$anchor")], content_block.body);
+    let content_fn = b::arrow_block(vec![b::id_pattern("$$anchor")], content_body);
 
     let boundary_call = b::stmt(b::call(
         b::member_path("$.boundary"),

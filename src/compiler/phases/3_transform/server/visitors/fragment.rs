@@ -26,16 +26,7 @@ impl<'a> ServerCodeGenerator<'a> {
         fragment: &Fragment,
         skip_anchor: bool,
     ) -> Result<Vec<OutputPart>, TransformError> {
-        let mut body_generator = ServerCodeGenerator::new(
-            self.component_name.clone(),
-            self.source.clone(),
-            None,
-            None,
-            self.analysis,
-            self.use_async,
-        );
-        body_generator.constant_vars = self.constant_vars.clone();
-        body_generator.preserve_whitespace = self.preserve_whitespace;
+        let mut body_generator = self.new_child_generator(false);
 
         // Get the nodes and find meaningful content bounds
         let nodes: Vec<_> = fragment.nodes.iter().collect();
@@ -131,8 +122,9 @@ impl<'a> ServerCodeGenerator<'a> {
         // Generate only the meaningful nodes
         // Track when we've just output a TitleElement to trim leading whitespace from next text
         let mut just_had_title = false;
-        // Track when the previous node was a ConstTag - whitespace-only text after ConstTag
-        // should be skipped since ConstTag doesn't produce HTML output
+        // Track when the previous node was a ConstTag or SnippetBlock - whitespace-only text
+        // after these should be skipped since they don't produce inline HTML output.
+        // SnippetBlock is hoisted, so whitespace between it and the next content is removed.
         let mut prev_was_const_tag = false;
         let meaningful_nodes_raw = &nodes[start_idx..end_idx];
         // Sort ConstTag nodes topologically (matching official compiler's sort_const_tags)
@@ -168,7 +160,13 @@ impl<'a> ServerCodeGenerator<'a> {
                 continue;
             }
             just_had_title = matches!(node, TemplateNode::TitleElement(_));
-            prev_was_const_tag = matches!(node, TemplateNode::ConstTag(_));
+            let is_const_tag = matches!(node, TemplateNode::ConstTag(_));
+            // Flush accumulated async consts before processing non-const content.
+            // Also skip SnippetBlock since those are hoisted and processed separately.
+            if !is_const_tag && !matches!(node, TemplateNode::SnippetBlock(_)) {
+                body_generator.flush_async_consts();
+            }
+            prev_was_const_tag = is_const_tag || matches!(node, TemplateNode::SnippetBlock(_));
             // For the last text node in a fragment, trim trailing whitespace
             // Use svelte_trim_end which does NOT trim non-breaking space (\u{00A0})
             // Skip when preserveWhitespace is true
@@ -196,7 +194,39 @@ impl<'a> ServerCodeGenerator<'a> {
                 .push(OutputPart::Html("<!---->".to_string()));
         }
 
-        Ok(body_generator.output_parts)
+        // Flush accumulated async const tags into $$renderer.run() call.
+        // This matches the official compiler's Fragment visitor which flushes
+        // async_consts after processing all children.
+        body_generator.flush_async_consts();
+
+        // Include snippets defined in this fragment as inline SnippetFunction parts.
+        // In the official compiler, snippet blocks are hoisted and emitted as function
+        // declarations within the same scope (matching Fragment visitor behavior).
+        let mut parts = body_generator.output_parts;
+        for snippet in body_generator.snippets {
+            // Insert snippet function BEFORE the async consts run call
+            // (snippets are hoisted in JS, so they can reference promises declared later)
+            // Find the position of the last RawStatement that starts with "let " or
+            // the last ConstDeclaration, and insert after that.
+            let insert_pos = parts
+                .iter()
+                .rposition(|p| {
+                    matches!(p, OutputPart::RawStatement(s) if s.starts_with("let "))
+                        || matches!(p, OutputPart::ConstDeclaration(_))
+                })
+                .map(|pos| pos + 1)
+                .unwrap_or(0);
+            parts.insert(
+                insert_pos,
+                OutputPart::SnippetFunction {
+                    name: snippet.name,
+                    params: snippet.params,
+                    body: snippet.body_parts,
+                },
+            );
+        }
+
+        Ok(parts)
     }
 
     /// Generate children from a list of nodes (excluding snippets)
@@ -280,6 +310,8 @@ impl<'a> ServerCodeGenerator<'a> {
         body_generator.constant_vars = self.constant_vars.clone();
         body_generator.namespace = self.namespace.clone();
         body_generator.preserve_whitespace = self.preserve_whitespace;
+        body_generator.const_promises_counter = self.const_promises_counter.clone();
+        body_generator.const_blocker_map = self.const_blocker_map.clone();
 
         // Check if first visible content is text/expression
         // If so, add <!---> anchor to prevent text fusion during hydration.
@@ -327,6 +359,13 @@ impl<'a> ServerCodeGenerator<'a> {
         for (i, node) in nodes_to_process.iter().enumerate() {
             let is_first = i == 0;
             let is_last = i == num_nodes - 1;
+
+            // Flush accumulated async consts before processing non-const content
+            if !matches!(node, TemplateNode::ConstTag(_))
+                && !matches!(node, TemplateNode::SnippetBlock(_))
+            {
+                body_generator.flush_async_consts();
+            }
 
             // For <svelte:fragment> nodes, process their children directly (with trimming)
             // instead of emitting the fragment wrapper, so that leading/trailing whitespace
@@ -384,6 +423,9 @@ impl<'a> ServerCodeGenerator<'a> {
                 );
                 frag_generator.constant_vars = body_generator.constant_vars.clone();
                 frag_generator.namespace = body_generator.namespace.clone();
+                frag_generator.const_promises_counter =
+                    body_generator.const_promises_counter.clone();
+                frag_generator.const_blocker_map = body_generator.const_blocker_map.clone();
 
                 for (fi, fnode) in frag_to_process.iter().enumerate() {
                     let is_f_first = fi == 0;
@@ -412,6 +454,8 @@ impl<'a> ServerCodeGenerator<'a> {
                         frag_generator.generate_node(fnode, false)?;
                     }
                 }
+
+                frag_generator.flush_async_consts();
 
                 if has_const_tags && !frag_generator.output_parts.is_empty() {
                     // Wrap in a BlockScope for proper { } scoping
@@ -457,6 +501,9 @@ impl<'a> ServerCodeGenerator<'a> {
             }
             body_generator.generate_node(node, false)?;
         }
+
+        // Flush accumulated async const tags
+        body_generator.flush_async_consts();
 
         Ok(Some(body_generator.output_parts))
     }

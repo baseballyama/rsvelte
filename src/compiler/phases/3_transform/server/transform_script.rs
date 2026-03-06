@@ -1707,19 +1707,95 @@ fn find_matching_paren_server(s: &str) -> Option<usize> {
 }
 
 /// Remove $effect, $effect.pre, $effect.root, $inspect, and $inspect.trace blocks from script.
-pub(crate) fn remove_effect_blocks(script: &str) -> String {
+/// When `use_async` is true, $effect/$effect.pre are replaced with `/* $$async_noop */`
+/// markers so the async body transform generates placeholder slots in the run array.
+pub(crate) fn remove_effect_blocks(script: &str, use_async: bool) -> String {
     let mut result = script.to_string();
 
-    let effect_runes = [
-        "$effect.root(",
-        "$effect.pre(",
-        "$effect(",
-        "$inspect.trace(",
-        "$inspect(",
-    ];
+    // Effect runes that need noop markers in async mode
+    let effect_runes = ["$effect.root(", "$effect.pre(", "$effect("];
+    // Inspect runes never need markers
+    let inspect_runes = ["$inspect.trace(", "$inspect("];
 
     for rune in effect_runes {
+        if use_async && rune != "$effect.root(" {
+            result = remove_rune_statement_with_noop(&result, rune);
+        } else {
+            result = remove_rune_statement(&result, rune);
+        }
+    }
+
+    for rune in inspect_runes {
         result = remove_rune_statement(&result, rune);
+    }
+
+    result
+}
+
+/// Remove a rune statement and replace it with a `/* $$async_noop */` marker.
+fn remove_rune_statement_with_noop(script: &str, rune_prefix: &str) -> String {
+    let mut result = String::new();
+    let chars: Vec<char> = script.chars().collect();
+    let prefix_chars: Vec<char> = rune_prefix.chars().collect();
+    let prefix_len = prefix_chars.len();
+    let mut i = 0;
+
+    while i < chars.len() {
+        if i + prefix_len <= chars.len() {
+            let potential: String = chars[i..i + prefix_len].iter().collect();
+            if potential == rune_prefix {
+                let is_statement = is_statement_start(&result);
+                if is_statement {
+                    // Find the end of this rune call
+                    let start = i + prefix_len;
+                    let mut depth = 1;
+                    let mut end = start;
+                    let mut in_string = false;
+                    let mut string_char = ' ';
+
+                    while end < chars.len() && depth > 0 {
+                        let c = chars[end];
+                        if (c == '"' || c == '\'' || c == '`')
+                            && (end == 0 || chars[end - 1] != '\\')
+                        {
+                            if !in_string {
+                                in_string = true;
+                                string_char = c;
+                            } else if c == string_char {
+                                in_string = false;
+                            }
+                        }
+                        if !in_string {
+                            match c {
+                                '(' => depth += 1,
+                                ')' => depth -= 1,
+                                _ => {}
+                            }
+                        }
+                        if depth > 0 {
+                            end += 1;
+                        }
+                    }
+                    end += 1; // skip closing paren
+
+                    // Skip trailing semicolon and whitespace
+                    while end < chars.len() && (chars[end] == ';' || chars[end] == ' ') {
+                        end += 1;
+                    }
+                    if end < chars.len() && chars[end] == '\n' {
+                        end += 1;
+                    }
+
+                    // Replace with void noop marker (server-side $effect placeholder)
+                    result.push_str("/* $$async_void_noop */\n");
+                    i = end;
+                    continue;
+                }
+            }
+        }
+
+        result.push(chars[i]);
+        i += 1;
     }
 
     result

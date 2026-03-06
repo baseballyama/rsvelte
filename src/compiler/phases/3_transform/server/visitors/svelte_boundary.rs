@@ -136,15 +136,7 @@ impl<'a> ServerCodeGenerator<'a> {
         &mut self,
         fragment: &Fragment,
     ) -> Result<Vec<OutputPart>, TransformError> {
-        let mut body_generator = ServerCodeGenerator::new(
-            self.component_name.clone(),
-            self.source.clone(),
-            None,
-            None,
-            self.analysis,
-            self.use_async,
-        );
-        body_generator.constant_vars = self.constant_vars.clone();
+        let mut body_generator = self.new_child_generator(false);
 
         // Collect non-empty nodes
         let body_nodes: Vec<_> = fragment.nodes.iter().collect();

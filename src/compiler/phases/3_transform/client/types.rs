@@ -1585,11 +1585,24 @@ pub struct ComponentClientTransformState<'a> {
     /// Uses `Rc<RefCell<...>>` for shared ownership across nested states.
     pub blocker_map: Rc<std::cell::RefCell<std::collections::HashMap<String, usize>>>,
 
+    /// Extra blocker indices accumulated from expressions that were evaluated to
+    /// literals at compile time but still reference variables in the blocker_map.
+    /// These are merged into the blocker detection in Fragment visitor.
+    pub extra_blocker_indices: Vec<usize>,
+
     /// Whether the fragment is standalone (single Component or RenderTag that
     /// doesn't need a template wrapper). Set by Fragment visitor and consumed by
     /// component/render-tag visitors to know if `$.next()` is needed after `$.async()`.
     /// Corresponds to `context.state.is_standalone` in the official Svelte compiler.
     pub is_standalone: bool,
+
+    /// Mapping from variable names to their blocker expressions for `{@const}` tag async tracking.
+    /// When a `{@const}` declares a variable inside a `$.run()` group, the blocker expression
+    /// (e.g., `promises[0]`, `promises_1[1]`) is recorded here so that subsequent `{@const}` tags
+    /// that reference this variable can add wait thunks.
+    /// This mirrors the official Svelte compiler's `binding.blocker` mechanism.
+    /// Uses `Rc<RefCell<...>>` for shared ownership across nested fragment states.
+    pub const_blocker_map: Rc<std::cell::RefCell<std::collections::HashMap<String, JsExpr>>>,
 }
 
 /// Context information for generating bindings inside each blocks.
@@ -1719,7 +1732,9 @@ impl<'a> ComponentClientTransformState<'a> {
             needs_props_from_events: Rc::new(Cell::new(false)),
             hidden_let_bindings: FxHashSet::default(),
             blocker_map: Rc::new(std::cell::RefCell::new(std::collections::HashMap::new())),
+            extra_blocker_indices: Vec::new(),
             is_standalone: false,
+            const_blocker_map: Rc::new(std::cell::RefCell::new(std::collections::HashMap::new())),
         }
     }
 
@@ -1816,11 +1831,38 @@ impl<'a> ComponentClientTransformState<'a> {
         let name_refs: Vec<&str> = names.iter().map(|s| s.as_str()).collect();
         self.has_blockers_for_names(&name_refs)
     }
+
+    /// Get blocker expressions from the const_blocker_map for identifiers in a JS expression.
+    /// Returns const-tag-level blocker expressions (e.g., `promises_1[0]`).
+    pub fn get_const_blockers_for_expr(&self, expr: &JsExpr) -> Vec<JsExpr> {
+        let names = collect_identifiers_from_expr(expr);
+        let const_map = self.const_blocker_map.borrow();
+        let mut exprs: Vec<JsExpr> = Vec::new();
+        for name in &names {
+            if let Some(blocker_expr) = const_map.get(name.as_str()) {
+                if !exprs
+                    .iter()
+                    .any(|b| format!("{:?}", b) == format!("{:?}", blocker_expr))
+                {
+                    exprs.push(blocker_expr.clone());
+                }
+            }
+        }
+        exprs
+    }
+
+    /// Get all blocker expressions (both instance-level and const-tag-level)
+    /// for identifiers referenced in a JS expression.
+    pub fn get_all_blockers_for_expr(&self, expr: &JsExpr) -> Vec<JsExpr> {
+        let mut blockers = self.get_blockers_for_expr(expr);
+        blockers.extend(self.get_const_blockers_for_expr(expr));
+        blockers
+    }
 }
 
 /// Collect all identifier names referenced in a JS expression.
 /// Does not cross function boundaries (arrows, function expressions).
-fn collect_identifiers_from_expr(expr: &JsExpr) -> Vec<String> {
+pub fn collect_identifiers_from_expr(expr: &JsExpr) -> Vec<String> {
     let mut names = Vec::new();
     collect_identifiers_recursive(expr, &mut names);
     names

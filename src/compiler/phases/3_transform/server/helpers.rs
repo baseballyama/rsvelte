@@ -2072,3 +2072,193 @@ fn extract_all_awaits(
 
     result
 }
+
+/// Find const-tag-level blocker expressions for identifiers referenced in a JS expression string.
+/// Returns a list of unique blocker expressions (e.g., "promises_2[1]") for variables
+/// referenced in the expression that have entries in the const_blocker_map.
+pub(crate) fn find_const_expression_blockers(
+    expr: &str,
+    const_blocker_map: &std::collections::HashMap<String, String>,
+) -> Vec<String> {
+    let mut blockers = Vec::new();
+    let idents = extract_identifiers_from_js(expr);
+    for ident in &idents {
+        if let Some(blocker) = const_blocker_map.get(ident)
+            && !blockers.contains(blocker)
+        {
+            blockers.push(blocker.clone());
+        }
+    }
+    blockers
+}
+
+/// Find const-tag-level blocker expressions for identifiers referenced in an HTML template string.
+/// Only checks ${...} expression interpolations within the HTML.
+pub(crate) fn find_const_html_blockers(
+    html: &str,
+    const_blocker_map: &std::collections::HashMap<String, String>,
+) -> Vec<String> {
+    let mut blockers = Vec::new();
+    // Find ${...} expressions in the HTML
+    let bytes = html.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+    while i < len {
+        if i + 1 < len && bytes[i] == b'$' && bytes[i + 1] == b'{' {
+            // Find the matching closing brace
+            let start = i + 2;
+            let mut depth = 1;
+            let mut j = start;
+            while j < len && depth > 0 {
+                match bytes[j] {
+                    b'{' => depth += 1,
+                    b'}' => depth -= 1,
+                    _ => {}
+                }
+                j += 1;
+            }
+            if depth == 0 {
+                let expr = &html[start..j - 1];
+                let expr_blockers = find_const_expression_blockers(expr, const_blocker_map);
+                for b in expr_blockers {
+                    if !blockers.contains(&b) {
+                        blockers.push(b);
+                    }
+                }
+            }
+            i = j;
+        } else {
+            i += 1;
+        }
+    }
+    blockers
+}
+
+/// Split an HTML string at the first ${...} expression that references a blocked variable.
+/// Returns (prefix, expression_content, suffix) if an expression is found.
+pub(crate) fn split_html_expression(html: &str) -> Option<(String, String, String)> {
+    let bytes = html.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+    while i < len {
+        if i + 1 < len && bytes[i] == b'$' && bytes[i + 1] == b'{' {
+            let expr_start = i;
+            let start = i + 2;
+            let mut depth = 1;
+            let mut j = start;
+            while j < len && depth > 0 {
+                match bytes[j] {
+                    b'{' => depth += 1,
+                    b'}' => depth -= 1,
+                    _ => {}
+                }
+                j += 1;
+            }
+            if depth == 0 {
+                let prefix = html[..expr_start].to_string();
+                // Extract just the expression (without ${ and })
+                let expr = html[start..j - 1].to_string();
+                let suffix = html[j..].to_string();
+                return Some((prefix, expr, suffix));
+            }
+            i = j;
+        } else {
+            i += 1;
+        }
+    }
+    None
+}
+
+/// Extract all identifier names from a JavaScript expression string.
+/// Simple lexer that finds word-boundary identifiers, skipping strings and keywords.
+fn extract_identifiers_from_js(expr: &str) -> Vec<String> {
+    let mut idents = Vec::new();
+    let chars: Vec<char> = expr.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    while i < len {
+        let c = chars[i];
+
+        // String tracking
+        if c == '\'' || c == '"' || c == '`' {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char && (i == 0 || chars[i - 1] != '\\') {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+        if in_string {
+            i += 1;
+            continue;
+        }
+
+        // Check for identifier start
+        if c.is_alphabetic() || c == '_' || c == '$' {
+            let start = i;
+            while i < len && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '$') {
+                i += 1;
+            }
+            let ident: String = chars[start..i].iter().collect();
+            // Skip keywords and common builtins
+            if !is_js_keyword_or_builtin(&ident) && !idents.contains(&ident) {
+                idents.push(ident);
+            }
+        } else {
+            i += 1;
+        }
+    }
+
+    idents
+}
+
+fn is_js_keyword_or_builtin(s: &str) -> bool {
+    matches!(
+        s,
+        "true"
+            | "false"
+            | "null"
+            | "undefined"
+            | "this"
+            | "new"
+            | "typeof"
+            | "instanceof"
+            | "void"
+            | "delete"
+            | "in"
+            | "of"
+            | "let"
+            | "const"
+            | "var"
+            | "function"
+            | "class"
+            | "return"
+            | "if"
+            | "else"
+            | "for"
+            | "while"
+            | "do"
+            | "switch"
+            | "case"
+            | "break"
+            | "continue"
+            | "throw"
+            | "try"
+            | "catch"
+            | "finally"
+            | "import"
+            | "export"
+            | "default"
+            | "async"
+            | "await"
+            | "yield"
+            | "from"
+            | "as"
+            | "escape"
+    )
+}

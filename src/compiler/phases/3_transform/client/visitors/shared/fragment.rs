@@ -341,6 +341,15 @@ pub fn process_children<F>(
 
         let result = build_template_chunk(&seq, ctx);
 
+        // Store extra blocker indices from expressions that were evaluated to literals
+        // but still reference blocker_map variables. These need to be included in the
+        // template_effect's blockers argument.
+        for idx in &result.blocker_indices {
+            if !ctx.state.extra_blocker_indices.contains(idx) {
+                ctx.state.extra_blocker_indices.push(*idx);
+            }
+        }
+
         // is_text is true when the sequence has exactly one element.
         // This is for standalone `{expression}` - in case no text node
         // was created during SSR (empty expression), we need special handling.

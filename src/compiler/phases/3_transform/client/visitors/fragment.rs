@@ -182,7 +182,9 @@ pub fn fragment(
         needs_props_from_events: context.state.needs_props_from_events.clone(),
         hidden_let_bindings: context.state.hidden_let_bindings.clone(),
         blocker_map: context.state.blocker_map.clone(),
+        extra_blocker_indices: Vec::new(),
         is_standalone: false,
+        const_blocker_map: context.state.const_blocker_map.clone(),
     };
 
     // Swap context.state with our local state so that process_children uses it
@@ -430,7 +432,8 @@ pub fn fragment(
         // blocker doesn't cause correctness issues (just a minor performance cost).
         let blockers = {
             let map = state.blocker_map.borrow();
-            if map.is_empty() {
+            let const_map = state.const_blocker_map.borrow();
+            if map.is_empty() && state.extra_blocker_indices.is_empty() && const_map.is_empty() {
                 None
             } else {
                 let mut all_names = Vec::new();
@@ -443,6 +446,8 @@ pub fn fragment(
                 for memo_expr in state.memoizer.all_expressions() {
                     collect_ids_from_expr(&memo_expr, &mut all_names);
                 }
+
+                // Collect instance-level blocker indices from blocker_map
                 let mut indices: Vec<usize> = Vec::new();
                 for name in &all_names {
                     if let Some(&idx) = map.get(name.as_str())
@@ -451,18 +456,39 @@ pub fn fragment(
                         indices.push(idx);
                     }
                 }
+                // Include extra blocker indices from expressions that were evaluated
+                // to literals at compile time but still reference blocker_map variables.
+                for &idx in &state.extra_blocker_indices {
+                    if !indices.contains(&idx) {
+                        indices.push(idx);
+                    }
+                }
                 indices.sort();
-                if indices.is_empty() {
+
+                // Collect const-tag-level blocker expressions from const_blocker_map
+                let mut const_blocker_exprs: Vec<JsExpr> = Vec::new();
+                for name in &all_names {
+                    if let Some(blocker_expr) = const_map.get(name.as_str()) {
+                        if !const_blocker_exprs
+                            .iter()
+                            .any(|b| format!("{:?}", b) == format!("{:?}", blocker_expr))
+                        {
+                            const_blocker_exprs.push(blocker_expr.clone());
+                        }
+                    }
+                }
+
+                // Combine instance-level and const-tag-level blockers
+                let mut all_blocker_exprs: Vec<JsExpr> = indices
+                    .into_iter()
+                    .map(|idx| b::member_computed(b::id("$$promises"), b::number(idx as f64)))
+                    .collect();
+                all_blocker_exprs.extend(const_blocker_exprs);
+
+                if all_blocker_exprs.is_empty() {
                     None
                 } else {
-                    Some(b::array(
-                        indices
-                            .into_iter()
-                            .map(|idx| {
-                                b::member_computed(b::id("$$promises"), b::number(idx as f64))
-                            })
-                            .collect(),
-                    ))
+                    Some(b::array(all_blocker_exprs))
                 }
             }
         };
@@ -595,10 +621,14 @@ fn collect_ids_from_expr(expr: &JsExpr, names: &mut Vec<String>) {
                     }
                 }
                 JsMemberProperty::Identifier(id) => {
-                    // Also collect non-computed property names since they might
-                    // match blocker_map entries (e.g., $$props.name -> "name")
-                    if !names.contains(id) {
-                        names.push(id.clone());
+                    // Only collect non-computed property names for $$props access
+                    // (e.g., $$props.name -> "name") since those are actual variable references.
+                    // Don't collect general property accesses like `obj.length` as they
+                    // are not variable references and would cause false blocker matches.
+                    if let JsExpr::Identifier(obj_name) = &*member.object {
+                        if obj_name == "$$props" && !names.contains(id) {
+                            names.push(id.clone());
+                        }
                     }
                 }
                 JsMemberProperty::PrivateIdentifier(_) => {}

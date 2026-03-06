@@ -369,6 +369,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 children,
                 dynamic: is_dynamic,
                 css_custom_props,
+                seq_bindings_hoisted: false,
             });
         }
 

@@ -134,16 +134,36 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
-        // Check if first node is text or expression - if so, add comment marker
+        // Check if first visible node is text or expression - if so, add comment marker
         // This prevents text from being fused with surroundings (hydration marker)
+        // Skip ConstTag and SnippetBlock nodes since they don't produce HTML output.
         if start_idx < end_idx {
-            if let TemplateNode::ExpressionTag(_) = body_nodes[start_idx] {
-                body_generator.output_parts.push(OutputPart::Comment);
-            } else if let TemplateNode::Text(text) = body_nodes[start_idx] {
-                // Only add comment if text has non-whitespace content after trimming,
-                // OR if preserveWhitespace is set (whitespace-only text will be output as content)
-                if self.preserve_whitespace || !is_svelte_whitespace_only(&text.data) {
+            let mut first_visible = start_idx;
+            let mut prev_hoisted = false;
+            while first_visible < end_idx {
+                match body_nodes[first_visible] {
+                    TemplateNode::ConstTag(_) | TemplateNode::SnippetBlock(_) => {
+                        first_visible += 1;
+                        prev_hoisted = true;
+                    }
+                    TemplateNode::Text(text)
+                        if prev_hoisted && is_svelte_whitespace_only(&text.data) =>
+                    {
+                        first_visible += 1;
+                        prev_hoisted = false;
+                    }
+                    _ => break,
+                }
+            }
+            if first_visible < end_idx {
+                if let TemplateNode::ExpressionTag(_) = body_nodes[first_visible] {
                     body_generator.output_parts.push(OutputPart::Comment);
+                } else if let TemplateNode::Text(text) = body_nodes[first_visible] {
+                    // Only add comment if text has non-whitespace content after trimming,
+                    // OR if preserveWhitespace is set (whitespace-only text will be output as content)
+                    if self.preserve_whitespace || !is_svelte_whitespace_only(&text.data) {
+                        body_generator.output_parts.push(OutputPart::Comment);
+                    }
                 }
             }
         }
@@ -168,6 +188,13 @@ impl<'a> ServerCodeGenerator<'a> {
                 continue;
             }
             prev_was_const = matches!(node, TemplateNode::ConstTag(_));
+
+            // Flush accumulated async consts before processing non-const content
+            if !matches!(node, TemplateNode::ConstTag(_))
+                && !matches!(node, TemplateNode::SnippetBlock(_))
+            {
+                body_generator.flush_async_consts();
+            }
 
             // Special handling for first/last text nodes to trim whitespace
             // Skip when preserveWhitespace is set
@@ -195,6 +222,9 @@ impl<'a> ServerCodeGenerator<'a> {
                 body_generator.generate_node(node, false)?;
             }
         }
+
+        // Flush accumulated async const tags
+        body_generator.flush_async_consts();
 
         // Generate fallback content if there's an {:else} clause
         let fallback = if let Some(ref fallback_fragment) = block.fallback {

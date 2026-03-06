@@ -237,6 +237,16 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
                 continue;
             }
 
+            // Handle async void noop placeholder (from $effect() removed on server)
+            // Format: /* $$async_void_noop */
+            if trimmed_stmt.contains("$$async_void_noop") {
+                async_stmts.push(AsyncStmt {
+                    kind: AsyncStmtKind::VoidNoop,
+                    has_await: false,
+                });
+                continue;
+            }
+
             // Handle async noop placeholder (from $props() that transformed to empty)
             // Format: /* $$async_noop */ or /* $$async_noop:var1,var2 */
             if trimmed_stmt.contains("$$async_noop") {
@@ -358,7 +368,8 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
             | AsyncStmtKind::ExprSimple(_)
             | AsyncStmtKind::ExprVoid(_)
             | AsyncStmtKind::Block(_)
-            | AsyncStmtKind::Noop => {
+            | AsyncStmtKind::Noop
+            | AsyncStmtKind::VoidNoop => {
                 // Non-variable statements don't contribute to blocker_map
             }
         }
@@ -436,6 +447,8 @@ enum AsyncStmtKind {
     Block(String),
     /// Empty thunk placeholder (from $props() that was removed) -> `() => {}`
     Noop,
+    /// Void noop placeholder (from $effect() removed on server) -> `() => void void 0`
+    VoidNoop,
 }
 
 struct AsyncStmt {
@@ -486,6 +499,7 @@ fn build_thunk(stmt: &AsyncStmt) -> String {
             }
         }
         AsyncStmtKind::Noop => "() => {}".to_string(),
+        AsyncStmtKind::VoidNoop => "() => void void 0".to_string(),
     }
 }
 

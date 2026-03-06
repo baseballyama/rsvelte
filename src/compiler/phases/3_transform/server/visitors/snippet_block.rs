@@ -43,6 +43,8 @@ impl<'a> ServerCodeGenerator<'a> {
             self.use_async,
         );
         body_generator.constant_vars = self.constant_vars.clone();
+        body_generator.const_promises_counter = self.const_promises_counter.clone();
+        body_generator.const_blocker_map = self.const_blocker_map.clone();
 
         // Collect non-empty nodes
         let body_nodes: Vec<_> = block.body.nodes.iter().collect();
@@ -142,8 +144,18 @@ impl<'a> ServerCodeGenerator<'a> {
             // Track if current node is a ConstTag
             prev_was_const_tag = matches!(node, TemplateNode::ConstTag(_));
 
+            // Flush accumulated async consts before processing non-const content
+            if !matches!(node, TemplateNode::ConstTag(_))
+                && !matches!(node, TemplateNode::SnippetBlock(_))
+            {
+                body_generator.flush_async_consts();
+            }
+
             body_generator.generate_node(node, false)?;
         }
+
+        // Final flush for any remaining async consts
+        body_generator.flush_async_consts();
 
         // Determine if the snippet can be hoisted to module level
         // Use metadata.can_hoist from the analyze phase
@@ -174,6 +186,8 @@ impl<'a> ServerCodeGenerator<'a> {
             self.use_async,
         );
         body_generator.constant_vars = self.constant_vars.clone();
+        body_generator.const_promises_counter = self.const_promises_counter.clone();
+        body_generator.const_blocker_map = self.const_blocker_map.clone();
 
         // Collect non-empty nodes
         let body_nodes: Vec<_> = fragment.nodes.iter().collect();

@@ -55,6 +55,14 @@ fn collect_branches(node: &IfBlock) -> Vec<&IfBlock> {
     let mut current = node;
     while let Some(fragment) = &current.alternate {
         if let Some(inner) = get_elseif_block(fragment) {
+            // Don't flatten if this else-if has an await expression.
+            // This matches the official compiler's analysis phase (IfBlock.js):
+            // if has_await or has_more_blockers_than(parent), don't flatten.
+            // When not flattened, the else-if becomes a nested block with its own
+            // $.async() wrapper.
+            if inner.metadata.expression.has_await() {
+                break;
+            }
             branches.push(inner);
             current = inner;
         } else {
@@ -104,7 +112,8 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
     let expression = build_expression(context, &converted_top_expr, &top_expr_metadata);
 
     // Check if the expression has blockers (references variables assigned after await)
-    let blocker_exprs = context.state.get_blockers_for_expr(&expression);
+    // Check both instance-level blocker_map and const-tag-level const_blocker_map.
+    let blocker_exprs = context.state.get_all_blockers_for_expr(&expression);
     let has_blockers = !blocker_exprs.is_empty();
 
     // Collect all flattened if/elseif branches

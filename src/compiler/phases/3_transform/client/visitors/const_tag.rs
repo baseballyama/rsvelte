@@ -99,9 +99,18 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
             },
         );
 
+        // Extract referenced variable names from init expression for blocker detection
+        let init_refs = extract_refs_from_json_expr(&parsed.init_expr);
+
         // Add the const declaration to state.consts
         // This will be output as: const doubled = $.derived_safe_equal(() => ...)
-        add_const_declaration(context, &id_name, derived_expr, &node.metadata.expression);
+        add_const_declaration(
+            context,
+            &id_name,
+            derived_expr,
+            &node.metadata.expression,
+            &init_refs,
+        );
     } else {
         // Destructuring pattern case: `{@const { x, y } = point}`
         //
@@ -209,8 +218,17 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
             b::svelte_call("derived_safe_equal", vec![block_thunk])
         };
 
+        // Extract referenced variable names from init expression for blocker detection
+        let init_refs = extract_refs_from_json_expr(&parsed.init_expr);
+
         // Add the const declaration for the temp variable
-        add_const_declaration(context, &tmp_name, derived_expr, &node.metadata.expression);
+        add_const_declaration(
+            context,
+            &tmp_name,
+            derived_expr,
+            &node.metadata.expression,
+            &init_refs,
+        );
 
         // Register read transforms for each destructured identifier:
         // x -> $.get(computed_const).x
@@ -375,6 +393,52 @@ fn render_pattern_as_string(pattern: &serde_json::Value) -> String {
     }
 }
 
+/// Extract all identifier references from a JSON expression.
+///
+/// This walks the JSON AST of the init expression to find all Identifier nodes.
+/// Used to determine which variables are referenced by a `{@const}` init expression,
+/// which is needed for blocker detection (checking const_blocker_map).
+fn extract_refs_from_json_expr(expr: &crate::ast::js::Expression) -> Vec<String> {
+    let crate::ast::js::Expression::Value(value) = expr;
+    let mut refs = Vec::new();
+    collect_json_identifiers(value, &mut refs);
+    refs
+}
+
+fn collect_json_identifiers(value: &serde_json::Value, out: &mut Vec<String>) {
+    match value {
+        serde_json::Value::Object(obj) => {
+            if let Some(typ) = obj.get("type").and_then(|t| t.as_str()) {
+                if typ == "Identifier" {
+                    if let Some(name) = obj.get("name").and_then(|n| n.as_str())
+                        && !out.contains(&name.to_string())
+                    {
+                        out.push(name.to_string());
+                    }
+                    return;
+                }
+                // Don't recurse into function/arrow bodies
+                if typ == "ArrowFunctionExpression" || typ == "FunctionExpression" {
+                    return;
+                }
+            }
+            for (key, val) in obj {
+                // Skip position/metadata fields
+                if key == "start" || key == "end" || key == "loc" || key == "type" {
+                    continue;
+                }
+                collect_json_identifiers(val, out);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for val in arr {
+                collect_json_identifiers(val, out);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Create a derived expression.
 ///
 /// In legacy mode: `$.derived_safe_equal(() => expr)`
@@ -405,16 +469,68 @@ fn create_derived(context: &ComponentContext, expression: JsExpr, is_async: bool
 ///
 /// This adds the declaration to `context.state.consts` which will be
 /// output at the beginning of the block.
+///
+/// Mirrors the official Svelte compiler's `add_const_declaration` in ConstTag.js.
+/// When the expression has async dependencies (awaits or blockers from other async
+/// const declarations), this creates an async run group with wait thunks and registers
+/// the resulting binding's blocker for future const tags.
 fn add_const_declaration(
     context: &mut ComponentContext,
     id_name: &str,
     expression: JsExpr,
     metadata: &crate::ast::template::ExpressionMetadata,
+    init_refs: &[String],
 ) {
     let has_await = metadata.has_await();
-    // Check blocker_map for blocked identifiers in the expression
-    let blocker_exprs = context.state.get_blockers_for_expr(&expression);
-    let has_blockers = !blocker_exprs.is_empty();
+
+    // Collect blockers from const_blocker_map for identifiers referenced in the init expression.
+    // This mirrors the official compiler's:
+    //   const blockers = [...metadata.dependencies].map(dep => dep.blocker)
+    //       .filter(b => b !== null && b.object !== state.async_consts?.id);
+    //
+    // We use init_refs (identifiers extracted from the raw init expression JSON) to look up
+    // in const_blocker_map, since the generated JS expression wraps identifiers in arrow functions
+    // that collect_identifiers_from_expr won't cross.
+    let blockers = {
+        let const_blocker_map = context.state.const_blocker_map.borrow();
+        let current_async_consts_id =
+            context
+                .state
+                .async_consts
+                .as_ref()
+                .and_then(|ac| match &ac.id {
+                    JsExpr::Identifier(name) => Some(name.clone()),
+                    _ => None,
+                });
+
+        let mut blocker_list: Vec<JsExpr> = Vec::new();
+
+        for name in init_refs {
+            if let Some(blocker_expr) = const_blocker_map.get(name) {
+                // Filter out blockers that point to the current async_consts group
+                // (matching official: b.object !== state.async_consts?.id)
+                let should_include = match blocker_expr {
+                    JsExpr::Member(member_expr) => match member_expr.object.as_ref() {
+                        JsExpr::Identifier(obj_name) => {
+                            current_async_consts_id.as_deref() != Some(obj_name.as_str())
+                        }
+                        _ => true,
+                    },
+                    _ => true,
+                };
+                if should_include
+                    && !blocker_list
+                        .iter()
+                        .any(|b| format!("{:?}", b) == format!("{:?}", blocker_expr))
+                {
+                    blocker_list.push(blocker_expr.clone());
+                }
+            }
+        }
+        blocker_list
+    };
+
+    let has_blockers = !blockers.is_empty();
 
     if has_await || context.state.async_consts.is_some() || has_blockers {
         // Async case: need to handle async consts
@@ -429,6 +545,20 @@ fn add_const_declaration(
         // Add let declaration
         context.state.consts.push(b::let_decl(id_name, None));
 
+        // Add blocker wait thunks before the assignment thunk.
+        // Official: if (blockers.length === 1) run.thunks.push(b.thunk(b.member(blockers[0], 'promise')))
+        //           else if (blockers.length > 0) run.thunks.push(b.thunk(b.call('$.wait', b.array(blockers))))
+        if blockers.len() == 1 {
+            // Single blocker: () => blocker.promise
+            let blocker_promise = b::member(blockers.into_iter().next().unwrap(), "promise");
+            async_consts.thunks.push(b::thunk(blocker_promise));
+        } else if blockers.len() > 1 {
+            // Multiple blockers: () => $.wait([blocker1, blocker2])
+            async_consts
+                .thunks
+                .push(b::thunk(b::svelte_call("wait", vec![b::array(blockers)])));
+        }
+
         // Create assignment expression
         let assignment = b::assign(b::id(id_name), expression);
 
@@ -441,6 +571,18 @@ fn add_const_declaration(
         } else {
             async_consts.thunks.push(b::thunk(assignment));
         }
+
+        // Register the blocker for this binding in const_blocker_map.
+        // Official: const blocker = b.member(run.id, b.literal(run.thunks.length - 1), true);
+        //           for (const binding of bindings) { binding.blocker = blocker; }
+        let thunk_index = async_consts.thunks.len() - 1;
+        let async_consts_id = async_consts.id.clone();
+        let blocker_expr = b::member_computed(async_consts_id, b::number(thunk_index as f64));
+        context
+            .state
+            .const_blocker_map
+            .borrow_mut()
+            .insert(id_name.to_string(), blocker_expr);
     } else {
         // Simple case: just add const declaration
         context

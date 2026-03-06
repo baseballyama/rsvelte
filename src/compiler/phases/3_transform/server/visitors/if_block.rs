@@ -64,9 +64,11 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // If there's exactly one node and it's an IfBlock with elseif=true, this is an else-if chain.
         // When elseif=false, it's a separate {#if} block nested inside {:else}, not a chain.
+        // Don't flatten if the else-if has an await expression - it needs its own async block.
         if meaningful_nodes.len() == 1
             && let TemplateNode::IfBlock(nested_if) = meaningful_nodes[0]
             && nested_if.elseif
+            && !nested_if.metadata.expression.has_await()
         {
             // For else-if, we return a nested IfBlock OutputPart directly
             let nested_test_start = nested_if.test.start().unwrap_or(0) as usize;
@@ -181,8 +183,17 @@ impl<'a> ServerCodeGenerator<'a> {
         body_generator.in_if_body = true;
 
         for node in &trimmed_nodes {
+            // Flush accumulated async consts before processing non-const content
+            if !matches!(node, TemplateNode::ConstTag(_))
+                && !matches!(node, TemplateNode::SnippetBlock(_))
+            {
+                body_generator.flush_async_consts();
+            }
             body_generator.generate_node(node, false)?;
         }
+
+        // Final flush for any remaining async consts
+        body_generator.flush_async_consts();
 
         // Include any snippets defined inside the block as inline SnippetFunction parts
         // This handles cases like `{#if true}{#snippet test()}{/snippet}{/if}`
