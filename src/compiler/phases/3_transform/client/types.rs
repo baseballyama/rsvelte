@@ -2468,13 +2468,39 @@ impl Memoizer {
     ///
     /// A unique identifier like "text", "text_2", "text_3", etc.
     pub fn generate_id(&mut self, base: &str) -> String {
-        // Sanitize the base name to be a valid JavaScript identifier
-        // Replace hyphens with underscores, and ensure it starts with a valid char
+        // Fast path: check if base is already a valid identifier (most common case)
+        let sanitized = if is_valid_identifier(base) {
+            base
+        } else {
+            // Slow path: sanitize the identifier
+            // Use a static-like approach to avoid allocation for common cases
+            return self.generate_id_slow(base);
+        };
+
+        // Try the base name first
+        if !self.conflicts.contains(sanitized) {
+            let name = sanitized.to_string();
+            self.conflicts.insert(name.clone());
+            return name;
+        }
+
+        // Add suffix until there's no conflict
+        let mut n = 1;
+        loop {
+            let name = format!("{}_{}", sanitized, n);
+            if !self.conflicts.contains(&name) {
+                self.conflicts.insert(name.clone());
+                return name;
+            }
+            n += 1;
+        }
+    }
+
+    fn generate_id_slow(&mut self, base: &str) -> String {
         let sanitized = sanitize_identifier(base);
         let mut name = sanitized.clone();
         let mut n = 1;
 
-        // Add suffix until there's no conflict
         while self.conflicts.contains(&name) {
             name = format!("{}_{}", sanitized, n);
             n += 1;
@@ -2504,6 +2530,20 @@ impl Memoizer {
     pub fn merge_conflicts(&mut self, other: &Memoizer) {
         self.conflicts.extend(other.conflicts.iter().cloned());
     }
+}
+
+/// Check if a string is already a valid JavaScript identifier.
+#[inline]
+fn is_valid_identifier(name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+    let mut chars = name.bytes();
+    let first = chars.next().unwrap();
+    if !first.is_ascii_alphabetic() && first != b'_' && first != b'$' {
+        return false;
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == b'_' || c == b'$')
 }
 
 /// Sanitize a string to be a valid JavaScript identifier.
