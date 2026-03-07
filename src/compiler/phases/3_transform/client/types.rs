@@ -187,9 +187,9 @@ impl<'a> ComponentContext<'a> {
         self.state.template.push_comment(None);
 
         // Categorize attributes
-        let mut attributes: Vec<Attribute> = Vec::new();
-        let mut class_directives: Vec<ClassDirective> = Vec::new();
-        let mut style_directives: Vec<StyleDirective> = Vec::new();
+        let mut attributes: Vec<&Attribute> = Vec::new();
+        let mut class_directives: Vec<&ClassDirective> = Vec::new();
+        let mut style_directives: Vec<&StyleDirective> = Vec::new();
         let mut on_directives: Vec<OnDirective> = Vec::new();
         let mut transition_directives: Vec<TransitionDirective> = Vec::new();
         let mut use_directives: Vec<UseDirective> = Vec::new();
@@ -211,16 +211,16 @@ impl<'a> ComponentContext<'a> {
                             dynamic_namespace = Some(attr_node.value.clone());
                         }
                     }
-                    attributes.push(attribute.clone());
+                    attributes.push(attribute);
                 }
                 Attribute::SpreadAttribute(_) => {
-                    attributes.push(attribute.clone());
+                    attributes.push(attribute);
                 }
                 Attribute::ClassDirective(dir) => {
-                    class_directives.push(dir.clone());
+                    class_directives.push(dir);
                 }
                 Attribute::StyleDirective(dir) => {
-                    style_directives.push(dir.clone());
+                    style_directives.push(dir);
                 }
                 Attribute::OnDirective(dir) => {
                     on_directives.push(dir.clone());

@@ -9,8 +9,8 @@
 #![allow(dead_code)]
 
 use crate::ast::template::{
-    Attribute, AttributeNode, AttributeValue, BindDirective, Fragment, LetDirective,
-    RegularElement as RegularElementNode, TemplateNode,
+    Attribute, AttributeNode, AttributeValue, BindDirective, ClassDirective, Fragment,
+    LetDirective, RegularElement as RegularElementNode, StyleDirective, TemplateNode,
 };
 use crate::compiler::phases::phase3_transform::client::transform_template::Template;
 use crate::compiler::phases::phase3_transform::client::types::*;
@@ -59,7 +59,7 @@ struct LetDirectiveResult {
 }
 
 fn process_element_let_directives(
-    let_directives: &[LetDirective],
+    let_directives: &[&LetDirective],
     context: &mut ComponentContext,
 ) -> LetDirectiveResult {
     let mut saved_transforms: Vec<(
@@ -181,11 +181,11 @@ pub fn visit_regular_element(
 
     // Categorize attributes - pre-allocate based on total attribute count
     let attr_count = node.attributes.len();
-    let mut attributes = Vec::with_capacity(attr_count);
-    let mut class_directives = Vec::with_capacity(4);
-    let mut style_directives = Vec::with_capacity(4);
-    let mut element_let_directives: Vec<LetDirective> = Vec::new();
-    let mut bindings: FxHashMap<String, BindDirective> = FxHashMap::default();
+    let mut attributes: Vec<&Attribute> = Vec::with_capacity(attr_count);
+    let mut class_directives: Vec<&ClassDirective> = Vec::with_capacity(4);
+    let mut style_directives: Vec<&StyleDirective> = Vec::with_capacity(4);
+    let mut element_let_directives: Vec<&LetDirective> = Vec::new();
+    let mut bindings: FxHashMap<String, &BindDirective> = FxHashMap::default();
     let has_spread = node
         .attributes
         .iter()
@@ -217,22 +217,22 @@ pub fn visit_regular_element(
                 // All attributes (including event attributes like onclick={...}) go into attributes
                 // When has_spread is true, they're processed by build_attribute_effect
                 // When has_spread is false, event attributes are handled via visit_event_attribute in the loop
-                attributes.push(attribute.clone());
+                attributes.push(attribute);
             }
             Attribute::ClassDirective(dir) => {
-                class_directives.push(dir.clone());
+                class_directives.push(dir);
             }
             Attribute::StyleDirective(dir) => {
-                style_directives.push(dir.clone());
+                style_directives.push(dir);
             }
             Attribute::BindDirective(dir) => {
-                bindings.insert(dir.name.to_string(), dir.clone());
+                bindings.insert(dir.name.to_string(), dir);
             }
             Attribute::SpreadAttribute(_) => {
-                attributes.push(attribute.clone());
+                attributes.push(attribute);
             }
             Attribute::LetDirective(dir) => {
-                element_let_directives.push(dir.clone());
+                element_let_directives.push(dir);
             }
             // OnDirective, TransitionDirective, AnimateDirective, UseDirective, AttachTag
             // are processed in source order in the directive loop below
@@ -1447,7 +1447,7 @@ fn build_element_attribute_update(
     node_id: &str,
     name: &str,
     value: JsExpr,
-    attributes: &[Attribute],
+    attributes: &[&Attribute],
 ) -> JsExpr {
     // Special case: muted (Firefox needs property assignment)
     if name == "muted" {

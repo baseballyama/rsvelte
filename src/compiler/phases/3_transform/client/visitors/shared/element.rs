@@ -427,7 +427,7 @@ pub fn build_set_attribute(element: JsExpr, name: &str, value: JsExpr) -> JsStat
 /// is memoized via `context.state.memoizer.add_memoized()`, which causes the template_effect
 /// to use `($0) => ...` parameter syntax with `[() => object]` as the values array.
 pub fn build_class_directives_object(
-    class_directives: &[ClassDirective],
+    class_directives: &[&ClassDirective],
     context: &mut ComponentContext,
 ) -> (JsExpr, bool) {
     build_class_directives_object_with_memoizer(class_directives, context, None)
@@ -441,7 +441,7 @@ pub fn build_class_directives_object(
 /// - Called from `build_attribute_effect`: passes the local memoizer
 /// - Called from `build_set_class`: no memoizer (uses None, result returned as-is)
 pub fn build_class_directives_object_with_memoizer(
-    class_directives: &[ClassDirective],
+    class_directives: &[&ClassDirective],
     context: &mut ComponentContext,
     external_memoizer: Option<&mut Memoizer>,
 ) -> (JsExpr, bool) {
@@ -515,7 +515,7 @@ pub fn build_class_directives_object_with_memoizer(
 /// - A simple object `{ color: value }` for normal styles
 /// - An array `[normal, important]` if there are !important modifiers
 pub fn build_style_directives_object(
-    style_directives: &[StyleDirective],
+    style_directives: &[&StyleDirective],
     context: &mut ComponentContext,
 ) -> JsExpr {
     build_style_directives_object_with_memoizer(style_directives, context, None)
@@ -527,7 +527,7 @@ pub fn build_style_directives_object(
 /// `context.state.memoizer`. This matches the official compiler where
 /// `build_style_directives_object` takes an optional `memoizer` parameter.
 pub fn build_style_directives_object_with_memoizer(
-    style_directives: &[StyleDirective],
+    style_directives: &[&StyleDirective],
     context: &mut ComponentContext,
     external_memoizer: Option<&mut Memoizer>,
 ) -> JsExpr {
@@ -636,7 +636,7 @@ pub fn build_set_class(
     _element: &RegularElementNode,
     node_id: &str,
     class_attribute: Option<&AttributeValue>,
-    class_directives: &[ClassDirective],
+    class_directives: &[&ClassDirective],
     context: &mut ComponentContext,
     is_html: bool,
     css_hash: &str,
@@ -792,7 +792,7 @@ pub fn build_set_class(
 pub fn build_set_class_call(
     _element: &RegularElementNode,
     node_expr: JsExpr,
-    class_directives: &[ClassDirective],
+    class_directives: &[&ClassDirective],
     context: &mut ComponentContext,
     is_html: bool,
     css_hash: &str,
@@ -851,7 +851,7 @@ pub fn build_set_class_call(
 /// - next: Current style directives object
 pub fn build_set_style_call(
     node_expr: JsExpr,
-    style_directives: &[StyleDirective],
+    style_directives: &[&StyleDirective],
     context: &mut ComponentContext,
 ) -> JsExpr {
     // Build style directives object
@@ -890,7 +890,7 @@ pub fn build_set_style_call(
 pub fn build_set_style(
     node_id: &str,
     style_attribute: Option<&AttributeValue>,
-    style_directives: &[StyleDirective],
+    style_directives: &[&StyleDirective],
     context: &mut ComponentContext,
 ) {
     // Build the style value from the attribute with memoization of inner expressions
@@ -1188,9 +1188,9 @@ fn get_directive_expression(directive: &StyleDirective) -> crate::ast::js::Expre
 /// $.attribute_effect(div, ($0) => ({ ...$0, ona: event_handler }), [() => get_rest()]);
 /// ```
 pub fn build_attribute_effect(
-    attributes: &[crate::ast::template::Attribute],
-    class_directives: &[ClassDirective],
-    style_directives: &[StyleDirective],
+    attributes: &[&crate::ast::template::Attribute],
+    class_directives: &[&ClassDirective],
+    style_directives: &[&StyleDirective],
     context: &mut ComponentContext,
     element_id: JsExpr,
     css_hash: &str,
