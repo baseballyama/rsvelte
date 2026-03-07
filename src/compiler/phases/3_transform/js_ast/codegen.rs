@@ -49,22 +49,10 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     use oxc_parser::Parser;
     use oxc_span::SourceType;
 
-    // Pre-extract `$: { ... }` labeled block statements before OXC processing.
-    // OXC collapses these to a single line, destroying `//` comments.
-    // We replace them with placeholder variables and restore after OXC.
     let (source_for_oxc, labeled_blocks) = extract_labeled_blocks(source);
     let source = &source_for_oxc;
-
-    // Collect original import lines with double quotes to preserve quote styles.
-    // The official Svelte compiler (esrap) preserves the original quote style
-    // from the user's source code, but OXC normalizes all quotes to single quotes.
-    // We save the originals and restore them after OXC processing.
-    // Note: Generated code now uses single quotes (via emit_literal), so only
-    // user source code (via Raw() statements) will have double quotes.
     let original_imports = collect_import_lines(source);
     let original_lines = collect_source_lines_for_quote_restore(source);
-    // Collect parenthesized sequence expression statements that OXC will strip parens from.
-    // E.g., `($.store_set(a, b), $.store_set(c, d));` → OXC emits `$.store_set(a, b), $.store_set(c, d);`
     let paren_seq_stmts = collect_paren_sequence_stmts(source);
 
     let allocator = Allocator::default();
@@ -73,7 +61,6 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     let result = parser.parse();
 
     if !result.errors.is_empty() {
-        // Print raw source for debugging (only when DEBUG_CODEGEN is set)
         if std::env::var("DEBUG_CODEGEN").is_ok() {
             eprintln!("=== RAW SOURCE (normalize_js error) ===");
             eprintln!("{}", source);
@@ -92,51 +79,21 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
         .code;
     let code = collapse_short_arrays(code);
     let code = collapse_short_objects(code);
-    // Expand objects with getters/setters to multi-line format.
-    // OXC formats `{ get prop() {` on one line, but Svelte's esrap uses multi-line:
-    //   {\n\tget prop() {\n\t\t...\n\t}\n}
     let code = expand_getter_objects(code);
-    // Collapse single-statement if blocks to inline form BEFORE adding blank lines,
-    // since the blank line rules depend on the line structure (e.g. `}` → statement)
     let code = collapse_single_statement_ifs(code);
     let code = add_blank_lines_for_formatting(code);
-    // Apply simple string replacements in a single pass:
-    // 1. "<\/script>" -> "</script>" (OXC escapes for HTML safety, Svelte does not)
-    // 2. "} catch (" -> "} catch(" (OXC adds space, Svelte does not)
-    // 3. "function(" -> "function (" (OXC omits space, Svelte adds it)
     let code = apply_simple_replacements(code);
-    // oxc codegen outputs numbers like .5 instead of 0.5 - add leading zeros
     let code = add_leading_zeros(code);
-    // OXC codegen outputs numbers like 2e3 instead of 2000 - expand scientific notation
     let code = expand_scientific_notation(code);
-    // OXC splits `;;` (inspect placeholder) into two separate lines. Rejoin them.
     let code = rejoin_double_semicolons(code);
-    // OXC strips wrapping parentheses from `new (class Foo { })()` expressions,
-    // producing `new class Foo { }()`. Restore them to match Svelte's esrap output.
     let code = wrap_new_class_expressions(code);
-    // Restore original quote styles for import statements
-    // that were changed by OXC normalization
     let code = restore_original_quotes(code, &original_imports);
-    // Restore original quote styles for non-import lines (user source code)
     let code = restore_line_quotes(code, &original_lines);
-    // OXC strips parentheses from single-expression arrow function bodies like
-    // `() => (expr)` → `() => expr`. But the official Svelte compiler (esrap)
-    // preserves these parens for legacy_pre_effect dependency thunks.
-    // Restore them: `legacy_pre_effect(() => expr,` → `legacy_pre_effect(() => (expr),`
-    let code = restore_legacy_pre_effect_thunk_parens(&code);
-    // OXC strips parentheses from IIFEs: `(function (...) { ... })()` becomes
-    // `function (...) { ... }()`. Restore them to match Svelte's esrap output.
-    let code = restore_iife_parens(&code);
-    // OXC strips parentheses from sequence expression statements:
-    // `(a, b, c);` becomes `a, b, c;`. Restore them to match Svelte's esrap output.
-    let code = restore_paren_sequence_stmts(&code, &paren_seq_stmts);
-    // OXC collapses `$: { ... }` labeled block statements to a single line and
-    // inserts commas between the statements (treating them like sequence expressions).
-    // Expand them back to multi-line format to preserve comments and match Svelte's output.
-    let code = expand_labeled_block_statements(&code);
-    // Restore pre-extracted labeled block statements
-    let code = restore_labeled_blocks(&code, &labeled_blocks);
-    // Remove trailing newline to match Svelte compiler output
+    let code = restore_legacy_pre_effect_thunk_parens(code);
+    let code = restore_iife_parens(code);
+    let code = restore_paren_sequence_stmts(code, &paren_seq_stmts);
+    let code = expand_labeled_block_statements(code);
+    let code = restore_labeled_blocks(code, &labeled_blocks);
     let code = code.trim_end_matches('\n').to_string();
     Ok(code)
 }
@@ -193,7 +150,11 @@ fn apply_simple_replacements(code: String) -> String {
 ///   `$: {\n\t// comment\n\tfoo = [];\n\tfoo[0] = [false, false];\n}`
 ///
 /// This is critical for preserving `//` comments that would otherwise eat the rest of the line.
-fn expand_labeled_block_statements(code: &str) -> String {
+fn expand_labeled_block_statements(code: String) -> String {
+    // Quick check: if no `$:` pattern exists, no labeled blocks to expand
+    if !code.contains("$:") {
+        return code;
+    }
     let mut result = String::new();
     let lines: Vec<&str> = code.lines().collect();
 
@@ -418,9 +379,12 @@ fn split_labeled_block_body(body: &str) -> Vec<String> {
 /// preserves the parens (because the AST node is a SequenceExpression even with one element).
 /// This function restores `$.legacy_pre_effect(() => expr, ...)` to
 /// `$.legacy_pre_effect(() => (expr), ...)`.
-fn restore_legacy_pre_effect_thunk_parens(code: &str) -> String {
+fn restore_legacy_pre_effect_thunk_parens(code: String) -> String {
     let needle = "$.legacy_pre_effect(() => ";
-    let mut result = code.to_string();
+    if !code.contains(needle) {
+        return code;
+    }
+    let mut result = code;
     let mut search_from = 0;
 
     while let Some(pos) = result[search_from..].find(needle) {
@@ -468,9 +432,9 @@ fn restore_legacy_pre_effect_thunk_parens(code: &str) -> String {
 ///
 /// This function finds patterns like `function (...) { ... }(` that are NOT at the
 /// start of a statement and wraps the function expression in parentheses.
-fn restore_iife_parens(code: &str) -> String {
+fn restore_iife_parens(code: String) -> String {
     let needle = "function (";
-    let mut result = code.to_string();
+    let mut result = code;
     let mut search_from = 0;
 
     while let Some(rel_pos) = result[search_from..].find(needle) {
@@ -676,9 +640,9 @@ fn collect_paren_sequence_stmts(source: &str) -> Vec<String> {
 ///
 /// Finds lines in the OXC output that match collected sequence expressions
 /// (after whitespace normalization) and wraps them back in parentheses.
-fn restore_paren_sequence_stmts(code: &str, paren_stmts: &[String]) -> String {
+fn restore_paren_sequence_stmts(code: String, paren_stmts: &[String]) -> String {
     if paren_stmts.is_empty() {
-        return code.to_string();
+        return code;
     }
 
     let mut result_lines: Vec<String> = Vec::new();
@@ -1133,9 +1097,9 @@ fn extract_labeled_blocks(source: &str) -> (String, Vec<(String, String)>) {
 /// Restore pre-extracted `$: { ... }` labeled block statements after OXC processing.
 ///
 /// Replaces placeholder variable declarations with the original block text.
-fn restore_labeled_blocks(code: &str, blocks: &[(String, String)]) -> String {
+fn restore_labeled_blocks(code: String, blocks: &[(String, String)]) -> String {
     if blocks.is_empty() {
-        return code.to_string();
+        return code;
     }
 
     let mut result = String::with_capacity(code.len());
