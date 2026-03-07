@@ -214,6 +214,18 @@ fn transform_client_with_visitors(
     let events = std::mem::take(&mut context.state.events);
     let legacy_reactive_imports = std::mem::take(&mut context.state.legacy_reactive_imports);
 
+    // Build binding lookup index for O(1) access by name
+    // This replaces multiple O(n) linear scans through analysis.root.bindings
+    let binding_by_name: rustc_hash::FxHashMap<
+        &str,
+        &crate::compiler::phases::phase2_analyze::scope::Binding,
+    > = analysis
+        .root
+        .bindings
+        .iter()
+        .map(|b| (b.name.as_str(), b))
+        .collect();
+
     // Collect reactive import names for legacy mode.
     // In legacy mode, mutated imports in the instance scope are wrapped with $.reactive_import()
     // and all references in the instance body use $$_import_X() instead of $.get(X).
@@ -239,7 +251,7 @@ fn transform_client_with_visitors(
 
     // Collect store subscription bindings and generate setup code
     // Reference: transform-client.js lines 211-254
-    let mut store_setup: Vec<JsStatement> = Vec::new();
+    let mut store_getters: Vec<JsStatement> = Vec::new();
     let mut needs_store_cleanup = false;
 
     // Collect store sub bindings in declaration order (matching official compiler behavior).
@@ -253,41 +265,35 @@ fn transform_client_with_visitors(
         .map(|b| b.name.as_str())
         .collect();
 
-    for (getter_count, store_sub_name) in store_sub_bindings.into_iter().enumerate() {
+    for store_sub_name in &store_sub_bindings {
         let store_name = &store_sub_name[1..]; // e.g., "store"
 
-        // First store_sub binding - add setup_stores call at the end
-        if store_setup.is_empty() {
+        if store_getters.is_empty() {
             needs_store_cleanup = true;
-            // const [$$stores, $$cleanup] = $.setup_stores();
-            store_setup.push(JsStatement::Raw(
-                "const [$$stores, $$cleanup] = $.setup_stores();".to_string(),
-            ));
         }
 
         // Check if the store comes from a prop - if so, we need to call it as a function
         // e.g., count() instead of count
-        let is_prop_store = analysis.root.bindings.iter().any(|b| {
-            b.name == store_name && matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp)
-        });
+        let is_prop_store = binding_by_name
+            .get(store_name)
+            .is_some_and(|b| matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp));
 
         // Check if the store is a derived or state variable - if so, wrap with $.get()
         // e.g., $.get(store) instead of store
         // LegacyReactive bindings (from `$: z = expr`) are also state variables
         // that need $.get() wrapping.
-        let is_derived_or_state = analysis.root.bindings.iter().any(|b| {
-            b.name == store_name
-                && matches!(
-                    b.kind,
-                    BindingKind::State
-                        | BindingKind::RawState
-                        | BindingKind::Derived
-                        | BindingKind::LegacyReactive
-                )
+        let is_derived_or_state = binding_by_name.get(store_name).is_some_and(|b| {
+            matches!(
+                b.kind,
+                BindingKind::State
+                    | BindingKind::RawState
+                    | BindingKind::Derived
+                    | BindingKind::LegacyReactive
+            )
         });
 
         // Check if the store is a reactive import (mutated instance import in legacy mode)
-        let is_reactive_import = reactive_import_names.contains(&store_name.to_string());
+        let is_reactive_import = reactive_import_names.iter().any(|n| n == store_name);
 
         // Generate: const $store = () => $.store_get(store, '$store', $$stores);
         // or: const $store = () => $.store_get(store(), '$store', $$stores); for prop stores
@@ -306,8 +312,17 @@ fn transform_client_with_visitors(
             "const {} = () => $.store_get({}, '{}', $$stores);",
             store_sub_name, store_access, store_sub_name
         );
-        // Insert getter BEFORE setup_stores (at position getter_count to maintain sorted order)
-        store_setup.insert(getter_count, JsStatement::Raw(getter_code));
+        store_getters.push(JsStatement::Raw(getter_code));
+    }
+
+    // Build store_setup: getters first, then setup_stores call
+    let mut store_setup: Vec<JsStatement> = Vec::with_capacity(store_getters.len() + 1);
+    store_setup.append(&mut store_getters);
+    if needs_store_cleanup {
+        // const [$$stores, $$cleanup] = $.setup_stores();
+        store_setup.push(JsStatement::Raw(
+            "const [$$stores, $$cleanup] = $.setup_stores();".to_string(),
+        ));
     }
 
     // Detect reactive statements ($:) in the instance script
@@ -333,12 +348,7 @@ fn transform_client_with_visitors(
         .iter()
         .filter(|export| {
             // Find the binding for this export
-            if let Some(binding) = analysis
-                .root
-                .bindings
-                .iter()
-                .find(|b| b.name == export.name)
-            {
+            if let Some(binding) = binding_by_name.get(export.name.as_str()) {
                 // Check if the binding is reactive (needs getter/setter in $$exports)
                 matches!(
                     binding.kind,
@@ -376,7 +386,7 @@ fn transform_client_with_visitors(
 
     // Check if there are any prop bindings (Prop or BindableProp) that require $$props
     // This is needed for legacy mode where props are accessed via $.prop($$props, 'name', flags)
-    let has_prop_bindings = analysis.root.bindings.iter().any(|b| {
+    let has_prop_bindings = binding_by_name.values().any(|b| {
         matches!(
             b.kind,
             BindingKind::Prop | BindingKind::BindableProp | BindingKind::RestProp
@@ -635,7 +645,7 @@ fn transform_client_with_visitors(
             let alias = export.alias.as_deref().unwrap_or(name);
 
             // Find the binding
-            let binding = analysis.root.bindings.iter().find(|b| b.name == *name);
+            let binding = binding_by_name.get(name.as_str()).copied();
 
             if let Some(binding) = binding {
                 let is_identifier_expr = true; // build_getter returns identifier for simple refs

@@ -37,9 +37,6 @@ pub struct Template {
 
     /// Stack of paths for nesting - each path points to the parent element's children
     path_stack: Vec<NodePath>,
-
-    /// Current element being built (stored separately for set_prop access)
-    current_element: Option<Element>,
 }
 
 impl Template {
@@ -50,7 +47,6 @@ impl Template {
             needs_import_node: false,
             nodes: Vec::new(),
             path_stack: vec![vec![]], // Start with root path (empty)
-            current_element: None,
         }
     }
 
@@ -105,13 +101,10 @@ impl Template {
         // Get current path
         let current_path = self.path_stack.last().cloned().unwrap_or_default();
 
-        // Add element to current fragment
+        // Add element to current fragment (move, no clone needed)
         let fragment = self.get_nodes_at_path_mut(&current_path);
-        fragment.push(Node::Element(element.clone()));
+        fragment.push(Node::Element(element));
         let new_idx = fragment.len() - 1;
-
-        // Store current element for set_prop
-        self.current_element = Some(element);
 
         // Create new path pointing to this element
         let mut new_path = current_path;
@@ -144,43 +137,11 @@ impl Template {
     /// Pop the current element from the stack.
     pub fn pop_element(&mut self) {
         self.path_stack.pop();
-        // Update current_element to the parent element (or None if at root)
-        self.current_element = self.get_current_element();
-    }
-
-    /// Get the current element (the one at the top of the path stack).
-    fn get_current_element(&self) -> Option<Element> {
-        if self.path_stack.len() <= 1 {
-            return None;
-        }
-
-        let path = &self.path_stack[self.path_stack.len() - 1];
-        if path.is_empty() {
-            return None;
-        }
-
-        // Navigate to the element
-        let mut current: &Vec<Node> = &self.nodes;
-        for &idx in &path[..path.len() - 1] {
-            if let Some(Node::Element(elem)) = current.get(idx) {
-                current = &elem.children;
-            } else {
-                return None;
-            }
-        }
-
-        let last_idx = path[path.len() - 1];
-        if let Some(Node::Element(elem)) = current.get(last_idx) {
-            Some(elem.clone())
-        } else {
-            None
-        }
     }
 
     /// Set a property on the current element.
     pub fn set_prop(&mut self, key: String, value: Option<String>) {
-        // We need to set the property on the actual element in the tree,
-        // not just on current_element (which is a copy)
+        // Set the property on the actual element in the tree
         if self.path_stack.len() <= 1 {
             return;
         }
@@ -190,17 +151,13 @@ impl Template {
             return;
         }
 
-        // Navigate to the parent of the current element
+        // Navigate to the current element
         let parent_path = &path[..path.len() - 1];
         let last_idx = path[path.len() - 1];
 
         let parent_fragment = self.get_nodes_at_path_mut(parent_path);
         if let Some(Node::Element(elem)) = parent_fragment.get_mut(last_idx) {
-            elem.attributes.insert(key.clone(), value.clone());
-            // Also update current_element
-            if let Some(ref mut ce) = self.current_element {
-                ce.attributes.insert(key, value);
-            }
+            elem.attributes.insert(key, value);
         }
     }
 

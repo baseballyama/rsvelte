@@ -956,10 +956,18 @@ pub fn optional_member(object: JsExpr, property: impl Into<String>) -> JsExpr {
 /// Create a member path from a dot-separated string (e.g., "$.template").
 #[inline]
 pub fn member_path(path: &str) -> JsExpr {
-    let parts: Vec<&str> = path.split('.').collect();
-    let mut expr = id(parts[0]);
-    for part in parts.iter().skip(1) {
-        expr = member(expr, *part);
+    // Fast path for common "$.xxx" pattern (avoids Vec allocation)
+    if let Some(rest) = path.strip_prefix("$.")
+        && !rest.contains('.')
+    {
+        return member(id("$"), rest);
+    }
+
+    // General case
+    let mut parts = path.split('.');
+    let mut expr = id(parts.next().unwrap());
+    for part in parts {
+        expr = member(expr, part);
     }
     expr
 }

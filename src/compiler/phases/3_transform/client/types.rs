@@ -2479,18 +2479,35 @@ impl Memoizer {
 
         // Try the base name first
         if !self.conflicts.contains(sanitized) {
-            let name = sanitized.to_string();
-            self.conflicts.insert(name.clone());
-            return name;
+            self.conflicts.insert(sanitized.to_string());
+            return sanitized.to_string();
         }
 
         // Add suffix until there's no conflict
-        let mut n = 1;
+        // Pre-allocate buffer to avoid repeated format! allocations
+        let mut buf = String::with_capacity(sanitized.len() + 4);
+        let mut n = 1u32;
         loop {
-            let name = format!("{}_{}", sanitized, n);
-            if !self.conflicts.contains(&name) {
-                self.conflicts.insert(name.clone());
-                return name;
+            buf.clear();
+            buf.push_str(sanitized);
+            buf.push('_');
+            // Fast integer formatting
+            let mut digits = [0u8; 10];
+            let mut pos = digits.len();
+            let mut val = n;
+            loop {
+                pos -= 1;
+                digits[pos] = b'0' + (val % 10) as u8;
+                val /= 10;
+                if val == 0 {
+                    break;
+                }
+            }
+            buf.push_str(std::str::from_utf8(&digits[pos..]).unwrap());
+
+            if !self.conflicts.contains(buf.as_str()) {
+                self.conflicts.insert(buf.clone());
+                return buf;
             }
             n += 1;
         }

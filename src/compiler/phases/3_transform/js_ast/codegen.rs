@@ -5,6 +5,7 @@
 
 use super::nodes::*;
 use regex::Regex;
+use rustc_hash::FxHashMap;
 use std::fmt::Write;
 use std::sync::LazyLock;
 
@@ -80,8 +81,15 @@ fn normalize_js_inner(source: &str, profile: bool) -> Result<String, String> {
     let (source_for_oxc, labeled_blocks) =
         timed!("extract_labeled_blocks", extract_labeled_blocks(source));
     let source = &source_for_oxc;
+    // Fast path: skip collect_source_info if no double quotes or paren statements
+    let has_double_quotes = memchr::memchr(b'"', source.as_bytes()).is_some();
+    let has_paren_stmts = source.contains("\n(") || source.starts_with('(');
     let (original_imports, original_lines, paren_seq_stmts) =
-        timed!("collect_source_info", collect_source_info(source));
+        if has_double_quotes || has_paren_stmts {
+            timed!("collect_source_info", collect_source_info(source))
+        } else {
+            (FxHashMap::default(), FxHashMap::default(), Vec::new())
+        };
 
     let code = timed!("oxc_parse_codegen", {
         let allocator = Allocator::default();
@@ -128,12 +136,8 @@ fn normalize_js_inner(source: &str, profile: bool) -> Result<String, String> {
         wrap_new_class_expressions(code)
     );
     let code = timed!(
-        "restore_original_quotes",
-        restore_original_quotes(code, &original_imports)
-    );
-    let code = timed!(
-        "restore_line_quotes",
-        restore_line_quotes(code, &original_lines)
+        "restore_all_quotes",
+        restore_all_quotes(code, &original_imports, &original_lines)
     );
     let code = timed!(
         "restore_legacy_pre_effect_thunk_parens",
@@ -152,7 +156,11 @@ fn normalize_js_inner(source: &str, profile: bool) -> Result<String, String> {
         "restore_labeled_blocks",
         restore_labeled_blocks(code, &labeled_blocks)
     );
-    let code = timed!("trim", code.trim_end_matches('\n').to_string());
+    // Trim trailing newlines in-place to avoid allocation
+    let mut code = code;
+    while code.ends_with('\n') {
+        code.pop();
+    }
 
     Ok(code)
 }
@@ -830,10 +838,8 @@ fn restore_paren_sequence_stmts(code: String, paren_stmts: &[String]) -> String 
 /// in-place in the OXC output line rather than replacing the entire line.
 /// This preserves OXC's formatting additions (semicolons, spacing, etc.)
 /// while restoring the original quote style.
-fn restore_line_quotes(
-    code: String,
-    original_lines: &std::collections::HashMap<String, String>,
-) -> String {
+#[allow(dead_code)]
+fn restore_line_quotes(code: String, original_lines: &FxHashMap<String, String>) -> String {
     if original_lines.is_empty() {
         return code;
     }
@@ -1269,12 +1275,12 @@ fn restore_labeled_blocks(code: String, blocks: &[(String, String)]) -> String {
 fn collect_source_info(
     source: &str,
 ) -> (
-    std::collections::HashMap<String, String>,
-    std::collections::HashMap<String, String>,
+    FxHashMap<String, String>,
+    FxHashMap<String, String>,
     Vec<String>,
 ) {
-    let mut import_lines = std::collections::HashMap::new();
-    let mut quote_lines = std::collections::HashMap::new();
+    let mut import_lines = FxHashMap::default();
+    let mut quote_lines = FxHashMap::default();
     let mut paren_stmts = Vec::new();
 
     for line in source.lines() {
@@ -1378,22 +1384,25 @@ fn restore_import_quotes(oxc_line: &str, original: &str) -> String {
 /// OXC normalizes all string quotes to single quotes, but the official Svelte compiler
 /// (esrap) preserves the original quote style from the user's source code. This function
 /// restores double-quoted import statements where the original source used double quotes.
-fn restore_original_quotes(
+///
+/// Also restores double quotes on non-import lines (merged from restore_line_quotes).
+fn restore_all_quotes(
     code: String,
-    import_lines: &std::collections::HashMap<String, String>,
+    import_lines: &FxHashMap<String, String>,
+    original_lines: &FxHashMap<String, String>,
 ) -> String {
-    if import_lines.is_empty() {
+    if import_lines.is_empty() && original_lines.is_empty() {
         return code;
     }
 
     let mut result = String::with_capacity(code.len());
     for line in code.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with("import ") {
+
+        // Restore import line quotes
+        if !import_lines.is_empty() && trimmed.starts_with("import ") {
             let normalized = normalize_import_line(trimmed);
             if let Some(original) = import_lines.get(&normalized) {
-                // Instead of replacing the whole line, just restore the quote style
-                // for the import source string. Keep OXC's formatting (spacing).
                 let restored = restore_import_quotes(trimmed, original);
                 let indent = &line[..line.len() - line.trim_start().len()];
                 result.push_str(indent);
@@ -1402,6 +1411,27 @@ fn restore_original_quotes(
                 continue;
             }
         }
+
+        // Restore non-import line quotes (merged from restore_line_quotes)
+        if !original_lines.is_empty()
+            && !trimmed.is_empty()
+            && !trimmed.starts_with("import ")
+            && let Some(original) = original_lines.get(trimmed)
+        {
+            let double_quoted_strings = extract_double_quoted_strings(original);
+            if !double_quoted_strings.is_empty() {
+                let mut restored = line.to_string();
+                for dq_str in &double_quoted_strings {
+                    let sq_version = format!("'{}'", dq_str);
+                    let dq_version = format!("\"{}\"", dq_str);
+                    restored = restored.replacen(&sq_version, &dq_version, 1);
+                }
+                result.push_str(&restored);
+                result.push('\n');
+                continue;
+            }
+        }
+
         result.push_str(line);
         result.push('\n');
     }
@@ -3391,7 +3421,15 @@ impl JsCodegen {
 }
 
 /// Escape special characters in a single-quoted string literal.
-fn escape_string_single(s: &str) -> String {
+fn escape_string_single(s: &str) -> std::borrow::Cow<'_, str> {
+    // Fast path: check if any escaping is needed
+    if !s
+        .bytes()
+        .any(|b| b == b'\'' || b == b'\\' || b == b'\n' || b == b'\r')
+    {
+        return std::borrow::Cow::Borrowed(s);
+    }
+    // Slow path: escape needed
     let mut result = String::with_capacity(s.len());
     for c in s.chars() {
         match c {
@@ -3404,7 +3442,7 @@ fn escape_string_single(s: &str) -> String {
             _ => result.push(c),
         }
     }
-    result
+    std::borrow::Cow::Owned(result)
 }
 
 #[cfg(test)]
