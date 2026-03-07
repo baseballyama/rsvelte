@@ -6,7 +6,7 @@
 //! Corresponds to Svelte's `warnings.js`.
 
 /// Warning type for analysis phase.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AnalysisWarning {
     /// The warning code
     pub code: String,

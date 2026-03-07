@@ -21,42 +21,67 @@ struct PrecedingIgnores {
     warnings: Vec<warnings::AnalysisWarning>,
 }
 
-/// Collect svelte-ignore codes from preceding comments in a fragment.
+/// Compute preceding ignores for all nodes in a single O(n) forward pass.
 ///
-/// This looks back through the nodes before the current index to find
-/// comments that precede the node (possibly separated by text nodes).
-fn collect_preceding_ignores(nodes: &[TemplateNode], idx: usize, runes: bool) -> PrecedingIgnores {
-    let mut ignores = Vec::new();
-    let mut all_warnings = Vec::new();
+/// Returns a vector of Option<(PrecedingIgnores, bool)> for each node.
+/// Comments get None. Other nodes get Some((ignores, is_text)).
+/// The ignores are collected from consecutive comment/whitespace-text runs
+/// that immediately precede each node.
+fn compute_all_preceding_ignores(
+    nodes: &[TemplateNode],
+    runes: bool,
+) -> Vec<Option<(PrecedingIgnores, bool)>> {
+    let mut result: Vec<Option<(PrecedingIgnores, bool)>> = Vec::with_capacity(nodes.len());
 
-    // Look backwards through preceding nodes
-    for i in (0..idx).rev() {
-        match &nodes[i] {
+    // Track accumulated ignores from the current run of comments/whitespace
+    let mut pending_ignores: Vec<String> = Vec::new();
+    let mut pending_warnings: Vec<warnings::AnalysisWarning> = Vec::new();
+
+    for node in nodes {
+        match node {
             TemplateNode::Comment(comment) => {
-                // Extract svelte-ignore codes from this comment
-                let result = extract_svelte_ignore_with_warnings(&comment.data, runes);
-                ignores.extend(result.ignores);
-                all_warnings.extend(result.warnings);
+                // Extract svelte-ignore codes and accumulate them
+                let extracted = extract_svelte_ignore_with_warnings(&comment.data, runes);
+                pending_ignores.extend(extracted.ignores);
+                pending_warnings.extend(extracted.warnings);
+                // Comments themselves get None
+                result.push(None);
             }
             TemplateNode::Text(text) => {
-                // Only whitespace-only text nodes are OK, continue looking back
                 if text.data.trim().is_empty() {
-                    continue;
+                    // Whitespace-only text: keep accumulating, but still assign ignores to it
+                    result.push(Some((
+                        PrecedingIgnores {
+                            ignores: pending_ignores.clone(),
+                            warnings: pending_warnings.clone(),
+                        },
+                        true, // is_text
+                    )));
                 } else {
-                    break;
+                    // Non-whitespace text: assign accumulated ignores, then reset
+                    result.push(Some((
+                        PrecedingIgnores {
+                            ignores: std::mem::take(&mut pending_ignores),
+                            warnings: std::mem::take(&mut pending_warnings),
+                        },
+                        true, // is_text
+                    )));
                 }
             }
             _ => {
-                // Any other node type stops the search
-                break;
+                // Non-comment, non-text node: assign accumulated ignores and reset
+                result.push(Some((
+                    PrecedingIgnores {
+                        ignores: std::mem::take(&mut pending_ignores),
+                        warnings: std::mem::take(&mut pending_warnings),
+                    },
+                    false, // not text
+                )));
             }
         }
     }
 
-    PrecedingIgnores {
-        ignores,
-        warnings: all_warnings,
-    }
+    result
 }
 
 /// Analyze a fragment.
@@ -66,7 +91,7 @@ pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<
 
     let runes = context.analysis.runes;
 
-    // Pre-compute ignore info for each node (requires immutable borrow of fragment.nodes).
+    // Pre-compute ignore info for each node in a single O(n) forward pass.
     //
     // The official Svelte (2-analyze/index.js L99) only applies the general ignore mechanism
     // to non-Comment, non-Text nodes. However, Text nodes also need ignore info because
@@ -75,19 +100,7 @@ pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<
     //
     // We collect preceding ignores for both non-Comment/non-Text nodes AND Text nodes,
     // but only emit legacy_code/unknown_code warnings for non-Comment/non-Text nodes.
-    let ignore_info: Vec<Option<(PrecedingIgnores, bool)>> = (0..fragment.nodes.len())
-        .map(|idx| {
-            let is_comment = matches!(&fragment.nodes[idx], TemplateNode::Comment(_));
-            if is_comment {
-                return None;
-            }
-            let is_text = matches!(&fragment.nodes[idx], TemplateNode::Text(_));
-            Some((
-                collect_preceding_ignores(&fragment.nodes, idx, runes),
-                is_text,
-            ))
-        })
-        .collect();
+    let ignore_info = compute_all_preceding_ignores(&fragment.nodes, runes);
 
     // Emit warnings from svelte-ignore comment validation (legacy_code, unknown_code).
     // These are emitted only once per comment because only the first

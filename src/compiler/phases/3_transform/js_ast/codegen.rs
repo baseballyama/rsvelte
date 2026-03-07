@@ -82,8 +82,7 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     let code = expand_getter_objects(code);
     let code = collapse_single_statement_ifs(code);
     let code = add_blank_lines_for_formatting(code);
-    let code = apply_simple_replacements(code);
-    let code = add_leading_zeros(code);
+    let code = apply_simple_replacements_and_leading_zeros(code);
     let code = expand_scientific_notation(code);
     let code = rejoin_double_semicolons(code);
     let code = wrap_new_class_expressions(code);
@@ -95,48 +94,110 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     let code = expand_labeled_block_statements(code);
     let code = restore_labeled_blocks(code, &labeled_blocks);
     let code = code.trim_end_matches('\n').to_string();
+
     Ok(code)
 }
 
-/// Apply multiple simple string replacements in a single pass over the input.
+/// Apply simple string replacements AND add leading zeros in a single byte-level pass.
 ///
-/// This combines three replacements that were previously done as separate `.replace()` calls:
-/// 1. `<\/script>` → `</script>` (unescape)
-/// 2. `} catch (` → `} catch(` (remove space)
-/// 3. `function(` → `function (` (add space)
-fn apply_simple_replacements(code: String) -> String {
+/// Combines two previously separate passes:
+/// 1. Simple replacements: `<\/script>` → `</script>`, `} catch (` → `} catch(`,
+///    `function(` → `function (`
+/// 2. Leading zeros: `.5` → `0.5` (outside string literals)
+fn apply_simple_replacements_and_leading_zeros(code: String) -> String {
     let bytes = code.as_bytes();
     let len = bytes.len();
-    let mut result = Vec::with_capacity(len + 16);
+    let mut result = Vec::with_capacity(len + 100);
     let mut i = 0;
+    let mut in_string: Option<u8> = None;
 
     while i < len {
+        let c = bytes[i];
+
+        // Track string literal boundaries
+        if let Some(q) = in_string {
+            if c == b'\\' {
+                result.push(c);
+                i += 1;
+                if i < len {
+                    result.push(bytes[i]);
+                    i += 1;
+                }
+                continue;
+            }
+            if c == q {
+                in_string = None;
+            }
+            result.push(c);
+            i += 1;
+            continue;
+        }
+
+        if c == b'\'' || c == b'"' {
+            in_string = Some(c);
+            result.push(c);
+            i += 1;
+            continue;
+        }
+
         // Check for "<\/script>" (10 bytes) → "</script>"
-        if i + 10 <= len && &bytes[i..i + 10] == b"<\\/script>" {
+        if c == b'<' && i + 10 <= len && &bytes[i..i + 10] == b"<\\/script>" {
             result.extend_from_slice(b"</script>");
             i += 10;
             continue;
         }
 
         // Check for "} catch (" (9 bytes) → "} catch("
-        if i + 9 <= len && &bytes[i..i + 9] == b"} catch (" {
+        if c == b'}' && i + 9 <= len && &bytes[i..i + 9] == b"} catch (" {
             result.extend_from_slice(b"} catch(");
             i += 9;
             continue;
         }
 
         // Check for "function(" (9 bytes) → "function ("
-        if i + 9 <= len && &bytes[i..i + 9] == b"function(" {
+        if c == b'f' && i + 9 <= len && &bytes[i..i + 9] == b"function(" {
             result.extend_from_slice(b"function (");
             i += 9;
             continue;
         }
 
-        result.push(bytes[i]);
+        // Add leading zero: .5 → 0.5 (outside string literals)
+        if c == b'.' && i + 1 < len && bytes[i + 1].is_ascii_digit() {
+            let prev = if i > 0 { bytes[i - 1] } else { b' ' };
+            if !prev.is_ascii_digit()
+                && matches!(
+                    prev,
+                    b' ' | b'\t'
+                        | b'\n'
+                        | b'('
+                        | b'['
+                        | b'{'
+                        | b','
+                        | b':'
+                        | b'='
+                        | b'+'
+                        | b'-'
+                        | b'*'
+                        | b'/'
+                        | b'%'
+                        | b'<'
+                        | b'>'
+                        | b'!'
+                        | b'&'
+                        | b'|'
+                        | b'?'
+                        | b';'
+                )
+            {
+                result.push(b'0');
+            }
+        }
+
+        result.push(c);
         i += 1;
     }
 
-    // SAFETY: input was valid UTF-8 and all replacements are ASCII
+    // SAFETY: input was valid UTF-8 and all replacements/insertions are ASCII
     unsafe { String::from_utf8_unchecked(result) }
 }
 
@@ -599,6 +660,10 @@ fn find_next_comma_at_depth_zero(s: &str, start: usize) -> Option<usize> {
 /// Returns a set of normalized strings that should be wrapped in parens when
 /// found as bare statements in OXC output.
 fn collect_paren_sequence_stmts(source: &str) -> Vec<String> {
+    // Quick check: if no lines start with '(' after trimming, nothing to collect
+    if !source.lines().any(|l| l.trim().starts_with('(')) {
+        return Vec::new();
+    }
     let mut results = Vec::new();
     for line in source.lines() {
         let trimmed = line.trim();
@@ -676,6 +741,15 @@ fn restore_paren_sequence_stmts(code: String, paren_stmts: &[String]) -> String 
 fn collect_source_lines_for_quote_restore(
     source: &str,
 ) -> std::collections::HashMap<String, String> {
+    // Quick check: if no double quotes in source outside imports, nothing to restore
+    let has_non_import_dq = source.lines().any(|line| {
+        let t = line.trim();
+        !t.is_empty() && !t.starts_with("import ") && t.contains('"')
+    });
+    if !has_non_import_dq {
+        return std::collections::HashMap::new();
+    }
+
     let mut lines_map = std::collections::HashMap::new();
 
     for line in source.lines() {
@@ -800,6 +874,10 @@ fn extract_double_quoted_strings(line: &str) -> Vec<String> {
 ///
 /// This function detects the OXC pattern and expands it to the Svelte format.
 fn expand_getter_objects(code: String) -> String {
+    // Quick check: if no getter/setter patterns exist, return early
+    if !code.contains("{ get ") && !code.contains("{ set ") {
+        return code;
+    }
     let lines: Vec<&str> = code.lines().collect();
     let mut result = String::with_capacity(code.len() + 200);
     let mut i = 0;
@@ -1018,6 +1096,10 @@ fn count_brace_depth_in_line(line: &str, in_str: &mut Option<char>) -> i32 {
 ///
 /// Returns the modified source and a vector of (placeholder, original_text) pairs.
 fn extract_labeled_blocks(source: &str) -> (String, Vec<(String, String)>) {
+    // Quick check: if no `$:` pattern exists, return source unchanged
+    if !source.contains("$:") {
+        return (source.to_string(), Vec::new());
+    }
     let mut result = String::with_capacity(source.len());
     let mut blocks: Vec<(String, String)> = Vec::new();
     let lines: Vec<&str> = source.lines().collect();
@@ -1238,23 +1320,33 @@ fn restore_original_quotes(
 /// OXC splits `;;` (used as $inspect placeholder) into two separate empty statements
 /// on different lines. This function rejoins them back to `;;` on a single line.
 fn rejoin_double_semicolons(code: String) -> String {
+    // Quick check: if no lone semicolons, nothing to rejoin
+    if !code.contains("\n;\n") && !code.contains("\n\t;\n") {
+        return code;
+    }
+
     let lines: Vec<&str> = code.lines().collect();
-    let mut result = Vec::new();
+    let mut result = String::with_capacity(code.len());
     let mut i = 0;
 
     while i < lines.len() {
         if i + 1 < lines.len() && lines[i].trim() == ";" && lines[i + 1].trim() == ";" {
-            // Get the indentation from the first line
             let indent = &lines[i][..lines[i].len() - lines[i].trim_start().len()];
-            result.push(format!("{};;", indent));
+            result.push_str(indent);
+            result.push_str(";;");
+            result.push('\n');
             i += 2;
         } else {
-            result.push(lines[i].to_string());
+            result.push_str(lines[i]);
+            result.push('\n');
             i += 1;
         }
     }
 
-    result.join("\n")
+    if result.ends_with('\n') && !code.ends_with('\n') {
+        result.pop();
+    }
+    result
 }
 
 /// Wrap `new class` expressions with parentheses to match Svelte's esrap output.
@@ -1872,6 +1964,10 @@ fn is_method_definition(line: &str) -> bool {
 /// This ONLY applies to `$$render()` calls, which is the pattern Svelte uses
 /// inside `$.if()` callbacks. Other single-statement ifs keep their braces.
 fn collapse_single_statement_ifs(code: String) -> String {
+    // Quick check: if no 'if (' pattern exists, return early
+    if !code.contains("if (") {
+        return code;
+    }
     let lines: Vec<&str> = code.lines().collect();
     let mut result = String::with_capacity(code.len());
     let mut i = 0;
@@ -2001,96 +2097,6 @@ fn get_indent_level(line: &str) -> usize {
     count
 }
 
-/// Add leading zeros to decimal numbers that start with a dot.
-///
-/// oxc's codegen outputs numbers like `.5` instead of `0.5`.
-/// This function adds leading zeros to match Svelte's esrap output.
-fn add_leading_zeros(code: String) -> String {
-    let mut result = String::with_capacity(code.len() + 100);
-    let chars: Vec<char> = code.chars().collect();
-    let len = chars.len();
-    let mut i = 0;
-    // Track if we're inside a string literal to avoid modifying string contents.
-    // String literals contain raw user data (e.g. SVG path data with ".5" values).
-    let mut in_string: Option<char> = None; // Some(quote_char) if inside a string
-
-    while i < len {
-        let c = chars[i];
-
-        // Track string literal boundaries (skip escaped chars)
-        match in_string {
-            Some(_) if c == '\\' => {
-                // Escaped char - push both backslash and next char without modification
-                result.push(c);
-                i += 1;
-                if i < len {
-                    result.push(chars[i]);
-                    i += 1;
-                }
-                continue;
-            }
-            Some(q) if c == q => {
-                // End of string literal
-                in_string = None;
-                result.push(c);
-                i += 1;
-                continue;
-            }
-            Some(_) => {
-                // Inside a string literal - push as-is without modification
-                result.push(c);
-                i += 1;
-                continue;
-            }
-            None => {
-                // Not inside a string - check if starting a new one
-                if c == '\'' || c == '"' {
-                    in_string = Some(c);
-                    result.push(c);
-                    i += 1;
-                    continue;
-                }
-                // Template literals are more complex (nested ${...}), skip tracking them
-                // for leading zero purposes since template literals in Svelte generated
-                // code rarely contain SVG path data.
-            }
-        }
-
-        if c == '.' && i + 1 < len && chars[i + 1].is_ascii_digit() {
-            let prev_char = if i > 0 { chars[i - 1] } else { ' ' };
-
-            if !prev_char.is_ascii_digit()
-                && (prev_char == ' '
-                    || prev_char == '\t'
-                    || prev_char == '\n'
-                    || prev_char == '('
-                    || prev_char == '['
-                    || prev_char == '{'
-                    || prev_char == ','
-                    || prev_char == ':'
-                    || prev_char == '='
-                    || prev_char == '+'
-                    || prev_char == '-'
-                    || prev_char == '*'
-                    || prev_char == '/'
-                    || prev_char == '%'
-                    || prev_char == '<'
-                    || prev_char == '>'
-                    || prev_char == '!'
-                    || prev_char == '&'
-                    || prev_char == '|'
-                    || prev_char == '?'
-                    || prev_char == ';')
-            {
-                result.push('0');
-            }
-        }
-        result.push(c);
-        i += 1;
-    }
-    result
-}
-
 /// Expand scientific notation in numeric literals back to decimal form.
 ///
 /// OXC's codegen outputs numbers like `2e3` instead of `2000`.
@@ -2100,6 +2106,15 @@ fn add_leading_zeros(code: String) -> String {
 /// Negative exponents (e.g. `1e-3`) are left as-is since OXC already
 /// outputs those as decimal (`0.001`).
 fn expand_scientific_notation(code: String) -> String {
+    // Quick check: look for digit followed by 'e' followed by digit (scientific notation)
+    let bytes = code.as_bytes();
+    let has_sci = bytes
+        .windows(3)
+        .any(|w| w[0].is_ascii_digit() && w[1] == b'e' && w[2].is_ascii_digit());
+    if !has_sci {
+        return code;
+    }
+
     static RE: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"\b(\d+(?:\.\d+)?)e(\d+)\b").unwrap());
 

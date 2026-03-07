@@ -78,77 +78,36 @@ impl<'a> ComponentContext<'a> {
     pub fn visit_node(
         &mut self,
         node: &TemplateNode,
-        state_override: Option<&ComponentClientTransformState<'a>>,
+        _state_override: Option<&ComponentClientTransformState<'a>>,
     ) -> TransformResult {
-        // If a state override is provided, temporarily swap it in
-        let saved_state = if let Some(override_state) = state_override {
-            let saved = std::mem::replace(&mut self.state, override_state.clone());
-            Some(saved)
-        } else {
-            None
-        };
-
-        let result = match node {
+        match node {
             TemplateNode::Component(comp) => self.visit_component(comp),
-
             TemplateNode::SvelteComponent(comp) => self.visit_svelte_component(comp),
-
             TemplateNode::SvelteSelf(self_node) => self.visit_svelte_self(self_node),
-
             TemplateNode::SvelteElement(elem) => self.visit_svelte_element(elem),
-
             TemplateNode::ExpressionTag(expr) => self.visit_expression_tag(expr),
-
             TemplateNode::RegularElement(elem) => self.visit_regular_element(elem),
-
             TemplateNode::Text(text) => self.visit_text(text),
-
             TemplateNode::IfBlock(if_block) => self.visit_if_block(if_block),
-
             TemplateNode::EachBlock(each_block) => self.visit_each_block(each_block),
-
             TemplateNode::AwaitBlock(await_block) => self.visit_await_block(await_block),
-
             TemplateNode::KeyBlock(key_block) => self.visit_key_block(key_block),
-
             TemplateNode::SnippetBlock(snippet) => self.visit_snippet_block(snippet),
-
             TemplateNode::RenderTag(render) => self.visit_render_tag(render),
-
             TemplateNode::HtmlTag(html) => self.visit_html_tag(html),
-
             TemplateNode::ConstTag(const_tag) => self.visit_const_tag(const_tag),
-
             TemplateNode::DebugTag(debug_tag) => self.visit_debug_tag(debug_tag),
-
             TemplateNode::SvelteBoundary(boundary) => self.visit_svelte_boundary(boundary),
-
             TemplateNode::SvelteHead(head) => self.visit_svelte_head(head),
-
             TemplateNode::SvelteBody(body) => self.visit_svelte_body(body),
-
             TemplateNode::SvelteWindow(window) => self.visit_svelte_window(window),
-
             TemplateNode::SvelteDocument(document) => self.visit_svelte_document(document),
-
             TemplateNode::TitleElement(title) => self.visit_title_element(title),
-
             TemplateNode::Comment(comment) => self.visit_comment(comment),
-
             TemplateNode::SvelteFragment(frag) => self.visit_svelte_fragment(frag),
-
             TemplateNode::SlotElement(slot) => self.visit_slot_element(slot),
-
-            // Other node types - TODO: implement
             _ => TransformResult::None,
-        };
-
-        // Restore the original state if we swapped it
-        if let Some(saved) = saved_state {
-            self.state = saved;
         }
-
-        result
     }
 
     // =========================================================================

@@ -197,17 +197,15 @@ impl<'a> ScopeBuilder<'a> {
         // Example: let { foo } = (() => { const foo = ...; return { foo }; })();
         // The outer `let foo` should be found, not the inner `const foo`.
         for i in 1..self.scopes.len() {
-            let declarations: Vec<(String, usize)> = self.scopes[i]
-                .declarations
-                .iter()
-                .map(|(k, v)| (k.clone(), *v))
-                .collect();
-            for (name, binding_idx) in declarations {
+            // Split to get simultaneous mutable access to scopes[0] and scopes[i]
+            let (first, rest) = self.scopes.split_at_mut(1);
+            let root = &mut first[0];
+            let scope = &rest[i - 1];
+            for (name, &binding_idx) in &scope.declarations {
                 // Only add if not already in root scope (outer scope takes precedence)
-                self.scopes[0]
-                    .declarations
-                    .entry(name)
-                    .or_insert(binding_idx);
+                if !root.declarations.contains_key(name) {
+                    root.declarations.insert(name.clone(), binding_idx);
+                }
             }
         }
 
