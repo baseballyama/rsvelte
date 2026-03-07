@@ -305,7 +305,8 @@ fn get_rune_from_json(node: &Value, scope: &Scope) -> Option<String> {
 /// The keypath string or None if not a global
 fn get_global_keypath(node: &Value, scope: &Scope) -> Option<String> {
     let mut n = node;
-    let mut joined = String::new();
+    // Collect parts in reverse order to avoid repeated format! prepending
+    let mut parts: Vec<&str> = Vec::new();
 
     // Traverse MemberExpression chain
     while n.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
@@ -321,19 +322,18 @@ fn get_global_keypath(node: &Value, scope: &Scope) -> Option<String> {
         }
 
         let property_name = property.get("name").and_then(|n| n.as_str())?;
-        joined = format!(".{}{}", property_name, joined);
+        parts.push(property_name);
 
         n = n.get("object")?;
     }
 
     // Handle CallExpression() pattern
-    if n.get("type").and_then(|t| t.as_str()) == Some("CallExpression")
+    let has_call = n.get("type").and_then(|t| t.as_str()) == Some("CallExpression")
         && n.get("callee")
             .and_then(|c| c.get("type"))
             .and_then(|t| t.as_str())
-            == Some("Identifier")
-    {
-        joined = format!("(){}", joined);
+            == Some("Identifier");
+    if has_call {
         n = n.get("callee")?;
     }
 
@@ -349,7 +349,18 @@ fn get_global_keypath(node: &Value, scope: &Scope) -> Option<String> {
         return None;
     }
 
-    Some(format!("{}{}", name, joined))
+    // Build the keypath string
+    let mut result = String::with_capacity(name.len() + parts.len() * 8);
+    result.push_str(name);
+    if has_call {
+        result.push_str("()");
+    }
+    for part in parts.iter().rev() {
+        result.push('.');
+        result.push_str(part);
+    }
+
+    Some(result)
 }
 
 /// Check if a string is a valid rune name.
@@ -894,14 +905,9 @@ pub fn is_pure(node: &Value, context: &VisitorContext) -> bool {
     }
 
     // Check if it's $effect.tracking (not pure)
-    // Create a synthetic CallExpression to check with get_rune
-    let call_node = serde_json::json!({
-        "type": "CallExpression",
-        "callee": node
-    });
-
-    if let Some(rune) = get_rune_from_json(&call_node, &context.analysis.root.scope)
-        && rune == "$effect.tracking"
+    // Instead of creating a synthetic CallExpression, check the keypath directly
+    if let Some(keypath) = get_global_keypath(node, &context.analysis.root.scope)
+        && keypath == "$effect.tracking"
     {
         return false;
     }

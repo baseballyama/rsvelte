@@ -413,64 +413,125 @@ fn profile_file(config: &Config, filename: &str, content: &str) -> FileMetrics {
 
     let total_iterations = config.warmup + config.iterations;
 
-    for i in 0..total_iterations {
-        let is_warmup = i < config.warmup;
-
-        // Phase 1: Parse
-        let parse_start = Instant::now();
+    // For transform-only or analyze-only profiling, parse once and reuse
+    if config.phase == "transform" || config.phase == "analyze" {
+        // Parse once
         let parse_result = parse(content, parse_options.clone());
-        let parse_duration = parse_start.elapsed();
-
-        if !is_warmup && (config.phase == "all" || config.phase == "parse") {
-            metrics.parse.add_time(parse_duration, parse_result.is_ok());
-        }
-
         if parse_result.is_err() {
-            if !is_warmup {
-                metrics.total.add_time(parse_duration, false);
+            for _ in 0..total_iterations {
+                metrics.total.add_time(Duration::ZERO, false);
             }
-            continue;
+            return metrics;
         }
         let mut ast = parse_result.unwrap();
 
-        // Phase 2: Analyze
-        let analyze_start = Instant::now();
+        // Analyze once (always needed for transform)
         let analyze_result = analyze_component(&mut ast, content, &compile_options);
-        let analyze_duration = analyze_start.elapsed();
-
-        if !is_warmup && (config.phase == "all" || config.phase == "analyze") {
-            metrics
-                .analyze
-                .add_time(analyze_duration, analyze_result.is_ok());
-        }
-
         if analyze_result.is_err() {
-            if !is_warmup {
-                metrics
-                    .total
-                    .add_time(parse_duration + analyze_duration, false);
+            for _ in 0..total_iterations {
+                metrics.total.add_time(Duration::ZERO, false);
             }
-            continue;
+            return metrics;
         }
         let analysis = analyze_result.unwrap();
 
-        // Phase 3: Transform
-        let transform_start = Instant::now();
-        let transform_result = transform_component(&analysis, &ast, content, &compile_options);
-        let transform_duration = transform_start.elapsed();
+        for i in 0..total_iterations {
+            let is_warmup = i < config.warmup;
 
-        if !is_warmup && (config.phase == "all" || config.phase == "transform") {
-            metrics
-                .transform
-                .add_time(transform_duration, transform_result.is_ok());
+            if config.phase == "analyze" {
+                // Re-parse each time for analyze profiling since analyze mutates ast
+                let parse_result = parse(content, parse_options.clone());
+                if let Ok(mut ast2) = parse_result {
+                    let analyze_start = Instant::now();
+                    let analyze_result = analyze_component(&mut ast2, content, &compile_options);
+                    let analyze_duration = analyze_start.elapsed();
+                    if !is_warmup {
+                        metrics
+                            .analyze
+                            .add_time(analyze_duration, analyze_result.is_ok());
+                        metrics
+                            .total
+                            .add_time(analyze_duration, analyze_result.is_ok());
+                    }
+                }
+            } else {
+                // Transform only
+                let transform_start = Instant::now();
+                let transform_result =
+                    transform_component(&analysis, &ast, content, &compile_options);
+                let transform_duration = transform_start.elapsed();
+
+                if !is_warmup {
+                    metrics
+                        .transform
+                        .add_time(transform_duration, transform_result.is_ok());
+                    metrics
+                        .total
+                        .add_time(transform_duration, transform_result.is_ok());
+                }
+            }
         }
+    } else {
+        // Original behavior for "all" and "parse" phases
+        for i in 0..total_iterations {
+            let is_warmup = i < config.warmup;
 
-        // Total
-        let total_duration = parse_duration + analyze_duration + transform_duration;
-        if !is_warmup {
-            metrics
-                .total
-                .add_time(total_duration, transform_result.is_ok());
+            // Phase 1: Parse
+            let parse_start = Instant::now();
+            let parse_result = parse(content, parse_options.clone());
+            let parse_duration = parse_start.elapsed();
+
+            if !is_warmup {
+                metrics.parse.add_time(parse_duration, parse_result.is_ok());
+            }
+
+            if parse_result.is_err() {
+                if !is_warmup {
+                    metrics.total.add_time(parse_duration, false);
+                }
+                continue;
+            }
+            let mut ast = parse_result.unwrap();
+
+            // Phase 2: Analyze
+            let analyze_start = Instant::now();
+            let analyze_result = analyze_component(&mut ast, content, &compile_options);
+            let analyze_duration = analyze_start.elapsed();
+
+            if !is_warmup {
+                metrics
+                    .analyze
+                    .add_time(analyze_duration, analyze_result.is_ok());
+            }
+
+            if analyze_result.is_err() {
+                if !is_warmup {
+                    metrics
+                        .total
+                        .add_time(parse_duration + analyze_duration, false);
+                }
+                continue;
+            }
+            let analysis = analyze_result.unwrap();
+
+            // Phase 3: Transform
+            let transform_start = Instant::now();
+            let transform_result = transform_component(&analysis, &ast, content, &compile_options);
+            let transform_duration = transform_start.elapsed();
+
+            if !is_warmup {
+                metrics
+                    .transform
+                    .add_time(transform_duration, transform_result.is_ok());
+            }
+
+            // Total
+            let total_duration = parse_duration + analyze_duration + transform_duration;
+            if !is_warmup {
+                metrics
+                    .total
+                    .add_time(total_duration, transform_result.is_ok());
+            }
         }
     }
 

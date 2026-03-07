@@ -2467,7 +2467,7 @@ struct JsCodegen {
 impl JsCodegen {
     fn new() -> Self {
         Self {
-            output: String::with_capacity(8192),
+            output: String::with_capacity(32768),
             indent_level: 0,
             needs_semicolon: false,
         }
