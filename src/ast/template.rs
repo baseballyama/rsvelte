@@ -133,6 +133,12 @@ pub enum TemplateNode {
     SvelteWindow(SvelteElement),
 }
 
+impl AsRef<TemplateNode> for TemplateNode {
+    fn as_ref(&self) -> &TemplateNode {
+        self
+    }
+}
+
 // =============================================================================
 // Text and Comments
 // =============================================================================

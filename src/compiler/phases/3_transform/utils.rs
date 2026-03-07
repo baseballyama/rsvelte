@@ -9,6 +9,7 @@ use crate::compiler::phases::phase2_analyze::scope::Scope;
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 use compact_str::CompactString;
 use regex::Regex;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
@@ -461,13 +462,13 @@ fn is_js_keyword_or_literal(s: &str) -> bool {
 }
 
 /// Result of cleaning nodes.
-#[derive(Debug, Clone)]
-pub struct CleanedNodes {
+#[derive(Debug)]
+pub struct CleanedNodes<'a> {
     /// Nodes that should be hoisted (ConstTag, DebugTag, etc.)
-    pub hoisted: Vec<TemplateNode>,
+    pub hoisted: Vec<Cow<'a, TemplateNode>>,
 
     /// Trimmed nodes with whitespace handled
-    pub trimmed: Vec<TemplateNode>,
+    pub trimmed: Vec<Cow<'a, TemplateNode>>,
 
     /// Whether this is a standalone component/render tag
     pub is_standalone: bool,
@@ -501,38 +502,37 @@ pub struct CleanedNodes {
 ///
 /// Returns a `CleanedNodes` struct containing hoisted and trimmed nodes.
 #[allow(clippy::too_many_arguments)]
-pub fn clean_nodes(
+pub fn clean_nodes<'a>(
     parent: Option<&TemplateNode>,
-    nodes: &[TemplateNode],
+    nodes: &'a [TemplateNode],
     _path: &[&TemplateNode],
     namespace: &str,
     _scope: &Scope,
     analysis: &ComponentAnalysis,
     preserve_whitespace: bool,
     preserve_comments: bool,
-) -> CleanedNodes {
+) -> CleanedNodes<'a> {
     // Sort const tags topologically in legacy (non-runes) mode
     // This matches the official compiler's behavior in clean_nodes (utils.js line 138-139)
-    let sorted_nodes;
-    let nodes = if !analysis.runes {
-        sorted_nodes = sort_const_tags(nodes.to_vec());
-        &sorted_nodes
+    let is_legacy = !analysis.runes;
+    let sorted_nodes = if is_legacy {
+        Some(sort_const_tags(nodes.to_vec()))
     } else {
-        nodes
+        None
     };
 
     // Pre-allocate based on input size
-    let mut hoisted = Vec::with_capacity(nodes.len().min(8));
-    let mut regular = Vec::with_capacity(nodes.len());
+    let mut hoisted: Vec<Cow<'a, TemplateNode>> = Vec::with_capacity(nodes.len().min(8));
+    let mut regular: Vec<Cow<'a, TemplateNode>> = Vec::with_capacity(nodes.len());
 
-    // Separate hoisted nodes from regular nodes
-    for node in nodes {
+    // Helper: process a single node into hoisted or regular
+    let mut process_node = |node: Cow<'a, TemplateNode>| {
         // Skip comments unless preserveComments is true
-        if matches!(node, TemplateNode::Comment(_)) && !preserve_comments {
-            continue;
+        if matches!(node.as_ref(), TemplateNode::Comment(_)) && !preserve_comments {
+            return;
         }
 
-        match node {
+        match node.as_ref() {
             TemplateNode::ConstTag(_)
             | TemplateNode::DebugTag(_)
             | TemplateNode::SvelteBody(_)
@@ -541,11 +541,24 @@ pub fn clean_nodes(
             | TemplateNode::SvelteHead(_)
             | TemplateNode::TitleElement(_)
             | TemplateNode::SnippetBlock(_) => {
-                hoisted.push(node.clone());
+                hoisted.push(node);
             }
             _ => {
-                regular.push(node.clone());
+                regular.push(node);
             }
+        }
+    };
+
+    // Separate hoisted nodes from regular nodes
+    if let Some(sorted) = sorted_nodes {
+        // Legacy mode: sorted nodes are owned
+        for node in sorted {
+            process_node(Cow::Owned(node));
+        }
+    } else {
+        // Runes mode: borrow from input
+        for node in nodes {
+            process_node(Cow::Borrowed(node));
         }
     }
 
@@ -561,7 +574,7 @@ pub fn clean_nodes(
     // Corresponds to lines 253-262 of utils.js in the official compiler.
     if let Some(TemplateNode::RegularElement(el)) = parent
         && el.name.as_str() == "pre"
-        && let Some(TemplateNode::Text(text)) = trimmed.first()
+        && let Some(TemplateNode::Text(text)) = trimmed.first().map(|c| c.as_ref())
         && (text.data.as_str() == "\n" || text.data.as_str() == "\r\n")
     {
         trimmed.remove(0);
@@ -574,14 +587,16 @@ pub fn clean_nodes(
     // tag has no parent.
     // Corresponds to lines 264-274 of utils.js in the official compiler.
     if trimmed.len() == 1
-        && let Some(TemplateNode::RegularElement(el)) = trimmed.first()
+        && let Some(TemplateNode::RegularElement(el)) = trimmed.first().map(|c| c.as_ref())
         && el.name.as_str() == "script"
     {
-        trimmed.push(TemplateNode::Comment(crate::ast::template::Comment {
-            start: u32::MAX,
-            end: u32::MAX,
-            data: CompactString::new(""),
-        }));
+        trimmed.push(Cow::Owned(TemplateNode::Comment(
+            crate::ast::template::Comment {
+                start: u32::MAX,
+                end: u32::MAX,
+                data: CompactString::new(""),
+            },
+        )));
     }
 
     // Determine is_standalone
@@ -590,7 +605,7 @@ pub fn clean_nodes(
     // But dynamic components/render tags need their own comment anchor because
     // they use $.component()/$.snippet() which requires a stable anchor node.
     let is_standalone = trimmed.len() == 1
-        && match &trimmed[0] {
+        && match trimmed[0].as_ref() {
             TemplateNode::RenderTag(render_tag) => !render_tag.metadata.dynamic,
             TemplateNode::Component(comp) => {
                 // Not standalone if:
@@ -619,7 +634,7 @@ pub fn clean_nodes(
         | Some(TemplateNode::SvelteSelf(_)) => {
             if let Some(first) = trimmed.first() {
                 matches!(
-                    first,
+                    first.as_ref(),
                     TemplateNode::Text(_) | TemplateNode::ExpressionTag(_)
                 )
             } else {
@@ -645,11 +660,11 @@ pub fn clean_nodes(
 /// - Trim trailing whitespace from last text node
 /// - Collapse internal whitespace-only text nodes to a single space
 ///   (or remove entirely for certain elements like select, table, etc.)
-fn trim_whitespace(
+fn trim_whitespace<'a>(
     parent: Option<&TemplateNode>,
-    nodes: &[TemplateNode],
+    nodes: &[Cow<'a, TemplateNode>],
     namespace: &str,
-) -> Vec<TemplateNode> {
+) -> Vec<Cow<'a, TemplateNode>> {
     if nodes.is_empty() {
         return Vec::new();
     }
@@ -658,7 +673,7 @@ fn trim_whitespace(
     let start_idx = nodes
         .iter()
         .position(|node| {
-            if let TemplateNode::Text(text) = node {
+            if let TemplateNode::Text(text) = node.as_ref() {
                 REGEX_NOT_WHITESPACE.is_match(&text.data)
             } else {
                 true
@@ -670,7 +685,7 @@ fn trim_whitespace(
     let end_idx = nodes
         .iter()
         .rposition(|node| {
-            if let TemplateNode::Text(text) = node {
+            if let TemplateNode::Text(text) = node.as_ref() {
                 REGEX_NOT_WHITESPACE.is_match(&text.data)
             } else {
                 true
@@ -687,29 +702,11 @@ fn trim_whitespace(
     // Work with the trimmed slice
     let trimmed_slice = &nodes[start_idx..end_idx];
 
-    // Pre-allocate result vector
-    let mut regular: Vec<TemplateNode> = Vec::with_capacity(trimmed_slice.len());
-
-    // Clone the nodes in range
-    for node in trimmed_slice {
-        regular.push(node.clone());
+    if trimmed_slice.is_empty() {
+        return Vec::new();
     }
 
-    // Trim leading whitespace from first text node
-    if let Some(TemplateNode::Text(first)) = regular.first_mut() {
-        let new_raw = REGEX_STARTS_WITH_WHITESPACES.replace(&first.raw, "");
-        let new_data = REGEX_STARTS_WITH_WHITESPACES.replace(&first.data, "");
-        first.raw = CompactString::new(&new_raw);
-        first.data = CompactString::new(&new_data);
-    }
-
-    // Trim trailing whitespace from last text node
-    if let Some(TemplateNode::Text(last)) = regular.last_mut() {
-        let new_raw = REGEX_ENDS_WITH_WHITESPACES.replace(&last.raw, "");
-        let new_data = REGEX_ENDS_WITH_WHITESPACES.replace(&last.data, "");
-        last.raw = CompactString::new(&new_raw);
-        last.data = CompactString::new(&new_data);
-    }
+    let slice_len = trimmed_slice.len();
 
     // Determine if whitespace-only text nodes can be removed entirely
     // This applies to svg (except text elements) and certain HTML elements
@@ -720,13 +717,42 @@ fn trim_whitespace(
             "select" | "tr" | "table" | "tbody" | "thead" | "tfoot" | "colgroup" | "datalist"
         ));
 
-    // Process internal text nodes - collapse whitespace
-    let mut trimmed = Vec::new();
-    for (i, node) in regular.iter().enumerate() {
-        if let TemplateNode::Text(text) = node {
+    // Step 1: Clone nodes and apply leading/trailing trim to first/last text nodes
+    // This mirrors the original code which first trims, then collapses.
+    let mut regular: Vec<Cow<'a, TemplateNode>> = Vec::with_capacity(slice_len);
+    for cow_node in trimmed_slice {
+        regular.push(cow_node.clone());
+    }
+
+    // Trim leading whitespace from first text node
+    if let Some(TemplateNode::Text(text)) = regular.first().map(|c| c.as_ref()) {
+        let mut new_text = text.clone();
+        new_text.raw = CompactString::new(REGEX_STARTS_WITH_WHITESPACES.replace(&new_text.raw, ""));
+        new_text.data =
+            CompactString::new(REGEX_STARTS_WITH_WHITESPACES.replace(&new_text.data, ""));
+        regular[0] = Cow::Owned(TemplateNode::Text(new_text));
+    }
+
+    // Trim trailing whitespace from last text node
+    let last_idx = regular.len() - 1;
+    if let Some(TemplateNode::Text(text)) = regular.last().map(|c| c.as_ref()) {
+        let mut new_text = text.clone();
+        new_text.raw = CompactString::new(REGEX_ENDS_WITH_WHITESPACES.replace(&new_text.raw, ""));
+        new_text.data = CompactString::new(REGEX_ENDS_WITH_WHITESPACES.replace(&new_text.data, ""));
+        regular[last_idx] = Cow::Owned(TemplateNode::Text(new_text));
+    }
+
+    // Step 2: Process ALL text nodes - collapse internal whitespace
+    let mut trimmed: Vec<Cow<'a, TemplateNode>> = Vec::with_capacity(slice_len);
+    for (i, cow_node) in regular.iter().enumerate() {
+        if let TemplateNode::Text(text) = cow_node.as_ref() {
             let mut new_text = text.clone();
-            let prev = if i > 0 { regular.get(i - 1) } else { None };
-            let next = regular.get(i + 1);
+            let prev = if i > 0 {
+                regular.get(i - 1).map(|c| c.as_ref())
+            } else {
+                None
+            };
+            let next = regular.get(i + 1).map(|c| c.as_ref());
 
             // Collapse leading whitespace unless previous node is an ExpressionTag
             if !matches!(prev, Some(TemplateNode::ExpressionTag(_))) {
@@ -757,10 +783,11 @@ fn trim_whitespace(
 
             // Only add if there's content or it's a meaningful space
             if !new_text.data.is_empty() && (new_text.data != " " || !can_remove_entirely) {
-                trimmed.push(TemplateNode::Text(new_text));
+                trimmed.push(Cow::Owned(TemplateNode::Text(new_text)));
             }
         } else {
-            trimmed.push(node.clone());
+            // Non-text nodes: borrow directly
+            trimmed.push(cow_node.clone());
         }
     }
 
@@ -787,10 +814,10 @@ fn trim_whitespace(
 /// # Returns
 ///
 /// Returns the inferred namespace string ("html", "svg", or "mathml").
-pub fn infer_namespace(
+pub fn infer_namespace<N: AsRef<TemplateNode>>(
     namespace: &str,
     parent: Option<&TemplateNode>,
-    nodes: &[TemplateNode],
+    nodes: &[N],
     _analysis: &ComponentAnalysis,
 ) -> String {
     // Check for foreignObject which resets to html
@@ -851,7 +878,7 @@ pub fn infer_namespace(
         // If elements are mixed (some SVG, some not), fall back to "html".
         let mut new_namespace: Option<&str> = None;
         for node in nodes {
-            if let TemplateNode::RegularElement(elem) = node {
+            if let TemplateNode::RegularElement(elem) = node.as_ref() {
                 if elem.metadata.mathml {
                     new_namespace = Some(match new_namespace {
                         None | Some("mathml") => "mathml",
@@ -941,7 +968,7 @@ mod tests {
 
         let options = CompileOptions::default();
         let analysis = ComponentAnalysis::new("", &options);
-        let namespace = infer_namespace("html", None, &[], &analysis);
+        let namespace = infer_namespace("html", None, &[] as &[TemplateNode], &analysis);
 
         assert_eq!(namespace, "html");
     }
@@ -999,7 +1026,7 @@ mod tests {
         let cleaned = clean_nodes(None, &nodes, &[], "html", &scope, &analysis, false, false);
 
         assert_eq!(cleaned.trimmed.len(), 1);
-        if let TemplateNode::Text(t) = &cleaned.trimmed[0] {
+        if let TemplateNode::Text(t) = &*cleaned.trimmed[0] {
             assert_eq!(
                 t.data.as_str(),
                 "hello",
@@ -1033,7 +1060,7 @@ mod tests {
         let cleaned = clean_nodes(None, &nodes, &[], "html", &scope, &analysis, false, false);
 
         assert_eq!(cleaned.trimmed.len(), 1);
-        if let TemplateNode::Text(t) = &cleaned.trimmed[0] {
+        if let TemplateNode::Text(t) = &*cleaned.trimmed[0] {
             assert_eq!(
                 t.data.as_str(),
                 "Button",

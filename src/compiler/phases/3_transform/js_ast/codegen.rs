@@ -4,7 +4,9 @@
 //! then normalizes it using oxc.
 
 use super::nodes::*;
+use regex::Regex;
 use std::fmt::Write;
+use std::sync::LazyLock;
 
 /// Generate JavaScript source code from a program AST.
 pub fn generate(program: &JsProgram) -> Result<String, String> {
@@ -98,18 +100,15 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     // since the blank line rules depend on the line structure (e.g. `}` → statement)
     let code = collapse_single_statement_ifs(code);
     let code = add_blank_lines_for_formatting(code);
-    // OXC codegen escapes </script> to <\/script> in template literals for HTML safety,
-    // but the official Svelte compiler does NOT do this escaping, so we reverse it.
-    let code = code.replace("<\\/script>", "</script>");
+    // Apply simple string replacements in a single pass:
+    // 1. "<\/script>" -> "</script>" (OXC escapes for HTML safety, Svelte does not)
+    // 2. "} catch (" -> "} catch(" (OXC adds space, Svelte does not)
+    // 3. "function(" -> "function (" (OXC omits space, Svelte adds it)
+    let code = apply_simple_replacements(code);
     // oxc codegen outputs numbers like .5 instead of 0.5 - add leading zeros
     let code = add_leading_zeros(code);
     // OXC codegen outputs numbers like 2e3 instead of 2000 - expand scientific notation
     let code = expand_scientific_notation(code);
-    // OXC formats `catch (e)` with a space, but Svelte uses `catch(e)` without space
-    let code = code.replace("} catch (", "} catch(");
-    // OXC formats anonymous function expressions as `function(` without space,
-    // but Svelte uses `function (` with a space before the paren
-    let code = code.replace("function(", "function (");
     // OXC splits `;;` (inspect placeholder) into two separate lines. Rejoin them.
     let code = rejoin_double_semicolons(code);
     // OXC strips wrapping parentheses from `new (class Foo { })()` expressions,
@@ -140,6 +139,48 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     // Remove trailing newline to match Svelte compiler output
     let code = code.trim_end_matches('\n').to_string();
     Ok(code)
+}
+
+/// Apply multiple simple string replacements in a single pass over the input.
+///
+/// This combines three replacements that were previously done as separate `.replace()` calls:
+/// 1. `<\/script>` → `</script>` (unescape)
+/// 2. `} catch (` → `} catch(` (remove space)
+/// 3. `function(` → `function (` (add space)
+fn apply_simple_replacements(code: String) -> String {
+    let bytes = code.as_bytes();
+    let len = bytes.len();
+    let mut result = Vec::with_capacity(len + 16);
+    let mut i = 0;
+
+    while i < len {
+        // Check for "<\/script>" (10 bytes) → "</script>"
+        if i + 10 <= len && &bytes[i..i + 10] == b"<\\/script>" {
+            result.extend_from_slice(b"</script>");
+            i += 10;
+            continue;
+        }
+
+        // Check for "} catch (" (9 bytes) → "} catch("
+        if i + 9 <= len && &bytes[i..i + 9] == b"} catch (" {
+            result.extend_from_slice(b"} catch(");
+            i += 9;
+            continue;
+        }
+
+        // Check for "function(" (9 bytes) → "function ("
+        if i + 9 <= len && &bytes[i..i + 9] == b"function(" {
+            result.extend_from_slice(b"function (");
+            i += 9;
+            continue;
+        }
+
+        result.push(bytes[i]);
+        i += 1;
+    }
+
+    // SAFETY: input was valid UTF-8 and all replacements are ASCII
+    unsafe { String::from_utf8_unchecked(result) }
 }
 
 /// Expand `$: { ... }` labeled block statements that OXC collapsed to a single line.
@@ -2095,13 +2136,14 @@ fn add_leading_zeros(code: String) -> String {
 /// Negative exponents (e.g. `1e-3`) are left as-is since OXC already
 /// outputs those as decimal (`0.001`).
 fn expand_scientific_notation(code: String) -> String {
-    use regex::Regex;
+    static RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"\b(\d+(?:\.\d+)?)e(\d+)\b").unwrap());
 
     // Match numeric scientific notation with positive exponents:
     // - Optional digits before decimal, optional decimal part, then 'e' and digits
     // - Examples: 2e3, 1e4, 2.5e3, 1e10
     // - Word boundary (\b) prevents matching inside identifiers
-    let re = Regex::new(r"\b(\d+(?:\.\d+)?)e(\d+)\b").unwrap();
+    let re = &*RE;
 
     re.replace_all(&code, |caps: &regex::Captures| {
         let mantissa = &caps[1];
@@ -2163,20 +2205,16 @@ fn expand_scientific_notation(code: String) -> String {
 /// [0, 1, 2]
 /// ```
 fn collapse_short_arrays(code: String) -> String {
-    use regex::Regex;
+    static RE: LazyLock<Regex> = LazyLock::new(|| {
+        let literal_pattern = r"(?:'[^']*'|-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?n?)";
+        let pattern = format!(
+            r"(?s)\[(\s*\n\t*{literal}(?:,\s*\n\t*{literal})*)\s*\n\t*\]",
+            literal = literal_pattern
+        );
+        Regex::new(&pattern).unwrap()
+    });
 
-    // Match arrays that span multiple lines with only simple literals
-    // Pattern: [ followed by newline+indent+items, ending with newline+indent+]
-    // Supports:
-    // - Single-quoted strings: 'foo'
-    // - Numeric literals: 123, -45.67, .5, 1e10
-    // - BigInt literals: 123n
-    let literal_pattern = r"(?:'[^']*'|-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?n?)";
-    let pattern = format!(
-        r"(?s)\[(\s*\n\t*{literal}(?:,\s*\n\t*{literal})*)\s*\n\t*\]",
-        literal = literal_pattern
-    );
-    let re = Regex::new(&pattern).unwrap();
+    let re = &*RE;
 
     let result = re.replace_all(&code, |caps: &regex::Captures| {
         // Extract the content between [ and ]

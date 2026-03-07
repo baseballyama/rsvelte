@@ -11,6 +11,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
+use std::borrow::Cow;
 
 /// NON_STATIC_PROPERTIES - properties that cannot be set statically
 const NON_STATIC_PROPERTIES: &[&str] = &["autofocus", "muted", "defaultValue", "defaultChecked"];
@@ -244,7 +245,7 @@ pub fn is_static_element(node: &TemplateNode, _state: &ComponentClientTransformS
 /// Corresponds to `process_children` in
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/fragment.js`.
 pub fn process_children<F>(
-    nodes: &[TemplateNode],
+    nodes: &[Cow<'_, TemplateNode>],
     initial: F,
     is_element: bool,
     context: &mut ComponentContext,
@@ -372,7 +373,8 @@ pub fn process_children<F>(
     };
 
     // Main loop
-    for node in nodes.iter() {
+    for cow_node in nodes.iter() {
+        let node = cow_node.as_ref();
         match node {
             TemplateNode::Text(text) => {
                 sequence.push(TextOrExpr::Text(text.clone()));

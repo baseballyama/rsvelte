@@ -991,12 +991,13 @@ fn build_style_attribute_value_with_memoization(
         AttributeValue::True(_) => (b::boolean(true), false),
 
         AttributeValue::Expression(expr_tag) => {
-            // Single expression value
+            // Single expression value - analyze all properties in one pass
             let converted = convert_expression(&expr_tag.expression, context);
-            let has_call = super::utils::expression_has_call(&expr_tag.expression, context);
-            let has_state =
-                super::utils::expression_has_reactive_state(&expr_tag.expression, context);
-            let has_member = super::utils::expression_has_member(&expr_tag.expression);
+            let expr_props =
+                super::utils::analyze_expression_properties(&expr_tag.expression, context);
+            let has_call = expr_props.has_call;
+            let has_state = expr_props.has_state;
+            let has_member = expr_props.has_member;
 
             // Build the expression with transforms applied
             let mut metadata = ExpressionMetadata::default();
@@ -1021,10 +1022,11 @@ fn build_style_attribute_value_with_memoization(
                 AttributeValuePart::Text(text) => (b::string(text.data.as_str()), false),
                 AttributeValuePart::ExpressionTag(expr_tag) => {
                     let converted = convert_expression(&expr_tag.expression, context);
-                    let has_call = super::utils::expression_has_call(&expr_tag.expression, context);
-                    let expr_has_state =
-                        super::utils::expression_has_reactive_state(&expr_tag.expression, context);
-                    let has_member = super::utils::expression_has_member(&expr_tag.expression);
+                    let expr_props =
+                        super::utils::analyze_expression_properties(&expr_tag.expression, context);
+                    let has_call = expr_props.has_call;
+                    let expr_has_state = expr_props.has_state;
+                    let has_member = expr_props.has_member;
 
                     let mut metadata = ExpressionMetadata::default();
                     metadata.set_has_state(expr_has_state);
@@ -1083,13 +1085,13 @@ fn build_style_attribute_value_with_memoization(
 
                         // Convert and build the expression
                         let converted = convert_expression(&expr_tag.expression, context);
-                        let has_call =
-                            super::utils::expression_has_call(&expr_tag.expression, context);
-                        let expr_has_state = super::utils::expression_has_reactive_state(
+                        let expr_props = super::utils::analyze_expression_properties(
                             &expr_tag.expression,
                             context,
                         );
-                        let has_member = super::utils::expression_has_member(&expr_tag.expression);
+                        let has_call = expr_props.has_call;
+                        let expr_has_state = expr_props.has_state;
+                        let has_member = expr_props.has_member;
 
                         let mut metadata = ExpressionMetadata::default();
                         metadata.set_has_state(expr_has_state);

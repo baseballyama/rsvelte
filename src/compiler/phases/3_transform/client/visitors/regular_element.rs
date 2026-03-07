@@ -39,6 +39,7 @@ use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 use crate::compiler::phases::phase3_transform::utils::{
     clean_nodes, determine_namespace_for_children,
 };
+use std::borrow::Cow;
 // Note: can_delegate_event and is_capture_event are used in attribute.rs for event delegation
 use rustc_hash::FxHashMap;
 
@@ -774,18 +775,20 @@ pub fn visit_regular_element(
     // 1. All children are Text or ExpressionTag
     // 2. All ExpressionTags are non-reactive (no has_state, no has_await, no blockers)
     // 3. At least one ExpressionTag exists (otherwise pure text is in template)
-    let all_text_or_expr = cleaned
-        .trimmed
-        .iter()
-        .all(|n| matches!(n, TemplateNode::Text(_) | TemplateNode::ExpressionTag(_)));
+    let all_text_or_expr = cleaned.trimmed.iter().all(|n| {
+        matches!(
+            n.as_ref(),
+            TemplateNode::Text(_) | TemplateNode::ExpressionTag(_)
+        )
+    });
 
     let has_expression_tag = cleaned
         .trimmed
         .iter()
-        .any(|n| matches!(n, TemplateNode::ExpressionTag(_)));
+        .any(|n| matches!(n.as_ref(), TemplateNode::ExpressionTag(_)));
 
     let all_expressions_static = cleaned.trimmed.iter().all(|n| {
-        match n {
+        match n.as_ref() {
             TemplateNode::Text(_) => true,
             TemplateNode::ExpressionTag(expr_tag) => {
                 // Check if expression is non-reactive AND has no non-pure calls.
@@ -817,7 +820,7 @@ pub fn visit_regular_element(
         let values: Vec<TextOrExpr> = cleaned
             .trimmed
             .iter()
-            .filter_map(|n| match n {
+            .filter_map(|n| match n.as_ref() {
                 TemplateNode::Text(t) => Some(TextOrExpr::Text(t.clone())),
                 TemplateNode::ExpressionTag(e) => Some(TextOrExpr::Expr(e.clone())),
                 _ => None,
@@ -985,8 +988,8 @@ pub fn visit_regular_element(
         // <template> elements always need reset.
         let needs_reset = is_template_element
             || cleaned.trimmed.iter().any(|n| {
-                !matches!(n, TemplateNode::Text(_) | TemplateNode::Comment(_))
-                    && !is_static_element(n, &context.state)
+                !matches!(n.as_ref(), TemplateNode::Text(_) | TemplateNode::Comment(_))
+                    && !is_static_element(n.as_ref(), &context.state)
             });
 
         if needs_reset {
@@ -1213,10 +1216,10 @@ pub fn visit_regular_element(
 /// `fragment.metadata.dynamic = true` when identifiers are referenced, which ensures
 /// child_init is merged. Since our Phase 2 analysis doesn't mutate the AST to set
 /// this flag (immutable references), we check for DebugTag presence as a fallback.
-fn has_hoisted_init_producers(hoisted: &[TemplateNode]) -> bool {
+fn has_hoisted_init_producers(hoisted: &[Cow<'_, TemplateNode>]) -> bool {
     hoisted
         .iter()
-        .any(|n| matches!(n, TemplateNode::DebugTag(_)))
+        .any(|n| matches!(n.as_ref(), TemplateNode::DebugTag(_)))
 }
 
 /// Check if any trimmed children are dynamic (non-static, non-text).
@@ -1224,12 +1227,12 @@ fn has_hoisted_init_producers(hoisted: &[TemplateNode]) -> bool {
 /// It mirrors the logic in the official compiler where child_state.init is only
 /// merged when the fragment is dynamic.
 fn has_dynamic_children_for_merge(
-    trimmed: &[TemplateNode],
+    trimmed: &[Cow<'_, TemplateNode>],
     state: &ComponentClientTransformState,
 ) -> bool {
     trimmed.iter().any(|n| {
-        !matches!(n, TemplateNode::Text(_) | TemplateNode::Comment(_))
-            && !is_static_element(n, state)
+        !matches!(n.as_ref(), TemplateNode::Text(_) | TemplateNode::Comment(_))
+            && !is_static_element(n.as_ref(), state)
     })
 }
 

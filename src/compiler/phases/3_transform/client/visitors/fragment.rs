@@ -107,12 +107,12 @@ pub fn fragment(
     }
 
     // Analyze trimmed nodes
-    let is_single_element =
-        cleaned.trimmed.len() == 1 && matches!(cleaned.trimmed[0], TemplateNode::RegularElement(_));
+    let is_single_element = cleaned.trimmed.len() == 1
+        && matches!(*cleaned.trimmed[0], TemplateNode::RegularElement(_));
 
     let is_single_child_not_needing_template = cleaned.trimmed.len() == 1
         && matches!(
-            cleaned.trimmed[0],
+            *cleaned.trimmed[0],
             TemplateNode::SvelteFragment(_) | TemplateNode::TitleElement(_)
         );
 
@@ -192,20 +192,20 @@ pub fn fragment(
 
     // Process hoisted nodes
     for hoisted_node in &cleaned.hoisted {
-        context.visit_node(hoisted_node, None);
+        context.visit_node(hoisted_node.as_ref(), None);
     }
 
     // Handle different cases based on trimmed nodes
     if is_single_element {
         // Single element case
-        if let TemplateNode::RegularElement(element) = &cleaned.trimmed[0] {
+        if let TemplateNode::RegularElement(element) = &*cleaned.trimmed[0] {
             // Generate a unique identifier for the element
             let id_name = context.state.memoizer.generate_id(&element.name);
             let id = b::id(&id_name);
 
             // Visit the element with the id as the node
             let saved_node = std::mem::replace(&mut context.state.node, id.clone());
-            context.visit_node(&cleaned.trimmed[0], None);
+            context.visit_node(cleaned.trimmed[0].as_ref(), None);
             context.state.node = saved_node;
 
             // Determine flags
@@ -237,10 +237,10 @@ pub fn fragment(
         }
     } else if is_single_child_not_needing_template {
         // Single child not needing template (SvelteFragment or TitleElement)
-        context.visit_node(&cleaned.trimmed[0], None);
-    } else if cleaned.trimmed.len() == 1 && matches!(cleaned.trimmed[0], TemplateNode::Text(_)) {
+        context.visit_node(cleaned.trimmed[0].as_ref(), None);
+    } else if cleaned.trimmed.len() == 1 && matches!(*cleaned.trimmed[0], TemplateNode::Text(_)) {
         // Single Text node case
-        if let TemplateNode::Text(text) = &cleaned.trimmed[0] {
+        if let TemplateNode::Text(text) = &*cleaned.trimmed[0] {
             let id_name = context.state.memoizer.generate_id("text");
             let id = b::id(&id_name);
 
@@ -269,11 +269,13 @@ pub fn fragment(
         let use_space_template = cleaned
             .trimmed
             .iter()
-            .any(|node| matches!(node, TemplateNode::ExpressionTag(_)))
-            && cleaned
-                .trimmed
-                .iter()
-                .all(|node| matches!(node, TemplateNode::Text(_) | TemplateNode::ExpressionTag(_)));
+            .any(|node| matches!(node.as_ref(), TemplateNode::ExpressionTag(_)))
+            && cleaned.trimmed.iter().all(|node| {
+                matches!(
+                    node.as_ref(),
+                    TemplateNode::Text(_) | TemplateNode::ExpressionTag(_)
+                )
+            });
 
         if use_space_template {
             // Special case — we can use `$.text` instead of creating a unique template

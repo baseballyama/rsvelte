@@ -2905,23 +2905,23 @@ pub fn build_template_chunk(
                     let converted_expr = convert_expression(&expr_tag.expression, context);
 
                     // Check if the expression references reactive state, contains calls, member expressions, or await
+                    // in a single pass over the AST, instead of 4 separate walks.
                     // Special case: $effect.pending() is inherently reactive (has_state=true)
                     // but NOT a "call" for memoization. This matches the official Svelte compiler's
                     // phase 2 analysis where $effect.pending() explicitly sets has_state = true
                     // but does NOT set has_call (because is_pure returns true for the callee).
                     let is_pending_rune = is_effect_pending_expr(&expr_tag.expression);
-                    let expr_has_state =
-                        expression_has_reactive_state(&expr_tag.expression, context)
-                            || is_pending_rune;
+                    let expr_props = analyze_expression_properties(&expr_tag.expression, context);
+                    let expr_has_state = expr_props.has_state || is_pending_rune;
                     // $effect.pending() is treated as a pure call by the official compiler,
                     // so it should NOT have has_call=true. This prevents it from being memoized.
                     let expr_has_call = if is_pending_rune {
                         false
                     } else {
-                        expression_has_call(&expr_tag.expression, context)
+                        expr_props.has_call
                     };
-                    let expr_has_member = expression_has_member(&expr_tag.expression);
-                    let expr_has_await = expression_has_await(&expr_tag.expression);
+                    let expr_has_member = expr_props.has_member;
+                    let expr_has_await = expr_props.has_await;
 
                     // Build the expression with transforms applied (e.g., $.get() wrapping)
                     let mut expr_metadata = ExpressionMetadata::default();
@@ -3558,6 +3558,266 @@ fn is_expression_defined_json(json_value: &serde_json::Value, context: &Componen
             false
         }
         _ => false,
+    }
+}
+
+/// Result of analyzing multiple expression properties in a single AST walk.
+pub struct ExpressionProperties {
+    pub has_state: bool,
+    pub has_call: bool,
+    pub has_member: bool,
+    pub has_await: bool,
+}
+
+/// Analyze an expression for reactive state, calls, member expressions, and await
+/// expressions in a single pass over the JSON AST.
+///
+/// This is equivalent to calling `expression_has_reactive_state`, `expression_has_call`,
+/// `expression_has_member`, and `expression_has_await` individually, but avoids
+/// walking the tree 4 times.
+pub fn analyze_expression_properties(
+    expr: &crate::ast::js::Expression,
+    context: &ComponentContext,
+) -> ExpressionProperties {
+    use crate::ast::js::Expression;
+
+    let mut props = ExpressionProperties {
+        has_state: false,
+        has_call: false,
+        has_member: false,
+        has_await: false,
+    };
+
+    match expr {
+        Expression::Value(json_value) => {
+            analyze_props_json(json_value, context, &mut props);
+        }
+    }
+
+    props
+}
+
+/// Internal recursive helper for `analyze_expression_properties`.
+///
+/// Walks the JSON AST once, setting flags for reactive state, calls, member expressions,
+/// and await expressions. Once all flags are set to true, stops recursing (short-circuit).
+fn analyze_props_json(
+    json_value: &serde_json::Value,
+    context: &ComponentContext,
+    props: &mut ExpressionProperties,
+) {
+    // Short-circuit: if all flags are already true, no need to walk further
+    if props.has_state && props.has_call && props.has_member && props.has_await {
+        return;
+    }
+
+    let Some(obj) = json_value.as_object() else {
+        return;
+    };
+    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+        return;
+    };
+
+    match expr_type {
+        "Identifier" => {
+            // has_member: no
+            // has_await: no
+            // has_call: no (identifiers are not calls)
+            // has_state: check bindings/transforms
+            if !props.has_state && obj.get("name").and_then(|v| v.as_str()).is_some() {
+                props.has_state = has_reactive_state_json(json_value, context);
+            }
+        }
+        "MemberExpression" => {
+            // has_member: always true for MemberExpression
+            props.has_member = true;
+
+            // has_state: delegate to has_reactive_state_json (complex MemberExpression logic)
+            if !props.has_state {
+                props.has_state = has_reactive_state_json(json_value, context);
+            }
+
+            // has_call: check object subtree
+            if !props.has_call
+                && let Some(object) = obj.get("object")
+            {
+                props.has_call = has_call_json(object, context);
+            }
+
+            // has_await: check object subtree
+            if !props.has_await
+                && let Some(object) = obj.get("object")
+            {
+                props.has_await = has_await_json(object);
+            }
+        }
+        "CallExpression" | "TaggedTemplateExpression" => {
+            // has_call: use existing logic (involves is_pure + has_reactive_state checks)
+            if !props.has_call {
+                props.has_call = has_call_json(json_value, context);
+            }
+
+            // has_state: use existing logic (complex CallExpression handling)
+            if !props.has_state {
+                props.has_state = has_reactive_state_json(json_value, context);
+            }
+
+            // has_member: check callee and arguments
+            if !props.has_member {
+                if let Some(callee) = obj.get("callee")
+                    && has_member_json(callee)
+                {
+                    props.has_member = true;
+                }
+                if !props.has_member
+                    && let Some(args) = obj.get("arguments").and_then(|v| v.as_array())
+                {
+                    for arg in args {
+                        if has_member_json(arg) {
+                            props.has_member = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // has_await: check callee and arguments
+            if !props.has_await {
+                if let Some(callee) = obj.get("callee")
+                    && has_await_json(callee)
+                {
+                    props.has_await = true;
+                }
+                if !props.has_await
+                    && let Some(args) = obj.get("arguments").and_then(|v| v.as_array())
+                {
+                    for arg in args {
+                        if has_await_json(arg) {
+                            props.has_await = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        "AwaitExpression" => {
+            // has_await: always true
+            props.has_await = true;
+            // has_state: AwaitExpression is always reactive
+            props.has_state = true;
+            // has_member/has_call: not directly, but don't need to recurse for state/await
+        }
+        "BinaryExpression" | "LogicalExpression" => {
+            if let Some(left) = obj.get("left") {
+                analyze_props_json(left, context, props);
+            }
+            if let Some(right) = obj.get("right") {
+                analyze_props_json(right, context, props);
+            }
+        }
+        "UnaryExpression" => {
+            if let Some(argument) = obj.get("argument") {
+                analyze_props_json(argument, context, props);
+            }
+        }
+        "ConditionalExpression" => {
+            for field in ["test", "consequent", "alternate"] {
+                if let Some(val) = obj.get(field) {
+                    analyze_props_json(val, context, props);
+                }
+            }
+        }
+        "TemplateLiteral" => {
+            if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
+                for expr_val in exprs {
+                    analyze_props_json(expr_val, context, props);
+                }
+            }
+        }
+        "ChainExpression" => {
+            if let Some(expression) = obj.get("expression") {
+                analyze_props_json(expression, context, props);
+            }
+        }
+        "SequenceExpression" => {
+            if let Some(expressions) = obj.get("expressions").and_then(|v| v.as_array()) {
+                for expr_val in expressions {
+                    analyze_props_json(expr_val, context, props);
+                }
+            }
+        }
+        "AssignmentExpression" => {
+            // has_member: check both left and right
+            if !props.has_member {
+                for field in ["left", "right"] {
+                    if let Some(val) = obj.get(field)
+                        && has_member_json(val)
+                    {
+                        props.has_member = true;
+                        break;
+                    }
+                }
+            }
+            // has_state: check right side
+            if !props.has_state
+                && let Some(right) = obj.get("right")
+            {
+                props.has_state = has_reactive_state_json(right, context);
+            }
+            // has_call: check right side
+            if !props.has_call
+                && let Some(right) = obj.get("right")
+            {
+                props.has_call = has_call_json(right, context);
+            }
+            // has_await: not checked for AssignmentExpression by has_await_json
+        }
+        "ArrayExpression" => {
+            if let Some(elements) = obj.get("elements").and_then(|v| v.as_array()) {
+                for elem in elements {
+                    analyze_props_json(elem, context, props);
+                }
+            }
+        }
+        "ObjectExpression" => {
+            if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
+                for prop in properties {
+                    if let Some(prop_obj) = prop.as_object() {
+                        if let Some(value) = prop_obj.get("value") {
+                            analyze_props_json(value, context, props);
+                        }
+                        // has_call also checks computed keys
+                        if !props.has_call
+                            && prop_obj.get("computed").and_then(|v| v.as_bool()) == Some(true)
+                            && let Some(key) = prop_obj.get("key")
+                            && has_call_json(key, context)
+                        {
+                            props.has_call = true;
+                        }
+                    }
+                }
+            }
+        }
+        "SpreadElement" => {
+            if let Some(argument) = obj.get("argument") {
+                analyze_props_json(argument, context, props);
+            }
+        }
+        "UpdateExpression" => {
+            // has_state: always true (mutations are reactive)
+            props.has_state = true;
+        }
+        "Literal" | "BooleanLiteral" | "NumericLiteral" | "StringLiteral" | "NullLiteral"
+        | "BigIntLiteral" | "RegExpLiteral" => {
+            // No flags to set for literals
+        }
+        "ArrowFunctionExpression" | "FunctionExpression" => {
+            // Function definitions don't affect these flags
+        }
+        _ => {
+            // Unknown expression type - conservatively assume reactive (matches has_reactive_state_json)
+            props.has_state = true;
+        }
     }
 }
 

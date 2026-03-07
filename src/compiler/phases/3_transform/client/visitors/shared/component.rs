@@ -1870,7 +1870,7 @@ fn visit_slot_children(
     // Process hoisted nodes (ConstTag, DebugTag, etc.)
     // This mirrors Fragment.js which visits hoisted nodes before processing trimmed nodes.
     for hoisted_node in &cleaned.hoisted {
-        context.visit_node(hoisted_node, None);
+        context.visit_node(hoisted_node.as_ref(), None);
     }
 
     // Track close statement ($.append) - this should come AFTER after_update
@@ -1878,19 +1878,19 @@ fn visit_slot_children(
     let mut close_statement: Option<JsStatement> = None;
 
     // Check if single element (mirrors Fragment.js line 47)
-    let is_single_element =
-        cleaned.trimmed.len() == 1 && matches!(cleaned.trimmed[0], TemplateNode::RegularElement(_));
+    let is_single_element = cleaned.trimmed.len() == 1
+        && matches!(*cleaned.trimmed[0], TemplateNode::RegularElement(_));
 
     // Handle single element case (mirrors Fragment.js lines 82-98)
     if is_single_element {
-        if let TemplateNode::RegularElement(element) = &cleaned.trimmed[0] {
+        if let TemplateNode::RegularElement(element) = &*cleaned.trimmed[0] {
             // Generate unique id for the element
             let id_name = context.state.memoizer.generate_id(&element.name);
             let id = b::id(&id_name);
 
             // Set node to the element id and visit
             context.state.node = id.clone();
-            let _result = context.visit_node(&cleaned.trimmed[0], None);
+            let _result = context.visit_node(cleaned.trimmed[0].as_ref(), None);
 
             // Transform template using the state's template
             // This creates the hoisted template expression like: var root_1 = $.from_html(`<input slot="slot1"/>`);
@@ -1935,7 +1935,7 @@ fn visit_slot_children(
         }
     } else if cleaned.trimmed.len() == 1
         && matches!(
-            cleaned.trimmed[0],
+            *cleaned.trimmed[0],
             TemplateNode::SvelteFragment(_) | TemplateNode::TitleElement(_)
         )
     {
@@ -1943,7 +1943,7 @@ fn visit_slot_children(
         // Mirrors Fragment.js `is_single_child_not_needing_template` check.
         // SvelteFragment is a transparent wrapper - just visit it directly
         // and let it handle its own template/init/close.
-        context.visit_node(&cleaned.trimmed[0], None);
+        context.visit_node(cleaned.trimmed[0].as_ref(), None);
     } else if cleaned.is_standalone {
         // Handle standalone case: single component/render tag doesn't need template processing
         // Set is_standalone on state so component/render-tag visitors know
@@ -1951,7 +1951,7 @@ fn visit_slot_children(
         context.state.is_standalone = true;
         // For standalone components, just visit them directly
         for node in &cleaned.trimmed {
-            let result = context.visit_node(node, None);
+            let result = context.visit_node(node.as_ref(), None);
             match result {
                 crate::compiler::phases::phase3_transform::client::types::TransformResult::Statement(
                     stmt,
@@ -1971,13 +1971,13 @@ fn visit_slot_children(
                 _ => {}
             }
         }
-    } else if cleaned.trimmed.len() == 1 && matches!(cleaned.trimmed[0], TemplateNode::Text(_)) {
+    } else if cleaned.trimmed.len() == 1 && matches!(*cleaned.trimmed[0], TemplateNode::Text(_)) {
         // Special case: single text node
         // This mirrors the official Fragment.js behavior (lines 100-103):
         // const id = b.id(context.state.scope.generate('text'));
         // state.init.unshift(b.var(id, b.call('$.text', b.literal(trimmed[0].data))));
         // close = b.stmt(b.call('$.append', b.id('$$anchor'), id));
-        if let TemplateNode::Text(text) = &cleaned.trimmed[0] {
+        if let TemplateNode::Text(text) = &*cleaned.trimmed[0] {
             // Add $.next() to skip the comment marker
             // This is because is_text_first is true for single text nodes in slot context
             context
@@ -2020,11 +2020,13 @@ fn visit_slot_children(
         let use_space_template = cleaned
             .trimmed
             .iter()
-            .any(|node| matches!(node, TemplateNode::ExpressionTag(_)))
-            && cleaned
-                .trimmed
-                .iter()
-                .all(|node| matches!(node, TemplateNode::Text(_) | TemplateNode::ExpressionTag(_)));
+            .any(|node| matches!(node.as_ref(), TemplateNode::ExpressionTag(_)))
+            && cleaned.trimmed.iter().all(|node| {
+                matches!(
+                    node.as_ref(),
+                    TemplateNode::Text(_) | TemplateNode::ExpressionTag(_)
+                )
+            });
 
         if use_space_template {
             // Special case — we can use `$.text` instead of creating a unique template
