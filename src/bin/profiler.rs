@@ -1,7 +1,9 @@
 //! Profiler binary for measuring compiler performance with detailed metrics.
 //!
 //! Usage:
-//!   cargo run --release --bin profiler -- [OPTIONS]
+//!
+//! ```text
+//! cargo run --release --bin profiler -- [OPTIONS]
 //!
 //! Options:
 //!   --file <PATH>       Single file to profile
@@ -11,6 +13,7 @@
 //!   --phase <PHASE>     Phase to profile: parse, analyze, transform, all (default: all)
 //!   --mode <MODE>       Generation mode: client, server (default: client)
 //!   --output <FORMAT>   Output format: text, json (default: text)
+//! ```
 
 use rustc_hash::FxHashMap;
 use std::env;

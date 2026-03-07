@@ -1489,7 +1489,7 @@ pub struct ComponentClientTransformState<'a> {
     pub template_nesting_level: usize,
 
     /// Shared flag for tracking whether the each block index variable was accessed
-    /// during body traversal. Uses Rc<Cell<bool>> for interior mutability since
+    /// during body traversal. Uses `Rc<Cell<bool>>` for interior mutability since
     /// transform read callbacks are function pointers that can't capture mutable state.
     pub each_index_used: Rc<Cell<bool>>,
 

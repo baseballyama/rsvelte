@@ -52,7 +52,7 @@ impl Parser<'_> {
         })]
     }
 
-    /// Parse a <script> tag and store it in instance_script or module_script.
+    /// Parse a `<script>` tag and store it in instance_script or module_script.
     pub fn parse_script_tag(
         &mut self,
         start: usize,

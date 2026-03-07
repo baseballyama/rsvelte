@@ -38,7 +38,7 @@ pub fn parse_css(content: &str, offset: usize) -> Vec<Value> {
 // ============================================================================
 
 impl Parser<'_> {
-    /// Parse a <style> tag and store it in stylesheet.
+    /// Parse a `<style>` tag and store it in stylesheet.
     pub fn parse_style_tag(
         &mut self,
         start: usize,

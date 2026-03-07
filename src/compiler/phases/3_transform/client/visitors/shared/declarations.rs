@@ -30,7 +30,7 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::{
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```text
 /// // Input: foo
 /// // Output: $.get(foo)
 /// ```
@@ -75,7 +75,7 @@ fn safe_get_value(node: JsExpr) -> JsExpr {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```text
 /// // Before:
 /// let count = $state(0);
 /// count = 5;
@@ -472,7 +472,7 @@ fn create_assign_fn(name: &str, context: &ComponentContext) -> fn(JsExpr, JsExpr
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```text
 /// // Input: count = 5
 /// // Output: $.set(count, 5)
 ///
@@ -537,7 +537,7 @@ fn assign_value_with_store(node: JsExpr, value: JsExpr, needs_proxy: bool) -> Js
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```text
 /// // Input: node = data, mutation = data.items[1].price = 2000
 /// // Output: $.get(data).items[1].price = 2000
 /// ```
@@ -663,7 +663,7 @@ fn mutate_value_legacy(node: JsExpr, mutation: JsExpr) -> JsExpr {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```text
 /// // Prefix increment:
 /// // Input: ++count
 /// // Output: $.update_pre(count)

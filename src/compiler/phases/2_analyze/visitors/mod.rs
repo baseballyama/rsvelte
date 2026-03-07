@@ -266,11 +266,11 @@ pub enum FragmentOwnerType {
 /// Type of AST being analyzed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AstType {
-    /// Instance script (<script>)
+    /// Instance script (`<script>`)
     Instance,
     /// Template (component body)
     Template,
-    /// Module script (<script context="module">)
+    /// Module script (`<script context="module">`)
     Module,
 }
 

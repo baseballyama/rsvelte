@@ -42,7 +42,7 @@ const RUNES: &[&str] = &[
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```text
 /// // $state(0) returns Some("$state")
 /// // $derived.by(() => x * 2) returns Some("$derived.by")
 /// // myFunction() returns None
@@ -107,7 +107,7 @@ pub fn get_rune(expr: &Expression, scope: &Scope) -> Option<String> {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```text
 /// // Primitives don't need proxy:
 /// // 42 -> false
 /// // "hello" -> false
@@ -186,7 +186,7 @@ pub fn should_proxy(expr: &Expression, _scope: &Scope) -> Option<bool> {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```text
 /// // Primitives don't need proxy:
 /// // "hello" -> false
 /// // 42 -> false
@@ -273,7 +273,7 @@ pub fn should_proxy_js_expr(expr: &JsExpr) -> bool {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```text
 /// // "=" -> right
 /// // "+=" -> left + right
 /// // "*=" -> left * right
@@ -320,7 +320,7 @@ pub fn build_assignment_value(operator: &str, left: &JsExpr, right: &JsExpr) -> 
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```text
 /// // .foo -> Some("foo")
 /// // ["bar"] -> Some("bar")
 /// // [computed] -> None

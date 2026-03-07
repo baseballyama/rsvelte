@@ -20,11 +20,11 @@ use indexmap::IndexMap;
 /// Component node types.
 #[derive(Debug, Clone)]
 pub enum ComponentNode {
-    /// Regular component (<MyComponent>)
+    /// Regular component (`<MyComponent>`)
     Component(Component),
-    /// Dynamic component (<svelte:component this={...}>)
+    /// Dynamic component (`<svelte:component this={...}>`)
     SvelteComponent(SvelteComponentElement),
-    /// Self-reference (<svelte:self>)
+    /// Self-reference (`<svelte:self>`)
     SvelteSelf(SvelteElement),
 }
 

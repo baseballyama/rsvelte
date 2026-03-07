@@ -1,6 +1,6 @@
 //! CSS AST types.
 //!
-//! This module contains the CSS AST types for Svelte's <style> blocks.
+//! This module contains the CSS AST types for Svelte's `<style>` blocks.
 //! For now, we use a JSON value to represent CSS, as parsing CSS is a
 //! separate concern from parsing Svelte templates.
 

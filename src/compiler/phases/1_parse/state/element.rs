@@ -655,7 +655,7 @@ impl Parser<'_> {
     }
 
     /// Check if the next opening tag should implicitly close the current element.
-    /// This handles HTML5 optional end tags (e.g., <li> closes a previous <li>).
+    /// This handles HTML5 optional end tags (e.g., `<li>` closes a previous `<li>`).
     ///
     /// Returns `Some(reason)` where `reason` is the name of the opening tag that caused
     /// the implicit close. Returns `None` if no implicit close is needed.

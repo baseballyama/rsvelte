@@ -4,7 +4,7 @@
 //!
 //! This module corresponds to:
 //! - `svelte/packages/svelte/src/compiler/phases/1-parse/utils/entities.js`
-//! - Entity data from WHATWG HTML specification (https://html.spec.whatwg.org/entities.json)
+//! - Entity data from WHATWG HTML specification (<https://html.spec.whatwg.org/entities.json>)
 //!
 //! The entity data in `entities_data.rs` is generated directly from Svelte's entities.js
 //! using `scripts/generate-entities-from-svelte.mjs`, ensuring 100% compatibility.

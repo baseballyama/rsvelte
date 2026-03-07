@@ -1,6 +1,6 @@
 //! TitleElement visitor.
 //!
-//! Analyzes <title> elements inside <svelte:head>.
+//! Analyzes `<title>` elements inside `<svelte:head>`.
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/TitleElement.js`.
 

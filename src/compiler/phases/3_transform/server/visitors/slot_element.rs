@@ -1,6 +1,6 @@
 //! Server-side slot element visitor.
 //!
-//! Generates $.slot() calls for <slot> elements.
+//! Generates `$.slot()` calls for `<slot>` elements.
 //! Corresponds to SlotElement.js in the official Svelte compiler.
 
 use super::super::ServerCodeGenerator;

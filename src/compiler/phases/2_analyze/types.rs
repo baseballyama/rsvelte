@@ -933,10 +933,10 @@ pub struct ComponentAnalysis {
     /// The root scope containing all bindings
     pub root: ScopeRoot,
 
-    /// Analysis of the module script (<script context="module">)
+    /// Analysis of the module script (`<script context="module">`)
     pub module: Option<JsAnalysis>,
 
-    /// Analysis of the instance script (<script>)
+    /// Analysis of the instance script (`<script>`)
     pub instance: Option<JsAnalysis>,
 
     /// Analysis of the template
@@ -1055,7 +1055,7 @@ pub struct ComponentAnalysis {
     /// Every render tag/component and whether it could be definitively resolved
     pub snippet_renderers: FxHashMap<String, bool>,
 
-    /// Pre-transformed <script> instance body (for optimization)
+    /// Pre-transformed `<script>` instance body (for optimization)
     pub instance_body: InstanceBody,
 
     /// JS comments from the AST (for preservation)

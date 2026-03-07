@@ -1,6 +1,6 @@
 //! SlotElement visitor.
 //!
-//! Analyzes <slot> elements.
+//! Analyzes `<slot>` elements.
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/SlotElement.js`.
 
