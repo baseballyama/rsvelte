@@ -2120,6 +2120,9 @@ pub struct Memoizer {
     /// Set of conflicting names to avoid collisions in nested blocks
     conflicts: FxHashSet<String>,
 
+    /// Track last used suffix for each base name to avoid O(n) scanning
+    next_suffix: FxHashMap<String, u32>,
+
     /// Synchronous memoized expressions
     sync: Vec<MemoEntry>,
 
@@ -2134,6 +2137,7 @@ impl Memoizer {
             counter: 0,
             memos: FxHashMap::default(),
             conflicts: FxHashSet::default(),
+            next_suffix: FxHashMap::default(),
             sync: Vec::new(),
             async_entries: Vec::new(),
         }
@@ -2175,6 +2179,7 @@ impl Memoizer {
             conflicts,
             sync: Vec::new(),
             async_entries: Vec::new(),
+            next_suffix: FxHashMap::default(),
         }
     }
 
@@ -2195,6 +2200,7 @@ impl Memoizer {
             counter: 0,
             memos: FxHashMap::default(),
             conflicts: parent.conflicts.clone(),
+            next_suffix: parent.next_suffix.clone(),
             sync: Vec::new(),
             async_entries: Vec::new(),
         }
@@ -2483,47 +2489,41 @@ impl Memoizer {
             return sanitized.to_string();
         }
 
-        // Add suffix until there's no conflict
-        // Pre-allocate buffer to avoid repeated format! allocations
-        let mut buf = String::with_capacity(sanitized.len() + 4);
-        let mut n = 1u32;
-        loop {
-            buf.clear();
-            buf.push_str(sanitized);
-            buf.push('_');
-            // Fast integer formatting
-            let mut digits = [0u8; 10];
-            let mut pos = digits.len();
-            let mut val = n;
-            loop {
-                pos -= 1;
-                digits[pos] = b'0' + (val % 10) as u8;
-                val /= 10;
-                if val == 0 {
-                    break;
-                }
-            }
-            buf.push_str(std::str::from_utf8(&digits[pos..]).unwrap());
+        // Use suffix tracker to skip already-used suffixes
+        let start_n = self.next_suffix.get(sanitized).copied().unwrap_or(1);
 
-            if !self.conflicts.contains(buf.as_str()) {
-                self.conflicts.insert(buf.clone());
-                return buf;
-            }
+        // Add suffix until there's no conflict
+        let mut name = format!("{}_{}", sanitized, start_n);
+        let mut n = start_n;
+        while self.conflicts.contains(name.as_str()) {
             n += 1;
+            name = format!("{}_{}", sanitized, n);
         }
+
+        self.conflicts.insert(name.clone());
+        self.next_suffix.insert(sanitized.to_string(), n + 1);
+        name
     }
 
     fn generate_id_slow(&mut self, base: &str) -> String {
         let sanitized = sanitize_identifier(base);
-        let mut name = sanitized.clone();
-        let mut n = 1;
+
+        if !self.conflicts.contains(&sanitized) {
+            self.conflicts.insert(sanitized.clone());
+            return sanitized;
+        }
+
+        let start_n = self.next_suffix.get(&sanitized).copied().unwrap_or(1);
+        let mut name = format!("{}_{}", sanitized, start_n);
+        let mut n = start_n;
 
         while self.conflicts.contains(&name) {
-            name = format!("{}_{}", sanitized, n);
             n += 1;
+            name = format!("{}_{}", sanitized, n);
         }
 
         self.conflicts.insert(name.clone());
+        self.next_suffix.insert(sanitized, n + 1);
         name
     }
 
@@ -2532,6 +2532,7 @@ impl Memoizer {
         self.counter = 0;
         self.memos.clear();
         self.conflicts.clear();
+        self.next_suffix.clear();
         self.sync.clear();
         self.async_entries.clear();
     }
@@ -2546,6 +2547,13 @@ impl Memoizer {
     /// * `other` - The memoizer to merge conflicts from
     pub fn merge_conflicts(&mut self, other: &Memoizer) {
         self.conflicts.extend(other.conflicts.iter().cloned());
+        // Merge suffix counters (take the max)
+        for (key, &val) in &other.next_suffix {
+            let entry = self.next_suffix.entry(key.clone()).or_insert(0);
+            if val > *entry {
+                *entry = val;
+            }
+        }
     }
 }
 
