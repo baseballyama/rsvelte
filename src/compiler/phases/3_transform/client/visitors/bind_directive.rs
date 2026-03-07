@@ -16,9 +16,7 @@
 use std::collections::HashSet;
 
 use crate::ast::js::Expression;
-use crate::ast::template::{
-    Attribute, AttributeValue, AttributeValuePart, BindDirective, TemplateNode,
-};
+use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, BindDirective};
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
@@ -340,7 +338,7 @@ fn get_binding_property(name: &str) -> Option<BindingProperty> {
 pub fn bind_directive(
     node: &BindDirective,
     context: &mut ComponentContext,
-    parent: Option<&TemplateNode>,
+    parent: crate::compiler::phases::phase3_transform::utils::ParentRef<'_>,
 ) -> TransformResult {
     let binding_name = node.name.as_str();
 
@@ -377,7 +375,7 @@ pub fn bind_directive(
     // Generate the appropriate binding call
     // bind:this uses the unified implementation that handles each-block context properly
     let call = if binding_name == "this" {
-        let is_element = is_regular_element(parent);
+        let is_element = is_regular_element(&parent);
         unified_build_bind_this(
             &node.expression,
             context.state.node.clone(),
@@ -419,7 +417,7 @@ pub fn bind_directive(
     };
 
     // Check if we need to defer the binding (when element has use: directive)
-    let defer = binding_name != "this" && is_regular_element(parent) && has_use_directive(parent);
+    let defer = binding_name != "this" && is_regular_element(&parent) && has_use_directive(&parent);
 
     // Wrap in effect if deferred
     let mut statement = if defer {
@@ -468,7 +466,7 @@ fn build_special_binding_call(
     get: &JsExpr,
     set: &Option<JsExpr>,
     context: &mut ComponentContext,
-    parent: Option<&TemplateNode>,
+    parent: crate::compiler::phases::phase3_transform::utils::ParentRef<'_>,
     directive_expr: Option<&Expression>,
 ) -> JsExpr {
     // Clone node_expr before the match to avoid borrow checker issues
@@ -584,7 +582,8 @@ fn build_special_binding_call(
         // Value binding (input/textarea/select)
         "value" => {
             // Check if parent is a select element
-            let is_select = matches!(parent, Some(TemplateNode::RegularElement(elem)) if elem.name.as_str() == "select");
+            let is_select =
+                matches!(parent.as_regular_element(), Some(elem) if elem.name.as_str() == "select");
 
             if is_select {
                 let mut args = vec![node_expr.clone(), get.clone()];
@@ -747,7 +746,7 @@ fn build_group_binding_call(
     node: &JsExpr,
     get: &JsExpr,
     set: &Option<JsExpr>,
-    parent: Option<&TemplateNode>,
+    parent: crate::compiler::phases::phase3_transform::utils::ParentRef<'_>,
     context: &mut ComponentContext,
     directive_expr: Option<&Expression>,
 ) -> JsExpr {
@@ -839,7 +838,7 @@ fn build_group_binding_call(
     // See: svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/BindDirective.js L223-243
     let mut group_getter = get.clone();
 
-    if let Some(TemplateNode::RegularElement(elem)) = parent {
+    if let Some(elem) = parent.as_regular_element() {
         // Find the value attribute that is not a text attribute and not true
         let value_attr = elem.attributes.iter().find_map(|attr| {
             if let Attribute::Attribute(a) = attr {
@@ -1723,18 +1722,22 @@ fn is_prop_variable(expr: &Expression, context: &ComponentContext) -> bool {
 }
 
 /// Check if parent is a RegularElement.
-fn is_regular_element(parent: Option<&TemplateNode>) -> bool {
-    matches!(parent, Some(TemplateNode::RegularElement(_)))
+fn is_regular_element(
+    parent: &crate::compiler::phases::phase3_transform::utils::ParentRef<'_>,
+) -> bool {
+    parent.as_regular_element().is_some()
 }
 
 /// Check if parent element has a use: directive.
-fn has_use_directive(parent: Option<&TemplateNode>) -> bool {
-    match parent {
-        Some(TemplateNode::RegularElement(elem)) => elem
+fn has_use_directive(
+    parent: &crate::compiler::phases::phase3_transform::utils::ParentRef<'_>,
+) -> bool {
+    match parent.as_regular_element() {
+        Some(elem) => elem
             .attributes
             .iter()
             .any(|attr| matches!(attr, Attribute::UseDirective(_))),
-        _ => false,
+        None => false,
     }
 }
 

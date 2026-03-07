@@ -13,6 +13,70 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
+/// A borrowed reference to a parent node, avoiding expensive clones of TemplateNode.
+///
+/// This enum replaces `Option<&TemplateNode>` in functions like `clean_nodes`,
+/// `trim_whitespace`, `infer_namespace`, and `bind_directive` to avoid needing
+/// to construct a `TemplateNode::RegularElement(node.clone())` just to pass as parent.
+#[derive(Debug, Clone, Copy)]
+pub enum ParentRef<'a> {
+    RegularElement(&'a crate::ast::template::RegularElement),
+    SvelteElement(&'a crate::ast::template::SvelteDynamicElement),
+    TemplateNode(&'a crate::ast::template::TemplateNode),
+    None,
+}
+
+impl<'a> ParentRef<'a> {
+    /// Convert from Option<&TemplateNode> for backward compatibility.
+    pub fn from_option(opt: Option<&'a TemplateNode>) -> Self {
+        match opt {
+            Some(node) => ParentRef::TemplateNode(node),
+            None => ParentRef::None,
+        }
+    }
+
+    /// Check if this is a RegularElement (from either variant).
+    pub fn as_regular_element(&self) -> Option<&'a crate::ast::template::RegularElement> {
+        match self {
+            ParentRef::RegularElement(el) => Some(el),
+            ParentRef::TemplateNode(TemplateNode::RegularElement(el)) => Some(el),
+            _ => None,
+        }
+    }
+
+    /// Check if this is a SvelteElement (from either variant).
+    pub fn as_svelte_element(&self) -> Option<&'a crate::ast::template::SvelteDynamicElement> {
+        match self {
+            ParentRef::SvelteElement(el) => Some(el),
+            ParentRef::TemplateNode(TemplateNode::SvelteElement(el)) => Some(el),
+            _ => None,
+        }
+    }
+
+    /// Check if this is a SnippetBlock.
+    pub fn is_snippet_block(&self) -> bool {
+        matches!(self, ParentRef::TemplateNode(TemplateNode::SnippetBlock(_)))
+    }
+
+    /// Check if this is a Component.
+    pub fn is_component(&self) -> bool {
+        matches!(self, ParentRef::TemplateNode(TemplateNode::Component(_)))
+    }
+
+    /// Check if this is a SvelteComponent.
+    pub fn is_svelte_component(&self) -> bool {
+        matches!(
+            self,
+            ParentRef::TemplateNode(TemplateNode::SvelteComponent(_))
+        )
+    }
+
+    /// Check if this is None.
+    pub fn is_none(&self) -> bool {
+        matches!(self, ParentRef::None)
+    }
+}
+
 /// Regex for text that is not whitespace (matches Svelte's definition: only space/tab/CR/LF are whitespace,
 /// not &nbsp; which is \u{00A0}). See patterns.js: `Not \S because that also removes explicit whitespace
 /// defined through things like &nbsp;`
@@ -503,7 +567,7 @@ pub struct CleanedNodes<'a> {
 /// Returns a `CleanedNodes` struct containing hoisted and trimmed nodes.
 #[allow(clippy::too_many_arguments)]
 pub fn clean_nodes<'a>(
-    parent: Option<&TemplateNode>,
+    parent: ParentRef<'_>,
     nodes: &'a [TemplateNode],
     _path: &[&TemplateNode],
     namespace: &str,
@@ -572,7 +636,7 @@ pub fn clean_nodes<'a>(
     // If first text node inside a <pre> is a single newline, discard it, because otherwise
     // the browser will do it for us which could break hydration.
     // Corresponds to lines 253-262 of utils.js in the official compiler.
-    if let Some(TemplateNode::RegularElement(el)) = parent
+    if let Some(el) = parent.as_regular_element()
         && el.name.as_str() == "pre"
         && let Some(TemplateNode::Text(text)) = trimmed.first().map(|c| c.as_ref())
         && (text.data.as_str() == "\n" || text.data.as_str() == "\r\n")
@@ -625,23 +689,25 @@ pub fn clean_nodes<'a>(
     // whether to generate $.next() to skip over inserted comment markers.
     let is_text_first = match parent {
         // Root fragment (None parent) or specific parent types that need $.next()
-        None
-        | Some(TemplateNode::SnippetBlock(_))
-        | Some(TemplateNode::EachBlock(_))
-        | Some(TemplateNode::SvelteComponent(_))
-        | Some(TemplateNode::SvelteBoundary(_))
-        | Some(TemplateNode::Component(_))
-        | Some(TemplateNode::SvelteSelf(_)) => {
-            if let Some(first) = trimmed.first() {
-                matches!(
-                    first.as_ref(),
-                    TemplateNode::Text(_) | TemplateNode::ExpressionTag(_)
-                )
-            } else {
-                false
-            }
-        }
+        ParentRef::None => true,
+        ParentRef::TemplateNode(
+            TemplateNode::SnippetBlock(_)
+            | TemplateNode::EachBlock(_)
+            | TemplateNode::SvelteComponent(_)
+            | TemplateNode::SvelteBoundary(_)
+            | TemplateNode::Component(_)
+            | TemplateNode::SvelteSelf(_),
+        ) => true,
         _ => false,
+    } && {
+        if let Some(first) = trimmed.first() {
+            matches!(
+                first.as_ref(),
+                TemplateNode::Text(_) | TemplateNode::ExpressionTag(_)
+            )
+        } else {
+            false
+        }
     };
 
     CleanedNodes {
@@ -661,7 +727,7 @@ pub fn clean_nodes<'a>(
 /// - Collapse internal whitespace-only text nodes to a single space
 ///   (or remove entirely for certain elements like select, table, etc.)
 fn trim_whitespace<'a>(
-    parent: Option<&TemplateNode>,
+    parent: ParentRef<'_>,
     nodes: &[Cow<'a, TemplateNode>],
     namespace: &str,
 ) -> Vec<Cow<'a, TemplateNode>> {
@@ -711,8 +777,8 @@ fn trim_whitespace<'a>(
     // Determine if whitespace-only text nodes can be removed entirely
     // This applies to svg (except text elements) and certain HTML elements
     let can_remove_entirely = (namespace == "svg"
-        && !matches!(parent, Some(TemplateNode::RegularElement(elem)) if elem.name == "text"))
-        || matches!(parent, Some(TemplateNode::RegularElement(elem)) if matches!(
+        && !matches!(parent.as_regular_element(), Some(elem) if elem.name == "text"))
+        || matches!(parent.as_regular_element(), Some(elem) if matches!(
             elem.name.as_str(),
             "select" | "tr" | "table" | "tbody" | "thead" | "tfoot" | "colgroup" | "datalist"
         ));
@@ -816,12 +882,12 @@ fn trim_whitespace<'a>(
 /// Returns the inferred namespace string ("html", "svg", or "mathml").
 pub fn infer_namespace<N: AsRef<TemplateNode>>(
     namespace: &str,
-    parent: Option<&TemplateNode>,
+    parent: ParentRef<'_>,
     nodes: &[N],
     _analysis: &ComponentAnalysis,
 ) -> String {
     // Check for foreignObject which resets to html
-    if let Some(TemplateNode::RegularElement(elem)) = parent {
+    if let Some(elem) = parent.as_regular_element() {
         if elem.name == "foreignObject" {
             return "html".to_string();
         }
@@ -840,7 +906,7 @@ pub fn infer_namespace<N: AsRef<TemplateNode>>(
 
     // For <svelte:element>, the namespace is determined at runtime by $.element().
     // Templates for its children are always generated as HTML.
-    if let Some(TemplateNode::SvelteElement(elem)) = parent {
+    if let Some(elem) = parent.as_svelte_element() {
         if elem.metadata.svg {
             return "svg".to_string();
         }
@@ -864,13 +930,10 @@ pub fn infer_namespace<N: AsRef<TemplateNode>>(
     // context (e.g., IfBlock inside SVG) and should trust it rather than
     // re-evaluating, because ambiguous elements like <a> and <title> may not
     // have their metadata.svg set correctly in the analysis phase.
-    let should_reevaluate = match parent {
-        Some(TemplateNode::SnippetBlock(_)) => true,
-        Some(TemplateNode::Component(_)) => true,
-        Some(TemplateNode::SvelteComponent(_)) => true,
-        None if namespace == "html" => true,
-        _ => false,
-    };
+    let should_reevaluate = parent.is_snippet_block()
+        || parent.is_component()
+        || parent.is_svelte_component()
+        || (parent.is_none() && namespace == "html");
 
     if should_reevaluate {
         // Check ALL child elements for consistent namespace.
@@ -953,7 +1016,16 @@ mod tests {
         let scope = Scope::new(None);
         let analysis = ComponentAnalysis::new("", &options);
 
-        let cleaned = clean_nodes(None, &[], &[], "html", &scope, &analysis, false, false);
+        let cleaned = clean_nodes(
+            ParentRef::None,
+            &[],
+            &[],
+            "html",
+            &scope,
+            &analysis,
+            false,
+            false,
+        );
 
         assert!(cleaned.hoisted.is_empty());
         assert!(cleaned.trimmed.is_empty());
@@ -968,7 +1040,7 @@ mod tests {
 
         let options = CompileOptions::default();
         let analysis = ComponentAnalysis::new("", &options);
-        let namespace = infer_namespace("html", None, &[] as &[TemplateNode], &analysis);
+        let namespace = infer_namespace("html", ParentRef::None, &[] as &[TemplateNode], &analysis);
 
         assert_eq!(namespace, "html");
     }
@@ -993,7 +1065,16 @@ mod tests {
             data: CompactString::new("  \n  "),
         })];
 
-        let cleaned = clean_nodes(None, &nodes, &[], "html", &scope, &analysis, false, false);
+        let cleaned = clean_nodes(
+            ParentRef::None,
+            &nodes,
+            &[],
+            "html",
+            &scope,
+            &analysis,
+            false,
+            false,
+        );
 
         // Whitespace-only text node should be removed
         assert!(
@@ -1023,7 +1104,16 @@ mod tests {
             data: CompactString::new("  hello"),
         })];
 
-        let cleaned = clean_nodes(None, &nodes, &[], "html", &scope, &analysis, false, false);
+        let cleaned = clean_nodes(
+            ParentRef::None,
+            &nodes,
+            &[],
+            "html",
+            &scope,
+            &analysis,
+            false,
+            false,
+        );
 
         assert_eq!(cleaned.trimmed.len(), 1);
         if let TemplateNode::Text(t) = &*cleaned.trimmed[0] {
@@ -1057,7 +1147,16 @@ mod tests {
             data: CompactString::new("\n\t\tButton\n\t"),
         })];
 
-        let cleaned = clean_nodes(None, &nodes, &[], "html", &scope, &analysis, false, false);
+        let cleaned = clean_nodes(
+            ParentRef::None,
+            &nodes,
+            &[],
+            "html",
+            &scope,
+            &analysis,
+            false,
+            false,
+        );
 
         assert_eq!(cleaned.trimmed.len(), 1);
         if let TemplateNode::Text(t) = &*cleaned.trimmed[0] {

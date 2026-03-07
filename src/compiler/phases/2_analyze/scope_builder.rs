@@ -1557,17 +1557,10 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Process a template expression (from attributes, event handlers, etc.) to track updates.
     fn process_template_expression(&mut self, expr: &crate::ast::js::Expression) {
-        // Extract the source range and parse the expression
-        if let Some(start) = expr.start()
-            && let Some(end) = expr.end()
-        {
-            let start = start as usize;
-            let end = end as usize;
-            if end <= self.source.len() && start < end {
-                let expr_source = &self.source[start..end];
-                self.parse_and_track_expression(expr_source);
-            }
-        }
+        // Walk the JSON AST directly instead of re-parsing with OXC.
+        // This avoids expensive OXC parse calls for every template expression.
+        let json = expr.as_json();
+        self.track_json_expression_updates(json);
     }
 
     /// Process a bind expression - the target is marked as reassigned or mutated.
@@ -1620,36 +1613,528 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
-    /// Parse an expression string and track updates within it.
-    fn parse_and_track_expression(&mut self, expr_source: &str) {
-        // Wrap in a statement to make it valid JavaScript
-        let code = format!("({})", expr_source);
-
-        let allocator = Allocator::default();
-        // Use TypeScript parser when any script in the component uses lang="ts",
-        // because template expressions (event handlers, etc.) can contain TypeScript
-        // syntax like type annotations, `as` casts, and non-null assertions.
-        let source_type = if self.is_typescript {
-            SourceType::ts()
-        } else {
-            SourceType::default()
+    /// Track expression updates by walking the JSON AST directly.
+    /// This avoids the expensive OXC parse call for every template expression.
+    #[allow(clippy::collapsible_if)]
+    fn track_json_expression_updates(&mut self, value: &serde_json::Value) {
+        let obj = match value.as_object() {
+            Some(obj) => obj,
+            None => return,
         };
-        let ret = OxcParser::new(&allocator, &code, source_type).parse();
+        let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
-        if ret.errors.is_empty() && !ret.program.body.is_empty() {
-            // Get the expression from the parsed program
-            if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
-                ret.program.body.first()
-            {
-                // Strip the outer parentheses
-                if let oxc_ast::ast::Expression::ParenthesizedExpression(paren) =
-                    &expr_stmt.expression
-                {
-                    self.track_expression_updates(&paren.expression);
-                } else {
-                    self.track_expression_updates(&expr_stmt.expression);
+        match node_type {
+            "AssignmentExpression" => {
+                // Track the left side as an update
+                if let Some(left) = obj.get("left") {
+                    self.track_json_assignment_target(left);
+                }
+                // Recurse into right side
+                if let Some(right) = obj.get("right") {
+                    self.track_json_expression_updates(right);
                 }
             }
+            "UpdateExpression" => {
+                // Track the argument as an update (e.g., count++)
+                if let Some(argument) = obj.get("argument") {
+                    self.track_json_simple_assignment_target(argument);
+                }
+            }
+            "CallExpression" | "NewExpression" => {
+                if let Some(callee) = obj.get("callee") {
+                    self.track_json_expression_updates(callee);
+                }
+                if let Some(args) = obj.get("arguments").and_then(|a| a.as_array()) {
+                    for arg in args {
+                        let arg_type = arg.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                        if arg_type == "SpreadElement" {
+                            if let Some(argument) = arg.get("argument") {
+                                self.track_json_expression_updates(argument);
+                            }
+                        } else {
+                            self.track_json_expression_updates(arg);
+                        }
+                    }
+                }
+            }
+            "ArrowFunctionExpression" => {
+                // Create scope for arrow function
+                let old_scope = self.push_scope();
+                self.function_depth += 1;
+
+                // Record function scope mapping
+                if let Some(body) = obj.get("body") {
+                    if let Some(start) = body.get("start").and_then(|s| s.as_u64()) {
+                        let key = start as u32;
+                        self.function_scope_map.insert(key, self.current_scope);
+                    }
+                }
+
+                // Declare parameters
+                if let Some(params) = obj.get("params").and_then(|p| p.as_array()) {
+                    for param in params {
+                        self.declare_bindings_from_pattern(param, BindingKind::Normal, true);
+                    }
+                }
+
+                // Track body updates
+                if let Some(body) = obj.get("body") {
+                    let body_type = body.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                    if body_type == "BlockStatement" {
+                        if let Some(stmts) = body.get("body").and_then(|b| b.as_array()) {
+                            for stmt in stmts {
+                                self.track_json_statement_updates(stmt);
+                            }
+                        }
+                    } else {
+                        // Expression body
+                        self.track_json_expression_updates(body);
+                    }
+                }
+
+                self.function_depth -= 1;
+                self.pop_scope(old_scope);
+            }
+            "FunctionExpression" => {
+                let old_scope = self.push_scope();
+                self.function_depth += 1;
+
+                if let Some(body) = obj.get("body") {
+                    if let Some(start) = body.get("start").and_then(|s| s.as_u64()) {
+                        let key = start as u32;
+                        self.function_scope_map.insert(key, self.current_scope);
+                    }
+                }
+
+                if let Some(params) = obj.get("params").and_then(|p| p.as_array()) {
+                    for param in params {
+                        self.declare_bindings_from_pattern(param, BindingKind::Normal, true);
+                    }
+                }
+
+                if let Some(body) = obj.get("body") {
+                    if let Some(stmts) = body.get("body").and_then(|b| b.as_array()) {
+                        for stmt in stmts {
+                            self.track_json_statement_updates(stmt);
+                        }
+                    }
+                }
+
+                self.function_depth -= 1;
+                self.pop_scope(old_scope);
+            }
+            "ConditionalExpression" => {
+                if let Some(test) = obj.get("test") {
+                    self.track_json_expression_updates(test);
+                }
+                if let Some(consequent) = obj.get("consequent") {
+                    self.track_json_expression_updates(consequent);
+                }
+                if let Some(alternate) = obj.get("alternate") {
+                    self.track_json_expression_updates(alternate);
+                }
+            }
+            "LogicalExpression" | "BinaryExpression" => {
+                if let Some(left) = obj.get("left") {
+                    self.track_json_expression_updates(left);
+                }
+                if let Some(right) = obj.get("right") {
+                    self.track_json_expression_updates(right);
+                }
+            }
+            "UnaryExpression" => {
+                if let Some(argument) = obj.get("argument") {
+                    self.track_json_expression_updates(argument);
+                }
+            }
+            "SequenceExpression" => {
+                if let Some(exprs) = obj.get("expressions").and_then(|e| e.as_array()) {
+                    for expr in exprs {
+                        self.track_json_expression_updates(expr);
+                    }
+                }
+            }
+            "ArrayExpression" => {
+                if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
+                    for elem in elements {
+                        if elem.is_null() {
+                            continue;
+                        }
+                        let elem_type = elem.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                        if elem_type == "SpreadElement" {
+                            if let Some(argument) = elem.get("argument") {
+                                self.track_json_expression_updates(argument);
+                            }
+                        } else {
+                            self.track_json_expression_updates(elem);
+                        }
+                    }
+                }
+            }
+            "ObjectExpression" => {
+                if let Some(properties) = obj.get("properties").and_then(|p| p.as_array()) {
+                    for prop in properties {
+                        let prop_type = prop.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                        if prop_type == "SpreadElement" {
+                            if let Some(argument) = prop.get("argument") {
+                                self.track_json_expression_updates(argument);
+                            }
+                        } else {
+                            // Property - track value
+                            if let Some(value) = prop.get("value") {
+                                self.track_json_expression_updates(value);
+                            }
+                        }
+                    }
+                }
+            }
+            "MemberExpression" => {
+                if let Some(object) = obj.get("object") {
+                    self.track_json_expression_updates(object);
+                }
+            }
+            "TemplateLiteral" => {
+                if let Some(exprs) = obj.get("expressions").and_then(|e| e.as_array()) {
+                    for expr in exprs {
+                        self.track_json_expression_updates(expr);
+                    }
+                }
+            }
+            "TaggedTemplateExpression" => {
+                if let Some(tag) = obj.get("tag") {
+                    self.track_json_expression_updates(tag);
+                }
+                if let Some(quasi) = obj.get("quasi") {
+                    if let Some(exprs) = quasi.get("expressions").and_then(|e| e.as_array()) {
+                        for expr in exprs {
+                            self.track_json_expression_updates(expr);
+                        }
+                    }
+                }
+            }
+            "AwaitExpression" => {
+                if let Some(argument) = obj.get("argument") {
+                    self.track_json_expression_updates(argument);
+                }
+            }
+            "YieldExpression" => {
+                if let Some(argument) = obj.get("argument") {
+                    if !argument.is_null() {
+                        self.track_json_expression_updates(argument);
+                    }
+                }
+            }
+            "ParenthesizedExpression" => {
+                if let Some(expression) = obj.get("expression") {
+                    self.track_json_expression_updates(expression);
+                }
+            }
+            "Identifier" => {
+                // Check for store subscription scoping errors
+                if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+                    if name.starts_with('$')
+                        && !name.starts_with("$$")
+                        && name.len() > 1
+                        && self.function_depth > 0
+                    {
+                        let is_rune_name = matches!(
+                            name,
+                            "$state"
+                                | "$derived"
+                                | "$props"
+                                | "$bindable"
+                                | "$effect"
+                                | "$inspect"
+                                | "$host"
+                        );
+
+                        if !is_rune_name {
+                            let store_name = &name[1..];
+                            let mut scope_idx = self.current_scope;
+                            loop {
+                                let scope = &self.scopes[scope_idx];
+                                if scope.declarations.contains_key(store_name) {
+                                    if scope_idx != 0 && scope_idx != self.instance_scope_index {
+                                        self.validation_errors
+                                            .push(errors::store_invalid_scoped_subscription());
+                                    }
+                                    break;
+                                }
+                                if let Some(parent) = scope.parent {
+                                    scope_idx = parent;
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // TypeScript wrappers
+            "TSAsExpression"
+            | "TSNonNullExpression"
+            | "TSSatisfiesExpression"
+            | "TSTypeAssertion"
+            | "TSInstantiationExpression" => {
+                if let Some(expression) = obj.get("expression") {
+                    self.track_json_expression_updates(expression);
+                }
+            }
+            // Literals and other leaf nodes - no updates to track
+            _ => {}
+        }
+    }
+
+    /// Track an assignment target from JSON AST.
+    fn track_json_assignment_target(&mut self, value: &serde_json::Value) {
+        let obj = match value.as_object() {
+            Some(obj) => obj,
+            None => return,
+        };
+        let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+        match node_type {
+            "Identifier" => {
+                if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+                    // Check for store subscription errors
+                    if name.starts_with('$')
+                        && !name.starts_with("$$")
+                        && name.len() > 1
+                        && self.function_depth > 0
+                    {
+                        let is_rune_name = matches!(
+                            name,
+                            "$state"
+                                | "$derived"
+                                | "$props"
+                                | "$bindable"
+                                | "$effect"
+                                | "$inspect"
+                                | "$host"
+                        );
+
+                        if !is_rune_name {
+                            let store_name = &name[1..];
+                            let mut scope_idx = self.current_scope;
+                            loop {
+                                let scope = &self.scopes[scope_idx];
+                                if scope.declarations.contains_key(store_name) {
+                                    if scope_idx != 0 && scope_idx != self.instance_scope_index {
+                                        self.validation_errors
+                                            .push(errors::store_invalid_scoped_subscription());
+                                    }
+                                    break;
+                                }
+                                if let Some(parent) = scope.parent {
+                                    scope_idx = parent;
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    self.updates.push(Update {
+                        name: name.to_string(),
+                        is_direct_assignment: true,
+                        scope_idx: self.current_scope,
+                    });
+                }
+            }
+            "MemberExpression" => {
+                // Walk to base identifier
+                if let Some(name) = self.get_json_base_identifier_name(value) {
+                    self.updates.push(Update {
+                        name,
+                        is_direct_assignment: false,
+                        scope_idx: self.current_scope,
+                    });
+                }
+            }
+            "ArrayPattern" => {
+                if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
+                    for elem in elements {
+                        if !elem.is_null() {
+                            self.track_json_assignment_target(elem);
+                        }
+                    }
+                }
+            }
+            "ObjectPattern" => {
+                if let Some(properties) = obj.get("properties").and_then(|p| p.as_array()) {
+                    for prop in properties {
+                        let prop_type = prop.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                        if prop_type == "RestElement" {
+                            if let Some(argument) = prop.get("argument") {
+                                self.track_json_assignment_target(argument);
+                            }
+                        } else if let Some(value) = prop.get("value") {
+                            self.track_json_assignment_target(value);
+                        }
+                    }
+                }
+            }
+            "AssignmentPattern" => {
+                // { x = default } in destructuring
+                if let Some(left) = obj.get("left") {
+                    self.track_json_assignment_target(left);
+                }
+            }
+            "RestElement" => {
+                if let Some(argument) = obj.get("argument") {
+                    self.track_json_assignment_target(argument);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Track a simple assignment target (update expression argument) from JSON AST.
+    fn track_json_simple_assignment_target(&mut self, value: &serde_json::Value) {
+        let obj = match value.as_object() {
+            Some(obj) => obj,
+            None => return,
+        };
+        let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+        match node_type {
+            "Identifier" => {
+                if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+                    self.updates.push(Update {
+                        name: name.to_string(),
+                        is_direct_assignment: true,
+                        scope_idx: self.current_scope,
+                    });
+                }
+            }
+            "MemberExpression" => {
+                if let Some(name) = self.get_json_base_identifier_name(value) {
+                    self.updates.push(Update {
+                        name,
+                        is_direct_assignment: false,
+                        scope_idx: self.current_scope,
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Get the base identifier name from a JSON member expression.
+    fn get_json_base_identifier_name(&self, value: &serde_json::Value) -> Option<String> {
+        let obj = value.as_object()?;
+        let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+        match node_type {
+            "Identifier" => obj
+                .get("name")
+                .and_then(|n| n.as_str())
+                .map(|s| s.to_string()),
+            "MemberExpression" => {
+                let object = obj.get("object")?;
+                self.get_json_base_identifier_name(object)
+            }
+            "ParenthesizedExpression" => {
+                let expression = obj.get("expression")?;
+                self.get_json_base_identifier_name(expression)
+            }
+            _ => None,
+        }
+    }
+
+    /// Track statement updates from JSON AST (for arrow/function bodies).
+    #[allow(clippy::collapsible_if)]
+    fn track_json_statement_updates(&mut self, value: &serde_json::Value) {
+        let obj = match value.as_object() {
+            Some(obj) => obj,
+            None => return,
+        };
+        let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+        match node_type {
+            "ExpressionStatement" => {
+                if let Some(expression) = obj.get("expression") {
+                    self.track_json_expression_updates(expression);
+                }
+            }
+            "ReturnStatement" => {
+                if let Some(argument) = obj.get("argument") {
+                    if !argument.is_null() {
+                        self.track_json_expression_updates(argument);
+                    }
+                }
+            }
+            "VariableDeclaration" => {
+                if let Some(declarations) = obj.get("declarations").and_then(|d| d.as_array()) {
+                    for decl in declarations {
+                        if let Some(init) = decl.get("init") {
+                            if !init.is_null() {
+                                self.track_json_expression_updates(init);
+                            }
+                        }
+                    }
+                }
+            }
+            "IfStatement" => {
+                if let Some(test) = obj.get("test") {
+                    self.track_json_expression_updates(test);
+                }
+                if let Some(consequent) = obj.get("consequent") {
+                    self.track_json_statement_updates(consequent);
+                }
+                if let Some(alternate) = obj.get("alternate") {
+                    if !alternate.is_null() {
+                        self.track_json_statement_updates(alternate);
+                    }
+                }
+            }
+            "BlockStatement" => {
+                if let Some(body) = obj.get("body").and_then(|b| b.as_array()) {
+                    for stmt in body {
+                        self.track_json_statement_updates(stmt);
+                    }
+                }
+            }
+            "ForStatement" | "WhileStatement" | "DoWhileStatement" => {
+                if let Some(body) = obj.get("body") {
+                    self.track_json_statement_updates(body);
+                }
+            }
+            "ForInStatement" | "ForOfStatement" => {
+                if let Some(body) = obj.get("body") {
+                    self.track_json_statement_updates(body);
+                }
+            }
+            "SwitchStatement" => {
+                if let Some(cases) = obj.get("cases").and_then(|c| c.as_array()) {
+                    for case in cases {
+                        if let Some(consequent) = case.get("consequent").and_then(|c| c.as_array())
+                        {
+                            for stmt in consequent {
+                                self.track_json_statement_updates(stmt);
+                            }
+                        }
+                    }
+                }
+            }
+            "TryStatement" => {
+                if let Some(block) = obj.get("block") {
+                    self.track_json_statement_updates(block);
+                }
+                if let Some(handler) = obj.get("handler") {
+                    if !handler.is_null() {
+                        if let Some(body) = handler.get("body") {
+                            self.track_json_statement_updates(body);
+                        }
+                    }
+                }
+                if let Some(finalizer) = obj.get("finalizer") {
+                    if !finalizer.is_null() {
+                        self.track_json_statement_updates(finalizer);
+                    }
+                }
+            }
+            _ => {}
         }
     }
 

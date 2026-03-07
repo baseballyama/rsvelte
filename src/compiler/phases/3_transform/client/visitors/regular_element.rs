@@ -259,7 +259,8 @@ pub fn visit_regular_element(
     // The official code collects all non-attribute directives into `other_directives`
     // and processes them in source order. We iterate the original attribute list
     // and process each directive type as we encounter it.
-    let parent_node = TemplateNode::RegularElement(node.clone());
+    let parent_ref =
+        crate::compiler::phases::phase3_transform::utils::ParentRef::RegularElement(node);
     for attribute in &node.attributes {
         match attribute {
             Attribute::OnDirective(on_directive) => {
@@ -300,7 +301,7 @@ pub fn visit_regular_element(
                 let init_before = context.state.init.len();
                 let after_update_before = context.state.after_update.len();
 
-                bind_directive(bind_dir, context, Some(&parent_node));
+                bind_directive(bind_dir, context, parent_ref);
 
                 element_state_init.extend(context.state.init.drain(init_before..));
                 element_state_after_update
@@ -731,9 +732,8 @@ pub fn visit_regular_element(
         child_namespace.clone(),
     );
 
-    let parent_node = TemplateNode::RegularElement(node.clone());
     let cleaned = clean_nodes(
-        Some(&parent_node),
+        crate::compiler::phases::phase3_transform::utils::ParentRef::RegularElement(node),
         &node.fragment.nodes,
         &[], // path - not needed for our implementation
         &context.state.metadata.namespace,

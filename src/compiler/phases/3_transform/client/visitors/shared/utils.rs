@@ -295,7 +295,6 @@ fn should_proxy_node_type(node_type: &str) -> bool {
 ///
 /// Returns the transformed expression with all applicable transforms applied.
 pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext) -> JsExpr {
-    // Use internal function with empty local scope
     apply_transforms_to_expression_with_shadowed(expr, context, &LocalScope::new())
 }
 

@@ -346,8 +346,11 @@ impl<'a> ComponentContext<'a> {
             self.state.node = element_id.clone();
 
             // For svelte:element, the parent is the element itself
-            let parent_node = TemplateNode::SvelteElement(elem.clone());
-            bind_directive(bind_dir, self, Some(&parent_node));
+            bind_directive(
+                bind_dir,
+                self,
+                crate::compiler::phases::phase3_transform::utils::ParentRef::SvelteElement(elem),
+            );
 
             // Collect statements added by bind_directive
             inner_init.extend(self.state.init.drain(saved_init_len..));
@@ -1224,7 +1227,10 @@ impl<'a> ComponentContext<'a> {
                 }
                 Attribute::BindDirective(bind_dir) => {
                     // Handle bind: directives on special elements
-                    self.visit_bind_directive(bind_dir, None);
+                    self.visit_bind_directive(
+                        bind_dir,
+                        crate::compiler::phases::phase3_transform::utils::ParentRef::None,
+                    );
                 }
                 Attribute::Attribute(_attr_node) => {
                     // Handle event attributes like onclick={...} on special elements
@@ -1280,7 +1286,7 @@ impl<'a> ComponentContext<'a> {
     pub fn visit_bind_directive(
         &mut self,
         bind_directive: &crate::ast::template::BindDirective,
-        parent: Option<&TemplateNode>,
+        parent: crate::compiler::phases::phase3_transform::utils::ParentRef<'_>,
     ) -> TransformResult {
         use crate::compiler::phases::phase3_transform::client::visitors::bind_directive::bind_directive as visit_bind_directive_impl;
         visit_bind_directive_impl(bind_directive, self, parent)

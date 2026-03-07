@@ -1826,7 +1826,7 @@ fn visit_slot_children(
 
     // Clean the nodes (trim whitespace, etc.)
     let cleaned = clean_nodes(
-        None, // No parent in slot context
+        crate::compiler::phases::phase3_transform::utils::ParentRef::None, // No parent in slot context
         &nodes,
         &context.path,
         &context.state.metadata.namespace,
@@ -2110,7 +2110,7 @@ fn visit_slot_children(
                 // For example, if all children are SVG elements, use "svg".
                 let inferred_ns = crate::compiler::phases::phase3_transform::utils::infer_namespace(
                     &context.state.metadata.namespace,
-                    None,
+                    crate::compiler::phases::phase3_transform::utils::ParentRef::None,
                     &cleaned.trimmed,
                     context.state.analysis,
                 );

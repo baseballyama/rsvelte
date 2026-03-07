@@ -20,6 +20,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 };
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use crate::compiler::phases::phase3_transform::utils::ParentRef;
 use crate::compiler::phases::phase3_transform::utils::{clean_nodes, infer_namespace};
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -73,7 +74,7 @@ pub fn fragment(
     is_root_fragment: bool,
 ) -> JsBlockStatement {
     // Get parent node from path or use the fragment itself
-    let parent = context.path.last().copied();
+    let parent = ParentRef::from_option(context.path.last().copied());
 
     // Infer namespace for children.
     // When inside a <svelte:element> child context, skip inference since the

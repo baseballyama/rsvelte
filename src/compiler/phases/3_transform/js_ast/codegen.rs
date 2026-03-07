@@ -18,6 +18,17 @@ pub fn generate(program: &JsProgram) -> Result<String, String> {
     normalize_js(&raw)
 }
 
+/// Generate JavaScript source code, returning both raw and normalized versions.
+/// Used for debugging differences between JsCodegen and OXC normalization.
+#[allow(dead_code)]
+pub fn generate_debug(program: &JsProgram) -> (String, Result<String, String>) {
+    let mut codegen = JsCodegen::new();
+    codegen.emit_program(program);
+    let raw = codegen.output.clone();
+    let normalized = normalize_js(&codegen.output);
+    (raw, normalized)
+}
+
 /// Generate JavaScript source code without OXC normalization.
 /// This is faster but may produce less well-formatted output.
 pub fn generate_fast(program: &JsProgram) -> String {
