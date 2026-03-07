@@ -401,10 +401,10 @@ pub fn fragment(
         // This matches the official: b.var(state.async_consts.id, b.call('$.run', ...))
         let id_name = match &async_consts.id {
             JsExpr::Identifier(name) => name.clone(),
-            _ => "promises".to_string(),
+            _ => "promises".into(),
         };
         body.push(b::var_decl(
-            &id_name,
+            id_name.clone(),
             Some(b::call(
                 b::member_path("$.run"),
                 vec![b::array(async_consts.thunks)],
@@ -552,7 +552,10 @@ pub fn fragment(
 
 /// Collect all identifier names from a JS statement.
 /// Used for finding blocked variable references in template_effect callbacks.
-pub fn collect_identifiers_from_statement(stmt: &JsStatement, names: &mut Vec<String>) {
+pub fn collect_identifiers_from_statement(
+    stmt: &JsStatement,
+    names: &mut Vec<compact_str::CompactString>,
+) {
     match stmt {
         JsStatement::Expression(expr_stmt) => {
             collect_ids_from_expr(&expr_stmt.expression, names);
@@ -591,9 +594,9 @@ pub fn collect_identifiers_from_statement(stmt: &JsStatement, names: &mut Vec<St
                         .chars()
                         .next()
                         .is_some_and(|c| c.is_alphabetic() || c == '_' || c == '$')
-                    && !names.contains(&word.to_string())
+                    && !names.iter().any(|n| n.as_str() == word)
                 {
-                    names.push(word.to_string());
+                    names.push(word.into());
                 }
             }
         }
@@ -602,7 +605,7 @@ pub fn collect_identifiers_from_statement(stmt: &JsStatement, names: &mut Vec<St
 }
 
 /// Collect identifiers from an expression (non-recursive across function boundaries).
-fn collect_ids_from_expr(expr: &JsExpr, names: &mut Vec<String>) {
+fn collect_ids_from_expr(expr: &JsExpr, names: &mut Vec<compact_str::CompactString>) {
     match expr {
         JsExpr::Identifier(name) => {
             if !names.contains(name) {
@@ -704,7 +707,10 @@ fn collect_ids_from_expr(expr: &JsExpr, names: &mut Vec<String>) {
 /// but does NOT enter arrow functions (which are children callbacks).
 /// This matches the official Svelte compiler's memoizer.blockers() behavior,
 /// which only tracks blockers from direct prop expressions.
-pub fn collect_identifiers_from_statement_props(stmt: &JsStatement, names: &mut Vec<String>) {
+pub fn collect_identifiers_from_statement_props(
+    stmt: &JsStatement,
+    names: &mut Vec<compact_str::CompactString>,
+) {
     match stmt {
         JsStatement::Expression(expr_stmt) => {
             collect_ids_from_expr_props(&expr_stmt.expression, names);
@@ -740,9 +746,9 @@ pub fn collect_identifiers_from_statement_props(stmt: &JsStatement, names: &mut 
                         .chars()
                         .next()
                         .is_some_and(|c| c.is_alphabetic() || c == '_' || c == '$')
-                    && !names.contains(&word.to_string())
+                    && !names.iter().any(|n| n.as_str() == word)
                 {
-                    names.push(word.to_string());
+                    names.push(word.into());
                 }
             }
         }
@@ -755,7 +761,7 @@ pub fn collect_identifiers_from_statement_props(stmt: &JsStatement, names: &mut 
 /// but skips arrow functions that are the value of `children` or `$$slots` properties.
 /// This mirrors the official Svelte compiler's memoizer which tracks blockers from
 /// direct prop expressions but not from children callbacks.
-fn collect_ids_from_expr_props(expr: &JsExpr, names: &mut Vec<String>) {
+fn collect_ids_from_expr_props(expr: &JsExpr, names: &mut Vec<compact_str::CompactString>) {
     match expr {
         JsExpr::Identifier(name) => {
             if !names.contains(name) {
@@ -885,7 +891,10 @@ fn collect_ids_from_expr_props(expr: &JsExpr, names: &mut Vec<String>) {
 /// Unlike `collect_identifiers_from_statement` which stops at function boundaries,
 /// this version crosses into arrow/function bodies. This is needed for component
 /// async wrapping where blocked variables appear inside patterns like `() => $.get(X)`.
-pub fn collect_identifiers_from_statement_deep(stmt: &JsStatement, names: &mut Vec<String>) {
+pub fn collect_identifiers_from_statement_deep(
+    stmt: &JsStatement,
+    names: &mut Vec<compact_str::CompactString>,
+) {
     match stmt {
         JsStatement::Expression(expr_stmt) => {
             collect_ids_from_expr_deep(&expr_stmt.expression, names);
@@ -921,9 +930,9 @@ pub fn collect_identifiers_from_statement_deep(stmt: &JsStatement, names: &mut V
                         .chars()
                         .next()
                         .is_some_and(|c| c.is_alphabetic() || c == '_' || c == '$')
-                    && !names.contains(&word.to_string())
+                    && !names.iter().any(|n| n.as_str() == word)
                 {
-                    names.push(word.to_string());
+                    names.push(word.into());
                 }
             }
         }
@@ -932,7 +941,7 @@ pub fn collect_identifiers_from_statement_deep(stmt: &JsStatement, names: &mut V
 }
 
 /// Collect identifiers from an expression, crossing into arrow/function bodies.
-fn collect_ids_from_expr_deep(expr: &JsExpr, names: &mut Vec<String>) {
+fn collect_ids_from_expr_deep(expr: &JsExpr, names: &mut Vec<compact_str::CompactString>) {
     match expr {
         JsExpr::Identifier(name) => {
             if !names.contains(name) {
@@ -1043,7 +1052,10 @@ fn collect_ids_from_expr_deep(expr: &JsExpr, names: &mut Vec<String>) {
 /// (from instance script async body) are always accessed through `$.get()`.
 /// Other identifiers (snippet parameters, local variables) use different access
 /// patterns and should not be treated as blockers.
-pub fn collect_get_arg_identifiers_from_statement(stmt: &JsStatement, names: &mut Vec<String>) {
+pub fn collect_get_arg_identifiers_from_statement(
+    stmt: &JsStatement,
+    names: &mut Vec<compact_str::CompactString>,
+) {
     match stmt {
         JsStatement::Expression(expr_stmt) => {
             collect_get_arg_ids_from_expr(&expr_stmt.expression, names);
@@ -1077,7 +1089,7 @@ pub fn collect_get_arg_identifiers_from_statement(stmt: &JsStatement, names: &mu
 }
 
 /// Collect identifiers from `$.get(name)` call patterns in an expression.
-fn collect_get_arg_ids_from_expr(expr: &JsExpr, names: &mut Vec<String>) {
+fn collect_get_arg_ids_from_expr(expr: &JsExpr, names: &mut Vec<compact_str::CompactString>) {
     match expr {
         JsExpr::Call(call) => {
             // Check if this is a $.get(name) call
@@ -1170,7 +1182,10 @@ fn is_dollar_get_call(call: &JsCallExpression) -> bool {
 ///
 /// This is used to detect blocked variables accessed through $$props destructuring.
 /// For example, `$$props.name` yields "name" which can be checked against the blocker_map.
-pub fn collect_props_member_names_from_statement(stmt: &JsStatement, names: &mut Vec<String>) {
+pub fn collect_props_member_names_from_statement(
+    stmt: &JsStatement,
+    names: &mut Vec<compact_str::CompactString>,
+) {
     match stmt {
         JsStatement::Expression(expr_stmt) => {
             collect_props_member_names_from_expr(&expr_stmt.expression, names);
@@ -1204,7 +1219,10 @@ pub fn collect_props_member_names_from_statement(stmt: &JsStatement, names: &mut
 }
 
 /// Collect property names from `$$props.XXX` member access patterns in an expression.
-fn collect_props_member_names_from_expr(expr: &JsExpr, names: &mut Vec<String>) {
+fn collect_props_member_names_from_expr(
+    expr: &JsExpr,
+    names: &mut Vec<compact_str::CompactString>,
+) {
     match expr {
         JsExpr::Member(member) => {
             // Check if this is $$props.XXX

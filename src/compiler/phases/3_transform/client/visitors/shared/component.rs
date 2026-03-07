@@ -227,7 +227,7 @@ pub fn build_component(
                     // Use method shorthand for function expression handlers
                     // e.g., `foo($$arg) { ... }` instead of `foo: function($$arg) { ... }`
                     if let JsExpr::Function(ref func) = value {
-                        b::prop_method(name, func.params.clone(), func.body.body.clone())
+                        b::prop_method(name, func.params.to_vec(), func.body.body.clone())
                     } else {
                         b::prop(name, value)
                     }
@@ -541,7 +541,7 @@ pub fn build_component(
             // Uses props-aware scanning that enters arrow function bodies generally but
             // skips children/$$slots callbacks (which handle their own async wrapping).
             // This mirrors the official Svelte compiler's memoizer.blockers() behavior.
-            let mut component_names: Vec<String> = Vec::new();
+            let mut component_names: Vec<compact_str::CompactString> = Vec::new();
             for stmt in &statements {
                 super::super::fragment::collect_identifiers_from_statement_props(
                     stmt,
@@ -551,7 +551,7 @@ pub fn build_component(
             // If component references bind_get/bind_set variables, trace through their
             // initializers to find blocked variables. These declarations are in init,
             // not in statements, because they need to remain in the outer scope.
-            let bind_vars: Vec<String> = component_names
+            let bind_vars: Vec<compact_str::CompactString> = component_names
                 .iter()
                 .filter(|n| n.starts_with("bind_get") || n.starts_with("bind_set"))
                 .cloned()
@@ -605,7 +605,7 @@ pub fn build_component(
         let mut arrow_params = vec![b::id_pattern("$$anchor")];
         for async_id in memoizer.async_ids() {
             if let JsExpr::Identifier(name) = async_id {
-                arrow_params.push(b::id_pattern(&name));
+                arrow_params.push(b::id_pattern(name.clone()));
             }
         }
 
@@ -766,7 +766,7 @@ fn process_let_directive(
                 let expr_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
                 // Extract binding names from the expression
-                let mut binding_names: Vec<String> = Vec::new();
+                let mut binding_names: Vec<compact_str::CompactString> = Vec::new();
                 if expr_type == "ObjectExpression" {
                     if let Some(serde_json::Value::Array(props)) = obj.get("properties") {
                         for prop in props {
@@ -775,7 +775,7 @@ fn process_let_directive(
                                 .and_then(|k| k.get("name"))
                                 .and_then(|n| n.as_str())
                             {
-                                binding_names.push(name.to_string());
+                                binding_names.push(name.into());
                             }
                         }
                     }
@@ -784,7 +784,7 @@ fn process_let_directive(
                 {
                     for elem in elements {
                         if let Some(name) = elem.get("name").and_then(|n| n.as_str()) {
-                            binding_names.push(name.to_string());
+                            binding_names.push(name.into());
                         }
                     }
                 }
@@ -797,7 +797,7 @@ fn process_let_directive(
                     let_names.push((derived_name.clone(), None));
                     // Track each binding name with read_source pointing to the derived variable
                     for binding_name in &binding_names {
-                        let_names.push((binding_name.clone(), Some(derived_name.clone())));
+                        let_names.push((binding_name.to_string(), Some(derived_name.to_string())));
                     }
 
                     // Build the destructuring pattern
@@ -807,7 +807,7 @@ fn process_let_directive(
                                 .iter()
                                 .map(|n| JsObjectPatternProperty::Property {
                                     key: JsPropertyKey::Identifier(n.clone()),
-                                    value: b::id_pattern(n),
+                                    value: b::id_pattern(n.clone()),
                                     computed: false,
                                     shorthand: true,
                                 })
@@ -817,7 +817,7 @@ fn process_let_directive(
                         b::array_pattern(
                             binding_names
                                 .iter()
-                                .map(|n| Some(b::id_pattern(n)))
+                                .map(|n| Some(b::id_pattern(n.clone())))
                                 .collect(),
                         )
                     };
@@ -826,7 +826,7 @@ fn process_let_directive(
                     let return_obj_expr = b::object(
                         binding_names
                             .iter()
-                            .map(|n| b::prop(n.clone(), b::id(n)))
+                            .map(|n| b::prop(n.clone(), b::id(n.clone())))
                             .collect(),
                     );
 
@@ -1207,7 +1207,7 @@ fn process_bind_directive(
                 if let Some(stripped) = s.strip_prefix("() => ") {
                     stripped.to_string()
                 } else {
-                    s.clone()
+                    s.to_string()
                 }
             } else if let JsExpr::Arrow(arrow) = &get_expr
                 && arrow.params.is_empty()
@@ -1229,7 +1229,7 @@ fn process_bind_directive(
             };
             let getter = b::getter(
                 bind.name.as_str(),
-                vec![b::return_value(JsExpr::Raw(get_body_str))],
+                vec![b::return_value(JsExpr::Raw(get_body_str.into()))],
             );
 
             if let Some(set_fn) = set_expr {
@@ -1247,7 +1247,7 @@ fn process_bind_directive(
                     } else if let Some(stripped) = s.strip_prefix("($$value) => ") {
                         stripped.to_string()
                     } else {
-                        s.clone()
+                        s.to_string()
                     }
                 } else {
                     use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr;
@@ -1256,7 +1256,7 @@ fn process_bind_directive(
                 let setter = b::setter(
                     bind.name.as_str(),
                     "$$value",
-                    vec![b::stmt(JsExpr::Raw(set_body_str))],
+                    vec![b::stmt(JsExpr::Raw(set_body_str.into()))],
                 );
                 delayed_props.push(DelayedProp { prop: getter });
                 delayed_props.push(DelayedProp { prop: setter });
@@ -1459,7 +1459,7 @@ fn process_bind_directive(
             // Check for reactive import first - these take priority over state/prop
             // because import bindings can be promoted to State by legacy analysis,
             // but they still need the reactive_import mutation pattern.
-            let transform = context.state.transform.get(&root_name);
+            let transform = context.state.transform.get(root_name.as_str());
             let is_reactive_import = transform.is_some_and(|t| t.replacement_id.is_some());
 
             if is_reactive_import {
@@ -1480,7 +1480,7 @@ fn process_bind_directive(
                 // Reference: Program.js mutate handler and AssignmentExpression visitor
                 let assignment = b::assign(transformed_expression.clone(), b::id("$$value"));
                 vec![b::stmt(b::call(
-                    b::id(&root_name),
+                    b::id(root_name.clone()),
                     vec![assignment, b::boolean(true)],
                 ))]
             } else if is_state {
@@ -1495,7 +1495,7 @@ fn process_bind_directive(
                     let assignment = b::assign(transformed_expression.clone(), b::id("$$value"));
                     vec![b::stmt(b::call(
                         b::member_path("$.mutate"),
-                        vec![b::id(&root_name), assignment],
+                        vec![b::id(root_name.clone()), assignment],
                     ))]
                 }
             } else {

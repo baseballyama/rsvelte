@@ -121,8 +121,8 @@ where
                             build_attribute_value(&attr.value, transform.clone(), false, false);
                         content = Some(JsExpr::Call(JsCallExpression {
                             callee: Box::new(JsExpr::Member(JsMemberExpression {
-                                object: Box::new(JsExpr::Identifier("$".to_string())),
-                                property: JsMemberProperty::Identifier("escape".to_string()),
+                                object: Box::new(JsExpr::Identifier("$".into())),
+                                property: JsMemberProperty::Identifier("escape".into()),
                                 computed: false,
                                 optional: false,
                             })),
@@ -227,8 +227,8 @@ where
                 } else if bind.name == "value" && node.get_name() == "textarea" {
                     content = Some(JsExpr::Call(JsCallExpression {
                         callee: Box::new(JsExpr::Member(JsMemberExpression {
-                            object: Box::new(JsExpr::Identifier("$".to_string())),
-                            property: JsMemberProperty::Identifier("escape".to_string()),
+                            object: Box::new(JsExpr::Identifier("$".into())),
+                            property: JsMemberProperty::Identifier("escape".into()),
                             computed: false,
                             optional: false,
                         })),
@@ -249,20 +249,20 @@ where
                         state.template.push(TemplateItem::Expression(JsExpr::Call(
                             JsCallExpression {
                                 callee: Box::new(JsExpr::Member(JsMemberExpression {
-                                    object: Box::new(JsExpr::Identifier("$".to_string())),
-                                    property: JsMemberProperty::Identifier("attr".to_string()),
+                                    object: Box::new(JsExpr::Identifier("$".into())),
+                                    property: JsMemberProperty::Identifier("attr".into()),
                                     computed: false,
                                     optional: false,
                                 })),
                                 arguments: if is_boolean_attribute(&name) {
                                     vec![
-                                        JsExpr::Literal(JsLiteral::String(name.clone())),
+                                        JsExpr::Literal(JsLiteral::String(name.clone().into())),
                                         expression,
                                         JsExpr::Literal(JsLiteral::Boolean(true)),
                                     ]
                                 } else {
                                     vec![
-                                        JsExpr::Literal(JsLiteral::String(name.clone())),
+                                        JsExpr::Literal(JsLiteral::String(name.clone().into())),
                                         expression,
                                     ]
                                 },
@@ -338,19 +338,22 @@ where
                 ) {
                     match lit {
                         JsLiteral::String(s) => s,
-                        JsLiteral::Boolean(b) => b.to_string(),
-                        JsLiteral::Number(n) => n.to_string(),
-                        _ => String::new(),
+                        JsLiteral::Boolean(b) => b.to_string().into(),
+                        JsLiteral::Number(n) => n.to_string().into(),
+                        _ => compact_str::CompactString::default(),
                     }
                 } else {
-                    String::new()
+                    compact_str::CompactString::default()
                 };
 
                 // Add CSS hash to class
                 if name == "class"
                     && let Some(hash) = css_hash
                 {
-                    literal_value = format!("{} {}", literal_value, hash).trim().to_string();
+                    literal_value = format!("{} {}", literal_value, hash)
+                        .trim()
+                        .to_string()
+                        .into();
                 }
 
                 if name != "class" || !literal_value.is_empty() {
@@ -365,7 +368,7 @@ where
                     state
                         .template
                         .push(TemplateItem::Expression(JsExpr::Literal(
-                            JsLiteral::String(attr_str.clone()),
+                            JsLiteral::String(attr_str.clone().into()),
                         )));
                 }
 
@@ -383,9 +386,9 @@ where
             if can_use_literal && let JsExpr::Literal(lit) = &value {
                 let lit_value = match lit {
                     JsLiteral::String(s) => s.clone(),
-                    JsLiteral::Boolean(b) => b.to_string(),
-                    JsLiteral::Number(n) => n.to_string(),
-                    _ => String::new(),
+                    JsLiteral::Boolean(b) => b.to_string().into(),
+                    JsLiteral::Number(n) => n.to_string().into(),
+                    _ => compact_str::CompactString::default(),
                 };
                 let mut escaped = escape_attr(&lit_value);
                 if name == "class"
@@ -397,7 +400,7 @@ where
                 state
                     .template
                     .push(TemplateItem::Expression(JsExpr::Literal(
-                        JsLiteral::String(attr_str.clone()),
+                        JsLiteral::String(attr_str.clone().into()),
                     )));
                 continue;
             }
@@ -407,8 +410,8 @@ where
                 let class_value = if needs_clsx(&attr.value) {
                     JsExpr::Call(JsCallExpression {
                         callee: Box::new(JsExpr::Member(JsMemberExpression {
-                            object: Box::new(JsExpr::Identifier("$".to_string())),
-                            property: JsMemberProperty::Identifier("clsx".to_string()),
+                            object: Box::new(JsExpr::Identifier("$".into())),
+                            property: JsMemberProperty::Identifier("clsx".into()),
                             computed: false,
                             optional: false,
                         })),
@@ -439,19 +442,22 @@ where
                     .template
                     .push(TemplateItem::Expression(JsExpr::Call(JsCallExpression {
                         callee: Box::new(JsExpr::Member(JsMemberExpression {
-                            object: Box::new(JsExpr::Identifier("$".to_string())),
-                            property: JsMemberProperty::Identifier("attr".to_string()),
+                            object: Box::new(JsExpr::Identifier("$".into())),
+                            property: JsMemberProperty::Identifier("attr".into()),
                             computed: false,
                             optional: false,
                         })),
                         arguments: if is_boolean_attribute(&name) {
                             vec![
-                                JsExpr::Literal(JsLiteral::String(name.clone())),
+                                JsExpr::Literal(JsLiteral::String(name.clone().into())),
                                 value,
                                 JsExpr::Literal(JsLiteral::Boolean(true)),
                             ]
                         } else {
-                            vec![JsExpr::Literal(JsLiteral::String(name.clone())), value]
+                            vec![
+                                JsExpr::Literal(JsLiteral::String(name.clone().into())),
+                                value,
+                            ]
                         },
                         optional: false,
                     })));
@@ -465,7 +471,7 @@ where
         state
             .template
             .push(TemplateItem::Expression(JsExpr::Literal(
-                JsLiteral::String(attr_str.clone()),
+                JsLiteral::String(attr_str.clone().into()),
             )));
     }
 
@@ -497,8 +503,8 @@ fn build_element_spread_attributes<F>(
 
     let call = JsExpr::Call(JsCallExpression {
         callee: Box::new(JsExpr::Member(JsMemberExpression {
-            object: Box::new(JsExpr::Identifier("$".to_string())),
-            property: JsMemberProperty::Identifier("attributes".to_string()),
+            object: Box::new(JsExpr::Identifier("$".into())),
+            property: JsMemberProperty::Identifier("attributes".into()),
             computed: false,
             optional: false,
         })),
@@ -572,12 +578,12 @@ where
     // CSS hash
     let css_hash = if element.is_scoped() {
         Some(JsExpr::Literal(JsLiteral::String(
-            state.analysis.css.hash.clone(),
+            state.analysis.css.hash.clone().into(),
         )))
     } else {
         None
     };
-    args.push(css_hash.unwrap_or_else(|| JsExpr::Identifier("undefined".to_string())));
+    args.push(css_hash.unwrap_or_else(|| JsExpr::Identifier("undefined".into())));
 
     // Classes
     let classes = if !class_directives.is_empty() {
@@ -585,8 +591,8 @@ where
             .iter()
             .map(|dir| {
                 JsObjectMember::Property(JsProperty {
-                    key: JsPropertyKey::Identifier(dir.name.to_string()),
-                    value: Box::new(JsExpr::Identifier(dir.name.to_string())), // TODO: Visit expression
+                    key: JsPropertyKey::Identifier(dir.name.clone()),
+                    value: Box::new(JsExpr::Identifier(dir.name.clone())), // TODO: Visit expression
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
@@ -598,7 +604,7 @@ where
     } else {
         None
     };
-    args.push(classes.unwrap_or_else(|| JsExpr::Identifier("undefined".to_string())));
+    args.push(classes.unwrap_or_else(|| JsExpr::Identifier("undefined".into())));
 
     // Styles
     let styles = if !style_directives.is_empty() {
@@ -606,7 +612,7 @@ where
             .iter()
             .map(|dir| {
                 let value = if matches!(dir.value, AttributeValue::True(_)) {
-                    JsExpr::Identifier(dir.name.to_string())
+                    JsExpr::Identifier(dir.name.clone())
                 } else {
                     build_attribute_value(&dir.value, transform.clone(), true, false)
                 };
@@ -625,7 +631,7 @@ where
     } else {
         None
     };
-    args.push(styles.unwrap_or_else(|| JsExpr::Identifier("undefined".to_string())));
+    args.push(styles.unwrap_or_else(|| JsExpr::Identifier("undefined".into())));
 
     // Flags
     if flags != 0 {
@@ -650,8 +656,8 @@ where
             .iter()
             .map(|dir| {
                 JsObjectMember::Property(JsProperty {
-                    key: JsPropertyKey::Literal(JsLiteral::String(dir.name.to_string())),
-                    value: Box::new(JsExpr::Identifier(dir.name.to_string())), // TODO: Visit expression
+                    key: JsPropertyKey::Literal(JsLiteral::String(dir.name.clone())),
+                    value: Box::new(JsExpr::Identifier(dir.name.clone())), // TODO: Visit expression
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
@@ -664,19 +670,19 @@ where
         None
     };
 
-    let css_hash_expr = css_hash.map(|hash| JsExpr::Literal(JsLiteral::String(hash.to_string())));
+    let css_hash_expr = css_hash.map(|hash| JsExpr::Literal(JsLiteral::String(hash.into())));
 
     JsExpr::Call(JsCallExpression {
         callee: Box::new(JsExpr::Member(JsMemberExpression {
-            object: Box::new(JsExpr::Identifier("$".to_string())),
-            property: JsMemberProperty::Identifier("attr_class".to_string()),
+            object: Box::new(JsExpr::Identifier("$".into())),
+            property: JsMemberProperty::Identifier("attr_class".into()),
             computed: false,
             optional: false,
         })),
         arguments: vec![
             expression,
-            css_hash_expr.unwrap_or_else(|| JsExpr::Identifier("undefined".to_string())),
-            directives.unwrap_or_else(|| JsExpr::Identifier("undefined".to_string())),
+            css_hash_expr.unwrap_or_else(|| JsExpr::Identifier("undefined".into())),
+            directives.unwrap_or_else(|| JsExpr::Identifier("undefined".into())),
         ],
         optional: false,
     })
@@ -698,7 +704,7 @@ where
 
         for dir in style_directives {
             let value = if matches!(dir.value, AttributeValue::True(_)) {
-                JsExpr::Identifier(dir.name.to_string())
+                JsExpr::Identifier(dir.name.clone())
             } else {
                 build_attribute_value(&dir.value, transform.clone(), true, false)
             };
@@ -747,14 +753,14 @@ where
 
     JsExpr::Call(JsCallExpression {
         callee: Box::new(JsExpr::Member(JsMemberExpression {
-            object: Box::new(JsExpr::Identifier("$".to_string())),
-            property: JsMemberProperty::Identifier("attr_style".to_string()),
+            object: Box::new(JsExpr::Identifier("$".into())),
+            property: JsMemberProperty::Identifier("attr_style".into()),
             computed: false,
             optional: false,
         })),
         arguments: vec![
             expression,
-            directives.unwrap_or_else(|| JsExpr::Identifier("undefined".to_string())),
+            directives.unwrap_or_else(|| JsExpr::Identifier("undefined".into())),
         ],
         optional: false,
     })
@@ -782,9 +788,9 @@ fn is_valid_js_identifier(s: &str) -> bool {
 /// Creates a JsPropertyKey, using Literal for invalid identifiers (e.g., kebab-case).
 fn make_property_key(name: String) -> JsPropertyKey {
     if is_valid_js_identifier(&name) {
-        JsPropertyKey::Identifier(name)
+        JsPropertyKey::Identifier(name.into())
     } else {
-        JsPropertyKey::Literal(JsLiteral::String(name))
+        JsPropertyKey::Literal(JsLiteral::String(name.into()))
     }
 }
 

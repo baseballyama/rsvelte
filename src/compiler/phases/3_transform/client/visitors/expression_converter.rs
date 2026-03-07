@@ -10,6 +10,7 @@ use crate::ast::js::Expression;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use compact_str::CompactString;
 use serde_json::Value;
 
 /// Check if a JSON AST node contains an AwaitExpression anywhere in its tree.
@@ -186,7 +187,7 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
                         .and_then(|p| p.get("name"))
                         .and_then(|n| n.as_str())
                         .unwrap_or("meta");
-                    JsExpr::Raw(format!("{}.{}", meta, property))
+                    JsExpr::Raw(format!("{}.{}", meta, property).into())
                 }
                 "ObjectPattern" | "ArrayPattern" => {
                     // Destructuring patterns used as LHS in assignment expressions.
@@ -194,24 +195,24 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
                     // Convert through JsPattern and render to string.
                     let value_ref = Value::Object(obj.clone());
                     if let Some(pattern) = convert_param_pattern(&value_ref, context) {
-                        JsExpr::Raw(pattern_to_string(&pattern))
+                        JsExpr::Raw(pattern_to_string(&pattern).into())
                     } else {
-                        JsExpr::Raw(format!("/* Unknown: {} */", node_type))
+                        JsExpr::Raw(format!("/* Unknown: {} */", node_type).into())
                     }
                 }
                 _ => {
                     // Unknown node type - return as raw comment
-                    JsExpr::Raw(format!("/* Unknown: {} */", node_type))
+                    JsExpr::Raw(format!("/* Unknown: {} */", node_type).into())
                 }
             }
         }
-        Value::String(s) => JsExpr::Literal(JsLiteral::String(s.clone())),
+        Value::String(s) => JsExpr::Literal(JsLiteral::String(s.clone().into())),
         Value::Number(n) => JsExpr::Literal(JsLiteral::Number(n.as_f64().unwrap_or(0.0))),
         Value::Bool(b) => JsExpr::Literal(JsLiteral::Boolean(*b)),
         Value::Null => JsExpr::Literal(JsLiteral::Null),
         Value::Array(_) => {
             // Arrays are typically handled as ArrayExpression
-            JsExpr::Raw("/* Array */".to_string())
+            JsExpr::Raw("/* Array */".into())
         }
     }
 }
@@ -265,13 +266,13 @@ fn convert_identifier(
             let needs_bracket = prop_name.contains('-')
                 || prop_name.chars().next().is_some_and(|c| c.is_ascii_digit());
             return JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("$$props".to_string())),
+                object: Box::new(JsExpr::Identifier("$$props".into())),
                 property: if needs_bracket {
                     JsMemberProperty::Expression(Box::new(JsExpr::Literal(JsLiteral::String(
-                        prop_name,
+                        prop_name.into(),
                     ))))
                 } else {
-                    JsMemberProperty::Identifier(prop_name)
+                    JsMemberProperty::Identifier(prop_name.into())
                 },
                 computed: needs_bracket,
                 optional: false,
@@ -279,7 +280,7 @@ fn convert_identifier(
         }
     }
 
-    JsExpr::Identifier(name)
+    JsExpr::Identifier(name.into())
 }
 
 /// Convert a Literal node.
@@ -299,9 +300,9 @@ fn convert_literal(
             if let Some(Value::String(raw)) = obj.get("raw")
                 && raw.starts_with('"')
             {
-                return JsExpr::Raw(raw.clone());
+                return JsExpr::Raw(raw.clone().into());
             }
-            JsExpr::Literal(JsLiteral::String(s.clone()))
+            JsExpr::Literal(JsLiteral::String(s.clone().into()))
         }
         Some(Value::Number(n)) => JsExpr::Literal(JsLiteral::Number(n.as_f64().unwrap_or(0.0))),
         Some(Value::Bool(b)) => JsExpr::Literal(JsLiteral::Boolean(*b)),
@@ -319,7 +320,10 @@ fn convert_literal(
                     .and_then(|f| f.as_str())
                     .unwrap_or("")
                     .to_string();
-                return JsExpr::Literal(JsLiteral::Regex { pattern, flags });
+                return JsExpr::Literal(JsLiteral::Regex {
+                    pattern: pattern.into(),
+                    flags: flags.into(),
+                });
             }
             JsExpr::Literal(JsLiteral::Null)
         }
@@ -371,11 +375,11 @@ fn convert_member_expression(
             let object = obj
                 .get("object")
                 .map(|o| Box::new(convert_json_value(o, context)))
-                .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".to_string())));
+                .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".into())));
 
             let base_member = JsExpr::Member(JsMemberExpression {
                 object,
-                property: JsMemberProperty::PrivateIdentifier(prop_name.to_string()),
+                property: JsMemberProperty::PrivateIdentifier(prop_name.into()),
                 computed: false,
                 optional,
             });
@@ -384,7 +388,7 @@ fn convert_member_expression(
             if in_constructor && (field_type == "$state" || field_type == "$state.raw") {
                 return JsExpr::Member(JsMemberExpression {
                     object: Box::new(base_member),
-                    property: JsMemberProperty::Identifier("v".to_string()),
+                    property: JsMemberProperty::Identifier("v".into()),
                     computed: false,
                     optional: false,
                 });
@@ -396,8 +400,8 @@ fn convert_member_expression(
                 // Outside constructor, use $.get(this.#foo)
                 return JsExpr::Call(JsCallExpression {
                     callee: Box::new(JsExpr::Member(JsMemberExpression {
-                        object: Box::new(JsExpr::Identifier("$".to_string())),
-                        property: JsMemberProperty::Identifier("get".to_string()),
+                        object: Box::new(JsExpr::Identifier("$".into())),
+                        property: JsMemberProperty::Identifier("get".into()),
                         computed: false,
                         optional: false,
                     })),
@@ -430,31 +434,31 @@ fn convert_member_expression(
         };
 
     let object = if should_transform_to_props {
-        Box::new(JsExpr::Identifier("$$props".to_string()))
+        Box::new(JsExpr::Identifier("$$props".into()))
     } else {
         obj.get("object")
             .map(|o| Box::new(convert_json_value(o, context)))
-            .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".to_string())))
+            .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".into())))
     };
 
     let property = if computed {
         obj.get("property")
             .map(|p| JsMemberProperty::Expression(Box::new(convert_json_value(p, context))))
-            .unwrap_or(JsMemberProperty::Identifier("unknown".to_string()))
+            .unwrap_or(JsMemberProperty::Identifier("unknown".into()))
     } else {
         // Check if property is a PrivateIdentifier
         if let Some(prop_obj) = obj.get("property").and_then(|p| p.as_object())
             && let Some("PrivateIdentifier") = prop_obj.get("type").and_then(|t| t.as_str())
             && let Some(prop_name) = prop_obj.get("name").and_then(|n| n.as_str())
         {
-            JsMemberProperty::PrivateIdentifier(prop_name.to_string())
+            JsMemberProperty::PrivateIdentifier(prop_name.into())
         } else {
             obj.get("property")
                 .and_then(|p| p.as_object())
                 .and_then(|p| p.get("name"))
                 .and_then(|n| n.as_str())
-                .map(|n| JsMemberProperty::Identifier(n.to_string()))
-                .unwrap_or(JsMemberProperty::Identifier("unknown".to_string()))
+                .map(|n| JsMemberProperty::Identifier(n.into()))
+                .unwrap_or(JsMemberProperty::Identifier("unknown".into()))
         }
     };
 
@@ -484,7 +488,7 @@ fn convert_call_expression(
     let callee = obj
         .get("callee")
         .map(|c| Box::new(convert_json_value(c, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".to_string())));
+        .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".into())));
 
     let arguments = obj
         .get("arguments")
@@ -670,8 +674,8 @@ fn transform_rune_call(
         "$host" => {
             // $host() -> $$props.$$host
             JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("$$props".to_string())),
-                property: JsMemberProperty::Identifier("$$host".to_string()),
+                object: Box::new(JsExpr::Identifier("$$props".into())),
+                property: JsMemberProperty::Identifier("$$host".into()),
                 computed: false,
                 optional: false,
             })
@@ -681,8 +685,8 @@ fn transform_rune_call(
             // $effect.tracking() -> $.effect_tracking()
             JsExpr::Call(JsCallExpression {
                 callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".to_string())),
-                    property: JsMemberProperty::Identifier("effect_tracking".to_string()),
+                    object: Box::new(JsExpr::Identifier("$".into())),
+                    property: JsMemberProperty::Identifier("effect_tracking".into()),
                     computed: false,
                     optional: false,
                 })),
@@ -710,8 +714,8 @@ fn transform_rune_call(
                 if rune == "$state" && should_proxy_json(arg_value) {
                     JsExpr::Call(JsCallExpression {
                         callee: Box::new(JsExpr::Member(JsMemberExpression {
-                            object: Box::new(JsExpr::Identifier("$".to_string())),
-                            property: JsMemberProperty::Identifier("proxy".to_string()),
+                            object: Box::new(JsExpr::Identifier("$".into())),
+                            property: JsMemberProperty::Identifier("proxy".into()),
                             computed: false,
                             optional: false,
                         })),
@@ -724,7 +728,7 @@ fn transform_rune_call(
                 }
             } else {
                 // No argument - use undefined
-                JsExpr::Identifier("undefined".to_string())
+                JsExpr::Identifier("undefined".into())
             }
         }
 
@@ -737,8 +741,8 @@ fn transform_rune_call(
 
             JsExpr::Call(JsCallExpression {
                 callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".to_string())),
-                    property: JsMemberProperty::Identifier("snapshot".to_string()),
+                    object: Box::new(JsExpr::Identifier("$".into())),
+                    property: JsMemberProperty::Identifier("snapshot".into()),
                     computed: false,
                     optional: false,
                 })),
@@ -754,15 +758,15 @@ fn transform_rune_call(
 
                 // Wrap in thunk: () => expr
                 let thunk = JsExpr::Arrow(JsArrowFunction {
-                    params: vec![],
+                    params: vec![].into(),
                     body: JsArrowBody::Expression(Box::new(converted)),
                     is_async: false,
                 });
 
                 JsExpr::Call(JsCallExpression {
                     callee: Box::new(JsExpr::Member(JsMemberExpression {
-                        object: Box::new(JsExpr::Identifier("$".to_string())),
-                        property: JsMemberProperty::Identifier("derived".to_string()),
+                        object: Box::new(JsExpr::Identifier("$".into())),
+                        property: JsMemberProperty::Identifier("derived".into()),
                         computed: false,
                         optional: false,
                     })),
@@ -773,8 +777,8 @@ fn transform_rune_call(
                 // No argument - just call $.derived()
                 JsExpr::Call(JsCallExpression {
                     callee: Box::new(JsExpr::Member(JsMemberExpression {
-                        object: Box::new(JsExpr::Identifier("$".to_string())),
-                        property: JsMemberProperty::Identifier("derived".to_string()),
+                        object: Box::new(JsExpr::Identifier("$".into())),
+                        property: JsMemberProperty::Identifier("derived".into()),
                         computed: false,
                         optional: false,
                     })),
@@ -793,8 +797,8 @@ fn transform_rune_call(
 
             JsExpr::Call(JsCallExpression {
                 callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".to_string())),
-                    property: JsMemberProperty::Identifier("derived".to_string()),
+                    object: Box::new(JsExpr::Identifier("$".into())),
+                    property: JsMemberProperty::Identifier("derived".into()),
                     computed: false,
                     optional: false,
                 })),
@@ -819,8 +823,8 @@ fn transform_rune_call(
 
             JsExpr::Call(JsCallExpression {
                 callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".to_string())),
-                    property: JsMemberProperty::Identifier(callee_name.to_string()),
+                    object: Box::new(JsExpr::Identifier("$".into())),
+                    property: JsMemberProperty::Identifier(callee_name.into()),
                     computed: false,
                     optional: false,
                 })),
@@ -838,8 +842,8 @@ fn transform_rune_call(
 
             JsExpr::Call(JsCallExpression {
                 callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".to_string())),
-                    property: JsMemberProperty::Identifier("effect_root".to_string()),
+                    object: Box::new(JsExpr::Identifier("$".into())),
+                    property: JsMemberProperty::Identifier("effect_root".into()),
                     computed: false,
                     optional: false,
                 })),
@@ -852,14 +856,14 @@ fn transform_rune_call(
             // $effect.pending() -> $.eager($.pending)
             JsExpr::Call(JsCallExpression {
                 callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".to_string())),
-                    property: JsMemberProperty::Identifier("eager".to_string()),
+                    object: Box::new(JsExpr::Identifier("$".into())),
+                    property: JsMemberProperty::Identifier("eager".into()),
                     computed: false,
                     optional: false,
                 })),
                 arguments: vec![JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".to_string())),
-                    property: JsMemberProperty::Identifier("pending".to_string()),
+                    object: Box::new(JsExpr::Identifier("$".into())),
+                    property: JsMemberProperty::Identifier("pending".into()),
                     computed: false,
                     optional: false,
                 })],
@@ -874,15 +878,15 @@ fn transform_rune_call(
 
                 // Wrap in thunk: () => expr
                 let thunk = JsExpr::Arrow(JsArrowFunction {
-                    params: vec![],
+                    params: vec![].into(),
                     body: JsArrowBody::Expression(Box::new(converted)),
                     is_async: false,
                 });
 
                 JsExpr::Call(JsCallExpression {
                     callee: Box::new(JsExpr::Member(JsMemberExpression {
-                        object: Box::new(JsExpr::Identifier("$".to_string())),
-                        property: JsMemberProperty::Identifier("eager".to_string()),
+                        object: Box::new(JsExpr::Identifier("$".into())),
+                        property: JsMemberProperty::Identifier("eager".into()),
                         computed: false,
                         optional: false,
                     })),
@@ -892,8 +896,8 @@ fn transform_rune_call(
             } else {
                 JsExpr::Call(JsCallExpression {
                     callee: Box::new(JsExpr::Member(JsMemberExpression {
-                        object: Box::new(JsExpr::Identifier("$".to_string())),
-                        property: JsMemberProperty::Identifier("eager".to_string()),
+                        object: Box::new(JsExpr::Identifier("$".into())),
+                        property: JsMemberProperty::Identifier("eager".into()),
                         computed: false,
                         optional: false,
                     })),
@@ -917,7 +921,7 @@ fn transform_rune_call(
             if !context.state.options.dev {
                 // In non-dev mode, $inspect is a no-op
                 // Return a simple undefined - this will be filtered out as an empty statement
-                return JsExpr::Identifier("undefined".to_string());
+                return JsExpr::Identifier("undefined".into());
             }
 
             // Get the inspect args based on the rune type
@@ -930,8 +934,8 @@ fn transform_rune_call(
 
                 // Default inspector is console.log
                 let console_log = JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("console".to_string())),
-                    property: JsMemberProperty::Identifier("log".to_string()),
+                    object: Box::new(JsExpr::Identifier("console".into())),
+                    property: JsMemberProperty::Identifier("log".into()),
                     computed: false,
                     optional: false,
                 });
@@ -958,14 +962,14 @@ fn transform_rune_call(
                         let callback = arguments
                             .first()
                             .map(|arg| convert_json_value(arg, context))
-                            .unwrap_or_else(|| JsExpr::Identifier("undefined".to_string()));
+                            .unwrap_or_else(|| JsExpr::Identifier("undefined".into()));
 
                         (inner_args, callback)
                     } else {
-                        (vec![], JsExpr::Identifier("undefined".to_string()))
+                        (vec![], JsExpr::Identifier("undefined".into()))
                     }
                 } else {
-                    (vec![], JsExpr::Identifier("undefined".to_string()))
+                    (vec![], JsExpr::Identifier("undefined".into()))
                 }
             };
 
@@ -974,14 +978,14 @@ fn transform_rune_call(
                 elements: inspect_args.into_iter().map(Some).collect(),
             });
             let args_thunk = JsExpr::Arrow(JsArrowFunction {
-                params: vec![],
+                params: vec![].into(),
                 body: JsArrowBody::Expression(Box::new(args_array)),
                 is_async: false,
             });
 
             // Build: (...$$args) => inspector(...$$args)
             // This makes the log appear to come from the $inspect callsite
-            let args_id = JsExpr::Identifier("$$args".to_string());
+            let args_id = JsExpr::Identifier("$$args".into());
             let spread_args = JsExpr::Spread(Box::new(args_id.clone()));
             let inspector_call = JsExpr::Call(JsCallExpression {
                 callee: Box::new(inspector),
@@ -989,8 +993,8 @@ fn transform_rune_call(
                 optional: false,
             });
             let fn_wrapper = JsExpr::Arrow(JsArrowFunction {
-                params: vec![JsPattern::Rest(Box::new(JsPattern::Identifier(
-                    "$$args".to_string(),
+                params: smallvec::smallvec![JsPattern::Rest(Box::new(JsPattern::Identifier(
+                    "$$args".into(),
                 )))],
                 body: JsArrowBody::Expression(Box::new(inspector_call)),
                 is_async: false,
@@ -1006,8 +1010,8 @@ fn transform_rune_call(
 
             JsExpr::Call(JsCallExpression {
                 callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".to_string())),
-                    property: JsMemberProperty::Identifier("inspect".to_string()),
+                    object: Box::new(JsExpr::Identifier("$".into())),
+                    property: JsMemberProperty::Identifier("inspect".into()),
                     computed: false,
                     optional: false,
                 })),
@@ -1021,7 +1025,7 @@ fn transform_rune_call(
             let callee = obj
                 .get("callee")
                 .map(|c| Box::new(convert_json_value(c, context)))
-                .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".to_string())));
+                .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".into())));
 
             let converted_args: Vec<JsExpr> = arguments
                 .iter()
@@ -1293,14 +1297,14 @@ fn convert_property_key(
         if let Some("Identifier") = key_obj.get("type").and_then(|t| t.as_str())
             && let Some(name) = key_obj.get("name").and_then(|n| n.as_str())
         {
-            return JsPropertyKey::Identifier(name.to_string());
+            return JsPropertyKey::Identifier(name.into());
         }
         if let Some("Literal") = key_obj.get("type").and_then(|t| t.as_str()) {
             return JsPropertyKey::Literal(convert_literal(key_obj, context).into());
         }
     }
 
-    JsPropertyKey::Identifier("unknown".to_string())
+    JsPropertyKey::Identifier("unknown".into())
 }
 
 /// Extract all parameter names from the raw JSON params array.
@@ -1413,7 +1417,7 @@ fn convert_arrow_function(
     context.state.transform = saved_transform;
 
     JsExpr::Arrow(JsArrowFunction {
-        params,
+        params: params.into(),
         body,
         is_async,
     })
@@ -1424,12 +1428,12 @@ fn convert_function_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
 ) -> JsExpr {
-    let id = obj
+    let id: Option<CompactString> = obj
         .get("id")
         .and_then(|i| i.as_object())
         .and_then(|i| i.get("name"))
         .and_then(|n| n.as_str())
-        .map(|n| n.to_string());
+        .map(|n| n.into());
 
     let params = convert_params(obj, context);
 
@@ -1464,7 +1468,7 @@ fn convert_function_expression(
 
     JsExpr::Function(JsFunctionExpression {
         id,
-        params,
+        params: params.into(),
         body,
         is_async,
         is_generator,
@@ -1494,7 +1498,7 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
     match param_type {
         "Identifier" => {
             let name = obj.get("name").and_then(|n| n.as_str())?;
-            Some(JsPattern::Identifier(name.to_string()))
+            Some(JsPattern::Identifier(name.into()))
         }
         "AssignmentPattern" => {
             let left = obj
@@ -1548,7 +1552,7 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                                         if let Some(s) = val.as_str() {
                                             (
                                                 JsPropertyKey::Literal(JsLiteral::String(
-                                                    s.to_string(),
+                                                    s.into(),
                                                 )),
                                                 None,
                                             )
@@ -1569,7 +1573,7 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                                     // Identifier key: { x } or { x: y }
                                     let name = key_val.get("name").and_then(|n| n.as_str())?;
                                     (
-                                        JsPropertyKey::Identifier(name.to_string()),
+                                        JsPropertyKey::Identifier(name.into()),
                                         Some(name.to_string()),
                                     )
                                 } else {
@@ -1590,7 +1594,7 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                                     .or_else(|| {
                                         fallback_name
                                             .as_ref()
-                                            .map(|n| JsPattern::Identifier(n.clone()))
+                                            .map(|n| JsPattern::Identifier(n.clone().into()))
                                     })?;
                                 let shorthand = prop_obj
                                     .get("shorthand")
@@ -1636,7 +1640,7 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
         _ => obj
             .get("name")
             .and_then(|n| n.as_str())
-            .map(|n| JsPattern::Identifier(n.to_string())),
+            .map(|n| JsPattern::Identifier(n.into())),
     }
 }
 
@@ -1646,7 +1650,7 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
 /// Used when a destructuring pattern needs to be embedded as a `JsExpr::Raw`.
 pub fn pattern_to_string(pattern: &JsPattern) -> String {
     match pattern {
-        JsPattern::Identifier(name) => name.clone(),
+        JsPattern::Identifier(name) => name.to_string(),
         JsPattern::Array(arr) => {
             let mut s = String::from("[");
             for (i, elem) in arr.elements.iter().enumerate() {
@@ -1785,7 +1789,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                                 .filter(|i| !i.is_null())
                                 .map(|i| Box::new(convert_json_value(i, context)));
                             Some(JsVariableDeclarator {
-                                id: JsPattern::Identifier(name.to_string()),
+                                id: JsPattern::Identifier(name.into()),
                                 init,
                             })
                         })
@@ -1853,7 +1857,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                     .and_then(|p| p.as_object())
                     .and_then(|p| p.get("name"))
                     .and_then(|n| n.as_str())
-                    .map(|n| JsPattern::Identifier(n.to_string()));
+                    .map(|n| JsPattern::Identifier(n.into()));
                 let body = h_obj
                     .get("body")
                     .and_then(|b| b.as_object())
@@ -1921,7 +1925,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                                         .get("init")
                                         .map(|iv| Box::new(convert_json_value(iv, context)));
                                     Some(JsVariableDeclarator {
-                                        id: JsPattern::Identifier(name.to_string()),
+                                        id: JsPattern::Identifier(name.into()),
                                         init: init_val,
                                     })
                                 })
@@ -2009,12 +2013,12 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             Some(JsStatement::Block(JsBlockStatement { body: stmts }))
         }
         "FunctionDeclaration" => {
-            let id = obj
+            let id: Option<CompactString> = obj
                 .get("id")
                 .and_then(|i| i.as_object())
                 .and_then(|i| i.get("name"))
                 .and_then(|n| n.as_str())
-                .map(|n| n.to_string());
+                .map(|n| n.into());
 
             let params = convert_params(obj, context);
 
@@ -2048,7 +2052,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
 
             Some(JsStatement::FunctionDeclaration(JsFunctionDeclaration {
                 id,
-                params,
+                params: params.into(),
                 body,
                 is_async,
                 is_generator,
@@ -2219,7 +2223,7 @@ fn try_transform_assignment(
     // Case: Reassignment (root identifier === left)
     // If the left side is a simple identifier (not a member expression)
     if let JsExpr::Identifier(name) = left
-        && name == &root_name
+        && name == root_name
         && let Some(assign_fn) = transform.assign
     {
         // Do NOT apply transforms to the right side here. The caller's
@@ -2399,7 +2403,7 @@ fn try_destructure_assignment(
             statements.push(JsStatement::VariableDeclaration(JsVariableDeclaration {
                 kind: JsVariableKind::Var,
                 declarations: vec![JsVariableDeclarator {
-                    id: JsPattern::Identifier(insert.id.clone()),
+                    id: JsPattern::Identifier(insert.id.clone().into()),
                     init: Some(Box::new(insert.value.clone())),
                 }],
             }));
@@ -2422,10 +2426,7 @@ fn try_destructure_assignment(
             argument: Some(Box::new(b::id("$$value"))),
         }));
 
-        let arrow = b::arrow_block(
-            vec![JsPattern::Identifier("$$value".to_string())],
-            statements,
-        );
+        let arrow = b::arrow_block(vec![JsPattern::Identifier("$$value".into())], statements);
         return Some(b::call(arrow, vec![rhs_converted]));
     }
 
@@ -2704,7 +2705,7 @@ fn try_build_single_assignment(
 /// Recursively walks down member expressions to find the leftmost identifier.
 fn extract_root_identifier_from_expr(expr: &JsExpr) -> Option<String> {
     match expr {
-        JsExpr::Identifier(name) => Some(name.clone()),
+        JsExpr::Identifier(name) => Some(name.to_string()),
         JsExpr::Member(member) => extract_root_identifier_from_expr(&member.object),
         JsExpr::Chain(chain) => extract_root_identifier_from_expr(&chain.expression),
         _ => None,
@@ -2923,7 +2924,7 @@ fn convert_update_expression(
         && let Some(name) = extract_identifier_name_from_json(arg_val)
         && let Some(update_fn) = context.state.transform.get(&name).and_then(|t| t.update)
     {
-        return update_fn(operator, JsExpr::Identifier(name), prefix);
+        return update_fn(operator, JsExpr::Identifier(name.into()), prefix);
     }
 
     // Check if the argument is a MemberExpression with a direct Identifier object
@@ -3013,7 +3014,7 @@ fn try_transform_update(
     // Case 1: Simple identifier update (root === argument)
     // If the argument is a simple identifier like `$store`, use the `update` transform
     if let JsExpr::Identifier(name) = argument
-        && name == &root_name
+        && name == root_name
         && let Some(update_fn) = transform.update
     {
         return Some(update_fn(operator, argument.clone(), prefix));
@@ -3067,7 +3068,7 @@ fn convert_new_expression(
     let callee = obj
         .get("callee")
         .map(|c| Box::new(convert_json_value(c, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".to_string())));
+        .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".into())));
 
     let arguments = obj
         .get("arguments")
@@ -3150,7 +3151,11 @@ fn convert_template_literal(
                         .to_string();
                     let tail = quasi_obj.get("tail")?.as_bool()?;
 
-                    Some(JsTemplateElement { raw, cooked, tail })
+                    Some(JsTemplateElement {
+                        raw: raw.into(),
+                        cooked: cooked.into(),
+                        tail,
+                    })
                 })
                 .collect()
         })
@@ -3185,7 +3190,7 @@ fn convert_tagged_template_expression(
     let tag = obj
         .get("tag")
         .map(|t| Box::new(convert_json_value(t, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".to_string())));
+        .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".into())));
 
     // Convert the quasi (template literal)
     let quasi = obj
@@ -3220,7 +3225,7 @@ fn convert_chain_expression(
     if let Some(expression) = obj.get("expression") {
         convert_json_value(expression, context)
     } else {
-        JsExpr::Raw("/* ChainExpression: missing expression */".to_string())
+        JsExpr::Raw("/* ChainExpression: missing expression */".into())
     }
 }
 

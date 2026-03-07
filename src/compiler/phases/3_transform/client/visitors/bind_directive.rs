@@ -78,7 +78,9 @@ pub fn unified_build_bind_this(
 
     let values: Vec<JsExpr> = each_ids
         .iter()
-        .map(|id| apply_transforms_to_expression(&JsExpr::Identifier(id.name.clone()), context))
+        .map(|id| {
+            apply_transforms_to_expression(&JsExpr::Identifier(id.name.clone().into()), context)
+        })
         .collect();
 
     let local_scope =
@@ -110,11 +112,11 @@ pub fn unified_build_bind_this(
         None
     };
     let old_skip_proxy = if let Some(ref name) = binding_name_for_skip {
-        if let Some(transform) = context.state.transform.get(name) {
+        if let Some(transform) = context.state.transform.get(name.as_str()) {
             let old = transform.skip_proxy;
             let mut t = transform.clone();
             t.skip_proxy = true;
-            context.state.transform.insert(name.clone(), t);
+            context.state.transform.insert(name.to_string(), t);
             Some(old)
         } else {
             None
@@ -161,7 +163,7 @@ pub fn unified_build_bind_this(
             let invalidation_exprs = each_ctx.invalidation_exprs.clone();
             let invalidation_inner_exprs: Vec<JsExpr> = invalidation_exprs
                 .iter()
-                .map(|s| JsExpr::Raw(s.clone()))
+                .map(|s| JsExpr::Raw(s.clone().into()))
                 .collect();
             let inner = b::sequence(invalidation_inner_exprs);
             let invalidate_call = b::call(
@@ -175,11 +177,11 @@ pub fn unified_build_bind_this(
     // Restore the original skip_proxy value
     if let Some(ref name) = binding_name_for_skip
         && let Some(old) = old_skip_proxy
-        && let Some(transform) = context.state.transform.get(name)
+        && let Some(transform) = context.state.transform.get(name.as_str())
     {
         let mut t = transform.clone();
         t.skip_proxy = old;
-        context.state.transform.insert(name.clone(), t);
+        context.state.transform.insert(name.to_string(), t);
     }
 
     // Apply optional chaining to getter MemberExpression nodes only
@@ -201,7 +203,7 @@ pub fn unified_build_bind_this(
             params.extend(id_params.clone());
             params.extend(arrow.params);
             JsExpr::Arrow(JsArrowFunction {
-                params,
+                params: params.into(),
                 body: arrow.body,
                 is_async: arrow.is_async,
             })
@@ -228,7 +230,7 @@ pub fn unified_build_bind_this(
                 params.push(p.clone());
             }
             JsExpr::Arrow(JsArrowFunction {
-                params,
+                params: params.into(),
                 body: arrow.body,
                 is_async: arrow.is_async,
             })
@@ -592,10 +594,9 @@ fn build_special_binding_call(
                 }
                 // Add $.invalidate_store for store bindings in each blocks
                 if let Some(store_name) = get_store_to_invalidate_from_context(context) {
-                    args.push(JsExpr::Raw(format!(
-                        "$.invalidate_store($$stores, '{}')",
-                        store_name
-                    )));
+                    args.push(JsExpr::Raw(
+                        format!("$.invalidate_store($$stores, '{}')", store_name).into(),
+                    ));
                 }
                 b::call(b::member_path("$.bind_select_value"), args)
             } else {
@@ -605,10 +606,9 @@ fn build_special_binding_call(
                 }
                 // Add $.invalidate_store for store bindings in each blocks
                 if let Some(store_name) = get_store_to_invalidate_from_context(context) {
-                    args.push(JsExpr::Raw(format!(
-                        "$.invalidate_store($$stores, '{}')",
-                        store_name
-                    )));
+                    args.push(JsExpr::Raw(
+                        format!("$.invalidate_store($$stores, '{}')", store_name).into(),
+                    ));
                 }
                 b::call(b::member_path("$.bind_value"), args)
             }
@@ -1025,22 +1025,22 @@ fn collect_each_block_ids(
 ) {
     match expr {
         JsExpr::Identifier(name) => {
-            if seen.contains(name) {
+            if seen.contains(name.as_str()) {
                 return;
             }
             for each_ctx in &context.state.each_binding_context {
-                if name == &each_ctx.index_name {
-                    seen.insert(name.clone());
+                if name == each_ctx.index_name {
+                    seen.insert(name.to_string());
                     result.push(EachBlockId {
-                        name: name.clone(),
+                        name: name.to_string(),
                         reactive: each_ctx.index_reactive,
                     });
                     return;
                 }
-                if name == &each_ctx.item_name {
-                    seen.insert(name.clone());
+                if name == each_ctx.item_name {
+                    seen.insert(name.to_string());
                     result.push(EachBlockId {
-                        name: name.clone(),
+                        name: name.to_string(),
                         reactive: each_ctx.item_reactive,
                     });
                     return;
@@ -1053,10 +1053,10 @@ fn collect_each_block_ids(
                     .destructured_update_paths
                     .contains_key(name.as_str())
                 {
-                    seen.insert(name.clone());
+                    seen.insert(name.to_string());
                     // Destructured each vars are always reactive (they have read transforms)
                     result.push(EachBlockId {
-                        name: name.clone(),
+                        name: name.to_string(),
                         reactive: true,
                     });
                     return;
@@ -1209,7 +1209,7 @@ fn build_bind_this_with_each_ids(
                 params.push(p.clone());
             }
             JsExpr::Arrow(JsArrowFunction {
-                params,
+                params: params.into(),
                 body: arrow.body,
                 is_async: arrow.is_async,
             })
@@ -1304,7 +1304,7 @@ fn build_bind_this_call_for_context(
                     && context.state.analysis.runes
                     && matches!(binding.kind, BindingKind::State);
                 (is_state, proxy)
-            } else if context.state.transform.get(name).is_some() {
+            } else if context.state.transform.get(name.as_str()).is_some() {
                 (true, false)
             } else {
                 (false, false)
@@ -1409,19 +1409,13 @@ fn build_bind_this_each_block(
     } else {
         format!("{}.{} = $$value", item_name, property_path)
     };
-    let setter = JsExpr::Raw(format!(
-        "($$value, {}) => (\n\t{}\n)",
-        item_name, setter_body
-    ));
+    let setter = JsExpr::Raw(format!("($$value, {}) => (\n\t{}\n)", item_name, setter_body).into());
 
     // Getter: (item) => item?.prop
-    let getter = JsExpr::Raw(format!(
-        "({}) => {}?.{}",
-        item_name, item_name, property_path
-    ));
+    let getter = JsExpr::Raw(format!("({}) => {}?.{}", item_name, item_name, property_path).into());
 
     // Values thunk: () => [$.get(item)]
-    let values_thunk = JsExpr::Raw(format!("() => [$.get({})]", item_name));
+    let values_thunk = JsExpr::Raw(format!("() => [$.get({})]", item_name).into());
 
     Some(b::call(
         b::member_path("$.bind_this"),
@@ -1493,11 +1487,7 @@ fn build_getter_setter(
         // set = ($$value) => $.set(expr, $$value)
         let get_call = b::call(b::member_path("$.get"), vec![expr.clone()]);
         let get = if dev {
-            b::function_expr(
-                Some("get".to_string()),
-                vec![],
-                vec![b::return_value(get_call)],
-            )
+            b::function_expr(Some("get".into()), vec![], vec![b::return_value(get_call)])
         } else {
             b::thunk(get_call)
         };
@@ -1508,7 +1498,7 @@ fn build_getter_setter(
         );
         let set = if dev {
             b::function_expr(
-                Some("set".to_string()),
+                Some("set".into()),
                 vec![b::id_pattern("$$value")],
                 vec![b::stmt(set_call)],
             )
@@ -1525,11 +1515,7 @@ fn build_getter_setter(
         // This matches the official Svelte compiler behavior where props are getters/setters
         let get_call = b::call(expr.clone(), vec![]);
         let get = if dev {
-            b::function_expr(
-                Some("get".to_string()),
-                vec![],
-                vec![b::return_value(get_call)],
-            )
+            b::function_expr(Some("get".into()), vec![], vec![b::return_value(get_call)])
         } else {
             // thunk already applies unthunk, so () => prop() becomes prop
             b::thunk(get_call)
@@ -1538,7 +1524,7 @@ fn build_getter_setter(
         let set_call = b::call(expr.clone(), vec![b::id("$$value")]);
         let set = if dev {
             b::function_expr(
-                Some("set".to_string()),
+                Some("set".into()),
                 vec![b::id_pattern("$$value")],
                 vec![b::stmt(set_call)],
             )
@@ -1602,12 +1588,12 @@ fn build_getter_setter(
                                 context.state.transform.get(indirect_name)
                             {
                                 if let Some(read_fn) = transform.read {
-                                    read_fn(JsExpr::Identifier(indirect_name.clone()))
+                                    read_fn(JsExpr::Identifier(indirect_name.clone().into()))
                                 } else {
-                                    JsExpr::Identifier(indirect_name.clone())
+                                    JsExpr::Identifier(indirect_name.clone().into())
                                 }
                             } else {
-                                JsExpr::Identifier(indirect_name.clone())
+                                JsExpr::Identifier(indirect_name.clone().into())
                             };
                             getter_stmts.push(b::stmt(getter));
                         }
@@ -1635,12 +1621,12 @@ fn build_getter_setter(
 
         if dev {
             let get = b::function_expr(
-                Some("get".to_string()),
+                Some("get".into()),
                 vec![],
                 vec![b::return_value(transformed_read)],
             );
             let set = b::function_expr(
-                Some("set".to_string()),
+                Some("set".into()),
                 vec![b::id_pattern("$$value")],
                 vec![b::stmt(transformed_set)],
             );
@@ -1794,7 +1780,7 @@ pub fn build_each_block_getter_setter(
                 b::call(b::id(coll_id), vec![])
             } else {
                 // collection is a raw expression (e.g., component prop or literal)
-                JsExpr::Raw(each_ctx.collection_expr.clone())
+                JsExpr::Raw(each_ctx.collection_expr.clone().into())
             };
             let index_expr = if each_ctx.index_reactive {
                 b::call(b::member_path("$.get"), vec![b::id(&each_ctx.index_name)])
@@ -1826,7 +1812,7 @@ pub fn build_each_block_getter_setter(
                 format!("{}[{}] = $$value", collection_access, index_access)
             };
 
-            let set = JsExpr::Raw(format!("($$value) => ({})", setter_body));
+            let set = JsExpr::Raw(format!("($$value) => ({})", setter_body).into());
             Some((get, Some(set)))
         }
         EachBindingExprInfo::ItemProperty {
@@ -1872,7 +1858,7 @@ pub fn build_each_block_getter_setter(
             };
             let get_expr_str = access_prop(&get_base, &transformed_prop_path);
             // Use a proper Arrow expression so that unwrap_thunk can strip the () => prefix
-            let get = b::thunk(JsExpr::Raw(get_expr_str.clone()));
+            let get = b::thunk(JsExpr::Raw(get_expr_str.clone().into()));
 
             let setter_body = if let Some(ref inv) = invalidation {
                 format!(
@@ -1887,7 +1873,7 @@ pub fn build_each_block_getter_setter(
                 )
             };
 
-            let set = JsExpr::Raw(format!("($$value) => (\n\t{}\n)", setter_body));
+            let set = JsExpr::Raw(format!("($$value) => (\n\t{}\n)", setter_body).into());
             Some((get, Some(set)))
         }
         EachBindingExprInfo::DestructuredVar {
@@ -1913,7 +1899,7 @@ pub fn build_each_block_getter_setter(
                 format!("{} = $$value", update_path)
             };
 
-            let set = JsExpr::Raw(format!("($$value) => (\n\t{}\n)", setter_body));
+            let set = JsExpr::Raw(format!("($$value) => (\n\t{}\n)", setter_body).into());
             Some((get, Some(set)))
         }
         EachBindingExprInfo::ComputedAccess {
@@ -1923,7 +1909,7 @@ pub fn build_each_block_getter_setter(
             // Computed access like item[index] or a()[key()]
             // Getter: () => access_expr
             // Setter: ($$value) => (assign_expr = $$value, invalidation)
-            let get = JsExpr::Raw(format!("() => {}", access_expr));
+            let get = JsExpr::Raw(format!("() => {}", access_expr).into());
 
             let setter_body = if let Some(ref inv) = invalidation {
                 format!("{} = $$value, {}", assign_expr, inv)
@@ -1931,7 +1917,7 @@ pub fn build_each_block_getter_setter(
                 format!("{} = $$value", assign_expr)
             };
 
-            let set = JsExpr::Raw(format!("($$value) => (\n\t{}\n)", setter_body));
+            let set = JsExpr::Raw(format!("($$value) => (\n\t{}\n)", setter_body).into());
             Some((get, Some(set)))
         }
     }
@@ -2216,7 +2202,7 @@ fn get_store_to_invalidate_from_context(context: &ComponentContext) -> Option<St
 /// Corresponds to the `object()` function call in the official compiler.
 fn get_expression_root_identifier(expr: &JsExpr) -> Option<String> {
     match expr {
-        JsExpr::Identifier(name) => Some(name.clone()),
+        JsExpr::Identifier(name) => Some(name.to_string()),
         JsExpr::Member(member) => get_expression_root_identifier(&member.object),
         _ => None,
     }

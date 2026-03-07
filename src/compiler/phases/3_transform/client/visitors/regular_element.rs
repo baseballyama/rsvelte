@@ -1075,7 +1075,7 @@ pub fn visit_regular_element(
             vec![
                 b::id(&node_id),
                 b::arrow(
-                    vec![JsPattern::Identifier("$$element".to_string())],
+                    vec![JsPattern::Identifier("$$element".into())],
                     b::assign(b::id(&node_id), b::id("$$element")),
                 ),
             ],
@@ -1441,7 +1441,7 @@ fn is_dom_property(name: &str) -> bool {
 /// Extract node ID from a JsExpr (identifier name or "node" as fallback).
 fn extract_node_id(expr: &JsExpr) -> String {
     match expr {
-        JsExpr::Identifier(name) => name.clone(),
+        JsExpr::Identifier(name) => name.to_string(),
         _ => "node".to_string(),
     }
 }

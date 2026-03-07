@@ -4,6 +4,8 @@
 //! similar to Svelte's `builders.js`.
 
 use super::nodes::*;
+use compact_str::CompactString;
+use smallvec::smallvec;
 
 /// Check if a string is a valid JavaScript identifier.
 fn is_valid_identifier(s: &str) -> bool {
@@ -28,19 +30,19 @@ fn is_valid_identifier(s: &str) -> bool {
 
 /// Create an identifier expression.
 #[inline]
-pub fn id(name: impl Into<String>) -> JsExpr {
+pub fn id(name: impl Into<CompactString>) -> JsExpr {
     JsExpr::Identifier(name.into())
 }
 
 /// Create an identifier pattern.
 #[inline]
-pub fn id_pattern(name: impl Into<String>) -> JsPattern {
+pub fn id_pattern(name: impl Into<CompactString>) -> JsPattern {
     JsPattern::Identifier(name.into())
 }
 
 /// Create a string literal.
 #[inline]
-pub fn string(value: impl Into<String>) -> JsExpr {
+pub fn string(value: impl Into<CompactString>) -> JsExpr {
     JsExpr::Literal(JsLiteral::String(value.into()))
 }
 
@@ -100,14 +102,14 @@ pub fn template(quasis: Vec<JsTemplateElement>, expressions: Vec<JsExpr>) -> JsE
 }
 
 /// Create a template element.
-pub fn quasi(raw: impl Into<String>, tail: bool) -> JsTemplateElement {
+pub fn quasi(raw: impl Into<CompactString>, tail: bool) -> JsTemplateElement {
     let raw = raw.into();
     let cooked = raw.clone();
     JsTemplateElement { raw, cooked, tail }
 }
 
 /// Create a simple template literal from a string (no expressions).
-pub fn template_string(s: impl Into<String>) -> JsExpr {
+pub fn template_string(s: impl Into<CompactString>) -> JsExpr {
     template(vec![quasi(s, true)], vec![])
 }
 
@@ -159,8 +161,8 @@ fn is_valid_js_identifier(s: &str) -> bool {
 
 /// Create an object property (init).
 /// If the key contains invalid characters (like hyphens), it will be quoted.
-pub fn prop(key: impl Into<String>, value: JsExpr) -> JsObjectMember {
-    let key_str = key.into();
+pub fn prop(key: impl Into<CompactString>, value: JsExpr) -> JsObjectMember {
+    let key_str: CompactString = key.into();
     let property_key = if is_valid_js_identifier(&key_str) {
         JsPropertyKey::Identifier(key_str)
     } else {
@@ -177,8 +179,8 @@ pub fn prop(key: impl Into<String>, value: JsExpr) -> JsObjectMember {
 }
 
 /// Create a shorthand object property.
-pub fn prop_shorthand(name: impl Into<String>) -> JsObjectMember {
-    let name = name.into();
+pub fn prop_shorthand(name: impl Into<CompactString>) -> JsObjectMember {
+    let name: CompactString = name.into();
     JsObjectMember::Property(JsProperty {
         key: JsPropertyKey::Identifier(name.clone()),
         value: Box::new(id(name)),
@@ -203,11 +205,11 @@ pub fn prop_computed(key: JsExpr, value: JsExpr) -> JsObjectMember {
 
 /// Create a method shorthand property: `name(params) { body }`.
 pub fn prop_method(
-    name: impl Into<String>,
+    name: impl Into<CompactString>,
     params: Vec<JsPattern>,
     body: Vec<JsStatement>,
 ) -> JsObjectMember {
-    let name_str = name.into();
+    let name_str: CompactString = name.into();
     let key = if is_valid_js_identifier(&name_str) {
         JsPropertyKey::Identifier(name_str)
     } else {
@@ -217,7 +219,7 @@ pub fn prop_method(
         key,
         value: Box::new(JsExpr::Function(JsFunctionExpression {
             id: None,
-            params,
+            params: params.into(),
             body: JsBlockStatement::with_body(body),
             is_async: false,
             is_generator: false,
@@ -231,8 +233,8 @@ pub fn prop_method(
 
 /// Create a getter property.
 /// If the name is not a valid identifier (e.g., contains hyphens), uses computed property syntax.
-pub fn getter(name: impl Into<String>, body: Vec<JsStatement>) -> JsObjectMember {
-    let name_str = name.into();
+pub fn getter(name: impl Into<CompactString>, body: Vec<JsStatement>) -> JsObjectMember {
+    let name_str: CompactString = name.into();
     let (key, computed) = if is_valid_identifier(&name_str) {
         (JsPropertyKey::Identifier(name_str), false)
     } else {
@@ -242,7 +244,7 @@ pub fn getter(name: impl Into<String>, body: Vec<JsStatement>) -> JsObjectMember
         key,
         value: Box::new(JsExpr::Function(JsFunctionExpression {
             id: None,
-            params: vec![],
+            params: smallvec![],
             body: JsBlockStatement::with_body(body),
             is_async: false,
             is_generator: false,
@@ -257,11 +259,11 @@ pub fn getter(name: impl Into<String>, body: Vec<JsStatement>) -> JsObjectMember
 /// Create a setter property.
 /// If the name is not a valid identifier (e.g., contains hyphens), uses computed property syntax.
 pub fn setter(
-    name: impl Into<String>,
-    param: impl Into<String>,
+    name: impl Into<CompactString>,
+    param: impl Into<CompactString>,
     body: Vec<JsStatement>,
 ) -> JsObjectMember {
-    let name_str = name.into();
+    let name_str: CompactString = name.into();
     let (key, computed) = if is_valid_identifier(&name_str) {
         (JsPropertyKey::Identifier(name_str), false)
     } else {
@@ -271,7 +273,7 @@ pub fn setter(
         key,
         value: Box::new(JsExpr::Function(JsFunctionExpression {
             id: None,
-            params: vec![id_pattern(param)],
+            params: smallvec![id_pattern(param)],
             body: JsBlockStatement::with_body(body),
             is_async: false,
             is_generator: false,
@@ -301,7 +303,7 @@ pub fn spread_expr(expr: JsExpr) -> JsExpr {
 #[inline]
 pub fn arrow(params: Vec<JsPattern>, body: JsExpr) -> JsExpr {
     JsExpr::Arrow(JsArrowFunction {
-        params,
+        params: params.into(),
         body: JsArrowBody::Expression(Box::new(body)),
         is_async: false,
     })
@@ -311,7 +313,7 @@ pub fn arrow(params: Vec<JsPattern>, body: JsExpr) -> JsExpr {
 #[inline]
 pub fn arrow_block(params: Vec<JsPattern>, body: Vec<JsStatement>) -> JsExpr {
     JsExpr::Arrow(JsArrowFunction {
-        params,
+        params: params.into(),
         body: JsArrowBody::Block(JsBlockStatement::with_body(body)),
         is_async: false,
     })
@@ -320,7 +322,7 @@ pub fn arrow_block(params: Vec<JsPattern>, body: Vec<JsStatement>) -> JsExpr {
 /// Create an async arrow function with expression body.
 pub fn async_arrow(params: Vec<JsPattern>, body: JsExpr) -> JsExpr {
     JsExpr::Arrow(JsArrowFunction {
-        params,
+        params: params.into(),
         body: JsArrowBody::Expression(Box::new(body)),
         is_async: true,
     })
@@ -329,7 +331,7 @@ pub fn async_arrow(params: Vec<JsPattern>, body: JsExpr) -> JsExpr {
 /// Create an async arrow function with block body.
 pub fn async_arrow_block(params: Vec<JsPattern>, body: Vec<JsStatement>) -> JsExpr {
     JsExpr::Arrow(JsArrowFunction {
-        params,
+        params: params.into(),
         body: JsArrowBody::Block(JsBlockStatement::with_body(body)),
         is_async: true,
     })
@@ -364,7 +366,7 @@ pub fn unthunk(expr: JsExpr) -> JsExpr {
             && !has_await_expression(inner)
         {
             // Recursively unthunk the non-async version
-            return unthunk(self::arrow(arrow_fn.params.clone(), *inner.clone()));
+            return unthunk(self::arrow(arrow_fn.params.to_vec(), *inner.clone()));
         }
         return expr;
     }
@@ -811,10 +813,14 @@ pub fn async_thunk(expr: JsExpr) -> JsExpr {
 }
 
 /// Create a function expression.
-pub fn function_expr(id: Option<String>, params: Vec<JsPattern>, body: Vec<JsStatement>) -> JsExpr {
+pub fn function_expr(
+    id: Option<CompactString>,
+    params: Vec<JsPattern>,
+    body: Vec<JsStatement>,
+) -> JsExpr {
     JsExpr::Function(JsFunctionExpression {
         id,
-        params,
+        params: params.into(),
         body: JsBlockStatement::with_body(body),
         is_async: false,
         is_generator: false,
@@ -823,13 +829,13 @@ pub fn function_expr(id: Option<String>, params: Vec<JsPattern>, body: Vec<JsSta
 
 /// Create a function declaration.
 pub fn function_decl(
-    name: impl Into<String>,
+    name: impl Into<CompactString>,
     params: Vec<JsPattern>,
     body: Vec<JsStatement>,
 ) -> JsStatement {
     JsStatement::FunctionDeclaration(JsFunctionDeclaration {
         id: Some(name.into()),
-        params,
+        params: params.into(),
         body: JsBlockStatement::with_body(body),
         is_async: false,
         is_generator: false,
@@ -838,13 +844,13 @@ pub fn function_decl(
 
 /// Create an async function declaration.
 pub fn async_function_decl(
-    name: impl Into<String>,
+    name: impl Into<CompactString>,
     params: Vec<JsPattern>,
     body: Vec<JsStatement>,
 ) -> JsStatement {
     JsStatement::FunctionDeclaration(JsFunctionDeclaration {
         id: Some(name.into()),
-        params,
+        params: params.into(),
         body: JsBlockStatement::with_body(body),
         is_async: true,
         is_generator: false,
@@ -924,7 +930,7 @@ pub fn new_expr(callee: JsExpr, arguments: Vec<JsExpr>) -> JsExpr {
 
 /// Create a member expression with identifier property.
 #[inline]
-pub fn member(object: JsExpr, property: impl Into<String>) -> JsExpr {
+pub fn member(object: JsExpr, property: impl Into<CompactString>) -> JsExpr {
     JsExpr::Member(JsMemberExpression {
         object: Box::new(object),
         property: JsMemberProperty::Identifier(property.into()),
@@ -944,7 +950,7 @@ pub fn member_computed(object: JsExpr, property: JsExpr) -> JsExpr {
 }
 
 /// Create an optional member expression.
-pub fn optional_member(object: JsExpr, property: impl Into<String>) -> JsExpr {
+pub fn optional_member(object: JsExpr, property: impl Into<CompactString>) -> JsExpr {
     JsExpr::Member(JsMemberExpression {
         object: Box::new(object),
         property: JsMemberProperty::Identifier(property.into()),
@@ -1239,12 +1245,12 @@ pub fn throw(expr: JsExpr) -> JsStatement {
 }
 
 /// Create a throw error statement.
-pub fn throw_error(message: impl Into<String>) -> JsStatement {
+pub fn throw_error(message: impl Into<CompactString>) -> JsStatement {
     throw(new_expr(id("Error"), vec![string(message)]))
 }
 
 /// Create a labeled statement.
-pub fn labeled(label: impl Into<String>, body: JsStatement) -> JsStatement {
+pub fn labeled(label: impl Into<CompactString>, body: JsStatement) -> JsStatement {
     JsStatement::Labeled(JsLabeledStatement {
         label: label.into(),
         body: Box::new(body),
@@ -1252,12 +1258,12 @@ pub fn labeled(label: impl Into<String>, body: JsStatement) -> JsStatement {
 }
 
 /// Create a break statement.
-pub fn break_stmt(label: Option<String>) -> JsStatement {
+pub fn break_stmt(label: Option<CompactString>) -> JsStatement {
     JsStatement::Break(label)
 }
 
 /// Create a continue statement.
-pub fn continue_stmt(label: Option<String>) -> JsStatement {
+pub fn continue_stmt(label: Option<CompactString>) -> JsStatement {
     JsStatement::Continue(label)
 }
 
@@ -1276,7 +1282,7 @@ pub fn empty() -> JsStatement {
 // ============================================================================
 
 /// Create a const declaration.
-pub fn const_decl(name: impl Into<String>, init: JsExpr) -> JsStatement {
+pub fn const_decl(name: impl Into<CompactString>, init: JsExpr) -> JsStatement {
     JsStatement::VariableDeclaration(JsVariableDeclaration {
         kind: JsVariableKind::Const,
         declarations: vec![JsVariableDeclarator {
@@ -1287,7 +1293,7 @@ pub fn const_decl(name: impl Into<String>, init: JsExpr) -> JsStatement {
 }
 
 /// Create a let declaration.
-pub fn let_decl(name: impl Into<String>, init: Option<JsExpr>) -> JsStatement {
+pub fn let_decl(name: impl Into<CompactString>, init: Option<JsExpr>) -> JsStatement {
     JsStatement::VariableDeclaration(JsVariableDeclaration {
         kind: JsVariableKind::Let,
         declarations: vec![JsVariableDeclarator {
@@ -1299,7 +1305,7 @@ pub fn let_decl(name: impl Into<String>, init: Option<JsExpr>) -> JsStatement {
 
 /// Create a var declaration.
 #[inline]
-pub fn var_decl(name: impl Into<String>, init: Option<JsExpr>) -> JsStatement {
+pub fn var_decl(name: impl Into<CompactString>, init: Option<JsExpr>) -> JsStatement {
     JsStatement::VariableDeclaration(JsVariableDeclaration {
         kind: JsVariableKind::Var,
         declarations: vec![JsVariableDeclarator {
@@ -1346,7 +1352,7 @@ pub fn var_decl_multi(
 // ============================================================================
 
 /// Create a side-effect import.
-pub fn import_side_effect(source: impl Into<String>) -> JsStatement {
+pub fn import_side_effect(source: impl Into<CompactString>) -> JsStatement {
     JsStatement::Import(JsImportDeclaration {
         source: source.into(),
         specifiers: vec![JsImportSpecifier::SideEffect],
@@ -1354,7 +1360,10 @@ pub fn import_side_effect(source: impl Into<String>) -> JsStatement {
 }
 
 /// Create a namespace import (import * as name from 'source').
-pub fn import_namespace(name: impl Into<String>, source: impl Into<String>) -> JsStatement {
+pub fn import_namespace(
+    name: impl Into<CompactString>,
+    source: impl Into<CompactString>,
+) -> JsStatement {
     JsStatement::Import(JsImportDeclaration {
         source: source.into(),
         specifiers: vec![JsImportSpecifier::Namespace(name.into())],
@@ -1362,7 +1371,10 @@ pub fn import_namespace(name: impl Into<String>, source: impl Into<String>) -> J
 }
 
 /// Create a default import.
-pub fn import_default(name: impl Into<String>, source: impl Into<String>) -> JsStatement {
+pub fn import_default(
+    name: impl Into<CompactString>,
+    source: impl Into<CompactString>,
+) -> JsStatement {
     JsStatement::Import(JsImportDeclaration {
         source: source.into(),
         specifiers: vec![JsImportSpecifier::Default(name.into())],
@@ -1371,8 +1383,8 @@ pub fn import_default(name: impl Into<String>, source: impl Into<String>) -> JsS
 
 /// Create a named import.
 pub fn import_named(
-    specifiers: Vec<(impl Into<String>, impl Into<String>)>,
-    source: impl Into<String>,
+    specifiers: Vec<(impl Into<CompactString>, impl Into<CompactString>)>,
+    source: impl Into<CompactString>,
 ) -> JsStatement {
     JsStatement::Import(JsImportDeclaration {
         source: source.into(),
@@ -1388,14 +1400,14 @@ pub fn import_named(
 
 /// Create an export default function declaration.
 pub fn export_default_function(
-    name: impl Into<String>,
+    name: impl Into<CompactString>,
     params: Vec<JsPattern>,
     body: Vec<JsStatement>,
 ) -> JsStatement {
     JsStatement::ExportDefault(JsExportDefault {
         declaration: JsExportDefaultDeclaration::Function(JsFunctionDeclaration {
             id: Some(name.into()),
-            params,
+            params: params.into(),
             body: JsBlockStatement::with_body(body),
             is_async: false,
             is_generator: false,
@@ -1439,7 +1451,7 @@ pub fn assignment_pattern(left: JsPattern, right: JsExpr) -> JsPattern {
 
 /// Create an object pattern property.
 pub fn object_prop_pattern(
-    key: impl Into<String>,
+    key: impl Into<CompactString>,
     value: JsPattern,
     shorthand: bool,
 ) -> JsObjectPatternProperty {
@@ -1461,12 +1473,12 @@ pub fn svelte_call(method: &str, args: Vec<JsExpr>) -> JsExpr {
 }
 
 /// Create $.template(html).
-pub fn svelte_template(html: impl Into<String>) -> JsExpr {
+pub fn svelte_template(html: impl Into<CompactString>) -> JsExpr {
     svelte_call("template", vec![template_string(html)])
 }
 
 /// Create $.from_html(html) or $.from_html(html, flags).
-pub fn svelte_from_html(html: impl Into<String>, flags: Option<i32>) -> JsExpr {
+pub fn svelte_from_html(html: impl Into<CompactString>, flags: Option<i32>) -> JsExpr {
     let mut args = vec![template_string(html)];
     if let Some(f) = flags {
         args.push(number(f as f64));
@@ -1544,7 +1556,11 @@ pub fn svelte_set_sync(source: JsExpr, value: JsExpr) -> JsExpr {
 }
 
 /// Create $.event(event_name, element, handler).
-pub fn svelte_event(event_name: impl Into<String>, element: JsExpr, handler: JsExpr) -> JsExpr {
+pub fn svelte_event(
+    event_name: impl Into<CompactString>,
+    element: JsExpr,
+    handler: JsExpr,
+) -> JsExpr {
     svelte_call("event", vec![string(event_name), element, handler])
 }
 
@@ -1656,7 +1672,7 @@ pub fn svelte_bind_this(element: JsExpr, setter: JsExpr, getter: JsExpr) -> JsEx
 /// Create $.prop(props, name, flags, fallback).
 pub fn svelte_prop(
     props: JsExpr,
-    name: impl Into<String>,
+    name: impl Into<CompactString>,
     flags: i32,
     fallback: Option<JsExpr>,
 ) -> JsExpr {
@@ -1668,7 +1684,7 @@ pub fn svelte_prop(
 }
 
 /// Create $.rest_props(props, exclude).
-pub fn svelte_rest_props(props: JsExpr, exclude: Vec<String>) -> JsExpr {
+pub fn svelte_rest_props(props: JsExpr, exclude: Vec<CompactString>) -> JsExpr {
     svelte_call(
         "rest_props",
         vec![props, array(exclude.into_iter().map(string).collect())],
@@ -1700,12 +1716,16 @@ pub fn svelte_next(count: Option<i32>) -> JsExpr {
 }
 
 /// Create $.attr(element, name, value).
-pub fn svelte_attr(element: JsExpr, name: impl Into<String>, value: JsExpr) -> JsExpr {
+pub fn svelte_attr(element: JsExpr, name: impl Into<CompactString>, value: JsExpr) -> JsExpr {
     svelte_call("attr", vec![element, string(name), value])
 }
 
 /// Create $.set_attribute(element, name, value).
-pub fn svelte_set_attribute(element: JsExpr, name: impl Into<String>, value: JsExpr) -> JsExpr {
+pub fn svelte_set_attribute(
+    element: JsExpr,
+    name: impl Into<CompactString>,
+    value: JsExpr,
+) -> JsExpr {
     svelte_call("set_attribute", vec![element, string(name), value])
 }
 
@@ -1727,7 +1747,7 @@ pub fn svelte_autofocus(element: JsExpr, value: bool) -> JsExpr {
 /// Create $.set_custom_element_data(element, name, value).
 pub fn svelte_set_custom_element_data(
     element: JsExpr,
-    name: impl Into<String>,
+    name: impl Into<CompactString>,
     value: JsExpr,
 ) -> JsExpr {
     svelte_call(
@@ -1831,7 +1851,7 @@ pub fn set_option_value(option: JsExpr, value: JsExpr) -> JsExpr {
 }
 
 /// Create element.prop = value assignment for a property.
-pub fn set_property(element: JsExpr, prop: impl Into<String>, value: JsExpr) -> JsExpr {
+pub fn set_property(element: JsExpr, prop: impl Into<CompactString>, value: JsExpr) -> JsExpr {
     assign(member(element, prop), value)
 }
 
@@ -1848,7 +1868,7 @@ pub fn program(body: Vec<JsStatement>) -> JsProgram {
 ///
 /// This creates a Raw node containing arbitrary JavaScript code.
 /// Use with caution - the string should be valid JavaScript.
-pub fn raw(code: impl Into<String>) -> JsExpr {
+pub fn raw(code: impl Into<CompactString>) -> JsExpr {
     JsExpr::Raw(code.into())
 }
 

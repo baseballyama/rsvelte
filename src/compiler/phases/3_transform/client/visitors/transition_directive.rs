@@ -144,7 +144,7 @@ pub fn transition_directive(node: &TransitionDirective, context: &mut ComponentC
 /// `get_blockers_for_names` once, which handles deduplication.
 pub fn get_blockers_for_exprs(exprs: &[&JsExpr], context: &ComponentContext) -> Vec<JsExpr> {
     // Collect all identifiers from all expressions
-    let mut all_names: Vec<String> = Vec::new();
+    let mut all_names: Vec<compact_str::CompactString> = Vec::new();
     for expr in exprs {
         let names = collect_expr_identifiers(expr);
         for name in names {
@@ -159,13 +159,13 @@ pub fn get_blockers_for_exprs(exprs: &[&JsExpr], context: &ComponentContext) -> 
 
 /// Collect all identifier names from a JsExpr without crossing function boundaries.
 /// This is used to find which variables a directive references for blocker checking.
-fn collect_expr_identifiers(expr: &JsExpr) -> Vec<String> {
+fn collect_expr_identifiers(expr: &JsExpr) -> Vec<compact_str::CompactString> {
     let mut names = Vec::new();
     collect_expr_identifiers_recursive(expr, &mut names);
     names
 }
 
-fn collect_expr_identifiers_recursive(expr: &JsExpr, names: &mut Vec<String>) {
+fn collect_expr_identifiers_recursive(expr: &JsExpr, names: &mut Vec<compact_str::CompactString>) {
     use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
     match expr {
         JsExpr::Identifier(name) => {

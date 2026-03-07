@@ -129,7 +129,7 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
                     if is_special {
                         // Add to props with shorthand: { pending }
                         props.push(JsObjectMember::Property(JsProperty {
-                            key: JsPropertyKey::Identifier(snippet_name.clone()),
+                            key: JsPropertyKey::Identifier(snippet_name.clone().into()),
                             value: Box::new(b::id(&snippet_name)),
                             kind: JsPropertyKind::Init,
                             computed: false,

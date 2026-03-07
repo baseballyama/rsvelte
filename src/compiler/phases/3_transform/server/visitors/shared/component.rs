@@ -132,7 +132,7 @@ pub fn build_inline_component<F>(
                 // Check for custom CSS properties
                 if attr.name.starts_with("--") {
                     custom_css_props.push(JsObjectMember::Property(JsProperty {
-                        key: JsPropertyKey::Identifier(attr.name.to_string()),
+                        key: JsPropertyKey::Identifier(attr.name.clone()),
                         value: Box::new(value),
                         kind: JsPropertyKind::Init,
                         computed: false,
@@ -160,7 +160,7 @@ pub fn build_inline_component<F>(
                 };
 
                 props.push(JsObjectMember::Property(JsProperty {
-                    key: JsPropertyKey::Identifier(attr.name.to_string()),
+                    key: JsPropertyKey::Identifier(attr.name.clone()),
                     value: Box::new(value),
                     kind: JsPropertyKind::Init,
                     computed: false,
@@ -196,9 +196,9 @@ pub fn build_inline_component<F>(
 
                 serialized_slots.push(JsObjectMember::Property(JsProperty {
                     key: JsPropertyKey::Identifier(if snippet_name == "children" {
-                        "default".to_string()
+                        "default".into()
                     } else {
-                        snippet_name.to_string()
+                        snippet_name.into()
                     }),
                     value: Box::new(JsExpr::Literal(JsLiteral::Boolean(true))),
                     kind: JsPropertyKind::Init,
@@ -223,7 +223,7 @@ pub fn build_inline_component<F>(
         // Build slot function parameters
         // For slots with let directives, add destructured parameter for slot props
         let slot_let_directives = lets.get(slot_name.as_str()).cloned().unwrap_or_default();
-        let mut slot_params = vec![JsPattern::Identifier("$$renderer".to_string())];
+        let mut slot_params = vec![JsPattern::Identifier("$$renderer".into())];
 
         if !slot_let_directives.is_empty() {
             // Build destructured parameter { name1, name2, ... } from let directives
@@ -248,8 +248,8 @@ pub fn build_inline_component<F>(
                     };
 
                     JsObjectPatternProperty::Property {
-                        key: JsPropertyKey::Identifier(prop_name.clone()),
-                        value: JsPattern::Identifier(local_name.clone()),
+                        key: JsPropertyKey::Identifier(prop_name.clone().into()),
+                        value: JsPattern::Identifier(local_name.clone().into()),
                         computed: false,
                         shorthand: local_name == prop_name,
                     }
@@ -264,7 +264,7 @@ pub fn build_inline_component<F>(
         // TODO: Visit children and build slot function body
         // For now, create a placeholder arrow function
         let slot_fn = JsExpr::Arrow(JsArrowFunction {
-            params: slot_params,
+            params: slot_params.into(),
             body: JsArrowBody::Block(JsBlockStatement { body: Vec::new() }),
             is_async: false,
         });
@@ -285,7 +285,7 @@ pub fn build_inline_component<F>(
                 };
 
                 props.push(JsObjectMember::Property(JsProperty {
-                    key: JsPropertyKey::Identifier("children".to_string()),
+                    key: JsPropertyKey::Identifier("children".into()),
                     value: Box::new(slot_fn),
                     kind: JsPropertyKind::Init,
                     computed: false,
@@ -294,7 +294,7 @@ pub fn build_inline_component<F>(
                 }));
 
                 serialized_slots.push(JsObjectMember::Property(JsProperty {
-                    key: JsPropertyKey::Identifier(slot_name.clone()),
+                    key: JsPropertyKey::Identifier(slot_name.clone().into()),
                     value: Box::new(JsExpr::Literal(JsLiteral::Boolean(true))),
                     kind: JsPropertyKind::Init,
                     computed: false,
@@ -316,12 +316,10 @@ pub fn build_inline_component<F>(
                 };
 
                 props.push(JsObjectMember::Property(JsProperty {
-                    key: JsPropertyKey::Identifier("children".to_string()),
+                    key: JsPropertyKey::Identifier("children".into()),
                     value: Box::new(JsExpr::Member(JsMemberExpression {
-                        object: Box::new(JsExpr::Identifier("$".to_string())),
-                        property: JsMemberProperty::Identifier(
-                            "invalid_default_snippet".to_string(),
-                        ),
+                        object: Box::new(JsExpr::Identifier("$".into())),
+                        property: JsMemberProperty::Identifier("invalid_default_snippet".into()),
                         computed: false,
                         optional: false,
                     })),
@@ -332,7 +330,7 @@ pub fn build_inline_component<F>(
                 }));
 
                 serialized_slots.push(JsObjectMember::Property(JsProperty {
-                    key: JsPropertyKey::Identifier(slot_name.clone()),
+                    key: JsPropertyKey::Identifier(slot_name.clone().into()),
                     value: Box::new(slot_fn),
                     kind: JsPropertyKind::Init,
                     computed: false,
@@ -342,7 +340,7 @@ pub fn build_inline_component<F>(
             }
         } else {
             serialized_slots.push(JsObjectMember::Property(JsProperty {
-                key: JsPropertyKey::Identifier(slot_name.clone()),
+                key: JsPropertyKey::Identifier(slot_name.clone().into()),
                 value: Box::new(slot_fn),
                 kind: JsPropertyKind::Init,
                 computed: false,
@@ -367,7 +365,7 @@ pub fn build_inline_component<F>(
         };
 
         props.push(JsObjectMember::Property(JsProperty {
-            key: JsPropertyKey::Identifier("$$slots".to_string()),
+            key: JsPropertyKey::Identifier("$$slots".into()),
             value: Box::new(JsExpr::Object(JsObjectExpression {
                 properties: serialized_slots,
             })),
@@ -403,8 +401,8 @@ pub fn build_inline_component<F>(
 
         JsExpr::Call(JsCallExpression {
             callee: Box::new(JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("$".to_string())),
-                property: JsMemberProperty::Identifier("spread_props".to_string()),
+                object: Box::new(JsExpr::Identifier("$".into())),
+                property: JsMemberProperty::Identifier("spread_props".into()),
                 computed: false,
                 optional: false,
             })),
@@ -420,14 +418,14 @@ pub fn build_inline_component<F>(
         // SvelteComponent uses maybe_call
         JsExpr::Call(JsCallExpression {
             callee: Box::new(JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("$".to_string())),
-                property: JsMemberProperty::Identifier("maybe_call".to_string()),
+                object: Box::new(JsExpr::Identifier("$".into())),
+                property: JsMemberProperty::Identifier("maybe_call".into()),
                 computed: false,
                 optional: false,
             })),
             arguments: vec![
                 expression,
-                JsExpr::Identifier("$$renderer".to_string()),
+                JsExpr::Identifier("$$renderer".into()),
                 props_expression,
             ],
             optional: false,
@@ -435,10 +433,7 @@ pub fn build_inline_component<F>(
     } else {
         JsExpr::Call(JsCallExpression {
             callee: Box::new(expression),
-            arguments: vec![
-                JsExpr::Identifier("$$renderer".to_string()),
-                props_expression,
-            ],
+            arguments: vec![JsExpr::Identifier("$$renderer".into()), props_expression],
             optional: false,
         })
     };
@@ -463,19 +458,19 @@ pub fn build_inline_component<F>(
         statement = JsStatement::Expression(JsExpressionStatement {
             expression: Box::new(JsExpr::Call(JsCallExpression {
                 callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".to_string())),
-                    property: JsMemberProperty::Identifier("css_props".to_string()),
+                    object: Box::new(JsExpr::Identifier("$".into())),
+                    property: JsMemberProperty::Identifier("css_props".into()),
                     computed: false,
                     optional: false,
                 })),
                 arguments: vec![
-                    JsExpr::Identifier("$$renderer".to_string()),
+                    JsExpr::Identifier("$$renderer".into()),
                     JsExpr::Literal(JsLiteral::Boolean(state.namespace != "svg")),
                     JsExpr::Object(JsObjectExpression {
                         properties: custom_css_props.clone(),
                     }),
                     JsExpr::Arrow(JsArrowFunction {
-                        params: vec![],
+                        params: vec![].into(),
                         body: JsArrowBody::Block(JsBlockStatement {
                             body: vec![statement],
                         }),
@@ -484,7 +479,7 @@ pub fn build_inline_component<F>(
                     if is_dynamic {
                         JsExpr::Literal(JsLiteral::Boolean(true))
                     } else {
-                        JsExpr::Identifier("undefined".to_string())
+                        JsExpr::Identifier("undefined".into())
                     },
                 ],
                 optional: false,

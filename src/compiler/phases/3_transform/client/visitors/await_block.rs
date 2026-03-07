@@ -234,7 +234,7 @@ fn create_derived_block_argument(
                 replacement_id: None,
             },
         );
-        return (Some(JsPattern::Identifier(name)), vec![]);
+        return (Some(JsPattern::Identifier(name.into())), vec![]);
     }
 
     // Destructuring pattern - extract identifiers and create derived values
@@ -259,7 +259,7 @@ fn create_derived_block_argument(
             .iter()
             .map(|id| {
                 JsObjectMember::Property(JsProperty {
-                    key: JsPropertyKey::Identifier(id.clone()),
+                    key: JsPropertyKey::Identifier(id.clone().into()),
                     value: Box::new(b::id(id)),
                     kind: JsPropertyKind::Init,
                     shorthand: true,
@@ -313,10 +313,7 @@ fn create_derived_block_argument(
     }
 
     // The argument pattern is $$source
-    (
-        Some(JsPattern::Identifier("$$source".to_string())),
-        declarations,
-    )
+    (Some(JsPattern::Identifier("$$source".into())), declarations)
 }
 
 /// Create a $.derived() or $.derived_safe_equal() call from a block statement.
@@ -604,7 +601,7 @@ fn convert_value_to_pattern_with_context(
                     if trimmed.starts_with('{') || trimmed.starts_with('[') {
                         return parse_pattern_string(trimmed);
                     }
-                    return JsPattern::Identifier(name.to_string());
+                    return JsPattern::Identifier(name.into());
                 }
             }
             Some("AssignmentPattern") => {
@@ -662,20 +659,20 @@ fn convert_value_to_pattern_with_context(
                                 if let Some(n) = key.get("value").and_then(|v| v.as_f64()) {
                                     JsPropertyKey::Literal(JsLiteral::Number(n))
                                 } else if let Some(s) = key.get("value").and_then(|v| v.as_str()) {
-                                    JsPropertyKey::Literal(JsLiteral::String(s.to_string()))
+                                    JsPropertyKey::Literal(JsLiteral::String(s.into()))
                                 } else {
                                     let raw =
                                         key.get("raw").and_then(|r| r.as_str()).unwrap_or("0");
-                                    JsPropertyKey::Literal(JsLiteral::String(raw.to_string()))
+                                    JsPropertyKey::Literal(JsLiteral::String(raw.into()))
                                 }
                             } else if let Some(name) = key.get("name").and_then(|v| v.as_str()) {
-                                JsPropertyKey::Identifier(name.to_string())
+                                JsPropertyKey::Identifier(name.into())
                             } else if let Some(s) = key.get("value").and_then(|v| v.as_str()) {
-                                JsPropertyKey::Literal(JsLiteral::String(s.to_string()))
+                                JsPropertyKey::Literal(JsLiteral::String(s.into()))
                             } else if let Some(n) = key.get("value").and_then(|v| v.as_f64()) {
                                 JsPropertyKey::Literal(JsLiteral::Number(n))
                             } else {
-                                JsPropertyKey::Identifier("unknown".to_string())
+                                JsPropertyKey::Identifier("unknown".into())
                             };
 
                             Some(JsObjectPatternProperty::Property {
@@ -733,7 +730,7 @@ fn convert_value_to_pattern(val: &serde_json::Value) -> JsPattern {
                     if trimmed.starts_with('{') || trimmed.starts_with('[') {
                         return parse_pattern_string(trimmed);
                     }
-                    return JsPattern::Identifier(name.to_string());
+                    return JsPattern::Identifier(name.into());
                 }
             }
             Some("AssignmentPattern") => {
@@ -793,22 +790,22 @@ fn convert_value_to_pattern(val: &serde_json::Value) -> JsPattern {
                                 if let Some(n) = key.get("value").and_then(|v| v.as_f64()) {
                                     JsPropertyKey::Literal(JsLiteral::Number(n))
                                 } else if let Some(s) = key.get("value").and_then(|v| v.as_str()) {
-                                    JsPropertyKey::Literal(JsLiteral::String(s.to_string()))
+                                    JsPropertyKey::Literal(JsLiteral::String(s.into()))
                                 } else {
                                     let raw =
                                         key.get("raw").and_then(|r| r.as_str()).unwrap_or("0");
-                                    JsPropertyKey::Literal(JsLiteral::String(raw.to_string()))
+                                    JsPropertyKey::Literal(JsLiteral::String(raw.into()))
                                 }
                             } else if let Some(name) = key.get("name").and_then(|v| v.as_str()) {
-                                JsPropertyKey::Identifier(name.to_string())
+                                JsPropertyKey::Identifier(name.into())
                             } else if let Some(s) = key.get("value").and_then(|v| v.as_str()) {
                                 // String literal key
-                                JsPropertyKey::Literal(JsLiteral::String(s.to_string()))
+                                JsPropertyKey::Literal(JsLiteral::String(s.into()))
                             } else if let Some(n) = key.get("value").and_then(|v| v.as_f64()) {
                                 // Numeric literal key
                                 JsPropertyKey::Literal(JsLiteral::Number(n))
                             } else {
-                                JsPropertyKey::Identifier("unknown".to_string())
+                                JsPropertyKey::Identifier("unknown".into())
                             };
 
                             Some(JsObjectPatternProperty::Property {
@@ -848,7 +845,7 @@ fn convert_value_to_pattern(val: &serde_json::Value) -> JsPattern {
             _ => {}
         }
     }
-    JsPattern::Identifier("$$unknown".to_string())
+    JsPattern::Identifier("$$unknown".into())
 }
 
 /// Convert a JSON AST Value expression to a JsExpr without needing ComponentContext.
@@ -863,7 +860,7 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value) -> JsExpr {
                         .get("name")
                         .and_then(|v| v.as_str())
                         .unwrap_or("undefined");
-                    JsExpr::Identifier(name.to_string())
+                    JsExpr::Identifier(name.into())
                 }
                 "Literal" => {
                     if let Some(raw) = obj.get("raw").and_then(|r| r.as_str()) {
@@ -871,18 +868,18 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value) -> JsExpr {
                         if let Some(n) = value.and_then(|v| v.as_f64()) {
                             JsExpr::Literal(JsLiteral::Number(n))
                         } else if let Some(s) = value.and_then(|v| v.as_str()) {
-                            JsExpr::Literal(JsLiteral::String(s.to_string()))
+                            JsExpr::Literal(JsLiteral::String(s.into()))
                         } else if let Some(b) = value.and_then(|v| v.as_bool()) {
                             JsExpr::Literal(JsLiteral::Boolean(b))
                         } else if value.is_some_and(|v| v.is_null()) {
                             JsExpr::Literal(JsLiteral::Null)
                         } else {
-                            JsExpr::Raw(raw.to_string())
+                            JsExpr::Raw(raw.into())
                         }
                     } else if let Some(n) = obj.get("value").and_then(|v| v.as_f64()) {
                         JsExpr::Literal(JsLiteral::Number(n))
                     } else if let Some(s) = obj.get("value").and_then(|v| v.as_str()) {
-                        JsExpr::Literal(JsLiteral::String(s.to_string()))
+                        JsExpr::Literal(JsLiteral::String(s.into()))
                     } else if let Some(b) = obj.get("value").and_then(|v| v.as_bool()) {
                         JsExpr::Literal(JsLiteral::Boolean(b))
                     } else {
@@ -917,8 +914,8 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value) -> JsExpr {
                                 .and_then(|c| c.as_str())
                                 .unwrap_or(raw);
                             JsTemplateElement {
-                                raw: raw.to_string(),
-                                cooked: cooked.to_string(),
+                                raw: raw.into(),
+                                cooked: cooked.into(),
                                 tail: i == quasis_arr.len() - 1,
                             }
                         })
@@ -955,7 +952,7 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value) -> JsExpr {
                     let object = obj
                         .get("object")
                         .map(convert_value_to_js_expr_simple)
-                        .unwrap_or(JsExpr::Identifier("undefined".to_string()));
+                        .unwrap_or(JsExpr::Identifier("undefined".into()));
                     let prop_val = obj.get("property");
                     let computed = obj
                         .get("computed")
@@ -969,7 +966,7 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value) -> JsExpr {
                         JsMemberProperty::Expression(Box::new(
                             prop_val
                                 .map(convert_value_to_js_expr_simple)
-                                .unwrap_or(JsExpr::Identifier("undefined".to_string())),
+                                .unwrap_or(JsExpr::Identifier("undefined".into())),
                         ))
                     } else {
                         let prop_name = prop_val
@@ -977,7 +974,7 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value) -> JsExpr {
                             .and_then(|o| o.get("name"))
                             .and_then(|n| n.as_str())
                             .unwrap_or("undefined");
-                        JsMemberProperty::Identifier(prop_name.to_string())
+                        JsMemberProperty::Identifier(prop_name.into())
                     };
                     JsExpr::Member(JsMemberExpression {
                         object: Box::new(object),
@@ -990,7 +987,7 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value) -> JsExpr {
                     let callee = obj
                         .get("callee")
                         .map(convert_value_to_js_expr_simple)
-                        .unwrap_or(JsExpr::Identifier("undefined".to_string()));
+                        .unwrap_or(JsExpr::Identifier("undefined".into()));
                     let args = obj
                         .get("arguments")
                         .and_then(|a| a.as_array())
@@ -1010,7 +1007,7 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value) -> JsExpr {
                     let argument = obj
                         .get("argument")
                         .map(convert_value_to_js_expr_simple)
-                        .unwrap_or(JsExpr::Identifier("undefined".to_string()));
+                        .unwrap_or(JsExpr::Identifier("undefined".into()));
                     let op_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("++");
                     let operator = if op_str == "--" {
                         JsUpdateOp::Decrement
@@ -1052,9 +1049,9 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value) -> JsExpr {
                                 )))
                             } else if let Some(name) = key_obj.get("name").and_then(|n| n.as_str())
                             {
-                                JsPropertyKey::Identifier(name.to_string())
+                                JsPropertyKey::Identifier(name.into())
                             } else {
-                                JsPropertyKey::Identifier("unknown".to_string())
+                                JsPropertyKey::Identifier("unknown".into())
                             };
 
                             Some(JsObjectMember::Property(JsProperty {
@@ -1111,11 +1108,11 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value) -> JsExpr {
                     let consequent = obj
                         .get("consequent")
                         .map(convert_value_to_js_expr_simple)
-                        .unwrap_or(JsExpr::Identifier("undefined".to_string()));
+                        .unwrap_or(JsExpr::Identifier("undefined".into()));
                     let alternate = obj
                         .get("alternate")
                         .map(convert_value_to_js_expr_simple)
-                        .unwrap_or(JsExpr::Identifier("undefined".to_string()));
+                        .unwrap_or(JsExpr::Identifier("undefined".into()));
                     JsExpr::Conditional(JsConditionalExpression {
                         test: Box::new(test),
                         consequent: Box::new(consequent),
@@ -1124,17 +1121,17 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value) -> JsExpr {
                 }
                 _ => {
                     // Fallback: try to use raw representation based on start/end from source
-                    JsExpr::Raw(format!("/* TODO: {} */", node_type))
+                    JsExpr::Raw(format!("/* TODO: {} */", node_type).into())
                 }
             }
         }
-        serde_json::Value::String(s) => JsExpr::Literal(JsLiteral::String(s.clone())),
+        serde_json::Value::String(s) => JsExpr::Literal(JsLiteral::String(s.clone().into())),
         serde_json::Value::Number(n) => {
             JsExpr::Literal(JsLiteral::Number(n.as_f64().unwrap_or(0.0)))
         }
         serde_json::Value::Bool(b) => JsExpr::Literal(JsLiteral::Boolean(*b)),
         serde_json::Value::Null => JsExpr::Literal(JsLiteral::Null),
-        _ => JsExpr::Raw("undefined".to_string()),
+        _ => JsExpr::Raw("undefined".into()),
     }
 }
 
@@ -1212,7 +1209,7 @@ fn parse_pattern_string(pattern: &str) -> JsPattern {
                 let inner_pattern = if rest_part.starts_with('{') || rest_part.starts_with('[') {
                     parse_pattern_string(rest_part)
                 } else {
-                    JsPattern::Identifier(rest_part.to_string())
+                    JsPattern::Identifier(rest_part.into())
                 };
                 properties.push(JsObjectPatternProperty::Rest(Box::new(inner_pattern)));
             } else if let Some(colon_pos) = find_top_level_colon(part) {
@@ -1228,11 +1225,11 @@ fn parse_pattern_string(pattern: &str) -> JsPattern {
                     if let Some((_, default_part)) = value_str.split_once('=') {
                         let default_str = default_part.trim();
                         JsPattern::Assignment(JsAssignmentPattern {
-                            left: Box::new(JsPattern::Identifier(value_name.to_string())),
+                            left: Box::new(JsPattern::Identifier(value_name.into())),
                             right: Box::new(parse_default_value_expr(default_str)),
                         })
                     } else {
-                        JsPattern::Identifier(value_name.to_string())
+                        JsPattern::Identifier(value_name.into())
                     }
                 };
 
@@ -1240,12 +1237,12 @@ fn parse_pattern_string(pattern: &str) -> JsPattern {
                 let property_key = if key_str.starts_with('"') || key_str.starts_with('\'') {
                     // String literal key
                     let unquoted = &key_str[1..key_str.len() - 1];
-                    JsPropertyKey::Literal(JsLiteral::String(unquoted.to_string()))
+                    JsPropertyKey::Literal(JsLiteral::String(unquoted.into()))
                 } else if key_str.parse::<f64>().is_ok() {
                     // Numeric literal key
                     JsPropertyKey::Literal(JsLiteral::Number(key_str.parse().unwrap_or(0.0)))
                 } else {
-                    JsPropertyKey::Identifier(key_str.to_string())
+                    JsPropertyKey::Identifier(key_str.into())
                 };
 
                 let computed = key_str.starts_with('[') && key_str.ends_with(']');
@@ -1262,9 +1259,9 @@ fn parse_pattern_string(pattern: &str) -> JsPattern {
                     let name = name_part.trim();
                     let default_str = default_part.trim();
                     properties.push(JsObjectPatternProperty::Property {
-                        key: JsPropertyKey::Identifier(name.to_string()),
+                        key: JsPropertyKey::Identifier(name.into()),
                         value: JsPattern::Assignment(JsAssignmentPattern {
-                            left: Box::new(JsPattern::Identifier(name.to_string())),
+                            left: Box::new(JsPattern::Identifier(name.into())),
                             right: Box::new(parse_default_value_expr(default_str)),
                         }),
                         computed: false,
@@ -1272,8 +1269,8 @@ fn parse_pattern_string(pattern: &str) -> JsPattern {
                     });
                 } else {
                     properties.push(JsObjectPatternProperty::Property {
-                        key: JsPropertyKey::Identifier(part.to_string()),
-                        value: JsPattern::Identifier(part.to_string()),
+                        key: JsPropertyKey::Identifier(part.into()),
+                        value: JsPattern::Identifier(part.into()),
                         computed: false,
                         shorthand: true,
                     });
@@ -1300,7 +1297,7 @@ fn parse_pattern_string(pattern: &str) -> JsPattern {
                 let inner_pattern = if rest_part.starts_with('{') || rest_part.starts_with('[') {
                     parse_pattern_string(rest_part)
                 } else {
-                    JsPattern::Identifier(rest_part.to_string())
+                    JsPattern::Identifier(rest_part.into())
                 };
                 elements.push(Some(JsPattern::Rest(Box::new(inner_pattern))));
             } else if part.starts_with('{') || part.starts_with('[') {
@@ -1309,17 +1306,17 @@ fn parse_pattern_string(pattern: &str) -> JsPattern {
                 let name = name_part.trim();
                 let default_str = default_part.trim();
                 elements.push(Some(JsPattern::Assignment(JsAssignmentPattern {
-                    left: Box::new(JsPattern::Identifier(name.to_string())),
+                    left: Box::new(JsPattern::Identifier(name.into())),
                     right: Box::new(parse_default_value_expr(default_str)),
                 })));
             } else {
-                elements.push(Some(JsPattern::Identifier(part.to_string())));
+                elements.push(Some(JsPattern::Identifier(part.into())));
             }
         }
 
         JsPattern::Array(JsArrayPattern { elements })
     } else {
-        JsPattern::Identifier(trimmed.to_string())
+        JsPattern::Identifier(trimmed.into())
     }
 }
 
@@ -1327,7 +1324,7 @@ fn parse_pattern_string(pattern: &str) -> JsPattern {
 fn parse_default_value_expr(s: &str) -> JsExpr {
     let trimmed = s.trim();
     if trimmed == "undefined" {
-        JsExpr::Identifier("undefined".to_string())
+        JsExpr::Identifier("undefined".into())
     } else if trimmed == "null" {
         JsExpr::Literal(JsLiteral::Null)
     } else if trimmed == "true" {
@@ -1339,10 +1336,10 @@ fn parse_default_value_expr(s: &str) -> JsExpr {
     } else if (trimmed.starts_with('"') && trimmed.ends_with('"'))
         || (trimmed.starts_with('\'') && trimmed.ends_with('\''))
     {
-        JsExpr::Literal(JsLiteral::String(trimmed[1..trimmed.len() - 1].to_string()))
+        JsExpr::Literal(JsLiteral::String(trimmed[1..trimmed.len() - 1].into()))
     } else {
         // Fallback: raw expression
-        JsExpr::Raw(trimmed.to_string())
+        JsExpr::Raw(trimmed.into())
     }
 }
 
@@ -1362,7 +1359,7 @@ fn visit_fragment(frag: &Fragment, context: &mut ComponentContext) -> Vec<JsStat
 fn extract_node_pattern(expr: &JsExpr) -> JsPattern {
     match expr {
         JsExpr::Identifier(name) => JsPattern::Identifier(name.clone()),
-        _ => JsPattern::Identifier("$$anchor".to_string()),
+        _ => JsPattern::Identifier("$$anchor".into()),
     }
 }
 

@@ -94,9 +94,9 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
         // Callback params: (node, $$html) when has_await, (node) when only blockers
         let node_name = match &context.state.node {
             JsExpr::Identifier(name) => name.clone(),
-            _ => "node".to_string(),
+            _ => "node".into(),
         };
-        let mut callback_params = vec![b::id_pattern(&node_name)];
+        let mut callback_params = vec![b::id_pattern(node_name.clone())];
         if has_await {
             callback_params.push(b::id_pattern("$$html"));
         }

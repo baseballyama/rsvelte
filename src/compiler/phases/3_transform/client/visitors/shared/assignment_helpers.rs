@@ -327,12 +327,12 @@ pub fn build_assignment_value(operator: &str, left: &JsExpr, right: &JsExpr) -> 
 /// ```
 pub fn get_property_name(property: &JsMemberProperty) -> Option<String> {
     match property {
-        JsMemberProperty::Identifier(name) => Some(name.clone()),
-        JsMemberProperty::PrivateIdentifier(name) => Some(name.clone()),
+        JsMemberProperty::Identifier(name) => Some(name.to_string()),
+        JsMemberProperty::PrivateIdentifier(name) => Some(name.to_string()),
         JsMemberProperty::Expression(expr) => {
             // Only static string literals
             match expr.as_ref() {
-                JsExpr::Literal(JsLiteral::String(s)) => Some(s.clone()),
+                JsExpr::Literal(JsLiteral::String(s)) => Some(s.to_string()),
                 _ => None,
             }
         }
@@ -367,7 +367,7 @@ mod tests {
 
     #[test]
     fn test_build_assignment_value_add() {
-        let left = JsExpr::Identifier("a".to_string());
+        let left = JsExpr::Identifier("a".into());
         let right = JsExpr::Literal(JsLiteral::Number(1.0));
 
         let result = build_assignment_value("+=", &left, &right);
@@ -382,7 +382,7 @@ mod tests {
 
     #[test]
     fn test_build_assignment_value_subtract() {
-        let left = JsExpr::Identifier("a".to_string());
+        let left = JsExpr::Identifier("a".into());
         let right = JsExpr::Literal(JsLiteral::Number(1.0));
 
         let result = build_assignment_value("-=", &left, &right);
@@ -397,7 +397,7 @@ mod tests {
 
     #[test]
     fn test_build_assignment_value_multiply() {
-        let left = JsExpr::Identifier("a".to_string());
+        let left = JsExpr::Identifier("a".into());
         let right = JsExpr::Literal(JsLiteral::Number(2.0));
 
         let result = build_assignment_value("*=", &left, &right);
@@ -412,7 +412,7 @@ mod tests {
 
     #[test]
     fn test_build_assignment_value_assign() {
-        let left = JsExpr::Identifier("a".to_string());
+        let left = JsExpr::Identifier("a".into());
         let right = JsExpr::Literal(JsLiteral::Number(1.0));
 
         let result = build_assignment_value("=", &left, &right);
@@ -426,7 +426,7 @@ mod tests {
 
     #[test]
     fn test_build_assignment_value_logical_or() {
-        let left = JsExpr::Identifier("a".to_string());
+        let left = JsExpr::Identifier("a".into());
         let right = JsExpr::Literal(JsLiteral::Number(1.0));
 
         let result = build_assignment_value("||=", &left, &right);
@@ -442,7 +442,7 @@ mod tests {
 
     #[test]
     fn test_build_assignment_value_logical_and() {
-        let left = JsExpr::Identifier("a".to_string());
+        let left = JsExpr::Identifier("a".into());
         let right = JsExpr::Literal(JsLiteral::Number(1.0));
 
         let result = build_assignment_value("&&=", &left, &right);
@@ -458,7 +458,7 @@ mod tests {
 
     #[test]
     fn test_build_assignment_value_logical_nullish() {
-        let left = JsExpr::Identifier("a".to_string());
+        let left = JsExpr::Identifier("a".into());
         let right = JsExpr::Literal(JsLiteral::Number(1.0));
 
         let result = build_assignment_value("??=", &left, &right);
@@ -474,28 +474,27 @@ mod tests {
 
     #[test]
     fn test_get_property_name_identifier() {
-        let prop = JsMemberProperty::Identifier("foo".to_string());
+        let prop = JsMemberProperty::Identifier("foo".into());
         assert_eq!(get_property_name(&prop), Some("foo".to_string()));
     }
 
     #[test]
     fn test_get_property_name_private_identifier() {
-        let prop = JsMemberProperty::PrivateIdentifier("bar".to_string());
+        let prop = JsMemberProperty::PrivateIdentifier("bar".into());
         assert_eq!(get_property_name(&prop), Some("bar".to_string()));
     }
 
     #[test]
     fn test_get_property_name_string_literal() {
         let prop = JsMemberProperty::Expression(Box::new(JsExpr::Literal(JsLiteral::String(
-            "baz".to_string(),
+            "baz".into(),
         ))));
         assert_eq!(get_property_name(&prop), Some("baz".to_string()));
     }
 
     #[test]
     fn test_get_property_name_computed() {
-        let prop =
-            JsMemberProperty::Expression(Box::new(JsExpr::Identifier("dynamic".to_string())));
+        let prop = JsMemberProperty::Expression(Box::new(JsExpr::Identifier("dynamic".into())));
         assert_eq!(get_property_name(&prop), None);
     }
 }

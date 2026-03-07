@@ -182,7 +182,7 @@ fn build_assignment(
 
         // Use replacement_id if set (e.g., reactive imports: global -> $$_import_global)
         let mutate_target = if let Some(ref replacement) = t.replacement_id {
-            JsExpr::Identifier(replacement.clone())
+            JsExpr::Identifier(replacement.clone().into())
         } else {
             object.clone()
         };
@@ -201,8 +201,8 @@ fn build_assignment(
 
         // Get the property expression
         let property_expr = match &member.property {
-            JsMemberProperty::Identifier(name) => b::string(name),
-            JsMemberProperty::PrivateIdentifier(name) => b::string(name),
+            JsMemberProperty::Identifier(name) => b::string(name.clone()),
+            JsMemberProperty::PrivateIdentifier(name) => b::string(name.clone()),
             JsMemberProperty::Expression(expr) => (**expr).clone(),
         };
 
@@ -256,7 +256,7 @@ fn get_assignment_root<'a>(
     let transform = context.state.transform.get(&root_name);
 
     // Return the root identifier as a JsExpr and its transform
-    Some((JsExpr::Identifier(root_name), transform))
+    Some((JsExpr::Identifier(root_name.into()), transform))
 }
 
 /// Extract the root identifier name from an expression.
@@ -266,7 +266,7 @@ fn get_assignment_root<'a>(
 fn extract_root_identifier(expr: &JsExpr) -> Option<String> {
     match expr {
         // Base case: identifier
-        JsExpr::Identifier(name) => Some(name.clone()),
+        JsExpr::Identifier(name) => Some(name.to_string()),
 
         // Member expression: obj.prop or obj[prop]
         JsExpr::Member(member) => extract_root_identifier(&member.object),
@@ -297,7 +297,7 @@ mod tests {
 
     #[test]
     fn test_extract_root_identifier_simple() {
-        let expr = JsExpr::Identifier("x".to_string());
+        let expr = JsExpr::Identifier("x".into());
         let root = extract_root_identifier(&expr);
         assert_eq!(root, Some("x".to_string()));
     }
@@ -306,8 +306,8 @@ mod tests {
     fn test_extract_root_identifier_member() {
         // x.y -> x
         let expr = JsExpr::Member(JsMemberExpression {
-            object: Box::new(JsExpr::Identifier("x".to_string())),
-            property: JsMemberProperty::Identifier("y".to_string()),
+            object: Box::new(JsExpr::Identifier("x".into())),
+            property: JsMemberProperty::Identifier("y".into()),
             computed: false,
             optional: false,
         });
@@ -320,12 +320,12 @@ mod tests {
         // x.y.z -> x
         let expr = JsExpr::Member(JsMemberExpression {
             object: Box::new(JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("x".to_string())),
-                property: JsMemberProperty::Identifier("y".to_string()),
+                object: Box::new(JsExpr::Identifier("x".into())),
+                property: JsMemberProperty::Identifier("y".into()),
                 computed: false,
                 optional: false,
             })),
-            property: JsMemberProperty::Identifier("z".to_string()),
+            property: JsMemberProperty::Identifier("z".into()),
             computed: false,
             optional: false,
         });
@@ -337,8 +337,8 @@ mod tests {
     fn test_extract_root_identifier_computed() {
         // x[y] -> x
         let expr = JsExpr::Member(JsMemberExpression {
-            object: Box::new(JsExpr::Identifier("x".to_string())),
-            property: JsMemberProperty::Expression(Box::new(JsExpr::Identifier("y".to_string()))),
+            object: Box::new(JsExpr::Identifier("x".into())),
+            property: JsMemberProperty::Expression(Box::new(JsExpr::Identifier("y".into()))),
             computed: true,
             optional: false,
         });
@@ -351,8 +351,8 @@ mod tests {
         // x?.y -> x
         let expr = JsExpr::Chain(JsChainExpression {
             expression: Box::new(JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("x".to_string())),
-                property: JsMemberProperty::Identifier("y".to_string()),
+                object: Box::new(JsExpr::Identifier("x".into())),
+                property: JsMemberProperty::Identifier("y".into()),
                 computed: false,
                 optional: true,
             })),
@@ -366,7 +366,7 @@ mod tests {
         // 42.toString() -> None (literal, not identifier)
         let expr = JsExpr::Member(JsMemberExpression {
             object: Box::new(JsExpr::Literal(JsLiteral::Number(42.0))),
-            property: JsMemberProperty::Identifier("toString".to_string()),
+            property: JsMemberProperty::Identifier("toString".into()),
             computed: false,
             optional: false,
         });
@@ -376,21 +376,21 @@ mod tests {
 
     #[test]
     fn test_is_same_identifier_true() {
-        let a = JsExpr::Identifier("x".to_string());
-        let b = JsExpr::Identifier("x".to_string());
+        let a = JsExpr::Identifier("x".into());
+        let b = JsExpr::Identifier("x".into());
         assert!(is_same_identifier(&a, &b));
     }
 
     #[test]
     fn test_is_same_identifier_false() {
-        let a = JsExpr::Identifier("x".to_string());
-        let b = JsExpr::Identifier("y".to_string());
+        let a = JsExpr::Identifier("x".into());
+        let b = JsExpr::Identifier("y".into());
         assert!(!is_same_identifier(&a, &b));
     }
 
     #[test]
     fn test_is_same_identifier_non_identifier() {
-        let a = JsExpr::Identifier("x".to_string());
+        let a = JsExpr::Identifier("x".into());
         let b = JsExpr::Literal(JsLiteral::Number(42.0));
         assert!(!is_same_identifier(&a, &b));
     }

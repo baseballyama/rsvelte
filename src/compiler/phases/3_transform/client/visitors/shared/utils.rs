@@ -105,7 +105,7 @@ fn classify_expr(expr: &JsExpr) -> JsExprKind {
 fn extract_pattern_names(pattern: &JsPattern, names: &mut HashSet<String>) {
     match pattern {
         JsPattern::Identifier(name) => {
-            names.insert(name.clone());
+            names.insert(name.to_string());
         }
         JsPattern::Array(array) => {
             for p in array.elements.iter().flatten() {
@@ -151,7 +151,7 @@ fn register_block_local_vars(block: &[JsStatement], scope: &mut LocalScope) {
             for decl in &var_decl.declarations {
                 if let JsPattern::Identifier(name) = &decl.id {
                     let init_kind = decl.init.as_ref().map(|init_expr| classify_expr(init_expr));
-                    scope.add_local_var(name.clone(), init_kind);
+                    scope.add_local_var(name.to_string(), init_kind);
                 }
             }
         }
@@ -366,13 +366,13 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 return build_reassigned_item_read(each_ctx);
             }
             // Check if there's a transform registered for this identifier
-            if let Some(transform) = context.state.transform.get(name) {
+            if let Some(transform) = context.state.transform.get(name.as_str()) {
                 // Handle @const destructuring: read_source means this identifier
                 // is part of a destructured @const declaration, so reads become
                 // $.get(computed_const).identifier_name
                 if let Some(ref source_var) = transform.read_source {
                     return b::member(
-                        b::svelte_call("get", vec![JsExpr::Identifier(source_var.clone())]),
+                        b::svelte_call("get", vec![JsExpr::Identifier(source_var.clone().into())]),
                         name.clone(),
                     );
                 }
@@ -380,7 +380,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     // If this transform has a replacement_id, use it instead of the original name.
                     // This is used for legacy reactive imports where `numbers` -> `$$_import_numbers()`.
                     let input_id = if let Some(ref replacement) = transform.replacement_id {
-                        JsExpr::Identifier(replacement.clone())
+                        JsExpr::Identifier(replacement.clone().into())
                     } else {
                         JsExpr::Identifier(name.clone())
                     };
@@ -439,7 +439,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // `$.get(saySomething)('Tama')`, not `saySomething('Tama')`.
             let skip_callee_transform = if let JsExpr::Identifier(name) = call.callee.as_ref()
                 && !local_scope.contains(name)
-                && let Some(transform) = context.state.transform.get(name)
+                && let Some(transform) = context.state.transform.get(name.as_str())
             {
                 // Only skip callee transform for StoreSub setter calls (calls with arguments).
                 // Prop/BindableProp calls should ALWAYS have the callee transformed.
@@ -676,7 +676,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // Skip if the identifier is in local scope (function parameter or local declaration)
             if let JsExpr::Identifier(name) = assign.left.as_ref()
                 && !local_scope.contains(name)
-                && let Some(transform) = context.state.transform.get(name)
+                && let Some(transform) = context.state.transform.get(name.as_str())
                 && let Some(assign_fn) = transform.assign
             {
                 // Transform the right side first
@@ -874,7 +874,9 @@ pub fn apply_transforms_to_expression_with_shadowed(
                         let collection_read = build_reassigned_item_read(&each_ctx);
                         let collection_str = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(&collection_read);
                         let right_str = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(&transformed_right);
-                        JsExpr::Raw(format!("{} {} {}", collection_str, binary_op, right_str))
+                        JsExpr::Raw(
+                            format!("{} {} {}", collection_str, binary_op, right_str).into(),
+                        )
                     };
 
                     // Build: collection[$$index] = value
@@ -977,7 +979,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
                 if let JsExpr::Identifier(name) = base_object
                     && !local_scope.contains(&name)
-                    && let Some(transform) = context.state.transform.get(&name)
+                    && let Some(transform) = context.state.transform.get(name.as_str())
                     && let Some(mutate_fn) = transform.mutate
                 {
                     let transformed_right = recurse!(&assign.right);
@@ -1046,7 +1048,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     // e.g., selected[0] = value -> selected(selected()[0] = value, true)
                     // Use replacement_id if set (e.g., reactive imports: handler -> $$_import_handler)
                     let mutate_target = if let Some(ref replacement) = transform.replacement_id {
-                        JsExpr::Identifier(replacement.clone())
+                        JsExpr::Identifier(replacement.clone().into())
                     } else {
                         JsExpr::Identifier(name.clone())
                     };
@@ -1135,7 +1137,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // Skip if the identifier is in local scope
             if let JsExpr::Identifier(name) = update.argument.as_ref()
                 && !local_scope.contains(name)
-                && let Some(transform) = context.state.transform.get(name)
+                && let Some(transform) = context.state.transform.get(name.as_str())
                 && let Some(update_fn) = transform.update
             {
                 return update_fn(
@@ -1235,7 +1237,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
                 if let JsExpr::Identifier(name) = base_object
                     && !local_scope.contains(&name)
-                    && let Some(transform) = context.state.transform.get(&name)
+                    && let Some(transform) = context.state.transform.get(name.as_str())
                     && let Some(mutate_fn) = transform.mutate
                 {
                     // Transform the argument so that reactive reads inside the
@@ -1250,7 +1252,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
                     // Use replacement_id if set (e.g., reactive imports: global -> $$_import_global)
                     let mutate_target = if let Some(ref replacement) = transform.replacement_id {
-                        JsExpr::Identifier(replacement.clone())
+                        JsExpr::Identifier(replacement.clone().into())
                     } else {
                         JsExpr::Identifier(name.clone())
                     };
@@ -1388,7 +1390,7 @@ fn build_reassigned_item_read(
         b::call(b::id(coll_id), vec![])
     } else {
         // Raw collection expression string (already has transforms applied, e.g., $.get(arr))
-        JsExpr::Raw(each_ctx.collection_expr.clone())
+        JsExpr::Raw(each_ctx.collection_expr.clone().into())
     };
 
     // Build the index expression (either $.get($$index) for reactive or just $$index)
@@ -1409,7 +1411,7 @@ fn build_reassigned_item_read(
 fn build_invalidate_inner_signals(invalidation_exprs: &[String]) -> JsExpr {
     let exprs: Vec<JsExpr> = invalidation_exprs
         .iter()
-        .map(|s| JsExpr::Raw(s.clone()))
+        .map(|s| JsExpr::Raw(s.clone().into()))
         .collect();
 
     // Always wrap in sequence parens, even for a single expression.
@@ -1907,17 +1909,17 @@ fn collect_reactive_references_from_metadata(
                 )
             } else if let Some(read_fn) = transform.read {
                 let input_id = if let Some(ref replacement) = transform.replacement_id {
-                    JsExpr::Identifier(replacement.clone())
+                    JsExpr::Identifier(replacement.clone().into())
                 } else {
-                    JsExpr::Identifier(name.clone())
+                    JsExpr::Identifier(name.clone().into())
                 };
                 read_fn(input_id)
             } else {
-                JsExpr::Identifier(name.clone())
+                JsExpr::Identifier(name.clone().into())
             }
         } else {
             // No transform registered (e.g., imports) - use the identifier directly
-            JsExpr::Identifier(name.clone())
+            JsExpr::Identifier(name.clone().into())
         };
 
         // Check if we need to wrap in $.deep_read_state()
@@ -1989,7 +1991,7 @@ fn collect_reactive_references_inner(
     match expr {
         JsExpr::Identifier(name) => {
             // Skip if we've already processed this identifier
-            if seen.contains(name) {
+            if seen.contains(name.as_str()) {
                 return;
             }
 
@@ -2042,7 +2044,7 @@ fn collect_reactive_references_inner(
                 return;
             }
 
-            seen.insert(name.clone());
+            seen.insert(name.to_string());
 
             // For reassigned each-block items in legacy mode, the dependency getter
             // should use collection[$$index] instead of $.get(item).
@@ -2067,21 +2069,21 @@ fn collect_reactive_references_inner(
             let has_read_transform = context
                 .state
                 .transform
-                .get(name)
+                .get(name.as_str())
                 .is_some_and(|t| t.read.is_some());
-            let getter = if let Some(transform) = context.state.transform.get(name) {
+            let getter = if let Some(transform) = context.state.transform.get(name.as_str()) {
                 if let Some(ref read_source) = transform.read_source {
                     // read_source is set for destructured @const and let directive bindings.
                     // The getter should be $.get(read_source).name instead of $.get(name).
                     b::member(
                         b::call(b::member_path("$.get"), vec![b::id(read_source)]),
-                        name,
+                        name.clone(),
                     )
                 } else if let Some(read_fn) = transform.read {
                     // If this transform has a replacement_id, use it instead of the original name.
                     // This is used for legacy reactive imports where `numbers` -> `$$_import_numbers()`.
                     let input_id = if let Some(ref replacement) = transform.replacement_id {
-                        JsExpr::Identifier(replacement.clone())
+                        JsExpr::Identifier(replacement.clone().into())
                     } else {
                         JsExpr::Identifier(name.clone())
                     };
@@ -2730,7 +2732,7 @@ pub fn validate_mutation(
 fn get_root_object(mut expr: &JsMemberExpression) -> Option<String> {
     loop {
         match expr.object.as_ref() {
-            JsExpr::Identifier(name) => return Some(name.clone()),
+            JsExpr::Identifier(name) => return Some(name.to_string()),
             JsExpr::Member(m) => expr = m,
             _ => return None,
         }
@@ -2748,7 +2750,7 @@ fn build_member_path(mut expr: &JsMemberExpression, context: &ComponentContext) 
         match &expr.property {
             JsMemberProperty::Identifier(name) => {
                 // Check if there's a transform for this identifier
-                let transform = context.state.transform.get(name);
+                let transform = context.state.transform.get(name.as_str());
 
                 if expr.computed {
                     // Computed property: use the transform's read if available
@@ -2763,7 +2765,7 @@ fn build_member_path(mut expr: &JsMemberExpression, context: &ComponentContext) 
                     }
                 } else {
                     // Non-computed property: use as literal string
-                    path.push(b::string(name));
+                    path.push(b::string(name.clone()));
                 }
             }
             JsMemberProperty::Expression(expr_box) => {
@@ -2779,7 +2781,7 @@ fn build_member_path(mut expr: &JsMemberExpression, context: &ComponentContext) 
             }
             JsMemberProperty::PrivateIdentifier(name) => {
                 // Private identifier: use as literal string
-                path.push(b::string(name));
+                path.push(b::string(name.clone()));
             }
         }
 
@@ -3006,7 +3008,7 @@ pub fn build_template_chunk(
 
     // Sanitize template strings
     for q in &mut quasis {
-        q.raw = sanitize_template_string(&q.cooked);
+        q.raw = sanitize_template_string(q.cooked.as_str()).into();
     }
 
     // Build final expression
@@ -3014,7 +3016,7 @@ pub fn build_template_chunk(
         b::template(quasis, expressions)
     } else {
         let last_quasi = quasis.last().unwrap();
-        b::string(&last_quasi.cooked)
+        b::string(last_quasi.clone().cooked)
     };
 
     TemplateChunkResult {

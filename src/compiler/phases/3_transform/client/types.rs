@@ -659,9 +659,9 @@ impl<'a> ComponentContext<'a> {
 
             let node_name = match &self.state.node {
                 JsExpr::Identifier(name) => name.clone(),
-                _ => "node".to_string(),
+                _ => "node".into(),
             };
-            let mut callback_params = vec![b::id_pattern(&node_name)];
+            let mut callback_params = vec![b::id_pattern(node_name.clone())];
             if has_await {
                 callback_params.push(b::id_pattern("$$tag"));
             }
@@ -979,7 +979,7 @@ impl<'a> ComponentContext<'a> {
         // This generates `const name = $.derived_safe_equal(() => $$slotProps.prop_name)`
         // and registers read transforms so the children can access the slot props
         let mut let_stmts: Vec<JsStatement> = Vec::new();
-        let mut let_names: Vec<String> = Vec::new();
+        let mut let_names: Vec<compact_str::CompactString> = Vec::new();
         // Save existing transforms that will be shadowed by let directives,
         // so we can restore them after visiting children.
         let mut saved_transforms: Vec<(String, Option<IdentifierTransform>)> = Vec::new();
@@ -1018,7 +1018,7 @@ impl<'a> ComponentContext<'a> {
                         None => prop_name.to_string(),
                     };
 
-                    let_names.push(name.clone());
+                    let_names.push(name.clone().into());
 
                     let derived_fn = if self.state.analysis.runes {
                         "$.derived"
@@ -1065,7 +1065,7 @@ impl<'a> ComponentContext<'a> {
                             let expr_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
                             // Extract binding names from the expression
-                            let mut binding_names: Vec<String> = Vec::new();
+                            let mut binding_names: Vec<compact_str::CompactString> = Vec::new();
                             if expr_type == "ObjectExpression" {
                                 // Object destructuring: {y, z}
                                 if let Some(serde_json::Value::Array(props)) = obj.get("properties")
@@ -1076,7 +1076,7 @@ impl<'a> ComponentContext<'a> {
                                             .and_then(|k| k.get("name"))
                                             .and_then(|n| n.as_str())
                                         {
-                                            binding_names.push(name.to_string());
+                                            binding_names.push(name.into());
                                         }
                                     }
                                 }
@@ -1086,7 +1086,7 @@ impl<'a> ComponentContext<'a> {
                             {
                                 for elem in elements {
                                     if let Some(name) = elem.get("name").and_then(|n| n.as_str()) {
-                                        binding_names.push(name.to_string());
+                                        binding_names.push(name.into());
                                     }
                                 }
                             }
@@ -1094,7 +1094,7 @@ impl<'a> ComponentContext<'a> {
                             if !binding_names.is_empty() {
                                 // Generate unique name for the derived variable
                                 let derived_name = self.state.memoizer.generate_id(prop_name);
-                                let_names.push(derived_name.clone());
+                                let_names.push(derived_name.clone().into());
                                 // Save existing transform for derived_name (if any) before it could be shadowed
                                 saved_transforms.push((
                                     derived_name.clone(),
@@ -1108,11 +1108,11 @@ impl<'a> ComponentContext<'a> {
                                     let_names.push(binding_name.clone());
                                     // Save existing transform before overwriting
                                     saved_transforms.push((
-                                        binding_name.clone(),
-                                        self.state.transform.get(binding_name).cloned(),
+                                        binding_name.to_string(),
+                                        self.state.transform.get(binding_name.as_str()).cloned(),
                                     ));
                                     self.state.transform.insert(
-                                        binding_name.clone(),
+                                        binding_name.to_string(),
                                         IdentifierTransform {
                                             read: Some(|node| {
                                                 // The node is the identifier (e.g., `num`)
@@ -1141,7 +1141,7 @@ impl<'a> ComponentContext<'a> {
                                             .iter()
                                             .map(|n| JsObjectPatternProperty::Property {
                                                 key: JsPropertyKey::Identifier(n.clone()),
-                                                value: b::id_pattern(n),
+                                                value: b::id_pattern(n.clone()),
                                                 computed: false,
                                                 shorthand: true,
                                             })
@@ -1151,7 +1151,7 @@ impl<'a> ComponentContext<'a> {
                                     b::array_pattern(
                                         binding_names
                                             .iter()
-                                            .map(|n| Some(b::id_pattern(n)))
+                                            .map(|n| Some(b::id_pattern(n.clone())))
                                             .collect(),
                                     )
                                 };
@@ -1160,7 +1160,7 @@ impl<'a> ComponentContext<'a> {
                                 let return_obj_expr = b::object(
                                     binding_names
                                         .iter()
-                                        .map(|n| b::prop(n.clone(), b::id(n)))
+                                        .map(|n| b::prop(n.clone(), b::id(n.clone())))
                                         .collect(),
                                 );
 
@@ -1552,7 +1552,7 @@ pub struct ComponentClientTransformState<'a> {
     /// For simple `{#each items as item}`, this is `["item"]`.
     /// For destructured patterns, this contains all declared names.
     /// Used by apply_transforms_to_expression_with_shadowed to detect item assigns/mutates.
-    pub each_item_names: Vec<String>,
+    pub each_item_names: Vec<compact_str::CompactString>,
 
     /// Stack of each-block binding contexts.
     /// When inside an each block in legacy mode, this contains information needed
@@ -1868,13 +1868,13 @@ impl<'a> ComponentClientTransformState<'a> {
 
 /// Collect all identifier names referenced in a JS expression.
 /// Does not cross function boundaries (arrows, function expressions).
-pub fn collect_identifiers_from_expr(expr: &JsExpr) -> Vec<String> {
+pub fn collect_identifiers_from_expr(expr: &JsExpr) -> Vec<compact_str::CompactString> {
     let mut names = Vec::new();
     collect_identifiers_recursive(expr, &mut names);
     names
 }
 
-fn collect_identifiers_recursive(expr: &JsExpr, names: &mut Vec<String>) {
+fn collect_identifiers_recursive(expr: &JsExpr, names: &mut Vec<compact_str::CompactString>) {
     use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
     match expr {
         JsExpr::Identifier(name) => {
@@ -2334,10 +2334,10 @@ impl Memoizer {
                 // Extract the identifier name from the JsExpr::Identifier
                 let name = match &memo.id {
                     JsExpr::Identifier(n) => n.clone(),
-                    _ => "$memo".to_string(),
+                    _ => "$memo".into(),
                 };
                 b::let_decl(
-                    &name,
+                    name.clone(),
                     Some(b::call(
                         b::member_path(derived_fn),
                         vec![b::thunk(memo.expression.clone())],
@@ -2837,7 +2837,7 @@ mod tests {
     #[test]
     fn test_memoizer_simple_expression() {
         let mut memoizer = Memoizer::new();
-        let expr = JsExpr::Literal(JsLiteral::String("test".to_string()));
+        let expr = JsExpr::Literal(JsLiteral::String("test".into()));
 
         // No memoization needed for simple expressions with no flags
         // add(expression, has_call, has_await, memoize_if_state, has_state)
@@ -2853,7 +2853,7 @@ mod tests {
     #[test]
     fn test_memoizer_memoize_if_state() {
         let mut memoizer = Memoizer::new();
-        let expr = JsExpr::Literal(JsLiteral::String("test".to_string()));
+        let expr = JsExpr::Literal(JsLiteral::String("test".into()));
 
         // memoize_if_state=true but has_state=false should NOT memoize
         let result = memoizer.add(expr.clone(), false, false, true, false);
@@ -2877,7 +2877,7 @@ mod tests {
     #[test]
     fn test_memoizer_has_call() {
         let mut memoizer = Memoizer::new();
-        let expr = JsExpr::Literal(JsLiteral::String("test".to_string()));
+        let expr = JsExpr::Literal(JsLiteral::String("test".into()));
 
         // has_call=true should always memoize, regardless of other flags
         let result = memoizer.add(expr.clone(), true, false, false, false);

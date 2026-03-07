@@ -3551,10 +3551,10 @@ mod tests {
         // $derived({ get value() { return count * 2}, set value(c) { count = c / 2 } })
 
         let getter = JsObjectMember::Property(JsProperty {
-            key: JsPropertyKey::Identifier("value".to_string()),
+            key: JsPropertyKey::Identifier("value".into()),
             value: Box::new(JsExpr::Function(JsFunctionExpression {
                 id: None,
-                params: vec![],
+                params: smallvec::smallvec![],
                 body: JsBlockStatement::with_body(vec![JsStatement::Return(JsReturnStatement {
                     argument: Some(Box::new(binary(JsBinaryOp::Mul, id("count"), number(2.0)))),
                 })]),
@@ -3568,10 +3568,10 @@ mod tests {
         });
 
         let setter = JsObjectMember::Property(JsProperty {
-            key: JsPropertyKey::Identifier("value".to_string()),
+            key: JsPropertyKey::Identifier("value".into()),
             value: Box::new(JsExpr::Function(JsFunctionExpression {
                 id: None,
-                params: vec![id_pattern("c")],
+                params: smallvec::smallvec![id_pattern("c")],
                 body: JsBlockStatement::with_body(vec![JsStatement::Expression(
                     JsExpressionStatement {
                         expression: Box::new(JsExpr::Assignment(JsAssignmentExpression {
@@ -3600,7 +3600,7 @@ mod tests {
             call(
                 JsExpr::Member(JsMemberExpression {
                     object: Box::new(id("$")),
-                    property: JsMemberProperty::Identifier("derived".to_string()),
+                    property: JsMemberProperty::Identifier("derived".into()),
                     computed: false,
                     optional: false,
                 }),

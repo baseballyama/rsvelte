@@ -225,7 +225,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
             let ctx_type = obj.get("type").and_then(|v| v.as_str());
             if ctx_type == Some("Identifier") {
                 if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                    item_names.push(name.to_string());
+                    item_names.push(compact_str::CompactString::from(name));
                 }
             } else if ctx_type == Some("ObjectPattern") || ctx_type == Some("ArrayPattern") {
                 collect_pattern_names(obj, &mut item_names);
@@ -244,13 +244,13 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // Compute the item name
     let item_name = match &item {
         JsExpr::Identifier(name) => name.clone(),
-        _ => "$$item".to_string(),
+        _ => "$$item".into(),
     };
 
     // Compute the index name
     let index_name_str = match &index {
         JsExpr::Identifier(name) => name.clone(),
-        _ => "$$index".to_string(),
+        _ => "$$index".into(),
     };
 
     // Compute collection expression for invalidation
@@ -284,7 +284,11 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
                     // bindings from PARENT each blocks are legitimate invalidation targets
                     // and should be kept.
                     if matches!(binding.kind, BindingKind::EachItem | BindingKind::EachIndex)
-                        && (context.state.each_item_names.contains(&binding.name)
+                        && (context
+                            .state
+                            .each_item_names
+                            .iter()
+                            .any(|n| n.as_str() == binding.name)
                             || Some(binding.name.clone())
                                 == node.index.as_ref().map(|s| s.to_string()))
                     {
@@ -383,12 +387,12 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
 
     let binding_used = Rc::new(Cell::new(false));
     context.state.each_binding_context.push(EachBindingContext {
-        item_name: item_name.clone(),
+        item_name: item_name.to_string(),
         item_reactive,
         collection_expr: collection_expr_str.clone(),
         collection_id: collection_id.clone(),
         invalidation_exprs: invalidation_exprs.clone(),
-        index_name: index_name_str.clone(),
+        index_name: index_name_str.to_string(),
         index_reactive,
         is_runes: context.state.analysis.runes,
         binding_used: binding_used.clone(),
@@ -559,7 +563,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
 
         // Extract anchor parameter
         let anchor_param = match &context.state.node {
-            JsExpr::Identifier(name) => b::id_pattern(name),
+            JsExpr::Identifier(name) => b::id_pattern(name.clone()),
             _ => b::id_pattern("$$anchor"),
         };
 
@@ -790,12 +794,12 @@ fn get_collection_id_if_needed(node: &EachBlock, context: &ComponentContext) -> 
 /// Collect all binding names from a pattern (identifier, object pattern, array pattern).
 fn collect_pattern_names(
     obj: &serde_json::Map<String, serde_json::Value>,
-    names: &mut Vec<String>,
+    names: &mut Vec<compact_str::CompactString>,
 ) {
     match obj.get("type").and_then(|v| v.as_str()) {
         Some("Identifier") => {
             if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                names.push(name.to_string());
+                names.push(name.into());
             }
         }
         Some("ObjectPattern") => {
@@ -1843,7 +1847,7 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
         match obj.get("type").and_then(|v| v.as_str()) {
             Some("Identifier") => {
                 if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                    return JsPattern::Identifier(name.to_string());
+                    return JsPattern::Identifier(name.into());
                 }
             }
             Some("ObjectPattern") => {
@@ -1859,7 +1863,7 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
                             let value_pattern = if value.is_object() {
                                 convert_expression_to_pattern(&Expression::Value(value.clone()))
                             } else {
-                                JsPattern::Identifier(key_name.to_string())
+                                JsPattern::Identifier(key_name.into())
                             };
 
                             let shorthand = prop_obj
@@ -1868,7 +1872,7 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
                                 .unwrap_or(false);
 
                             Some(JsObjectPatternProperty::Property {
-                                key: JsPropertyKey::Identifier(key_name.to_string()),
+                                key: JsPropertyKey::Identifier(key_name.into()),
                                 value: value_pattern,
                                 computed: false,
                                 shorthand,
@@ -1914,14 +1918,14 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
             _ => {}
         }
     }
-    JsPattern::Identifier("$$unknown".to_string())
+    JsPattern::Identifier("$$unknown".into())
 }
 
 /// Convert a JsExpr reference to a pattern.
 fn convert_expr_to_pattern(expr: &JsExpr) -> JsPattern {
     match expr {
         JsExpr::Identifier(name) => JsPattern::Identifier(name.clone()),
-        _ => JsPattern::Identifier("$$param".to_string()),
+        _ => JsPattern::Identifier("$$param".into()),
     }
 }
 

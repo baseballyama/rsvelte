@@ -616,7 +616,7 @@ fn transform_client_with_visitors(
                 if let Some(async_result) =
                     super::shared::async_body::transform_async_body(trimmed, "$.run")
                 {
-                    component_body.push(JsStatement::Raw(async_result.output.trim().to_string()));
+                    component_body.push(JsStatement::Raw(async_result.output.trim().into()));
                     // Store the blocker_map for use during template generation
                     if !async_result.blocker_map.is_empty() {
                         *context.state.blocker_map.borrow_mut() = async_result.blocker_map;
@@ -625,12 +625,12 @@ fn transform_client_with_visitors(
                     // No top-level await: strip any async noop placeholders
                     let cleaned = strip_async_noop_placeholders(trimmed);
                     if !cleaned.trim().is_empty() {
-                        component_body.push(JsStatement::Raw(cleaned.trim().to_string()));
+                        component_body.push(JsStatement::Raw(cleaned.trim().into()));
                     }
                 }
             } else {
                 // Parse transformed script as raw JavaScript statement
-                component_body.push(JsStatement::Raw(trimmed.to_string()));
+                component_body.push(JsStatement::Raw(trimmed.into()));
             }
         }
     }
@@ -871,7 +871,7 @@ fn transform_client_with_visitors(
             // Apply the read transform if one exists (e.g., $.get() for state variables)
             let getter_expr = if let Some(transform) = context.state.transform.get(&export.name) {
                 if let Some(read_fn) = transform.read {
-                    read_fn(JsExpr::Identifier(export.name.clone()))
+                    read_fn(JsExpr::Identifier(export.name.clone().into()))
                 } else {
                     b::id(&export.name)
                 }
@@ -929,17 +929,17 @@ fn transform_client_with_visitors(
     // Build component function parameters
     let params = if should_inject_props {
         vec![
-            JsPattern::Identifier("$$anchor".to_string()),
-            JsPattern::Identifier("$$props".to_string()),
+            JsPattern::Identifier("$$anchor".into()),
+            JsPattern::Identifier("$$props".into()),
         ]
     } else {
-        vec![JsPattern::Identifier("$$anchor".to_string())]
+        vec![JsPattern::Identifier("$$anchor".into())]
     };
 
     // Create component function declaration
     let component_fn = JsFunctionDeclaration {
-        id: Some(analysis.name.clone()),
-        params,
+        id: Some(analysis.name.clone().into()),
+        params: params.into(),
         body: JsBlockStatement {
             body: component_body,
         },
@@ -954,35 +954,35 @@ fn transform_client_with_visitors(
     // Add disclose-version import (always first)
     body.push(JsStatement::Import(JsImportDeclaration {
         specifiers: vec![],
-        source: "svelte/internal/disclose-version".to_string(),
+        source: "svelte/internal/disclose-version".into(),
     }));
 
     // Add feature flag imports
     if !analysis.runes {
         body.push(JsStatement::Import(JsImportDeclaration {
             specifiers: vec![],
-            source: "svelte/internal/flags/legacy".to_string(),
+            source: "svelte/internal/flags/legacy".into(),
         }));
     }
 
     if options.experimental.r#async {
         body.push(JsStatement::Import(JsImportDeclaration {
             specifiers: vec![],
-            source: "svelte/internal/flags/async".to_string(),
+            source: "svelte/internal/flags/async".into(),
         }));
     }
 
     if analysis.tracing {
         body.push(JsStatement::Import(JsImportDeclaration {
             specifiers: vec![],
-            source: "svelte/internal/flags/tracing".to_string(),
+            source: "svelte/internal/flags/tracing".into(),
         }));
     }
 
     // Add svelte/internal/client import (namespace import as $)
     body.push(JsStatement::Import(JsImportDeclaration {
-        specifiers: vec![JsImportSpecifier::Namespace("$".to_string())],
-        source: "svelte/internal/client".to_string(),
+        specifiers: vec![JsImportSpecifier::Namespace("$".into())],
+        source: "svelte/internal/client".into(),
     }));
 
     // Process module script content - extract imports separately from other content
@@ -993,7 +993,7 @@ fn transform_client_with_visitors(
             let (module_imports, rest) = extract_imports(&module_content.raw);
             // Add module script imports first
             for import_line in module_imports {
-                body.push(JsStatement::Raw(import_line));
+                body.push(JsStatement::Raw(import_line.into()));
             }
             let rest_trimmed = rest.trim();
             if rest_trimmed.is_empty() {
@@ -1010,7 +1010,7 @@ fn transform_client_with_visitors(
     if let Some(ref instance_content) = analysis.instance_script_content {
         let (script_imports, _) = extract_imports(&instance_content.raw);
         for import_line in script_imports {
-            body.push(JsStatement::Raw(import_line));
+            body.push(JsStatement::Raw(import_line.into()));
         }
     }
 
@@ -1029,7 +1029,7 @@ fn transform_client_with_visitors(
     if let Some(non_imports) = module_script_non_imports {
         let class_transformed = transform_class_fields_client(&non_imports);
         let transformed = transform_module_script_runes(&class_transformed, analysis);
-        body.push(JsStatement::Raw(transformed));
+        body.push(JsStatement::Raw(transformed.into()));
     }
 
     // Add hoisted statements (template declarations, etc.)
@@ -1044,7 +1044,7 @@ fn transform_client_with_visitors(
             "$$css",
             b::object(vec![
                 super::js_ast::nodes::JsObjectMember::Property(super::js_ast::nodes::JsProperty {
-                    key: super::js_ast::nodes::JsPropertyKey::Identifier("hash".to_string()),
+                    key: super::js_ast::nodes::JsPropertyKey::Identifier("hash".into()),
                     value: Box::new(hash),
                     kind: super::js_ast::nodes::JsPropertyKind::Init,
                     shorthand: false,
@@ -1052,7 +1052,7 @@ fn transform_client_with_visitors(
                     computed: false,
                 }),
                 super::js_ast::nodes::JsObjectMember::Property(super::js_ast::nodes::JsProperty {
-                    key: super::js_ast::nodes::JsPropertyKey::Identifier("code".to_string()),
+                    key: super::js_ast::nodes::JsPropertyKey::Identifier("code".into()),
                     value: Box::new(code),
                     kind: super::js_ast::nodes::JsPropertyKind::Init,
                     shorthand: false,

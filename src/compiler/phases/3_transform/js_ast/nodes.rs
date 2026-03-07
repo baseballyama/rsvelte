@@ -3,6 +3,8 @@
 //! These types represent JavaScript/ESTree AST nodes that can be
 //! serialized to JavaScript source code.
 
+use compact_str::CompactString;
+use smallvec::SmallVec;
 use std::fmt;
 
 /// A complete JavaScript program.
@@ -67,21 +69,21 @@ pub enum JsStatement {
     /// Labeled statement
     Labeled(JsLabeledStatement),
     /// Break statement
-    Break(Option<String>),
+    Break(Option<CompactString>),
     /// Continue statement
-    Continue(Option<String>),
+    Continue(Option<CompactString>),
     /// Throw statement
     Throw(Box<JsExpr>),
     /// Try statement
     Try(JsTryStatement),
     /// Raw JavaScript code (as a statement, output verbatim)
-    Raw(String),
+    Raw(CompactString),
 }
 
 /// Import declaration.
 #[derive(Debug, Clone)]
 pub struct JsImportDeclaration {
-    pub source: String,
+    pub source: CompactString,
     pub specifiers: Vec<JsImportSpecifier>,
 }
 
@@ -89,11 +91,14 @@ pub struct JsImportDeclaration {
 #[derive(Debug, Clone)]
 pub enum JsImportSpecifier {
     /// import * as name from 'source'
-    Namespace(String),
+    Namespace(CompactString),
     /// import name from 'source'
-    Default(String),
+    Default(CompactString),
     /// import { imported as local } from 'source'
-    Named { imported: String, local: String },
+    Named {
+        imported: CompactString,
+        local: CompactString,
+    },
     /// import 'source' (side effect only)
     SideEffect,
 }
@@ -121,8 +126,8 @@ pub struct JsExportNamed {
 /// Export specifier.
 #[derive(Debug, Clone)]
 pub struct JsExportSpecifier {
-    pub local: String,
-    pub exported: String,
+    pub local: CompactString,
+    pub exported: CompactString,
 }
 
 /// Variable declaration.
@@ -160,8 +165,8 @@ pub struct JsVariableDeclarator {
 /// Function declaration.
 #[derive(Debug, Clone)]
 pub struct JsFunctionDeclaration {
-    pub id: Option<String>,
-    pub params: Vec<JsPattern>,
+    pub id: Option<CompactString>,
+    pub params: SmallVec<[JsPattern; 3]>,
     pub body: JsBlockStatement,
     pub is_async: bool,
     pub is_generator: bool,
@@ -262,7 +267,7 @@ impl Default for JsBlockStatement {
 /// Labeled statement.
 #[derive(Debug, Clone)]
 pub struct JsLabeledStatement {
-    pub label: String,
+    pub label: CompactString,
     pub body: Box<JsStatement>,
 }
 
@@ -285,7 +290,7 @@ pub struct JsCatchClause {
 #[derive(Debug, Clone)]
 pub enum JsExpr {
     /// Identifier
-    Identifier(String),
+    Identifier(CompactString),
     /// Literal value
     Literal(JsLiteral),
     /// Template literal
@@ -335,18 +340,21 @@ pub enum JsExpr {
     /// Void expression
     Void(Box<JsExpr>),
     /// Raw JavaScript code (as a string)
-    Raw(String),
+    Raw(CompactString),
 }
 
 /// Literal value.
 #[derive(Debug, Clone)]
 pub enum JsLiteral {
-    String(String),
+    String(CompactString),
     Number(f64),
     Boolean(bool),
     Null,
     Undefined,
-    Regex { pattern: String, flags: String },
+    Regex {
+        pattern: CompactString,
+        flags: CompactString,
+    },
 }
 
 /// Template literal.
@@ -367,8 +375,8 @@ pub struct JsTaggedTemplate {
 /// Template literal element.
 #[derive(Debug, Clone)]
 pub struct JsTemplateElement {
-    pub raw: String,
-    pub cooked: String,
+    pub raw: CompactString,
+    pub cooked: CompactString,
     pub tail: bool,
 }
 
@@ -407,7 +415,7 @@ pub struct JsProperty {
 /// Property key.
 #[derive(Debug, Clone)]
 pub enum JsPropertyKey {
-    Identifier(String),
+    Identifier(CompactString),
     Literal(JsLiteral),
     Computed(Box<JsExpr>),
 }
@@ -423,8 +431,8 @@ pub enum JsPropertyKind {
 /// Function expression.
 #[derive(Debug, Clone)]
 pub struct JsFunctionExpression {
-    pub id: Option<String>,
-    pub params: Vec<JsPattern>,
+    pub id: Option<CompactString>,
+    pub params: SmallVec<[JsPattern; 3]>,
     pub body: JsBlockStatement,
     pub is_async: bool,
     pub is_generator: bool,
@@ -433,7 +441,7 @@ pub struct JsFunctionExpression {
 /// Arrow function expression.
 #[derive(Debug, Clone)]
 pub struct JsArrowFunction {
-    pub params: Vec<JsPattern>,
+    pub params: SmallVec<[JsPattern; 3]>,
     pub body: JsArrowBody,
     pub is_async: bool,
 }
@@ -472,9 +480,9 @@ pub struct JsMemberExpression {
 /// Member expression property.
 #[derive(Debug, Clone)]
 pub enum JsMemberProperty {
-    Identifier(String),
+    Identifier(CompactString),
     Expression(Box<JsExpr>),
-    PrivateIdentifier(String),
+    PrivateIdentifier(CompactString),
 }
 
 /// Binary expression.
@@ -710,7 +718,7 @@ pub struct JsYieldExpression {
 /// Class expression.
 #[derive(Debug, Clone)]
 pub struct JsClassExpression {
-    pub id: Option<String>,
+    pub id: Option<CompactString>,
     pub super_class: Option<Box<JsExpr>>,
     pub body: JsClassBody,
 }
@@ -767,7 +775,7 @@ pub struct JsChainExpression {
 #[derive(Debug, Clone)]
 pub enum JsPattern {
     /// Simple identifier
-    Identifier(String),
+    Identifier(CompactString),
     /// Array destructuring
     Array(JsArrayPattern),
     /// Object destructuring

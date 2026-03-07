@@ -187,7 +187,7 @@ pub fn build_getter(
         && let Some(read_fn) = t.read
     {
         // Apply the transform
-        return read_fn(JsExpr::Identifier(name.to_string()));
+        return read_fn(JsExpr::Identifier(name.into()));
     }
 
     // No transform - return the identifier as-is

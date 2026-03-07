@@ -563,7 +563,7 @@ fn reactive_import_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
 /// };
 /// ```
 fn sanitized_props_read(_node: JsExpr) -> JsExpr {
-    JsExpr::Identifier("$$sanitized_props".to_string())
+    JsExpr::Identifier("$$sanitized_props".into())
 }
 
 #[cfg(test)]

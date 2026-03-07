@@ -185,7 +185,7 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
                 crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
                     &init_for_const,
                 );
-            JsStatement::Raw(format!("const {} = {};", pattern_str, init_str))
+            JsStatement::Raw(format!("const {} = {};", pattern_str, init_str).into())
         };
 
         // Create the return object: { x, y }

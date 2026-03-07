@@ -57,7 +57,7 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
     let anchor_param = b::id_pattern("$$anchor");
     let body = JsExpr::Arrow(
         crate::compiler::phases::phase3_transform::js_ast::nodes::JsArrowFunction {
-            params: vec![anchor_param],
+            params: vec![anchor_param].into(),
             body: crate::compiler::phases::phase3_transform::js_ast::nodes::JsArrowBody::Block(
                 body_block,
             ),
@@ -88,9 +88,9 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
 
         let node_name = match &context.state.node {
             JsExpr::Identifier(name) => name.clone(),
-            _ => "node".to_string(),
+            _ => "node".into(),
         };
-        let mut callback_params = vec![b::id_pattern(&node_name)];
+        let mut callback_params = vec![b::id_pattern(node_name.clone())];
         if has_await {
             callback_params.push(b::id_pattern("$$key"));
         }

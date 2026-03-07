@@ -10,6 +10,7 @@ use crate::compiler::phases::phase3_transform::server::types::{
     ComponentServerTransformState, TemplateItem,
 };
 use crate::compiler::phases::phase3_transform::shared::{escape_html, sanitize_template_string};
+use compact_str::CompactString;
 
 /// Opens an if/each block for hydration boundaries.
 ///
@@ -17,7 +18,7 @@ use crate::compiler::phases::phase3_transform::shared::{escape_html, sanitize_te
 ///
 /// Corresponds to `block_open` in `utils.js`.
 pub fn block_open() -> JsExpr {
-    JsExpr::Literal(JsLiteral::String(BLOCK_OPEN.to_string()))
+    JsExpr::Literal(JsLiteral::String(BLOCK_OPEN.into()))
 }
 
 /// Opens an if/each block with an else marker.
@@ -26,7 +27,7 @@ pub fn block_open() -> JsExpr {
 ///
 /// Corresponds to `block_open_else` in `utils.js`.
 pub fn block_open_else() -> JsExpr {
-    JsExpr::Literal(JsLiteral::String(BLOCK_OPEN_ELSE.to_string()))
+    JsExpr::Literal(JsLiteral::String(BLOCK_OPEN_ELSE.into()))
 }
 
 /// Closes an if/each block.
@@ -35,14 +36,14 @@ pub fn block_open_else() -> JsExpr {
 ///
 /// Corresponds to `block_close` in `utils.js`.
 pub fn block_close() -> JsExpr {
-    JsExpr::Literal(JsLiteral::String(BLOCK_CLOSE.to_string()))
+    JsExpr::Literal(JsLiteral::String(BLOCK_CLOSE.into()))
 }
 
 /// Empty comment to keep text nodes separate or provide an anchor node for blocks.
 ///
 /// Corresponds to `empty_comment` in `utils.js`.
 pub fn empty_comment() -> JsExpr {
-    JsExpr::Literal(JsLiteral::String(EMPTY_COMMENT.to_string()))
+    JsExpr::Literal(JsLiteral::String(EMPTY_COMMENT.into()))
 }
 
 /// Processes an array of template nodes, joining sibling text/expression nodes
@@ -74,8 +75,8 @@ pub fn process_children<F>(
         }
 
         let mut quasi = JsTemplateElement {
-            raw: String::new(),
-            cooked: String::new(),
+            raw: CompactString::default(),
+            cooked: CompactString::default(),
             tail: false,
         };
         let mut quasis = vec![quasi.clone()];
@@ -105,19 +106,19 @@ pub fn process_children<F>(
                             let expr_str = extract_expression_string(&expr_tag.expression);
                             expressions.push(JsExpr::Call(JsCallExpression {
                                 callee: Box::new(JsExpr::Member(JsMemberExpression {
-                                    object: Box::new(JsExpr::Identifier("$".to_string())),
-                                    property: JsMemberProperty::Identifier("escape".to_string()),
+                                    object: Box::new(JsExpr::Identifier("$".into())),
+                                    property: JsMemberProperty::Identifier("escape".into()),
                                     computed: false,
                                     optional: false,
                                 })),
-                                arguments: vec![JsExpr::Identifier(expr_str)],
+                                arguments: vec![JsExpr::Identifier(expr_str.into())],
                                 optional: false,
                             }));
 
                             // Start a new quasi
                             quasi = JsTemplateElement {
-                                raw: String::new(),
-                                cooked: String::new(),
+                                raw: CompactString::default(),
+                                cooked: CompactString::default(),
                                 tail: i + 1 == seq.len(),
                             };
                             quasis.push(quasi.clone());
@@ -135,7 +136,7 @@ pub fn process_children<F>(
 
         // Sanitize template strings
         for quasi in &mut quasis {
-            quasi.raw = sanitize_template_string(&quasi.cooked);
+            quasi.raw = sanitize_template_string(&quasi.cooked).into();
         }
 
         // Add to template
@@ -170,7 +171,9 @@ pub fn process_children<F>(
                     let expr_str = extract_expression_string(&expr_tag.expression);
                     state
                         .template
-                        .push(TemplateItem::Expression(JsExpr::Identifier(expr_str)));
+                        .push(TemplateItem::Expression(JsExpr::Identifier(
+                            expr_str.into(),
+                        )));
                 } else {
                     sequence.push(node);
                 }
@@ -217,8 +220,8 @@ pub fn build_template(template: &[TemplateItem]) -> Vec<JsStatement> {
             .iter()
             .enumerate()
             .map(|(i, cooked)| JsTemplateElement {
-                raw: sanitize_template_string(cooked),
-                cooked: cooked.clone(),
+                raw: sanitize_template_string(cooked).into(),
+                cooked: cooked.clone().into(),
                 tail: i == strings.len() - 1,
             })
             .collect();
@@ -231,8 +234,8 @@ pub fn build_template(template: &[TemplateItem]) -> Vec<JsStatement> {
         statements.push(JsStatement::Expression(JsExpressionStatement {
             expression: Box::new(JsExpr::Call(JsCallExpression {
                 callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$$renderer".to_string())),
-                    property: JsMemberProperty::Identifier("push".to_string()),
+                    object: Box::new(JsExpr::Identifier("$$renderer".into())),
+                    property: JsMemberProperty::Identifier("push".into()),
                     computed: false,
                     optional: false,
                 })),
@@ -282,7 +285,7 @@ pub fn build_template(template: &[TemplateItem]) -> Vec<JsStatement> {
                             last.push_str(&first_quasi.cooked);
                         }
                         for quasi in tpl.quasis.iter().skip(1) {
-                            strings.push(quasi.cooked.clone());
+                            strings.push(quasi.cooked.to_string());
                         }
                         expressions.extend(tpl.expressions.iter().cloned());
                     }
@@ -333,8 +336,8 @@ where
     match value {
         AttributeValue::True(_) => JsExpr::Literal(JsLiteral::Boolean(true)),
         AttributeValue::Expression(expr_tag) => {
-            let expr_str = extract_expression_string(&expr_tag.expression);
-            transform(JsExpr::Identifier(expr_str))
+            let expr_str = extract_expression_string(&expr_tag.expression.clone());
+            transform(JsExpr::Identifier(expr_str.into()))
         }
         AttributeValue::Sequence(parts) => {
             if parts.len() == 1 {
@@ -358,19 +361,19 @@ where
                             escape_html(&data)
                         };
 
-                        return JsExpr::Literal(JsLiteral::String(value));
+                        return JsExpr::Literal(JsLiteral::String(value.into()));
                     }
                     AttributeValuePart::ExpressionTag(expr_tag) => {
-                        let expr_str = extract_expression_string(&expr_tag.expression);
-                        return transform(JsExpr::Identifier(expr_str));
+                        let expr_str = extract_expression_string(&expr_tag.expression.clone());
+                        return transform(JsExpr::Identifier(expr_str.into()));
                     }
                 }
             }
 
             // Multiple parts - build template literal
             let mut quasi = JsTemplateElement {
-                raw: String::new(),
-                cooked: String::new(),
+                raw: CompactString::default(),
+                cooked: CompactString::default(),
                 tail: false,
             };
             let mut quasis = vec![quasi.clone()];
@@ -393,14 +396,14 @@ where
                         quasi.cooked.push_str(&data);
                     }
                     AttributeValuePart::ExpressionTag(expr_tag) => {
-                        let expr_str = extract_expression_string(&expr_tag.expression);
-                        let expr = JsExpr::Identifier(expr_str);
+                        let expr_str = extract_expression_string(&expr_tag.expression.clone());
+                        let expr = JsExpr::Identifier(expr_str.into());
 
                         // Wrap in $.stringify
                         expressions.push(JsExpr::Call(JsCallExpression {
                             callee: Box::new(JsExpr::Member(JsMemberExpression {
-                                object: Box::new(JsExpr::Identifier("$".to_string())),
-                                property: JsMemberProperty::Identifier("stringify".to_string()),
+                                object: Box::new(JsExpr::Identifier("$".into())),
+                                property: JsMemberProperty::Identifier("stringify".into()),
                                 computed: false,
                                 optional: false,
                             })),
@@ -409,8 +412,8 @@ where
                         }));
 
                         quasi = JsTemplateElement {
-                            raw: String::new(),
-                            cooked: String::new(),
+                            raw: CompactString::default(),
+                            cooked: CompactString::default(),
                             tail: i + 1 == parts.len(),
                         };
                         quasis.push(quasi.clone());
@@ -438,13 +441,13 @@ pub fn create_child_block(body: JsBlockStatement, is_async: bool) -> JsStatement
     JsStatement::Expression(JsExpressionStatement {
         expression: Box::new(JsExpr::Call(JsCallExpression {
             callee: Box::new(JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("$$renderer".to_string())),
-                property: JsMemberProperty::Identifier("child".to_string()),
+                object: Box::new(JsExpr::Identifier("$$renderer".into())),
+                property: JsMemberProperty::Identifier("child".into()),
                 computed: false,
                 optional: false,
             })),
             arguments: vec![JsExpr::Arrow(JsArrowFunction {
-                params: vec![JsPattern::Identifier("$$renderer".to_string())],
+                params: smallvec::smallvec![JsPattern::Identifier("$$renderer".into())],
                 body: JsArrowBody::Block(body),
                 is_async,
             })],
@@ -471,8 +474,8 @@ pub fn create_async_block(
     JsStatement::Expression(JsExpressionStatement {
         expression: Box::new(JsExpr::Call(JsCallExpression {
             callee: Box::new(JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("$$renderer".to_string())),
-                property: JsMemberProperty::Identifier(method_name.to_string()),
+                object: Box::new(JsExpr::Identifier("$$renderer".into())),
+                property: JsMemberProperty::Identifier(method_name.into()),
                 computed: false,
                 optional: false,
             })),
@@ -481,7 +484,7 @@ pub fn create_async_block(
                     elements: blockers.into_iter().map(Some).collect(),
                 }),
                 JsExpr::Arrow(JsArrowFunction {
-                    params: vec![JsPattern::Identifier("$$renderer".to_string())],
+                    params: smallvec::smallvec![JsPattern::Identifier("$$renderer".into())],
                     body: JsArrowBody::Block(body),
                     is_async: has_await,
                 }),
@@ -759,7 +762,7 @@ fn convert_json_value_simple(value: &serde_json::Value) -> JsExpr {
                         .and_then(|n| n.as_str())
                         .unwrap_or("unknown")
                         .to_string();
-                    JsExpr::Identifier(name)
+                    JsExpr::Identifier(name.into())
                 }
                 "Literal" => convert_literal_simple(obj),
                 "MemberExpression" => convert_member_expression_simple(obj),
@@ -781,18 +784,18 @@ fn convert_json_value_simple(value: &serde_json::Value) -> JsExpr {
                 }
                 "TemplateLiteral" => convert_template_literal_simple(obj),
                 _ => {
-                    // For unknown types, try to extract the raw source or use placeholder
-                    JsExpr::Raw(format!("/* Unknown: {} */", node_type))
+                    // For unknown types.into(), try to extract the raw source or use placeholder
+                    JsExpr::Raw(format!("/* Unknown: {} */", node_type).into())
                 }
             }
         }
-        serde_json::Value::String(s) => JsExpr::Literal(JsLiteral::String(s.clone())),
+        serde_json::Value::String(s) => JsExpr::Literal(JsLiteral::String(s.clone().into())),
         serde_json::Value::Number(n) => {
             JsExpr::Literal(JsLiteral::Number(n.as_f64().unwrap_or(0.0)))
         }
         serde_json::Value::Bool(b) => JsExpr::Literal(JsLiteral::Boolean(*b)),
         serde_json::Value::Null => JsExpr::Literal(JsLiteral::Null),
-        serde_json::Value::Array(_) => JsExpr::Raw("/* Array */".to_string()),
+        serde_json::Value::Array(_) => JsExpr::Raw("/* Array */".into()),
     }
 }
 
@@ -800,7 +803,7 @@ fn convert_literal_simple(obj: &serde_json::Map<String, serde_json::Value>) -> J
     let value = obj.get("value");
 
     match value {
-        Some(serde_json::Value::String(s)) => JsExpr::Literal(JsLiteral::String(s.clone())),
+        Some(serde_json::Value::String(s)) => JsExpr::Literal(JsLiteral::String(s.clone().into())),
         Some(serde_json::Value::Number(n)) => {
             JsExpr::Literal(JsLiteral::Number(n.as_f64().unwrap_or(0.0)))
         }
@@ -818,7 +821,10 @@ fn convert_literal_simple(obj: &serde_json::Map<String, serde_json::Value>) -> J
                     .and_then(|f| f.as_str())
                     .unwrap_or("")
                     .to_string();
-                return JsExpr::Literal(JsLiteral::Regex { pattern, flags });
+                return JsExpr::Literal(JsLiteral::Regex {
+                    pattern: pattern.into(),
+                    flags: flags.into(),
+                });
             }
             JsExpr::Literal(JsLiteral::Null)
         }
@@ -830,7 +836,7 @@ fn convert_member_expression_simple(obj: &serde_json::Map<String, serde_json::Va
     let object = obj
         .get("object")
         .map(convert_json_value_simple)
-        .unwrap_or(JsExpr::Identifier("unknown".to_string()));
+        .unwrap_or(JsExpr::Identifier("unknown".into()));
 
     let computed = obj
         .get("computed")
@@ -848,12 +854,12 @@ fn convert_member_expression_simple(obj: &serde_json::Map<String, serde_json::Va
         } else if let Some(prop_obj) = prop.as_object()
             && let Some(name) = prop_obj.get("name").and_then(|n| n.as_str())
         {
-            JsMemberProperty::Identifier(name.to_string())
+            JsMemberProperty::Identifier(name.into())
         } else {
-            JsMemberProperty::Identifier("unknown".to_string())
+            JsMemberProperty::Identifier("unknown".into())
         }
     } else {
-        JsMemberProperty::Identifier("unknown".to_string())
+        JsMemberProperty::Identifier("unknown".into())
     };
 
     JsExpr::Member(JsMemberExpression {
@@ -868,7 +874,7 @@ fn convert_call_expression_simple(obj: &serde_json::Map<String, serde_json::Valu
     let callee = obj
         .get("callee")
         .map(convert_json_value_simple)
-        .unwrap_or(JsExpr::Identifier("unknown".to_string()));
+        .unwrap_or(JsExpr::Identifier("unknown".into()));
 
     let arguments = obj
         .get("arguments")
@@ -971,7 +977,7 @@ fn convert_property_key_simple(obj: &serde_json::Map<String, serde_json::Value>)
         if let Some("Identifier") = key_obj.get("type").and_then(|t| t.as_str())
             && let Some(name) = key_obj.get("name").and_then(|n| n.as_str())
         {
-            return JsPropertyKey::Identifier(name.to_string());
+            return JsPropertyKey::Identifier(name.into());
         }
         if let Some("Literal") = key_obj.get("type").and_then(|t| t.as_str()) {
             let literal = convert_literal_simple(key_obj);
@@ -981,7 +987,7 @@ fn convert_property_key_simple(obj: &serde_json::Map<String, serde_json::Value>)
         }
     }
 
-    JsPropertyKey::Identifier("unknown".to_string())
+    JsPropertyKey::Identifier("unknown".into())
 }
 
 fn convert_array_expression_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
@@ -1150,7 +1156,7 @@ fn convert_arrow_function_simple(obj: &serde_json::Map<String, serde_json::Value
                                 .and_then(|n| n.as_str())
                                 .unwrap_or("_")
                                 .to_string();
-                            Some(JsPattern::Identifier(name))
+                            Some(JsPattern::Identifier(name.into()))
                         }
                         _ => None,
                     }
@@ -1204,7 +1210,11 @@ fn convert_template_literal_simple(obj: &serde_json::Map<String, serde_json::Val
                         .and_then(|t| t.as_bool())
                         .unwrap_or(false);
 
-                    Some(JsTemplateElement { raw, cooked, tail })
+                    Some(JsTemplateElement {
+                        raw: raw.into(),
+                        cooked: cooked.into(),
+                        tail,
+                    })
                 })
                 .collect()
         })

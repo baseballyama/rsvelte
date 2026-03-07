@@ -255,7 +255,7 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
 
         // Callback params: include $$condition only when has_await
         let anchor_param = match &context.state.node {
-            JsExpr::Identifier(name) => b::id_pattern(name),
+            JsExpr::Identifier(name) => b::id_pattern(name.clone()),
             _ => b::id_pattern("$$anchor"),
         };
 

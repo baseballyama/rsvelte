@@ -800,7 +800,7 @@ pub fn build_set_class_call(
     // Extract node_id from node_expr
     let node_id = match &node_expr {
         JsExpr::Identifier(name) => name.clone(),
-        _ => "node".to_string(),
+        _ => "node".into(),
     };
 
     // Build class directives object: { foo: condition(), bar: otherCondition() }
@@ -830,7 +830,7 @@ pub fn build_set_class_call(
     b::call(
         b::member_path("$.set_class"),
         vec![
-            b::id(&node_id),
+            b::id(node_id.clone()),
             flags,
             class_attr,
             css_binding,

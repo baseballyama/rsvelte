@@ -102,7 +102,7 @@ pub fn use_directive(node: &UseDirective, context: &mut ComponentContext) -> JsS
             .any(|e| e.name == *name);
         if !is_source && !is_exported {
             action_name = JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("$$props".to_string())),
+                object: Box::new(JsExpr::Identifier("$$props".into())),
                 property: JsMemberProperty::Identifier(name.clone()),
                 computed: false,
                 optional: false,

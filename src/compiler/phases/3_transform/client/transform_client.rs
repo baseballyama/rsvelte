@@ -190,17 +190,17 @@ pub fn client_component(
     // Build component function parameters
     let params = if should_inject_props {
         vec![
-            JsPattern::Identifier("$$anchor".to_string()),
-            JsPattern::Identifier("$$props".to_string()),
+            JsPattern::Identifier("$$anchor".into()),
+            JsPattern::Identifier("$$props".into()),
         ]
     } else {
-        vec![JsPattern::Identifier("$$anchor".to_string())]
+        vec![JsPattern::Identifier("$$anchor".into())]
     };
 
     // Create component function
     let component_fn = JsFunctionDeclaration {
-        id: Some(analysis.name.clone()),
-        params,
+        id: Some(analysis.name.clone().into()),
+        params: params.into(),
         body: JsBlockStatement {
             body: component_body,
         },
@@ -215,21 +215,21 @@ pub fn client_component(
     if !analysis.runes {
         body.push(JsStatement::Import(JsImportDeclaration {
             specifiers: vec![],
-            source: "svelte/internal/flags/legacy".to_string(),
+            source: "svelte/internal/flags/legacy".into(),
         }));
     }
 
     if options.experimental.r#async {
         body.push(JsStatement::Import(JsImportDeclaration {
             specifiers: vec![],
-            source: "svelte/internal/flags/async".to_string(),
+            source: "svelte/internal/flags/async".into(),
         }));
     }
 
     // Add svelte/internal/client import
     body.push(JsStatement::Import(JsImportDeclaration {
-        specifiers: vec![JsImportSpecifier::Namespace("$".to_string())],
-        source: "svelte/internal/client".to_string(),
+        specifiers: vec![JsImportSpecifier::Namespace("$".into())],
+        source: "svelte/internal/client".into(),
     }));
 
     // Export default component function
@@ -327,14 +327,14 @@ pub fn client_module(
 
     // Add svelte/internal/client import
     body.push(JsStatement::Import(JsImportDeclaration {
-        specifiers: vec![JsImportSpecifier::Namespace("$".to_string())],
-        source: "svelte/internal/client".to_string(),
+        specifiers: vec![JsImportSpecifier::Namespace("$".into())],
+        source: "svelte/internal/client".into(),
     }));
 
     if analysis.tracing {
         body.push(JsStatement::Import(JsImportDeclaration {
             specifiers: vec![],
-            source: "svelte/internal/flags/tracing".to_string(),
+            source: "svelte/internal/flags/tracing".into(),
         }));
     }
 

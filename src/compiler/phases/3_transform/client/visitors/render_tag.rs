@@ -57,7 +57,7 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
 
     // Track async values for $.async() wrapping
     let mut async_values: Vec<JsExpr> = Vec::new();
-    let mut async_ids: Vec<String> = Vec::new();
+    let mut async_ids: Vec<compact_str::CompactString> = Vec::new();
     let mut any_has_await = false;
 
     let mut derived_decls: Vec<JsStatement> = Vec::new();
@@ -82,7 +82,7 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
                 let id_name = format!("${}", async_values.len());
                 // Strip the top-level await since $.async handles the awaiting
                 async_values.push(b::thunk(b::strip_await(built)));
-                async_ids.push(id_name.clone());
+                async_ids.push(id_name.clone().into());
                 // Return: () => $.get($N)
                 b::thunk(b::call(b::member_path("$.get"), vec![b::id(&id_name)]))
             } else {
@@ -162,14 +162,14 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
     if any_has_await || has_blockers {
         let node_name = match &context.state.node {
             JsExpr::Identifier(name) => name.clone(),
-            _ => "$$anchor".to_string(),
+            _ => "$$anchor".into(),
         };
 
         let mut callback_params: Vec<
             crate::compiler::phases::phase3_transform::js_ast::nodes::JsPattern,
-        > = vec![b::id_pattern(&node_name)];
+        > = vec![b::id_pattern(node_name.clone())];
         for id in &async_ids {
-            callback_params.push(b::id_pattern(id));
+            callback_params.push(b::id_pattern(id.clone()));
         }
 
         let callback = b::arrow_block(callback_params, statements);
