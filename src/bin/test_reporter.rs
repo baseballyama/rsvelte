@@ -172,6 +172,7 @@ fn run_parser_tests(test_type: &str, modern: bool) -> Category {
             modern,
             loose: false,
             filename: Some(test_name.clone()),
+            ..Default::default()
         };
 
         let result = parse(&input, options);

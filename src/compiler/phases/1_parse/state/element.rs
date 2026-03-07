@@ -1263,7 +1263,7 @@ impl Parser<'_> {
                             &prop_name,
                             name_start + 5,
                             name_end,
-                            &self.line_offsets,
+                            self.expression_line_offsets(),
                         ),
                         self.index,
                     )
@@ -1296,7 +1296,7 @@ impl Parser<'_> {
                         &prop_name,
                         name_start + 5, // start after "bind:"
                         name_end,
-                        &self.line_offsets,
+                        self.expression_line_offsets(),
                     ),
                     name_end,
                 )
@@ -1308,7 +1308,7 @@ impl Parser<'_> {
                     &prop_name,
                     name_start + 5, // start after "bind:"
                     name_end,
-                    &self.line_offsets,
+                    self.expression_line_offsets(),
                 ),
                 name_end,
             )
@@ -1495,7 +1495,7 @@ impl Parser<'_> {
                     class_name,
                     name_start + 6, // start after "class:"
                     name_end,
-                    &self.line_offsets,
+                    self.expression_line_offsets(),
                 )
             }
         } else {
@@ -1504,7 +1504,7 @@ impl Parser<'_> {
                 class_name,
                 name_start + 6, // start after "class:"
                 name_end,
-                &self.line_offsets,
+                self.expression_line_offsets(),
             )
         };
 

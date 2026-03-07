@@ -80,6 +80,10 @@ pub struct ParseOptions {
     pub loose: bool,
     /// Optional filename for error messages.
     pub filename: Option<String>,
+    /// Skip creating loc objects in Expression JSON values.
+    /// When true, loc fields are set to null instead of creating nested objects.
+    /// This saves significant allocations during compilation where loc is never used.
+    pub skip_expression_loc: bool,
 }
 
 /// Parse a Svelte component source into an AST.

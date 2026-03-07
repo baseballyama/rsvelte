@@ -177,7 +177,7 @@ impl Parser<'_> {
         let program = super::super::expression::parse_program(
             script_content,
             content_start,
-            &self.line_offsets,
+            self.expression_line_offsets(),
             use_typescript,
             &leading_comments,
             start, // Script tag start position for loc.start

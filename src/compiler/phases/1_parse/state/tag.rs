@@ -602,7 +602,11 @@ impl Parser<'_> {
 
     /// Parse a binding pattern (for each block context).
     pub fn parse_binding_pattern(&self, content: &str, offset: usize) -> Expression {
-        super::super::expression::parse_binding_pattern(content, offset, &self.line_offsets)
+        super::super::expression::parse_binding_pattern(
+            content,
+            offset,
+            self.expression_line_offsets(),
+        )
     }
 
     /// Parse {#await} block.
@@ -664,7 +668,7 @@ impl Parser<'_> {
             trimmed_content.trim(),
             adjusted_start,
             adjusted_end,
-            &self.line_offsets,
+            self.expression_line_offsets(),
             self.source,
             self.options.loose,
             false,
@@ -676,7 +680,7 @@ impl Parser<'_> {
                 "",
                 pos,
                 adjusted_end,
-                &self.line_offsets,
+                self.expression_line_offsets(),
             )
         });
 
@@ -877,7 +881,7 @@ impl Parser<'_> {
             &name,
             name_start,
             name_end,
-            &self.line_offsets,
+            self.expression_line_offsets(),
         );
 
         // Parse optional type parameters (between < and >)
@@ -991,7 +995,7 @@ impl Parser<'_> {
                 parameters = super::super::expression::parse_typescript_params(
                     params_content,
                     params_start,
-                    &self.line_offsets,
+                    self.expression_line_offsets(),
                 );
             }
 
@@ -1406,7 +1410,7 @@ impl Parser<'_> {
                             super::super::read::expression::parse_destructuring_pattern(
                                 &pattern_clean,
                                 expr_start,
-                                &self.line_offsets,
+                                self.expression_line_offsets(),
                             )
                             .unwrap_or_else(|| self.parse_js_expression(&pattern_clean, expr_start))
                         } else {
@@ -1552,7 +1556,7 @@ impl Parser<'_> {
         super::super::expression::parse_expression(
             trimmed,
             offset + leading_ws,
-            &self.line_offsets,
+            self.expression_line_offsets(),
             self.source,
             self.options.loose,
             disallow_loose,
@@ -1579,7 +1583,7 @@ impl Parser<'_> {
         super::super::expression::parse_expression(
             trimmed,
             offset + leading_ws,
-            &self.line_offsets,
+            self.expression_line_offsets(),
             self.source,
             self.options.loose,
             false,

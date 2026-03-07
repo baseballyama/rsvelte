@@ -143,6 +143,7 @@ fn run_fixture_test(sample_dir: &Path, modern: bool, skip_tests: &[&str]) -> Opt
         modern: true, // Always parse in modern mode first
         loose,
         filename: Some(name.clone()),
+        ..Default::default()
     };
 
     let result = parse(&input, options);

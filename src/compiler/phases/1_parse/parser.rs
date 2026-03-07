@@ -202,6 +202,17 @@ impl<'a> Parser<'a> {
         false
     }
 
+    /// Get line offsets for expression loc creation.
+    /// Returns empty slice when skip_expression_loc is enabled (compilation mode),
+    /// which causes create_loc functions to return Value::Null instead of allocating objects.
+    pub fn expression_line_offsets(&self) -> &[usize] {
+        if self.options.skip_expression_loc {
+            &[]
+        } else {
+            &self.line_offsets
+        }
+    }
+
     /// Get source location for a position.
     pub fn get_location(&self, pos: usize) -> SourceLocation {
         let line = self

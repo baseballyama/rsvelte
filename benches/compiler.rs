@@ -109,6 +109,7 @@ fn bench_phase1_parse(c: &mut Criterion) {
                     modern: true,
                     loose: false,
                     filename: None,
+                    ..Default::default()
                 };
                 parse(black_box(source), options)
             });
@@ -139,6 +140,7 @@ fn bench_phase2_analyze(c: &mut Criterion) {
             modern: true,
             loose: false,
             filename: None,
+            ..Default::default()
         };
         let ast_result = parse(content, parse_options.clone());
         if ast_result.is_err() {
@@ -182,6 +184,7 @@ fn bench_phase3_transform_client(c: &mut Criterion) {
             modern: true,
             loose: false,
             filename: None,
+            ..Default::default()
         };
         let ast_result = parse(content, parse_options.clone());
         if ast_result.is_err() {
@@ -240,6 +243,7 @@ fn bench_phase3_transform_server(c: &mut Criterion) {
             modern: true,
             loose: false,
             filename: None,
+            ..Default::default()
         };
         let ast_result = parse(content, parse_options.clone());
         if ast_result.is_err() {

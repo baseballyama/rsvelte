@@ -414,6 +414,7 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
         modern: true,
         loose: false,
         filename: options.filename.clone(),
+        skip_expression_loc: true,
     };
     let mut ast = phases::phase1_parse::parse(source, parse_options)?;
 
@@ -541,19 +542,12 @@ pub fn compile_module(
         .map(|f| f.ends_with(".ts") || f.ends_with(".svelte.ts"))
         .unwrap_or(false);
 
-    // Compute line offsets for position calculation
-    let mut line_offsets = vec![0usize];
-    for (i, c) in source.char_indices() {
-        if c == '\n' {
-            line_offsets.push(i + 1);
-        }
-    }
-
     // Parse JS source into an AST using the same infrastructure as component scripts
+    // Pass empty line_offsets to skip loc object creation (not needed during compilation)
     let program = phases::phase1_parse::read::expression::parse_program(
         source,
         0, // offset = 0 (source is the entire file)
-        &line_offsets,
+        &[],
         is_typescript,
         &[],          // no leading comments
         0,            // script_tag_start

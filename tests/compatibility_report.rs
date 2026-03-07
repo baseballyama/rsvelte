@@ -80,6 +80,7 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
             modern: true,
             loose,
             filename: Some(name.clone()),
+            ..Default::default()
         };
 
         match parse(&input, options) {
