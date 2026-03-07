@@ -1690,243 +1690,234 @@ fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> 
 
     // Rule 3 & 4: Inside functions (indented code)
     if raw_current.starts_with('\t') || raw_current.starts_with("  ") {
-        let current_indent = get_indent_level(raw_current);
-        let next_raw = format!("{}{}", "\t".repeat(current_indent), next);
-        let next_indent = get_indent_level(&next_raw);
-
-        // Only apply rules at the same indent level
-        if current_indent == next_indent
-            || next.starts_with("function ")
-            || next.starts_with("async function ")
+        // After variable declarations (before function declarations)
+        if is_var_declaration(current)
+            && (next.starts_with("function ") || next.starts_with("async function "))
         {
-            // After variable declarations (before function declarations)
-            if is_var_declaration(current)
-                && (next.starts_with("function ") || next.starts_with("async function "))
-            {
-                return true;
-            }
+            return true;
+        }
 
-            // After closing brace of function (before next function or var or statement)
-            // But NOT before other closing braces (};, });, etc.)
-            if current == "}"
-                && !is_closing_brace(next)
-                && (next.starts_with("function ")
-                    || next.starts_with("async function ")
-                    || next.starts_with("export default function ")
-                    || next.starts_with("export function ")
-                    || is_var_declaration(next)
-                    || is_statement(next))
-            {
-                return true;
-            }
+        // After closing brace of function (before next function or var or statement)
+        // But NOT before other closing braces (};, });, etc.)
+        if current == "}"
+            && !is_closing_brace(next)
+            && (next.starts_with("function ")
+                || next.starts_with("async function ")
+                || next.starts_with("export default function ")
+                || next.starts_with("export function ")
+                || is_var_declaration(next)
+                || is_statement(next))
+        {
+            return true;
+        }
 
-            // After variable declarations (before non-declaration statements)
-            // But only if the current is a declaration and next is NOT a declaration
-            // Skip if current line ends with `{` (multi-line expression like arrow function)
-            if is_var_declaration(current)
-                && !is_var_declaration(next)
-                && is_statement(next)
-                && !current.ends_with('{')
-            {
-                return true;
-            }
+        // After variable declarations (before non-declaration statements)
+        // But only if the current is a declaration and next is NOT a declaration
+        // Skip if current line ends with `{` (multi-line expression like arrow function)
+        if is_var_declaration(current)
+            && !is_var_declaration(next)
+            && is_statement(next)
+            && !current.ends_with('{')
+        {
+            return true;
+        }
 
-            // Rule 5: After $.reset(...) calls (before var declarations)
-            // This matches Svelte's esrap formatting for element traversal code
-            if current.starts_with("$.reset(") && is_var_declaration(next) {
-                return true;
-            }
+        // Rule 5: After $.reset(...) calls (before var declarations)
+        // This matches Svelte's esrap formatting for element traversal code
+        if current.starts_with("$.reset(") && is_var_declaration(next) {
+            return true;
+        }
 
-            // Rule 5b: After $.reset(...) calls (before multi-line template_effect)
-            // Blank line only when template_effect uses block form: () => { ... }
-            if current.starts_with("$.reset(")
-                && next.starts_with("$.template_effect(")
-                && !next.ends_with(");")
-            {
-                return true;
-            }
+        // Rule 5b: After $.reset(...) calls (before multi-line template_effect)
+        // Blank line only when template_effect uses block form: () => { ... }
+        if current.starts_with("$.reset(")
+            && next.starts_with("$.template_effect(")
+            && !next.ends_with(");")
+        {
+            return true;
+        }
 
-            // Rule 5c: After do-while closing `} while (...);` (before statements)
-            // This matches Svelte's formatting for $$settled loops
-            if current.starts_with("} while (") && current.ends_with(");") {
-                return true;
-            }
+        // Rule 5c: After do-while closing `} while (...);` (before statements)
+        // This matches Svelte's formatting for $$settled loops
+        if current.starts_with("} while (") && current.ends_with(");") {
+            return true;
+        }
 
-            // Rule 6: After callback closures `});` (before statements/var decls)
-            // This matches Svelte's esrap formatting for each blocks
-            if current == "});"
-                && (is_statement(next) || is_var_declaration(next))
-                && !is_closing_brace(next)
-            {
-                return true;
-            }
+        // Rule 6: After callback closures `});` (before statements/var decls)
+        // This matches Svelte's esrap formatting for each blocks
+        if current == "});"
+            && (is_statement(next) || is_var_declaration(next))
+            && !is_closing_brace(next)
+        {
+            return true;
+        }
 
-            // Rule 6b: After arrow/assignment closures `};`
-            // Add blank line unless next is a closing brace pattern
-            if current == "};" && !is_closing_brace(next) && !next.is_empty() {
-                return true;
-            }
+        // Rule 6b: After arrow/assignment closures `};`
+        // Add blank line unless next is a closing brace pattern
+        if current == "};" && !is_closing_brace(next) && !next.is_empty() {
+            return true;
+        }
 
-            // Rule 6c: After nested callback closures `}));` (before next statement)
-            if current == "}));"
-                && (is_statement(next) || is_var_declaration(next))
-                && !is_closing_brace(next)
-            {
-                return true;
-            }
+        // Rule 6c: After nested callback closures `}));` (before next statement)
+        if current == "}));"
+            && (is_statement(next) || is_var_declaration(next))
+            && !is_closing_brace(next)
+        {
+            return true;
+        }
 
-            // Rule 7: After $.next(); calls (before var declarations)
-            // This matches Svelte's esrap formatting for text-first fragments
-            if current.starts_with("$.next(") && is_var_declaration(next) {
-                return true;
-            }
+        // Rule 7: After $.next(); calls (before var declarations)
+        // This matches Svelte's esrap formatting for text-first fragments
+        if current.starts_with("$.next(") && is_var_declaration(next) {
+            return true;
+        }
 
-            // Rule 8: After $.push(...); calls (before var/let/const, blocks, functions)
-            // This matches Svelte's esrap formatting for component initialization
-            // $.push() is always the first statement in a function, followed by user code
-            // But NOT before simple expression statements like $.init(), $.pop(), set('hello')
-            if current.starts_with("$.push(")
-                && (is_var_declaration(next)
-                    || next == "{"
-                    || next.starts_with("function ")
-                    || next.starts_with("async function ")
-                    || next.starts_with("class ")
-                    || next.starts_with("//")
-                    || next.starts_with("/*"))
-            {
-                return true;
-            }
+        // Rule 8: After $.push(...); calls (before var/let/const, blocks, functions)
+        // This matches Svelte's esrap formatting for component initialization
+        // $.push() is always the first statement in a function, followed by user code
+        // But NOT before simple expression statements like $.init(), $.pop(), set('hello')
+        if current.starts_with("$.push(")
+            && (is_var_declaration(next)
+                || next == "{"
+                || next.starts_with("function ")
+                || next.starts_with("async function ")
+                || next.starts_with("class ")
+                || next.starts_with("//")
+                || next.starts_with("/*"))
+        {
+            return true;
+        }
 
-            // Rule 9: After $.init(); calls (before var declarations, blocks, or component calls with multiline args)
-            // $.init() gets a blank line before var/let/const, {, and multiline expressions,
-            // but NOT before simple function calls like Component($$anchor, {}), $.next(), $.pop()
-            if current.starts_with("$.init(")
-                && (is_var_declaration(next)
-                    || next == "{"
-                    || next.starts_with("function ")
-                    || next.starts_with("class ")
-                    || next.starts_with("//")
-                    || next.starts_with("/*"))
-            {
-                return true;
-            }
+        // Rule 9: After $.init(); calls (before var declarations, blocks, or component calls with multiline args)
+        // $.init() gets a blank line before var/let/const, {, and multiline expressions,
+        // but NOT before simple function calls like Component($$anchor, {}), $.next(), $.pop()
+        if current.starts_with("$.init(")
+            && (is_var_declaration(next)
+                || next == "{"
+                || next.starts_with("function ")
+                || next.starts_with("class ")
+                || next.starts_with("//")
+                || next.starts_with("/*"))
+        {
+            return true;
+        }
 
-            // Rule 10: After single-line event handler setups: `button.__click = ...;`
-            // Only before var declarations, NOT before $.append or other statements
-            if current.contains(".__")
-                && current.ends_with(';')
-                && !next.contains(".__")
-                && is_var_declaration(next)
-            {
-                return true;
-            }
+        // Rule 10: After single-line event handler setups: `button.__click = ...;`
+        // Only before var declarations, NOT before $.append or other statements
+        if current.contains(".__")
+            && current.ends_with(';')
+            && !next.contains(".__")
+            && is_var_declaration(next)
+        {
+            return true;
+        }
 
-            // Rule 11: General rule - after any expression statement ending with `;`,
-            // add blank line before var/let/const declarations.
-            // This covers $.action(), $.bind_this(), Component() calls, $.remove_input_defaults(),
-            // $.set_attribute(), $.attribute_effect(), etc.
-            // Exceptions: var declarations themselves, closing braces, function decls
-            if !is_var_declaration(current)
-                && !is_closing_brace(current)
-                && !current.starts_with("function ")
-                && !current.starts_with("async function ")
-                && !current.starts_with("//")
-                && !current.starts_with("/*")
-                && current.ends_with(';')
-                && is_var_declaration(next)
-            {
-                return true;
-            }
+        // Rule 11: General rule - after any expression statement ending with `;`,
+        // add blank line before var/let/const declarations.
+        // This covers $.action(), $.bind_this(), Component() calls, $.remove_input_defaults(),
+        // $.set_attribute(), $.attribute_effect(), etc.
+        // Exceptions: var declarations themselves, closing braces, function decls
+        if !is_var_declaration(current)
+            && !is_closing_brace(current)
+            && !current.starts_with("function ")
+            && !current.starts_with("async function ")
+            && !current.starts_with("//")
+            && !current.starts_with("/*")
+            && current.ends_with(';')
+            && is_var_declaration(next)
+        {
+            return true;
+        }
 
-            // Rule 11b: After expression statements (ending with `;`) before bare `{` blocks,
-            // `if` statements, `for` statements, and multi-line function calls.
-            // This matches esrap formatting where $$renderer.push() calls are
-            // visually separated from control flow and significant code blocks.
-            if !is_var_declaration(current)
-                && !is_closing_brace(current)
-                && !current.starts_with("function ")
-                && !current.starts_with("async function ")
-                && !current.starts_with("//")
-                && !current.starts_with("/*")
-                && current.ends_with(';')
-                && (next == "{"
-                    || next == "{}"
-                    || next.starts_with("if (")
-                    || next.starts_with("if(")
-                    || next.starts_with("for (")
-                    || next.starts_with("for("))
-            {
-                return true;
-            }
+        // Rule 11b: After expression statements (ending with `;`) before bare `{` blocks,
+        // `if` statements, `for` statements, and multi-line function calls.
+        // This matches esrap formatting where $$renderer.push() calls are
+        // visually separated from control flow and significant code blocks.
+        if !is_var_declaration(current)
+            && !is_closing_brace(current)
+            && !current.starts_with("function ")
+            && !current.starts_with("async function ")
+            && !current.starts_with("//")
+            && !current.starts_with("/*")
+            && current.ends_with(';')
+            && (next == "{"
+                || next == "{}"
+                || next.starts_with("if (")
+                || next.starts_with("if(")
+                || next.starts_with("for (")
+                || next.starts_with("for("))
+        {
+            return true;
+        }
 
-            // Rule 11b2: After expression statements (ending with `;`) before
-            // multi-line function/component calls (lines ending with `{`).
-            // e.g., after `$$renderer.push(...)` before `Foo($$renderer, {`
-            // or `$.await($$renderer, ...)` or `$$renderer.title(($$renderer) => {`
-            if !is_var_declaration(current)
-                && !is_closing_brace(current)
-                && !current.starts_with("function ")
-                && !current.starts_with("async function ")
-                && current.ends_with(';')
-                && next.ends_with(" {")
-                && !next.starts_with("if ")
-                && !next.starts_with("if(")
-                && !next.starts_with("for ")
-                && !next.starts_with("for(")
-                && !next.starts_with("function ")
-                && !next.starts_with("async function ")
-                && !next.starts_with("} else")
-            {
-                return true;
-            }
+        // Rule 11b2: After expression statements (ending with `;`) before
+        // multi-line function/component calls (lines ending with `{`).
+        // e.g., after `$$renderer.push(...)` before `Foo($$renderer, {`
+        // or `$.await($$renderer, ...)` or `$$renderer.title(($$renderer) => {`
+        if !is_var_declaration(current)
+            && !is_closing_brace(current)
+            && !current.starts_with("function ")
+            && !current.starts_with("async function ")
+            && current.ends_with(';')
+            && next.ends_with(" {")
+            && !next.starts_with("if ")
+            && !next.starts_with("if(")
+            && !next.starts_with("for ")
+            && !next.starts_with("for(")
+            && !next.starts_with("function ")
+            && !next.starts_with("async function ")
+            && !next.starts_with("} else")
+        {
+            return true;
+        }
 
-            // Rule 11c: After var declarations before expression statements that are
-            // NOT simple function calls. This covers patterns like:
-            // let x = ...; \n\n $$renderer.push(...);
-            // const each_array = ...; \n\n for (...)
-            if is_var_declaration(current)
-                && !is_var_declaration(next)
-                && (next.starts_with("$$renderer.push(")
-                    || next.starts_with("$renderer.push(")
-                    || next.starts_with("for (")
-                    || next.starts_with("for("))
-            {
-                return true;
-            }
+        // Rule 11c: After var declarations before expression statements that are
+        // NOT simple function calls. This covers patterns like:
+        // let x = ...; \n\n $$renderer.push(...);
+        // const each_array = ...; \n\n for (...)
+        if is_var_declaration(current)
+            && !is_var_declaration(next)
+            && (next.starts_with("$$renderer.push(")
+                || next.starts_with("$renderer.push(")
+                || next.starts_with("for (")
+                || next.starts_with("for("))
+        {
+            return true;
+        }
 
-            // Rule 11d: After `} else {}`, `{}`, or other closing-brace constructs before
-            // $$renderer.push() or $renderer.push() calls. These need a blank line separator.
-            if (current == "} else {}" || current == "{}")
-                && (next.starts_with("$$renderer.push(") || next.starts_with("$renderer.push("))
-            {
-                return true;
-            }
+        // Rule 11d: After `} else {}`, `{}`, or other closing-brace constructs before
+        // $$renderer.push() or $renderer.push() calls. These need a blank line separator.
+        if (current == "} else {}" || current == "{}")
+            && (next.starts_with("$$renderer.push(") || next.starts_with("$renderer.push("))
+        {
+            return true;
+        }
 
-            // Rule 11e: After reactive labels `$: ...;` before $$renderer.push() or other statements
-            // Svelte legacy mode generates `$: x *= 2;` followed by a blank line before $$renderer.push()
-            if current.starts_with("$:")
-                && current.ends_with(';')
-                && (next.starts_with("$$renderer.push(") || next.starts_with("$renderer.push("))
-            {
-                return true;
-            }
+        // Rule 11e: After reactive labels `$: ...;` before $$renderer.push() or other statements
+        // Svelte legacy mode generates `$: x *= 2;` followed by a blank line before $$renderer.push()
+        if current.starts_with("$:")
+            && current.ends_with(';')
+            && (next.starts_with("$$renderer.push(") || next.starts_with("$renderer.push("))
+        {
+            return true;
+        }
 
-            // Rule 12: After `},` before next property/method definition in object/class
-            // (get/set/constructor, $$slots, $$legacy, method names like increment(), etc.)
-            if current == "},"
-                && (next.starts_with("get ")
-                    || next.starts_with("set ")
-                    || next.starts_with("$$slots")
-                    || next.starts_with("$$legacy")
-                    || next.starts_with("constructor")
-                    || is_method_definition(next))
-            {
-                return true;
-            }
+        // Rule 12: After `},` before next property/method definition in object/class
+        // (get/set/constructor, $$slots, $$legacy, method names like increment(), etc.)
+        if current == "},"
+            && (next.starts_with("get ")
+                || next.starts_with("set ")
+                || next.starts_with("$$slots")
+                || next.starts_with("$$legacy")
+                || next.starts_with("constructor")
+                || is_method_definition(next))
+        {
+            return true;
+        }
 
-            // Rule 13: After class field declarations (like `#count = $.state(0);` or `count = 0;`),
-            // blank line before methods (get/set/constructor)
-            if (current.starts_with('#') || current.chars().next().is_some_and(|c| c.is_alphabetic() || c == '_' || c == '$'))
+        // Rule 13: After class field declarations (like `#count = $.state(0);` or `count = 0;`),
+        // blank line before methods (get/set/constructor)
+        if (current.starts_with('#') || current.chars().next().is_some_and(|c| c.is_alphabetic() || c == '_' || c == '$'))
                 && current.ends_with(';')
                 && !is_var_declaration(current)
                 && !current.starts_with("return ")
@@ -1935,77 +1926,73 @@ fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> 
                 && (next.starts_with("get ")
                     || next.starts_with("set ")
                     || next.starts_with("constructor"))
-            {
-                return true;
-            }
+        {
+            return true;
+        }
 
-            // Rule 14: After `});` before `} else` - NO blank line
-            // (handled by adding `} else` to closing_brace check above)
+        // Rule 14: After `});` before `} else` - NO blank line
+        // (handled by adding `} else` to closing_brace check above)
 
-            // Rule 15: Reserved (covered by Rule 6 and 6b/6c for closing braces before $.append)
+        // Rule 15: Reserved (covered by Rule 6 and 6b/6c for closing braces before $.append)
 
-            // Rule 16: Before `return` statements after expression statements
-            // This matches Svelte's esrap formatting where return is visually separated
-            if !is_var_declaration(current)
-                && !is_closing_brace(current)
-                && !current.starts_with("//")
-                && !current.starts_with("/*")
-                && current.ends_with(';')
-                && next.starts_with("return ")
-            {
-                return true;
-            }
+        // Rule 16: Before `return` statements after expression statements
+        // This matches Svelte's esrap formatting where return is visually separated
+        if !is_var_declaration(current)
+            && !is_closing_brace(current)
+            && !current.starts_with("//")
+            && !current.starts_with("/*")
+            && current.ends_with(';')
+            && next.starts_with("return ")
+        {
+            return true;
+        }
 
-            // Rule 17: After `});` or `}` closures before `function` declarations
-            // This matches Svelte's esrap formatting for functions after closures
-            if (current == "});" || current == "}")
-                && (next.starts_with("function ") || next.starts_with("async function "))
-            {
-                return true;
-            }
+        // Rule 17: After `});` or `}` closures before `function` declarations
+        // This matches Svelte's esrap formatting for functions after closures
+        if (current == "});" || current == "}")
+            && (next.starts_with("function ") || next.starts_with("async function "))
+        {
+            return true;
+        }
 
-            // Rule 18: After single-line function declarations `function foo() {}`
-            // before var declarations
-            if current.starts_with("function ")
-                && current.ends_with('}')
-                && is_var_declaration(next)
-            {
-                return true;
-            }
+        // Rule 18: After single-line function declarations `function foo() {}`
+        // before var declarations
+        if current.starts_with("function ") && current.ends_with('}') && is_var_declaration(next) {
+            return true;
+        }
 
-            // Rule 19: After expression statements (;) before `throw` statements
-            if !is_var_declaration(current)
-                && !is_closing_brace(current)
-                && current.ends_with(';')
-                && next.starts_with("throw ")
-            {
-                return true;
-            }
+        // Rule 19: After expression statements (;) before `throw` statements
+        if !is_var_declaration(current)
+            && !is_closing_brace(current)
+            && current.ends_with(';')
+            && next.starts_with("throw ")
+        {
+            return true;
+        }
 
-            // Rule 20: After object property with comma, before property starting with
-            // tick/children/get/set (multi-line object members)
-            if current.ends_with(',')
-                && !is_closing_brace(current)
-                && (next.starts_with("tick:")
-                    || next.starts_with("children:")
-                    || next.starts_with("title:")
-                    || next.starts_with("reset:")
-                    || (next.starts_with("children: (") && next.ends_with(" {"))
-                    || (next.starts_with("tick: (") && next.ends_with(" {")))
-            {
-                return true;
-            }
+        // Rule 20: After object property with comma, before property starting with
+        // tick/children/get/set (multi-line object members)
+        if current.ends_with(',')
+            && !is_closing_brace(current)
+            && (next.starts_with("tick:")
+                || next.starts_with("children:")
+                || next.starts_with("title:")
+                || next.starts_with("reset:")
+                || (next.starts_with("children: (") && next.ends_with(" {"))
+                || (next.starts_with("tick: (") && next.ends_with(" {")))
+        {
+            return true;
+        }
 
-            // Rule 21: After expression statements (;) before comments (// or /*)
-            if !is_var_declaration(current)
-                && !is_closing_brace(current)
-                && !current.starts_with("//")
-                && !current.starts_with("/*")
-                && current.ends_with(';')
-                && (next.starts_with("//") || next.starts_with("/*") || next.starts_with("/**"))
-            {
-                return true;
-            }
+        // Rule 21: After expression statements (;) before comments (// or /*)
+        if !is_var_declaration(current)
+            && !is_closing_brace(current)
+            && !current.starts_with("//")
+            && !current.starts_with("/*")
+            && current.ends_with(';')
+            && (next.starts_with("//") || next.starts_with("/*") || next.starts_with("/**"))
+        {
+            return true;
         }
     }
 
@@ -2205,24 +2192,6 @@ fn collapse_single_statement_ifs(code: String) -> String {
     result
 }
 
-/// Get the indentation level (number of tabs or equivalent spaces)
-fn get_indent_level(line: &str) -> usize {
-    let mut count = 0;
-    for c in line.chars() {
-        match c {
-            '\t' => count += 1,
-            ' ' => {
-                // Count 2 spaces as 1 indent level
-                count += 1;
-                // Skip the potential second space
-                break;
-            }
-            _ => break,
-        }
-    }
-    count
-}
-
 /// Expand scientific notation in numeric literals back to decimal form.
 ///
 /// OXC's codegen outputs numbers like `2e3` instead of `2000`.
@@ -2307,6 +2276,14 @@ fn collapse_short_arrays(code: String) -> String {
 ///
 /// Objects with getters, setters, or key-value pairs are NOT collapsed.
 fn collapse_short_objects(code: String) -> String {
+    // Fast path: if no multi-line object patterns exist, return early
+    if !code.contains("= {")
+        && !code.contains(": {")
+        && !code.contains(", {")
+        && !code.contains("({")
+    {
+        return code;
+    }
     let lines: Vec<&str> = code.lines().collect();
     let mut result = String::with_capacity(code.len());
     let mut i = 0;
