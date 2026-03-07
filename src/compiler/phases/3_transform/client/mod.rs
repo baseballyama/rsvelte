@@ -27,8 +27,8 @@ use super::js_ast::{
     generate,
     nodes::{
         JsBlockStatement, JsExportDefault, JsExportDefaultDeclaration, JsExpr,
-        JsFunctionDeclaration, JsImportDeclaration, JsImportSpecifier, JsPattern, JsProgram,
-        JsStatement,
+        JsFunctionDeclaration, JsImportDeclaration, JsImportSpecifier, JsObjectMember, JsPattern,
+        JsProgram, JsPropertyKey, JsPropertyKind, JsStatement, JsVariableKind,
     },
 };
 use crate::ast::template::Root;
@@ -300,19 +300,21 @@ fn transform_client_with_visitors(
         // or: const $store = () => $.store_get($.get(store), '$store', $$stores); for derived/state stores
         // or: const $store = () => $.store_get($$_import_store(), '$store', $$stores); for reactive imports
         let store_access = if is_prop_store {
-            format!("{}()", store_name)
+            b::call(b::id(store_name), vec![])
         } else if is_reactive_import {
-            format!("$$_import_{}()", store_name)
+            b::call(b::id(format!("$$_import_{}", store_name)), vec![])
         } else if is_derived_or_state {
-            format!("$.get({})", store_name)
+            b::call(b::member_path("$.get"), vec![b::id(store_name)])
         } else {
-            store_name.to_string()
+            b::id(store_name)
         };
-        let getter_code = format!(
-            "const {} = () => $.store_get({}, '{}', $$stores);",
-            store_sub_name, store_access, store_sub_name
-        );
-        store_getters.push(JsStatement::Raw(getter_code));
+        store_getters.push(b::const_decl(
+            *store_sub_name,
+            b::thunk(b::call(
+                b::member_path("$.store_get"),
+                vec![store_access, b::string(*store_sub_name), b::id("$$stores")],
+            )),
+        ));
     }
 
     // Build store_setup: getters first, then setup_stores call
@@ -320,8 +322,13 @@ fn transform_client_with_visitors(
     store_setup.append(&mut store_getters);
     if needs_store_cleanup {
         // const [$$stores, $$cleanup] = $.setup_stores();
-        store_setup.push(JsStatement::Raw(
-            "const [$$stores, $$cleanup] = $.setup_stores();".to_string(),
+        store_setup.push(b::var_decl_pattern(
+            JsVariableKind::Const,
+            b::array_pattern(vec![
+                Some(b::id_pattern("$$stores")),
+                Some(b::id_pattern("$$cleanup")),
+            ]),
+            Some(b::call(b::member_path("$.setup_stores"), vec![])),
         ));
     }
 
@@ -429,49 +436,56 @@ fn transform_client_with_visitors(
         // $$sanitized_props: when uses_props or uses_rest_props
         if analysis.uses_props || analysis.uses_rest_props {
             let mut to_remove = vec![
-                "'children'".to_string(),
-                "'$$slots'".to_string(),
-                "'$$events'".to_string(),
-                "'$$legacy'".to_string(),
+                b::string("children"),
+                b::string("$$slots"),
+                b::string("$$events"),
+                b::string("$$legacy"),
             ];
             if analysis.custom_element.is_some() {
-                to_remove.push("'$$host'".to_string());
+                to_remove.push(b::string("$$host"));
             }
-            component_body.push(JsStatement::Raw(format!(
-                "const $$sanitized_props = $.legacy_rest_props($$props, [{}]);",
-                to_remove.join(", ")
-            )));
+            component_body.push(b::const_decl(
+                "$$sanitized_props",
+                b::call(
+                    b::member_path("$.legacy_rest_props"),
+                    vec![b::id("$$props"), b::array(to_remove)],
+                ),
+            ));
         }
 
         // $$restProps: when uses_rest_props
         if analysis.uses_rest_props {
             // Collect named props to exclude
-            let mut named_props: Vec<String> = Vec::new();
+            let mut named_props: Vec<JsExpr> = Vec::new();
 
             // Add export names (aliases take precedence)
             for export in &analysis.exports {
                 let name = export.alias.as_deref().unwrap_or(&export.name);
-                named_props.push(format!("'{}'", name));
+                named_props.push(b::string(name));
             }
 
             // Add bindable prop names/aliases
             for binding in &analysis.root.bindings {
                 if matches!(binding.kind, BindingKind::BindableProp) {
                     let name = binding.prop_alias.as_deref().unwrap_or(&binding.name);
-                    named_props.push(format!("'{}'", name));
+                    named_props.push(b::string(name));
                 }
             }
 
-            component_body.push(JsStatement::Raw(format!(
-                "const $$restProps = $.legacy_rest_props($$sanitized_props, [{}]);",
-                named_props.join(", ")
-            )));
+            component_body.push(b::const_decl(
+                "$$restProps",
+                b::call(
+                    b::member_path("$.legacy_rest_props"),
+                    vec![b::id("$$sanitized_props"), b::array(named_props)],
+                ),
+            ));
         }
 
         // $$slots: when uses_slots
         if analysis.uses_slots {
-            component_body.push(JsStatement::Raw(
-                "const $$slots = $.sanitize_slots($$props);".to_string(),
+            component_body.push(b::const_decl(
+                "$$slots",
+                b::call(b::member_path("$.sanitize_slots"), vec![b::id("$$props")]),
             ));
         }
     }
@@ -499,15 +513,18 @@ fn transform_client_with_visitors(
     if !analysis.runes {
         for binding in &analysis.root.bindings {
             if matches!(binding.kind, BindingKind::LegacyReactive) {
-                let decl = if analysis.immutable {
-                    format!(
-                        "const {} = $.mutable_source(undefined, true);",
-                        binding.name
-                    )
+                let args = if analysis.immutable {
+                    vec![
+                        b::id("undefined"),
+                        b::literal(super::js_ast::nodes::JsLiteral::Boolean(true)),
+                    ]
                 } else {
-                    format!("const {} = $.mutable_source();", binding.name)
+                    vec![]
                 };
-                component_body.push(JsStatement::Raw(decl));
+                component_body.push(b::const_decl(
+                    &*binding.name,
+                    b::call(b::member_path("$.mutable_source"), args),
+                ));
             }
         }
     }
@@ -621,7 +638,10 @@ fn transform_client_with_visitors(
     // Add $.legacy_pre_effect_reset() after all reactive statements
     // Reference: transform-client.js - this is called after all legacy_pre_effect() calls
     if has_reactive_statements && !analysis.runes {
-        component_body.push(JsStatement::Raw("$.legacy_pre_effect_reset();".to_string()));
+        component_body.push(b::stmt(b::call(
+            b::member_path("$.legacy_pre_effect_reset"),
+            vec![],
+        )));
     }
 
     // Generate $$exports object (component_returned_object) from analysis.exports
@@ -637,7 +657,7 @@ fn transform_client_with_visitors(
     let component_returned_object_len = analysis.exports.len() + bindable_prop_count;
     let needs_exports = component_returned_object_len > 0;
     if needs_exports {
-        let mut exports_parts: Vec<String> = Vec::new();
+        let mut exports_members: Vec<JsObjectMember> = Vec::new();
 
         // Process analysis.exports (const, function, class exports)
         for export in &analysis.exports {
@@ -657,21 +677,36 @@ fn transform_client_with_visitors(
                             | crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Var
                     ) {
                         // let/var: getter + setter
-                        exports_parts.push(format!(
-                            "get {}() {{\n\t\treturn {};\n\t}},\n\tset {}($$value) {{\n\t\t{} = $$value;\n\t}}",
-                            alias, name, alias, name
+                        exports_members.push(b::getter(
+                            alias,
+                            vec![JsStatement::Return(
+                                super::js_ast::nodes::JsReturnStatement {
+                                    argument: Some(Box::new(b::id(name))),
+                                },
+                            )],
+                        ));
+                        exports_members.push(b::setter(
+                            alias,
+                            "$$value",
+                            vec![b::stmt(b::assign(b::id(name), b::id("$$value")))],
                         ));
                     } else if !options.dev {
                         // const/function/class in non-dev: simple init property
                         if alias == name {
-                            exports_parts.push(name.clone());
+                            exports_members.push(b::prop_shorthand(name));
                         } else {
-                            exports_parts.push(format!("{}: {}", alias, name));
+                            exports_members.push(b::prop(alias, b::id(name)));
                         }
                     } else {
                         // dev mode: getter only
-                        exports_parts
-                            .push(format!("get {}() {{\n\t\treturn {};\n\t}}", alias, name));
+                        exports_members.push(b::getter(
+                            alias,
+                            vec![JsStatement::Return(
+                                super::js_ast::nodes::JsReturnStatement {
+                                    argument: Some(Box::new(b::id(name))),
+                                },
+                            )],
+                        ));
                     }
                 }
 
@@ -686,29 +721,85 @@ fn transform_client_with_visitors(
                             || binding.initial.is_some()
                             || binding.mutated;
                         if is_prop_source {
-                            exports_parts.pop();
-                            exports_parts.push(format!(
-                                "get {}() {{\n\t\treturn {}();\n\t}},\n\tset {}($$value) {{\n\t\t{}($$value);\n\t}}",
-                                alias, name, alias, name
+                            // Remove previously added members for this alias
+                            // (could be 1 shorthand/prop, 1 getter, or getter+setter pair)
+                            while exports_members.last().is_some_and(|m| match m {
+                                JsObjectMember::Property(p) => match &p.key {
+                                    JsPropertyKey::Identifier(k) => k == alias,
+                                    _ => false,
+                                },
+                                _ => false,
+                            }) {
+                                exports_members.pop();
+                            }
+                            exports_members.push(b::getter(
+                                alias,
+                                vec![JsStatement::Return(
+                                    super::js_ast::nodes::JsReturnStatement {
+                                        argument: Some(Box::new(b::call(b::id(name), vec![]))),
+                                    },
+                                )],
+                            ));
+                            exports_members.push(b::setter(
+                                alias,
+                                "$$value",
+                                vec![b::stmt(b::call(b::id(name), vec![b::id("$$value")]))],
                             ));
                         }
                     }
                     BindingKind::State => {
                         // getter + $.set setter with proxy
-                        if !exports_parts.last().is_some_and(|p| p.contains("get ")) {
+                        let last_is_getter = exports_members.last().is_some_and(|m| match m {
+                            JsObjectMember::Property(p) => matches!(p.kind, JsPropertyKind::Get),
+                            _ => false,
+                        });
+                        if !last_is_getter {
                             // Replace last simple init with getter/setter
-                            exports_parts.pop();
-                            exports_parts.push(format!(
-                                "get {}() {{\n\t\treturn $.get({});\n\t}},\n\tset {}($$value) {{\n\t\t$.set({}, $.proxy($$value));\n\t}}",
-                                alias, name, alias, name
+                            exports_members.pop();
+                            exports_members.push(b::getter(
+                                alias,
+                                vec![JsStatement::Return(
+                                    super::js_ast::nodes::JsReturnStatement {
+                                        argument: Some(Box::new(b::call(
+                                            b::member_path("$.get"),
+                                            vec![b::id(name)],
+                                        ))),
+                                    },
+                                )],
+                            ));
+                            exports_members.push(b::setter(
+                                alias,
+                                "$$value",
+                                vec![b::stmt(b::call(
+                                    b::member_path("$.set"),
+                                    vec![
+                                        b::id(name),
+                                        b::call(b::member_path("$.proxy"), vec![b::id("$$value")]),
+                                    ],
+                                ))],
                             ));
                         }
                     }
                     BindingKind::RawState => {
-                        exports_parts.pop();
-                        exports_parts.push(format!(
-                            "get {}() {{\n\t\treturn $.get({});\n\t}},\n\tset {}($$value) {{\n\t\t$.set({}, $$value);\n\t}}",
-                            alias, name, alias, name
+                        exports_members.pop();
+                        exports_members.push(b::getter(
+                            alias,
+                            vec![JsStatement::Return(
+                                super::js_ast::nodes::JsReturnStatement {
+                                    argument: Some(Box::new(b::call(
+                                        b::member_path("$.get"),
+                                        vec![b::id(name)],
+                                    ))),
+                                },
+                            )],
+                        ));
+                        exports_members.push(b::setter(
+                            alias,
+                            "$$value",
+                            vec![b::stmt(b::call(
+                                b::member_path("$.set"),
+                                vec![b::id(name), b::id("$$value")],
+                            ))],
                         ));
                     }
                     _ => {}
@@ -716,9 +807,9 @@ fn transform_client_with_visitors(
             } else {
                 // No binding found - simple init
                 if alias == name {
-                    exports_parts.push(name.clone());
+                    exports_members.push(b::prop_shorthand(name));
                 } else {
-                    exports_parts.push(format!("{}: {}", alias, name));
+                    exports_members.push(b::prop(alias, b::id(name)));
                 }
             }
         }
@@ -731,17 +822,28 @@ fn transform_client_with_visitors(
                 {
                     let name = &binding.name;
                     let alias = binding.prop_alias.as_deref().unwrap_or(name);
-                    exports_parts.push(format!(
-                        "get {}() {{\n\t\treturn {}();\n\t}},\n\tset {}($$value) {{\n\t\t{}($$value);\n\t\t$.flush();\n\t}}",
-                        alias, name, alias, name
+                    exports_members.push(b::getter(
+                        alias,
+                        vec![JsStatement::Return(
+                            super::js_ast::nodes::JsReturnStatement {
+                                argument: Some(Box::new(b::call(b::id(name), vec![]))),
+                            },
+                        )],
+                    ));
+                    exports_members.push(b::setter(
+                        alias,
+                        "$$value",
+                        vec![
+                            b::stmt(b::call(b::id(name), vec![b::id("$$value")])),
+                            b::stmt(b::call(b::member_path("$.flush"), vec![])),
+                        ],
                     ));
                 }
             }
         }
 
-        if !exports_parts.is_empty() {
-            let exports_code = format!("var $$exports = {{ {} }};", exports_parts.join(", "));
-            component_body.push(JsStatement::Raw(exports_code));
+        if !exports_members.is_empty() {
+            component_body.push(b::var_decl("$$exports", Some(b::object(exports_members))));
         }
     }
 
@@ -769,17 +871,16 @@ fn transform_client_with_visitors(
             // Apply the read transform if one exists (e.g., $.get() for state variables)
             let getter_expr = if let Some(transform) = context.state.transform.get(&export.name) {
                 if let Some(read_fn) = transform.read {
-                    let expr = read_fn(JsExpr::Identifier(export.name.clone()));
-                    crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(&expr)
+                    read_fn(JsExpr::Identifier(export.name.clone()))
                 } else {
-                    export.name.clone()
+                    b::id(&export.name)
                 }
             } else {
-                export.name.clone()
+                b::id(&export.name)
             };
-            component_body.push(JsStatement::Raw(format!(
-                "$.bind_prop($$props, '{}', {});",
-                alias, getter_expr
+            component_body.push(b::stmt(b::call(
+                b::member_path("$.bind_prop"),
+                vec![b::id("$$props"), b::string(alias), getter_expr],
             )));
         }
     }
@@ -790,8 +891,9 @@ fn transform_client_with_visitors(
         if needs_exports {
             if needs_store_cleanup {
                 // var $$pop = $.pop($$exports);
-                component_body.push(JsStatement::Raw(
-                    "var $$pop = $.pop($$exports);".to_string(),
+                component_body.push(b::var_decl(
+                    "$$pop",
+                    Some(b::call(b::member_path("$.pop"), vec![b::id("$$exports")])),
                 ));
             } else {
                 // return $.pop($$exports)

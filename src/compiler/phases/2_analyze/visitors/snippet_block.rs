@@ -143,11 +143,7 @@ fn check_params_hoistable(
             let param_type = obj.get("type").and_then(|v| v.as_str());
             if param_type == Some("AssignmentPattern")
                 && let Some(right) = obj.get("right")
-                && !expression_only_uses_params(
-                    &Expression::Value(right.clone()),
-                    param_names,
-                    context,
-                )
+                && !expression_only_uses_params(right, param_names, context)
             {
                 return false;
             } else if param_type == Some("ObjectPattern") || param_type == Some("ArrayPattern") {
@@ -195,11 +191,7 @@ fn check_pattern_defaults_hoistable(
             }
             Some("AssignmentPattern") => {
                 if let Some(right) = obj.get("right")
-                    && !expression_only_uses_params(
-                        &Expression::Value(right.clone()),
-                        param_names,
-                        context,
-                    )
+                    && !expression_only_uses_params(right, param_names, context)
                 {
                     return false;
                 }
@@ -223,14 +215,15 @@ fn check_hoistable(
 
             // Expression tags - check if they only reference parameters
             TemplateNode::ExpressionTag(tag) => {
-                if !expression_only_uses_params(&tag.expression, param_names, context) {
+                if !expression_only_uses_params(tag.expression.as_json(), param_names, context) {
                     return false;
                 }
             }
 
             // HtmlTag - check its expression
             TemplateNode::HtmlTag(html_tag) => {
-                if !expression_only_uses_params(&html_tag.expression, param_names, context) {
+                if !expression_only_uses_params(html_tag.expression.as_json(), param_names, context)
+                {
                     return false;
                 }
             }
@@ -263,7 +256,7 @@ fn check_hoistable(
 
             // IfBlock - check test expression and all branches
             TemplateNode::IfBlock(if_block) => {
-                if !expression_only_uses_params(&if_block.test, param_names, context) {
+                if !expression_only_uses_params(if_block.test.as_json(), param_names, context) {
                     return false;
                 }
                 if !check_hoistable(&if_block.consequent.nodes, param_names, context) {
@@ -278,7 +271,11 @@ fn check_hoistable(
 
             // EachBlock - check iterable expression and body
             TemplateNode::EachBlock(each_block) => {
-                if !expression_only_uses_params(&each_block.expression, param_names, context) {
+                if !expression_only_uses_params(
+                    each_block.expression.as_json(),
+                    param_names,
+                    context,
+                ) {
                     return false;
                 }
                 let mut inner_params = param_names.clone();
@@ -305,7 +302,11 @@ fn check_hoistable(
 
             // AwaitBlock - check promise expression and all branches
             TemplateNode::AwaitBlock(await_block) => {
-                if !expression_only_uses_params(&await_block.expression, param_names, context) {
+                if !expression_only_uses_params(
+                    await_block.expression.as_json(),
+                    param_names,
+                    context,
+                ) {
                     return false;
                 }
                 if let Some(ref pending) = await_block.pending
@@ -345,7 +346,11 @@ fn check_hoistable(
 
             // KeyBlock - check key expression and body
             TemplateNode::KeyBlock(key_block) => {
-                if !expression_only_uses_params(&key_block.expression, param_names, context) {
+                if !expression_only_uses_params(
+                    key_block.expression.as_json(),
+                    param_names,
+                    context,
+                ) {
                     return false;
                 }
                 if !check_hoistable(&key_block.fragment.nodes, param_names, context) {
@@ -355,7 +360,7 @@ fn check_hoistable(
 
             // RenderTag - check the expression
             TemplateNode::RenderTag(tag) => {
-                if !expression_only_uses_params(&tag.expression, param_names, context) {
+                if !expression_only_uses_params(tag.expression.as_json(), param_names, context) {
                     return false;
                 }
             }
@@ -393,7 +398,11 @@ fn check_attribute_hoistable(
             crate::ast::template::AttributeValue::Sequence(parts) => {
                 for p in parts {
                     if let crate::ast::template::AttributeValuePart::ExpressionTag(tag) = p
-                        && !expression_only_uses_params(&tag.expression, param_names, context)
+                        && !expression_only_uses_params(
+                            tag.expression.as_json(),
+                            param_names,
+                            context,
+                        )
                     {
                         return false;
                     }
@@ -401,22 +410,22 @@ fn check_attribute_hoistable(
                 true
             }
             crate::ast::template::AttributeValue::Expression(tag) => {
-                expression_only_uses_params(&tag.expression, param_names, context)
+                expression_only_uses_params(tag.expression.as_json(), param_names, context)
             }
             _ => true,
         },
         crate::ast::template::Attribute::BindDirective(bind) => {
-            expression_only_uses_params(&bind.expression, param_names, context)
+            expression_only_uses_params(bind.expression.as_json(), param_names, context)
         }
         crate::ast::template::Attribute::OnDirective(on) => {
             if let Some(ref expr) = on.expression {
-                expression_only_uses_params(expr, param_names, context)
+                expression_only_uses_params(expr.as_json(), param_names, context)
             } else {
                 true
             }
         }
         crate::ast::template::Attribute::SpreadAttribute(spread) => {
-            expression_only_uses_params(&spread.expression, param_names, context)
+            expression_only_uses_params(spread.expression.as_json(), param_names, context)
         }
         _ => true,
     }
@@ -599,12 +608,10 @@ fn is_identifier_hoistable(
 
 /// Check if an expression only uses hoistable identifiers.
 fn expression_only_uses_params(
-    expr: &Expression,
+    val: &serde_json::Value,
     param_names: &FxHashSet<String>,
     context: &VisitorContext,
 ) -> bool {
-    let Expression::Value(val) = expr;
-
     if let serde_json::Value::Object(obj) = val {
         let expr_type = obj.get("type").and_then(|v| v.as_str());
 
@@ -624,21 +631,13 @@ fn expression_only_uses_params(
 
             Some("CallExpression") => {
                 if let Some(callee) = obj.get("callee")
-                    && !expression_only_uses_params(
-                        &Expression::Value(callee.clone()),
-                        param_names,
-                        context,
-                    )
+                    && !expression_only_uses_params(callee, param_names, context)
                 {
                     return false;
                 }
                 if let Some(args) = obj.get("arguments").and_then(|a| a.as_array()) {
                     for arg in args {
-                        if !expression_only_uses_params(
-                            &Expression::Value(arg.clone()),
-                            param_names,
-                            context,
-                        ) {
+                        if !expression_only_uses_params(arg, param_names, context) {
                             return false;
                         }
                     }
@@ -648,11 +647,7 @@ fn expression_only_uses_params(
 
             Some("MemberExpression") => {
                 if let Some(object) = obj.get("object")
-                    && !expression_only_uses_params(
-                        &Expression::Value(object.clone()),
-                        param_names,
-                        context,
-                    )
+                    && !expression_only_uses_params(object, param_names, context)
                 {
                     return false;
                 }
@@ -661,11 +656,7 @@ fn expression_only_uses_params(
                     .and_then(|c| c.as_bool())
                     .unwrap_or(false)
                     && let Some(prop) = obj.get("property")
-                    && !expression_only_uses_params(
-                        &Expression::Value(prop.clone()),
-                        param_names,
-                        context,
-                    )
+                    && !expression_only_uses_params(prop, param_names, context)
                 {
                     return false;
                 }
@@ -674,20 +665,12 @@ fn expression_only_uses_params(
 
             Some("BinaryExpression") | Some("LogicalExpression") => {
                 if let Some(left) = obj.get("left")
-                    && !expression_only_uses_params(
-                        &Expression::Value(left.clone()),
-                        param_names,
-                        context,
-                    )
+                    && !expression_only_uses_params(left, param_names, context)
                 {
                     return false;
                 }
                 if let Some(right) = obj.get("right")
-                    && !expression_only_uses_params(
-                        &Expression::Value(right.clone()),
-                        param_names,
-                        context,
-                    )
+                    && !expression_only_uses_params(right, param_names, context)
                 {
                     return false;
                 }
@@ -697,11 +680,7 @@ fn expression_only_uses_params(
             Some("ConditionalExpression") => {
                 for key in &["test", "consequent", "alternate"] {
                     if let Some(e) = obj.get(*key)
-                        && !expression_only_uses_params(
-                            &Expression::Value(e.clone()),
-                            param_names,
-                            context,
-                        )
+                        && !expression_only_uses_params(e, param_names, context)
                     {
                         return false;
                     }
@@ -712,11 +691,7 @@ fn expression_only_uses_params(
             Some("TemplateLiteral") => {
                 if let Some(exprs) = obj.get("expressions").and_then(|e| e.as_array()) {
                     for e in exprs {
-                        if !expression_only_uses_params(
-                            &Expression::Value(e.clone()),
-                            param_names,
-                            context,
-                        ) {
+                        if !expression_only_uses_params(e, param_names, context) {
                             return false;
                         }
                     }
@@ -728,11 +703,7 @@ fn expression_only_uses_params(
                 if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
                     for elem in elements {
                         if !elem.is_null()
-                            && !expression_only_uses_params(
-                                &Expression::Value(elem.clone()),
-                                param_names,
-                                context,
-                            )
+                            && !expression_only_uses_params(elem, param_names, context)
                         {
                             return false;
                         }
@@ -750,20 +721,12 @@ fn expression_only_uses_params(
                                 .and_then(|c| c.as_bool())
                                 .unwrap_or(false)
                                 && let Some(key) = prop_obj.get("key")
-                                && !expression_only_uses_params(
-                                    &Expression::Value(key.clone()),
-                                    param_names,
-                                    context,
-                                )
+                                && !expression_only_uses_params(key, param_names, context)
                             {
                                 return false;
                             }
                             if let Some(value) = prop_obj.get("value")
-                                && !expression_only_uses_params(
-                                    &Expression::Value(value.clone()),
-                                    param_names,
-                                    context,
-                                )
+                                && !expression_only_uses_params(value, param_names, context)
                             {
                                 return false;
                             }
@@ -775,42 +738,26 @@ fn expression_only_uses_params(
 
             Some("SpreadElement") => {
                 if let Some(arg) = obj.get("argument") {
-                    return expression_only_uses_params(
-                        &Expression::Value(arg.clone()),
-                        param_names,
-                        context,
-                    );
+                    return expression_only_uses_params(arg, param_names, context);
                 }
                 true
             }
 
             Some("UnaryExpression") | Some("UpdateExpression") => {
                 if let Some(arg) = obj.get("argument") {
-                    return expression_only_uses_params(
-                        &Expression::Value(arg.clone()),
-                        param_names,
-                        context,
-                    );
+                    return expression_only_uses_params(arg, param_names, context);
                 }
                 true
             }
 
             Some("AssignmentExpression") => {
                 if let Some(left) = obj.get("left")
-                    && !expression_only_uses_params(
-                        &Expression::Value(left.clone()),
-                        param_names,
-                        context,
-                    )
+                    && !expression_only_uses_params(left, param_names, context)
                 {
                     return false;
                 }
                 if let Some(right) = obj.get("right")
-                    && !expression_only_uses_params(
-                        &Expression::Value(right.clone()),
-                        param_names,
-                        context,
-                    )
+                    && !expression_only_uses_params(right, param_names, context)
                 {
                     return false;
                 }
@@ -820,11 +767,7 @@ fn expression_only_uses_params(
             Some("SequenceExpression") => {
                 if let Some(exprs) = obj.get("expressions").and_then(|e| e.as_array()) {
                     for e in exprs {
-                        if !expression_only_uses_params(
-                            &Expression::Value(e.clone()),
-                            param_names,
-                            context,
-                        ) {
+                        if !expression_only_uses_params(e, param_names, context) {
                             return false;
                         }
                     }

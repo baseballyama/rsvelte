@@ -746,10 +746,16 @@ fn process_let_directive(
             "$.derived_safe_equal"
         };
 
-        lets.push(JsStatement::Raw(format!(
-            "const {} = {}(() => $$slotProps.{});",
-            name, derived_fn, prop_name,
-        )));
+        lets.push(b::const_decl(
+            &name,
+            b::call(
+                b::member_path(derived_fn),
+                vec![b::thunk(b::member(
+                    b::id("$$slotProps"),
+                    prop_name.to_string(),
+                ))],
+            ),
+        ));
     } else {
         // Destructured case: let:x={{y, z}} or let:x={[a, b]}
         // Generates: const derived_name = $.derived(() => { let {y, z} = $$slotProps.x; return {y, z}; })
@@ -795,20 +801,49 @@ fn process_let_directive(
                     }
 
                     // Build the destructuring pattern
-                    let destructuring_pattern = if expr_type == "ObjectExpression" {
-                        format!("{{ {} }}", binding_names.join(", "))
+                    let destructuring_pat = if expr_type == "ObjectExpression" {
+                        b::object_pattern(
+                            binding_names
+                                .iter()
+                                .map(|n| JsObjectPatternProperty::Property {
+                                    key: JsPropertyKey::Identifier(n.clone()),
+                                    value: b::id_pattern(n),
+                                    computed: false,
+                                    shorthand: true,
+                                })
+                                .collect(),
+                        )
                     } else {
-                        format!("[{}]", binding_names.join(", "))
+                        b::array_pattern(
+                            binding_names
+                                .iter()
+                                .map(|n| Some(b::id_pattern(n)))
+                                .collect(),
+                        )
                     };
 
                     // Build the return object: { a, b }
-                    let return_obj = format!("{{ {} }}", binding_names.join(", "));
+                    let return_obj_expr = b::object(
+                        binding_names
+                            .iter()
+                            .map(|n| b::prop(n.clone(), b::id(n)))
+                            .collect(),
+                    );
 
                     // Note: destructured case always uses $.derived (not $.derived_safe_equal)
-                    lets.push(JsStatement::Raw(format!(
-                        "const {} = $.derived(() => {{\n\t\t\t\t\tlet {} = $$slotProps.{};\n\n\t\t\t\t\treturn {};\n\t\t\t\t}});",
-                        derived_name, destructuring_pattern, prop_name, return_obj,
-                    )));
+                    let inner_let = b::var_decl_pattern(
+                        JsVariableKind::Let,
+                        destructuring_pat,
+                        Some(b::member(b::id("$$slotProps"), prop_name.to_string())),
+                    );
+                    let inner_return = b::return_value(return_obj_expr);
+                    lets.push(b::const_decl(
+                        &derived_name,
+                        b::call(
+                            b::member_path("$.derived"),
+                            vec![b::arrow_block(vec![], vec![inner_let, inner_return])],
+                        ),
+                    ));
                 }
             }
         }

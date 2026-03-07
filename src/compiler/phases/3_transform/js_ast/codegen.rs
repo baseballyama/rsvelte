@@ -2461,10 +2461,7 @@ impl JsCodegen {
     }
 
     fn emit_program(&mut self, program: &JsProgram) {
-        for (i, stmt) in program.body.iter().enumerate() {
-            if i > 0 {
-                self.newline();
-            }
+        for stmt in program.body.iter() {
             self.emit_statement(stmt);
         }
     }
@@ -3056,13 +3053,9 @@ impl JsCodegen {
             self.output.push_str("async ");
         }
 
-        if arrow.params.len() == 1 && matches!(&arrow.params[0], JsPattern::Identifier(_)) {
-            self.emit_pattern(&arrow.params[0]);
-        } else {
-            self.output.push('(');
-            self.emit_params(&arrow.params);
-            self.output.push(')');
-        }
+        self.output.push('(');
+        self.emit_params(&arrow.params);
+        self.output.push(')');
 
         self.output.push_str(" => ");
 

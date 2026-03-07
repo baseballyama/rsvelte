@@ -108,10 +108,16 @@ fn process_element_let_directives(
                 "$.derived_safe_equal"
             };
 
-            context.state.init.push(JsStatement::Raw(format!(
-                "const {} = {}(() => $$slotProps.{});",
-                name, derived_fn, prop_name,
-            )));
+            context.state.init.push(b::const_decl(
+                &name,
+                b::call(
+                    b::member_path(derived_fn),
+                    vec![b::thunk(b::member(
+                        b::id("$$slotProps"),
+                        prop_name.to_string(),
+                    ))],
+                ),
+            ));
 
             context.state.transform.insert(
                 name.clone(),
@@ -1760,19 +1766,14 @@ fn build_element_special_value_attribute(
     };
 
     // For select elements with value, wrap in sequence: (set_value_assignment, $.select_option(node, value))
-    // We use Raw statement to preserve parentheses around the sequence expression,
-    // since OXC normalization would strip them (they're technically unnecessary in statement context
-    // but the official compiler always emits them).
-    // Use a single-line format with trailing semicolon so `collect_paren_sequence_stmts` can
-    // detect and re-add the parentheses after OXC strips them.
     let update = if is_select_with_value {
-        use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr;
-        let assign_str = generate_expr(&set_value_assignment);
-        let value_str = generate_expr(&transformed_value);
-        JsStatement::Raw(format!(
-            "({}, $.select_option({}, {}));",
-            assign_str, node_id, value_str
-        ))
+        b::stmt(b::sequence(vec![
+            set_value_assignment,
+            b::call(
+                b::member_path("$.select_option"),
+                vec![b::id(node_id), transformed_value.clone()],
+            ),
+        ]))
     } else if synthetic {
         b::stmt(assignment)
     } else {

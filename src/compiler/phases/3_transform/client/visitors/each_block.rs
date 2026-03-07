@@ -1039,10 +1039,13 @@ fn build_declarations(
                 // Generate intermediate array declarations for ArrayPattern destructuring
                 // This corresponds to lines 256-262 in the official EachBlock.js
                 for insert in &inserts {
-                    declarations.push(JsStatement::Raw(format!(
-                        "var {} = $.derived(() => {});",
-                        insert.id, insert.value
-                    )));
+                    declarations.push(b::var_decl(
+                        &insert.id,
+                        Some(b::call(
+                            b::member_path("$.derived"),
+                            vec![b::thunk(b::raw(&insert.value))],
+                        )),
+                    ));
 
                     context.state.transform.insert(
                         insert.id.clone(),
@@ -1087,10 +1090,13 @@ fn build_declarations(
                             path.default_value.as_ref(),
                             context,
                         );
-                        declarations.push(JsStatement::Raw(format!(
-                            "let {} = $.derived_safe_equal(() => {});",
-                            path.name, fallback_expr
-                        )));
+                        declarations.push(b::let_decl(
+                            &path.name,
+                            Some(b::call(
+                                b::member_path("$.derived_safe_equal"),
+                                vec![b::thunk(b::raw(fallback_expr))],
+                            )),
+                        ));
 
                         context.state.transform.insert(
                             path.name.clone(),
@@ -1107,10 +1113,10 @@ fn build_declarations(
                             },
                         );
                     } else {
-                        declarations.push(JsStatement::Raw(format!(
-                            "let {} = () => {};",
-                            path.name, path.expression
-                        )));
+                        declarations.push(b::let_decl(
+                            &path.name,
+                            Some(b::thunk(b::raw(&path.expression))),
+                        ));
 
                         context.state.transform.insert(
                             path.name.clone(),
