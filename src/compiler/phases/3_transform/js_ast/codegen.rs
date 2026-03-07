@@ -55,67 +55,123 @@ pub fn generate_raw(program: &JsProgram) -> String {
 ///
 /// This is also aliased as `parse_and_generate` for backwards compatibility.
 pub fn normalize_js(source: &str) -> Result<String, String> {
+    normalize_js_inner(source, false)
+}
+
+fn normalize_js_inner(source: &str, profile: bool) -> Result<String, String> {
     use oxc_allocator::Allocator;
     use oxc_codegen::{Codegen, CodegenOptions};
     use oxc_parser::Parser;
     use oxc_span::SourceType;
 
-    let (source_for_oxc, labeled_blocks) = extract_labeled_blocks(source);
-    let source = &source_for_oxc;
-    let original_imports = collect_import_lines(source);
-    let original_lines = collect_source_lines_for_quote_restore(source);
-    let paren_seq_stmts = collect_paren_sequence_stmts(source);
-
-    let allocator = Allocator::default();
-    let source_type = SourceType::mjs();
-    let parser = Parser::new(&allocator, source, source_type);
-    let result = parser.parse();
-
-    if !result.errors.is_empty() {
-        if std::env::var("DEBUG_CODEGEN").is_ok() {
-            eprintln!("=== RAW SOURCE (normalize_js error) ===");
-            eprintln!("{}", source);
-            eprintln!("=== END RAW SOURCE ===");
-        }
-        return Err(format!("Parse errors: {:?}", result.errors));
+    macro_rules! timed {
+        ($name:expr, $expr:expr) => {{
+            if profile {
+                let _t = std::time::Instant::now();
+                let _r = $expr;
+                eprintln!("  {}: {:?}", $name, _t.elapsed());
+                _r
+            } else {
+                $expr
+            }
+        }};
     }
 
-    let options = CodegenOptions {
-        single_quote: true,
-        ..Default::default()
-    };
-    let code = Codegen::new()
-        .with_options(options)
-        .build(&result.program)
-        .code;
-    let code = collapse_short_arrays(code);
-    let code = collapse_short_objects(code);
-    let code = expand_getter_objects(code);
-    let code = collapse_single_statement_ifs(code);
-    let code = add_blank_lines_for_formatting(code);
-    let code = apply_simple_replacements_and_leading_zeros(code);
-    let code = expand_scientific_notation(code);
-    let code = rejoin_double_semicolons(code);
-    let code = wrap_new_class_expressions(code);
-    let code = restore_original_quotes(code, &original_imports);
-    let code = restore_line_quotes(code, &original_lines);
-    let code = restore_legacy_pre_effect_thunk_parens(code);
-    let code = restore_iife_parens(code);
-    let code = restore_paren_sequence_stmts(code, &paren_seq_stmts);
-    let code = expand_labeled_block_statements(code);
-    let code = restore_labeled_blocks(code, &labeled_blocks);
-    let code = code.trim_end_matches('\n').to_string();
+    let (source_for_oxc, labeled_blocks) =
+        timed!("extract_labeled_blocks", extract_labeled_blocks(source));
+    let source = &source_for_oxc;
+    let (original_imports, original_lines, paren_seq_stmts) =
+        timed!("collect_source_info", collect_source_info(source));
+
+    let code = timed!("oxc_parse_codegen", {
+        let allocator = Allocator::default();
+        let source_type = SourceType::mjs();
+        let parser = Parser::new(&allocator, source, source_type);
+        let result = parser.parse();
+
+        if !result.errors.is_empty() {
+            if std::env::var("DEBUG_CODEGEN").is_ok() {
+                eprintln!("=== RAW SOURCE (normalize_js error) ===");
+                eprintln!("{}", source);
+                eprintln!("=== END RAW SOURCE ===");
+            }
+            return Err(format!("Parse errors: {:?}", result.errors));
+        }
+
+        let options = CodegenOptions {
+            single_quote: true,
+            ..Default::default()
+        };
+        Codegen::new()
+            .with_options(options)
+            .build(&result.program)
+            .code
+    });
+    let code = timed!("collapse_short_arrays", collapse_short_arrays(code));
+    let code = timed!("collapse_short_objects", collapse_short_objects(code));
+    let code = timed!("expand_getter_objects", expand_getter_objects(code));
+    let code = timed!(
+        "collapse_single_statement_ifs",
+        collapse_single_statement_ifs(code)
+    );
+    let code = timed!(
+        "add_blank_lines_for_formatting",
+        add_blank_lines_for_formatting(code)
+    );
+    let code = timed!(
+        "apply_simple_replacements_and_sci",
+        apply_simple_replacements_leading_zeros_and_scientific(code)
+    );
+    let code = timed!("rejoin_double_semicolons", rejoin_double_semicolons(code));
+    let code = timed!(
+        "wrap_new_class_expressions",
+        wrap_new_class_expressions(code)
+    );
+    let code = timed!(
+        "restore_original_quotes",
+        restore_original_quotes(code, &original_imports)
+    );
+    let code = timed!(
+        "restore_line_quotes",
+        restore_line_quotes(code, &original_lines)
+    );
+    let code = timed!(
+        "restore_legacy_pre_effect_thunk_parens",
+        restore_legacy_pre_effect_thunk_parens(code)
+    );
+    let code = timed!("restore_iife_parens", restore_iife_parens(code));
+    let code = timed!(
+        "restore_paren_sequence_stmts",
+        restore_paren_sequence_stmts(code, &paren_seq_stmts)
+    );
+    let code = timed!(
+        "expand_labeled_block_statements",
+        expand_labeled_block_statements(code)
+    );
+    let code = timed!(
+        "restore_labeled_blocks",
+        restore_labeled_blocks(code, &labeled_blocks)
+    );
+    let code = timed!("trim", code.trim_end_matches('\n').to_string());
 
     Ok(code)
 }
 
-/// Apply simple string replacements AND add leading zeros in a single byte-level pass.
+/// Profile normalize_js, printing timing for each step to stderr.
+#[allow(dead_code)]
+pub fn normalize_js_profiled(source: &str) -> Result<String, String> {
+    normalize_js_inner(source, true)
+}
+
+/// Apply simple string replacements, add leading zeros, AND expand scientific notation
+/// in a single byte-level pass.
 ///
-/// Combines two previously separate passes:
+/// Combines three previously separate passes:
 /// 1. Simple replacements: `<\/script>` → `</script>`, `} catch (` → `} catch(`,
 ///    `function(` → `function (`
 /// 2. Leading zeros: `.5` → `0.5` (outside string literals)
-fn apply_simple_replacements_and_leading_zeros(code: String) -> String {
+/// 3. Scientific notation: `2e3` → `2000` (outside string literals)
+fn apply_simple_replacements_leading_zeros_and_scientific(code: String) -> String {
     let bytes = code.as_bytes();
     let len = bytes.len();
     let mut result = Vec::with_capacity(len + 100);
@@ -144,7 +200,7 @@ fn apply_simple_replacements_and_leading_zeros(code: String) -> String {
             continue;
         }
 
-        if c == b'\'' || c == b'"' {
+        if c == b'\'' || c == b'"' || c == b'`' {
             in_string = Some(c);
             result.push(c);
             i += 1;
@@ -172,7 +228,7 @@ fn apply_simple_replacements_and_leading_zeros(code: String) -> String {
             continue;
         }
 
-        // Add leading zero: .5 → 0.5 (outside string literals)
+        // Handle digits: leading zeros (.5 → 0.5) and scientific notation (2e3 → 2000)
         if c == b'.' && i + 1 < len && bytes[i + 1].is_ascii_digit() {
             let prev = if i > 0 { bytes[i - 1] } else { b' ' };
             if !prev.is_ascii_digit()
@@ -202,6 +258,80 @@ fn apply_simple_replacements_and_leading_zeros(code: String) -> String {
             {
                 result.push(b'0');
             }
+            result.push(c);
+            i += 1;
+            continue;
+        }
+
+        // Scientific notation expansion: detect digit sequences with 'e'
+        if c.is_ascii_digit() {
+            // Check word boundary before
+            if i > 0 {
+                let prev = bytes[i - 1];
+                if prev.is_ascii_alphanumeric() || prev == b'_' || prev == b'$' {
+                    result.push(c);
+                    i += 1;
+                    continue;
+                }
+            }
+
+            // Scan the full number
+            let num_start = i;
+            let mut j = i;
+            while j < len && bytes[j].is_ascii_digit() {
+                j += 1;
+            }
+            // Optional decimal part
+            let mut has_dot = false;
+            let mut dot_offset = 0;
+            if j < len && bytes[j] == b'.' && j + 1 < len && bytes[j + 1].is_ascii_digit() {
+                has_dot = true;
+                dot_offset = j - num_start;
+                j += 1;
+                while j < len && bytes[j].is_ascii_digit() {
+                    j += 1;
+                }
+            }
+            // Check for 'e' + digits (positive exponent)
+            if j < len && bytes[j] == b'e' && j + 1 < len && bytes[j + 1].is_ascii_digit() {
+                let e_pos = j;
+                j += 1;
+                let exp_start = j;
+                while j < len && bytes[j].is_ascii_digit() {
+                    j += 1;
+                }
+                // Word boundary after
+                if j >= len
+                    || (!bytes[j].is_ascii_alphanumeric() && bytes[j] != b'_' && bytes[j] != b'$')
+                {
+                    let exp_str = std::str::from_utf8(&bytes[exp_start..j]).unwrap_or("0");
+                    let exponent: usize = exp_str.parse().unwrap_or(0);
+
+                    if has_dot {
+                        let integer_part = &bytes[num_start..num_start + dot_offset];
+                        let decimal_part = &bytes[num_start + dot_offset + 1..e_pos];
+                        let decimal_len = decimal_part.len();
+                        result.extend_from_slice(integer_part);
+                        if exponent >= decimal_len {
+                            result.extend_from_slice(decimal_part);
+                            result.extend(std::iter::repeat_n(b'0', exponent - decimal_len));
+                        } else {
+                            result.extend_from_slice(&decimal_part[..exponent]);
+                            result.push(b'.');
+                            result.extend_from_slice(&decimal_part[exponent..]);
+                        }
+                    } else {
+                        result.extend_from_slice(&bytes[num_start..e_pos]);
+                        result.extend(std::iter::repeat_n(b'0', exponent));
+                    }
+                    i = j;
+                    continue;
+                }
+            }
+            // Not scientific notation - copy as-is
+            result.extend_from_slice(&bytes[num_start..j]);
+            i = j;
+            continue;
         }
 
         result.push(c);
@@ -660,58 +790,6 @@ fn find_next_comma_at_depth_zero(s: &str, start: usize) -> Option<usize> {
     None
 }
 
-/// Collect parenthesized expression statements from the source.
-///
-/// OXC strips outer parentheses from parenthesized expression statements:
-///   `(a, b, c);` → `a, b, c;`
-///   `($.store_set(x, y));` → `$.store_set(x, y);`
-/// But the official Svelte compiler (esrap) preserves them.
-///
-/// This collects the "inner content" of such statements so we can restore them.
-/// Returns a set of normalized strings that should be wrapped in parens when
-/// found as bare statements in OXC output.
-fn collect_paren_sequence_stmts(source: &str) -> Vec<String> {
-    // Quick check: if no lines start with '(' after trimming, nothing to collect
-    if !source.lines().any(|l| l.trim().starts_with('(')) {
-        return Vec::new();
-    }
-    let mut results = Vec::new();
-    for line in source.lines() {
-        let trimmed = line.trim();
-        // Match lines like `(expr);` or `(expr1, expr2, ...);`
-        // Must start with `(` and end with `);`
-        if trimmed.starts_with('(') && trimmed.ends_with(");") {
-            let inner = &trimmed[1..trimmed.len() - 2]; // strip outer `(` and `);`
-            // Verify the inner content has balanced parens (not just a function call)
-            let mut depth = 0i32;
-            let mut balanced = true;
-            for ch in inner.chars() {
-                match ch {
-                    '(' | '[' | '{' => depth += 1,
-                    ')' | ']' | '}' => {
-                        depth -= 1;
-                        if depth < 0 {
-                            balanced = false;
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            if balanced && depth == 0 {
-                // Also skip cases like `(function (...) { ... })()` (IIFEs) which are
-                // handled separately by restore_iife_parens
-                if !inner.starts_with("function ") && !inner.starts_with("function(") {
-                    // Normalize whitespace to a single space for matching
-                    let normalized: String = inner.split_whitespace().collect::<Vec<_>>().join(" ");
-                    results.push(normalized);
-                }
-            }
-        }
-    }
-    results
-}
-
 /// Restore parentheses around sequence expression statements that OXC stripped.
 ///
 /// Finds lines in the OXC output that match collected sequence expressions
@@ -743,46 +821,6 @@ fn restore_paren_sequence_stmts(code: String, paren_stmts: &[String]) -> String 
         result_lines.push(line.to_string());
     }
     result_lines.join("\n")
-}
-
-/// Collect source lines that contain double-quoted strings.
-/// Returns a map from (quote-normalized line) -> original line.
-/// Since generated code now uses single quotes, only user source code
-/// (via Raw() statements) will have double quotes, making this safe.
-fn collect_source_lines_for_quote_restore(
-    source: &str,
-) -> std::collections::HashMap<String, String> {
-    // Quick check: if no double quotes in source outside imports, nothing to restore
-    let has_non_import_dq = source.lines().any(|line| {
-        let t = line.trim();
-        !t.is_empty() && !t.starts_with("import ") && t.contains('"')
-    });
-    if !has_non_import_dq {
-        return std::collections::HashMap::new();
-    }
-
-    let mut lines_map = std::collections::HashMap::new();
-
-    for line in source.lines() {
-        let trimmed = line.trim();
-        // Skip import lines (handled separately) and empty lines
-        if trimmed.is_empty() || trimmed.starts_with("import ") {
-            continue;
-        }
-        // Only collect lines that have double quotes
-        if !trimmed.contains('"') {
-            continue;
-        }
-        // Normalize: replace double quotes with single quotes for lookup
-        let normalized = trimmed.replace('"', "'");
-        lines_map.insert(normalized.clone(), trimmed.to_string());
-        // Also store with semicolon appended (OXC may add semicolons)
-        if !normalized.ends_with(';') {
-            lines_map.insert(format!("{};", normalized), trimmed.to_string());
-        }
-    }
-
-    lines_map
 }
 
 /// Restore double quotes for non-import lines using the original source.
@@ -1226,33 +1264,80 @@ fn restore_labeled_blocks(code: String, blocks: &[(String, String)]) -> String {
     result
 }
 
-/// Collect import lines from source code that use double quotes.
-/// Returns a map from the normalized form to the original line text.
-fn collect_import_lines(source: &str) -> std::collections::HashMap<String, String> {
+/// Collect all source info needed by post-processing in a single pass over the source lines.
+/// Returns (import_lines, quote_lines, paren_sequence_stmts).
+fn collect_source_info(
+    source: &str,
+) -> (
+    std::collections::HashMap<String, String>,
+    std::collections::HashMap<String, String>,
+    Vec<String>,
+) {
     let mut import_lines = std::collections::HashMap::new();
+    let mut quote_lines = std::collections::HashMap::new();
+    let mut paren_stmts = Vec::new();
+
     for line in source.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with("import ") {
-            // Only collect if the line has double quotes (needs restoration)
-            if trimmed.contains('"') {
-                let normalized = normalize_import_line(trimmed);
-                import_lines.insert(normalized.clone(), trimmed.to_string());
-                // Also store with semicolon if the original doesn't have one
-                // (OXC adds semicolons)
-                if !normalized.ends_with(';') {
-                    import_lines.insert(format!("{};", normalized), trimmed.to_string());
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        // Import lines with double quotes
+        if trimmed.starts_with("import ") && trimmed.contains('"') {
+            let normalized = normalize_import_line(trimmed);
+            import_lines.insert(normalized.clone(), trimmed.to_string());
+            if !normalized.ends_with(';') {
+                import_lines.insert(format!("{};", normalized), trimmed.to_string());
+            }
+            if normalized.ends_with(';') {
+                import_lines.insert(
+                    normalized[..normalized.len() - 1].to_string(),
+                    trimmed.to_string(),
+                );
+            }
+            continue;
+        }
+
+        // Non-import lines with double quotes (for quote restoration)
+        if trimmed.contains('"') {
+            let normalized = trimmed.replace('"', "'");
+            quote_lines.insert(normalized.clone(), trimmed.to_string());
+            if !normalized.ends_with(';') {
+                quote_lines.insert(format!("{};", normalized), trimmed.to_string());
+            }
+        }
+
+        // Parenthesized expression statements
+        if trimmed.starts_with('(') && trimmed.ends_with(");") {
+            let inner = &trimmed[1..trimmed.len() - 2];
+            let mut depth = 0i32;
+            let mut balanced = true;
+            for ch in inner.chars() {
+                match ch {
+                    '(' | '[' | '{' => depth += 1,
+                    ')' | ']' | '}' => {
+                        depth -= 1;
+                        if depth < 0 {
+                            balanced = false;
+                            break;
+                        }
+                    }
+                    _ => {}
                 }
-                // Also store without semicolon if the original has one
-                if normalized.ends_with(';') {
-                    import_lines.insert(
-                        normalized[..normalized.len() - 1].to_string(),
-                        trimmed.to_string(),
-                    );
-                }
+            }
+            if balanced
+                && depth == 0
+                && !inner.starts_with("function ")
+                && !inner.starts_with("function(")
+            {
+                let normalized: String = inner.split_whitespace().collect::<Vec<_>>().join(" ");
+                paren_stmts.push(normalized);
             }
         }
     }
-    import_lines
+
+    (import_lines, quote_lines, paren_stmts)
 }
 
 /// Restore quote style in an OXC-formatted import line using the original's quote style.
@@ -1975,8 +2060,8 @@ fn is_method_definition(line: &str) -> bool {
 /// This ONLY applies to `$$render()` calls, which is the pattern Svelte uses
 /// inside `$.if()` callbacks. Other single-statement ifs keep their braces.
 fn collapse_single_statement_ifs(code: String) -> String {
-    // Quick check: if no 'if (' pattern exists, return early
-    if !code.contains("if (") {
+    // Quick check: this only collapses ifs with $$render calls
+    if !code.contains("$$render(") {
         return code;
     }
     let lines: Vec<&str> = code.lines().collect();
@@ -2113,63 +2198,6 @@ fn get_indent_level(line: &str) -> usize {
 /// OXC's codegen outputs numbers like `2e3` instead of `2000`.
 /// This function expands them to match Svelte's esrap output.
 ///
-/// Only positive integer exponents are expanded (e.g. `2e3` -> `2000`).
-/// Negative exponents (e.g. `1e-3`) are left as-is since OXC already
-/// outputs those as decimal (`0.001`).
-fn expand_scientific_notation(code: String) -> String {
-    // Quick check: look for digit followed by 'e' followed by digit (scientific notation)
-    let bytes = code.as_bytes();
-    let has_sci = bytes
-        .windows(3)
-        .any(|w| w[0].is_ascii_digit() && w[1] == b'e' && w[2].is_ascii_digit());
-    if !has_sci {
-        return code;
-    }
-
-    static RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"\b(\d+(?:\.\d+)?)e(\d+)\b").unwrap());
-
-    // Match numeric scientific notation with positive exponents:
-    // - Optional digits before decimal, optional decimal part, then 'e' and digits
-    // - Examples: 2e3, 1e4, 2.5e3, 1e10
-    // - Word boundary (\b) prevents matching inside identifiers
-    let re = &*RE;
-
-    re.replace_all(&code, |caps: &regex::Captures| {
-        let mantissa = &caps[1];
-        let exponent: usize = caps[2].parse().unwrap_or(0);
-
-        if let Some(dot_pos) = mantissa.find('.') {
-            // Has decimal point, e.g. "2.5e3"
-            let integer_part = &mantissa[..dot_pos];
-            let decimal_part = &mantissa[dot_pos + 1..];
-            let decimal_len = decimal_part.len();
-
-            if exponent >= decimal_len {
-                // All decimal digits move to integer part, plus trailing zeros
-                format!(
-                    "{}{}{}",
-                    integer_part,
-                    decimal_part,
-                    "0".repeat(exponent - decimal_len)
-                )
-            } else {
-                // Some decimal digits remain after the point
-                format!(
-                    "{}{}.{}",
-                    integer_part,
-                    &decimal_part[..exponent],
-                    &decimal_part[exponent..]
-                )
-            }
-        } else {
-            // No decimal point, e.g. "2e3"
-            format!("{}{}", mantissa, "0".repeat(exponent))
-        }
-    })
-    .into_owned()
-}
-
 /// Collapse short arrays from multi-line to single-line format.
 ///
 /// oxc's codegen always formats arrays with multiple elements on separate lines.
@@ -3700,22 +3728,17 @@ export default function Main($$anchor, $$props) {
 
     #[test]
     fn test_expand_scientific_notation_function() {
-        // Test the expand_scientific_notation function directly
-        assert_eq!(expand_scientific_notation("2e3".to_string()), "2000");
-        assert_eq!(expand_scientific_notation("1e4".to_string()), "10000");
-        assert_eq!(expand_scientific_notation("1e6".to_string()), "1000000");
-        assert_eq!(
-            expand_scientific_notation("x = 2e3;".to_string()),
-            "x = 2000;"
-        );
-        assert_eq!(expand_scientific_notation("2.5e3".to_string()), "2500");
+        // Test scientific notation expansion via the combined pass
+        let f = apply_simple_replacements_leading_zeros_and_scientific;
+        assert_eq!(f("2e3".to_string()), "2000");
+        assert_eq!(f("1e4".to_string()), "10000");
+        assert_eq!(f("1e6".to_string()), "1000000");
+        assert_eq!(f("x = 2e3;".to_string()), "x = 2000;");
+        assert_eq!(f("2.5e3".to_string()), "2500");
         // Should not match inside identifiers
-        assert_eq!(
-            expand_scientific_notation("let e3 = 5;".to_string()),
-            "let e3 = 5;"
-        );
+        assert_eq!(f("let e3 = 5;".to_string()), "let e3 = 5;");
         // Should preserve negative exponents (leave as-is, OXC doesn't produce these)
-        assert_eq!(expand_scientific_notation("1e-3".to_string()), "1e-3");
+        assert_eq!(f("1e-3".to_string()), "1e-3");
     }
 
     #[test]
