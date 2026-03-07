@@ -28,7 +28,7 @@ lazy_static! {
 /// nodes and checks if their bodies contain a VariableDeclaration with the given name.
 ///
 /// This is used to detect if a component-level constant is being shadowed by a local variable.
-fn has_shadowing_declaration_in_path(js_path: &[Value], name: &str) -> bool {
+fn has_shadowing_declaration_in_path(js_path: &[super::super::JsPathEntry], name: &str) -> bool {
     // Walk the path from innermost to outermost
     for node in js_path.iter().rev() {
         let node_type = node.get("type").and_then(|t| t.as_str());
@@ -240,7 +240,7 @@ fn get_name(node: &Value) -> Option<String> {
 /// # Returns
 ///
 /// The parent node at the given index, skipping TypeScript wrapper nodes
-fn get_parent(path: &[Value], at: isize) -> Option<&Value> {
+fn get_parent(path: &[super::super::JsPathEntry], at: isize) -> Option<&Value> {
     let len = path.len() as isize;
     let index = if at < 0 { len + at } else { at };
 

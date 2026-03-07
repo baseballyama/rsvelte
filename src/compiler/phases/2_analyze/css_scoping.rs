@@ -335,6 +335,7 @@ fn element_matches_simple_selectors(
 }
 
 /// Check if a complex selector matches an element, considering combinators.
+/// Note: ancestors are stored in reverse order (closest parent at the END).
 fn complex_selector_matches_element(
     selector: &CssComplexSelector,
     element: &ElementInfo,
@@ -371,14 +372,18 @@ fn complex_selector_matches_element(
         &effective_children[..effective_children.len() - 1],
         last,
         ancestors,
+        ancestors.len(),
     )
 }
 
 /// Apply combinator chain backward through ancestors.
+/// `ancestors` is stored in reverse order (closest parent at end).
+/// `cursor` tracks the current position (starts at ancestors.len()).
 fn apply_combinator_chain(
     remaining: &[CssRelativeSelector],
     current_rel: &CssRelativeSelector,
     ancestors: &[ElementInfo],
+    cursor: usize,
 ) -> bool {
     if remaining.is_empty() {
         return true;
@@ -388,10 +393,10 @@ fn apply_combinator_chain(
 
     match combinator {
         ">" => {
-            if ancestors.is_empty() {
+            if cursor == 0 {
                 return remaining.iter().all(is_relative_selector_global);
             }
-            let parent = &ancestors[0];
+            let parent = &ancestors[cursor - 1];
             let next_sel = &remaining[remaining.len() - 1];
             if element_matches_simple_selectors(parent, &next_sel.selectors) {
                 if remaining.len() == 1 {
@@ -400,14 +405,15 @@ fn apply_combinator_chain(
                 return apply_combinator_chain(
                     &remaining[..remaining.len() - 1],
                     next_sel,
-                    &ancestors[1..],
+                    ancestors,
+                    cursor - 1,
                 );
             }
             remaining.iter().all(is_relative_selector_global)
         }
         " " => {
             let next_sel = &remaining[remaining.len() - 1];
-            for i in 0..ancestors.len() {
+            for i in (0..cursor).rev() {
                 if element_matches_simple_selectors(&ancestors[i], &next_sel.selectors) {
                     if remaining.len() == 1 {
                         return true;
@@ -415,7 +421,8 @@ fn apply_combinator_chain(
                     if apply_combinator_chain(
                         &remaining[..remaining.len() - 1],
                         next_sel,
-                        &ancestors[i + 1..],
+                        ancestors,
+                        i,
                     ) {
                         return true;
                     }
@@ -433,18 +440,20 @@ fn apply_combinator_chain(
 
 /// Mark RegularElement nodes in the fragment as scoped based on CSS selector matching.
 pub fn mark_elements_scoped(fragment: &mut Fragment, css_selectors: &[CssComplexSelector]) {
-    mark_elements_scoped_with_ancestors(fragment, css_selectors, &[]);
+    let mut ancestors = Vec::new();
+    mark_elements_scoped_with_ancestors(fragment, css_selectors, &mut ancestors);
 
     // Second pass: propagate scoping to ancestor elements in combinator chains.
     // When a child element is scoped via a selector like `.parent > .child`,
     // the parent element also needs to be scoped (it needs the CSS hash class).
-    propagate_scoping_to_ancestors(fragment, css_selectors, &[]);
+    let mut ancestors2 = Vec::new();
+    propagate_scoping_to_ancestors(fragment, css_selectors, &mut ancestors2);
 }
 
 fn mark_elements_scoped_with_ancestors(
     fragment: &mut Fragment,
     css_selectors: &[CssComplexSelector],
-    ancestors: &[ElementInfo],
+    ancestors: &mut Vec<ElementInfo>,
 ) {
     for node in &mut fragment.nodes {
         match node {
@@ -453,13 +462,9 @@ fn mark_elements_scoped_with_ancestors(
                 el.metadata.scoped = css_selectors.iter().any(|selector| {
                     complex_selector_matches_element(selector, &element_info, ancestors)
                 });
-                let mut new_ancestors = vec![element_info];
-                new_ancestors.extend_from_slice(ancestors);
-                mark_elements_scoped_with_ancestors(
-                    &mut el.fragment,
-                    css_selectors,
-                    &new_ancestors,
-                );
+                ancestors.push(element_info);
+                mark_elements_scoped_with_ancestors(&mut el.fragment, css_selectors, ancestors);
+                ancestors.pop();
             }
             TemplateNode::Component(comp) => {
                 mark_elements_scoped_with_ancestors(&mut comp.fragment, css_selectors, ancestors);
@@ -555,24 +560,13 @@ fn element_is_ancestor_in_matching_selector(
 fn propagate_scoping_to_ancestors(
     fragment: &mut Fragment,
     css_selectors: &[CssComplexSelector],
-    ancestors: &[ElementInfo],
+    ancestors: &mut Vec<ElementInfo>,
 ) {
-    // Collect indices and info for RegularElement nodes
-    let mut element_indices: Vec<(usize, ElementInfo)> = Vec::new();
-    for (idx, node) in fragment.nodes.iter().enumerate() {
-        if let TemplateNode::RegularElement(el) = node {
-            element_indices.push((idx, ElementInfo::from_element(el)));
-        }
-    }
-
     for node in &mut fragment.nodes {
         match node {
             TemplateNode::RegularElement(el) => {
                 let element_info = ElementInfo::from_element(el);
 
-                // Check if this element is an ancestor in any matching selector.
-                // An element should be scoped if it matches a non-subject part of a selector
-                // that could match elements in its subtree.
                 if !el.metadata.scoped {
                     el.metadata.scoped = css_selectors.iter().any(|selector| {
                         element_is_ancestor_in_matching_selector(&element_info, selector)
@@ -584,9 +578,9 @@ fn propagate_scoping_to_ancestors(
                     });
                 }
 
-                let mut new_ancestors = vec![element_info];
-                new_ancestors.extend_from_slice(ancestors);
-                propagate_scoping_to_ancestors(&mut el.fragment, css_selectors, &new_ancestors);
+                ancestors.push(element_info);
+                propagate_scoping_to_ancestors(&mut el.fragment, css_selectors, ancestors);
+                ancestors.pop();
             }
             TemplateNode::Component(comp) => {
                 propagate_scoping_to_ancestors(&mut comp.fragment, css_selectors, ancestors);

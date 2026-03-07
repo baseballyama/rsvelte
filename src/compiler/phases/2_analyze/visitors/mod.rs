@@ -112,6 +112,32 @@ pub struct EachBlockContext {
     pub child_count: usize,
 }
 
+/// A thin wrapper around a raw pointer to `serde_json::Value` that implements `Deref`.
+///
+/// This avoids expensive deep clones when pushing JS AST nodes onto `js_path`.
+/// SAFETY: The wrapped pointer is always valid because `walk_js_node` pushes a pointer
+/// before visiting and pops it after, matching the call stack lifetime of the referenced `Value`.
+#[derive(Clone, Copy)]
+pub struct JsPathEntry(*const serde_json::Value);
+
+impl JsPathEntry {
+    /// Create a new `JsPathEntry` from a reference.
+    #[inline]
+    pub fn new(value: &serde_json::Value) -> Self {
+        Self(value as *const _)
+    }
+}
+
+impl std::ops::Deref for JsPathEntry {
+    type Target = serde_json::Value;
+
+    #[inline]
+    fn deref(&self) -> &serde_json::Value {
+        // SAFETY: The pointer is valid because walk_js_node maintains push/pop invariant.
+        unsafe { &*self.0 }
+    }
+}
+
 /// Context for AST visitor traversal.
 /// Corresponds to AnalysisState in the official compiler.
 pub struct VisitorContext<'a> {
@@ -122,8 +148,10 @@ pub struct VisitorContext<'a> {
     /// The path of nodes from root to current (Svelte template nodes).
     pub path: Vec<&'a TemplateNode>,
     /// JavaScript AST node path (for expressions in scripts).
-    /// This is a stack of serde_json::Value representing JS AST nodes.
-    pub js_path: Vec<serde_json::Value>,
+    /// Uses `JsPathEntry` (a raw pointer wrapper) to avoid expensive deep clones.
+    /// SAFETY: Pointers are always valid because walk_js_node pushes a pointer
+    /// before visiting and pops it after, matching the call stack lifetime.
+    pub js_path: Vec<JsPathEntry>,
     /// Information about the current expression/directive/block value being analyzed.
     /// Set to Some(metadata) when visiting an expression, directive value, or block condition.
     pub expression: Option<*mut crate::ast::template::ExpressionMetadata>,

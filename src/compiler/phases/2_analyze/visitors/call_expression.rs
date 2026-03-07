@@ -475,7 +475,7 @@ fn get_global_keypath(node: &Value, context: &VisitorContext) -> Option<String> 
 /// ```
 fn get_parent<'a>(context: &'a VisitorContext, offset: usize) -> Option<&'a Value> {
     let index = context.js_path.len().checked_sub(offset + 1)?;
-    context.js_path.get(index)
+    context.js_path.get(index).map(|entry| &**entry)
 }
 
 /// Check if $bindable is in a valid placement.

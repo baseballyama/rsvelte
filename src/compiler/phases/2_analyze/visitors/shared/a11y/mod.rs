@@ -652,36 +652,85 @@ fn has_disabled_attribute(attribute_map: &FxHashMap<String, &AttributeNode>) -> 
     false
 }
 
+fn match_schemas_by_index(
+    schemas: &[RoleRelationConcept],
+    index: &FxHashMap<String, Vec<usize>>,
+    tag_name: &str,
+    attribute_map: &FxHashMap<String, &AttributeNode>,
+) -> bool {
+    if let Some(indices) = index.get(tag_name) {
+        for &i in indices {
+            if match_schema_attrs(&schemas[i], attribute_map) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn match_schema_attrs(
+    schema: &RoleRelationConcept,
+    attribute_map: &FxHashMap<String, &AttributeNode>,
+) -> bool {
+    if let Some(schema_attrs) = &schema.attributes {
+        for schema_attr in schema_attrs {
+            if let Some(attribute) = attribute_map.get(&schema_attr.name) {
+                if let Some(expected_value) = &schema_attr.value {
+                    if let Some(actual_value) = get_static_value(attribute) {
+                        if actual_value != expected_value {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
+            } else {
+                return false;
+            }
+        }
+    }
+    true
+}
+
 fn element_interactivity(
     tag_name: &str,
     attribute_map: &FxHashMap<String, &AttributeNode>,
 ) -> &'static str {
-    if INTERACTIVE_ELEMENT_ROLE_SCHEMAS
-        .iter()
-        .any(|schema| match_schema(schema, tag_name, attribute_map))
-    {
+    if match_schemas_by_index(
+        &INTERACTIVE_ELEMENT_ROLE_SCHEMAS,
+        &INTERACTIVE_ELEMENT_ROLE_INDEX,
+        tag_name,
+        attribute_map,
+    ) {
         return element_interactivity::INTERACTIVE;
     }
 
     if tag_name != "header"
-        && NON_INTERACTIVE_ELEMENT_ROLE_SCHEMAS
-            .iter()
-            .any(|schema| match_schema(schema, tag_name, attribute_map))
+        && match_schemas_by_index(
+            &NON_INTERACTIVE_ELEMENT_ROLE_SCHEMAS,
+            &NON_INTERACTIVE_ELEMENT_ROLE_INDEX,
+            tag_name,
+            attribute_map,
+        )
     {
         return element_interactivity::NON_INTERACTIVE;
     }
 
-    if INTERACTIVE_ELEMENT_AX_OBJECT_SCHEMAS
-        .iter()
-        .any(|schema| match_schema(schema, tag_name, attribute_map))
-    {
+    if match_schemas_by_index(
+        &INTERACTIVE_ELEMENT_AX_OBJECT_SCHEMAS,
+        &INTERACTIVE_ELEMENT_AX_OBJECT_INDEX,
+        tag_name,
+        attribute_map,
+    ) {
         return element_interactivity::INTERACTIVE;
     }
 
-    if NON_INTERACTIVE_ELEMENT_AX_OBJECT_SCHEMAS
-        .iter()
-        .any(|schema| match_schema(schema, tag_name, attribute_map))
-    {
+    if match_schemas_by_index(
+        &NON_INTERACTIVE_ELEMENT_AX_OBJECT_SCHEMAS,
+        &NON_INTERACTIVE_ELEMENT_AX_OBJECT_INDEX,
+        tag_name,
+        attribute_map,
+    ) {
         return element_interactivity::NON_INTERACTIVE;
     }
 

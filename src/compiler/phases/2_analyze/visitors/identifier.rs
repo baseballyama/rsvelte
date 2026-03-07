@@ -26,7 +26,7 @@ use serde_json::Value;
 /// * `context` - The visitor context
 pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Get the parent node from js_path
-    let parent = if context.js_path.len() >= 2 {
+    let parent: Option<&Value> = if context.js_path.len() >= 2 {
         Some(&context.js_path[context.js_path.len() - 2])
     } else {
         None
@@ -410,7 +410,7 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
 fn validate_rune_usage(
     node: &Value,
     rune_name: &str,
-    js_path: &[Value],
+    js_path: &[super::JsPathEntry],
 ) -> Result<(), AnalysisError> {
     let mut _current_node = node;
     let mut path_idx = if js_path.len() >= 2 {

@@ -1973,6 +1973,27 @@ pub static NON_INTERACTIVE_ELEMENT_AX_OBJECT_SCHEMAS: LazyLock<Vec<RoleRelationC
         ]
     });
 
+/// Index of schemas grouped by tag name for O(1) lookup.
+fn build_schema_index(schemas: &[RoleRelationConcept]) -> FxHashMap<String, Vec<usize>> {
+    let mut index: FxHashMap<String, Vec<usize>> = FxHashMap::default();
+    for (i, schema) in schemas.iter().enumerate() {
+        index.entry(schema.name.clone()).or_default().push(i);
+    }
+    index
+}
+
+pub static NON_INTERACTIVE_ELEMENT_ROLE_INDEX: LazyLock<FxHashMap<String, Vec<usize>>> =
+    LazyLock::new(|| build_schema_index(&NON_INTERACTIVE_ELEMENT_ROLE_SCHEMAS));
+
+pub static INTERACTIVE_ELEMENT_ROLE_INDEX: LazyLock<FxHashMap<String, Vec<usize>>> =
+    LazyLock::new(|| build_schema_index(&INTERACTIVE_ELEMENT_ROLE_SCHEMAS));
+
+pub static INTERACTIVE_ELEMENT_AX_OBJECT_INDEX: LazyLock<FxHashMap<String, Vec<usize>>> =
+    LazyLock::new(|| build_schema_index(&INTERACTIVE_ELEMENT_AX_OBJECT_SCHEMAS));
+
+pub static NON_INTERACTIVE_ELEMENT_AX_OBJECT_INDEX: LazyLock<FxHashMap<String, Vec<usize>>> =
+    LazyLock::new(|| build_schema_index(&NON_INTERACTIVE_ELEMENT_AX_OBJECT_SCHEMAS));
+
 /// Map of ARIA roles to their required properties.
 /// Sourced from aria-query roles_map requiredProps.
 /// Only roles that have non-empty requiredProps are included.

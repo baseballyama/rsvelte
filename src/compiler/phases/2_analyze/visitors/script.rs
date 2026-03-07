@@ -22,7 +22,7 @@ pub fn visit_script(script_ast: &Value, context: &mut VisitorContext) -> Result<
         && node_type == "Program"
     {
         // Push Program node to js_path so placement checks can find it
-        context.js_path.push(script_ast.clone());
+        context.js_path.push(super::JsPathEntry::new(script_ast));
 
         // Visit the program body
         if let Some(body) = script_ast.get("body").and_then(|b| b.as_array()) {
@@ -68,7 +68,7 @@ pub fn walk_js_node(node: &Value, context: &mut VisitorContext) -> Result<(), An
     }
 
     // Push to JS path
-    context.js_path.push(node.clone());
+    context.js_path.push(super::JsPathEntry::new(node));
 
     // Visit specific node types
     match node_type {
