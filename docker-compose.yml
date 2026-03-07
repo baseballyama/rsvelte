@@ -16,7 +16,7 @@ services:
     # Keep container running for interactive development
     stdin_open: true
     tty: true
-    # Use host network for playground dev server
+    # Use host network for docs dev server
     network_mode: host
     environment:
       - CARGO_HOME=/root/.cargo

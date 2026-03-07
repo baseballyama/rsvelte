@@ -417,7 +417,7 @@ mod tests {
 
         let result = build_assignment_value("=", &left, &right);
 
-        // = の場合は right をそのまま返す
+        // For =, return right as-is
         match result {
             JsExpr::Literal(JsLiteral::Number(n)) => assert_eq!(n, 1.0),
             _ => panic!("Expected Number literal"),
@@ -431,7 +431,7 @@ mod tests {
 
         let result = build_assignment_value("||=", &left, &right);
 
-        // 論理代入演算子は論理式に展開される: a ||= b -> a || b
+        // Logical assignment operators expand to logical expressions: a ||= b -> a || b
         match result {
             JsExpr::Logical(logical) => {
                 assert!(matches!(logical.operator, JsLogicalOp::Or));

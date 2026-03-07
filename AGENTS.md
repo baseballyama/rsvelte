@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENTS.md
 
 Guidelines for AI agents working on this project.
 
@@ -31,7 +31,7 @@ src/compiler/phases/
 
 ## Implementation Principles
 
-**⚠️ CRITICAL**: All implementations must follow the official Svelte compiler implementation.
+**CRITICAL**: All implementations must follow the official Svelte compiler implementation.
 
 1. **Reference Implementation** - Always check `svelte/packages/svelte/src/compiler/` before implementing
 2. **Structural Consistency** - Mirror directory structure, module organization, and naming
@@ -42,32 +42,32 @@ When implementing, reference the corresponding file in `svelte/packages/svelte/s
 
 ## Development Workflow
 
-### Docker 開発環境 (必須)
+### Docker Development Environment (Recommended)
 
-**⚠️ 重要**: すべてのビルドとテストは Docker コンテナ内で実行してください。
+All builds and tests should run inside the Docker container.
 
 ```bash
-# 初回セットアップ
-./docker-dev.sh build              # Docker イメージをビルド
-./docker-dev.sh up                 # コンテナを起動
+# First-time setup
+./docker-dev.sh build              # Build Docker image
+./docker-dev.sh up                 # Start container
 
-# 開発作業
-./docker-dev.sh shell              # コンテナ内でシェルを開く
-./docker-dev.sh run cargo build    # コマンドを実行
-./docker-dev.sh test               # テストを実行
+# Development
+./docker-dev.sh shell              # Open shell inside container
+./docker-dev.sh run cargo build    # Run a command
+./docker-dev.sh test               # Run tests
 
 # VS Code Dev Containers
-# 「Reopen in Container」で自動的に開発環境が起動
+# Select "Reopen in Container" to start the development environment
 ```
 
-### Setup (コンテナ内で実行)
+### Setup (Run inside container)
 
 ```bash
 git config core.hooksPath .githooks
 npm run generate-fixtures  # Required before running tests
 ```
 
-### Testing (コンテナ内で実行)
+### Testing (Run inside container)
 
 ```bash
 cargo test                          # Run all tests
@@ -80,7 +80,7 @@ Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically.
 
 ### Working with Subagents
 
-**⚠️ MANDATORY**: Use the Task tool for all implementation work.
+**MANDATORY**: Use the Task tool for all implementation work.
 
 - **Use subagents for**: Feature implementation, bug fixes, code exploration, multi-file changes
 - **Available types**: `Bash` (commands), `Explore` (codebase analysis), `general-purpose` (implementation)
@@ -100,114 +100,37 @@ Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically.
 - Remove outdated information
 - Keep it concise
 
-## Test Status (2026-02-26)
+## Test Status (2026-03-07)
 
 | Suite | Pass/Total | Status |
 |-------|------------|--------|
-| Parser Modern | 22/22 | ✅ 100% |
-| Parser Legacy | 82/82 | ✅ 100% |
-| Compiler Errors | 118/118 | ✅ 100% |
-| SSR | 82/82 | ✅ 100% |
-| Compiler Snapshot | 18/18 | ✅ 100% |
-| CSS | 178/179 | 🟢 99% |
-| Runtime Legacy | 1146/1202 | 🟢 95% |
-| Runtime Runes | 775/838 | 🟢 93% |
-| Hydration | 71/77 | 🟢 92% |
-| Runtime Browser | 28/31 | 🟢 90% |
-| Validator | 291/313 | 🟢 93% |
-| Preprocess | 0/19 | ⏸️ N/A |
-| Print | 0/40 | ⏸️ N/A |
-| Migrate | 0/76 | ⏸️ N/A |
+| Parser Modern | 22/22 | 100% |
+| Parser Legacy | 82/82 | 100% |
+| Compiler Errors | 144/144 | 100% |
+| SSR | 82/82 | 100% |
+| Compiler Snapshot | 20/20 | 100% |
+| CSS | 179/179 | 100% |
+| Runtime Legacy | 1202/1202 | 100% |
+| Runtime Runes | 865/865 | 100% |
+| Hydration | 77/77 | 100% |
+| Runtime Browser | 31/31 | 100% |
+| Validator | 324/324 | 100% |
+| Preprocess | 0/19 | N/A |
+| Print | 0/40 | N/A |
+| Migrate | 0/76 | N/A |
 
-**Overall: 2811/2962 (94.9%)**
-
-## Current Focus
-
-### Remaining Failures (159 tests to 100%)
-
-Runtime Runes (64 failures):
-1. Async infrastructure - $.run, $.save, $.async (~40 tests, separate feature)
-2. Non-async: mutation wrapping, CSS hash, attribute effects (~24 tests)
-
-Runtime Legacy (63 failures):
-1. Mutation return value wrapping `signal(signal().prop = val, true)` (~9 tests)
-2. {@const} tag handling - derived_safe_equal, deep_read_state (~7 tests)
-3. Compilation errors - invalid JS from store/destructure codegen (~8 tests)
-4. Deep read state / untrack dependency wrapping (~6 tests)
-5. Slot/let directive issues (~6 tests)
-6. Server-side reactive statement ordering (~5 tests)
-
-Validator (22 failures):
-1. A11y warnings - role/aria prop mapping tables (~3 tests, 187 warnings)
-2. bind_invalid_each_rest (~4 tests)
-3. element_implicitly_closed (~2 tests)
-4. Various missing single warnings (~13 tests)
-
-Other: Hydration (6), Runtime Browser (3), CSS (1)
+**Overall: 3028/3028 (100.0%)**
 
 ## Implementation Status
 
-### Completed
+### All Test Suites Complete (100%)
 
-**Parser** (100%)
-
-- All Svelte 5 syntax: elements, blocks, directives, expressions
-- Script/style parsing with CSS support
-- Legacy AST conversion (Svelte 4 compatibility)
-
-**Compiler** (Phase 1/2/3 architecture)
-
-- Client/server code generation
-- Runes: `$state`, `$derived`, `$props`
-- Blocks: `{#each}`, `{#await}`, `{#snippet}`
-- Component instantiation, bindings, event handlers
-- CSS scoping with hash-based class names
-
-**Phase 2 Analyze** (2026-01-10 Major Update)
-
-Core Infrastructure:
-- Complete `CompileOptions` with all 20+ fields (runes, custom_element, css_hash, etc.)
-- Full type system sync (`types.rs` - 100% compatible with official compiler)
-- `calculate_blockers()` - async/await dependency tracking
-- `order_reactive_statements()` - reactive declaration topological sort
-
-Visitors:
-- `VariableDeclarator` - Complete implementation (528 lines, all rune detection)
-- `shared/utils.rs` - State field tracking, $props.id() checks, helper functions
-- Core visitor gap analysis documented (see `VISITOR_IMPLEMENTATION_PLAN.md`)
-
-Remaining Work:
-- CSS implementation (~80% missing - see `PHASE2_VISITOR_GAPS.md`)
-- Expression context infrastructure (blocker for many visitors)
-- 15+ validation checks in `analyze_component()`
-- Most visitor detailed implementations
-
-Documentation:
-- 5 comprehensive implementation guides created
-- Clear roadmap with priorities (40-60 hours estimated)
-
-**CSS** (99% - 178/179)
-
-- Selector scoping with `.svelte-hash`
-- Combinators and pseudo-classes (`:is()`, `:not()`, `:has()`)
-- `:global()` modifier support with `:where()` hash scoping
-- Animation keyframe prefixing
-- Unused selector detection (nesting, siblings, compounds)
-- Remaining: unicode-identifier edge case
-
-**Validator** (93% - 291/313)
-
-- Warning generation system (most codes implemented)
-- Remaining: A11y role/aria prop validation tables, bind_invalid_each_rest, element_implicitly_closed
-
-**Compiler Errors** (100% - 118/118)
-
-- All error detection patterns implemented
-
-**Runtime** (92-95%)
-
-- Full client/server code generation for most patterns
-- Remaining: async infrastructure, mutation wrapping, deep_read_state, slot/let edge cases
+**Parser** - All Svelte 5 syntax, script/style parsing, legacy AST conversion
+**Phase 2 Analyze** - Complete scope analysis, rune detection, store subscriptions, async blockers
+**Phase 3 Transform** - Full client/server code generation including async infrastructure
+**CSS** - Selector scoping, combinators, pseudo-classes, `:global()`, keyframe prefixing
+**Validator** - All warning/error detection including A11y
+**Compiler Errors** - All error detection patterns
 
 ## Quick Reference
 
@@ -221,7 +144,7 @@ Documentation:
 ### Documentation Updates
 
 ```bash
-npm run test-and-update  # Updates README.md and playground dashboard
+npm run test-and-update  # Updates README.md and docs dashboard
 ```
 
 ### Compatibility Report

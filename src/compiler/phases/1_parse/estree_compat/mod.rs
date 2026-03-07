@@ -1,29 +1,29 @@
-//! ESTree互換形式への変換層
+//! Conversion layer to ESTree-compatible format
 //!
-//! このモジュールは、Rustコンパイラが使用する独自のAST構造を、
-//! 公式Svelteコンパイラ（JavaScript）が出力するESTree形式のJSONに変換します。
+//! This module converts the Rust compiler's internal AST structures
+//! into the ESTree-format JSON that the official Svelte compiler (JavaScript) outputs.
 //!
-//! ## 目的
+//! ## Purpose
 //!
-//! - **テスト互換性**: 公式Svelteコンパイラのテストスイートとの比較
-//! - **レガシー互換性**: 既存ツールとの統合
+//! - **Test compatibility**: Comparison with the official Svelte compiler test suite
+//! - **Legacy compatibility**: Integration with existing tools
 //!
-//! ## 重要な注意事項
+//! ## Important notes
 //!
-//! このモジュールは**コンパイラのコア機能には不要**です。
-//! Rustコンパイラは独自のAST構造を使ってSvelteファイルをJSコードにコンパイルします。
-//! ESTree形式への変換は、テスト目的でのみ使用されます。
+//! This module is **not required for core compiler functionality**.
+//! The Rust compiler uses its own AST structures to compile Svelte files into JS code.
+//! ESTree format conversion is used only for testing purposes.
 //!
-//! ## アーキテクチャ
+//! ## Architecture
 //!
 //! ```
-//! OXC AST (Rust構造体)
-//!     ↓
-//! [estree_compat 変換層] ← このモジュール
-//!     ↓
+//! OXC AST (Rust structs)
+//!     |
+//! [estree_compat conversion layer] <-- this module
+//!     |
 //! ESTree JSON (serde_json::Value)
-//!     ↓
-//! テストフィクスチャとの比較
+//!     |
+//! Comparison with test fixtures
 //! ```
 
 pub mod expression;
@@ -34,20 +34,20 @@ pub mod utils;
 
 use serde_json::Value;
 
-/// OXC ASTをESTree互換のJSON形式に変換する公開API
+/// Public API to convert OXC AST to ESTree-compatible JSON format
 ///
-/// # 引数
+/// # Arguments
 ///
-/// * `ast` - OXCパーサーから得られたAST
-/// * `source` - 元のソースコード（コメント処理に使用）
-/// * `offset` - ソースコード内のオフセット（部分パース時）
-/// * `line_offsets` - 行オフセットテーブル（位置情報計算用）
+/// * `ast` - AST obtained from the OXC parser
+/// * `source` - Original source code (used for comment processing)
+/// * `offset` - Offset in the source code (for partial parsing)
+/// * `line_offsets` - Line offset table (for position calculation)
 ///
-/// # 戻り値
+/// # Returns
 ///
-/// ESTree形式のJSON（serde_json::Value）
+/// ESTree-format JSON (serde_json::Value)
 ///
-/// # 使用例
+/// # Examples
 ///
 /// ```ignore
 /// use oxc_parser::Parser;
@@ -75,7 +75,7 @@ pub fn convert_expression_to_estree(
     expression::convert_expression(expr, source, offset, line_offsets)
 }
 
-/// プログラム全体をESTree互換のJSON形式に変換
+/// Convert an entire program to ESTree-compatible JSON format
 pub fn convert_program_to_estree(
     program: &oxc_ast::ast::Program,
     source: &str,
@@ -84,10 +84,10 @@ pub fn convert_program_to_estree(
     statement::convert_program(program, source, line_offsets)
 }
 
-/// 行オフセットテーブルを計算
+/// Compute line offset table
 ///
-/// ESTreeは行番号と列番号を要求しますが、OXCはバイトオフセットのみを提供します。
-/// この関数は、バイトオフセットから行番号と列番号を計算するためのテーブルを構築します。
+/// ESTree requires line and column numbers, but OXC only provides byte offsets.
+/// This function builds a table for calculating line and column numbers from byte offsets.
 pub fn compute_line_offsets(source: &str) -> Vec<usize> {
     utils::compute_line_offsets(source)
 }

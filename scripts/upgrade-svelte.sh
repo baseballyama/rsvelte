@@ -11,7 +11,7 @@
 #   3. Regenerate test fixtures with the new compiler
 #   4. Run the compatibility report
 #   5. Update docs (README.md, test-results.json)
-#   6. Update the playground preview runtime version
+#   6. Update the docs site preview runtime version
 
 set -euo pipefail
 
@@ -78,10 +78,10 @@ else
     npm run update-docs
 fi
 
-# Step 6: Update playground preview runtime version
+# Step 6: Update docs site preview runtime version
 echo ""
-echo "[6/6] Updating playground preview runtime to ${VERSION}..."
-PREVIEW_FILE="${ROOT}/playground/src/lib/preview.ts"
+echo "[6/6] Updating docs preview runtime to ${VERSION}..."
+PREVIEW_FILE="${ROOT}/docs/src/lib/preview.ts"
 if [ -f "${PREVIEW_FILE}" ]; then
     sed -i.bak "s|esm\.sh/svelte@[0-9.]*|esm.sh/svelte@${VERSION}|g" "${PREVIEW_FILE}"
     rm -f "${PREVIEW_FILE}.bak"

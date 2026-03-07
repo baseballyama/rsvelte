@@ -5,7 +5,7 @@
  *
  * This script reads the compatibility report JSON and updates:
  * 1. README.md - Compatibility table
- * 2. playground/static/test-results.json - Progress dashboard data
+ * 2. docs/static/test-results.json - Progress dashboard data
  *
  * Usage:
  *   node scripts/update-docs.mjs
@@ -133,7 +133,7 @@ function updateReadme(report) {
 	}
 }
 
-// Convert to test-results.json format (for playground)
+// Convert to test-results.json format (for docs site)
 function generateTestResults(report) {
 	const categories = Object.entries(report.categories)
 		.map(([id, data]) => ({
@@ -181,9 +181,9 @@ function generateTestResults(report) {
 	};
 }
 
-// Update playground test-results.json
+// Update docs test-results.json
 function updateTestResults(report) {
-	const testResultsPath = path.join(rootDir, 'playground', 'static', 'test-results.json');
+	const testResultsPath = path.join(rootDir, 'docs', 'static', 'test-results.json');
 	const testResults = generateTestResults(report);
 
 	// Ensure directory exists
@@ -193,7 +193,7 @@ function updateTestResults(report) {
 	}
 
 	fs.writeFileSync(testResultsPath, JSON.stringify(testResults, null, 2));
-	console.log('Updated playground/static/test-results.json');
+	console.log('Updated docs/static/test-results.json');
 }
 
 // Main

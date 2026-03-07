@@ -1,6 +1,6 @@
-//! Expression系ASTノードのESTree変換
+//! ESTree conversion for expression AST nodes
 //!
-//! このモジュールは、OXCのExpression ASTノードをESTree互換のJSON形式に変換します。
+//! This module converts OXC Expression AST nodes to ESTree-compatible JSON format.
 
 use oxc_ast::ast::Expression as OxcExpression;
 use oxc_span::GetSpan;
@@ -8,14 +8,14 @@ use serde_json::{Map, Value};
 
 use super::utils::create_loc;
 
-/// OXC ExpressionをESTree JSON形式に変換
+/// Convert OXC Expression to ESTree JSON format
 ///
-/// # 引数
+/// # Arguments
 ///
 /// * `expr` - OXC Expression
-/// * `source` - ソースコード（raw値の取得に使用）
-/// * `offset` - ドキュメント内のオフセット
-/// * `line_offsets` - 行オフセットテーブル
+/// * `source` - Source code (used to get raw values)
+/// * `offset` - Offset within the document
+/// * `line_offsets` - Line offset table
 pub fn convert_expression(
     expr: &OxcExpression,
     source: &str,
@@ -77,11 +77,11 @@ pub fn convert_expression(
             convert_arrow_function(arrow, source, offset, line_offsets)
         }
         OxcExpression::ParenthesizedExpression(paren) => {
-            // 括弧は展開する
+            // Unwrap parentheses
             convert_expression(&paren.expression, source, offset, line_offsets)
         }
         _ => {
-            // 未実装のノードタイプは警告を出してプレースホルダーを返す
+            // For unimplemented node types, print a warning and return a placeholder
             eprintln!("Warning: Unimplemented expression type in ESTree conversion");
             create_identifier("__UNIMPLEMENTED__", start, end, line_offsets)
         }
@@ -251,7 +251,7 @@ fn convert_unary_expression(
     _offset: usize,
     _line_offsets: &[usize],
 ) -> Value {
-    // TODO: 実装予定
+    // TODO: Not yet implemented
     Value::Null
 }
 
@@ -261,7 +261,7 @@ fn convert_conditional_expression(
     _offset: usize,
     _line_offsets: &[usize],
 ) -> Value {
-    // TODO: 実装予定
+    // TODO: Not yet implemented
     Value::Null
 }
 
@@ -271,7 +271,7 @@ fn convert_call_expression(
     _offset: usize,
     _line_offsets: &[usize],
 ) -> Value {
-    // TODO: 実装予定
+    // TODO: Not yet implemented
     Value::Null
 }
 
@@ -281,7 +281,7 @@ fn convert_static_member_expression(
     _offset: usize,
     _line_offsets: &[usize],
 ) -> Value {
-    // TODO: 実装予定
+    // TODO: Not yet implemented
     Value::Null
 }
 
@@ -291,7 +291,7 @@ fn convert_computed_member_expression(
     _offset: usize,
     _line_offsets: &[usize],
 ) -> Value {
-    // TODO: 実装予定
+    // TODO: Not yet implemented
     Value::Null
 }
 
@@ -301,7 +301,7 @@ fn convert_array_expression(
     _offset: usize,
     _line_offsets: &[usize],
 ) -> Value {
-    // TODO: 実装予定
+    // TODO: Not yet implemented
     Value::Null
 }
 
@@ -311,7 +311,7 @@ fn convert_object_expression(
     _offset: usize,
     _line_offsets: &[usize],
 ) -> Value {
-    // TODO: 実装予定
+    // TODO: Not yet implemented
     Value::Null
 }
 
@@ -321,7 +321,7 @@ fn convert_assignment_expression(
     _offset: usize,
     _line_offsets: &[usize],
 ) -> Value {
-    // TODO: 実装予定
+    // TODO: Not yet implemented
     Value::Null
 }
 
@@ -331,7 +331,7 @@ fn convert_update_expression(
     _offset: usize,
     _line_offsets: &[usize],
 ) -> Value {
-    // TODO: 実装予定
+    // TODO: Not yet implemented
     Value::Null
 }
 
@@ -341,7 +341,7 @@ fn convert_sequence_expression(
     _offset: usize,
     _line_offsets: &[usize],
 ) -> Value {
-    // TODO: 実装予定
+    // TODO: Not yet implemented
     Value::Null
 }
 
@@ -351,6 +351,6 @@ fn convert_arrow_function(
     _offset: usize,
     _line_offsets: &[usize],
 ) -> Value {
-    // TODO: 実装予定
+    // TODO: Not yet implemented
     Value::Null
 }

@@ -1,16 +1,16 @@
-//! Pattern系ASTノードのESTree変換
+//! ESTree conversion for pattern AST nodes
 //!
-//! 変数宣言やパラメータなどで使用されるパターン（BindingPattern）の変換を扱います。
+//! Handles conversion of patterns (BindingPattern) used in variable declarations, parameters, etc.
 
 use serde_json::Value;
 
-/// OXC BindingPatternをESTree JSON形式に変換
+/// Convert OXC BindingPattern to ESTree JSON format
 pub fn convert_binding_pattern(
     _pattern: &oxc_ast::ast::BindingPattern,
     _source: &str,
     _offset: usize,
     _line_offsets: &[usize],
 ) -> Value {
-    // TODO: 実装予定
+    // TODO: Not yet implemented
     Value::Null
 }

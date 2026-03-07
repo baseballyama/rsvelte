@@ -1,18 +1,18 @@
-//! ESTree変換用のユーティリティ関数
+//! Utility functions for ESTree conversion
 
 use serde_json::{Map, Value};
 
-/// 行オフセットテーブルを計算
+/// Compute line offset table
 ///
-/// ソースコード内の各行の開始位置（バイトオフセット）を記録します。
-/// これにより、バイトオフセットから行番号と列番号を効率的に計算できます。
+/// Records the start position (byte offset) of each line in the source code.
+/// This allows efficient calculation of line and column numbers from byte offsets.
 ///
-/// # 例
+/// # Examples
 ///
 /// ```ignore
 /// let source = "line1\nline2\nline3";
 /// let offsets = compute_line_offsets(source);
-/// // offsets = [0, 6, 12] (各行の開始位置)
+/// // offsets = [0, 6, 12] (start position of each line)
 /// ```
 pub fn compute_line_offsets(source: &str) -> Vec<usize> {
     let mut offsets = vec![0];
@@ -24,16 +24,16 @@ pub fn compute_line_offsets(source: &str) -> Vec<usize> {
     offsets
 }
 
-/// バイトオフセットから行番号と列番号を計算
+/// Calculate line number and column number from a byte offset
 ///
-/// # 引数
+/// # Arguments
 ///
-/// * `pos` - バイトオフセット
-/// * `line_offsets` - 行オフセットテーブル
+/// * `pos` - Byte offset
+/// * `line_offsets` - Line offset table
 ///
-/// # 戻り値
+/// # Returns
 ///
-/// (行番号, 列番号) のタプル（1-indexed）
+/// A tuple of (line number, column number), both 1-indexed
 pub fn get_line_column(pos: usize, line_offsets: &[usize]) -> (u32, u32) {
     let line = line_offsets
         .partition_point(|&offset| offset <= pos)
@@ -43,15 +43,15 @@ pub fn get_line_column(pos: usize, line_offsets: &[usize]) -> (u32, u32) {
     ((line + 1) as u32, column as u32)
 }
 
-/// ESTree形式のloc（位置情報）オブジェクトを作成
+/// Create an ESTree-format loc (location) object
 ///
-/// # 引数
+/// # Arguments
 ///
-/// * `start` - 開始バイトオフセット
-/// * `end` - 終了バイトオフセット
-/// * `line_offsets` - 行オフセットテーブル
+/// * `start` - Start byte offset
+/// * `end` - End byte offset
+/// * `line_offsets` - Line offset table
 ///
-/// # 戻り値
+/// # Returns
 ///
 /// ```json
 /// {
@@ -88,10 +88,10 @@ pub fn create_loc(start: usize, end: usize, line_offsets: &[usize]) -> Value {
     Value::Object(loc)
 }
 
-/// ESTree形式のloc（character付き）オブジェクトを作成
+/// Create an ESTree-format loc object with character field
 ///
-/// Svelte固有の拡張で、locオブジェクトにcharacter（バイトオフセット）フィールドを追加します。
-/// スニペット名などのSvelteレベルの識別子に使用されます。
+/// A Svelte-specific extension that adds a character (byte offset) field to the loc object.
+/// Used for Svelte-level identifiers such as snippet names.
 pub fn create_loc_with_character(start: usize, end: usize, line_offsets: &[usize]) -> Value {
     let start_loc = get_line_column(start, line_offsets);
     let end_loc = get_line_column(end, line_offsets);
@@ -126,33 +126,33 @@ pub fn create_loc_with_character(start: usize, end: usize, line_offsets: &[usize
     Value::Object(loc)
 }
 
-/// ブロックコメントのインデント正規化
+/// Normalize indentation of block comments
 ///
-/// 複数行にまたがるブロックコメントから、共通の先頭インデントを削除します。
-/// これはSvelteの動作と一致します。
+/// Removes common leading indentation from multi-line block comments.
+/// This matches the Svelte compiler behavior.
 ///
-/// # 引数
+/// # Arguments
 ///
-/// * `value` - コメントテキスト（/* と */ を除く）
-/// * `source` - 完全なソースコード
-/// * `comment_start` - ソースコード内のコメント開始位置
+/// * `value` - Comment text (without /* and */)
+/// * `source` - Full source code
+/// * `comment_start` - Start position of the comment in the source code
 pub fn normalize_block_comment_indentation(
     value: &str,
     source: &str,
     comment_start: usize,
 ) -> String {
-    // 改行を含まない場合は正規化不要
+    // No normalization needed if there are no newlines
     if !value.contains('\n') {
         return value.to_string();
     }
 
-    // コメントが開始する行の先頭を見つける
+    // Find the start of the line where the comment begins
     let mut line_start = comment_start;
     while line_start > 0 && source.as_bytes().get(line_start - 1) != Some(&b'\n') {
         line_start -= 1;
     }
 
-    // 行の先頭の空白を収集
+    // Collect leading whitespace from the line
     let mut indent_end = line_start;
     while indent_end < source.len() {
         match source.as_bytes().get(indent_end) {
@@ -166,17 +166,17 @@ pub fn normalize_block_comment_indentation(
         return value.to_string();
     }
 
-    // コメント内の各行からこのインデントを削除
+    // Remove this indentation from each line in the comment
     let pattern = format!("\n{}", indentation);
     value.replace(&pattern, "\n")
 }
 
-/// コメント値の抽出（デリミタを除去）
+/// Extract comment value (remove delimiters)
 ///
-/// # 引数
+/// # Arguments
 ///
-/// * `raw` - 生のコメントテキスト（// や /* */ を含む）
-/// * `kind` - コメントの種類
+/// * `raw` - Raw comment text (including // or /* */)
+/// * `kind` - Type of comment
 pub fn extract_comment_value(raw: &str, kind: oxc_ast::ast::CommentKind) -> String {
     match kind {
         oxc_ast::ast::CommentKind::Line => raw.strip_prefix("//").unwrap_or(raw).to_string(),
@@ -187,7 +187,7 @@ pub fn extract_comment_value(raw: &str, kind: oxc_ast::ast::CommentKind) -> Stri
     }
 }
 
-/// ESTree形式のコメントオブジェクトを作成
+/// Create an ESTree-format comment object
 pub fn create_comment_object(
     kind: oxc_ast::ast::CommentKind,
     value: String,
@@ -227,13 +227,13 @@ mod tests {
         let source = "line1\nline2\nline3";
         let offsets = compute_line_offsets(source);
 
-        // "line1" の 'l' (位置0)
+        // 'l' in "line1" (position 0)
         assert_eq!(get_line_column(0, &offsets), (1, 0));
 
-        // "line2" の 'l' (位置6)
+        // 'l' in "line2" (position 6)
         assert_eq!(get_line_column(6, &offsets), (2, 0));
 
-        // "line2" の '2' (位置10)
+        // '2' in "line2" (position 10)
         assert_eq!(get_line_column(10, &offsets), (2, 4));
     }
 
