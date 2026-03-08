@@ -399,7 +399,7 @@ fn render_pattern_as_string(pattern: &serde_json::Value) -> String {
 /// Used to determine which variables are referenced by a `{@const}` init expression,
 /// which is needed for blocker detection (checking const_blocker_map).
 fn extract_refs_from_json_expr(expr: &crate::ast::js::Expression) -> Vec<String> {
-    let crate::ast::js::Expression::Value(value) = expr;
+    let value = expr.as_json();
     let mut refs = Vec::new();
     collect_json_identifiers(value, &mut refs);
     refs
@@ -612,75 +612,74 @@ struct ParsedDeclaration {
 /// 2. AssignmentExpression (our Rust parser format):
 ///    `{ type: "AssignmentExpression", left: id, right: init }`
 fn parse_variable_declaration(expr: &Expression) -> Option<ParsedDeclaration> {
-    match expr {
-        Expression::Value(json_value) => {
-            let obj = json_value.as_object()?;
-            let expr_type = obj.get("type")?.as_str()?;
+    {
+        let json_value = expr.as_json();
+        let obj = json_value.as_object()?;
+        let expr_type = obj.get("type")?.as_str()?;
 
-            match expr_type {
-                "VariableDeclaration" => {
-                    let declarations = obj.get("declarations")?.as_array()?;
-                    if declarations.is_empty() {
-                        return None;
-                    }
-
-                    let first_decl = declarations[0].as_object()?;
-                    let id = first_decl.get("id")?;
-                    let init = first_decl.get("init")?;
-
-                    let id_obj = id.as_object()?;
-                    let id_type = id_obj.get("type")?.as_str()?;
-
-                    if id_type == "Identifier" {
-                        let name = id_obj.get("name")?.as_str()?.to_string();
-                        let init_expr = Expression::Value(init.clone());
-                        Some(ParsedDeclaration {
-                            id_name: name,
-                            init_expr,
-                            is_identifier: true,
-                            pattern_json: None,
-                        })
-                    } else {
-                        // Destructuring pattern
-                        let init_expr = Expression::Value(init.clone());
-                        Some(ParsedDeclaration {
-                            id_name: String::new(),
-                            init_expr,
-                            is_identifier: false,
-                            pattern_json: Some(id.clone()),
-                        })
-                    }
+        match expr_type {
+            "VariableDeclaration" => {
+                let declarations = obj.get("declarations")?.as_array()?;
+                if declarations.is_empty() {
+                    return None;
                 }
-                "AssignmentExpression" => {
-                    // Our Rust parser format: { type: "AssignmentExpression", left: id, right: init }
-                    let left = obj.get("left")?;
-                    let right = obj.get("right")?;
 
-                    let left_obj = left.as_object()?;
-                    let left_type = left_obj.get("type")?.as_str()?;
+                let first_decl = declarations[0].as_object()?;
+                let id = first_decl.get("id")?;
+                let init = first_decl.get("init")?;
 
-                    if left_type == "Identifier" {
-                        let name = left_obj.get("name")?.as_str()?.to_string();
-                        let init_expr = Expression::Value(right.clone());
-                        Some(ParsedDeclaration {
-                            id_name: name,
-                            init_expr,
-                            is_identifier: true,
-                            pattern_json: None,
-                        })
-                    } else {
-                        // Destructuring pattern
-                        let init_expr = Expression::Value(right.clone());
-                        Some(ParsedDeclaration {
-                            id_name: String::new(),
-                            init_expr,
-                            is_identifier: false,
-                            pattern_json: Some(left.clone()),
-                        })
-                    }
+                let id_obj = id.as_object()?;
+                let id_type = id_obj.get("type")?.as_str()?;
+
+                if id_type == "Identifier" {
+                    let name = id_obj.get("name")?.as_str()?.to_string();
+                    let init_expr = Expression::Value(init.clone());
+                    Some(ParsedDeclaration {
+                        id_name: name,
+                        init_expr,
+                        is_identifier: true,
+                        pattern_json: None,
+                    })
+                } else {
+                    // Destructuring pattern
+                    let init_expr = Expression::Value(init.clone());
+                    Some(ParsedDeclaration {
+                        id_name: String::new(),
+                        init_expr,
+                        is_identifier: false,
+                        pattern_json: Some(id.clone()),
+                    })
                 }
-                _ => None,
             }
+            "AssignmentExpression" => {
+                // Our Rust parser format: { type: "AssignmentExpression", left: id, right: init }
+                let left = obj.get("left")?;
+                let right = obj.get("right")?;
+
+                let left_obj = left.as_object()?;
+                let left_type = left_obj.get("type")?.as_str()?;
+
+                if left_type == "Identifier" {
+                    let name = left_obj.get("name")?.as_str()?.to_string();
+                    let init_expr = Expression::Value(right.clone());
+                    Some(ParsedDeclaration {
+                        id_name: name,
+                        init_expr,
+                        is_identifier: true,
+                        pattern_json: None,
+                    })
+                } else {
+                    // Destructuring pattern
+                    let init_expr = Expression::Value(right.clone());
+                    Some(ParsedDeclaration {
+                        id_name: String::new(),
+                        init_expr,
+                        is_identifier: false,
+                        pattern_json: Some(left.clone()),
+                    })
+                }
+            }
+            _ => None,
         }
     }
 }

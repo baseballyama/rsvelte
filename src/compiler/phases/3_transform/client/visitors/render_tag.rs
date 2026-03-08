@@ -87,9 +87,7 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
                 b::thunk(b::call(b::member_path("$.get"), vec![b::id(&id_name)]))
             } else {
                 // If the argument expression has a call, we need to memoize it with $.derived()
-                let has_call_from_expr = match arg {
-                    Expression::Value(v) => json_value_has_call(v),
-                };
+                let has_call_from_expr = json_value_has_call(arg.as_json());
                 if template_metadata.has_call() || has_call_from_expr {
                     let id_name = context.state.memoizer.generate_id("$0");
                     derived_decls.push(b::let_decl(
@@ -218,7 +216,7 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
 ///
 /// Corresponds to `unwrap_optional` in Svelte's utils.
 fn unwrap_optional(expr: &Expression) -> Expression {
-    let Expression::Value(val) = expr;
+    let val = expr.as_json();
     // Check for ChainExpression (optional chaining)
     if let Some(obj) = val.as_object()
         && let Some("ChainExpression") = obj.get("type").and_then(|t| t.as_str())
@@ -232,7 +230,7 @@ fn unwrap_optional(expr: &Expression) -> Expression {
 
 /// Extract arguments from a call expression.
 fn extract_call_arguments(expr: &Expression) -> Vec<Expression> {
-    let Expression::Value(val) = expr;
+    let val = expr.as_json();
     if let Some(obj) = val.as_object()
         && let Some("CallExpression") = obj.get("type").and_then(|t| t.as_str())
         && let Some(args) = obj.get("arguments").and_then(|a| a.as_array())
@@ -247,7 +245,7 @@ fn extract_call_arguments(expr: &Expression) -> Vec<Expression> {
 
 /// Extract callee from a call expression.
 fn extract_call_callee(expr: &Expression) -> Option<Expression> {
-    let Expression::Value(val) = expr;
+    let val = expr.as_json();
     if let Some(obj) = val.as_object()
         && let Some("CallExpression") = obj.get("type").and_then(|t| t.as_str())
         && let Some(callee) = obj.get("callee")
@@ -299,7 +297,8 @@ mod tests {
         let callee = extract_call_callee(&call_expr);
         assert!(callee.is_some());
 
-        if let Some(Expression::Value(val)) = callee {
+        if let Some(callee_expr) = callee {
+            let val = callee_expr.as_json();
             let obj = val.as_object().unwrap();
             assert_eq!(obj.get("type").and_then(|t| t.as_str()), Some("Identifier"));
             assert_eq!(obj.get("name").and_then(|n| n.as_str()), Some("snip"));

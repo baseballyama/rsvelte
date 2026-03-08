@@ -2387,7 +2387,7 @@ impl<'a> ScopeBuilder<'a> {
         // The declaration can be either:
         // - AssignmentExpression: @const b = a + 1 (left is Identifier)
         // - VariableDeclaration: @const {x, y} = obj (declarations array)
-        let crate::ast::js::Expression::Value(value) = &tag.declaration;
+        let value = tag.declaration.as_json();
 
         // Check if it's an AssignmentExpression
         if value.get("type").and_then(|t| t.as_str()) == Some("AssignmentExpression") {

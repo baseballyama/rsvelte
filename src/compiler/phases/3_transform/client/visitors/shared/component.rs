@@ -707,7 +707,7 @@ fn process_let_directive(
     let is_simple = match &let_dir.expression {
         None => true,
         Some(expr) => {
-            let Expression::Value(val) = expr;
+            let val = expr.as_json();
             if let serde_json::Value::Object(obj) = val {
                 obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
             } else {
@@ -721,7 +721,7 @@ fn process_let_directive(
         // Get the binding name - either the expression identifier name or the directive name
         let name = match &let_dir.expression {
             Some(expr) => {
-                let Expression::Value(val) = expr;
+                let val = expr.as_json();
                 if let serde_json::Value::Object(obj) = val {
                     obj.get("name")
                         .and_then(|n| n.as_str())
@@ -761,7 +761,7 @@ fn process_let_directive(
         // Generates: const derived_name = $.derived(() => { let {y, z} = $$slotProps.x; return {y, z}; })
         // And tracks binding names for transform registration
         if let Some(expr) = &let_dir.expression {
-            let Expression::Value(val) = expr;
+            let val = expr.as_json();
             if let serde_json::Value::Object(obj) = val {
                 let expr_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
@@ -1120,43 +1120,37 @@ fn should_memoize_attribute(value: &AttributeValue) -> bool {
 /// - ArrowFunctionExpression: `() => ...`
 /// - FunctionExpression: `function() { ... }`
 fn is_complex_expression(expression: &crate::ast::js::Expression) -> bool {
-    use crate::ast::js::Expression;
-
-    match expression {
-        Expression::Value(val) => {
-            if let Some(obj) = val.as_object() {
-                if let Some(expr_type) = obj.get("type").and_then(|t| t.as_str()) {
-                    // Simple expressions that don't need memoization
-                    !matches!(
-                        expr_type,
-                        "Identifier"
-                            | "MemberExpression"
-                            | "Literal"
-                            | "ArrowFunctionExpression"
-                            | "FunctionExpression"
-                    )
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
+    let val = expression.as_json();
+    if let Some(obj) = val.as_object() {
+        if let Some(expr_type) = obj.get("type").and_then(|t| t.as_str()) {
+            // Simple expressions that don't need memoization
+            !matches!(
+                expr_type,
+                "Identifier"
+                    | "MemberExpression"
+                    | "Literal"
+                    | "ArrowFunctionExpression"
+                    | "FunctionExpression"
+            )
+        } else {
+            false
         }
+    } else {
+        false
     }
 }
 
 /// Check if an attribute value is a simple identifier that references a snippet.
 fn is_snippet_identifier(value: &AttributeValue, context: &ComponentContext) -> bool {
-    use crate::ast::js::Expression;
-
     // Only check for Expression type (shorthand like {foo})
-    if let AttributeValue::Expression(expr_tag) = value
-        && let Expression::Value(val) = &expr_tag.expression
-        && let serde_json::Value::Object(obj) = val
-        && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
-        && let Some(name) = obj.get("name").and_then(|v| v.as_str())
-    {
-        return context.state.snippet_names.contains(name);
+    if let AttributeValue::Expression(expr_tag) = value {
+        let val = expr_tag.expression.as_json();
+        if let serde_json::Value::Object(obj) = val
+            && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
+            && let Some(name) = obj.get("name").and_then(|v| v.as_str())
+        {
+            return context.state.snippet_names.contains(name);
+        }
     }
     false
 }
@@ -1534,25 +1528,22 @@ fn process_bind_directive(
 /// Check if expression is a member expression where the object is a store subscription.
 /// E.g., $store.value or $store.nested.value
 fn is_store_member_expression(expr: &Expression, context: &ComponentContext) -> bool {
-    match expr {
-        Expression::Value(val) => {
-            if let Some(obj) = val.as_object()
-                && let Some("MemberExpression") = obj.get("type").and_then(|t| t.as_str())
-            {
-                // Get the root object of the member expression chain
-                let root = get_member_expression_root(obj);
-                if let Some(root_obj) = root
-                    && let Some("Identifier") = root_obj.get("type").and_then(|t| t.as_str())
-                    && let Some(name) = root_obj.get("name").and_then(|n| n.as_str())
-                    && let Some(binding) = context.state.get_binding(name)
-                {
-                    return binding.kind
-                        == crate::compiler::phases::phase2_analyze::scope::BindingKind::StoreSub;
-                }
-            }
-            false
+    let val = expr.as_json();
+    if let Some(obj) = val.as_object()
+        && let Some("MemberExpression") = obj.get("type").and_then(|t| t.as_str())
+    {
+        // Get the root object of the member expression chain
+        let root = get_member_expression_root(obj);
+        if let Some(root_obj) = root
+            && let Some("Identifier") = root_obj.get("type").and_then(|t| t.as_str())
+            && let Some(name) = root_obj.get("name").and_then(|n| n.as_str())
+            && let Some(binding) = context.state.get_binding(name)
+        {
+            return binding.kind
+                == crate::compiler::phases::phase2_analyze::scope::BindingKind::StoreSub;
         }
     }
+    false
 }
 
 /// Get the root object of a member expression chain.
@@ -1572,24 +1563,21 @@ fn get_member_expression_root(
 /// Get the store name and store prefix ($store) from a member expression.
 /// Returns (store_name, $store_name) e.g., ("a", "$a")
 fn get_store_info_from_member(expr: &Expression) -> Option<(String, String)> {
-    match expr {
-        Expression::Value(val) => {
-            if let Some(obj) = val.as_object()
-                && let Some("MemberExpression") = obj.get("type").and_then(|t| t.as_str())
-            {
-                let root = get_member_expression_root(obj)?;
-                if let Some("Identifier") = root.get("type").and_then(|t| t.as_str())
-                    && let Some(name) = root.get("name").and_then(|n| n.as_str())
-                    && name.starts_with('$')
-                {
-                    // $store -> store
-                    let store_name = name[1..].to_string();
-                    return Some((store_name, name.to_string()));
-                }
-            }
-            None
+    let val = expr.as_json();
+    if let Some(obj) = val.as_object()
+        && let Some("MemberExpression") = obj.get("type").and_then(|t| t.as_str())
+    {
+        let root = get_member_expression_root(obj)?;
+        if let Some("Identifier") = root.get("type").and_then(|t| t.as_str())
+            && let Some(name) = root.get("name").and_then(|n| n.as_str())
+            && name.starts_with('$')
+        {
+            // $store -> store
+            let store_name = name[1..].to_string();
+            return Some((store_name, name.to_string()));
         }
     }
+    None
 }
 
 /// Build an assignment expression for store member mutation.
@@ -2506,36 +2494,30 @@ fn add_svelte_meta(expression: JsExpr) -> JsStatement {
 
 /// Extract identifier name from an expression.
 fn extract_identifier_name(expr: &Expression) -> Option<String> {
-    match expr {
-        Expression::Value(val) => {
-            if let Some(obj) = val.as_object()
-                && let Some("Identifier") = obj.get("type").and_then(|t| t.as_str())
-            {
-                return obj
-                    .get("name")
-                    .and_then(|n| n.as_str())
-                    .map(|s| s.to_string());
-            }
-            None
-        }
+    let val = expr.as_json();
+    if let Some(obj) = val.as_object()
+        && let Some("Identifier") = obj.get("type").and_then(|t| t.as_str())
+    {
+        return obj
+            .get("name")
+            .and_then(|n| n.as_str())
+            .map(|s| s.to_string());
     }
+    None
 }
 
 /// Check if expression is a store subscription.
 fn is_store_subscription(expr: &Expression, context: &ComponentContext) -> bool {
-    match expr {
-        Expression::Value(val) => {
-            if let Some(obj) = val.as_object()
-                && let Some("Identifier") = obj.get("type").and_then(|t| t.as_str())
-                && let Some(name) = obj.get("name").and_then(|n| n.as_str())
-                && let Some(binding) = context.state.get_binding(name)
-            {
-                return binding.kind
-                    == crate::compiler::phases::phase2_analyze::scope::BindingKind::StoreSub;
-            }
-            false
-        }
+    let val = expr.as_json();
+    if let Some(obj) = val.as_object()
+        && let Some("Identifier") = obj.get("type").and_then(|t| t.as_str())
+        && let Some(name) = obj.get("name").and_then(|n| n.as_str())
+        && let Some(binding) = context.state.get_binding(name)
+    {
+        return binding.kind
+            == crate::compiler::phases::phase2_analyze::scope::BindingKind::StoreSub;
     }
+    false
 }
 
 #[cfg(test)]

@@ -10,6 +10,7 @@ pub mod css;
 pub mod js;
 pub mod span;
 pub mod template;
+pub mod typed_expr;
 
 pub use span::{LineColumn, SourceLocation, Span, Spanned};
 pub use template::*;

@@ -34,7 +34,7 @@ pub fn visit(
     // recursively visits the expression, calling CallExpression visitor which sets
     // `needs_context = true` for calls to imported or prop functions.
     // Corresponds to SpreadAttribute.js: `context.next({ ...context.state, expression: node.metadata.expression })`
-    let Expression::Value(expr_value) = &attribute.expression;
+    let expr_value = attribute.expression.as_json();
     super::script::walk_js_node(expr_value, context)?;
 
     Ok(())
@@ -42,17 +42,14 @@ pub fn visit(
 
 /// Extract identifier name from an expression.
 fn get_identifier_name(expr: &Expression) -> Option<String> {
-    match expr {
-        Expression::Value(val) => {
-            if let Some(obj) = val.as_object()
-                && let Some("Identifier") = obj.get("type").and_then(|t| t.as_str())
-            {
-                return obj
-                    .get("name")
-                    .and_then(|n| n.as_str())
-                    .map(|s| s.to_string());
-            }
-            None
-        }
+    let val = expr.as_json();
+    if let Some(obj) = val.as_object()
+        && let Some("Identifier") = obj.get("type").and_then(|t| t.as_str())
+    {
+        return obj
+            .get("name")
+            .and_then(|n| n.as_str())
+            .map(|s| s.to_string());
     }
+    None
 }

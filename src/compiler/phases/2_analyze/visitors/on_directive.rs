@@ -67,7 +67,7 @@ pub fn visit(
         // the parent element's metadata.expression field
         let mut metadata = crate::ast::template::ExpressionMetadata::default();
 
-        let crate::ast::js::Expression::Value(value) = expression;
+        let value = expression.as_json();
         walk_js_expression(value, context, &mut metadata)?;
 
         // The metadata tracking is handled by the parent element visitor

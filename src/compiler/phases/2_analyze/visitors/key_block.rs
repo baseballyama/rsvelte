@@ -40,7 +40,7 @@ pub fn visit(block: &mut KeyBlock, context: &mut VisitorContext) -> Result<(), A
 
     // Visit the key expression and populate metadata
     // This tracks dependencies and references in the expression
-    let crate::ast::js::Expression::Value(value) = &block.expression;
+    let value = block.expression.as_json();
     walk_js_expression(value, context, &mut block.metadata.expression)?;
 
     // Clear is_direct_child_of_component since children of control flow blocks

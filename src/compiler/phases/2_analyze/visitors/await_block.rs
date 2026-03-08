@@ -102,21 +102,21 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
 
     // Visit the expression to populate metadata (has_await, has_state, dependencies, etc.)
     // In the JS version: context.visit(node.expression, { ...context.state, expression: node.metadata.expression });
-    let crate::ast::js::Expression::Value(value) = &block.expression;
+    let value = block.expression.as_json();
     walk_js_expression(value, context, &mut block.metadata.expression)?;
 
     // Walk the value pattern's computed property key expressions to detect mutations.
     // For example: {#await promise then { [`prop${num++}`]: ... }}
     // The `num++` in the computed key needs to be detected as a reassignment.
     if let Some(ref value_pattern) = block.value {
-        let crate::ast::js::Expression::Value(pattern_json) = value_pattern;
+        let pattern_json = value_pattern.as_json();
         let mut dummy_metadata = crate::ast::template::ExpressionMetadata::default();
         walk_pattern_computed_keys(pattern_json, context, &mut dummy_metadata)?;
     }
 
     // Also walk the error pattern's computed property key expressions
     if let Some(ref error_pattern) = block.error {
-        let crate::ast::js::Expression::Value(pattern_json) = error_pattern;
+        let pattern_json = error_pattern.as_json();
         let mut dummy_metadata = crate::ast::template::ExpressionMetadata::default();
         walk_pattern_computed_keys(pattern_json, context, &mut dummy_metadata)?;
     }

@@ -556,8 +556,7 @@ pub fn compile_module(
 
     // Remove TypeScript nodes if needed
     let program = if is_typescript {
-        let crate::ast::js::Expression::Value(ref val) = program;
-        let mut val_clone = val.clone();
+        let mut val_clone = program.as_json().clone();
         let _ = phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(
             &mut val_clone,
             &[],
@@ -718,7 +717,18 @@ fn remove_typescript_from_ast(ast: &mut crate::ast::Root) -> Result<(), crate::e
     fn strip_ts_from_script(
         script: &mut crate::ast::Script,
     ) -> Result<(), crate::error::ParseError> {
-        let crate::ast::js::Expression::Value(ref mut val) = script.content;
+        let val = match &mut script.content {
+            crate::ast::js::Expression::Value(v) => v,
+            crate::ast::js::Expression::Typed(_) => {
+                // Convert Typed to Value for mutation
+                let json = script.content.as_json().clone();
+                script.content = crate::ast::js::Expression::Value(json);
+                match &mut script.content {
+                    crate::ast::js::Expression::Value(v) => v,
+                    _ => unreachable!(),
+                }
+            }
+        };
         phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(val, &[])
     }
 
@@ -750,8 +760,17 @@ fn remove_typescript_from_ast(ast: &mut crate::ast::Root) -> Result<(), crate::e
 fn strip_ts_from_expression(
     expr: &mut crate::ast::js::Expression,
 ) -> Result<(), crate::error::ParseError> {
-    let crate::ast::js::Expression::Value(val) = expr;
-    phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(val, &[])
+    // Ensure we have a Value variant for mutation
+    if matches!(expr, crate::ast::js::Expression::Typed(_)) {
+        let json = expr.as_json().clone();
+        *expr = crate::ast::js::Expression::Value(json);
+    }
+    match expr {
+        crate::ast::js::Expression::Value(val) => {
+            phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(val, &[])
+        }
+        _ => unreachable!(),
+    }
 }
 
 /// Strip TypeScript annotations from all Expression nodes in a Fragment.

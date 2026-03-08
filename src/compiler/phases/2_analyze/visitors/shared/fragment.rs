@@ -154,7 +154,7 @@ fn check_const_tag_cycles(nodes: &[TemplateNode]) -> Result<(), AnalysisError> {
 
     for node in nodes {
         if let TemplateNode::ConstTag(tag) = node {
-            let crate::ast::js::Expression::Value(value) = &tag.declaration;
+            let value = tag.declaration.as_json();
 
             // The declaration can be either:
             // 1. A VariableDeclaration (official Svelte structure):

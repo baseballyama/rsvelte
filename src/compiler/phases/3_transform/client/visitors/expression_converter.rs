@@ -131,9 +131,7 @@ fn build_fallback_expr(
 /// into the transform-phase AST format.
 #[inline]
 pub fn convert_expression(expr: &Expression, context: &mut ComponentContext) -> JsExpr {
-    match expr {
-        Expression::Value(val) => convert_json_value(val, context),
-    }
+    convert_json_value(expr.as_json(), context)
 }
 
 /// Convert a JSON value to JsExpr.

@@ -155,24 +155,20 @@ fn is_single_expression_tag(nodes: &[TemplateNode]) -> bool {
 /// Check if an expression is known to be defined (not null/undefined).
 /// Literals and certain patterns are known to be defined.
 fn is_known_defined_expr(expr: &crate::ast::js::Expression) -> bool {
-    use crate::ast::js::Expression;
-    match expr {
-        Expression::Value(json_value) => {
-            if let Some(obj) = json_value.as_object() {
-                let expr_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
-                match expr_type {
-                    "Literal" => {
-                        // Literals are defined (including strings, numbers, booleans)
-                        // but null literal is not defined
-                        let value = obj.get("value");
-                        !matches!(value, Some(serde_json::Value::Null) | None)
-                    }
-                    "TemplateLiteral" => true, // Template literals always produce strings
-                    _ => false,                // Everything else might be undefined
-                }
-            } else {
-                false
+    let json_value = expr.as_json();
+    if let Some(obj) = json_value.as_object() {
+        let expr_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
+        match expr_type {
+            "Literal" => {
+                // Literals are defined (including strings, numbers, booleans)
+                // but null literal is not defined
+                let value = obj.get("value");
+                !matches!(value, Some(serde_json::Value::Null) | None)
             }
+            "TemplateLiteral" => true, // Template literals always produce strings
+            _ => false,                // Everything else might be undefined
         }
+    } else {
+        false
     }
 }

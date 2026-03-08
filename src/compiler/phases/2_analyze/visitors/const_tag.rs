@@ -50,7 +50,7 @@ pub fn visit(tag: &mut ConstTag, context: &mut VisitorContext) -> Result<(), Ana
     // Visit the declaration expression with in_const_tag flag set
     context.in_const_tag = true;
 
-    let crate::ast::js::Expression::Value(value) = &tag.declaration;
+    let value = tag.declaration.as_json();
 
     let decl_type = value.get("type").and_then(|t| t.as_str());
 

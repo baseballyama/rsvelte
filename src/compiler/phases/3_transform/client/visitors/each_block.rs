@@ -220,7 +220,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // Collect the item variable names from the context pattern.
     let mut item_names = Vec::new();
     if let Some(context_expr) = &node.context {
-        let Expression::Value(val) = context_expr;
+        let val = context_expr.as_json();
         if let serde_json::Value::Object(obj) = val {
             let ctx_type = obj.get("type").and_then(|v| v.as_str());
             if ctx_type == Some("Identifier") {
@@ -375,7 +375,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
 
     // Determine if the context pattern is a simple Identifier (not destructured)
     let context_is_identifier = if let Some(context_expr) = &node.context {
-        let Expression::Value(val) = context_expr;
+        let val = context_expr.as_json();
         if let serde_json::Value::Object(obj) = val {
             obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
         } else {
@@ -613,8 +613,8 @@ fn is_key_same_as_item(node: &EachBlock) -> bool {
     };
 
     // Both must be identifiers with the same name
-    let Expression::Value(key_val) = key;
-    let Expression::Value(ctx_val) = context_expr;
+    let key_val = key.as_json();
+    let ctx_val = context_expr.as_json();
 
     let (serde_json::Value::Object(key_obj), serde_json::Value::Object(ctx_obj)) =
         (key_val, ctx_val)
@@ -696,35 +696,32 @@ fn get_store_to_invalidate(node: &EachBlock, context: &ComponentContext) -> Opti
 
 /// Get the root object name from an expression.
 fn get_object_name(expr: &Expression) -> Option<String> {
-    match expr {
-        Expression::Value(val) => {
-            if let serde_json::Value::Object(obj) = val {
-                match obj.get("type").and_then(|v| v.as_str()) {
-                    Some("Identifier") => obj
-                        .get("name")
-                        .and_then(|v| v.as_str())
-                        .map(|s| s.to_string()),
-                    Some("MemberExpression") => {
-                        if let Some(object) = obj.get("object") {
-                            get_object_name(&Expression::Value(object.clone()))
-                        } else {
-                            None
-                        }
-                    }
-                    // Handle LogicalExpression like `$items ?? []` by recursing into the left operand
-                    Some("LogicalExpression") | Some("BinaryExpression") => {
-                        if let Some(left) = obj.get("left") {
-                            get_object_name(&Expression::Value(left.clone()))
-                        } else {
-                            None
-                        }
-                    }
-                    _ => None,
+    let val = expr.as_json();
+    if let serde_json::Value::Object(obj) = val {
+        match obj.get("type").and_then(|v| v.as_str()) {
+            Some("Identifier") => obj
+                .get("name")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            Some("MemberExpression") => {
+                if let Some(object) = obj.get("object") {
+                    get_object_name(&Expression::Value(object.clone()))
+                } else {
+                    None
                 }
-            } else {
-                None
             }
+            // Handle LogicalExpression like `$items ?? []` by recursing into the left operand
+            Some("LogicalExpression") | Some("BinaryExpression") => {
+                if let Some(left) = obj.get("left") {
+                    get_object_name(&Expression::Value(left.clone()))
+                } else {
+                    None
+                }
+            }
+            _ => None,
         }
+    } else {
+        None
     }
 }
 
@@ -859,7 +856,7 @@ fn generate_index_identifier(
 /// Generate the item identifier.
 fn generate_item_identifier(node: &EachBlock) -> JsExpr {
     if let Some(context_expr) = &node.context {
-        let Expression::Value(val) = context_expr;
+        let val = context_expr.as_json();
         if let serde_json::Value::Object(obj) = val
             && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
             && let Some(name) = obj.get("name").and_then(|v| v.as_str())
@@ -983,7 +980,7 @@ fn build_declarations(
 
     // Handle simple identifier context
     if let Some(context_expr) = &node.context {
-        let Expression::Value(val) = context_expr;
+        let val = context_expr.as_json();
         if let serde_json::Value::Object(obj) = val
             && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
             && let Some(name) = obj.get("name").and_then(|v| v.as_str())
@@ -1021,7 +1018,7 @@ fn build_declarations(
     // Handle destructured context pattern (e.g., {#each items as { a, b }} or {#each items as [a, b]})
     // This corresponds to lines 251-293 in the official EachBlock.js
     if let Some(context_expr) = &node.context {
-        let Expression::Value(val) = context_expr;
+        let val = context_expr.as_json();
         if let serde_json::Value::Object(obj) = val {
             let ctx_type = obj.get("type").and_then(|v| v.as_str());
 
@@ -1780,7 +1777,7 @@ fn build_key_function(
 /// Check if an expression references an identifier with the given name.
 /// This recursively inspects the JSON AST of the expression.
 fn expression_references_identifier(expr: &Expression, name: &str) -> bool {
-    let Expression::Value(val) = expr;
+    let val = expr.as_json();
     json_value_references_identifier(val, name)
 }
 
@@ -1842,7 +1839,7 @@ fn visit_fragment(fragment: &Fragment, context: &mut ComponentContext) -> JsBloc
 
 /// Convert an AST Expression to a JsPattern.
 fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
-    let Expression::Value(val) = expr;
+    let val = expr.as_json();
     if let serde_json::Value::Object(obj) = val {
         match obj.get("type").and_then(|v| v.as_str()) {
             Some("Identifier") => {

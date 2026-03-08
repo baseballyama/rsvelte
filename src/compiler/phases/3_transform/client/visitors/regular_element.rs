@@ -74,7 +74,7 @@ fn process_element_let_directives(
         let is_simple = match &let_dir.expression {
             None => true,
             Some(expr) => {
-                let crate::ast::js::Expression::Value(val) = expr;
+                let val = expr.as_json();
                 if let serde_json::Value::Object(obj) = val {
                     obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
                 } else {
@@ -86,7 +86,7 @@ fn process_element_let_directives(
         if is_simple {
             let name = match &let_dir.expression {
                 Some(expr) => {
-                    let crate::ast::js::Expression::Value(val) = expr;
+                    let val = expr.as_json();
                     if let serde_json::Value::Object(obj) = val {
                         obj.get("name")
                             .and_then(|n| n.as_str())

@@ -280,22 +280,19 @@ fn extract_expression_from_tag_with_context(
 /// It only handles simple expressions like identifiers.
 #[allow(dead_code)]
 fn extract_expression_from_tag(expr_tag: &ExpressionTag) -> JsExpr {
-    use crate::ast::js::Expression;
-
     // For simple cases, we can convert directly
-    match &expr_tag.expression {
-        Expression::Value(val) => match val {
-            serde_json::Value::Object(obj) => {
-                // Try to extract the identifier name
-                if let Some(serde_json::Value::String(name)) = obj.get("name") {
-                    b::id(name)
-                } else {
-                    b::id("expr")
-                }
+    let val = expr_tag.expression.as_json();
+    match val {
+        serde_json::Value::Object(obj) => {
+            // Try to extract the identifier name
+            if let Some(serde_json::Value::String(name)) = obj.get("name") {
+                b::id(name)
+            } else {
+                b::id("expr")
             }
-            serde_json::Value::String(s) => b::id(s),
-            _ => b::id("expr"),
-        },
+        }
+        serde_json::Value::String(s) => b::id(s),
+        _ => b::id("expr"),
     }
 }
 
@@ -303,26 +300,23 @@ fn extract_expression_from_tag(expr_tag: &ExpressionTag) -> JsExpr {
 ///
 /// Walks the JSON AST to determine has_call and has_member_expression flags.
 fn extract_metadata_from_tag(expr_tag: &ExpressionTag) -> ExpressionMetadata {
-    use crate::ast::js::Expression;
+    let val = expr_tag.expression.as_json();
+    let (has_call, has_member, has_assignment) = {
+        // Check if this is a literal value (number, string, boolean, null)
+        // Literal values never have calls or member expressions
+        let is_literal = is_literal_value(val);
 
-    let (has_call, has_member, has_assignment) = match &expr_tag.expression {
-        Expression::Value(val) => {
-            // Check if this is a literal value (number, string, boolean, null)
-            // Literal values never have calls or member expressions
-            let is_literal = is_literal_value(val);
-
-            if is_literal {
-                (false, false, false)
-            } else {
-                // Walk the AST properly to detect CallExpression and MemberExpression nodes.
-                // Note: val.to_string() produces JSON, NOT JS source code, so we CANNOT
-                // use string-contains('(') to detect call expressions.
-                let has_call = ast_contains_node_type(val, "CallExpression");
-                let has_member = ast_contains_node_type(val, "MemberExpression");
-                let has_assignment = ast_contains_node_type(val, "AssignmentExpression")
-                    || ast_contains_node_type(val, "UpdateExpression");
-                (has_call, has_member, has_assignment)
-            }
+        if is_literal {
+            (false, false, false)
+        } else {
+            // Walk the AST properly to detect CallExpression and MemberExpression nodes.
+            // Note: val.to_string() produces JSON, NOT JS source code, so we CANNOT
+            // use string-contains('(') to detect call expressions.
+            let has_call = ast_contains_node_type(val, "CallExpression");
+            let has_member = ast_contains_node_type(val, "MemberExpression");
+            let has_assignment = ast_contains_node_type(val, "AssignmentExpression")
+                || ast_contains_node_type(val, "UpdateExpression");
+            (has_call, has_member, has_assignment)
         }
     };
 
@@ -1385,55 +1379,52 @@ fn is_function_expression(expr: &JsExpr) -> bool {
 /// Extract a JavaScript expression from a directive's expression.
 #[allow(dead_code)]
 fn extract_expression_from_directive(expression: &crate::ast::js::Expression) -> JsExpr {
-    use crate::ast::js::Expression;
-
-    match expression {
-        Expression::Value(val) => match val {
-            serde_json::Value::Object(obj) => {
-                // Check if it's a Literal with a value field
-                if let Some(serde_json::Value::String(type_str)) = obj.get("type") {
-                    if type_str == "Literal" {
-                        if let Some(value) = obj.get("value") {
-                            return match value {
-                                serde_json::Value::Bool(b) => b::boolean(*b),
-                                serde_json::Value::Number(n) => {
-                                    if let Some(f) = n.as_f64() {
-                                        b::number(f)
-                                    } else {
-                                        b::number(0.0)
-                                    }
+    let val = expression.as_json();
+    match val {
+        serde_json::Value::Object(obj) => {
+            // Check if it's a Literal with a value field
+            if let Some(serde_json::Value::String(type_str)) = obj.get("type") {
+                if type_str == "Literal" {
+                    if let Some(value) = obj.get("value") {
+                        return match value {
+                            serde_json::Value::Bool(b) => b::boolean(*b),
+                            serde_json::Value::Number(n) => {
+                                if let Some(f) = n.as_f64() {
+                                    b::number(f)
+                                } else {
+                                    b::number(0.0)
                                 }
-                                serde_json::Value::String(s) => b::string(s),
-                                serde_json::Value::Null => b::null(),
-                                _ => b::boolean(true),
-                            };
-                        }
-                    } else if type_str == "Identifier" {
-                        // It's an identifier
-                        if let Some(serde_json::Value::String(name)) = obj.get("name") {
-                            return b::id(name);
-                        }
+                            }
+                            serde_json::Value::String(s) => b::string(s),
+                            serde_json::Value::Null => b::null(),
+                            _ => b::boolean(true),
+                        };
+                    }
+                } else if type_str == "Identifier" {
+                    // It's an identifier
+                    if let Some(serde_json::Value::String(name)) = obj.get("name") {
+                        return b::id(name);
                     }
                 }
-                // Try to extract the identifier name
-                if let Some(serde_json::Value::String(name)) = obj.get("name") {
-                    b::id(name)
-                } else {
-                    b::boolean(true)
-                }
             }
-            serde_json::Value::Bool(b) => b::boolean(*b),
-            serde_json::Value::String(s) => b::id(s),
-            serde_json::Value::Number(n) => {
-                if let Some(f) = n.as_f64() {
-                    b::number(f)
-                } else {
-                    b::number(0.0)
-                }
+            // Try to extract the identifier name
+            if let Some(serde_json::Value::String(name)) = obj.get("name") {
+                b::id(name)
+            } else {
+                b::boolean(true)
             }
-            serde_json::Value::Null => b::null(),
-            _ => b::boolean(true),
-        },
+        }
+        serde_json::Value::Bool(b) => b::boolean(*b),
+        serde_json::Value::String(s) => b::id(s),
+        serde_json::Value::Number(n) => {
+            if let Some(f) = n.as_f64() {
+                b::number(f)
+            } else {
+                b::number(0.0)
+            }
+        }
+        serde_json::Value::Null => b::null(),
+        _ => b::boolean(true),
     }
 }
 
@@ -1558,7 +1549,7 @@ mod tests {
                         // The attribute value should be an Expression
                         if let crate::ast::template::AttributeValue::Expression(expr_tag) = &a.value
                         {
-                            let crate::ast::js::Expression::Value(val) = &expr_tag.expression;
+                            let val = expr_tag.expression.as_json();
 
                             // Should be recognized as a literal
                             assert!(

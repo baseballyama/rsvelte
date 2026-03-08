@@ -34,7 +34,7 @@ pub fn visit(
     // Walk the expression to track dependencies and references
     // This is important for legacy state promotion - if a class directive
     // references a mutable variable, it needs to be tracked as a template reference
-    let crate::ast::js::Expression::Value(value) = &directive.expression;
+    let value = directive.expression.as_json();
     let mut metadata = crate::ast::template::ExpressionMetadata::default();
     walk_js_expression(value, context, &mut metadata)?;
 

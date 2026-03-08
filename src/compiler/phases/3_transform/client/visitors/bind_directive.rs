@@ -777,7 +777,7 @@ fn build_group_binding_call(
             // The keypath must match what mark_group_bindings_in_node used when registering.
             let keypath = directive_expr
                 .map(|expr| {
-                    let Expression::Value(val) = expr;
+                    let val = expr.as_json();
                     build_group_binding_keypath(val)
                 })
                 .unwrap_or_default();
@@ -959,7 +959,7 @@ fn build_value_expression(value: &AttributeValue, context: &mut ComponentContext
             // Check if the expression is a member expression - this affects how
             // build_expression handles it in legacy mode (uses untrack + sequence pattern)
             let has_member_expression = {
-                let Expression::Value(val) = &expr_tag.expression;
+                let val = expr_tag.expression.as_json();
                 expression_json_is_member(val)
             };
 
@@ -980,7 +980,7 @@ fn build_value_expression(value: &AttributeValue, context: &mut ComponentContext
                         context,
                     );
                     let has_member_expression = {
-                        let Expression::Value(val) = &expr_tag.expression;
+                        let val = expr_tag.expression.as_json();
                         expression_json_is_member(val)
                     };
 
@@ -1657,24 +1657,21 @@ fn build_getter_setter(
 /// in the template are promoted to `state` kind during analysis. This enables
 /// them to be wrapped in `$.mutable_source()` and use `$.get()`/`$.set()`.
 fn is_state_variable(expr: &Expression, context: &ComponentContext) -> bool {
-    match expr {
-        Expression::Value(val) => {
-            if let Some(obj) = val.as_object()
-                && let Some(expr_type) = obj.get("type").and_then(|v| v.as_str())
-                && expr_type == "Identifier"
-                && let Some(name) = obj.get("name").and_then(|v| v.as_str())
-                && let Some(binding) = context.state.get_binding(name)
-            {
-                use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-                use crate::compiler::phases::phase3_transform::client::utils::is_state_source;
-                // Use is_state_source for state/raw_state (respects immutable/reassigned),
-                // and always return true for derived (they always need $.get())
-                return is_state_source(binding, context.state.analysis)
-                    || matches!(binding.kind, BindingKind::Derived);
-            }
-            false
-        }
+    let val = expr.as_json();
+    if let Some(obj) = val.as_object()
+        && let Some(expr_type) = obj.get("type").and_then(|v| v.as_str())
+        && expr_type == "Identifier"
+        && let Some(name) = obj.get("name").and_then(|v| v.as_str())
+        && let Some(binding) = context.state.get_binding(name)
+    {
+        use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+        use crate::compiler::phases::phase3_transform::client::utils::is_state_source;
+        // Use is_state_source for state/raw_state (respects immutable/reassigned),
+        // and always return true for derived (they always need $.get())
+        return is_state_source(binding, context.state.analysis)
+            || matches!(binding.kind, BindingKind::Derived);
     }
+    false
 }
 
 /// Check if an expression is a prop variable (export let ... in legacy mode).
@@ -1682,29 +1679,24 @@ fn is_state_variable(expr: &Expression, context: &ComponentContext) -> bool {
 /// Props in legacy mode are wrapped in `$.prop()` which returns a getter/setter function.
 /// Reading a prop becomes `prop()` and setting becomes `prop(value)`.
 fn is_prop_variable(expr: &Expression, context: &ComponentContext) -> bool {
-    match expr {
-        Expression::Value(val) => {
-            if let Some(obj) = val.as_object()
-                && let Some(expr_type) = obj.get("type").and_then(|v| v.as_str())
-                && expr_type == "Identifier"
-                && let Some(name) = obj.get("name").and_then(|v| v.as_str())
-            {
-                // Check if there's a transform registered for this prop
-                // Props have a transform with both read and assign functions
-                if let Some(transform) = context.state.transform.get(name) {
-                    // Also verify it's actually a prop by checking the binding kind
-                    if let Some(binding) = context.state.get_binding(name) {
-                        use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-                        return matches!(
-                            binding.kind,
-                            BindingKind::Prop | BindingKind::BindableProp
-                        ) && transform.read.is_some();
-                    }
-                }
+    let val = expr.as_json();
+    if let Some(obj) = val.as_object()
+        && let Some(expr_type) = obj.get("type").and_then(|v| v.as_str())
+        && expr_type == "Identifier"
+        && let Some(name) = obj.get("name").and_then(|v| v.as_str())
+    {
+        // Check if there's a transform registered for this prop
+        // Props have a transform with both read and assign functions
+        if let Some(transform) = context.state.transform.get(name) {
+            // Also verify it's actually a prop by checking the binding kind
+            if let Some(binding) = context.state.get_binding(name) {
+                use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                return matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp)
+                    && transform.read.is_some();
             }
-            false
         }
     }
+    false
 }
 
 /// Check if parent is a RegularElement.
@@ -1956,7 +1948,7 @@ fn analyze_each_binding_expression(
     expr: &Expression,
     context: &ComponentContext,
 ) -> Option<(EachBindingExprInfo, usize)> {
-    let Expression::Value(val) = expr;
+    let val = expr.as_json();
     let obj = val.as_object()?;
     let expr_type = obj.get("type").and_then(|v| v.as_str())?;
 
@@ -2215,7 +2207,7 @@ fn get_expression_root_identifier(expr: &JsExpr) -> Option<String> {
 /// where `value` is inside arrow functions).
 fn collect_ast_identifiers(expr: &Expression) -> Vec<String> {
     let mut names = Vec::new();
-    let Expression::Value(val) = expr;
+    let val = expr.as_json();
     collect_ast_identifiers_recursive(val, &mut names);
     names
 }

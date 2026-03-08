@@ -8,7 +8,6 @@ use super::VisitorContext;
 use super::shared::attribute::{AttributeChunk, get_attribute_chunks, is_event_attribute};
 use super::shared::fragment::mark_subtree_dynamic;
 use super::shared::utils::{is_invalid_attribute_name, validate_attribute_name};
-use crate::ast::js::Expression;
 use crate::ast::template::{AttributeNode, AttributeValue, AttributeValuePart, TemplateNode};
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use crate::compiler::phases::phase2_analyze::errors;
@@ -165,14 +164,14 @@ pub fn visit_attribute_value_expressions(
         }
         AttributeValue::Expression(expr_tag) => {
             // Visit the expression
-            let Expression::Value(v) = &expr_tag.expression;
+            let v = expr_tag.expression.as_json();
             super::script::walk_js_node(v, context)?;
         }
         AttributeValue::Sequence(parts) => {
             // Visit each expression tag in the sequence
             for part in parts {
                 if let AttributeValuePart::ExpressionTag(expr_tag) = part {
-                    let Expression::Value(v) = &expr_tag.expression;
+                    let v = expr_tag.expression.as_json();
                     super::script::walk_js_node(v, context)?;
                 }
             }

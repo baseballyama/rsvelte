@@ -138,7 +138,7 @@ fn check_params_hoistable(
     context: &VisitorContext,
 ) -> bool {
     for param in params {
-        let Expression::Value(val) = param;
+        let val = param.as_json();
         if let Some(obj) = val.as_object() {
             let param_type = obj.get("type").and_then(|v| v.as_str());
             if param_type == Some("AssignmentPattern")
@@ -280,7 +280,7 @@ fn check_hoistable(
                 }
                 let mut inner_params = param_names.clone();
                 if let Some(ref ctx) = each_block.context {
-                    let Expression::Value(val) = ctx;
+                    let val = ctx.as_json();
                     if let Some(names) = extract_pattern_names(val) {
                         for n in names {
                             inner_params.insert(n);
@@ -317,7 +317,7 @@ fn check_hoistable(
                 if let Some(ref then_block) = await_block.then {
                     let mut inner_params = param_names.clone();
                     if let Some(ref value) = await_block.value {
-                        let Expression::Value(val) = value;
+                        let val = value.as_json();
                         if let Some(name) = extract_pattern_names(val) {
                             for n in name {
                                 inner_params.insert(n);
@@ -331,7 +331,7 @@ fn check_hoistable(
                 if let Some(ref catch_block) = await_block.catch {
                     let mut inner_params = param_names.clone();
                     if let Some(ref error) = await_block.error {
-                        let Expression::Value(val) = error;
+                        let val = error.as_json();
                         if let Some(name) = extract_pattern_names(val) {
                             for n in name {
                                 inner_params.insert(n);
@@ -433,7 +433,7 @@ fn check_attribute_hoistable(
 
 /// Extract ALL parameter names from a parameter expression (including destructured names).
 fn extract_all_param_names(param: &Expression) -> Vec<String> {
-    let Expression::Value(val) = param;
+    let val = param.as_json();
     extract_pattern_names(val).unwrap_or_default()
 }
 

@@ -8,7 +8,6 @@ use super::super::AnalysisError;
 use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment;
-use crate::ast::js::Expression;
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SvelteDynamicElement};
 use rustc_hash::FxHashSet;
 
@@ -128,11 +127,10 @@ pub fn visit(
     // Check that svelte:element has a 'this' attribute with a value
     // The 'tag' field is populated from the 'this' attribute during parsing
     // If it's null/undefined or empty, the 'this' attribute is missing or has no value
-    let has_valid_this = match &element.tag {
-        Expression::Value(value) => {
-            // Check if it's a non-null value
-            !value.is_null()
-        }
+    let has_valid_this = {
+        let value = element.tag.as_json();
+        // Check if it's a non-null value
+        !value.is_null()
     };
 
     if !has_valid_this {
@@ -141,7 +139,7 @@ pub fn visit(
 
     // Analyze the 'this' expression to track template references
     // This is crucial for legacy state promotion to work correctly
-    let Expression::Value(tag_value) = &element.tag;
+    let tag_value = element.tag.as_json();
     super::script::walk_js_node(tag_value, context)?;
 
     // Determine SVG/MathML metadata based on xmlns attribute or ancestor context.

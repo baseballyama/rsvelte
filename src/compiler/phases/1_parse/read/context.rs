@@ -212,7 +212,7 @@ mod tests {
         let (pattern, end) = read_pattern(source, 0, &line_offsets);
 
         assert_eq!(end, 4);
-        let Expression::Value(val) = pattern;
+        let val = pattern.as_json();
         assert_eq!(val["type"], "Identifier");
         assert_eq!(val["name"], "item");
     }
@@ -224,7 +224,7 @@ mod tests {
         let (pattern, end) = read_pattern(source, 0, &line_offsets);
 
         assert_eq!(end, 6);
-        let Expression::Value(val) = pattern;
+        let val = pattern.as_json();
         assert_eq!(val["type"], "Identifier");
         assert_eq!(val["name"], "item");
     }
@@ -236,7 +236,7 @@ mod tests {
         let (pattern, end) = read_pattern(source, 0, &line_offsets);
 
         assert_eq!(end, 12);
-        let Expression::Value(val) = pattern;
+        let val = pattern.as_json();
         assert_eq!(val["type"], "ObjectPattern");
     }
 
@@ -247,7 +247,7 @@ mod tests {
         let (pattern, end) = read_pattern(source, 0, &line_offsets);
 
         assert_eq!(end, 15);
-        let Expression::Value(val) = pattern;
+        let val = pattern.as_json();
         assert_eq!(val["type"], "ArrayPattern");
     }
 

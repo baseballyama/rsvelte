@@ -418,11 +418,7 @@ pub fn is_passive_event(name: &str) -> Option<bool> {
 ///
 /// TODO: Use proper expression metadata from the AST.
 fn expression_has_call(expression: &crate::ast::js::Expression) -> bool {
-    use crate::ast::js::Expression;
-
-    match expression {
-        Expression::Value(val) => json_value_has_call(val),
-    }
+    json_value_has_call(expression.as_json())
 }
 
 /// Recursively check if a JSON value (ESTree node) contains a CallExpression.

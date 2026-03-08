@@ -218,7 +218,7 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
 ///
 /// The expression is expected to be an Identifier node.
 fn get_snippet_name(expr: &Expression) -> String {
-    let Expression::Value(val) = expr;
+    let val = expr.as_json();
     if let serde_json::Value::Object(obj) = val
         && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
         && let Some(name) = obj.get("name").and_then(|v| v.as_str())

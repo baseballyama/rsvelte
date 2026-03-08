@@ -6,7 +6,6 @@
 
 use super::VisitorContext;
 use super::shared::fragment::mark_subtree_dynamic;
-use crate::ast::js::Expression;
 use crate::ast::template::UseDirective;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
@@ -25,7 +24,7 @@ pub fn visit(directive: &UseDirective, context: &mut VisitorContext) -> Result<(
 
     // Analyze the expression if present
     if let Some(ref expression) = directive.expression {
-        let Expression::Value(expr_value) = expression;
+        let expr_value = expression.as_json();
         super::script::walk_js_node(expr_value, context)?;
     }
 

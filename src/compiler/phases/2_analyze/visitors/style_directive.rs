@@ -44,7 +44,7 @@ pub fn visit(
         }
         AttributeValue::Expression(expr_tag) => {
             // Single expression: `style:color={expr}`
-            let crate::ast::js::Expression::Value(value) = &expr_tag.expression;
+            let value = expr_tag.expression.as_json();
             let mut metadata = crate::ast::template::ExpressionMetadata::default();
             walk_js_expression(value, context, &mut metadata)?;
         }
@@ -52,7 +52,7 @@ pub fn visit(
             // Mixed content: `style:color="prefix{expr}suffix"`
             for part in parts {
                 if let AttributeValuePart::ExpressionTag(expr_tag) = part {
-                    let crate::ast::js::Expression::Value(value) = &expr_tag.expression;
+                    let value = expr_tag.expression.as_json();
                     let mut metadata = crate::ast::template::ExpressionMetadata::default();
                     walk_js_expression(value, context, &mut metadata)?;
                 }

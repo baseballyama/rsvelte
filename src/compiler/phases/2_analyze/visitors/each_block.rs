@@ -72,7 +72,7 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
 
     // Visit the expression in parent scope
     // Extract the JavaScript expression value
-    let crate::ast::js::Expression::Value(value) = &block.expression;
+    let value = block.expression.as_json();
     walk_js_expression(value, context, &mut block.metadata.expression)?;
 
     // Mark that we have control flow affecting sibling relationships
@@ -157,7 +157,7 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     // Adding key dependencies to expression metadata would incorrectly set EACH_ITEM_REACTIVE
     // in cases where the iterable has no external dependencies but the key does.
     if let Some(key) = &block.key {
-        let crate::ast::js::Expression::Value(value) = key;
+        let value = key.as_json();
         let mut key_metadata = crate::ast::template::ExpressionMetadata::default();
         walk_js_expression(value, context, &mut key_metadata)?;
     }

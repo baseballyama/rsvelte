@@ -348,7 +348,7 @@ fn create_derived_from_expr(context: &ComponentContext, expr: JsExpr) -> JsExpr 
 
 /// Get the name if the expression is a simple identifier.
 fn get_identifier_name(expr: &Expression) -> Option<String> {
-    let Expression::Value(val) = expr;
+    let val = expr.as_json();
     if let serde_json::Value::Object(obj) = val
         && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
     {
@@ -375,7 +375,7 @@ fn extract_identifiers(expr: &Expression) -> Vec<String> {
 }
 
 fn extract_identifiers_recursive(expr: &Expression, identifiers: &mut Vec<String>) {
-    let Expression::Value(val) = expr;
+    let val = expr.as_json();
     if let serde_json::Value::Object(obj) = val {
         match obj.get("type").and_then(|v| v.as_str()) {
             Some("Identifier") => {
@@ -582,7 +582,7 @@ fn convert_expression_to_pattern_with_context(
     expr: &Expression,
     context: &mut ComponentContext,
 ) -> JsPattern {
-    let Expression::Value(val) = expr;
+    let val = expr.as_json();
     convert_value_to_pattern_with_context(val, context)
 }
 
@@ -1429,7 +1429,7 @@ mod tests {
             "name": "value"
         }));
 
-        let Expression::Value(val) = &expr;
+        let val = expr.as_json();
         let pattern = convert_value_to_pattern(val);
         match pattern {
             JsPattern::Identifier(name) => assert_eq!(name, "value"),

@@ -90,7 +90,7 @@ fn visit_script(context: &mut Context, script: &crate::ast::Script) {
     context.write(">");
 
     // Format and write script content using block()
-    let crate::ast::js::Expression::Value(program) = &script.content;
+    let program = script.content.as_json();
     let content = format_program(program);
 
     if !content.is_empty() {

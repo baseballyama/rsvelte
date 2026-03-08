@@ -1485,7 +1485,7 @@ impl Parser<'_> {
                         // Extract identifiers from the expression
                         // If it's a SequenceExpression (comma-separated), extract each one
                         // Otherwise treat as single identifier
-                        let Expression::Value(ref value) = expression;
+                        let value = expression.as_json();
                         let expr_type = value.get("type").and_then(|t| t.as_str());
 
                         if expr_type == Some("SequenceExpression") {
@@ -1654,12 +1654,8 @@ fn build_const_variable_declaration(
 ) -> Expression {
     use serde_json::{Map, Value};
 
-    let pattern_value = match pattern {
-        Expression::Value(v) => v.clone(),
-    };
-    let init_value = match init {
-        Expression::Value(v) => v.clone(),
-    };
+    let pattern_value = pattern.as_json().clone();
+    let init_value = init.as_json().clone();
 
     // Get positions from the pattern and init for the declarator
     let id_start = pattern_value

@@ -172,7 +172,7 @@ fn process_parameter(
     index: usize,
     context: &mut ComponentContext,
 ) -> Option<ParameterInfo> {
-    let Expression::Value(val) = param;
+    let val = param.as_json();
 
     if let serde_json::Value::Object(obj) = val {
         let param_type = obj.get("type").and_then(|v| v.as_str())?;
@@ -597,7 +597,7 @@ fn create_get_value_transform()
 
 /// Get the snippet name from the expression.
 fn get_snippet_name(expr: &Expression) -> String {
-    let Expression::Value(val) = expr;
+    let val = expr.as_json();
     if let serde_json::Value::Object(obj) = val
         && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
         && let Some(name) = obj.get("name").and_then(|v| v.as_str())
@@ -769,7 +769,7 @@ fn can_hoist_snippet(node: &SnippetBlock) -> bool {
 /// in Phase 2 analysis. Keeping it for potential future use.
 #[allow(dead_code)]
 fn extract_param_name(param: &crate::ast::js::Expression) -> Option<String> {
-    let Expression::Value(val) = param;
+    let val = param.as_json();
     if let serde_json::Value::Object(obj) = val
         && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
     {
@@ -795,7 +795,7 @@ fn expression_only_uses_params(
 ) -> bool {
     use crate::ast::js::Expression;
 
-    let Expression::Value(val) = expr;
+    let val = expr.as_json();
 
     if let serde_json::Value::Object(obj) = val {
         let expr_type = obj.get("type").and_then(|v| v.as_str());

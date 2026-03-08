@@ -8,7 +8,6 @@ use super::super::{AnalysisError, warnings};
 use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::utils::validate_assignment;
-use crate::ast::js::Expression;
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, SvelteComponentElement,
 };
@@ -26,7 +25,7 @@ pub fn visit(
     // svelte:component requires a `this` expression
     // Analyze the expression to track template references
     // This is crucial for legacy state promotion to work correctly
-    let Expression::Value(expr_value) = &component.expression;
+    let expr_value = component.expression.as_json();
     super::script::walk_js_node(expr_value, context)?;
 
     // Analyze attributes (mirrors visit_component logic from shared/component.rs)

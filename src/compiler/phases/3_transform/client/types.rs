@@ -855,7 +855,7 @@ impl<'a> ComponentContext<'a> {
                     let is_simple = match &let_dir.expression {
                         None => true,
                         Some(expr) => {
-                            let crate::ast::js::Expression::Value(val) = expr;
+                            let val = expr.as_json();
                             if let serde_json::Value::Object(obj) = val {
                                 obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
                             } else {
@@ -868,7 +868,7 @@ impl<'a> ComponentContext<'a> {
                         // Simple case: let:x or let:x={y}
                         let binding_name = match &let_dir.expression {
                             Some(expr) => {
-                                let crate::ast::js::Expression::Value(val) = expr;
+                                let val = expr.as_json();
                                 if let serde_json::Value::Object(obj) = val {
                                     obj.get("name")
                                         .and_then(|n| n.as_str())
@@ -992,7 +992,7 @@ impl<'a> ComponentContext<'a> {
                 let is_simple = match &let_dir.expression {
                     None => true,
                     Some(expr) => {
-                        let crate::ast::js::Expression::Value(val) = expr;
+                        let val = expr.as_json();
                         if let serde_json::Value::Object(obj) = val {
                             obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
                         } else {
@@ -1005,7 +1005,7 @@ impl<'a> ComponentContext<'a> {
                     // Simple case: let:x or let:x={y}
                     let name = match &let_dir.expression {
                         Some(expr) => {
-                            let crate::ast::js::Expression::Value(val) = expr;
+                            let val = expr.as_json();
                             if let serde_json::Value::Object(obj) = val {
                                 obj.get("name")
                                     .and_then(|n| n.as_str())
@@ -1060,7 +1060,7 @@ impl<'a> ComponentContext<'a> {
                     // Generates: const derived_name = $.derived(() => { let {y, z} = $$slotProps.x; return {y, z}; })
                     // And registers transforms: y -> $.get(derived_name).y, z -> $.get(derived_name).z
                     if let Some(expr) = &let_dir.expression {
-                        let crate::ast::js::Expression::Value(val) = expr;
+                        let val = expr.as_json();
                         if let serde_json::Value::Object(obj) = val {
                             let expr_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
 

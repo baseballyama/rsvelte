@@ -252,64 +252,63 @@ fn sort_const_tags(nodes: Vec<TemplateNode>) -> Vec<TemplateNode> {
 ///
 /// Returns (declared_names, referenced_identifiers).
 fn extract_const_tag_names_and_deps(declaration: &Expression) -> (Vec<String>, Vec<String>) {
-    match declaration {
-        Expression::Value(json_value) => {
-            let obj = match json_value.as_object() {
-                Some(o) => o,
-                None => return (vec![], vec![]),
-            };
-            let expr_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
+    {
+        let json_value = declaration.as_json();
+        let obj = match json_value.as_object() {
+            Some(o) => o,
+            None => return (vec![], vec![]),
+        };
+        let expr_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
 
-            match expr_type {
-                "VariableDeclaration" => {
-                    let declarations = match obj.get("declarations").and_then(|v| v.as_array()) {
-                        Some(d) => d,
-                        None => return (vec![], vec![]),
-                    };
-                    if declarations.is_empty() {
-                        return (vec![], vec![]);
-                    }
-                    let first_decl = match declarations[0].as_object() {
-                        Some(d) => d,
-                        None => return (vec![], vec![]),
-                    };
-                    let id = match first_decl.get("id") {
-                        Some(id) => id,
-                        None => return (vec![], vec![]),
-                    };
-                    let init = match first_decl.get("init") {
-                        Some(init) => init,
-                        None => return (vec![], vec![]),
-                    };
-
-                    let mut declared = Vec::new();
-                    collect_identifiers_from_json_pattern(id, &mut declared);
-
-                    let mut referenced = Vec::new();
-                    collect_identifiers_from_json_expr(init, &mut referenced);
-
-                    (declared, referenced)
+        match expr_type {
+            "VariableDeclaration" => {
+                let declarations = match obj.get("declarations").and_then(|v| v.as_array()) {
+                    Some(d) => d,
+                    None => return (vec![], vec![]),
+                };
+                if declarations.is_empty() {
+                    return (vec![], vec![]);
                 }
-                "AssignmentExpression" => {
-                    let left = match obj.get("left") {
-                        Some(l) => l,
-                        None => return (vec![], vec![]),
-                    };
-                    let right = match obj.get("right") {
-                        Some(r) => r,
-                        None => return (vec![], vec![]),
-                    };
+                let first_decl = match declarations[0].as_object() {
+                    Some(d) => d,
+                    None => return (vec![], vec![]),
+                };
+                let id = match first_decl.get("id") {
+                    Some(id) => id,
+                    None => return (vec![], vec![]),
+                };
+                let init = match first_decl.get("init") {
+                    Some(init) => init,
+                    None => return (vec![], vec![]),
+                };
 
-                    let mut declared = Vec::new();
-                    collect_identifiers_from_json_pattern(left, &mut declared);
+                let mut declared = Vec::new();
+                collect_identifiers_from_json_pattern(id, &mut declared);
 
-                    let mut referenced = Vec::new();
-                    collect_identifiers_from_json_expr(right, &mut referenced);
+                let mut referenced = Vec::new();
+                collect_identifiers_from_json_expr(init, &mut referenced);
 
-                    (declared, referenced)
-                }
-                _ => (vec![], vec![]),
+                (declared, referenced)
             }
+            "AssignmentExpression" => {
+                let left = match obj.get("left") {
+                    Some(l) => l,
+                    None => return (vec![], vec![]),
+                };
+                let right = match obj.get("right") {
+                    Some(r) => r,
+                    None => return (vec![], vec![]),
+                };
+
+                let mut declared = Vec::new();
+                collect_identifiers_from_json_pattern(left, &mut declared);
+
+                let mut referenced = Vec::new();
+                collect_identifiers_from_json_expr(right, &mut referenced);
+
+                (declared, referenced)
+            }
+            _ => (vec![], vec![]),
         }
     }
 }

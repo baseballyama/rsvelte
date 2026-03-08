@@ -37,7 +37,7 @@ pub fn visit(tag: &mut HtmlTag, context: &mut VisitorContext) -> Result<(), Anal
     //   context.next({ ...context.state, expression: node.metadata.expression })
     // which causes the phase 2 walk to populate node.metadata.expression with
     // has_call, has_member_expression, references, dependencies etc.
-    let crate::ast::js::Expression::Value(ref value) = tag.expression;
+    let value = tag.expression.as_json();
     walk_js_expression(value, context, &mut tag.metadata.expression)?;
 
     Ok(())

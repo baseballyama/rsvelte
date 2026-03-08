@@ -58,9 +58,7 @@ pub fn build_event(
 /// Check if a JSON expression contains a call expression.
 /// This is used to determine if an event handler needs to be memoized.
 fn expression_has_call(expr: &Expression) -> bool {
-    match expr {
-        Expression::Value(val) => json_value_has_call(val),
-    }
+    json_value_has_call(expr.as_json())
 }
 
 /// Check if a JSON value contains a call expression.

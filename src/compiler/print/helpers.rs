@@ -818,7 +818,7 @@ pub fn escape_html(s: &str) -> String {
 ///
 /// Returns true if the expression is an Identifier with the same name.
 pub fn is_shorthand_identifier(expr: &crate::ast::js::Expression, name: &str) -> bool {
-    let crate::ast::js::Expression::Value(value) = expr;
+    let value = expr.as_json();
     if let Some(obj) = value.as_object()
         && obj.get("type") == Some(&serde_json::Value::String("Identifier".to_string()))
         && let Some(expr_name) = obj.get("name").and_then(|v| v.as_str())
@@ -838,7 +838,7 @@ pub fn is_shorthand_identifier(expr: &crate::ast::js::Expression, name: &str) ->
 ///
 /// Returns the formatted JavaScript code as a string.
 pub fn expression_to_string(expr: &crate::ast::js::Expression) -> String {
-    let crate::ast::js::Expression::Value(value) = expr;
+    let value = expr.as_json();
     estree_to_string(value)
 }
 

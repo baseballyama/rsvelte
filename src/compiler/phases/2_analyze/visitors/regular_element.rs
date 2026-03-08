@@ -1263,7 +1263,7 @@ pub fn visit_regular_element(
 /// for `items[0]` -> "items".
 /// Corresponds to the `object()` function call in the official compiler.
 fn extract_binding_root_identifier(expr: &crate::ast::js::Expression) -> Option<String> {
-    let crate::ast::js::Expression::Value(val) = expr;
+    let val = expr.as_json();
     let obj = val.as_object()?;
     let expr_type = obj.get("type").and_then(|v| v.as_str())?;
 

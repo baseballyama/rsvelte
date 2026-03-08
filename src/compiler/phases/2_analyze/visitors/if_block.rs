@@ -107,7 +107,7 @@ fn analyze_test_expression(
         let metadata = unsafe { &mut *metadata_ptr };
 
         // Walk the JS AST to detect expression features
-        let Expression::Value(json_value) = test;
+        let json_value = test.as_json();
         walk_js_expression(json_value, context, metadata)?;
     }
 

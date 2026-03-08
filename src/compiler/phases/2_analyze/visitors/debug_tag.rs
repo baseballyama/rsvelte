@@ -28,7 +28,7 @@ pub fn visit(tag: &mut DebugTag, context: &mut VisitorContext) -> Result<(), Ana
     // In the official Svelte parser, this is done in Phase 1, but our parser doesn't
     // have this check, so we do it here.
     for identifier in &tag.identifiers {
-        let crate::ast::js::Expression::Value(value) = identifier;
+        let value = identifier.as_json();
         let expr_type = value.get("type").and_then(|t| t.as_str());
         if expr_type != Some("Identifier") {
             return Err(errors::debug_tag_invalid_arguments());
@@ -45,7 +45,7 @@ pub fn visit(tag: &mut DebugTag, context: &mut VisitorContext) -> Result<(), Ana
 
     // Visit the identifiers to track their references
     for identifier in &tag.identifiers {
-        let crate::ast::js::Expression::Value(value) = identifier;
+        let value = identifier.as_json();
         walk_js_expression(value, context, &mut tag.metadata.expression)?;
     }
 

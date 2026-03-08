@@ -286,7 +286,7 @@ fn element_matches_simple_selectors(
     for selector in selectors {
         match selector {
             CssSimpleSelector::Type(name) => {
-                if name != "*" && name.to_lowercase() != element.tag_name.to_lowercase() {
+                if name != "*" && !name.eq_ignore_ascii_case(&element.tag_name) {
                     return false;
                 }
             }

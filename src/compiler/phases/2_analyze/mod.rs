@@ -155,7 +155,7 @@ pub fn analyze_component(
         .instance
         .as_ref()
         .map(|inst| {
-            let crate::ast::js::Expression::Value(ref val) = inst.content;
+            let val = inst.content.as_json();
             json_has_await_expression(val)
         })
         .unwrap_or(false);
@@ -203,7 +203,7 @@ pub fn analyze_component(
             .instance
             .as_ref()
             .map(|inst| {
-                let crate::ast::js::Expression::Value(ref val) = inst.content;
+                let val = inst.content.as_json();
                 json_has_rune_reference(val, &empty_store_subs)
             })
             .unwrap_or(false)
@@ -211,7 +211,7 @@ pub fn analyze_component(
                 .module
                 .as_ref()
                 .map(|module| {
-                    let crate::ast::js::Expression::Value(ref val) = module.content;
+                    let val = module.content.as_json();
                     json_has_rune_reference(val, &empty_store_subs)
                 })
                 .unwrap_or(false);
@@ -337,7 +337,7 @@ pub fn analyze_component(
     // Must run AFTER analyze_template so that analysis.template.snippets is populated.
     // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js
     if let Some(ref module) = ast.module {
-        let crate::ast::js::Expression::Value(ref module_json) = module.content;
+        let module_json = module.content.as_json();
         if let Some(body) = module_json.get("body").and_then(|b| b.as_array()) {
             for node in body {
                 let node_type = node.get("type").and_then(|t| t.as_str());
@@ -719,8 +719,8 @@ fn synthesize_for_element_attrs(
                 break;
             }
             Attribute::Attribute(a) => {
-                has_class = has_class || a.name.to_lowercase() == "class";
-                has_style = has_style || a.name.to_lowercase() == "style";
+                has_class = has_class || a.name.eq_ignore_ascii_case("class");
+                has_style = has_style || a.name.eq_ignore_ascii_case("style");
             }
             Attribute::ClassDirective(_) => {
                 has_class_directive = true;
@@ -1585,7 +1585,7 @@ fn populate_legacy_dependencies(ast: &Root, analysis: &mut ComponentAnalysis) {
         None => return,
     };
 
-    let crate::ast::js::Expression::Value(ref program) = instance.content;
+    let program = instance.content.as_json();
 
     // Walk the program body to find labeled statements with label "$"
     let body = match program.get("body").and_then(|b| b.as_array()) {
@@ -2297,7 +2297,7 @@ fn node_has_await_expression(node: &crate::ast::template::TemplateNode) -> bool 
 /// Check if an expression (stored as JSON) contains an AwaitExpression.
 #[allow(dead_code)]
 fn expression_has_await(expr: &crate::ast::js::Expression) -> bool {
-    let crate::ast::js::Expression::Value(value) = expr;
+    let value = expr.as_json();
     json_has_await_expression(value)
 }
 
@@ -2599,7 +2599,7 @@ fn expression_has_rune_reference(
     expr: &crate::ast::js::Expression,
     store_subs: &rustc_hash::FxHashSet<&str>,
 ) -> bool {
-    let crate::ast::js::Expression::Value(value) = expr;
+    let value = expr.as_json();
     json_has_rune_reference(value, store_subs)
 }
 

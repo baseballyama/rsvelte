@@ -3030,7 +3030,7 @@ pub fn build_template_chunk(
 /// This walks the JSON AST to find all Identifier nodes.
 fn collect_expression_identifiers_for_blockers(expr: &crate::ast::js::Expression) -> Vec<String> {
     let mut names = Vec::new();
-    let crate::ast::js::Expression::Value(val) = expr;
+    let val = expr.as_json();
     collect_expr_ids_recursive(val, &mut names);
     names
 }
@@ -3075,337 +3075,336 @@ pub(crate) fn get_literal_value(
 ) -> Option<Option<String>> {
     use crate::ast::js::Expression;
 
-    match expr {
-        Expression::Value(json_value) => {
-            let obj = json_value.as_object()?;
-            let expr_type = obj.get("type").and_then(|v| v.as_str())?;
+    {
+        let json_value = expr.as_json();
+        let obj = json_value.as_object()?;
+        let expr_type = obj.get("type").and_then(|v| v.as_str())?;
 
-            match expr_type {
-                "Literal" => {
-                    if let Some(value) = obj.get("value") {
-                        if let Some(s) = value.as_str() {
-                            return Some(Some(s.to_string()));
-                        } else if let Some(n) = value.as_f64() {
-                            // Format integers without decimal point
-                            if n.fract() == 0.0 {
-                                return Some(Some(format!("{}", n as i64)));
-                            }
-                            return Some(Some(n.to_string()));
-                        } else if let Some(b_val) = value.as_bool() {
-                            return Some(Some(b_val.to_string()));
-                        } else if value.is_null() {
-                            return Some(None);
-                        }
-                    }
-                    None
-                }
-                "Identifier" => {
-                    let name = obj.get("name").and_then(|v| v.as_str())?;
-                    if name == "undefined" {
-                        return Some(None);
-                    }
-
-                    // If there's a transform registered for this identifier (e.g., from let: directive),
-                    // it's been overridden in the current scope and should not be folded as a literal
-                    if context.state.transform.contains_key(name) {
-                        return None;
-                    }
-
-                    // Check if the identifier is a constant binding
-                    let binding = context.state.get_binding(name)?;
-
-                    // Only fold if:
-                    // 1. Not updated (reassigned or mutated)
-                    // 2. Not a prop (props come from outside and can change)
-                    // This matches Svelte's scope.js evaluate() logic:
-                    // if (!binding.updated && binding.initial !== null && !is_prop)
-                    // Note: reactive bindings like $state('hello') CAN be folded if not updated,
-                    // because their initial value is still known at compile time.
-                    if binding.is_updated() {
-                        return None;
-                    }
-                    let is_prop = matches!(
-                        binding.kind,
-                        crate::compiler::phases::phase2_analyze::scope::BindingKind::Prop
-                            | crate::compiler::phases::phase2_analyze::scope::BindingKind::BindableProp
-                            | crate::compiler::phases::phase2_analyze::scope::BindingKind::RestProp
-                    );
-                    if is_prop {
-                        return None;
-                    }
-
-                    // Check if we have a known initial value (stored as source string)
-                    let init = binding.initial.as_ref()?;
-                    // Parse simple string literals like 'world' or "world"
-                    let trimmed = init.trim();
-                    let is_string_literal = (trimmed.starts_with('\'') && trimmed.ends_with('\''))
-                        || (trimmed.starts_with('"') && trimmed.ends_with('"'));
-                    if is_string_literal && trimmed.len() >= 2 {
-                        return Some(Some(trimmed[1..trimmed.len() - 1].to_string()));
-                    }
-                    // Parse number literals
-                    if let Ok(n) = trimmed.parse::<f64>() {
+        match expr_type {
+            "Literal" => {
+                if let Some(value) = obj.get("value") {
+                    if let Some(s) = value.as_str() {
+                        return Some(Some(s.to_string()));
+                    } else if let Some(n) = value.as_f64() {
+                        // Format integers without decimal point
                         if n.fract() == 0.0 {
                             return Some(Some(format!("{}", n as i64)));
                         }
                         return Some(Some(n.to_string()));
+                    } else if let Some(b_val) = value.as_bool() {
+                        return Some(Some(b_val.to_string()));
+                    } else if value.is_null() {
+                        return Some(None);
                     }
-                    // Handle boolean and null literals
-                    match trimmed {
-                        "true" => Some(Some("true".to_string())),
-                        "false" => Some(Some("false".to_string())),
-                        "null" | "undefined" => Some(None),
-                        _ => {
-                            // Check for TemplateLiteral JSON format (from binding.initial)
-                            // Template literals without expressions are known compile-time values
-                            if init.contains("\"type\":\"TemplateLiteral\"")
-                                && init.contains("\"expressions\":[]")
-                            {
-                                // Extract the cooked value from the quasis
-                                // Format: {"type":"TemplateLiteral",...,"quasis":[{"value":{"cooked":"..."}}]}
-                                let quasis = serde_json::from_str::<serde_json::Value>(init)
-                                    .ok()
-                                    .and_then(|parsed| {
-                                        parsed.get("quasis").and_then(|q| q.as_array().cloned())
-                                    });
+                }
+                None
+            }
+            "Identifier" => {
+                let name = obj.get("name").and_then(|v| v.as_str())?;
+                if name == "undefined" {
+                    return Some(None);
+                }
 
-                                if let Some(quasis) = quasis {
-                                    // Collect all cooked values from quasis
-                                    let mut result = String::new();
-                                    for quasi in quasis {
-                                        if let Some(cooked) = quasi
-                                            .get("value")
-                                            .and_then(|v| v.get("cooked"))
-                                            .and_then(|c| c.as_str())
-                                        {
-                                            result.push_str(cooked);
-                                        }
+                // If there's a transform registered for this identifier (e.g., from let: directive),
+                // it's been overridden in the current scope and should not be folded as a literal
+                if context.state.transform.contains_key(name) {
+                    return None;
+                }
+
+                // Check if the identifier is a constant binding
+                let binding = context.state.get_binding(name)?;
+
+                // Only fold if:
+                // 1. Not updated (reassigned or mutated)
+                // 2. Not a prop (props come from outside and can change)
+                // This matches Svelte's scope.js evaluate() logic:
+                // if (!binding.updated && binding.initial !== null && !is_prop)
+                // Note: reactive bindings like $state('hello') CAN be folded if not updated,
+                // because their initial value is still known at compile time.
+                if binding.is_updated() {
+                    return None;
+                }
+                let is_prop = matches!(
+                    binding.kind,
+                    crate::compiler::phases::phase2_analyze::scope::BindingKind::Prop
+                        | crate::compiler::phases::phase2_analyze::scope::BindingKind::BindableProp
+                        | crate::compiler::phases::phase2_analyze::scope::BindingKind::RestProp
+                );
+                if is_prop {
+                    return None;
+                }
+
+                // Check if we have a known initial value (stored as source string)
+                let init = binding.initial.as_ref()?;
+                // Parse simple string literals like 'world' or "world"
+                let trimmed = init.trim();
+                let is_string_literal = (trimmed.starts_with('\'') && trimmed.ends_with('\''))
+                    || (trimmed.starts_with('"') && trimmed.ends_with('"'));
+                if is_string_literal && trimmed.len() >= 2 {
+                    return Some(Some(trimmed[1..trimmed.len() - 1].to_string()));
+                }
+                // Parse number literals
+                if let Ok(n) = trimmed.parse::<f64>() {
+                    if n.fract() == 0.0 {
+                        return Some(Some(format!("{}", n as i64)));
+                    }
+                    return Some(Some(n.to_string()));
+                }
+                // Handle boolean and null literals
+                match trimmed {
+                    "true" => Some(Some("true".to_string())),
+                    "false" => Some(Some("false".to_string())),
+                    "null" | "undefined" => Some(None),
+                    _ => {
+                        // Check for TemplateLiteral JSON format (from binding.initial)
+                        // Template literals without expressions are known compile-time values
+                        if init.contains("\"type\":\"TemplateLiteral\"")
+                            && init.contains("\"expressions\":[]")
+                        {
+                            // Extract the cooked value from the quasis
+                            // Format: {"type":"TemplateLiteral",...,"quasis":[{"value":{"cooked":"..."}}]}
+                            let quasis = serde_json::from_str::<serde_json::Value>(init)
+                                .ok()
+                                .and_then(|parsed| {
+                                    parsed.get("quasis").and_then(|q| q.as_array().cloned())
+                                });
+
+                            if let Some(quasis) = quasis {
+                                // Collect all cooked values from quasis
+                                let mut result = String::new();
+                                for quasi in quasis {
+                                    if let Some(cooked) = quasi
+                                        .get("value")
+                                        .and_then(|v| v.get("cooked"))
+                                        .and_then(|c| c.as_str())
+                                    {
+                                        result.push_str(cooked);
                                     }
-                                    return Some(Some(result));
                                 }
+                                return Some(Some(result));
                             }
-                            None
                         }
+                        None
                     }
                 }
-                "LogicalExpression" => {
-                    // Handle ?? (nullish coalescing) operator
-                    let operator = obj.get("operator").and_then(|v| v.as_str())?;
-                    if operator != "??" {
-                        return None;
+            }
+            "LogicalExpression" => {
+                // Handle ?? (nullish coalescing) operator
+                let operator = obj.get("operator").and_then(|v| v.as_str())?;
+                if operator != "??" {
+                    return None;
+                }
+
+                let left = obj.get("left")?;
+                let left_expr = serde_json::from_value::<Expression>(left.clone()).ok()?;
+
+                match get_literal_value(&left_expr, context) {
+                    Some(Some(val)) => {
+                        // Left side has non-null value, return it
+                        Some(Some(val))
                     }
-
-                    let left = obj.get("left")?;
-                    let left_expr = serde_json::from_value::<Expression>(left.clone()).ok()?;
-
-                    match get_literal_value(&left_expr, context) {
-                        Some(Some(val)) => {
-                            // Left side has non-null value, return it
-                            Some(Some(val))
-                        }
-                        Some(None) => {
-                            // Left side is null/undefined, evaluate right side
-                            let right = obj.get("right")?;
-                            let right_expr =
-                                serde_json::from_value::<Expression>(right.clone()).ok()?;
-                            get_literal_value(&right_expr, context)
-                        }
-                        None => {
-                            // Left side cannot be evaluated at compile time
-                            None
-                        }
+                    Some(None) => {
+                        // Left side is null/undefined, evaluate right side
+                        let right = obj.get("right")?;
+                        let right_expr =
+                            serde_json::from_value::<Expression>(right.clone()).ok()?;
+                        get_literal_value(&right_expr, context)
+                    }
+                    None => {
+                        // Left side cannot be evaluated at compile time
+                        None
                     }
                 }
-                "CallExpression" => {
-                    // Handle pure Math functions with constant arguments
-                    let callee = obj.get("callee").and_then(|v| v.as_object())?;
-                    let callee_type = callee.get("type").and_then(|t| t.as_str())?;
+            }
+            "CallExpression" => {
+                // Handle pure Math functions with constant arguments
+                let callee = obj.get("callee").and_then(|v| v.as_object())?;
+                let callee_type = callee.get("type").and_then(|t| t.as_str())?;
 
-                    if callee_type == "MemberExpression" {
-                        let obj_node = callee.get("object").and_then(|o| o.as_object())?;
-                        let prop_node = callee.get("property").and_then(|p| p.as_object())?;
+                if callee_type == "MemberExpression" {
+                    let obj_node = callee.get("object").and_then(|o| o.as_object())?;
+                    let prop_node = callee.get("property").and_then(|p| p.as_object())?;
 
-                        let obj_type = obj_node.get("type").and_then(|t| t.as_str())?;
-                        let obj_name = obj_node.get("name").and_then(|n| n.as_str())?;
-                        let prop_name = prop_node.get("name").and_then(|n| n.as_str())?;
+                    let obj_type = obj_node.get("type").and_then(|t| t.as_str())?;
+                    let obj_name = obj_node.get("name").and_then(|n| n.as_str())?;
+                    let prop_name = prop_node.get("name").and_then(|n| n.as_str())?;
 
-                        if obj_type == "Identifier" && obj_name == "Math" {
-                            let args = obj.get("arguments").and_then(|a| a.as_array())?;
+                    if obj_type == "Identifier" && obj_name == "Math" {
+                        let args = obj.get("arguments").and_then(|a| a.as_array())?;
 
-                            // Evaluate all arguments
-                            let mut arg_values: Vec<f64> = Vec::new();
-                            for arg in args {
-                                let arg_expr =
-                                    serde_json::from_value::<Expression>(arg.clone()).ok()?;
-                                let arg_val = get_literal_value(&arg_expr, context)??;
-                                let num = arg_val.parse::<f64>().ok()?;
-                                arg_values.push(num);
-                            }
-
-                            let result = match prop_name {
-                                "max" if !arg_values.is_empty() => {
-                                    arg_values.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
-                                }
-                                "min" if !arg_values.is_empty() => {
-                                    arg_values.iter().cloned().fold(f64::INFINITY, f64::min)
-                                }
-                                "floor" if arg_values.len() == 1 => arg_values[0].floor(),
-                                "ceil" if arg_values.len() == 1 => arg_values[0].ceil(),
-                                "round" if arg_values.len() == 1 => arg_values[0].round(),
-                                "abs" if arg_values.len() == 1 => arg_values[0].abs(),
-                                "sqrt" if arg_values.len() == 1 => arg_values[0].sqrt(),
-                                "pow" if arg_values.len() == 2 => arg_values[0].powf(arg_values[1]),
-                                _ => return None,
-                            };
-
-                            // Format result
-                            if result.fract() == 0.0 && result.abs() < i64::MAX as f64 {
-                                return Some(Some(format!("{}", result as i64)));
-                            }
-                            return Some(Some(result.to_string()));
+                        // Evaluate all arguments
+                        let mut arg_values: Vec<f64> = Vec::new();
+                        for arg in args {
+                            let arg_expr =
+                                serde_json::from_value::<Expression>(arg.clone()).ok()?;
+                            let arg_val = get_literal_value(&arg_expr, context)??;
+                            let num = arg_val.parse::<f64>().ok()?;
+                            arg_values.push(num);
                         }
-                    }
-                    None
-                }
-                "BinaryExpression" => {
-                    let operator = obj.get("operator").and_then(|v| v.as_str())?;
-                    let left = obj.get("left")?;
-                    let right = obj.get("right")?;
-                    let left_expr = serde_json::from_value::<Expression>(left.clone()).ok()?;
-                    let right_expr = serde_json::from_value::<Expression>(right.clone()).ok()?;
 
-                    let left_val = get_literal_value(&left_expr, context)?;
-                    let right_val = get_literal_value(&right_expr, context)?;
-
-                    // Try numeric comparison first
-                    let left_num = left_val.as_ref().and_then(|s| s.parse::<f64>().ok());
-                    let right_num = right_val.as_ref().and_then(|s| s.parse::<f64>().ok());
-
-                    if let (Some(l), Some(r)) = (left_num, right_num) {
-                        let result: Option<String> = match operator {
-                            "===" | "==" => Some(format!("{}", l == r)),
-                            "!==" | "!=" => Some(format!("{}", l != r)),
-                            "<" => Some(format!("{}", l < r)),
-                            ">" => Some(format!("{}", l > r)),
-                            "<=" => Some(format!("{}", l <= r)),
-                            ">=" => Some(format!("{}", l >= r)),
-                            "+" => {
-                                let res = l + r;
-                                if res.fract() == 0.0 {
-                                    Some(format!("{}", res as i64))
-                                } else {
-                                    Some(res.to_string())
-                                }
+                        let result = match prop_name {
+                            "max" if !arg_values.is_empty() => {
+                                arg_values.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
                             }
-                            "-" => {
-                                let res = l - r;
-                                if res.fract() == 0.0 {
-                                    Some(format!("{}", res as i64))
-                                } else {
-                                    Some(res.to_string())
-                                }
+                            "min" if !arg_values.is_empty() => {
+                                arg_values.iter().cloned().fold(f64::INFINITY, f64::min)
                             }
-                            "*" => {
-                                let res = l * r;
-                                if res.fract() == 0.0 {
-                                    Some(format!("{}", res as i64))
-                                } else {
-                                    Some(res.to_string())
-                                }
-                            }
-                            "/" if r != 0.0 => {
-                                let res = l / r;
-                                if res.fract() == 0.0 {
-                                    Some(format!("{}", res as i64))
-                                } else {
-                                    Some(res.to_string())
-                                }
-                            }
-                            "%" if r != 0.0 => {
-                                let res = l % r;
-                                if res.fract() == 0.0 {
-                                    Some(format!("{}", res as i64))
-                                } else {
-                                    Some(res.to_string())
-                                }
-                            }
-                            _ => None,
+                            "floor" if arg_values.len() == 1 => arg_values[0].floor(),
+                            "ceil" if arg_values.len() == 1 => arg_values[0].ceil(),
+                            "round" if arg_values.len() == 1 => arg_values[0].round(),
+                            "abs" if arg_values.len() == 1 => arg_values[0].abs(),
+                            "sqrt" if arg_values.len() == 1 => arg_values[0].sqrt(),
+                            "pow" if arg_values.len() == 2 => arg_values[0].powf(arg_values[1]),
+                            _ => return None,
                         };
-                        return result.map(Some);
-                    }
 
-                    // String comparison for === and !==
-                    if let (Some(l), Some(r)) = (&left_val, &right_val) {
-                        match operator {
-                            "===" => return Some(Some(format!("{}", l == r))),
-                            "!==" => return Some(Some(format!("{}", l != r))),
-                            "+" => return Some(Some(format!("{}{}", l, r))),
-                            _ => {}
+                        // Format result
+                        if result.fract() == 0.0 && result.abs() < i64::MAX as f64 {
+                            return Some(Some(format!("{}", result as i64)));
                         }
+                        return Some(Some(result.to_string()));
                     }
-
-                    None
                 }
-                "UnaryExpression" => {
-                    let operator = obj.get("operator").and_then(|v| v.as_str())?;
-                    let argument = obj.get("argument")?;
-                    let arg_expr = serde_json::from_value::<Expression>(argument.clone()).ok()?;
-                    let arg_val = get_literal_value(&arg_expr, context)?;
+                None
+            }
+            "BinaryExpression" => {
+                let operator = obj.get("operator").and_then(|v| v.as_str())?;
+                let left = obj.get("left")?;
+                let right = obj.get("right")?;
+                let left_expr = serde_json::from_value::<Expression>(left.clone()).ok()?;
+                let right_expr = serde_json::from_value::<Expression>(right.clone()).ok()?;
 
-                    match operator {
-                        "!" => {
-                            // Logical NOT
-                            match arg_val.as_deref() {
-                                Some("true") => Some(Some("false".to_string())),
-                                Some("false") | Some("0") | Some("") | None => {
-                                    Some(Some("true".to_string()))
-                                }
-                                Some(s) => {
-                                    // Any non-empty, non-zero string is truthy
-                                    if s.parse::<f64>().ok() != Some(0.0) {
-                                        Some(Some("false".to_string()))
-                                    } else {
-                                        Some(Some("true".to_string()))
-                                    }
-                                }
+                let left_val = get_literal_value(&left_expr, context)?;
+                let right_val = get_literal_value(&right_expr, context)?;
+
+                // Try numeric comparison first
+                let left_num = left_val.as_ref().and_then(|s| s.parse::<f64>().ok());
+                let right_num = right_val.as_ref().and_then(|s| s.parse::<f64>().ok());
+
+                if let (Some(l), Some(r)) = (left_num, right_num) {
+                    let result: Option<String> = match operator {
+                        "===" | "==" => Some(format!("{}", l == r)),
+                        "!==" | "!=" => Some(format!("{}", l != r)),
+                        "<" => Some(format!("{}", l < r)),
+                        ">" => Some(format!("{}", l > r)),
+                        "<=" => Some(format!("{}", l <= r)),
+                        ">=" => Some(format!("{}", l >= r)),
+                        "+" => {
+                            let res = l + r;
+                            if res.fract() == 0.0 {
+                                Some(format!("{}", res as i64))
+                            } else {
+                                Some(res.to_string())
                             }
                         }
                         "-" => {
-                            let val = arg_val?;
-                            let n = val.parse::<f64>().ok()?;
-                            let res = -n;
+                            let res = l - r;
                             if res.fract() == 0.0 {
-                                Some(Some(format!("{}", res as i64)))
+                                Some(format!("{}", res as i64))
                             } else {
-                                Some(Some(res.to_string()))
+                                Some(res.to_string())
                             }
                         }
-                        "+" => {
-                            let val = arg_val?;
-                            let n = val.parse::<f64>().ok()?;
-                            if n.fract() == 0.0 {
-                                Some(Some(format!("{}", n as i64)))
+                        "*" => {
+                            let res = l * r;
+                            if res.fract() == 0.0 {
+                                Some(format!("{}", res as i64))
                             } else {
-                                Some(Some(n.to_string()))
+                                Some(res.to_string())
                             }
                         }
-                        "typeof" => match arg_val.as_deref() {
-                            None => Some(Some("undefined".to_string())),
-                            Some(s) => {
-                                if s == "true" || s == "false" {
-                                    Some(Some("boolean".to_string()))
-                                } else if s.parse::<f64>().is_ok() {
-                                    Some(Some("number".to_string()))
-                                } else {
-                                    Some(Some("string".to_string()))
-                                }
+                        "/" if r != 0.0 => {
+                            let res = l / r;
+                            if res.fract() == 0.0 {
+                                Some(format!("{}", res as i64))
+                            } else {
+                                Some(res.to_string())
                             }
-                        },
+                        }
+                        "%" if r != 0.0 => {
+                            let res = l % r;
+                            if res.fract() == 0.0 {
+                                Some(format!("{}", res as i64))
+                            } else {
+                                Some(res.to_string())
+                            }
+                        }
                         _ => None,
+                    };
+                    return result.map(Some);
+                }
+
+                // String comparison for === and !==
+                if let (Some(l), Some(r)) = (&left_val, &right_val) {
+                    match operator {
+                        "===" => return Some(Some(format!("{}", l == r))),
+                        "!==" => return Some(Some(format!("{}", l != r))),
+                        "+" => return Some(Some(format!("{}{}", l, r))),
+                        _ => {}
                     }
                 }
-                _ => None,
+
+                None
             }
+            "UnaryExpression" => {
+                let operator = obj.get("operator").and_then(|v| v.as_str())?;
+                let argument = obj.get("argument")?;
+                let arg_expr = serde_json::from_value::<Expression>(argument.clone()).ok()?;
+                let arg_val = get_literal_value(&arg_expr, context)?;
+
+                match operator {
+                    "!" => {
+                        // Logical NOT
+                        match arg_val.as_deref() {
+                            Some("true") => Some(Some("false".to_string())),
+                            Some("false") | Some("0") | Some("") | None => {
+                                Some(Some("true".to_string()))
+                            }
+                            Some(s) => {
+                                // Any non-empty, non-zero string is truthy
+                                if s.parse::<f64>().ok() != Some(0.0) {
+                                    Some(Some("false".to_string()))
+                                } else {
+                                    Some(Some("true".to_string()))
+                                }
+                            }
+                        }
+                    }
+                    "-" => {
+                        let val = arg_val?;
+                        let n = val.parse::<f64>().ok()?;
+                        let res = -n;
+                        if res.fract() == 0.0 {
+                            Some(Some(format!("{}", res as i64)))
+                        } else {
+                            Some(Some(res.to_string()))
+                        }
+                    }
+                    "+" => {
+                        let val = arg_val?;
+                        let n = val.parse::<f64>().ok()?;
+                        if n.fract() == 0.0 {
+                            Some(Some(format!("{}", n as i64)))
+                        } else {
+                            Some(Some(n.to_string()))
+                        }
+                    }
+                    "typeof" => match arg_val.as_deref() {
+                        None => Some(Some("undefined".to_string())),
+                        Some(s) => {
+                            if s == "true" || s == "false" {
+                                Some(Some("boolean".to_string()))
+                            } else if s.parse::<f64>().is_ok() {
+                                Some(Some("number".to_string()))
+                            } else {
+                                Some(Some("string".to_string()))
+                            }
+                        }
+                    },
+                    _ => None,
+                }
+            }
+            _ => None,
         }
     }
 }
@@ -3580,8 +3579,6 @@ pub fn analyze_expression_properties(
     expr: &crate::ast::js::Expression,
     context: &ComponentContext,
 ) -> ExpressionProperties {
-    use crate::ast::js::Expression;
-
     let mut props = ExpressionProperties {
         has_state: false,
         has_call: false,
@@ -3589,10 +3586,9 @@ pub fn analyze_expression_properties(
         has_await: false,
     };
 
-    match expr {
-        Expression::Value(json_value) => {
-            analyze_props_json(json_value, context, &mut props);
-        }
+    {
+        let json_value = expr.as_json();
+        analyze_props_json(json_value, context, &mut props);
     }
 
     props
@@ -3831,11 +3827,7 @@ pub fn expression_has_reactive_state(
     expr: &crate::ast::js::Expression,
     context: &ComponentContext,
 ) -> bool {
-    use crate::ast::js::Expression;
-
-    match expr {
-        Expression::Value(json_value) => has_reactive_state_json(json_value, context),
-    }
+    has_reactive_state_json(expr.as_json(), context)
 }
 
 /// Check if an expression is a `$effect.pending()` rune call.
@@ -3846,42 +3838,37 @@ pub fn expression_has_reactive_state(
 /// so the caller can set has_state = true without affecting has_call.
 #[inline]
 pub fn is_effect_pending_expr(expr: &crate::ast::js::Expression) -> bool {
-    use crate::ast::js::Expression;
-
-    match expr {
-        Expression::Value(json_value) => {
-            let Some(obj) = json_value.as_object() else {
-                return false;
-            };
-            if obj.get("type").and_then(|v| v.as_str()) != Some("CallExpression") {
-                return false;
-            }
-            let Some(callee) = obj.get("callee").and_then(|c| c.as_object()) else {
-                return false;
-            };
-            if callee.get("type").and_then(|t| t.as_str()) != Some("MemberExpression") {
-                return false;
-            }
-            if callee.get("computed").and_then(|v| v.as_bool()) == Some(true) {
-                return false;
-            }
-            let is_pending = callee
-                .get("property")
-                .and_then(|p| p.as_object())
-                .is_some_and(|p_obj| {
-                    p_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                        && p_obj.get("name").and_then(|n| n.as_str()) == Some("pending")
-                });
-            let is_effect_obj = callee
-                .get("object")
-                .and_then(|o| o.as_object())
-                .is_some_and(|o_obj| {
-                    o_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                        && o_obj.get("name").and_then(|n| n.as_str()) == Some("$effect")
-                });
-            is_pending && is_effect_obj
-        }
+    let json_value = expr.as_json();
+    let Some(obj) = json_value.as_object() else {
+        return false;
+    };
+    if obj.get("type").and_then(|v| v.as_str()) != Some("CallExpression") {
+        return false;
     }
+    let Some(callee) = obj.get("callee").and_then(|c| c.as_object()) else {
+        return false;
+    };
+    if callee.get("type").and_then(|t| t.as_str()) != Some("MemberExpression") {
+        return false;
+    }
+    if callee.get("computed").and_then(|v| v.as_bool()) == Some(true) {
+        return false;
+    }
+    let is_pending = callee
+        .get("property")
+        .and_then(|p| p.as_object())
+        .is_some_and(|p_obj| {
+            p_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                && p_obj.get("name").and_then(|n| n.as_str()) == Some("pending")
+        });
+    let is_effect_obj = callee
+        .get("object")
+        .and_then(|o| o.as_object())
+        .is_some_and(|o_obj| {
+            o_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                && o_obj.get("name").and_then(|n| n.as_str()) == Some("$effect")
+        });
+    is_pending && is_effect_obj
 }
 
 /// Internal helper that processes JSON values directly, avoiding serde_json::from_value overhead.
@@ -4340,11 +4327,7 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
 /// Pure calls with only pure arguments are not counted.
 #[inline]
 pub fn expression_has_call(expr: &crate::ast::js::Expression, context: &ComponentContext) -> bool {
-    use crate::ast::js::Expression;
-
-    match expr {
-        Expression::Value(json_value) => has_call_json(json_value, context),
-    }
+    has_call_json(expr.as_json(), context)
 }
 
 /// Check if an expression (or its callee) is "pure" in the Svelte sense.
@@ -4579,11 +4562,7 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
 /// Returns true if the expression contains a MemberExpression at any level.
 #[inline]
 pub fn expression_has_member(expr: &crate::ast::js::Expression) -> bool {
-    use crate::ast::js::Expression;
-
-    match expr {
-        Expression::Value(json_value) => has_member_json(json_value),
-    }
+    has_member_json(expr.as_json())
 }
 
 /// Internal helper that checks for MemberExpression in JSON values.
@@ -4703,11 +4682,7 @@ fn has_member_json(json_value: &serde_json::Value) -> bool {
 /// Returns true if the expression contains an AwaitExpression at any level.
 #[inline]
 pub fn expression_has_await(expr: &crate::ast::js::Expression) -> bool {
-    use crate::ast::js::Expression;
-
-    match expr {
-        Expression::Value(json_value) => has_await_json(json_value),
-    }
+    has_await_json(expr.as_json())
 }
 
 /// Internal helper that checks for AwaitExpression in JSON values.
