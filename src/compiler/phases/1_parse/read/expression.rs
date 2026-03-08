@@ -32,6 +32,17 @@ use crate::ast::typed_expr::{
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
 use compact_str::CompactString;
 
+/// Extract a JsNode from an Expression, avoiding clone/conversion overhead.
+/// For Typed variant: returns the inner JsNode directly (zero cost).
+/// For Value variant: wraps the Value in JsNode::Raw (no clone).
+#[inline]
+fn expr_to_node(expr: Expression) -> JsNode {
+    match expr {
+        Expression::Typed(te) => te.node,
+        Expression::Value(v) => JsNode::Raw(v),
+    }
+}
+
 // ============================================================================
 // Comment handling utilities
 // ============================================================================
@@ -2136,9 +2147,9 @@ fn create_binary_expression(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        left: Box::new(JsNode::Raw(left_expr.as_json().clone())),
+        left: Box::new(expr_to_node(left_expr)),
         operator: CompactString::from(binary_operator_to_string(operator)),
-        right: Box::new(JsNode::Raw(right_expr.as_json().clone())),
+        right: Box::new(expr_to_node(right_expr)),
     })
 }
 
@@ -2156,9 +2167,9 @@ fn create_logical_expression(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        left: Box::new(JsNode::Raw(left_expr.as_json().clone())),
+        left: Box::new(expr_to_node(left_expr)),
         operator: CompactString::from(logical_operator_to_string(&logical.operator)),
-        right: Box::new(JsNode::Raw(right_expr.as_json().clone())),
+        right: Box::new(expr_to_node(right_expr)),
     })
 }
 
@@ -2177,7 +2188,7 @@ fn create_unary_expression(
         loc: create_typed_loc(start, end, line_offsets),
         operator: CompactString::from(unary_operator_to_string(&unary.operator)),
         prefix: true,
-        argument: Box::new(JsNode::Raw(argument.as_json().clone())),
+        argument: Box::new(expr_to_node(argument)),
     })
 }
 
@@ -2196,9 +2207,9 @@ fn create_conditional_expression(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        test: Box::new(JsNode::Raw(test.as_json().clone())),
-        consequent: Box::new(JsNode::Raw(consequent.as_json().clone())),
-        alternate: Box::new(JsNode::Raw(alternate.as_json().clone())),
+        test: Box::new(expr_to_node(test)),
+        consequent: Box::new(expr_to_node(consequent)),
+        alternate: Box::new(expr_to_node(alternate)),
     })
 }
 
@@ -2233,7 +2244,7 @@ fn create_call_expression(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        callee: Box::new(JsNode::Raw(callee.as_json().clone())),
+        callee: Box::new(expr_to_node(callee)),
         arguments: args,
         optional: call.optional,
     })
@@ -2255,7 +2266,7 @@ fn create_static_member_expression(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        object: Box::new(JsNode::Raw(object.as_json().clone())),
+        object: Box::new(expr_to_node(object)),
         property: Box::new(JsNode::Identifier {
             start: prop_start as u32,
             end: prop_end as u32,
@@ -2281,8 +2292,8 @@ fn create_computed_member_expression(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        object: Box::new(JsNode::Raw(object.as_json().clone())),
-        property: Box::new(JsNode::Raw(property.as_json().clone())),
+        object: Box::new(expr_to_node(object)),
+        property: Box::new(expr_to_node(property)),
         computed: true,
         optional: member.optional,
     })
@@ -2304,7 +2315,7 @@ fn create_private_member_expression(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        object: Box::new(JsNode::Raw(object.as_json().clone())),
+        object: Box::new(expr_to_node(object)),
         property: Box::new(JsNode::PrivateIdentifier {
             start: prop_start as u32,
             end: prop_end as u32,
@@ -2337,7 +2348,7 @@ fn create_new_expression(
                     start: spread_start as u32,
                     end: spread_end as u32,
                     loc: create_typed_loc(spread_start, spread_end, line_offsets),
-                    argument: Box::new(JsNode::Raw(spread_arg.as_json().clone())),
+                    argument: Box::new(expr_to_node(spread_arg)),
                 }
             }
             _ => {
@@ -2355,7 +2366,7 @@ fn create_new_expression(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        callee: Box::new(JsNode::Raw(callee.as_json().clone())),
+        callee: Box::new(expr_to_node(callee)),
         arguments: args,
     })
 }
@@ -2443,7 +2454,7 @@ fn create_class_expression(
     // superClass
     let super_class = class_expr.super_class.as_ref().map(|sc| {
         let super_expr = convert_expression(sc, offset, line_offsets);
-        Box::new(JsNode::Raw(super_expr.as_json().clone()))
+        Box::new(expr_to_node(super_expr))
     });
 
     // body
@@ -2477,8 +2488,8 @@ fn create_tagged_template_expression(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        tag: Box::new(JsNode::Raw(tag.as_json().clone())),
-        quasi: Box::new(JsNode::Raw(quasi.as_json().clone())),
+        tag: Box::new(expr_to_node(tag)),
+        quasi: Box::new(expr_to_node(quasi)),
     })
 }
 
@@ -2663,7 +2674,7 @@ fn create_array_expression(
                     start: spread_start as u32,
                     end: spread_end as u32,
                     loc: create_typed_loc(spread_start, spread_end, line_offsets),
-                    argument: Box::new(JsNode::Raw(spread_arg.as_json().clone())),
+                    argument: Box::new(expr_to_node(spread_arg)),
                 })
             }
             oxc_ast::ast::ArrayExpressionElement::Elision(_) => None,
@@ -2715,7 +2726,7 @@ fn create_object_expression(
                     end: prop_end as u32,
                     loc: create_typed_loc(prop_start, prop_end, line_offsets),
                     key: Box::new(JsNode::Raw(key)),
-                    value: Box::new(JsNode::Raw(value.as_json().clone())),
+                    value: Box::new(expr_to_node(value)),
                     kind: CompactString::from(kind),
                     method: p.method,
                     shorthand: p.shorthand,
@@ -2731,7 +2742,7 @@ fn create_object_expression(
                     start: spread_start as u32,
                     end: spread_end as u32,
                     loc: create_typed_loc(spread_start, spread_end, line_offsets),
-                    argument: Box::new(JsNode::Raw(argument.as_json().clone())),
+                    argument: Box::new(expr_to_node(argument)),
                 }
             }
         })
@@ -2797,7 +2808,7 @@ fn create_assignment_expression(
         loc: create_typed_loc(start, end, line_offsets),
         operator: CompactString::from(operator),
         left: Box::new(JsNode::Raw(left)),
-        right: Box::new(JsNode::Raw(right.as_json().clone())),
+        right: Box::new(expr_to_node(right)),
     })
 }
 

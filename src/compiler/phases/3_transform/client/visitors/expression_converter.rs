@@ -7,6 +7,7 @@
 //! Corresponds to the visitor pattern in Svelte's transform phase.
 
 use crate::ast::js::Expression;
+use crate::ast::typed_expr::{JsNode, LiteralValue};
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -131,7 +132,1298 @@ fn build_fallback_expr(
 /// into the transform-phase AST format.
 #[inline]
 pub fn convert_expression(expr: &Expression, context: &mut ComponentContext) -> JsExpr {
-    convert_json_value(expr.as_json(), context)
+    let node = expr.as_node();
+    convert_js_node(&node, context)
+}
+
+/// Convert a JsNode directly to JsExpr via pattern matching, bypassing serde_json::Value
+/// for simple expression types. Complex types fall back to convert_json_value.
+fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
+    match node {
+        JsNode::Identifier { name, .. } => {
+            let name_str = name.to_string();
+
+            // Check if this is a prop that needs special handling
+            if context.state.analysis.runes
+                && let Some(binding) = context.state.get_binding(&name_str)
+                && matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp)
+            {
+                let is_source =
+                    crate::compiler::phases::phase3_transform::client::utils::is_prop_source(
+                        binding,
+                        context.state.analysis,
+                    );
+                let is_exported = context
+                    .state
+                    .analysis
+                    .exports
+                    .iter()
+                    .any(|e| e.name == name_str);
+
+                if !is_source && !is_exported {
+                    let prop_name = binding
+                        .prop_alias
+                        .as_deref()
+                        .unwrap_or(&name_str)
+                        .to_string();
+                    let needs_bracket = prop_name.contains('-')
+                        || prop_name.chars().next().is_some_and(|c| c.is_ascii_digit());
+                    return JsExpr::Member(JsMemberExpression {
+                        object: Box::new(JsExpr::Identifier("$$props".into())),
+                        property: if needs_bracket {
+                            JsMemberProperty::Expression(Box::new(JsExpr::Literal(
+                                JsLiteral::String(prop_name.into()),
+                            )))
+                        } else {
+                            JsMemberProperty::Identifier(prop_name.into())
+                        },
+                        computed: needs_bracket,
+                        optional: false,
+                    });
+                }
+            }
+
+            JsExpr::Identifier(name_str.into())
+        }
+
+        JsNode::Literal {
+            value, raw, regex, ..
+        } => match value {
+            LiteralValue::String(s) => {
+                if raw.starts_with('"') {
+                    JsExpr::Raw(raw.to_string().into())
+                } else {
+                    JsExpr::Literal(JsLiteral::String(s.to_string().into()))
+                }
+            }
+            LiteralValue::Number(n) => JsExpr::Literal(JsLiteral::Number(*n)),
+            LiteralValue::Bool(b) => JsExpr::Literal(JsLiteral::Boolean(*b)),
+            LiteralValue::Null => {
+                // Check for regex
+                if let Some(r) = regex {
+                    return JsExpr::Literal(JsLiteral::Regex {
+                        pattern: r.pattern.clone(),
+                        flags: r.flags.clone(),
+                    });
+                }
+                // Check for BigInt (raw ends with 'n')
+                if raw.ends_with('n') {
+                    return JsExpr::Raw(raw.to_string().into());
+                }
+                JsExpr::Literal(JsLiteral::Null)
+            }
+            LiteralValue::Regex(r) => JsExpr::Literal(JsLiteral::Regex {
+                pattern: r.pattern.clone(),
+                flags: r.flags.clone(),
+            }),
+        },
+
+        JsNode::BinaryExpression {
+            left,
+            operator,
+            right,
+            ..
+        } => {
+            let op = match operator.as_str() {
+                "+" => JsBinaryOp::Add,
+                "-" => JsBinaryOp::Sub,
+                "*" => JsBinaryOp::Mul,
+                "/" => JsBinaryOp::Div,
+                "%" => JsBinaryOp::Mod,
+                "**" => JsBinaryOp::Pow,
+                "==" => JsBinaryOp::Eq,
+                "!=" => JsBinaryOp::Ne,
+                "===" => JsBinaryOp::StrictEq,
+                "!==" => JsBinaryOp::StrictNe,
+                "<" => JsBinaryOp::Lt,
+                "<=" => JsBinaryOp::Le,
+                ">" => JsBinaryOp::Gt,
+                ">=" => JsBinaryOp::Ge,
+                "&" => JsBinaryOp::BitAnd,
+                "|" => JsBinaryOp::BitOr,
+                "^" => JsBinaryOp::BitXor,
+                "<<" => JsBinaryOp::Shl,
+                ">>" => JsBinaryOp::Shr,
+                ">>>" => JsBinaryOp::UShr,
+                "in" => JsBinaryOp::In,
+                "instanceof" => JsBinaryOp::InstanceOf,
+                _ => JsBinaryOp::Add,
+            };
+            JsExpr::Binary(JsBinaryExpression {
+                operator: op,
+                left: Box::new(convert_js_node(left, context)),
+                right: Box::new(convert_js_node(right, context)),
+            })
+        }
+
+        JsNode::LogicalExpression {
+            left,
+            operator,
+            right,
+            ..
+        } => {
+            let op = match operator.as_str() {
+                "&&" => JsLogicalOp::And,
+                "||" => JsLogicalOp::Or,
+                "??" => JsLogicalOp::NullishCoalescing,
+                _ => JsLogicalOp::And,
+            };
+            JsExpr::Logical(JsLogicalExpression {
+                operator: op,
+                left: Box::new(convert_js_node(left, context)),
+                right: Box::new(convert_js_node(right, context)),
+            })
+        }
+
+        JsNode::UnaryExpression {
+            operator,
+            argument,
+            prefix,
+            ..
+        } => {
+            let op = match operator.as_str() {
+                "-" => JsUnaryOp::Minus,
+                "+" => JsUnaryOp::Plus,
+                "!" => JsUnaryOp::Not,
+                "~" => JsUnaryOp::BitNot,
+                "typeof" => JsUnaryOp::TypeOf,
+                "void" => JsUnaryOp::Void,
+                "delete" => JsUnaryOp::Delete,
+                _ => JsUnaryOp::Not,
+            };
+            JsExpr::Unary(JsUnaryExpression {
+                operator: op,
+                argument: Box::new(convert_js_node(argument, context)),
+                prefix: *prefix,
+            })
+        }
+
+        JsNode::ConditionalExpression {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => JsExpr::Conditional(JsConditionalExpression {
+            test: Box::new(convert_js_node(test, context)),
+            consequent: Box::new(convert_js_node(consequent, context)),
+            alternate: Box::new(convert_js_node(alternate, context)),
+        }),
+
+        JsNode::ArrayExpression { elements, .. } => {
+            let elems = elements
+                .iter()
+                .map(|e| e.as_ref().map(|elem| convert_js_node(elem, context)))
+                .collect();
+            JsExpr::Array(JsArrayExpression { elements: elems })
+        }
+
+        JsNode::SequenceExpression { expressions, .. } => {
+            let exprs = expressions
+                .iter()
+                .map(|e| convert_js_node(e, context))
+                .collect();
+            JsExpr::Sequence(JsSequenceExpression { expressions: exprs })
+        }
+
+        JsNode::ThisExpression { .. } => JsExpr::This,
+
+        JsNode::SpreadElement { argument, .. } => {
+            JsExpr::Spread(Box::new(convert_js_node(argument, context)))
+        }
+
+        JsNode::AwaitExpression { argument, .. } => {
+            JsExpr::Await(Box::new(convert_js_node(argument, context)))
+        }
+
+        JsNode::YieldExpression {
+            delegate, argument, ..
+        } => JsExpr::Yield(JsYieldExpression {
+            delegate: *delegate,
+            argument: argument
+                .as_ref()
+                .map(|a| Box::new(convert_js_node(a, context))),
+        }),
+
+        JsNode::TemplateLiteral {
+            quasis,
+            expressions,
+            ..
+        } => {
+            let template_quasis: Vec<JsTemplateElement> = quasis
+                .iter()
+                .filter_map(|q| match q {
+                    JsNode::TemplateElement { value, tail, .. } => Some(JsTemplateElement {
+                        raw: value.raw.clone(),
+                        cooked: value
+                            .cooked
+                            .as_ref()
+                            .unwrap_or(&value.raw)
+                            .to_string()
+                            .into(),
+                        tail: *tail,
+                    }),
+                    _ => None,
+                })
+                .collect();
+            let expr_parts: Vec<JsExpr> = expressions
+                .iter()
+                .map(|e| convert_js_node(e, context))
+                .collect();
+            JsExpr::TemplateLiteral(JsTemplateLiteral {
+                quasis: template_quasis,
+                expressions: expr_parts,
+            })
+        }
+
+        JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
+            let tag_expr = convert_js_node(tag, context);
+            let quasi_tl = match convert_js_node(quasi, context) {
+                JsExpr::TemplateLiteral(tl) => tl,
+                _ => JsTemplateLiteral {
+                    quasis: vec![],
+                    expressions: vec![],
+                },
+            };
+            JsExpr::TaggedTemplate(JsTaggedTemplate {
+                tag: Box::new(tag_expr),
+                quasi: quasi_tl,
+            })
+        }
+
+        JsNode::ChainExpression { expression, .. } => convert_js_node(expression, context),
+
+        JsNode::MetaProperty { meta, property, .. } => {
+            let meta_name = match meta.as_ref() {
+                JsNode::Identifier { name, .. } => name.as_str(),
+                _ => "import",
+            };
+            let prop_name = match property.as_ref() {
+                JsNode::Identifier { name, .. } => name.as_str(),
+                _ => "meta",
+            };
+            JsExpr::Raw(format!("{}.{}", meta_name, prop_name).into())
+        }
+
+        // MemberExpression: direct JsNode handling
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            optional,
+            ..
+        } => {
+            let computed = *computed;
+            let optional = *optional;
+
+            // Use helper functions defined at module level
+
+            // Handle private state field access: this.#foo -> this.#foo.v or $.get(this.#foo)
+            if !computed && let Some(prop_name) = get_jsnode_private_identifier_name(property) {
+                let field_name = format!("#{}", prop_name);
+                let field_info = context
+                    .state
+                    .state_fields
+                    .get(&field_name)
+                    .map(|f| (f.field_type.clone(), context.state.in_constructor));
+
+                if let Some((field_type, in_constructor)) = field_info {
+                    let base_object = Box::new(convert_js_node(object, context));
+                    let base_member = JsExpr::Member(JsMemberExpression {
+                        object: base_object,
+                        property: JsMemberProperty::PrivateIdentifier(prop_name.into()),
+                        computed: false,
+                        optional,
+                    });
+
+                    if in_constructor && (field_type == "$state" || field_type == "$state.raw") {
+                        return JsExpr::Member(JsMemberExpression {
+                            object: Box::new(base_member),
+                            property: JsMemberProperty::Identifier("v".into()),
+                            computed: false,
+                            optional: false,
+                        });
+                    } else if field_type == "$state"
+                        || field_type == "$state.raw"
+                        || field_type == "$derived"
+                        || field_type == "$derived.by"
+                    {
+                        return JsExpr::Call(JsCallExpression {
+                            callee: Box::new(JsExpr::Member(JsMemberExpression {
+                                object: Box::new(JsExpr::Identifier("$".into())),
+                                property: JsMemberProperty::Identifier("get".into()),
+                                computed: false,
+                                optional: false,
+                            })),
+                            arguments: vec![base_member],
+                            optional: false,
+                        });
+                    }
+                }
+            }
+
+            // Check if the object is a rest_prop identifier and should be transformed to $$props
+            let should_transform_to_props = if !computed
+                && context.state.analysis.runes
+                && !context.state.in_direct_assignment_lhs
+            {
+                if let Some(name) = get_jsnode_identifier_name(object) {
+                    if let Some(binding) = context.state.get_binding(&name) {
+                        matches!(binding.kind, BindingKind::RestProp)
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+
+            let conv_object = if should_transform_to_props {
+                Box::new(JsExpr::Identifier("$$props".into()))
+            } else {
+                Box::new(convert_js_node(object, context))
+            };
+
+            let conv_property = if computed {
+                JsMemberProperty::Expression(Box::new(convert_js_node(property, context)))
+            } else if let Some(prop_name) = get_jsnode_private_identifier_name(property) {
+                JsMemberProperty::PrivateIdentifier(prop_name.into())
+            } else if let Some(prop_name) = get_jsnode_identifier_name(property) {
+                JsMemberProperty::Identifier(prop_name.into())
+            } else {
+                // Fallback: convert through Value path
+                let value = property.to_value();
+                if let Some(obj) = value.as_object() {
+                    if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+                        JsMemberProperty::Identifier(name.into())
+                    } else {
+                        JsMemberProperty::Identifier("unknown".into())
+                    }
+                } else {
+                    JsMemberProperty::Identifier("unknown".into())
+                }
+            };
+
+            JsExpr::Member(JsMemberExpression {
+                object: conv_object,
+                property: conv_property,
+                computed,
+                optional,
+            })
+        }
+
+        // CallExpression: direct JsNode handling (falls back to Value for rune detection)
+        JsNode::CallExpression {
+            callee,
+            arguments,
+            optional,
+            ..
+        } => {
+            // Check if this is a rune call - use Value fallback only for rune detection
+            if is_potential_rune_call(callee, context) {
+                let value = node.to_value();
+                if let Some(obj) = value.as_object()
+                    && let Some(rune) = get_rune_from_call(obj, context)
+                {
+                    return transform_rune_call(&rune, obj, context);
+                }
+            }
+
+            let conv_callee = Box::new(convert_js_node(callee, context));
+            let conv_arguments: Vec<JsExpr> = arguments
+                .iter()
+                .map(|arg| convert_js_node(arg, context))
+                .collect();
+
+            JsExpr::Call(JsCallExpression {
+                callee: conv_callee,
+                arguments: conv_arguments,
+                optional: *optional,
+            })
+        }
+
+        // NewExpression: direct JsNode handling
+        JsNode::NewExpression {
+            callee, arguments, ..
+        } => {
+            let conv_callee = Box::new(convert_js_node(callee, context));
+            let conv_arguments: Vec<JsExpr> = arguments
+                .iter()
+                .map(|arg| convert_js_node(arg, context))
+                .collect();
+
+            JsExpr::New(JsNewExpression {
+                callee: conv_callee,
+                arguments: conv_arguments,
+            })
+        }
+
+        // ObjectExpression: direct JsNode handling
+        JsNode::ObjectExpression { properties, .. } => {
+            let conv_properties: Vec<JsObjectMember> = properties
+                .iter()
+                .filter_map(|prop| convert_object_member_from_node(prop, context))
+                .collect();
+
+            JsExpr::Object(JsObjectExpression {
+                properties: conv_properties,
+            })
+        }
+
+        // ArrowFunctionExpression: use to_value() for params/body helpers
+        JsNode::ArrowFunctionExpression {
+            params,
+            body,
+            r#async: is_async,
+            ..
+        } => {
+            // Convert params via JsNode
+            let conv_params = convert_params_from_nodes(params, context);
+
+            // Save transforms and remove for shadowed params
+            let saved_transform = context.state.transform.clone();
+            let param_names = extract_param_names_from_nodes(params);
+            for name in &param_names {
+                context.state.transform.remove(name);
+            }
+
+            context.state.push_local_scope();
+
+            let conv_body = match body.as_ref() {
+                JsNode::BlockStatement { .. } => {
+                    let body_value = body.to_value();
+                    if let Some(body_obj) = body_value.as_object() {
+                        JsArrowBody::Block(convert_block_statement(body_obj, context))
+                    } else {
+                        JsArrowBody::Block(JsBlockStatement::new())
+                    }
+                }
+                JsNode::Raw(v) => {
+                    if let Some(obj) = v.as_object() {
+                        if obj.get("type").and_then(|t| t.as_str()) == Some("BlockStatement") {
+                            JsArrowBody::Block(convert_block_statement(obj, context))
+                        } else {
+                            JsArrowBody::Expression(Box::new(convert_json_value(v, context)))
+                        }
+                    } else {
+                        JsArrowBody::Block(JsBlockStatement::new())
+                    }
+                }
+                _ => JsArrowBody::Expression(Box::new(convert_js_node(body, context))),
+            };
+
+            context.state.pop_local_scope();
+            context.state.transform = saved_transform;
+
+            JsExpr::Arrow(JsArrowFunction {
+                params: conv_params.into(),
+                body: conv_body,
+                is_async: *is_async,
+            })
+        }
+
+        // FunctionExpression: use to_value() for body helpers
+        JsNode::FunctionExpression {
+            id,
+            params,
+            body,
+            generator,
+            r#async: is_async,
+            ..
+        } => {
+            let conv_id: Option<CompactString> =
+                id.as_ref().and_then(|id_node| match id_node.as_ref() {
+                    JsNode::Identifier { name, .. } => Some(name.to_string().into()),
+                    JsNode::Raw(v) => v
+                        .as_object()
+                        .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
+                        .and_then(|o| o.get("name").and_then(|n| n.as_str()))
+                        .map(|n| n.into()),
+                    _ => None,
+                });
+
+            let conv_params = convert_params_from_nodes(params, context);
+
+            // Save transforms and remove for shadowed params
+            let saved_transform = context.state.transform.clone();
+            let param_names = extract_param_names_from_nodes(params);
+            for name in &param_names {
+                context.state.transform.remove(name);
+            }
+
+            context.state.push_local_scope();
+
+            let conv_body = body
+                .as_ref()
+                .map(|b| match b.as_ref() {
+                    JsNode::BlockStatement { .. } => {
+                        let body_value = b.to_value();
+                        if let Some(body_obj) = body_value.as_object() {
+                            convert_block_statement(body_obj, context)
+                        } else {
+                            JsBlockStatement::new()
+                        }
+                    }
+                    JsNode::Raw(v) => {
+                        if let Some(obj) = v.as_object() {
+                            convert_block_statement(obj, context)
+                        } else {
+                            JsBlockStatement::new()
+                        }
+                    }
+                    _ => {
+                        let body_value = b.to_value();
+                        if let Some(body_obj) = body_value.as_object() {
+                            convert_block_statement(body_obj, context)
+                        } else {
+                            JsBlockStatement::new()
+                        }
+                    }
+                })
+                .unwrap_or_default();
+
+            context.state.pop_local_scope();
+            context.state.transform = saved_transform;
+
+            JsExpr::Function(JsFunctionExpression {
+                id: conv_id,
+                params: conv_params.into(),
+                body: conv_body,
+                is_async: *is_async,
+                is_generator: *generator,
+            })
+        }
+
+        // AssignmentExpression: direct JsNode handling (falls back to Value for destructuring/transforms)
+        JsNode::AssignmentExpression {
+            operator,
+            left,
+            right,
+            ..
+        } => {
+            let operator_str = operator.as_str();
+
+            // Check if the LHS is a destructuring pattern (typed or Raw-wrapped)
+            let left_is_pattern = match left.as_ref() {
+                JsNode::ArrayPattern { .. }
+                | JsNode::ObjectPattern { .. }
+                | JsNode::RestElement { .. } => true,
+                JsNode::Raw(v) => v
+                    .as_object()
+                    .and_then(|o| o.get("type").and_then(|t| t.as_str()))
+                    .is_some_and(|t| matches!(t, "ArrayPattern" | "ObjectPattern" | "RestElement")),
+                _ => false,
+            };
+
+            if left_is_pattern {
+                let left_val = left.to_value();
+                let right_val = right.to_value();
+                if let Some(result) =
+                    try_destructure_assignment(&left_val, Some(&right_val), context)
+                {
+                    return result;
+                }
+            }
+
+            let assign_op = match operator_str {
+                "=" => JsAssignmentOp::Assign,
+                "+=" => JsAssignmentOp::AddAssign,
+                "-=" => JsAssignmentOp::SubAssign,
+                "*=" => JsAssignmentOp::MulAssign,
+                "/=" => JsAssignmentOp::DivAssign,
+                "%=" => JsAssignmentOp::ModAssign,
+                "**=" => JsAssignmentOp::PowAssign,
+                "<<=" => JsAssignmentOp::ShlAssign,
+                ">>=" => JsAssignmentOp::ShrAssign,
+                ">>>=" => JsAssignmentOp::UShrAssign,
+                "&=" => JsAssignmentOp::BitAndAssign,
+                "|=" => JsAssignmentOp::BitOrAssign,
+                "^=" => JsAssignmentOp::BitXorAssign,
+                "&&=" => JsAssignmentOp::AndAssign,
+                "||=" => JsAssignmentOp::OrAssign,
+                "??=" => JsAssignmentOp::NullishAssign,
+                _ => JsAssignmentOp::Assign,
+            };
+
+            // Check if the LHS is a direct MemberExpression with an Identifier object
+            let is_direct_member_assignment = is_direct_member_with_identifier(left);
+
+            let saved_flag = context.state.in_direct_assignment_lhs;
+            if is_direct_member_assignment {
+                context.state.in_direct_assignment_lhs = true;
+            }
+
+            let conv_left = convert_js_node(left, context);
+
+            context.state.in_direct_assignment_lhs = saved_flag;
+
+            let conv_right = convert_js_node(right, context);
+
+            // Extract root identifier from original JsNode (before transforms)
+            let original_root_name = extract_root_identifier_from_jsnode(left);
+
+            // For should_proxy_value, we need the right JSON value
+            let right_json_val = right.to_value();
+
+            if let Some(transformed) = try_transform_assignment(
+                operator_str,
+                &conv_left,
+                &conv_right,
+                Some(&right_json_val),
+                original_root_name.as_deref(),
+                context,
+            ) {
+                return transformed;
+            }
+
+            JsExpr::Assignment(JsAssignmentExpression {
+                operator: assign_op,
+                left: Box::new(conv_left),
+                right: Box::new(conv_right),
+            })
+        }
+
+        // UpdateExpression: direct JsNode handling
+        JsNode::UpdateExpression {
+            operator,
+            prefix,
+            argument,
+            ..
+        } => {
+            let operator_str = operator.as_str();
+            let prefix = *prefix;
+
+            let update_op = match operator_str {
+                "++" => JsUpdateOp::Increment,
+                "--" => JsUpdateOp::Decrement,
+                _ => JsUpdateOp::Increment,
+            };
+
+            // Check if the argument is a simple identifier with an update transform
+            if let Some(name_str) = get_jsnode_identifier_name(argument)
+                && let Some(update_fn) = context
+                    .state
+                    .transform
+                    .get(&name_str)
+                    .and_then(|t| t.update)
+            {
+                return update_fn(update_op, JsExpr::Identifier(name_str.into()), prefix);
+            }
+
+            // Check if the argument is a direct MemberExpression with Identifier object
+            let is_direct_member_update = is_direct_member_with_identifier(argument);
+
+            let saved_flag = context.state.in_direct_assignment_lhs;
+            if is_direct_member_update {
+                context.state.in_direct_assignment_lhs = true;
+            }
+
+            let conv_argument = Box::new(convert_js_node(argument, context));
+
+            context.state.in_direct_assignment_lhs = saved_flag;
+
+            if let Some(transformed) =
+                try_transform_update(update_op, prefix, &conv_argument, context)
+            {
+                return transformed;
+            }
+
+            JsExpr::Update(JsUpdateExpression {
+                operator: update_op,
+                argument: conv_argument,
+                prefix,
+            })
+        }
+
+        // ObjectPattern / ArrayPattern: direct JsNode handling
+        JsNode::ObjectPattern { .. } | JsNode::ArrayPattern { .. } => {
+            let value = node.to_value();
+            if let Some(pattern) = convert_param_pattern(&value, context) {
+                JsExpr::Raw(pattern_to_string(&pattern).into())
+            } else {
+                JsExpr::Raw("/* Unknown pattern */".into())
+            }
+        }
+
+        JsNode::Raw(value) => convert_json_value(value, context),
+        JsNode::Null => JsExpr::Literal(JsLiteral::Null),
+
+        // Any other variant - fall back to Value conversion
+        _ => convert_json_value(&node.to_value(), context),
+    }
+}
+
+/// Check if a CallExpression callee might be a rune call.
+/// This is a fast check to avoid the expensive `to_value()` conversion for non-rune calls.
+fn is_potential_rune_call(callee: &JsNode, context: &ComponentContext) -> bool {
+    let check_rune_name = |name: &str| -> bool {
+        name.starts_with('$')
+            && context.state.get_binding(name).is_none()
+            && RUNES.iter().any(|r| r.starts_with(name))
+    };
+
+    if let Some(name) = get_jsnode_identifier_name(callee) {
+        return check_rune_name(&name);
+    }
+
+    // Check for MemberExpression (typed)
+    if let JsNode::MemberExpression { object, .. } = callee {
+        if let Some(name) = get_jsnode_identifier_name(object)
+            && name.starts_with('$')
+            && context.state.get_binding(&name).is_none()
+        {
+            return true;
+        }
+        // Check for $inspect().with() pattern
+        match object.as_ref() {
+            JsNode::CallExpression { callee: inner, .. } => {
+                if let Some(n) = get_jsnode_identifier_name(inner)
+                    && n.starts_with('$')
+                    && context.state.get_binding(&n).is_none()
+                {
+                    return true;
+                }
+            }
+            JsNode::Raw(v) => {
+                if let Some(obj) = v.as_object()
+                    && obj.get("type").and_then(|t| t.as_str()) == Some("CallExpression")
+                    && let Some(name) = obj
+                        .get("callee")
+                        .and_then(|c| c.as_object())
+                        .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
+                        .and_then(|o| o.get("name").and_then(|n| n.as_str()))
+                    && name.starts_with('$')
+                    && context.state.get_binding(name).is_none()
+                {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Handle Raw-wrapped callee
+    if let JsNode::Raw(v) = callee
+        && let Some(obj) = v.as_object()
+    {
+        let callee_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        if callee_type == "MemberExpression"
+            && let Some(name) = obj
+                .get("object")
+                .and_then(|o| o.as_object())
+                .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
+                .and_then(|o| o.get("name").and_then(|n| n.as_str()))
+            && name.starts_with('$')
+            && context.state.get_binding(name).is_none()
+        {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Convert an object member from a JsNode (Property or SpreadElement).
+fn convert_object_member_from_node(
+    node: &JsNode,
+    context: &mut ComponentContext,
+) -> Option<JsObjectMember> {
+    match node {
+        JsNode::Property {
+            key,
+            value,
+            kind,
+            method,
+            shorthand,
+            computed,
+            ..
+        } => {
+            let conv_key = convert_property_key_from_node(key, *computed, context);
+            let conv_value = Box::new(convert_js_node(value, context));
+
+            let prop_kind = match kind.as_str() {
+                "init" => JsPropertyKind::Init,
+                "get" => JsPropertyKind::Get,
+                "set" => JsPropertyKind::Set,
+                _ => JsPropertyKind::Init,
+            };
+
+            Some(JsObjectMember::Property(JsProperty {
+                key: conv_key,
+                value: conv_value,
+                kind: prop_kind,
+                computed: *computed,
+                shorthand: *shorthand,
+                method: *method,
+            }))
+        }
+        JsNode::SpreadElement { argument, .. } => {
+            let conv_argument = Box::new(convert_js_node(argument, context));
+            Some(JsObjectMember::SpreadElement(conv_argument))
+        }
+        // Handle Raw-wrapped property nodes (common from parser)
+        JsNode::Raw(value) => {
+            if let Some(obj) = value.as_object() {
+                let prop_type = obj.get("type").and_then(|t| t.as_str())?;
+                match prop_type {
+                    "Property" => {
+                        let key = convert_property_key(obj, context);
+                        let value = obj
+                            .get("value")
+                            .map(|v| Box::new(convert_json_value(v, context)))
+                            .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+                        let computed = obj
+                            .get("computed")
+                            .and_then(|c| c.as_bool())
+                            .unwrap_or(false);
+                        let shorthand = obj
+                            .get("shorthand")
+                            .and_then(|s| s.as_bool())
+                            .unwrap_or(false);
+                        let kind = match obj.get("kind").and_then(|k| k.as_str()) {
+                            Some("init") => JsPropertyKind::Init,
+                            Some("get") => JsPropertyKind::Get,
+                            Some("set") => JsPropertyKind::Set,
+                            _ => JsPropertyKind::Init,
+                        };
+                        let method = obj.get("method").and_then(|v| v.as_bool()).unwrap_or(false);
+                        Some(JsObjectMember::Property(JsProperty {
+                            key,
+                            value,
+                            kind,
+                            computed,
+                            shorthand,
+                            method,
+                        }))
+                    }
+                    "SpreadElement" => {
+                        let argument = obj
+                            .get("argument")
+                            .map(|a| Box::new(convert_json_value(a, context)))
+                            .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+                        Some(JsObjectMember::SpreadElement(argument))
+                    }
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Convert a property key from a JsNode.
+fn convert_property_key_from_node(
+    key: &JsNode,
+    computed: bool,
+    context: &mut ComponentContext,
+) -> JsPropertyKey {
+    if computed {
+        return JsPropertyKey::Computed(Box::new(convert_js_node(key, context)));
+    }
+
+    match key {
+        JsNode::Identifier { name, .. } => JsPropertyKey::Identifier(name.to_string().into()),
+        JsNode::Literal { value, raw, .. } => {
+            let lit = match value {
+                LiteralValue::String(s) => {
+                    if raw.starts_with('"') {
+                        return JsPropertyKey::Literal(JsLiteral::String(s.to_string().into()));
+                    }
+                    JsLiteral::String(s.to_string().into())
+                }
+                LiteralValue::Number(n) => JsLiteral::Number(*n),
+                LiteralValue::Bool(b) => JsLiteral::Boolean(*b),
+                LiteralValue::Null => JsLiteral::Null,
+                LiteralValue::Regex(r) => JsLiteral::Regex {
+                    pattern: r.pattern.clone(),
+                    flags: r.flags.clone(),
+                },
+            };
+            JsPropertyKey::Literal(lit)
+        }
+        // Handle Raw-wrapped nodes (common from parser)
+        JsNode::Raw(value) => {
+            if let Some(obj) = value.as_object() {
+                let key_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                match key_type {
+                    "Identifier" => {
+                        let name = obj
+                            .get("name")
+                            .and_then(|n| n.as_str())
+                            .unwrap_or("unknown");
+                        if computed {
+                            JsPropertyKey::Computed(Box::new(convert_json_value(value, context)))
+                        } else {
+                            JsPropertyKey::Identifier(name.into())
+                        }
+                    }
+                    "Literal" => JsPropertyKey::Literal(convert_literal(obj, context).into()),
+                    _ => JsPropertyKey::Computed(Box::new(convert_json_value(value, context))),
+                }
+            } else {
+                JsPropertyKey::Identifier("unknown".into())
+            }
+        }
+        _ => JsPropertyKey::Identifier("unknown".into()),
+    }
+}
+
+/// Convert function parameters from JsNode slices.
+fn convert_params_from_nodes(params: &[JsNode], context: &mut ComponentContext) -> Vec<JsPattern> {
+    params
+        .iter()
+        .filter_map(|param| convert_param_pattern_from_node(param, context))
+        .collect()
+}
+
+/// Convert a JsNode parameter to a JsPattern.
+fn convert_param_pattern_from_node(
+    node: &JsNode,
+    context: &mut ComponentContext,
+) -> Option<JsPattern> {
+    match node {
+        JsNode::Identifier { name, .. } => Some(JsPattern::Identifier(name.to_string().into())),
+        JsNode::AssignmentPattern { left, right, .. } => {
+            let conv_left = convert_param_pattern_from_node(left, context)?;
+            let conv_right = {
+                let expr = convert_js_node(right, context);
+                Box::new(crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&expr, context))
+            };
+            Some(JsPattern::Assignment(JsAssignmentPattern {
+                left: Box::new(conv_left),
+                right: conv_right,
+            }))
+        }
+        JsNode::RestElement { argument, .. } => {
+            let conv_argument = convert_param_pattern_from_node(argument, context)?;
+            Some(JsPattern::Rest(Box::new(conv_argument)))
+        }
+        JsNode::ObjectPattern { properties, .. } | JsNode::ObjectExpression { properties, .. } => {
+            let conv_properties: Vec<JsObjectPatternProperty> = properties
+                .iter()
+                .filter_map(|prop| convert_object_pattern_property_from_node(prop, context))
+                .collect();
+            Some(JsPattern::Object(JsObjectPattern {
+                properties: conv_properties,
+            }))
+        }
+        JsNode::ArrayPattern { elements, .. } | JsNode::ArrayExpression { elements, .. } => {
+            let conv_elements: Vec<Option<JsPattern>> = elements
+                .iter()
+                .map(|elem| {
+                    elem.as_ref()
+                        .and_then(|e| convert_param_pattern_from_node(e, context))
+                })
+                .collect();
+            Some(JsPattern::Array(JsArrayPattern {
+                elements: conv_elements,
+            }))
+        }
+        // Handle Raw-wrapped nodes (common from parser)
+        JsNode::Raw(value) => convert_param_pattern(value, context),
+        _ => {
+            // Fallback to Value-based conversion
+            let value = node.to_value();
+            convert_param_pattern(&value, context)
+        }
+    }
+}
+
+/// Convert an object pattern property from a JsNode.
+fn convert_object_pattern_property_from_node(
+    node: &JsNode,
+    context: &mut ComponentContext,
+) -> Option<JsObjectPatternProperty> {
+    match node {
+        JsNode::RestElement { argument, .. } | JsNode::SpreadElement { argument, .. } => {
+            let conv_arg = convert_param_pattern_from_node(argument, context)?;
+            Some(JsObjectPatternProperty::Rest(Box::new(conv_arg)))
+        }
+        JsNode::Property {
+            key,
+            value,
+            shorthand,
+            computed,
+            ..
+        } => convert_object_pattern_prop_inner(key, value, *shorthand, *computed, context),
+        // Handle Raw-wrapped nodes
+        JsNode::Raw(v) => {
+            if let Some(obj) = v.as_object() {
+                let prop_type = obj.get("type").and_then(|t| t.as_str())?;
+                if prop_type == "RestElement" || prop_type == "SpreadElement" {
+                    let arg_val = obj.get("argument")?;
+                    let conv_arg = convert_param_pattern(arg_val, context)?;
+                    Some(JsObjectPatternProperty::Rest(Box::new(conv_arg)))
+                } else if prop_type == "Property" {
+                    // Delegate to Value-based convert_param_pattern path
+                    // by reconstructing what convert_param_pattern expects
+                    let key_val = obj.get("key").and_then(|k| k.as_object())?;
+                    let key_type = key_val.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                    let computed = obj
+                        .get("computed")
+                        .and_then(|c| c.as_bool())
+                        .unwrap_or(false);
+                    let shorthand = obj
+                        .get("shorthand")
+                        .and_then(|s| s.as_bool())
+                        .unwrap_or(false);
+
+                    let (conv_key, fallback_name) = if key_type == "Literal" {
+                        if let Some(val) = key_val.get("value") {
+                            if let Some(s) = val.as_str() {
+                                (JsPropertyKey::Literal(JsLiteral::String(s.into())), None)
+                            } else if let Some(n) = val.as_f64() {
+                                (JsPropertyKey::Literal(JsLiteral::Number(n)), None)
+                            } else {
+                                return None;
+                            }
+                        } else {
+                            return None;
+                        }
+                    } else if key_type == "Identifier" {
+                        let name = key_val.get("name").and_then(|n| n.as_str())?;
+                        if computed {
+                            let key_expr =
+                                convert_json_value(&Value::Object(key_val.clone()), context);
+                            let key_expr = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&key_expr, context);
+                            (JsPropertyKey::Computed(Box::new(key_expr)), None)
+                        } else {
+                            (
+                                JsPropertyKey::Identifier(name.into()),
+                                Some(name.to_string()),
+                            )
+                        }
+                    } else {
+                        let key_expr = convert_json_value(&Value::Object(key_val.clone()), context);
+                        let key_expr = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&key_expr, context);
+                        (JsPropertyKey::Computed(Box::new(key_expr)), None)
+                    };
+
+                    let value_pat = obj
+                        .get("value")
+                        .and_then(|v| convert_param_pattern(v, context))
+                        .or_else(|| {
+                            fallback_name
+                                .as_ref()
+                                .map(|n| JsPattern::Identifier(n.clone().into()))
+                        })?;
+
+                    Some(JsObjectPatternProperty::Property {
+                        key: conv_key,
+                        value: value_pat,
+                        computed,
+                        shorthand,
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Inner helper for converting a typed Property's key/value into JsObjectPatternProperty.
+fn convert_object_pattern_prop_inner(
+    key: &JsNode,
+    value: &JsNode,
+    shorthand: bool,
+    computed: bool,
+    context: &mut ComponentContext,
+) -> Option<JsObjectPatternProperty> {
+    // Get the property key, handling both typed and Raw-wrapped keys
+    let (conv_key, fallback_name) = match key {
+        JsNode::Literal { value: lit_val, .. } => match lit_val {
+            LiteralValue::String(s) => (
+                JsPropertyKey::Literal(JsLiteral::String(s.to_string().into())),
+                None,
+            ),
+            LiteralValue::Number(n) => (JsPropertyKey::Literal(JsLiteral::Number(*n)), None),
+            _ => return None,
+        },
+        JsNode::Identifier { name, .. } => {
+            if computed {
+                let key_expr = convert_js_node(key, context);
+                let key_expr = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&key_expr, context);
+                (JsPropertyKey::Computed(Box::new(key_expr)), None)
+            } else {
+                (
+                    JsPropertyKey::Identifier(name.to_string().into()),
+                    Some(name.to_string()),
+                )
+            }
+        }
+        JsNode::Raw(v) => {
+            // Delegate to Value-based property key conversion
+            if let Some(obj) = v.as_object() {
+                let key_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                if key_type == "Identifier" && !computed {
+                    let name = obj
+                        .get("name")
+                        .and_then(|n| n.as_str())
+                        .unwrap_or("unknown");
+                    (
+                        JsPropertyKey::Identifier(name.into()),
+                        Some(name.to_string()),
+                    )
+                } else if key_type == "Literal" {
+                    let lit = convert_literal(obj, context);
+                    (JsPropertyKey::Literal(lit.into()), None)
+                } else {
+                    let key_expr = convert_json_value(v, context);
+                    let key_expr_t = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&key_expr, context);
+                    (JsPropertyKey::Computed(Box::new(key_expr_t)), None)
+                }
+            } else {
+                return None;
+            }
+        }
+        _ => {
+            let key_expr = convert_js_node(key, context);
+            let key_expr = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&key_expr, context);
+            (JsPropertyKey::Computed(Box::new(key_expr)), None)
+        }
+    };
+
+    let value_pat = convert_param_pattern_from_node(value, context).or_else(|| {
+        fallback_name
+            .as_ref()
+            .map(|n| JsPattern::Identifier(n.clone().into()))
+    })?;
+
+    Some(JsObjectPatternProperty::Property {
+        key: conv_key,
+        value: value_pat,
+        computed,
+        shorthand,
+    })
+}
+
+/// Extract parameter names from JsNode params for transform shadowing.
+fn extract_param_names_from_nodes(params: &[JsNode]) -> Vec<String> {
+    let mut names = Vec::new();
+    for param in params {
+        collect_param_names_from_node(param, &mut names);
+    }
+    names
+}
+
+/// Recursively collect identifier names from a JsNode parameter pattern.
+fn collect_param_names_from_node(node: &JsNode, names: &mut Vec<String>) {
+    match node {
+        JsNode::Identifier { name, .. } => {
+            names.push(name.to_string());
+        }
+        JsNode::AssignmentPattern { left, .. } => {
+            collect_param_names_from_node(left, names);
+        }
+        JsNode::ObjectPattern { properties, .. } => {
+            for prop in properties {
+                match prop {
+                    JsNode::Property { value, .. } => {
+                        collect_param_names_from_node(value, names);
+                    }
+                    JsNode::RestElement { argument, .. } => {
+                        collect_param_names_from_node(argument, names);
+                    }
+                    _ => {
+                        // Might be Raw - fall back to Value-based extraction
+                        collect_param_names(&prop.to_value(), names);
+                    }
+                }
+            }
+        }
+        JsNode::ArrayPattern { elements, .. } => {
+            for elem in elements.iter().flatten() {
+                collect_param_names_from_node(elem, names);
+            }
+        }
+        JsNode::RestElement { argument, .. } => {
+            collect_param_names_from_node(argument, names);
+        }
+        // Handle Raw-wrapped nodes
+        JsNode::Raw(value) => {
+            collect_param_names(value, names);
+        }
+        _ => {}
+    }
+}
+
+/// Extract root identifier name from a JsNode (before conversion applies transforms).
+fn extract_root_identifier_from_jsnode(node: &JsNode) -> Option<String> {
+    match node {
+        JsNode::Identifier { name, .. } => Some(name.to_string()),
+        JsNode::MemberExpression { object, .. } => extract_root_identifier_from_jsnode(object),
+        JsNode::ChainExpression { expression, .. } => {
+            extract_root_identifier_from_jsnode(expression)
+        }
+        JsNode::Raw(v) => extract_root_identifier_from_json(v),
+        _ => None,
+    }
+}
+
+/// Get private identifier name from a JsNode, handling both typed and Raw-wrapped.
+fn get_jsnode_private_identifier_name(node: &JsNode) -> Option<String> {
+    match node {
+        JsNode::PrivateIdentifier { name, .. } => Some(name.to_string()),
+        JsNode::Raw(v) => v
+            .as_object()
+            .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("PrivateIdentifier"))
+            .and_then(|o| o.get("name").and_then(|n| n.as_str()))
+            .map(|s| s.to_string()),
+        _ => None,
+    }
+}
+
+/// Get identifier name from a JsNode, handling both typed and Raw-wrapped Identifiers.
+fn get_jsnode_identifier_name(node: &JsNode) -> Option<String> {
+    match node {
+        JsNode::Identifier { name, .. } => Some(name.to_string()),
+        JsNode::Raw(v) => v
+            .as_object()
+            .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
+            .and_then(|o| o.get("name").and_then(|n| n.as_str()))
+            .map(|s| s.to_string()),
+        _ => None,
+    }
+}
+
+/// Check if a JsNode is a MemberExpression with a direct Identifier object (not computed).
+/// Handles both typed and Raw-wrapped nodes.
+fn is_direct_member_with_identifier(node: &JsNode) -> bool {
+    match node {
+        JsNode::MemberExpression {
+            object, computed, ..
+        } => {
+            if *computed {
+                return false;
+            }
+            matches!(object.as_ref(), JsNode::Identifier { .. })
+                || matches!(object.as_ref(), JsNode::Raw(v)
+                    if v.as_object()
+                        .and_then(|o| o.get("type").and_then(|t| t.as_str()))
+                        == Some("Identifier"))
+        }
+        JsNode::Raw(v) => {
+            if let Some(obj) = v.as_object()
+                && obj.get("type").and_then(|t| t.as_str()) == Some("MemberExpression")
+                && !obj
+                    .get("computed")
+                    .and_then(|c| c.as_bool())
+                    .unwrap_or(false)
+                && let Some(object_obj) = obj.get("object").and_then(|o| o.as_object())
+            {
+                return object_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier");
+            }
+            false
+        }
+        _ => false,
+    }
 }
 
 /// Convert a JSON value to JsExpr.
