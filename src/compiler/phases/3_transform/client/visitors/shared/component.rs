@@ -706,31 +706,14 @@ fn process_let_directive(
     // Check if expression is an Identifier or null (simple case)
     let is_simple = match &let_dir.expression {
         None => true,
-        Some(expr) => {
-            let val = expr.as_json();
-            if let serde_json::Value::Object(obj) = val {
-                obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-            } else {
-                true
-            }
-        }
+        Some(expr) => expr.is_identifier_node(),
     };
 
     if is_simple {
         // Simple case: let:x or let:x={y}
         // Get the binding name - either the expression identifier name or the directive name
         let name = match &let_dir.expression {
-            Some(expr) => {
-                let val = expr.as_json();
-                if let serde_json::Value::Object(obj) = val {
-                    obj.get("name")
-                        .and_then(|n| n.as_str())
-                        .unwrap_or(prop_name)
-                        .to_string()
-                } else {
-                    prop_name.to_string()
-                }
-            }
+            Some(expr) => expr.identifier_name().unwrap_or(prop_name).to_string(),
             None => prop_name.to_string(),
         };
 
@@ -1120,21 +1103,16 @@ fn should_memoize_attribute(value: &AttributeValue) -> bool {
 /// - ArrowFunctionExpression: `() => ...`
 /// - FunctionExpression: `function() { ... }`
 fn is_complex_expression(expression: &crate::ast::js::Expression) -> bool {
-    let val = expression.as_json();
-    if let Some(obj) = val.as_object() {
-        if let Some(expr_type) = obj.get("type").and_then(|t| t.as_str()) {
-            // Simple expressions that don't need memoization
-            !matches!(
-                expr_type,
-                "Identifier"
-                    | "MemberExpression"
-                    | "Literal"
-                    | "ArrowFunctionExpression"
-                    | "FunctionExpression"
-            )
-        } else {
-            false
-        }
+    if let Some(expr_type) = expression.node_type() {
+        // Simple expressions that don't need memoization
+        !matches!(
+            expr_type,
+            "Identifier"
+                | "MemberExpression"
+                | "Literal"
+                | "ArrowFunctionExpression"
+                | "FunctionExpression"
+        )
     } else {
         false
     }
@@ -1143,14 +1121,10 @@ fn is_complex_expression(expression: &crate::ast::js::Expression) -> bool {
 /// Check if an attribute value is a simple identifier that references a snippet.
 fn is_snippet_identifier(value: &AttributeValue, context: &ComponentContext) -> bool {
     // Only check for Expression type (shorthand like {foo})
-    if let AttributeValue::Expression(expr_tag) = value {
-        let val = expr_tag.expression.as_json();
-        if let serde_json::Value::Object(obj) = val
-            && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
-            && let Some(name) = obj.get("name").and_then(|v| v.as_str())
-        {
-            return context.state.snippet_names.contains(name);
-        }
+    if let AttributeValue::Expression(expr_tag) = value
+        && let Some(name) = expr_tag.expression.identifier_name()
+    {
+        return context.state.snippet_names.contains(name);
     }
     false
 }
@@ -2494,24 +2468,12 @@ fn add_svelte_meta(expression: JsExpr) -> JsStatement {
 
 /// Extract identifier name from an expression.
 fn extract_identifier_name(expr: &Expression) -> Option<String> {
-    let val = expr.as_json();
-    if let Some(obj) = val.as_object()
-        && let Some("Identifier") = obj.get("type").and_then(|t| t.as_str())
-    {
-        return obj
-            .get("name")
-            .and_then(|n| n.as_str())
-            .map(|s| s.to_string());
-    }
-    None
+    expr.identifier_name().map(|s| s.to_string())
 }
 
 /// Check if expression is a store subscription.
 fn is_store_subscription(expr: &Expression, context: &ComponentContext) -> bool {
-    let val = expr.as_json();
-    if let Some(obj) = val.as_object()
-        && let Some("Identifier") = obj.get("type").and_then(|t| t.as_str())
-        && let Some(name) = obj.get("name").and_then(|n| n.as_str())
+    if let Some(name) = expr.identifier_name()
         && let Some(binding) = context.state.get_binding(name)
     {
         return binding.kind

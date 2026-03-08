@@ -140,6 +140,71 @@ impl Expression {
             Expression::Typed(te) => te.node.end(),
         }
     }
+
+    /// Check if this is an Identifier with the given name.
+    #[inline]
+    pub fn is_identifier(&self, name: &str) -> bool {
+        match self {
+            Expression::Typed(te) => {
+                matches!(&te.node, JsNode::Identifier { name: n, .. } if n.as_str() == name)
+            }
+            Expression::Value(v) => {
+                v.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                    && v.get("name").and_then(|n| n.as_str()) == Some(name)
+            }
+        }
+    }
+
+    /// Check if this is an Identifier (any name).
+    #[inline]
+    pub fn is_identifier_node(&self) -> bool {
+        self.node_type() == Some("Identifier")
+    }
+
+    /// Get the identifier name if this is an Identifier node.
+    #[inline]
+    pub fn identifier_name(&self) -> Option<&str> {
+        match self {
+            Expression::Typed(te) => match &te.node {
+                JsNode::Identifier { name, .. } => Some(name.as_str()),
+                JsNode::Raw(v) => {
+                    if v.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
+                        v.get("name").and_then(|n| n.as_str())
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            },
+            Expression::Value(v) => {
+                if v.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
+                    v.get("name").and_then(|n| n.as_str())
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    /// Check if this expression is a MemberExpression.
+    #[inline]
+    pub fn is_member_expression(&self) -> bool {
+        self.node_type() == Some("MemberExpression")
+    }
+
+    /// Check if this is a computed MemberExpression.
+    #[inline]
+    pub fn is_computed(&self) -> bool {
+        match self {
+            Expression::Typed(te) => match &te.node {
+                JsNode::MemberExpression { computed, .. } | JsNode::Property { computed, .. } => {
+                    *computed
+                }
+                _ => false,
+            },
+            Expression::Value(v) => v.get("computed").and_then(|c| c.as_bool()).unwrap_or(false),
+        }
+    }
 }
 
 impl Clone for Expression {

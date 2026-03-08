@@ -220,15 +220,15 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // Collect the item variable names from the context pattern.
     let mut item_names = Vec::new();
     if let Some(context_expr) = &node.context {
-        let val = context_expr.as_json();
-        if let serde_json::Value::Object(obj) = val {
-            let ctx_type = obj.get("type").and_then(|v| v.as_str());
-            if ctx_type == Some("Identifier") {
-                if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                    item_names.push(compact_str::CompactString::from(name));
+        if let Some(name) = context_expr.identifier_name() {
+            item_names.push(compact_str::CompactString::from(name));
+        } else {
+            let node_type = context_expr.node_type();
+            if node_type == Some("ObjectPattern") || node_type == Some("ArrayPattern") {
+                let val = context_expr.as_json();
+                if let serde_json::Value::Object(obj) = val {
+                    collect_pattern_names(obj, &mut item_names);
                 }
-            } else if ctx_type == Some("ObjectPattern") || ctx_type == Some("ArrayPattern") {
-                collect_pattern_names(obj, &mut item_names);
             }
         }
     }
@@ -374,16 +374,10 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     };
 
     // Determine if the context pattern is a simple Identifier (not destructured)
-    let context_is_identifier = if let Some(context_expr) = &node.context {
-        let val = context_expr.as_json();
-        if let serde_json::Value::Object(obj) = val {
-            obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
-        } else {
-            false
-        }
-    } else {
-        false
-    };
+    let context_is_identifier = node
+        .context
+        .as_ref()
+        .is_some_and(|ctx| ctx.is_identifier_node());
 
     let binding_used = Rc::new(Cell::new(false));
     context.state.each_binding_context.push(EachBindingContext {
@@ -613,21 +607,10 @@ fn is_key_same_as_item(node: &EachBlock) -> bool {
     };
 
     // Both must be identifiers with the same name
-    let key_val = key.as_json();
-    let ctx_val = context_expr.as_json();
-
-    let (serde_json::Value::Object(key_obj), serde_json::Value::Object(ctx_obj)) =
-        (key_val, ctx_val)
-    else {
-        return false;
-    };
-
-    let key_type = key_obj.get("type").and_then(|v| v.as_str());
-    let ctx_type = ctx_obj.get("type").and_then(|v| v.as_str());
-    let key_name = key_obj.get("name").and_then(|v| v.as_str());
-    let ctx_name = ctx_obj.get("name").and_then(|v| v.as_str());
-
-    key_type == Some("Identifier") && ctx_type == Some("Identifier") && key_name == ctx_name
+    match (key.identifier_name(), context_expr.identifier_name()) {
+        (Some(key_name), Some(ctx_name)) => key_name == ctx_name,
+        _ => false,
+    }
 }
 
 /// Check if the expression uses store subscriptions.
@@ -696,13 +679,15 @@ fn get_store_to_invalidate(node: &EachBlock, context: &ComponentContext) -> Opti
 
 /// Get the root object name from an expression.
 fn get_object_name(expr: &Expression) -> Option<String> {
+    if let Some(name) = expr.identifier_name() {
+        return Some(name.to_string());
+    }
+    // For MemberExpression, LogicalExpression, BinaryExpression we need to recurse
+    // into nested fields, so keep as_json() for those cases
+    // TODO: migrate to JsNode pattern matching
     let val = expr.as_json();
     if let serde_json::Value::Object(obj) = val {
         match obj.get("type").and_then(|v| v.as_str()) {
-            Some("Identifier") => obj
-                .get("name")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
             Some("MemberExpression") => {
                 if let Some(object) = obj.get("object") {
                     get_object_name(&Expression::Value(object.clone()))
@@ -855,14 +840,10 @@ fn generate_index_identifier(
 
 /// Generate the item identifier.
 fn generate_item_identifier(node: &EachBlock) -> JsExpr {
-    if let Some(context_expr) = &node.context {
-        let val = context_expr.as_json();
-        if let serde_json::Value::Object(obj) = val
-            && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
-            && let Some(name) = obj.get("name").and_then(|v| v.as_str())
-        {
-            return b::id(name);
-        }
+    if let Some(context_expr) = &node.context
+        && let Some(name) = context_expr.identifier_name()
+    {
+        return b::id(name);
     }
     b::id("$$item")
 }
@@ -979,50 +960,46 @@ fn build_declarations(
     }
 
     // Handle simple identifier context
-    if let Some(context_expr) = &node.context {
-        let val = context_expr.as_json();
-        if let serde_json::Value::Object(obj) = val
-            && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
-            && let Some(name) = obj.get("name").and_then(|v| v.as_str())
+    if let Some(context_expr) = &node.context
+        && let Some(name) = context_expr.identifier_name()
+    {
+        let item_reactive = (flags & EACH_ITEM_REACTIVE) != 0;
+
+        if item_reactive {
+            context.state.transform.insert(
+                name.to_string(),
+                IdentifierTransform {
+                    read_source: None,
+                    read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
+                    assign: None,
+                    mutate: None,
+                    update: None,
+                    skip_proxy: false,
+                    is_defined: false,
+                    is_reactive: true,
+                    replacement_id: None,
+                },
+            );
+        }
+
+        if node.index.is_some()
+            && node.metadata.contains_group_binding
+            && let JsExpr::Identifier(idx_name) = index
+            && let Some(original_index) = &node.index
+            && idx_name != original_index.as_str()
         {
-            let item_reactive = (flags & EACH_ITEM_REACTIVE) != 0;
-
-            if item_reactive {
-                context.state.transform.insert(
-                    name.to_string(),
-                    IdentifierTransform {
-                        read_source: None,
-                        read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
-                        assign: None,
-                        mutate: None,
-                        update: None,
-                        skip_proxy: false,
-                        is_defined: false,
-                        is_reactive: true,
-                        replacement_id: None,
-                    },
-                );
-            }
-
-            if node.index.is_some()
-                && node.metadata.contains_group_binding
-                && let JsExpr::Identifier(idx_name) = index
-                && let Some(original_index) = &node.index
-                && idx_name != original_index.as_str()
-            {
-                declarations.push(b::let_decl(original_index.as_str(), Some(index.clone())));
-            }
+            declarations.push(b::let_decl(original_index.as_str(), Some(index.clone())));
         }
     }
 
     // Handle destructured context pattern (e.g., {#each items as { a, b }} or {#each items as [a, b]})
     // This corresponds to lines 251-293 in the official EachBlock.js
     if let Some(context_expr) = &node.context {
-        let val = context_expr.as_json();
-        if let serde_json::Value::Object(obj) = val {
-            let ctx_type = obj.get("type").and_then(|v| v.as_str());
-
-            if ctx_type == Some("ObjectPattern") || ctx_type == Some("ArrayPattern") {
+        let ctx_type = context_expr.node_type();
+        if ctx_type == Some("ObjectPattern") || ctx_type == Some("ArrayPattern") {
+            // Need as_json for destructured pattern traversal
+            let val = context_expr.as_json();
+            if let serde_json::Value::Object(obj) = val {
                 let item_reactive = (flags & EACH_ITEM_REACTIVE) != 0;
 
                 let unwrapped_item = if item_reactive {

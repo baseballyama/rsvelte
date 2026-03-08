@@ -85,12 +85,5 @@ pub fn debug_tag(node: &DebugTag, context: &mut ComponentContext) {
 ///
 /// Extracts the "name" field from an Identifier AST node.
 fn get_identifier_name(expr: &Expression) -> Option<String> {
-    let val = expr.as_json();
-    if let serde_json::Value::Object(obj) = val
-        && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
-    {
-        obj.get("name").and_then(|v| v.as_str()).map(String::from)
-    } else {
-        None
-    }
+    expr.identifier_name().map(String::from)
 }

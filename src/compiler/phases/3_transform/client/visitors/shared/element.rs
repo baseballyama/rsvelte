@@ -281,10 +281,13 @@ fn extract_expression_from_tag_with_context(
 #[allow(dead_code)]
 fn extract_expression_from_tag(expr_tag: &ExpressionTag) -> JsExpr {
     // For simple cases, we can convert directly
+    if let Some(name) = expr_tag.expression.identifier_name() {
+        return b::id(name);
+    }
+    // Fallback: try to get any "name" field, or handle non-object values
     let val = expr_tag.expression.as_json();
     match val {
         serde_json::Value::Object(obj) => {
-            // Try to extract the identifier name
             if let Some(serde_json::Value::String(name)) = obj.get("name") {
                 b::id(name)
             } else {

@@ -2691,6 +2691,22 @@ impl JsNode {
         }
     }
 
+    /// Get the identifier name if this is an Identifier node.
+    #[inline]
+    pub fn identifier_name(&self) -> Option<&str> {
+        match self {
+            JsNode::Identifier { name, .. } => Some(name.as_str()),
+            JsNode::Raw(v) => {
+                if v.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
+                    v.get("name").and_then(|n| n.as_str())
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
     fn get_start_inner(&self) -> u32 {
         match self {
             JsNode::Identifier { start, .. }
