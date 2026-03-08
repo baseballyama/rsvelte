@@ -127,11 +127,7 @@ pub fn visit(
     // Check that svelte:element has a 'this' attribute with a value
     // The 'tag' field is populated from the 'this' attribute during parsing
     // If it's null/undefined or empty, the 'this' attribute is missing or has no value
-    let has_valid_this = {
-        let value = element.tag.as_json();
-        // Check if it's a non-null value
-        !value.is_null()
-    };
+    let has_valid_this = element.tag.node_type().is_some();
 
     if !has_valid_this {
         return Err(errors::svelte_element_missing_this());

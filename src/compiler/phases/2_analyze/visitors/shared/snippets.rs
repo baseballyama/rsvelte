@@ -30,14 +30,8 @@ pub fn validate_snippet(
 
 /// Get the name of a snippet from its expression.
 pub fn get_snippet_name(snippet: &SnippetBlock) -> Option<String> {
-    // The snippet name is in the expression field
-    // For now, we try to extract it from the JSON representation
-    snippet
-        .expression
-        .as_json()
-        .get("name")
-        .and_then(|n| n.as_str())
-        .map(String::from)
+    // The snippet name is in the expression field (always an Identifier)
+    snippet.expression.identifier_name().map(String::from)
 }
 
 /// Check if a snippet has parameters.
@@ -50,13 +44,7 @@ pub fn get_parameter_names(snippet: &SnippetBlock) -> Vec<String> {
     snippet
         .parameters
         .iter()
-        .filter_map(|param| {
-            param
-                .as_json()
-                .get("name")
-                .and_then(|n| n.as_str())
-                .map(String::from)
-        })
+        .filter_map(|param| param.identifier_name().map(String::from))
         .collect()
 }
 

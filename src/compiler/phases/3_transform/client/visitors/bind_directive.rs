@@ -1657,11 +1657,7 @@ fn build_getter_setter(
 /// in the template are promoted to `state` kind during analysis. This enables
 /// them to be wrapped in `$.mutable_source()` and use `$.get()`/`$.set()`.
 fn is_state_variable(expr: &Expression, context: &ComponentContext) -> bool {
-    let val = expr.as_json();
-    if let Some(obj) = val.as_object()
-        && let Some(expr_type) = obj.get("type").and_then(|v| v.as_str())
-        && expr_type == "Identifier"
-        && let Some(name) = obj.get("name").and_then(|v| v.as_str())
+    if let Some(name) = expr.identifier_name()
         && let Some(binding) = context.state.get_binding(name)
     {
         use crate::compiler::phases::phase2_analyze::scope::BindingKind;
@@ -1679,12 +1675,7 @@ fn is_state_variable(expr: &Expression, context: &ComponentContext) -> bool {
 /// Props in legacy mode are wrapped in `$.prop()` which returns a getter/setter function.
 /// Reading a prop becomes `prop()` and setting becomes `prop(value)`.
 fn is_prop_variable(expr: &Expression, context: &ComponentContext) -> bool {
-    let val = expr.as_json();
-    if let Some(obj) = val.as_object()
-        && let Some(expr_type) = obj.get("type").and_then(|v| v.as_str())
-        && expr_type == "Identifier"
-        && let Some(name) = obj.get("name").and_then(|v| v.as_str())
-    {
+    if let Some(name) = expr.identifier_name() {
         // Check if there's a transform registered for this prop
         // Props have a transform with both read and assign functions
         if let Some(transform) = context.state.transform.get(name) {

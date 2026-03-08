@@ -41,12 +41,7 @@ pub fn visit_component(
     for node in &component.fragment.nodes {
         if let TemplateNode::SnippetBlock(snippet) = node {
             // Get snippet name
-            if let Some(snippet_name) = snippet
-                .expression
-                .as_json()
-                .get("name")
-                .and_then(|n| n.as_str())
-            {
+            if let Some(snippet_name) = snippet.expression.identifier_name() {
                 // Check if any attribute matches the snippet name
                 for attr in &component.attributes {
                     let attr_name = match attr {
@@ -294,12 +289,7 @@ fn validate_slot_attributes(component: &Component) -> Result<(), AnalysisError> 
         } else {
             // Check if this is a {#snippet children()} block
             if let TemplateNode::SnippetBlock(snippet) = node
-                && let Some(name) = snippet
-                    .expression
-                    .as_json()
-                    .get("name")
-                    .and_then(|n| n.as_str())
-                && name == "children"
+                && snippet.expression.is_identifier("children")
             {
                 has_children_snippet = true;
             }

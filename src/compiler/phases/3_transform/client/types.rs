@@ -854,30 +854,13 @@ impl<'a> ComponentContext<'a> {
                     // Check if expression is an Identifier or null (simple case)
                     let is_simple = match &let_dir.expression {
                         None => true,
-                        Some(expr) => {
-                            let val = expr.as_json();
-                            if let serde_json::Value::Object(obj) = val {
-                                obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                            } else {
-                                true
-                            }
-                        }
+                        Some(expr) => expr.is_identifier_node(),
                     };
 
                     if is_simple {
                         // Simple case: let:x or let:x={y}
                         let binding_name = match &let_dir.expression {
-                            Some(expr) => {
-                                let val = expr.as_json();
-                                if let serde_json::Value::Object(obj) = val {
-                                    obj.get("name")
-                                        .and_then(|n| n.as_str())
-                                        .unwrap_or(prop_name)
-                                        .to_string()
-                                } else {
-                                    prop_name.to_string()
-                                }
-                            }
+                            Some(expr) => expr.identifier_name().unwrap_or(prop_name).to_string(),
                             None => prop_name.to_string(),
                         };
 
@@ -991,30 +974,13 @@ impl<'a> ComponentContext<'a> {
                 // Check if expression is an Identifier or null (simple case)
                 let is_simple = match &let_dir.expression {
                     None => true,
-                    Some(expr) => {
-                        let val = expr.as_json();
-                        if let serde_json::Value::Object(obj) = val {
-                            obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                        } else {
-                            true
-                        }
-                    }
+                    Some(expr) => expr.is_identifier_node(),
                 };
 
                 if is_simple {
                     // Simple case: let:x or let:x={y}
                     let name = match &let_dir.expression {
-                        Some(expr) => {
-                            let val = expr.as_json();
-                            if let serde_json::Value::Object(obj) = val {
-                                obj.get("name")
-                                    .and_then(|n| n.as_str())
-                                    .unwrap_or(prop_name)
-                                    .to_string()
-                            } else {
-                                prop_name.to_string()
-                            }
-                        }
+                        Some(expr) => expr.identifier_name().unwrap_or(prop_name).to_string(),
                         None => prop_name.to_string(),
                     };
 

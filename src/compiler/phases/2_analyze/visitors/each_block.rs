@@ -39,7 +39,7 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     // Check if the context identifier is a rune name (invalid)
     if let Some(ref context_expr) = block.context {
         // Extract identifier name if it's a simple Identifier
-        if let Some(name) = context_expr.as_json().get("name").and_then(|n| n.as_str())
+        if let Some(name) = context_expr.identifier_name()
             && (name == "$state" || name == "$derived")
         {
             return Err(super::super::errors::state_invalid_placement(name));
@@ -52,7 +52,7 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     // 2. The key is not just the index variable (i.e., not `{#each items as item, i (i)}`)
     let is_keyed = if let Some(ref key) = block.key {
         // Check if key is an identifier
-        let key_name = key.as_json().get("name").and_then(|n| n.as_str());
+        let key_name = key.identifier_name();
 
         // If key is not an identifier, or there's no index, or the names don't match, it's keyed
         key_name.is_none()

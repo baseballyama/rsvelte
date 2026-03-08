@@ -22,10 +22,7 @@ impl<'a> ServerCodeGenerator<'a> {
         let pending_snippet = boundary.fragment.nodes.iter().find_map(|node| {
             if let TemplateNode::SnippetBlock(snippet) = node {
                 // Check if the snippet expression is named "pending"
-                let json = snippet.expression.as_json();
-                if json.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                    && json.get("name").and_then(|n| n.as_str()) == Some("pending")
-                {
+                if snippet.expression.is_identifier("pending") {
                     return Some(snippet);
                 }
             }
@@ -51,8 +48,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 .iter()
                 .filter(|node| {
                     if let TemplateNode::SnippetBlock(snippet) = node {
-                        let json = snippet.expression.as_json();
-                        let name = json.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                        let name = snippet.expression.identifier_name().unwrap_or("");
                         // Keep everything except `failed` and `pending` snippets
                         name != "failed" && name != "pending"
                     } else {
@@ -78,13 +74,10 @@ impl<'a> ServerCodeGenerator<'a> {
         if !is_pending {
             // Look for `failed` snippet in the boundary fragment
             let failed_snippet = boundary.fragment.nodes.iter().find_map(|node| {
-                if let TemplateNode::SnippetBlock(snippet) = node {
-                    let json = snippet.expression.as_json();
-                    if json.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                        && json.get("name").and_then(|n| n.as_str()) == Some("failed")
-                    {
-                        return Some(snippet);
-                    }
+                if let TemplateNode::SnippetBlock(snippet) = node
+                    && snippet.expression.is_identifier("failed")
+                {
+                    return Some(snippet);
                 }
                 None
             });

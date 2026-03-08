@@ -348,22 +348,15 @@ fn create_derived_from_expr(context: &ComponentContext, expr: JsExpr) -> JsExpr 
 
 /// Get the name if the expression is a simple identifier.
 fn get_identifier_name(expr: &Expression) -> Option<String> {
-    let val = expr.as_json();
-    if let serde_json::Value::Object(obj) = val
-        && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
-    {
-        let name = obj.get("name").and_then(|v| v.as_str())?;
-        // The parser may store destructuring patterns as Identifier nodes
-        // with the full pattern text in the name field (e.g., "{ result, error }" or "[a, b]").
-        // Detect these cases and return None so they go through the destructuring path.
-        let trimmed = name.trim();
-        if trimmed.starts_with('{') || trimmed.starts_with('[') {
-            None
-        } else {
-            Some(name.to_string())
-        }
-    } else {
+    let name = expr.identifier_name()?;
+    // The parser may store destructuring patterns as Identifier nodes
+    // with the full pattern text in the name field (e.g., "{ result, error }" or "[a, b]").
+    // Detect these cases and return None so they go through the destructuring path.
+    let trimmed = name.trim();
+    if trimmed.starts_with('{') || trimmed.starts_with('[') {
         None
+    } else {
+        Some(name.to_string())
     }
 }
 

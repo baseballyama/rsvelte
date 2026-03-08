@@ -597,11 +597,7 @@ fn create_get_value_transform()
 
 /// Get the snippet name from the expression.
 fn get_snippet_name(expr: &Expression) -> String {
-    let val = expr.as_json();
-    if let serde_json::Value::Object(obj) = val
-        && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
-        && let Some(name) = obj.get("name").and_then(|v| v.as_str())
-    {
+    if let Some(name) = expr.identifier_name() {
         return name.to_string();
     }
     "snippet".to_string()
@@ -769,18 +765,7 @@ fn can_hoist_snippet(node: &SnippetBlock) -> bool {
 /// in Phase 2 analysis. Keeping it for potential future use.
 #[allow(dead_code)]
 fn extract_param_name(param: &crate::ast::js::Expression) -> Option<String> {
-    let val = param.as_json();
-    if let serde_json::Value::Object(obj) = val
-        && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
-    {
-        return obj
-            .get("name")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
-    }
-    // For destructured patterns, we'd need to extract all names recursively
-    // For simplicity, return None for complex patterns
-    None
+    param.identifier_name().map(|s| s.to_string())
 }
 
 /// Check if an expression only uses the given parameter names.

@@ -85,13 +85,7 @@ fn visit_common(
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     // Handle getter/setter syntax (SequenceExpression)
-    if directive
-        .expression
-        .as_json()
-        .get("type")
-        .and_then(|t| t.as_str())
-        == Some("SequenceExpression")
-    {
+    if directive.expression.node_type() == Some("SequenceExpression") {
         if directive.name == "group" {
             return Err(AnalysisError::ValidationWithCode {
                 code: "bind_group_invalid_expression".to_string(),
@@ -101,12 +95,7 @@ fn visit_common(
 
         // Check for invalid parentheses in the binding expression
         // But ignore parentheses that are inside comments (leading comments before the expression)
-        if let Some(start) = directive
-            .expression
-            .as_json()
-            .get("start")
-            .and_then(|s| s.as_u64())
-        {
+        if let Some(start) = directive.expression.start() {
             // Get leading comments from the expression if available
             let leading_comments = directive
                 .expression
@@ -123,7 +112,8 @@ fn visit_common(
                 Some((comment_start, comment_end))
             });
 
-            let mut i = start as usize;
+            let start_usize = start as usize;
+            let mut i = start_usize;
             while i > 0
                 && context.analysis.source.as_bytes().get(i.saturating_sub(1)) != Some(&b'{')
             {
@@ -135,7 +125,7 @@ fn visit_common(
             let mut pos = i;
             let mut found_invalid_paren = false;
 
-            while pos < start as usize {
+            while pos < start_usize {
                 if source_bytes.get(pos) == Some(&b'(') {
                     // Check if this position is inside a comment
                     let inside_comment = comment_range
@@ -252,13 +242,7 @@ fn visit_common(
     // TODO: Set node.metadata.binding = binding
 
     // For Identifier (not MemberExpression), validate the binding kind
-    if directive
-        .expression
-        .as_json()
-        .get("type")
-        .and_then(|t| t.as_str())
-        == Some("Identifier")
-    {
+    if directive.expression.is_identifier_node() {
         // bind:this also works for regular variables, so skip validation for it
         if directive.name != "this" {
             // In the official Svelte, if there's no binding, or the binding is not a valid type,

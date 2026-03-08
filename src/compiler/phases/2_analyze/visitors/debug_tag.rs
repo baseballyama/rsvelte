@@ -28,9 +28,7 @@ pub fn visit(tag: &mut DebugTag, context: &mut VisitorContext) -> Result<(), Ana
     // In the official Svelte parser, this is done in Phase 1, but our parser doesn't
     // have this check, so we do it here.
     for identifier in &tag.identifiers {
-        let value = identifier.as_json();
-        let expr_type = value.get("type").and_then(|t| t.as_str());
-        if expr_type != Some("Identifier") {
+        if identifier.node_type() != Some("Identifier") {
             return Err(errors::debug_tag_invalid_arguments());
         }
     }
