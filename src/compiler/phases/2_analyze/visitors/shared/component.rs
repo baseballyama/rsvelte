@@ -195,21 +195,21 @@ pub fn visit_component(
             }
             Attribute::BindDirective(bind) => {
                 // Visit the bind expression
-                super::super::script::walk_js_node(bind.expression.as_json(), context)?;
+                super::super::script::walk_expression(&bind.expression, context)?;
             }
             Attribute::OnDirective(on) => {
                 // Visit the event handler expression if present
                 if let Some(ref expr) = on.expression {
-                    super::super::script::walk_js_node(expr.as_json(), context)?;
+                    super::super::script::walk_expression(expr, context)?;
                 }
             }
             Attribute::SpreadAttribute(spread) => {
                 // Visit the spread expression
-                super::super::script::walk_js_node(spread.expression.as_json(), context)?;
+                super::super::script::walk_expression(&spread.expression, context)?;
             }
             Attribute::AttachTag(attach) => {
                 // Visit the attach expression
-                super::super::script::walk_js_node(attach.expression.as_json(), context)?;
+                super::super::script::walk_expression(&attach.expression, context)?;
             }
             Attribute::LetDirective(_) => {
                 // Let directives don't have expressions to visit for needs_context

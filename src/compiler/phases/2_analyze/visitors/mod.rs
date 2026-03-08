@@ -11,7 +11,7 @@ pub mod shared;
 
 // Script visitor
 mod script;
-pub use script::{visit_script, walk_js_node};
+pub use script::{visit_script, walk_expression, walk_js_node};
 
 // Template visitors
 mod component;
@@ -112,19 +112,42 @@ pub struct EachBlockContext {
     pub child_count: usize,
 }
 
-/// A thin wrapper around a raw pointer to `serde_json::Value` that implements `Deref`.
+/// A wrapper that provides access to a `serde_json::Value` on the js_path.
 ///
-/// This avoids expensive deep clones when pushing JS AST nodes onto `js_path`.
-/// SAFETY: The wrapped pointer is always valid because `walk_js_node` pushes a pointer
-/// before visiting and pops it after, matching the call stack lifetime of the referenced `Value`.
-#[derive(Clone, Copy)]
-pub struct JsPathEntry(*const serde_json::Value);
+/// Supports two modes:
+/// - **Borrowed**: a raw pointer to a `Value` whose lifetime is managed by the caller
+///   (used by `walk_js_node` where the `&Value` outlives the push/pop).
+/// - **Owned**: a `Box<Value>` for cases where the value is created on the fly
+///   (used by `walk_js_node_typed` which converts `JsNode` to `Value`).
+#[derive(Clone)]
+pub enum JsPathEntry {
+    Borrowed(*const serde_json::Value),
+    Owned(Box<serde_json::Value>),
+}
 
 impl JsPathEntry {
-    /// Create a new `JsPathEntry` from a reference.
+    /// Create a new `JsPathEntry` from a reference (borrowed, zero-cost).
     #[inline]
     pub fn new(value: &serde_json::Value) -> Self {
-        Self(value as *const _)
+        Self::Borrowed(value as *const _)
+    }
+
+    /// Create a new `JsPathEntry` that owns the `Value`.
+    #[inline]
+    pub fn new_owned(value: serde_json::Value) -> Self {
+        Self::Owned(Box::new(value))
+    }
+
+    /// Get a reference to the underlying `Value`.
+    #[inline]
+    pub fn as_value(&self) -> &serde_json::Value {
+        match self {
+            Self::Borrowed(ptr) => {
+                // SAFETY: The pointer is valid because walk_js_node maintains push/pop invariant.
+                unsafe { &**ptr }
+            }
+            Self::Owned(boxed) => boxed,
+        }
     }
 }
 
@@ -133,8 +156,7 @@ impl std::ops::Deref for JsPathEntry {
 
     #[inline]
     fn deref(&self) -> &serde_json::Value {
-        // SAFETY: The pointer is valid because walk_js_node maintains push/pop invariant.
-        unsafe { &*self.0 }
+        self.as_value()
     }
 }
 

@@ -16,13 +16,10 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 /// - Detect reactive dependencies
 /// - Set needs_context when non-safe identifiers are accessed
 pub fn visit(tag: &ExpressionTag, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    // Extract the JSON value from the expression
-    let expr_value = tag.expression.as_json();
-
     // Walk the JavaScript AST to analyze it
     // This will trigger CallExpression, MemberExpression, etc. visitors
     // which set needs_context when appropriate
-    super::script::walk_js_node(expr_value, context)?;
+    super::script::walk_expression(&tag.expression, context)?;
 
     Ok(())
 }

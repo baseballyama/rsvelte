@@ -34,8 +34,7 @@ pub fn visit(
     // recursively visits the expression, calling CallExpression visitor which sets
     // `needs_context = true` for calls to imported or prop functions.
     // Corresponds to SpreadAttribute.js: `context.next({ ...context.state, expression: node.metadata.expression })`
-    let expr_value = attribute.expression.as_json();
-    super::script::walk_js_node(expr_value, context)?;
+    super::script::walk_expression(&attribute.expression, context)?;
 
     Ok(())
 }

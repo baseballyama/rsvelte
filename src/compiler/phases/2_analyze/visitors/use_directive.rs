@@ -24,8 +24,7 @@ pub fn visit(directive: &UseDirective, context: &mut VisitorContext) -> Result<(
 
     // Analyze the expression if present
     if let Some(ref expression) = directive.expression {
-        let expr_value = expression.as_json();
-        super::script::walk_js_node(expr_value, context)?;
+        super::script::walk_expression(expression, context)?;
     }
 
     Ok(())

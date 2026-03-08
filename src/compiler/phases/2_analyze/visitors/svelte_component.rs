@@ -25,8 +25,7 @@ pub fn visit(
     // svelte:component requires a `this` expression
     // Analyze the expression to track template references
     // This is crucial for legacy state promotion to work correctly
-    let expr_value = component.expression.as_json();
-    super::script::walk_js_node(expr_value, context)?;
+    super::script::walk_expression(&component.expression, context)?;
 
     // Analyze attributes (mirrors visit_component logic from shared/component.rs)
     for attr in &component.attributes {
@@ -40,19 +39,19 @@ pub fn visit(
                 // Walk the bind expression to add template references.
                 // This is important for legacy mode state promotion - bindings need
                 // template references to be promoted from 'normal' to 'state' kind.
-                super::script::walk_js_node(bind.expression.as_json(), context)?;
+                super::script::walk_expression(&bind.expression, context)?;
             }
             Attribute::OnDirective(on) => {
                 // Note: Event forwarding (on:foo without handler) sets needs_props
                 // in the CLIENT transform phase, not here. See OnDirective.js line 21.
                 // Walk event handler expression if present
                 if let Some(ref expr) = on.expression {
-                    super::script::walk_js_node(expr.as_json(), context)?;
+                    super::script::walk_expression(expr, context)?;
                 }
             }
             Attribute::SpreadAttribute(spread) => {
                 // Walk the spread expression
-                super::script::walk_js_node(spread.expression.as_json(), context)?;
+                super::script::walk_expression(&spread.expression, context)?;
             }
             Attribute::Attribute(a) => {
                 // Check for attribute_quoted on svelte:component

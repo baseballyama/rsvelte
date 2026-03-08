@@ -22,7 +22,7 @@ pub fn visit(tag: &AttachTag, context: &mut VisitorContext) -> Result<(), Analys
     // Walk the attach expression to detect needs_context, imports, etc.
     // This ensures that calls like `mount(Child, ...)` or `flushSync()` inside
     // @attach expressions properly trigger needs_context.
-    super::script::walk_js_node(tag.expression.as_json(), context)?;
+    super::script::walk_expression(&tag.expression, context)?;
 
     // TODO: Check for await expressions in the attach tag expression
     // In JS: if (node.metadata.expression.has_await) { e.illegal_await_expression(node); }
