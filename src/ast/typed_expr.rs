@@ -1065,6 +1065,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 map.serialize_entry("source", &**source)?;
+                map.serialize_entry("options", &None::<()>)?;
                 map.end()
             }
             JsNode::AwaitExpression {
