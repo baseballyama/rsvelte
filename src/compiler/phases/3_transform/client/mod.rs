@@ -1005,22 +1005,26 @@ fn transform_client_with_visitors(
     // Process module script content - extract imports separately from other content
     // This is needed because module_level_snippets must come after imports but before exports
     // Reference: transform-client.js line 513: body = [...imports, ...state.module_level_snippets, ...body];
-    let module_script_non_imports: Option<String> =
-        if let Some(ref module_content) = analysis.module_script_content {
-            let (module_imports, rest) = extract_imports(&module_content.raw);
-            // Add module script imports first
-            for import_line in module_imports {
-                body.push(JsStatement::Raw(import_line.into()));
-            }
-            let rest_trimmed = rest.trim();
-            if rest_trimmed.is_empty() {
-                None
-            } else {
-                Some(rest_trimmed.to_string())
-            }
-        } else {
+    let module_script_non_imports: Option<String> = if let Some(ref module_content) =
+        analysis.module_script_content
+    {
+        // Strip TypeScript syntax before processing
+        let raw =
+            crate::compiler::phases::phase2_analyze::types::strip_typescript(&module_content.raw);
+        let (module_imports, rest) = extract_imports(&raw);
+        // Add module script imports first
+        for import_line in module_imports {
+            body.push(JsStatement::Raw(import_line.into()));
+        }
+        let rest_trimmed = rest.trim();
+        if rest_trimmed.is_empty() {
             None
-        };
+        } else {
+            Some(rest_trimmed.to_string())
+        }
+    } else {
+        None
+    };
 
     // Extract and add imports from instance script
     // These are hoisted to module level (after svelte imports)

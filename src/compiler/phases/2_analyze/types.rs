@@ -788,6 +788,18 @@ fn collect_ts_removals_from_statement(
                         Declaration::VariableDeclaration(var_decl) => {
                             if var_decl.declare {
                                 removals.push((export_decl.span.start, export_decl.span.end));
+                            } else {
+                                for decl in &var_decl.declarations {
+                                    if let Some(ref type_ann) = decl.type_annotation {
+                                        removals.push((type_ann.span.start, type_ann.span.end));
+                                    }
+                                    collect_ts_removals_from_binding_pattern(
+                                        &decl.id, source, removals,
+                                    );
+                                    if let Some(ref init) = decl.init {
+                                        collect_ts_removals_from_expression(init, source, removals);
+                                    }
+                                }
                             }
                         }
                         Declaration::TSTypeAliasDeclaration(_)
