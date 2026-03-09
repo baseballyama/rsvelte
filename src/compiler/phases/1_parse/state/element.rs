@@ -867,6 +867,32 @@ impl Parser<'_> {
 
     /// Parse a single attribute.
     pub fn parse_attribute(&mut self) -> ParseResult<Option<crate::ast::Attribute>> {
+        // Skip JS-style comments (// and /* */) before attribute parsing.
+        // Corresponds to read_comment() in the official Svelte compiler (5.53+).
+        loop {
+            if self.match_str("//") {
+                // Line comment: skip until newline
+                while !self.is_eof() && self.current_char() != '\n' {
+                    self.advance();
+                }
+                self.skip_whitespace();
+            } else if self.match_str("/*") {
+                // Block comment: skip until */
+                self.advance(); // consume '/'
+                self.advance(); // consume '*'
+                while !self.is_eof() && !self.match_str("*/") {
+                    self.advance();
+                }
+                if self.match_str("*/") {
+                    self.advance(); // consume '*'
+                    self.advance(); // consume '/'
+                }
+                self.skip_whitespace();
+            } else {
+                break;
+            }
+        }
+
         let start = self.index;
 
         // Check for spread attribute, @attach, or expression shorthand

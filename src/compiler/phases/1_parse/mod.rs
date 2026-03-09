@@ -301,4 +301,22 @@ mod tests {
             result.err()
         );
     }
+
+    #[test]
+    fn test_parse_html_comment_in_attributes() {
+        // `//` inside HTML attributes should be treated as an attribute, not cause parse errors
+        let source = r#"<ul
+    role="presentation"
+    // comment
+    class="list"
+>
+    hello
+</ul>"#;
+        let result = parse(source, ParseOptions::default());
+        assert!(
+            result.is_ok(),
+            "Should parse // in HTML attributes: {:?}",
+            result.err()
+        );
+    }
 }
