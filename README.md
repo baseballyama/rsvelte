@@ -37,28 +37,71 @@ const ast = parse('<h1>Hello</h1>', { modern: true });
 
 The API matches the official [`svelte/compiler`](https://svelte.dev/docs/svelte-compiler) — `compile`, `compileModule`, `parse`, and `VERSION` are all available.
 
-### Using with Vite
+### Using with Vite / SvelteKit
 
-Add `@rsvelte/compiler` and alias `svelte/compiler` in your Vite config:
+`@sveltejs/vite-plugin-svelte` imports `svelte/compiler` internally. To swap it with the Rust compiler, patch the plugin using pnpm:
+
+1. Install `@rsvelte/compiler`:
 
 ```bash
-npm install @rsvelte/compiler
+pnpm add -D @rsvelte/compiler
 ```
 
-```js
-// vite.config.js
-import { svelte } from '@sveltejs/vite-plugin-svelte';
-import { defineConfig } from 'vite';
+2. Create a patch file at `patches/@sveltejs__vite-plugin-svelte.patch`:
 
-export default defineConfig({
-  resolve: {
-    alias: { 'svelte/compiler': '@rsvelte/compiler' }
-  },
-  plugins: [svelte()]
-});
+```diff
+diff --git a/src/plugins/compile-module.js b/src/plugins/compile-module.js
+--- a/src/plugins/compile-module.js
++++ b/src/plugins/compile-module.js
+@@ -1,5 +1,5 @@
+ import { buildModuleIdFilter, buildModuleIdParser } from '../utils/id.js';
+-import * as svelteCompiler from 'svelte/compiler';
++import * as svelteCompiler from '@rsvelte/compiler';
+ import { log, logCompilerWarnings } from '../utils/log.js';
+ import { toRollupError } from '../utils/error.js';
+ import { isSvelteWithAsync } from '../utils/svelte-version.js';
+diff --git a/src/plugins/preprocess.js b/src/plugins/preprocess.js
+--- a/src/plugins/preprocess.js
++++ b/src/plugins/preprocess.js
+@@ -1,6 +1,6 @@
+ import { toRollupError } from '../utils/error.js';
+ import { mapToRelative } from '../utils/sourcemaps.js';
+-import * as svelte from 'svelte/compiler';
++import * as svelte from '@rsvelte/compiler';
+ import { log } from '../utils/log.js';
+ import { arraify } from '../utils/options.js';
+ import fs from 'node:fs';
+diff --git a/src/utils/compile.js b/src/utils/compile.js
+--- a/src/utils/compile.js
++++ b/src/utils/compile.js
+@@ -1,4 +1,4 @@
+-import * as svelte from 'svelte/compiler';
++import * as svelte from '@rsvelte/compiler';
+ import { safeBase64Hash } from './hash.js';
+ import { log } from './log.js';
+diff --git a/src/utils/svelte-version.js b/src/utils/svelte-version.js
+--- a/src/utils/svelte-version.js
++++ b/src/utils/svelte-version.js
+@@ -1,4 +1,4 @@
+-import { VERSION } from 'svelte/compiler';
++import { VERSION } from '@rsvelte/compiler';
 ```
 
-This makes `@sveltejs/vite-plugin-svelte` use the Rust compiler instead of the JavaScript one — no other changes needed.
+3. Register the patch in `package.json`:
+
+```json
+{
+  "pnpm": {
+    "patchedDependencies": {
+      "@sveltejs/vite-plugin-svelte": "patches/@sveltejs__vite-plugin-svelte.patch"
+    }
+  }
+}
+```
+
+4. Run `pnpm install` to apply the patch.
+
+No changes to `vite.config.js` or `svelte.config.js` are needed.
 
 ### Rust
 
