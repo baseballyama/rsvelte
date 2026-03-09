@@ -8289,8 +8289,15 @@ fn transform_read_only_props(line: &str, read_only_props: &[String]) -> String {
                 let after = result[mat.end()..].trim_start();
                 let prev_char = before.chars().last();
                 let next_char = after.chars().next();
+                // Check that `{` is not preceded by `$` (template literal `${...}`)
+                let is_template_literal = prev_char == Some('{') && {
+                    let before_trimmed = before.trim_end();
+                    before_trimmed.len() >= 2
+                        && before_trimmed.as_bytes()[before_trimmed.len() - 2] == b'$'
+                };
                 matches!(prev_char, Some('{') | Some(','))
                     && matches!(next_char, Some('}') | Some(','))
+                    && !is_template_literal
             };
 
             // Replace with $$props.propName
@@ -8324,11 +8331,11 @@ fn is_in_destructuring_pattern(code: &str, pos: usize) -> bool {
     let mut brace_depth = 0;
     let mut last_open_brace = None;
 
-    for (i, c) in before.chars().enumerate() {
+    for (byte_idx, c) in before.char_indices() {
         match c {
             '{' => {
                 brace_depth += 1;
-                last_open_brace = Some(i);
+                last_open_brace = Some(byte_idx);
             }
             '}' => brace_depth -= 1,
             _ => {}
@@ -8535,7 +8542,8 @@ fn transform_state_assignments(
                     // Skip if inside a for-loop scope with the same variable
                     {
                         let chars: Vec<char> = result.chars().collect();
-                        if is_shadowed_by_for_loop_var(&chars, pos, var) {
+                        let char_pos = byte_pos_to_char_index(&result, pos);
+                        if is_shadowed_by_for_loop_var(&chars, char_pos, var) {
                             continue;
                         }
                     }
@@ -8579,7 +8587,8 @@ fn transform_state_assignments(
                 // Skip if inside a for-loop scope with the same variable
                 {
                     let chars: Vec<char> = result.chars().collect();
-                    if is_shadowed_by_for_loop_var(&chars, pos, var) {
+                    let char_pos = byte_pos_to_char_index(&result, pos);
+                    if is_shadowed_by_for_loop_var(&chars, char_pos, var) {
                         continue;
                     }
                 }
@@ -8646,7 +8655,8 @@ fn transform_state_assignments(
             // Skip if the variable is shadowed by a for-loop's let/const declaration
             {
                 let chars: Vec<char> = result.chars().collect();
-                if is_shadowed_by_for_loop_var(&chars, pos, var) {
+                let char_pos = byte_pos_to_char_index(&result, pos);
+                if is_shadowed_by_for_loop_var(&chars, char_pos, var) {
                     search_start = pos + assignment_pattern.len();
                     continue;
                 }
@@ -9852,7 +9862,8 @@ fn transform_legacy_state_declarations(
                     // Check if this declaration is inside a for-loop header.
                     // Scan backwards from `pos` to see if we find `for (` with unmatched parens.
                     let chars: Vec<char> = result.chars().collect();
-                    if is_shadowed_by_for_loop_var(&chars, pos + keyword.len() + 1, var) {
+                    let char_pos = byte_pos_to_char_index(&result, pos + keyword.len() + 1);
+                    if is_shadowed_by_for_loop_var(&chars, char_pos, var) {
                         // This `let x = ...` is inside a for-loop header, skip it
                         search_offset = pos + pattern_with_init.len();
                         continue;
@@ -9897,7 +9908,8 @@ fn transform_legacy_state_declarations(
 
                     // Check if this declaration is inside a for-loop header
                     let chars: Vec<char> = result.chars().collect();
-                    if is_shadowed_by_for_loop_var(&chars, pos + keyword.len() + 1, var) {
+                    let char_pos = byte_pos_to_char_index(&result, pos + keyword.len() + 1);
+                    if is_shadowed_by_for_loop_var(&chars, char_pos, var) {
                         search_offset = pos + pattern_no_init.len();
                         continue;
                     }
@@ -9941,7 +9953,8 @@ fn transform_legacy_state_declarations(
 
                     // Check if this declaration is inside a for-loop header
                     let chars: Vec<char> = result.chars().collect();
-                    if is_shadowed_by_for_loop_var(&chars, pos + keyword.len() + 1, var) {
+                    let char_pos = byte_pos_to_char_index(&result, pos + keyword.len() + 1);
+                    if is_shadowed_by_for_loop_var(&chars, char_pos, var) {
                         search_offset = pos + pattern_no_semi.len();
                         continue;
                     }
@@ -10933,24 +10946,26 @@ fn is_inside_ternary_expression(before: &str) -> bool {
 /// This is similar to find_statement_end_client but also stops at `:` when inside a ternary expression.
 fn find_assignment_expr_end(s: &str, in_ternary: bool) -> usize {
     let mut depth = 0;
-    let chars: Vec<char> = s.chars().collect();
     let mut in_string = false;
     let mut string_char = ' ';
     let mut nested_ternary_depth = 0;
+    let mut prev_char = None;
 
-    for (i, &c) in chars.iter().enumerate() {
+    for (byte_idx, c) in s.char_indices() {
         // Handle string literals
-        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+        if (c == '"' || c == '\'' || c == '`') && prev_char != Some('\\') {
             if !in_string {
                 in_string = true;
                 string_char = c;
             } else if c == string_char {
                 in_string = false;
             }
+            prev_char = Some(c);
             continue;
         }
 
         if in_string {
+            prev_char = Some(c);
             continue;
         }
 
@@ -10961,29 +10976,31 @@ fn find_assignment_expr_end(s: &str, in_ternary: bool) -> usize {
                     depth -= 1;
                 } else {
                     // At depth 0, a closing brace/bracket/paren ends the expression
-                    return i;
+                    return byte_idx;
                 }
             }
-            ';' if depth == 0 => return i,
-            '\n' if depth == 0 => return i,
+            ';' if depth == 0 => return byte_idx,
+            '\n' if depth == 0 => return byte_idx,
             // Stop at ',' at depth 0 (e.g., inside object literal: {id: eid = expr, name: ...})
-            ',' if depth == 0 => return i,
+            ',' if depth == 0 => return byte_idx,
             // Track nested ternaries
             '?' if depth == 0 => {
                 // Check it's not optional chaining (?.)
-                if i + 1 < chars.len() && chars[i + 1] != '.' {
+                let next_byte = byte_idx + c.len_utf8();
+                if next_byte < s.len() && s.as_bytes()[next_byte] != b'.' {
                     nested_ternary_depth += 1;
                 }
             }
             // Stop at `:` when in a ternary and not in a nested ternary
             ':' if depth == 0 && in_ternary && nested_ternary_depth == 0 => {
-                return i;
+                return byte_idx;
             }
             ':' if depth == 0 && nested_ternary_depth > 0 => {
                 nested_ternary_depth -= 1;
             }
             _ => {}
         }
+        prev_char = Some(c);
     }
 
     s.len()
@@ -11325,6 +11342,12 @@ fn is_in_function_param_position(chars: &[char], var_start_idx: usize, var_end_i
 /// Strategy: scan backwards from var_start tracking brace depth. At each scope boundary
 /// (opening `{`), look for a `for (let <var>` or `for (const <var>` pattern that would
 /// indicate this scope is a for-loop body with the variable declared in the init.
+/// Convert a byte position in a string to a character index.
+/// Returns the character index for the given byte offset.
+fn byte_pos_to_char_index(s: &str, byte_pos: usize) -> usize {
+    s[..byte_pos].chars().count()
+}
+
 /// Also check if we're directly inside the for-loop header (between the `for (` and `)`).
 fn is_shadowed_by_for_loop_var(chars: &[char], var_start: usize, var_name: &str) -> bool {
     // First, check if we're inside a for-loop HEADER (init, test, or update section)

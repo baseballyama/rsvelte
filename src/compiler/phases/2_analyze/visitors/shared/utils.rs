@@ -107,7 +107,12 @@ fn statement_declares_name(stmt: &Value, name: &str) -> bool {
         Some("BlockStatement")
         | Some("IfStatement")
         | Some("ForStatement")
-        | Some("WhileStatement") => {
+        | Some("ForInStatement")
+        | Some("ForOfStatement")
+        | Some("WhileStatement")
+        | Some("DoWhileStatement")
+        | Some("TryStatement")
+        | Some("SwitchStatement") => {
             // Check nested statements, but this is a simplified check
             // For proper scoping we'd need to respect block scopes for let/const
             if let Some(body) = stmt.get("body") {
@@ -131,6 +136,35 @@ fn statement_declares_name(stmt: &Value, name: &str) -> bool {
                 && statement_declares_name(alternate, name)
             {
                 return true;
+            }
+            // For try statements, check block, handler, and finalizer
+            if let Some(block) = stmt.get("block")
+                && statement_declares_name(block, name)
+            {
+                return true;
+            }
+            if let Some(handler) = stmt.get("handler")
+                && let Some(handler_body) = handler.get("body")
+                && statement_declares_name(handler_body, name)
+            {
+                return true;
+            }
+            if let Some(finalizer) = stmt.get("finalizer")
+                && statement_declares_name(finalizer, name)
+            {
+                return true;
+            }
+            // For switch statements, check cases
+            if let Some(cases) = stmt.get("cases").and_then(|c| c.as_array()) {
+                for case in cases {
+                    if let Some(consequent) = case.get("consequent").and_then(|c| c.as_array()) {
+                        for s in consequent {
+                            if statement_declares_name(s, name) {
+                                return true;
+                            }
+                        }
+                    }
+                }
             }
         }
         _ => {}
@@ -605,9 +639,11 @@ pub fn validate_no_const_assignment(
                     //
                     // We detect this by walking the js_path (AST ancestors) looking for a
                     // function that declares a variable with the same name.
-                    if context.function_depth > 1 && binding.scope_index <= 1 {
+                    if context.function_depth > 1 {
                         // Check if there's a shadowing binding in the current function's scope
-                        // by looking for variable declarations in ancestor function bodies
+                        // by looking for variable declarations in ancestor function bodies.
+                        // This handles cases where a const in an outer function is shadowed by
+                        // a let/var in a nested loop within the current function.
                         let has_local_shadowing =
                             has_shadowing_declaration_in_path(&context.js_path, name);
                         if has_local_shadowing {
