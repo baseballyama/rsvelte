@@ -2,3 +2,7 @@
 	path = svelte
 	url = https://github.com/sveltejs/svelte.git
 	ignore = dirty
+[submodule "vite-plugin-svelte"]
+	path = vite-plugin-svelte
+	url = git@github.com:baseballyama/vite-plugin-svelte.git
+	branch = rsvelte
