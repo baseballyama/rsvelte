@@ -594,10 +594,15 @@ export default function {component_name}($$renderer{props_param}) {{
             }
         };
 
-        // Normalize the output through oxc parser/codegen
-        match normalize_js(&raw_output) {
-            Ok(normalized) => normalized,
-            Err(_) => raw_output, // Fall back to raw output if parsing fails
+        if std::env::var("SKIP_OXC").is_ok() {
+            // Fast path: skip ALL normalization, use raw output
+            raw_output
+        } else {
+            // Normalize the output through oxc parser/codegen
+            match normalize_js(&raw_output) {
+                Ok(normalized) => normalized,
+                Err(_) => raw_output, // Fall back to raw output if parsing fails
+            }
         }
     }
 

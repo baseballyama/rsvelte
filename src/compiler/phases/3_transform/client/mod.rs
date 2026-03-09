@@ -215,16 +215,33 @@ fn transform_client_with_visitors(
     let legacy_reactive_imports = std::mem::take(&mut context.state.legacy_reactive_imports);
 
     // Build binding lookup index for O(1) access by name
-    // This replaces multiple O(n) linear scans through analysis.root.bindings
+    // This replaces multiple O(n) linear scans through analysis.root.bindings.
+    // Prefer instance-scope bindings over inner-scope bindings to avoid
+    // shadowing issues (e.g., a local `const foo` inside an IIFE should not
+    // shadow the instance-level `let foo` in the binding map).
     let binding_by_name: rustc_hash::FxHashMap<
         &str,
         &crate::compiler::phases::phase2_analyze::scope::Binding,
-    > = analysis
-        .root
-        .bindings
-        .iter()
-        .map(|b| (b.name.as_str(), b))
-        .collect();
+    > = {
+        let instance_scope_index = analysis.root.instance_scope_index;
+        let mut map: rustc_hash::FxHashMap<
+            &str,
+            &crate::compiler::phases::phase2_analyze::scope::Binding,
+        > = rustc_hash::FxHashMap::default();
+        for b in &analysis.root.bindings {
+            if let Some(existing) = map.get(b.name.as_str()) {
+                // Prefer instance-scope bindings over inner-scope ones
+                if b.scope_index == instance_scope_index
+                    && existing.scope_index != instance_scope_index
+                {
+                    map.insert(b.name.as_str(), b);
+                }
+            } else {
+                map.insert(b.name.as_str(), b);
+            }
+        }
+        map
+    };
 
     // Collect reactive import names for legacy mode.
     // In legacy mode, mutated imports in the instance scope are wrapped with $.reactive_import()

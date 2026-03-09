@@ -537,9 +537,15 @@ impl Parser<'_> {
                             match &parts[0] {
                                 AttributeValuePart::Text(text) => {
                                     // For quoted string values like this="div"
-                                    return Expression::from_json(serde_json::json!(
-                                        text.data.as_str()
-                                    ));
+                                    // Create a proper Literal AST node matching the official compiler:
+                                    // { type: "Literal", value: "div", raw: "'div'" }
+                                    return Expression::from_json(serde_json::json!({
+                                        "type": "Literal",
+                                        "value": text.data.as_str(),
+                                        "raw": format!("'{}'", text.data.as_str()),
+                                        "start": text.start,
+                                        "end": text.end
+                                    }));
                                 }
                                 AttributeValuePart::ExpressionTag(expr_tag) => {
                                     // For quoted expression like this="{expr}"

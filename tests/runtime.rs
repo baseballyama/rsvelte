@@ -148,14 +148,44 @@ impl TestResult {
 fn compare_js(actual: &str, expected: &str) -> bool {
     let normalized_actual = normalize_js(actual);
     let normalized_expected = normalize_js(expected);
-    normalized_actual == normalized_expected
+    let passed = normalized_actual == normalized_expected;
+    if !passed && std::env::var("DEBUG_ALL").is_ok() {
+        // Find first difference
+        let a_chars: Vec<char> = normalized_actual.chars().collect();
+        let e_chars: Vec<char> = normalized_expected.chars().collect();
+        for (idx, (a, e)) in a_chars.iter().zip(e_chars.iter()).enumerate() {
+            if a != e {
+                let start = idx.saturating_sub(30);
+                let end_a = (idx + 50).min(a_chars.len());
+                let end_e = (idx + 50).min(e_chars.len());
+                let ctx_a: String = a_chars[start..end_a].iter().collect();
+                let ctx_e: String = e_chars[start..end_e].iter().collect();
+                eprintln!(
+                    "DIFF at pos {}: actual='{}' expected='{}'",
+                    idx, ctx_a, ctx_e
+                );
+                break;
+            }
+        }
+        if a_chars.len() != e_chars.len() {
+            eprintln!(
+                "LENGTH: actual={} expected={}",
+                a_chars.len(),
+                e_chars.len()
+            );
+        }
+    }
+    passed
 }
 
 fn compare_js_debug(actual: &str, expected: &str, test_name: &str) -> bool {
     let normalized_actual = normalize_js(actual);
     let normalized_expected = normalize_js(expected);
     let passed = normalized_actual == normalized_expected;
-    if !passed && std::env::var("DEBUG_TEST").ok().as_deref() == Some(test_name) {
+    if !passed
+        && (std::env::var("DEBUG_TEST").ok().as_deref() == Some(test_name)
+            || std::env::var("DEBUG_ALL").is_ok())
+    {
         eprintln!("NORM_EXP: {}", normalized_expected);
         eprintln!("NORM_ACT: {}", normalized_actual);
     }

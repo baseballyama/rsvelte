@@ -16,12 +16,20 @@ impl<'a> ServerCodeGenerator<'a> {
         let start = elem.tag.start().unwrap_or(0) as usize;
         let end = elem.tag.end().unwrap_or(0) as usize;
 
-        let tag_expr = if end > start && end <= self.source.len() {
+        // Check if tag is a Literal node (e.g., from this="svg")
+        let tag_expr = if elem.tag.node_type() == Some("Literal") {
+            // Use the raw field for proper quoting: 'svg'
+            if let Some(raw) = elem.tag.as_json().get("raw").and_then(|r| r.as_str()) {
+                raw.to_string()
+            } else if let Some(val) = elem.tag.as_json().get("value").and_then(|v| v.as_str()) {
+                format!("'{}'", val)
+            } else {
+                "null".to_string()
+            }
+        } else if end > start && end <= self.source.len() {
             let raw = self.source[start..end].trim().to_string();
             self.transform_store_refs(&raw)
         } else {
-            // The tag expression might be a synthetic JSON literal (e.g., from this="div")
-            // without start/end positions. Check if it's a string value directly.
             let json = elem.tag.as_json();
             if let Some(s) = json.as_str() {
                 format!("'{}'", s)

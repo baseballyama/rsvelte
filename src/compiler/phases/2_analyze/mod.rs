@@ -1786,20 +1786,57 @@ fn collect_identifiers_from_expr_with_locals(
             }
         }
         _ => {
-            // Recursively walk all value fields
-            if let Some(obj) = node.as_object() {
-                for (key, val) in obj {
-                    if key == "type" || key == "start" || key == "end" || key == "loc" {
-                        continue;
+            // For known expression types, walk fields in AST-semantic order
+            // to ensure consistent identifier ordering (serde_json::Map uses
+            // BTreeMap which iterates alphabetically, giving wrong order).
+            let ordered_fields: Option<&[&str]> = match node_type {
+                "ConditionalExpression" => Some(&["test", "consequent", "alternate"]),
+                "BinaryExpression" | "LogicalExpression" => Some(&["left", "right"]),
+                "AssignmentExpression" | "AssignmentPattern" => Some(&["left", "right"]),
+                "UnaryExpression" | "UpdateExpression" => Some(&["argument"]),
+                "CallExpression" | "NewExpression" => Some(&["callee", "arguments"]),
+                "SequenceExpression" => Some(&["expressions"]),
+                "ArrayExpression" => Some(&["elements"]),
+                "ObjectExpression" => Some(&["properties"]),
+                "SpreadElement" => Some(&["argument"]),
+                "TemplateLiteral" => Some(&["expressions", "quasis"]),
+                "TaggedTemplateExpression" => Some(&["tag", "quasi"]),
+                "YieldExpression" | "AwaitExpression" => Some(&["argument"]),
+                "ChainExpression" => Some(&["expression"]),
+                _ => None,
+            };
+
+            if let Some(fields) = ordered_fields {
+                // Walk fields in specified order
+                for field in fields {
+                    if let Some(val) = node.get(*field) {
+                        if val.is_object() {
+                            collect_identifiers_from_expr_with_locals(val, names, locals);
+                        } else if let Some(arr) = val.as_array() {
+                            for item in arr {
+                                if item.is_object() {
+                                    collect_identifiers_from_expr_with_locals(item, names, locals);
+                                }
+                            }
+                        }
                     }
-                    if val.is_object() {
-                        collect_identifiers_from_expr_with_locals(val, names, locals);
-                    } else if val.is_array()
-                        && let Some(arr) = val.as_array()
-                    {
-                        for item in arr {
-                            if item.is_object() {
-                                collect_identifiers_from_expr_with_locals(item, names, locals);
+                }
+            } else {
+                // Fallback: walk all value fields (alphabetical order from BTreeMap)
+                if let Some(obj) = node.as_object() {
+                    for (key, val) in obj {
+                        if key == "type" || key == "start" || key == "end" || key == "loc" {
+                            continue;
+                        }
+                        if val.is_object() {
+                            collect_identifiers_from_expr_with_locals(val, names, locals);
+                        } else if val.is_array()
+                            && let Some(arr) = val.as_array()
+                        {
+                            for item in arr {
+                                if item.is_object() {
+                                    collect_identifiers_from_expr_with_locals(item, names, locals);
+                                }
                             }
                         }
                     }
