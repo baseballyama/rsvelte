@@ -52,7 +52,12 @@ pub fn read_pattern(source: &str, start: usize, line_offsets: &[usize]) -> (Expr
         let open_char = c as char;
         if let Some(end_pos) = find_matching_bracket(source, i + 1, open_char) {
             let pattern_str = &source[i..=end_pos];
-            let pattern = super::expression::parse_binding_pattern(pattern_str, i, line_offsets);
+            let pattern = super::expression::parse_binding_pattern(pattern_str, i, line_offsets)
+                .unwrap_or_else(|_| {
+                    crate::ast::js::Expression::Value(
+                        serde_json::json!({"type": "Identifier", "name": "", "start": i, "end": i}),
+                    )
+                });
 
             // Check for type annotation after the pattern
             let (type_annotation, final_pos) =

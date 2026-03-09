@@ -407,8 +407,7 @@ pub fn normalize_js(js: &str) -> String {
         // Normalize parenthesized array destructure assignments: `([x] = expr)` -> `[x] = expr`
         // OXC preserves explicit parens around array destructure expression statements,
         // while the official Svelte compiler strips them (unnecessary for disambiguation).
-        static ref PAREN_ARRAY_DESTRUCTURE: Regex =
-            Regex::new(r"\((\[[^\]]+\]\s*=[^;)]+)\)").unwrap();
+        // PAREN_ARRAY_DESTRUCTURE removed: handled by normalize_paren_in_args
         // Normalize arrow function single parameter parentheses: (x) => to x =>
         // OXC adds parens around single identifier parameters, raw codegen omits them.
         // Only match single identifier parameters (not destructuring, rest params, etc.)
@@ -495,11 +494,11 @@ pub fn normalize_js(js: &str) -> String {
         .replace_all(&result, |caps: &regex::Captures| {
             let word = &caps[1];
             match word {
-                "function" | "if" | "while" | "for" | "switch" | "catch" | "return" | "new"
-                | "typeof" | "void" | "delete" | "throw" | "case" | "in" | "of" | "from"
-                | "import" | "export" | "let" | "const" | "var" | "async" | "yield" | "await"
-                | "else" | "class" | "extends" | "super" | "instanceof" | "try" | "finally"
-                | "with" | "do" | "debugger" | "default" => {
+                "function" | "if" | "while" | "for" | "switch" | "return" | "new" | "typeof"
+                | "void" | "delete" | "throw" | "case" | "in" | "of" | "from" | "import"
+                | "export" | "let" | "const" | "var" | "async" | "yield" | "await" | "else"
+                | "class" | "extends" | "super" | "instanceof" | "try" | "finally" | "with"
+                | "do" | "debugger" | "default" => {
                     format!("{} (", word)
                 }
                 _ => format!("{}(", word),
@@ -648,10 +647,10 @@ pub fn normalize_js(js: &str) -> String {
         })
         .to_string();
 
-    // Normalize parenthesized array destructure assignments
-    let result = PAREN_ARRAY_DESTRUCTURE
-        .replace_all(&result, "$1")
-        .to_string();
+    // Normalize parenthesized array destructure assignment statements:
+    // `([a,b,c]=expr)` -> `[a,b,c]=expr`
+    // Uses balanced bracket matching instead of regex to avoid corruption
+    let result = normalize_paren_array_destructure(&result);
 
     // Normalize undefined representation (void 0 -> undefined)
     let result = result.replace("void 0", "undefined");
@@ -665,11 +664,35 @@ pub fn normalize_js(js: &str) -> String {
     // JsCodegen may add unnecessary parens around identifiers/expressions before ?.
     let result = normalize_paren_optional_chain(&result);
 
-    // Normalize parenthesized identifiers followed by member access or call:
+    // Normalize parenthesized identifiers followed by member access (`.`) or call (`(`):
     // `(identifier).foo` -> `identifier.foo`, `(fn)()` -> `fn()`
+    // Skip when preceded by identifier char, `)`, or `]` (function call context).
+    // Skip when `.` is followed by `.` (spread `..` pattern).
     let result = {
-        let re = regex::Regex::new(r"\((\w[\w.]*)\)(\.|(\())").unwrap();
-        re.replace_all(&result, "$1$2").to_string()
+        let re = regex::Regex::new(r"\((\w[\w.]*)\)([.(])").unwrap();
+        re.replace_all(&result, |caps: &regex::Captures| {
+            let m = caps.get(0).unwrap();
+            let start = m.start();
+            let end = m.end();
+            // Don't strip if preceded by identifier/call chars
+            if start > 0 {
+                let prev = result.as_bytes()[start - 1];
+                if prev.is_ascii_alphanumeric()
+                    || prev == b'_'
+                    || prev == b'$'
+                    || prev == b')'
+                    || prev == b']'
+                {
+                    return caps[0].to_string();
+                }
+            }
+            // Don't strip if the `.` is followed by another `.` (spread pattern)
+            if &caps[2] == "." && end < result.len() && result.as_bytes()[end] == b'.' {
+                return caps[0].to_string();
+            }
+            format!("{}{}", &caps[1], &caps[2])
+        })
+        .to_string()
     };
 
     // Normalize `function (` to `function(` - OXC may strip the space before parens
@@ -746,6 +769,26 @@ pub fn normalize_js(js: &str) -> String {
         out
     };
 
+    // Normalize IIFE forms: (function(a){body}(args)) -> (function(a){body})(args)
+    let result = normalize_iife(&result);
+
+    // Strip unnecessary parens around function arguments (e.g., `func(a, (ternary))` -> `func(a, ternary)`)
+    // Apply repeatedly to handle nested parens (e.g., `= ({ ... } = ([s] = [...]))`)
+    let mut result = result;
+    for _ in 0..10 {
+        let new_result = normalize_paren_in_args(&result);
+        if new_result == result {
+            break;
+        }
+        result = new_result;
+    }
+
+    // Normalize redundant parentheses around general function calls
+    // E.g., `(writable({}))` -> `writable({})`, `(a(x, y))` -> `a(x, y)`
+    // Only strip when the opening `(` is not a function call itself
+    // (i.e., not preceded by an identifier, `)`, `]`, or `}`)
+    let result = normalize_paren_around_call(&result);
+
     // Normalize parenthesized comma expressions (sequence expressions) in statement context.
     // OXC strips outer parentheses from sequence expressions in expression-statement context
     // because they're technically unnecessary: `(a = b, c);` -> `a = b, c;`
@@ -771,6 +814,12 @@ pub fn normalize_js(js: &str) -> String {
 
     // Remove semicolons for normalization
     let result = result.replace(';', "");
+
+    // Re-run spacing normalizations that may now be needed after semicolon removal.
+    // E.g., `); else` -> `) else` was fine, but after `;` removal: `) else` may become
+    // `)else` if the space was part of `; `.
+    let result = result.replace(")else", ") else");
+    let result = result.replace("}catch", "} catch");
 
     // Normalize adjacent $$renderer.push calls where second is just '<!---->'.
     // Official compiler may merge: push(`X`) push('<!---->') -> push(`X<!---->`).
@@ -810,6 +859,14 @@ pub fn normalize_js(js: &str) -> String {
     let result = PAREN_STRING_LIT.replace_all(&result, "$1").to_string();
     let result = PAREN_NUMBER_LIT.replace_all(&result, "$1").to_string();
     let result = PAREN_KEYWORD_LIT.replace_all(&result, "$1").to_string();
+
+    // Normalize parenthesized single identifiers: (identifier) -> identifier
+    // JsCodegen may wrap identifiers in unnecessary parens in binary expression contexts.
+    // Only strip when preceded by an operator or comma (safe contexts).
+    let result = {
+        let re = regex::Regex::new(r"([+\-*/=%,(])\(([a-zA-Z_$][a-zA-Z0-9_$]*)\)").unwrap();
+        re.replace_all(&result, "$1$2").to_string()
+    };
 
     // Normalize parenthesized member expressions: (args.length) -> args.length
     // OXC may remove unnecessary parens around simple member access expressions
@@ -878,6 +935,18 @@ pub fn normalize_js(js: &str) -> String {
     // This handles cases like ";;" becoming "  " after semicolon removal
     let result = MULTI_SPACE.replace_all(&result, " ").to_string();
 
+    // Normalize space before `.` in method chains: `] .map` -> `].map`, `) .then` -> `).then`
+    // JsCodegen may insert a newline before `.` for chained method calls, which MULTI_SPACE
+    // collapses to a space. Must not affect spread `...` patterns.
+    let result = normalize_space_before_dot(&result);
+
+    // Normalize `new class Foo { ... }` to `new (class Foo { ... })()`
+    // OXC wraps class expressions in new with parens and adds call parens
+    let result = normalize_new_class(&result);
+
+    // Normalize `=({...})` to `={...}` - strip unnecessary parens around object after assignment
+    let result = normalize_paren_object_after_assign(&result);
+
     // Normalize consecutive commas in array patterns: `,,` -> `, ,`
     // OXC normalizes `[,, c]` to `[, , c]` (adds space after comma in elision patterns),
     // while the official compiler may output `[,, c]`. Normalize to unified form.
@@ -896,6 +965,167 @@ pub fn normalize_js(js: &str) -> String {
         .join("\n");
 
     result.trim().to_string()
+}
+
+/// Strip outer parentheses from parenthesized array destructure assignments.
+/// Converts `([a,b,c]=expr)` to `[a,b,c]=expr`.
+/// Uses balanced bracket/paren matching to correctly handle nested constructs
+/// like `([s]=[await Promise.resolve(19)])`.
+fn normalize_paren_array_destructure(code: &str) -> String {
+    let bytes = code.as_bytes();
+    let mut result = String::with_capacity(code.len());
+    let mut i = 0;
+
+    while i < bytes.len() {
+        // Look for `([` — an opening paren immediately followed by `[`
+        if bytes[i] == b'(' && i + 1 < bytes.len() && bytes[i + 1] == b'[' {
+            // Make sure it's not a function call: check that the previous non-space char
+            // is NOT an identifier char, `)`, `]`, or `}`
+            let mut is_call = false;
+            if i > 0 {
+                let prev = bytes[i - 1];
+                is_call = prev.is_ascii_alphanumeric()
+                    || prev == b'_'
+                    || prev == b'$'
+                    || prev == b')'
+                    || prev == b']';
+            }
+            if !is_call {
+                // Find the matching `)` using balanced depth counting
+                let mut depth = 1;
+                let mut j = i + 1;
+                let mut has_assignment = false;
+                while j < bytes.len() && depth > 0 {
+                    match bytes[j] {
+                        b'(' | b'[' => depth += 1,
+                        b')' | b']' => depth -= 1,
+                        b'=' if depth == 1 => has_assignment = true,
+                        b'\'' | b'"' | b'`' => {
+                            let quote = bytes[j];
+                            j += 1;
+                            while j < bytes.len() && bytes[j] != quote {
+                                if bytes[j] == b'\\' {
+                                    j += 1;
+                                }
+                                j += 1;
+                            }
+                        }
+                        _ => {}
+                    }
+                    if depth > 0 {
+                        j += 1;
+                    }
+                }
+                // Only strip if we found the matching `)` AND the content has an assignment
+                if depth == 0 && has_assignment && bytes[j] == b')' {
+                    // Output content without outer parens
+                    result.push_str(&code[i + 1..j]);
+                    i = j + 1;
+                    continue;
+                }
+            }
+        }
+        let ch = code[i..].chars().next().unwrap();
+        result.push(ch);
+        i += ch.len_utf8();
+    }
+    result
+}
+
+/// Strip unnecessary parentheses around function call arguments.
+/// Converts `func(a, (expr))` to `func(a, expr)` and `func((expr))` to `func(expr)`
+/// when the parenthesized expression doesn't contain commas at depth 0.
+/// This handles cases where the codegen wraps ternary expressions or other
+/// non-comma expressions in unnecessary parens.
+fn normalize_paren_in_args(code: &str) -> String {
+    let bytes = code.as_bytes();
+    let mut result = String::with_capacity(code.len());
+    let mut i = 0;
+
+    while i < bytes.len() {
+        // Look for `,(`, `=(`, `= (`, or `=>(` pattern where the paren wraps an unnecessary grouping.
+        // For `=`, ensure it's not `==` or `!=` (comparison operators).
+        // paren_offset: distance from trigger char to the `(` (1 for `=(`, 2 for `= (`)
+        let (trigger, paren_offset) = if i + 1 < bytes.len() && bytes[i + 1] == b'(' {
+            if bytes[i] == b',' || bytes[i] == b'?' || bytes[i] == b':' {
+                (true, 1usize)
+            } else if bytes[i] == b'=' {
+                let prev_is_comparison = i > 0
+                    && (bytes[i - 1] == b'='
+                        || bytes[i - 1] == b'!'
+                        || bytes[i - 1] == b'<'
+                        || bytes[i - 1] == b'>');
+                let next_is_eq = i + 2 < bytes.len() && bytes[i + 2] == b'=';
+                (!prev_is_comparison && !next_is_eq, 1usize)
+            } else if bytes[i] == b'>' && i > 0 && bytes[i - 1] == b'=' {
+                (true, 1usize)
+            } else {
+                (false, 1usize)
+            }
+        } else if i + 2 < bytes.len()
+            && bytes[i] == b'='
+            && bytes[i + 1] == b' '
+            && bytes[i + 2] == b'('
+        {
+            // Handle `= (` pattern (assignment with space before paren)
+            let prev_is_comparison = i > 0
+                && (bytes[i - 1] == b'='
+                    || bytes[i - 1] == b'!'
+                    || bytes[i - 1] == b'<'
+                    || bytes[i - 1] == b'>');
+            let next_is_eq = i + 3 < bytes.len() && bytes[i + 3] == b'=';
+            (!prev_is_comparison && !next_is_eq, 2usize)
+        } else {
+            (false, 1usize)
+        };
+
+        if trigger {
+            let paren_pos = i + paren_offset;
+            // Find the matching closing paren
+            let mut depth = 1;
+            let mut j = paren_pos + 1;
+            let mut has_top_level_comma = false;
+            while j < bytes.len() && depth > 0 {
+                match bytes[j] {
+                    b'(' | b'[' | b'{' => depth += 1,
+                    b')' | b']' | b'}' => depth -= 1,
+                    b',' if depth == 1 => has_top_level_comma = true,
+                    b'\'' | b'"' | b'`' => {
+                        let quote = bytes[j];
+                        j += 1;
+                        while j < bytes.len() && bytes[j] != quote {
+                            if bytes[j] == b'\\' {
+                                j += 1;
+                            }
+                            j += 1;
+                        }
+                    }
+                    _ => {}
+                }
+                if depth > 0 {
+                    j += 1;
+                }
+            }
+
+            // j points to the closing `)` of the inner parens
+            // Only strip if no top-level comma AND content is non-empty
+            // (empty `()` is a valid arrow function parameter list, not grouping)
+            let content_len = j - (paren_pos + 1);
+            if depth == 0 && !has_top_level_comma && content_len > 0 {
+                // Output trigger char(s) + content without outer parens
+                result.push_str(&code[i..i + paren_offset]);
+                result.push_str(&code[paren_pos + 1..j]);
+                i = j + 1; // skip past the closing `)` of inner parens
+                continue;
+            }
+        }
+
+        let ch = code[i..].chars().next().unwrap();
+        result.push(ch);
+        i += ch.len_utf8();
+    }
+
+    result
 }
 
 /// Strip outer parentheses from comma expressions (sequence expressions) in statement context.
@@ -917,6 +1147,7 @@ fn normalize_sequence_expression_parens(code: &str) -> String {
                 || bytes[i - 1] == b' '
                 || bytes[i - 1] == b'{'
                 || bytes[i - 1] == b'}'
+                || (bytes[i - 1] == b'>' && i >= 2 && bytes[i - 2] == b'=')
                 || bytes[i - 1] == b')';
 
             if prev_is_statement_boundary {
@@ -1490,6 +1721,7 @@ fn normalize_operator_spacing(code: &str) -> String {
                             || next_b == b'$'
                             || next_b == b'('
                             || next_b == b'['
+                            || next_b == b'{'
                             || next_b == b'\''
                             || next_b == b'"'
                             || next_b == b'`'
@@ -1504,6 +1736,41 @@ fn normalize_operator_spacing(code: &str) -> String {
                         }
                         continue;
                     }
+                }
+            }
+
+            // Also check: OP SPACE OPERAND (no leading space before operator)
+            // This handles cases like `store= fromStore` -> `store=fromStore`
+            // where the operator is already adjacent to the left operand but has a trailing space.
+            let is_prev_operator = prev == b'='
+                || prev == b'+'
+                || prev == b'-'
+                || prev == b'*'
+                || prev == b'/'
+                || prev == b'%'
+                || prev == b'>'
+                || prev == b'<'
+                || prev == b'?';
+            // Exclude `>` when it's part of `=>` (arrow function)
+            let is_arrow =
+                prev == b'>' && result.len() >= 2 && result.as_bytes()[result.len() - 2] == b'=';
+            if is_prev_operator && !is_arrow && i + 1 < bytes.len() {
+                let next_b = bytes[i + 1];
+                let is_right_operand = next_b.is_ascii_alphanumeric()
+                    || next_b == b'_'
+                    || next_b == b'$'
+                    || next_b == b'('
+                    || next_b == b'['
+                    || next_b == b'{'
+                    || next_b == b'\''
+                    || next_b == b'"'
+                    || next_b == b'`'
+                    || next_b == b'!'
+                    || next_b == b'-';
+                if is_right_operand {
+                    // Skip the space (operator is already in result)
+                    i += 1;
+                    continue;
                 }
             }
         }
@@ -1548,12 +1815,13 @@ fn match_binary_operator(bytes: &[u8]) -> (usize, &'static str) {
             b"%=" => return (2, "%="),
             b"**" => return (2, "**"),
             b"=>" => return (0, ""), // Don't touch arrow functions
+            b"?." => return (0, ""), // Don't touch optional chaining
             _ => {}
         }
     }
     if !bytes.is_empty() {
         match bytes[0] {
-            b'+' | b'-' | b'*' | b'/' | b'%' | b'>' | b'<' | b'=' => {
+            b'+' | b'-' | b'*' | b'/' | b'%' | b'>' | b'<' | b'=' | b'?' => {
                 return (
                     1,
                     match bytes[0] {
@@ -1565,6 +1833,7 @@ fn match_binary_operator(bytes: &[u8]) -> (usize, &'static str) {
                         b'>' => ">",
                         b'<' => "<",
                         b'=' => "=",
+                        b'?' => "?",
                         _ => unreachable!(),
                     },
                 );
@@ -1573,6 +1842,338 @@ fn match_binary_operator(bytes: &[u8]) -> (usize, &'static str) {
         }
     }
     (0, "")
+}
+
+/// Normalize redundant parentheses around function call expressions.
+/// Strips `(identifier(...))` -> `identifier(...)` when the outer `(` is not part of
+/// a function call (not preceded by identifier char, `)`, `]`).
+/// This handles patterns like `(writable({}))` -> `writable({})`.
+fn normalize_paren_around_call(code: &str) -> String {
+    let bytes = code.as_bytes();
+    let mut result = String::with_capacity(code.len());
+    let mut i = 0;
+
+    while i < bytes.len() {
+        if bytes[i] == b'(' {
+            // Check if this `(` is NOT a function call (preceded by identifier, ), ], })
+            let is_call = i > 0 && {
+                let prev = bytes[i - 1];
+                prev.is_ascii_alphanumeric()
+                    || prev == b'_'
+                    || prev == b'$'
+                    || prev == b')'
+                    || prev == b']'
+                    || prev == b'}'
+            };
+
+            if !is_call {
+                // Check if the content starts with an identifier followed by `(`
+                // i.e., pattern is `(identifier(...))` or `(identifier.member(...))`
+                let mut k = i + 1;
+                // Skip identifier chars and dots (for member expressions like `$.func`)
+                while k < bytes.len()
+                    && (bytes[k].is_ascii_alphanumeric()
+                        || bytes[k] == b'_'
+                        || bytes[k] == b'$'
+                        || bytes[k] == b'.')
+                {
+                    k += 1;
+                }
+                // Check if we consumed at least one char and next is `(`
+                if k > i + 1 && k < bytes.len() && bytes[k] == b'(' {
+                    // This looks like `(identifier(`. Find the balanced close of the inner call.
+                    let mut depth = 1; // for the inner `(`
+                    let mut j = k + 1;
+                    while j < bytes.len() && depth > 0 {
+                        if bytes[j] == b'(' {
+                            depth += 1;
+                        } else if bytes[j] == b')' {
+                            depth -= 1;
+                        }
+                        if depth > 0 {
+                            j += 1;
+                        }
+                    }
+                    // j now points to the `)` that closes the inner call
+                    // Check if the next char is `)` (closes the outer paren)
+                    if depth == 0 && j + 1 < bytes.len() && bytes[j + 1] == b')' {
+                        // Strip outer parens: output content between i+1 and j+1 (exclusive)
+                        result.push_str(&code[i + 1..j + 1]);
+                        i = j + 2; // skip past outer `)`
+                        continue;
+                    }
+                }
+            }
+        }
+
+        let ch = code[i..].chars().next().unwrap();
+        result.push(ch);
+        i += ch.len_utf8();
+    }
+
+    result
+}
+
+/// Normalize IIFE (Immediately Invoked Function Expression) forms.
+/// Converts `(function(params) {body}(args))` to `(function(params) {body})(args)`.
+/// Both are semantically identical; this normalizes to the form where the call
+/// is outside the grouping parens.
+fn normalize_iife(code: &str) -> String {
+    let bytes = code.as_bytes();
+    let mut result = String::with_capacity(code.len());
+    let mut i = 0;
+
+    while i < bytes.len() {
+        // Look for `(function` pattern
+        if i + 9 < bytes.len()
+            && bytes[i] == b'('
+            && &bytes[i + 1..i + 9] == b"function"
+            && (i + 9 >= bytes.len()
+                || bytes[i + 9] == b'('
+                || bytes[i + 9] == b' '
+                || bytes[i + 9] == b'*')
+        {
+            // Check this is not a call: `x(function...` - preceded by identifier/)/]
+            let is_call = i > 0 && {
+                let prev = bytes[i - 1];
+                prev.is_ascii_alphanumeric()
+                    || prev == b'_'
+                    || prev == b'$'
+                    || prev == b')'
+                    || prev == b']'
+            };
+
+            if !is_call {
+                // We have `(function`. Now we need to find the matching `}` for the function body,
+                // then check if it's followed by `(args))` (IIFE form 1).
+                // First, find the `{` that starts the function body (skip params).
+                let mut j = i + 9;
+                // Skip to opening `{` of function body (handling parens for params)
+                let mut found_body = false;
+                while j < bytes.len() {
+                    if bytes[j] == b'(' {
+                        // Skip balanced parens (params)
+                        let mut depth = 1;
+                        j += 1;
+                        while j < bytes.len() && depth > 0 {
+                            if bytes[j] == b'(' {
+                                depth += 1;
+                            } else if bytes[j] == b')' {
+                                depth -= 1;
+                            }
+                            j += 1;
+                        }
+                    } else if bytes[j] == b'{' {
+                        found_body = true;
+                        break;
+                    } else {
+                        j += 1;
+                    }
+                }
+
+                if found_body {
+                    // Find matching `}` for the function body
+                    let mut depth = 1;
+                    j += 1;
+                    while j < bytes.len() && depth > 0 {
+                        if bytes[j] == b'{' {
+                            depth += 1;
+                        } else if bytes[j] == b'}' {
+                            depth -= 1;
+                        }
+                        j += 1;
+                    }
+                    // j now points to right after the closing `}`
+
+                    // Check if followed by `(` (call args) - IIFE form 1
+                    if j < bytes.len() && bytes[j] == b'(' {
+                        // Find matching `)` for the call args
+                        let call_start = j;
+                        let mut depth = 1;
+                        j += 1;
+                        while j < bytes.len() && depth > 0 {
+                            if bytes[j] == b'(' {
+                                depth += 1;
+                            } else if bytes[j] == b')' {
+                                depth -= 1;
+                            }
+                            j += 1;
+                        }
+                        // j now points to right after the `)` of call args
+
+                        // Check if followed by `)` (closing the outer grouping paren)
+                        if j < bytes.len() && bytes[j] == b')' {
+                            // This is IIFE form 1: (function(params){body}(args))
+                            // Convert to form 2: (function(params){body})(args)
+                            // Output: content from i to call_start, then `)`, then call args, skip outer `)`
+                            result.push_str(&code[i..call_start]);
+                            result.push(')');
+                            result.push_str(&code[call_start..j]);
+                            i = j + 1; // skip the outer `)`
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+
+        let ch = code[i..].chars().next().unwrap();
+        result.push(ch);
+        i += ch.len_utf8();
+    }
+
+    result
+}
+
+/// Normalize space before `.` in method chains.
+/// Removes space before `.` when it's a method access (not spread `...`).
+/// E.g., `] .map(` -> `].map(`, `) .then(` -> `).then(`
+/// Must not affect `...` spread patterns.
+fn normalize_space_before_dot(code: &str) -> String {
+    let bytes = code.as_bytes();
+    let mut result = String::with_capacity(code.len());
+    let mut i = 0;
+
+    while i < bytes.len() {
+        if bytes[i] == b' ' && i + 1 < bytes.len() && bytes[i + 1] == b'.' {
+            // Check: is the next char after `.` NOT another `.`? (would be `..` or `...`)
+            if i + 2 < bytes.len() && bytes[i + 2] == b'.' {
+                // Part of `...` spread or `..` - keep the space
+                result.push(' ');
+                i += 1;
+                continue;
+            }
+            // Check: is the next char after `.` an identifier start? (method chain)
+            if i + 2 < bytes.len()
+                && (bytes[i + 2].is_ascii_alphabetic()
+                    || bytes[i + 2] == b'_'
+                    || bytes[i + 2] == b'$')
+            {
+                // Skip the space
+                i += 1;
+                continue;
+            }
+        }
+
+        let ch = code[i..].chars().next().unwrap();
+        result.push(ch);
+        i += ch.len_utf8();
+    }
+
+    result
+}
+
+/// Normalize `=({...})` to `={...}` - strip unnecessary parens around object literal after `=`.
+/// JsCodegen may wrap object destructure assignments in extra parens.
+fn normalize_paren_object_after_assign(code: &str) -> String {
+    let bytes = code.as_bytes();
+    let mut result = String::with_capacity(code.len());
+    let mut i = 0;
+
+    while i < bytes.len() {
+        // Look for `=({` pattern (assignment followed by parenthesized object)
+        if i + 2 < bytes.len() && bytes[i] == b'=' && bytes[i + 1] == b'(' && bytes[i + 2] == b'{' {
+            // Make sure `=` is not `==`, `!=`, `<=`, `>=`
+            let prev_is_comparison = i > 0
+                && (bytes[i - 1] == b'='
+                    || bytes[i - 1] == b'!'
+                    || bytes[i - 1] == b'<'
+                    || bytes[i - 1] == b'>');
+            let next_is_eq = i + 2 < bytes.len() && bytes[i + 2] == b'=';
+
+            if !prev_is_comparison && !next_is_eq {
+                // Find the matching `)` for the `(` at i+1
+                let mut depth = 1;
+                let mut j = i + 2;
+                while j < bytes.len() && depth > 0 {
+                    match bytes[j] {
+                        b'(' => depth += 1,
+                        b')' => depth -= 1,
+                        b'\'' | b'"' | b'`' => {
+                            let quote = bytes[j];
+                            j += 1;
+                            while j < bytes.len() && bytes[j] != quote {
+                                if bytes[j] == b'\\' {
+                                    j += 1;
+                                }
+                                j += 1;
+                            }
+                        }
+                        _ => {}
+                    }
+                    if depth > 0 {
+                        j += 1;
+                    }
+                }
+                if depth == 0 {
+                    // j points to closing `)`. Check that inner content starts with `{`
+                    // Output `=` + content without outer parens
+                    result.push(b'=' as char);
+                    result.push_str(&code[i + 2..j]);
+                    i = j + 1;
+                    continue;
+                }
+            }
+        }
+
+        let ch = code[i..].chars().next().unwrap();
+        result.push(ch);
+        i += ch.len_utf8();
+    }
+
+    result
+}
+
+/// Normalize `new class Foo { ... }` to `new (class Foo { ... })()`.
+/// OXC wraps class expressions in `new` with parentheses and adds call parens.
+/// JsCodegen/raw source may omit them.
+fn normalize_new_class(code: &str) -> String {
+    let bytes = code.as_bytes();
+    let mut result = String::with_capacity(code.len());
+    let mut i = 0;
+
+    while i < bytes.len() {
+        // Look for "new class "
+        if i + 10 <= bytes.len() && &bytes[i..i + 10] == b"new class " {
+            // Find the matching closing brace of the class body
+            // First, find the opening `{`
+            let mut j = i + 10;
+            while j < bytes.len() && bytes[j] != b'{' {
+                j += 1;
+            }
+            if j < bytes.len() {
+                // Find matching `}`
+                let mut depth = 1;
+                let mut k = j + 1;
+                while k < bytes.len() && depth > 0 {
+                    if bytes[k] == b'{' {
+                        depth += 1;
+                    } else if bytes[k] == b'}' {
+                        depth -= 1;
+                    }
+                    k += 1;
+                }
+                if depth == 0 {
+                    // k is one past the closing `}`
+                    // Check if already has `()` after
+                    let after = &code[k..];
+                    if !after.starts_with("()") {
+                        result.push_str("new (");
+                        result.push_str(&code[i + 4..k]); // "class Foo { ... }"
+                        result.push_str(")()");
+                        i = k;
+                        continue;
+                    }
+                }
+            }
+        }
+
+        let ch = code[i..].chars().next().unwrap();
+        result.push(ch);
+        i += ch.len_utf8();
+    }
+
+    result
 }
 
 /// Normalize consecutive const/let declarations to treat them as equivalent.
@@ -2818,8 +3419,55 @@ fn normalize_paren_await(code: &str) -> String {
 /// Normalize parenthesized expressions before optional chaining: `(expr)?.` -> `expr?.`
 /// JsCodegen may wrap expressions in unnecessary parens before `?.`
 fn normalize_paren_optional_chain(code: &str) -> String {
-    let re = regex::Regex::new(r"\((\w[\w.]*)\)\?\.\(").unwrap();
-    re.replace_all(code, "$1?.(").to_string()
+    let bytes = code.as_bytes();
+    let mut result = String::with_capacity(code.len());
+    let mut i = 0;
+
+    while i < bytes.len() {
+        if bytes[i] == b'(' {
+            // Check if this `(` is NOT a function call (preceded by identifier, ), ], })
+            let is_call = i > 0 && {
+                let prev = bytes[i - 1];
+                prev.is_ascii_alphanumeric()
+                    || prev == b'_'
+                    || prev == b'$'
+                    || prev == b')'
+                    || prev == b']'
+                    || prev == b'}'
+            };
+
+            if !is_call {
+                // Find the matching closing paren
+                let mut depth = 1;
+                let mut j = i + 1;
+                while j < bytes.len() && depth > 0 {
+                    if bytes[j] == b'(' {
+                        depth += 1;
+                    } else if bytes[j] == b')' {
+                        depth -= 1;
+                    }
+                    if depth > 0 {
+                        j += 1;
+                    }
+                }
+
+                // j points to matching `)`. Check if followed by `?.`
+                if depth == 0 && j + 2 < bytes.len() && bytes[j + 1] == b'?' && bytes[j + 2] == b'.'
+                {
+                    // Strip outer parens: output content without parens
+                    result.push_str(&code[i + 1..j]);
+                    i = j + 1; // skip past the `)`, next iteration processes `?.`
+                    continue;
+                }
+            }
+        }
+
+        let ch = code[i..].chars().next().unwrap();
+        result.push(ch);
+        i += ch.len_utf8();
+    }
+
+    result
 }
 
 /// Normalize object shorthand: `{key:key}` -> `{key}`, `{key: key}` -> `{key}`
@@ -3720,6 +4368,31 @@ fn test_normalize_js_import_double_quotes() {
 }
 
 #[test]
+fn test_normalize_js_arrow_body_assignment_parens() {
+    // Arrow body with parenthesized assignment should normalize same as without
+    let with_parens = "const setData = () => (data = { value: 'hello' });\nconst clearData = () => (data = undefined);";
+    let without_parens = "const setData = () => data = { value: 'hello' };\nconst clearData = () => data = undefined;";
+    let norm1 = normalize_js(with_parens);
+    let norm2 = normalize_js(without_parens);
+    assert_eq!(
+        norm1, norm2,
+        "Arrow body assignment parens should normalize the same"
+    );
+}
+
+#[test]
+fn test_normalize_js_iife_forms() {
+    // Two valid IIFE forms should normalize to the same thing
+    let form1 = "(function(a) {\n\t\treturn a;\n\t}(x()))";
+    let form2 = "(function (a) {\n\t\t\treturn a;\n\t\t})(x())";
+    let norm1 = normalize_js(form1);
+    let norm2 = normalize_js(form2);
+    eprintln!("IIFE form1 normalized: {}", norm1);
+    eprintln!("IIFE form2 normalized: {}", norm2);
+    assert_eq!(norm1, norm2, "Both IIFE forms should normalize the same");
+}
+
+#[test]
 fn test_normalize_js_nested_if_in_callback() {
     // Test case from store-from-state-2
     let expected = r#"$.if(node, ($$render) => {
@@ -4107,5 +4780,66 @@ fn test_normalize_js_merge_comment_push() {
         normalize_js(actual),
         normalize_js(expected),
         "normalize_js should merge adjacent renderer.push calls where second is <!---->"
+    );
+}
+
+#[test]
+fn test_normalize_js_new_class_expression() {
+    let a = "const counter = new (class Counter {\n\t\t\tconstructor() {\n\t\t\t\tthis.count = 0;\n\t\t\t}\n\t\t})();";
+    let b = "const counter = new (class Counter {\n\t\t\tconstructor() {\n\t\t\t\tthis.count = 0;\n\t\t\t}\n\n\t\t})();";
+    let norm_a = normalize_js(a);
+    let norm_b = normalize_js(b);
+    eprintln!("norm_a: {}", norm_a);
+    eprintln!("norm_b: {}", norm_b);
+    assert_eq!(
+        norm_a, norm_b,
+        "new class expression with/without empty line should normalize the same"
+    );
+}
+
+#[test]
+fn test_normalize_destructure_async() {
+    // Use full file content
+    let actual = std::fs::read_to_string(std::path::Path::new(
+        "fixtures/123c48d38d1a/runtime-runes/destructure-async-assignments/_actual/server.js",
+    ))
+    .expect("actual file");
+    let expected = std::fs::read_to_string(std::path::Path::new(
+        "fixtures/123c48d38d1a/runtime-runes/destructure-async-assignments/server.js",
+    ))
+    .expect("expected file");
+    let norm_a = normalize_js(&actual);
+    let norm_e = normalize_js(&expected);
+    // Find first difference
+    let a_chars: Vec<char> = norm_a.chars().collect();
+    let e_chars: Vec<char> = norm_e.chars().collect();
+    for (idx, (a, e)) in a_chars.iter().zip(e_chars.iter()).enumerate() {
+        if a != e {
+            let start = idx.saturating_sub(50);
+            let end_a = (idx + 80).min(a_chars.len());
+            let end_e = (idx + 80).min(e_chars.len());
+            let ctx_a: String = a_chars[start..end_a].iter().collect();
+            let ctx_e: String = e_chars[start..end_e].iter().collect();
+            eprintln!("DIFF at pos {}", idx);
+            eprintln!("  ACTUAL:   ...{}...", ctx_a);
+            eprintln!("  EXPECTED: ...{}...", ctx_e);
+            break;
+        }
+    }
+    assert_eq!(norm_a, norm_e, "full file should normalize equally");
+}
+
+#[test]
+fn test_normalize_paren_in_args_nested() {
+    // Test nested `= (` pattern
+    let input = "}=({t=await x}=([s]=[await y(19)]))";
+    let r1 = normalize_paren_in_args(input);
+    eprintln!("pass1: {}", r1);
+    let r2 = normalize_paren_in_args(&r1);
+    eprintln!("pass2: {}", r2);
+    assert!(
+        !r2.contains("=([s]"),
+        "nested parens should be stripped: {}",
+        r2
     );
 }

@@ -500,7 +500,7 @@ impl Parser<'_> {
         // Calculate actual start position after trimming leading whitespace
         let leading_ws = raw_content.len() - raw_content.trim_start().len();
         let actual_context_start = context_start + leading_ws;
-        let context = self.parse_binding_pattern(trimmed_content, actual_context_start);
+        let context = self.parse_binding_pattern(trimmed_content, actual_context_start)?;
 
         // Check for index
         let mut index = None;
@@ -601,7 +601,11 @@ impl Parser<'_> {
     }
 
     /// Parse a binding pattern (for each block context).
-    pub fn parse_binding_pattern(&self, content: &str, offset: usize) -> Expression {
+    pub fn parse_binding_pattern(
+        &self,
+        content: &str,
+        offset: usize,
+    ) -> Result<Expression, crate::error::ParseError> {
         super::super::expression::parse_binding_pattern(
             content,
             offset,
@@ -700,7 +704,7 @@ impl Parser<'_> {
                     // (e.g., `{ width, height }` -> ObjectPattern) instead of creating
                     // a simple identifier. This ensures phase 2 scope analysis correctly
                     // declares individual bindings for destructured names.
-                    value = Some(self.parse_binding_pattern(value_content.trim(), value_start));
+                    value = Some(self.parse_binding_pattern(value_content.trim(), value_start)?);
                 }
             }
         }
@@ -719,7 +723,7 @@ impl Parser<'_> {
                 if !error_content.trim().is_empty() {
                     // Use parse_binding_pattern to properly parse destructuring patterns
                     // (same as for then values above).
-                    error = Some(self.parse_binding_pattern(error_content.trim(), error_start));
+                    error = Some(self.parse_binding_pattern(error_content.trim(), error_start)?);
                 }
             }
         }
@@ -767,7 +771,8 @@ impl Parser<'_> {
                     let value_content = &self.source[value_start..self.index];
                     if !value_content.trim().is_empty() {
                         // Use parse_binding_pattern to properly parse destructuring patterns
-                        value = Some(self.parse_binding_pattern(value_content.trim(), value_start));
+                        value =
+                            Some(self.parse_binding_pattern(value_content.trim(), value_start)?);
                     }
                 }
                 self.skip_whitespace();
@@ -785,7 +790,8 @@ impl Parser<'_> {
                     let error_content = &self.source[error_start..self.index];
                     if !error_content.trim().is_empty() {
                         // Use parse_binding_pattern to properly parse destructuring patterns
-                        error = Some(self.parse_binding_pattern(error_content.trim(), error_start));
+                        error =
+                            Some(self.parse_binding_pattern(error_content.trim(), error_start)?);
                     }
                 }
                 self.skip_whitespace();

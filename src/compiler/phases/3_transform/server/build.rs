@@ -2,7 +2,6 @@
 //!
 //! Converts the internal OutputPart representation into the final JavaScript string output.
 
-use super::super::js_ast::normalize_js;
 use super::ServerCodeGenerator;
 use super::helpers::*;
 use super::transform_script;
@@ -62,6 +61,7 @@ impl<'a> ServerCodeGenerator<'a> {
 }
 
 impl<'a> ServerCodeGenerator<'a> {
+    #[allow(clippy::let_and_return)]
     pub(crate) fn build(self) -> String {
         let store_subs = self.get_store_sub_names();
         let store_subs_ref: Vec<(&str, &str)> = store_subs
@@ -594,16 +594,7 @@ export default function {component_name}($$renderer{props_param}) {{
             }
         };
 
-        if std::env::var("SKIP_OXC").is_ok() {
-            // Fast path: skip ALL normalization, use raw output
-            raw_output
-        } else {
-            // Normalize the output through oxc parser/codegen
-            match normalize_js(&raw_output) {
-                Ok(normalized) => normalized,
-                Err(_) => raw_output, // Fall back to raw output if parsing fails
-            }
-        }
+        raw_output
     }
 
     #[allow(dead_code)]

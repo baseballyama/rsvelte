@@ -344,7 +344,7 @@ pub fn client_module(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_raw;
+    use crate::compiler::phases::phase3_transform::js_ast::codegen::generate;
 
     #[test]
     fn test_build_store_init() {
@@ -384,7 +384,7 @@ mod tests {
         let program = JsProgram {
             body: vec![stmt.clone()],
         };
-        generate_raw(&program)
+        generate(&program).unwrap()
     }
 
     #[test]
@@ -406,7 +406,7 @@ mod tests {
         let program = JsProgram {
             body: vec![init, getter1, getter2],
         };
-        let code = generate_raw(&program);
+        let code = generate(&program).unwrap();
 
         // Should contain all the necessary pieces
         assert!(code.contains("$.setup_stores()"));

@@ -857,6 +857,51 @@ fn convert_formal_parameter(
     adjusted_offset: usize,
     line_offsets: &[usize],
 ) -> Expression {
+    // Check for TypeScript parameter properties (e.g., `constructor(private x: number)`)
+    // These need to be emitted as TSParameterProperty nodes so that
+    // remove_typescript_nodes can detect and report them.
+    if param.accessibility.is_some() || param.readonly {
+        let start = adjusted_offset + param.span.start as usize;
+        let end = adjusted_offset + param.span.end as usize;
+        let mut obj = Map::new();
+        obj.insert(
+            "type".to_string(),
+            Value::String("TSParameterProperty".to_string()),
+        );
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+        if let Some(loc) = create_loc(start, end, line_offsets) {
+            obj.insert("loc".to_string(), loc);
+        }
+        if param.readonly {
+            obj.insert("readonly".to_string(), Value::Bool(true));
+        }
+        if let Some(ref accessibility) = param.accessibility {
+            let acc_str = match accessibility {
+                oxc_ast::ast::TSAccessibility::Private => "private",
+                oxc_ast::ast::TSAccessibility::Protected => "protected",
+                oxc_ast::ast::TSAccessibility::Public => "public",
+            };
+            obj.insert(
+                "accessibility".to_string(),
+                Value::String(acc_str.to_string()),
+            );
+        }
+        // Include the parameter itself so remove_typescript_nodes can extract it
+        let inner = convert_formal_parameter_inner(param, adjusted_offset, line_offsets);
+        obj.insert("parameter".to_string(), inner.as_json().clone());
+        return Expression::Value(Value::Object(obj));
+    }
+
+    convert_formal_parameter_inner(param, adjusted_offset, line_offsets)
+}
+
+/// Inner implementation of convert_formal_parameter (without TSParameterProperty wrapping).
+fn convert_formal_parameter_inner(
+    param: &oxc_ast::ast::FormalParameter,
+    adjusted_offset: usize,
+    line_offsets: &[usize],
+) -> Expression {
     use oxc_ast::ast::BindingPattern;
 
     // First, convert the pattern (left side)
@@ -7753,7 +7798,11 @@ fn convert_property_key(
 
 /// Parse a binding pattern (for {#each} context).
 /// This parses patterns like `item`, `{ name }`, `[a, b]`, etc.
-pub fn parse_binding_pattern(content: &str, offset: usize, line_offsets: &[usize]) -> Expression {
+pub fn parse_binding_pattern(
+    content: &str,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Result<Expression, crate::error::ParseError> {
     let allocator = Allocator::default();
     let source_type = SourceType::mjs();
 
@@ -7763,9 +7812,28 @@ pub fn parse_binding_pattern(content: &str, offset: usize, line_offsets: &[usize
     let parser = OxcParser::new(&allocator, &wrapped, source_type);
     let result = parser.parse();
 
-    if result.errors.is_empty()
-        && let Some(oxc_ast::ast::Statement::VariableDeclaration(var_decl)) =
-            result.program.body.first()
+    if !result.errors.is_empty() {
+        // Only propagate errors for destructuring patterns (starting with { or [).
+        // Simple identifiers with type annotations like "letter: string" will produce
+        // OXC errors in .mjs mode, but we handle those in the fallback below.
+        let trimmed = content.trim();
+        if trimmed.starts_with('{') || trimmed.starts_with('[') {
+            // Propagate OXC parse errors as js_parse_error
+            let err = &result.errors[0];
+            let msg = format!("{}", err);
+            // Clean up the message - remove position indicators
+            let clean_msg = msg.split('\n').next().unwrap_or(&msg).trim().to_string();
+            let err_pos = offset;
+            return Err(crate::error::ParseError::svelte(
+                "js_parse_error",
+                &clean_msg,
+                (err_pos, err_pos),
+            ));
+        }
+    }
+
+    if let Some(oxc_ast::ast::Statement::VariableDeclaration(var_decl)) =
+        result.program.body.first()
         && let Some(decl) = var_decl.declarations.first()
     {
         // The pattern in wrapped string starts at position 4 (after "let ")
@@ -7777,20 +7845,17 @@ pub fn parse_binding_pattern(content: &str, offset: usize, line_offsets: &[usize
         if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &decl.id {
             let start = offset + id.span.start as usize - 4;
             let end = offset + id.span.end as usize - 4;
-            return Expression::from_node(create_identifier_for_binding_toplevel(
-                &id.name,
-                start,
-                end,
-                line_offsets,
+            return Ok(Expression::from_node(
+                create_identifier_for_binding_toplevel(&id.name, start, end, line_offsets),
             ));
         }
 
-        return Expression::Value(convert_binding_pattern_with_adjustment(
+        return Ok(Expression::Value(convert_binding_pattern_with_adjustment(
             &decl.id,
             offset,
             4,
             line_offsets,
-        ));
+        )));
     }
 
     // Fallback: return as simple identifier
@@ -7807,7 +7872,12 @@ pub fn parse_binding_pattern(content: &str, offset: usize, line_offsets: &[usize
     } else {
         trimmed
     };
-    create_identifier(name, offset, offset + name.len(), line_offsets)
+    Ok(create_identifier(
+        name,
+        offset,
+        offset + name.len(),
+        line_offsets,
+    ))
 }
 
 /// Convert a binding pattern with position adjustment.

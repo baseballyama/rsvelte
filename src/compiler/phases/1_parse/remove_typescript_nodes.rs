@@ -211,10 +211,7 @@ pub fn remove_typescript_nodes(node: &mut JsonValue, path: &[&str]) -> Result<()
                 .unwrap_or(false)
                 || node.get("accessibility").is_some();
 
-            // Check if we're in a constructor
-            let in_constructor = path.contains(&"constructor");
-
-            if has_modifiers && in_constructor {
+            if has_modifiers {
                 let start = get_start(node);
                 let end = get_end(node);
                 return Err(ParseError::typescript_invalid_feature(
