@@ -1301,34 +1301,41 @@ fn derive_component_name(filename: &str) -> String {
 
     let stem = if name.is_empty() { "Component" } else { &name };
 
-    // Convert to component name format
-    let parts: Vec<&str> = stem
-        .split(['-', '_', '.'])
-        .filter(|part| !part.is_empty())
-        .collect();
+    // Match official Svelte: name[0].toUpperCase() + name.slice(1)
+    // Then sanitize to a valid JS identifier (scope.generate equivalent)
+    let mut chars = stem.chars();
+    let mut result = String::new();
+    if let Some(first) = chars.next() {
+        // Uppercase the first character
+        result.extend(first.to_uppercase());
+        result.push_str(chars.as_str());
+    }
 
-    if parts.is_empty() {
+    if result.is_empty() {
         return "Component".to_string();
     }
 
-    let mut result = String::new();
-    for (i, part) in parts.iter().enumerate() {
-        if i > 0 {
-            result.push('_');
-        }
-
-        if i == 0 {
-            let mut chars = part.chars();
-            if let Some(first) = chars.next() {
-                result.extend(first.to_uppercase());
-                result.push_str(chars.as_str());
+    // Sanitize: replace characters that are not valid in JS identifiers with '_'
+    // A valid JS identifier starts with [a-zA-Z_$] and continues with [a-zA-Z0-9_$]
+    let sanitized: String = result
+        .chars()
+        .enumerate()
+        .map(|(i, c)| {
+            if i == 0 {
+                if c.is_ascii_alphabetic() || c == '_' || c == '$' {
+                    c
+                } else {
+                    '_'
+                }
+            } else if c.is_ascii_alphanumeric() || c == '_' || c == '$' {
+                c
+            } else {
+                '_'
             }
-        } else {
-            result.push_str(part);
-        }
-    }
+        })
+        .collect();
 
-    result
+    sanitized
 }
 
 /// Analysis of a JavaScript block.
