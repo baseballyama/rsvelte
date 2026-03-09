@@ -8,10 +8,8 @@ use crate::ast::template::{Attribute, RegularElement, TemplateNode};
 use crate::compiler::phases::phase2_analyze::scope::Scope;
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 use compact_str::CompactString;
-use regex::Regex;
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::sync::LazyLock;
 
 /// A borrowed reference to a parent node, avoiding expensive clones of TemplateNode.
 ///
@@ -77,18 +75,68 @@ impl<'a> ParentRef<'a> {
     }
 }
 
-/// Regex for text that is not whitespace (matches Svelte's definition: only space/tab/CR/LF are whitespace,
-/// not &nbsp; which is \u{00A0}). See patterns.js: `Not \S because that also removes explicit whitespace
-/// defined through things like &nbsp;`
-static REGEX_NOT_WHITESPACE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[^ \t\r\n]").unwrap());
+/// Check if string contains any non-whitespace character (replaces REGEX_NOT_WHITESPACE)
+#[inline]
+fn has_non_whitespace(s: &str) -> bool {
+    s.bytes()
+        .any(|b| !matches!(b, b' ' | b'\t' | b'\r' | b'\n'))
+}
 
-/// Regex for leading whitespace (only space/tab/CR/LF, not &nbsp;)
-static REGEX_STARTS_WITH_WHITESPACES: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^[ \t\r\n]+").unwrap());
+/// Trim leading whitespace chars (space/tab/CR/LF only), returns trimmed string
+#[inline]
+fn trim_leading_whitespace(s: &str) -> &str {
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() && matches!(bytes[i], b' ' | b'\t' | b'\r' | b'\n') {
+        i += 1;
+    }
+    &s[i..]
+}
 
-/// Regex for trailing whitespace (only space/tab/CR/LF, not &nbsp;)
-static REGEX_ENDS_WITH_WHITESPACES: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"[ \t\r\n]+$").unwrap());
+/// Trim trailing whitespace chars (space/tab/CR/LF only), returns trimmed string
+#[inline]
+fn trim_trailing_whitespace(s: &str) -> &str {
+    let bytes = s.as_bytes();
+    let mut i = bytes.len();
+    while i > 0 && matches!(bytes[i - 1], b' ' | b'\t' | b'\r' | b'\n') {
+        i -= 1;
+    }
+    &s[..i]
+}
+
+/// Check if string ends with whitespace
+#[inline]
+fn ends_with_whitespace(s: &str) -> bool {
+    s.as_bytes()
+        .last()
+        .is_some_and(|b| matches!(b, b' ' | b'\t' | b'\r' | b'\n'))
+}
+
+/// Replace leading whitespace with a replacement string
+#[inline]
+fn replace_leading_whitespace(s: &str, replacement: &str) -> String {
+    let trimmed = trim_leading_whitespace(s);
+    if trimmed.len() == s.len() {
+        return s.to_string();
+    }
+    let mut result = String::with_capacity(replacement.len() + trimmed.len());
+    result.push_str(replacement);
+    result.push_str(trimmed);
+    result
+}
+
+/// Replace trailing whitespace with a replacement string
+#[inline]
+fn replace_trailing_whitespace(s: &str, replacement: &str) -> String {
+    let trimmed = trim_trailing_whitespace(s);
+    if trimmed.len() == s.len() {
+        return s.to_string();
+    }
+    let mut result = String::with_capacity(trimmed.len() + replacement.len());
+    result.push_str(trimmed);
+    result.push_str(replacement);
+    result
+}
 
 /// Check if a string consists entirely of HTML-whitespace characters.
 ///
@@ -739,7 +787,7 @@ fn trim_whitespace<'a>(
         .iter()
         .position(|node| {
             if let TemplateNode::Text(text) = node.as_ref() {
-                REGEX_NOT_WHITESPACE.is_match(&text.data)
+                has_non_whitespace(&text.data)
             } else {
                 true
             }
@@ -751,7 +799,7 @@ fn trim_whitespace<'a>(
         .iter()
         .rposition(|node| {
             if let TemplateNode::Text(text) = node.as_ref() {
-                REGEX_NOT_WHITESPACE.is_match(&text.data)
+                has_non_whitespace(&text.data)
             } else {
                 true
             }
@@ -782,76 +830,76 @@ fn trim_whitespace<'a>(
             "select" | "tr" | "table" | "tbody" | "thead" | "tfoot" | "colgroup" | "datalist"
         ));
 
-    // Step 1: Clone nodes and apply leading/trailing trim to first/last text nodes
-    // This mirrors the original code which first trims, then collapses.
-    let mut regular: Vec<Cow<'a, TemplateNode>> = Vec::with_capacity(slice_len);
-    for cow_node in trimmed_slice {
-        regular.push(cow_node.clone());
-    }
-
-    // Trim leading whitespace from first text node
-    if let Some(TemplateNode::Text(text)) = regular.first().map(|c| c.as_ref()) {
-        let mut new_text = text.clone();
-        new_text.raw = CompactString::new(REGEX_STARTS_WITH_WHITESPACES.replace(&new_text.raw, ""));
-        new_text.data =
-            CompactString::new(REGEX_STARTS_WITH_WHITESPACES.replace(&new_text.data, ""));
-        regular[0] = Cow::Owned(TemplateNode::Text(new_text));
-    }
-
-    // Trim trailing whitespace from last text node
-    let last_idx = regular.len() - 1;
-    if let Some(TemplateNode::Text(text)) = regular.last().map(|c| c.as_ref()) {
-        let mut new_text = text.clone();
-        new_text.raw = CompactString::new(REGEX_ENDS_WITH_WHITESPACES.replace(&new_text.raw, ""));
-        new_text.data = CompactString::new(REGEX_ENDS_WITH_WHITESPACES.replace(&new_text.data, ""));
-        regular[last_idx] = Cow::Owned(TemplateNode::Text(new_text));
-    }
-
-    // Step 2: Process ALL text nodes - collapse internal whitespace
+    // Single-pass processing: trim first/last text nodes and collapse internal whitespace
+    // in one pass, avoiding intermediate Vec allocation and double-cloning of text nodes.
+    let last_slice_idx = slice_len - 1;
     let mut trimmed: Vec<Cow<'a, TemplateNode>> = Vec::with_capacity(slice_len);
-    for (i, cow_node) in regular.iter().enumerate() {
+    let mut prev_ends_with_whitespace = false;
+    let mut prev_is_expression_tag = false;
+
+    for (i, cow_node) in trimmed_slice.iter().enumerate() {
+        let is_first = i == 0;
+        let is_last = i == last_slice_idx;
+
         if let TemplateNode::Text(text) = cow_node.as_ref() {
-            let mut new_text = text.clone();
-            let prev = if i > 0 {
-                regular.get(i - 1).map(|c| c.as_ref())
-            } else {
-                None
-            };
-            let next = regular.get(i + 1).map(|c| c.as_ref());
+            let mut data_str = text.data.as_str();
+            let mut raw_str = text.raw.as_str();
+
+            // Trim leading whitespace from first text node
+            if is_first {
+                data_str = trim_leading_whitespace(data_str);
+                raw_str = trim_leading_whitespace(raw_str);
+            }
+
+            // Trim trailing whitespace from last text node
+            if is_last {
+                data_str = trim_trailing_whitespace(data_str);
+                raw_str = trim_trailing_whitespace(raw_str);
+            }
 
             // Collapse leading whitespace unless previous node is an ExpressionTag
-            if !matches!(prev, Some(TemplateNode::ExpressionTag(_))) {
-                let prev_is_text_ending_with_whitespace = matches!(
-                    prev,
-                    Some(TemplateNode::Text(t)) if REGEX_ENDS_WITH_WHITESPACES.is_match(&t.data)
-                );
-                let replacement = if prev_is_text_ending_with_whitespace {
-                    ""
-                } else {
-                    " "
-                };
-                new_text.data = CompactString::new(
-                    REGEX_STARTS_WITH_WHITESPACES.replace(&new_text.data, replacement),
-                );
-                new_text.raw = CompactString::new(
-                    REGEX_STARTS_WITH_WHITESPACES.replace(&new_text.raw, replacement),
-                );
+            let data_owned;
+            let raw_owned;
+            if !prev_is_expression_tag {
+                let replacement = if prev_ends_with_whitespace { "" } else { " " };
+                data_owned = replace_leading_whitespace(data_str, replacement);
+                raw_owned = replace_leading_whitespace(raw_str, replacement);
+            } else {
+                data_owned = data_str.to_string();
+                raw_owned = raw_str.to_string();
             }
+
+            // Peek ahead to check if next node is an ExpressionTag
+            let next_is_expression_tag = trimmed_slice
+                .get(i + 1)
+                .is_some_and(|c| matches!(c.as_ref(), TemplateNode::ExpressionTag(_)));
 
             // Collapse trailing whitespace unless next node is an ExpressionTag
-            if !matches!(next, Some(TemplateNode::ExpressionTag(_))) {
-                new_text.data =
-                    CompactString::new(REGEX_ENDS_WITH_WHITESPACES.replace(&new_text.data, " "));
-                new_text.raw =
-                    CompactString::new(REGEX_ENDS_WITH_WHITESPACES.replace(&new_text.raw, " "));
+            let final_data;
+            let final_raw;
+            if !next_is_expression_tag {
+                final_data = replace_trailing_whitespace(&data_owned, " ");
+                final_raw = replace_trailing_whitespace(&raw_owned, " ");
+            } else {
+                final_data = data_owned;
+                final_raw = raw_owned;
             }
 
+            // Track state for next iteration
+            prev_ends_with_whitespace = ends_with_whitespace(&final_data);
+            prev_is_expression_tag = false;
+
             // Only add if there's content or it's a meaningful space
-            if !new_text.data.is_empty() && (new_text.data != " " || !can_remove_entirely) {
+            if !final_data.is_empty() && (final_data != " " || !can_remove_entirely) {
+                let mut new_text = text.clone();
+                new_text.data = CompactString::new(&final_data);
+                new_text.raw = CompactString::new(&final_raw);
                 trimmed.push(Cow::Owned(TemplateNode::Text(new_text)));
             }
         } else {
             // Non-text nodes: borrow directly
+            prev_ends_with_whitespace = false;
+            prev_is_expression_tag = matches!(cow_node.as_ref(), TemplateNode::ExpressionTag(_));
             trimmed.push(cow_node.clone());
         }
     }
@@ -884,35 +932,35 @@ pub fn infer_namespace<N: AsRef<TemplateNode>>(
     parent: ParentRef<'_>,
     nodes: &[N],
     _analysis: &ComponentAnalysis,
-) -> String {
+) -> &'static str {
     // Check for foreignObject which resets to html
     if let Some(elem) = parent.as_regular_element() {
         if elem.name == "foreignObject" {
-            return "html".to_string();
+            return "html";
         }
 
         // Use metadata set during analysis phase to determine namespace
         // This correctly handles ambiguous elements like 'title' and 'a'
         if elem.metadata.svg {
-            return "svg".to_string();
+            return "svg";
         }
         if elem.metadata.mathml {
-            return "mathml".to_string();
+            return "mathml";
         }
         // If parent is a regular element without svg/mathml metadata, it's html
-        return "html".to_string();
+        return "html";
     }
 
     // For <svelte:element>, the namespace is determined at runtime by $.element().
     // Templates for its children are always generated as HTML.
     if let Some(elem) = parent.as_svelte_element() {
         if elem.metadata.svg {
-            return "svg".to_string();
+            return "svg";
         }
         return if elem.metadata.mathml {
-            "mathml".to_string()
+            "mathml"
         } else {
-            "html".to_string()
+            "html"
         };
     }
 
@@ -952,19 +1000,24 @@ pub fn infer_namespace<N: AsRef<TemplateNode>>(
                         _ => "html",
                     });
                 } else {
-                    return "html".to_string();
+                    return "html";
                 }
             }
         }
         if let Some(ns) = new_namespace {
-            return ns.to_string();
+            return ns;
         }
     }
 
     // Fall back to the incoming namespace.
     // This handles cases like IfBlock inside SVG where the namespace is
     // already "svg" and we should preserve it.
-    namespace.to_string()
+    // The input is always one of "html", "svg", or "mathml"
+    match namespace {
+        "svg" => "svg",
+        "mathml" => "mathml",
+        _ => "html",
+    }
 }
 
 /// Determine the namespace for children of a regular element.

@@ -6806,6 +6806,12 @@ fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> String {
                     !next_char.is_alphanumeric() && next_char != '_' && next_char != '$'
                 };
 
+                // Check if already transformed: identifier followed by "()" with empty parens
+                // e.g., `a()` should NOT become `a()()`, but `callback(args)` SHOULD become `callback()(args)`
+                let is_already_transformed = after_idx + 1 < chars.len()
+                    && chars[after_idx] == '('
+                    && chars[after_idx + 1] == ')';
+
                 // Check if this is a target of an update expression (++ or --)
                 // e.g., x++ or ++x - these should not be wrapped with ()
                 // as they need special $.update_prop() handling
@@ -6860,6 +6866,7 @@ fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> String {
 
                 if before_ok
                     && after_ok
+                    && !is_already_transformed
                     && !is_update_target
                     && !is_assignment_target
                     && !is_inside_update_call

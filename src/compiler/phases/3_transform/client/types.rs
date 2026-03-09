@@ -2529,18 +2529,32 @@ impl Memoizer {
     fn generate_id_slow(&mut self, base: &str) -> String {
         let sanitized = sanitize_identifier(base);
 
-        if !self.conflicts.contains(&sanitized) {
+        if !self.conflicts.contains(sanitized.as_str()) {
             self.conflicts.insert(sanitized.clone());
             return sanitized;
         }
 
-        let start_n = self.next_suffix.get(&sanitized).copied().unwrap_or(1);
-        let mut name = format!("{}_{}", sanitized, start_n);
+        let start_n = self
+            .next_suffix
+            .get(sanitized.as_str())
+            .copied()
+            .unwrap_or(1);
         let mut n = start_n;
-
-        while self.conflicts.contains(&name) {
+        let mut name = String::with_capacity(sanitized.len() + 4);
+        loop {
+            name.clear();
+            name.push_str(&sanitized);
+            name.push('_');
+            if n < 10 {
+                name.push((b'0' + n as u8) as char);
+            } else {
+                use std::fmt::Write;
+                let _ = write!(name, "{}", n);
+            }
+            if !self.conflicts.contains(name.as_str()) {
+                break;
+            }
             n += 1;
-            name = format!("{}_{}", sanitized, n);
         }
 
         self.conflicts.insert(name.clone());

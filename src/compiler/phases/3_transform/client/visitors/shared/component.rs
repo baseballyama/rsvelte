@@ -2111,7 +2111,7 @@ fn visit_slot_children(
                     &cleaned.trimmed,
                     context.state.analysis,
                 );
-                let namespace = match inferred_ns.as_str() {
+                let namespace = match inferred_ns {
                     "svg" => Namespace::Svg,
                     "mathml" => Namespace::Mathml,
                     _ => Namespace::Html,

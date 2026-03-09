@@ -79,7 +79,7 @@ pub fn fragment(
     // Infer namespace for children.
     // When inside a <svelte:element> child context, skip inference since the
     // namespace is determined at runtime by $.element(), and we always want "html".
-    let namespace = if context.state.metadata.svelte_element_child {
+    let namespace: String = if context.state.metadata.svelte_element_child {
         context.state.metadata.namespace.clone()
     } else {
         infer_namespace(
@@ -88,6 +88,7 @@ pub fn fragment(
             &node.nodes,
             context.state.analysis,
         )
+        .to_string()
     };
 
     // Clean and organize nodes
