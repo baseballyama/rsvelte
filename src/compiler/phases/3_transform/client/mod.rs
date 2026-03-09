@@ -10810,16 +10810,16 @@ fn find_statement_end_client(s: &str) -> usize {
 fn is_inside_ternary_expression(before: &str) -> bool {
     // Find the start of the current block context by looking for the last unmatched `{`
     // We need to track depth to find where the current block starts
-    let chars: Vec<char> = before.chars().collect();
+    let char_indices: Vec<(usize, char)> = before.char_indices().collect();
 
     // First, find the position of the last block start (unmatched `{`)
-    let mut block_start = 0;
+    let mut block_start_byte = 0;
     let mut temp_depth = 0;
     let mut temp_in_string = false;
     let mut temp_string_char = ' ';
 
-    for (i, &c) in chars.iter().enumerate() {
-        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+    for (i, &(byte_off, c)) in char_indices.iter().enumerate() {
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || char_indices[i - 1].1 != '\\') {
             if !temp_in_string {
                 temp_in_string = true;
                 temp_string_char = c;
@@ -10836,8 +10836,8 @@ fn is_inside_ternary_expression(before: &str) -> bool {
         match c {
             '{' => {
                 temp_depth += 1;
-                // Remember this as a potential block start
-                block_start = i + 1;
+                // Remember the byte position after this `{`
+                block_start_byte = byte_off + 1;
             }
             '}' => {
                 if temp_depth > 0 {
@@ -10849,8 +10849,8 @@ fn is_inside_ternary_expression(before: &str) -> bool {
     }
 
     // Now analyze the portion from block_start to the end
-    let context = if block_start > 0 && block_start < before.len() {
-        &before[block_start..]
+    let context = if block_start_byte > 0 && block_start_byte < before.len() {
+        &before[block_start_byte..]
     } else {
         before
     };
