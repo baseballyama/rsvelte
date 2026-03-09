@@ -1108,17 +1108,57 @@ fn transform_client_with_visitors(
 
 /// Extract import statements from script content.
 /// Returns (imports, rest_of_script).
+///
+/// Handles multi-line imports like:
+/// ```js
+/// import {
+///   foo,
+///   bar,
+/// } from './module';
+/// ```
 fn extract_imports(script: &str) -> (Vec<String>, String) {
     let mut imports = Vec::new();
     let mut rest = Vec::new();
+    let mut current_import: Option<Vec<String>> = None;
 
     for line in script.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("import ") {
-            imports.push(line.to_string());
+        if let Some(ref mut import_lines) = current_import {
+            // We're inside a multi-line import, accumulate lines
+            import_lines.push(line.to_string());
+            // Check if the import statement is complete (has a semicolon or closing quote/backtick followed by end)
+            let trimmed = line.trim();
+            if trimmed.contains(';')
+                || trimmed.ends_with('\'')
+                || trimmed.ends_with('"')
+                || trimmed.ends_with('`')
+            {
+                imports.push(import_lines.join("\n"));
+                current_import = None;
+            }
         } else {
-            rest.push(line.to_string());
+            let trimmed = line.trim();
+            if trimmed.starts_with("import ") || trimmed.starts_with("import{") {
+                // Check if this import is complete on one line
+                if trimmed.contains(';')
+                    || (trimmed.contains(" from ")
+                        && (trimmed.ends_with('\'')
+                            || trimmed.ends_with('"')
+                            || trimmed.ends_with('`')))
+                {
+                    imports.push(line.to_string());
+                } else {
+                    // Multi-line import starts here
+                    current_import = Some(vec![line.to_string()]);
+                }
+            } else {
+                rest.push(line.to_string());
+            }
         }
+    }
+
+    // If we ended inside an import (shouldn't happen with valid code), add remaining as import
+    if let Some(import_lines) = current_import {
+        imports.push(import_lines.join("\n"));
     }
 
     (imports, rest.join("\n"))

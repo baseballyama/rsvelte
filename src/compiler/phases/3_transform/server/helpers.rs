@@ -1544,18 +1544,47 @@ pub(crate) fn extract_imports_module(script: &str) -> (Vec<String>, String) {
 }
 
 /// Extract import statements from script content.
+/// Handles multi-line imports properly.
 fn extract_imports_with_options(script: &str, strip_exports: bool) -> (Vec<String>, String) {
     let mut imports = Vec::new();
     let mut rest = String::new();
+    let mut current_import: Option<Vec<String>> = None;
 
     for line in script.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("import ") || trimmed.starts_with("import{") {
-            imports.push(trimmed.to_string());
+        if let Some(ref mut import_lines) = current_import {
+            // We're inside a multi-line import, accumulate lines
+            import_lines.push(line.to_string());
+            let trimmed = line.trim();
+            if trimmed.contains(';')
+                || trimmed.ends_with('\'')
+                || trimmed.ends_with('"')
+                || trimmed.ends_with('`')
+            {
+                imports.push(import_lines.join("\n"));
+                current_import = None;
+            }
         } else {
-            rest.push_str(line);
-            rest.push('\n');
+            let trimmed = line.trim();
+            if trimmed.starts_with("import ") || trimmed.starts_with("import{") {
+                if trimmed.contains(';')
+                    || (trimmed.contains(" from ")
+                        && (trimmed.ends_with('\'')
+                            || trimmed.ends_with('"')
+                            || trimmed.ends_with('`')))
+                {
+                    imports.push(trimmed.to_string());
+                } else {
+                    current_import = Some(vec![line.to_string()]);
+                }
+            } else {
+                rest.push_str(line);
+                rest.push('\n');
+            }
         }
+    }
+
+    if let Some(import_lines) = current_import {
+        imports.push(import_lines.join("\n"));
     }
 
     if rest.ends_with('\n') {
