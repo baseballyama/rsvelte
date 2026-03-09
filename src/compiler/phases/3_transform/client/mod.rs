@@ -8021,8 +8021,20 @@ fn transform_props_destructuring(
 
         // Handle: name = default_value (always generate for props with defaults)
         if let Some(eq_pos) = prop_part.find('=') {
-            let name = prop_part[..eq_pos].trim();
+            let name_part = prop_part[..eq_pos].trim();
             let raw_default_value = prop_part[eq_pos + 1..].trim();
+
+            // Handle rename pattern: `originalProp: localVar = default`
+            // In destructuring, `disabled: disabledProp = false` means:
+            //   prop_name = "disabled" (the actual prop)
+            //   local_name = "disabledProp" (the local variable)
+            let (prop_name, local_name) = if let Some(colon_pos) = name_part.find(':') {
+                let pn = name_part[..colon_pos].trim();
+                let ln = name_part[colon_pos + 1..].trim();
+                (pn, ln)
+            } else {
+                (name_part, name_part)
+            };
 
             // Strip $bindable() wrapper: $bindable(value) -> value
             // Reference: VariableDeclaration.js - unwrap_bindable()
@@ -8033,9 +8045,12 @@ fn transform_props_destructuring(
                 if inner.is_empty() {
                     // $bindable() with no args - no default value
                     // Still need to generate $.prop() but without a default
-                    seen.push(name.to_string());
-                    let flags = calculate_prop_flags(name, analysis, false);
-                    declarators.push(format!("{} = $.prop($$props, '{}', {})", name, name, flags));
+                    seen.push(prop_name.to_string());
+                    let flags = calculate_prop_flags(prop_name, analysis, false);
+                    declarators.push(format!(
+                        "{} = $.prop($$props, '{}', {})",
+                        local_name, prop_name, flags
+                    ));
                     continue;
                 }
                 inner
@@ -8044,13 +8059,13 @@ fn transform_props_destructuring(
             };
 
             // Add this prop name to the "seen" list for rest_props exclusion
-            seen.push(name.to_string());
+            seen.push(prop_name.to_string());
 
             // Check if the default value is a simple expression
             let is_simple = is_simple_expression_str(default_value);
 
             // Calculate flags using the official logic
-            let flags = calculate_prop_flags(name, analysis, !is_simple);
+            let flags = calculate_prop_flags(prop_name, analysis, !is_simple);
 
             // Check if the value needs $.proxy() wrapping.
             // Only $bindable() defaults get proxy-wrapped (similar to $state).
@@ -8068,7 +8083,7 @@ fn transform_props_destructuring(
             if is_simple {
                 declarators.push(format!(
                     "{} = $.prop($$props, '{}', {}, {})",
-                    name, name, flags, proxy_wrapped
+                    local_name, prop_name, flags, proxy_wrapped
                 ));
             } else {
                 // Wrap non-simple values in a thunk: () => value
@@ -8077,22 +8092,31 @@ fn transform_props_destructuring(
                 let lazy_arg = make_lazy_prop_arg(&proxy_wrapped);
                 declarators.push(format!(
                     "{} = $.prop($$props, '{}', {}, {})",
-                    name, name, flags, lazy_arg
+                    local_name, prop_name, flags, lazy_arg
                 ));
             }
         } else {
-            // No default value - add to seen list for rest_props exclusion
-            seen.push(prop_part.to_string());
+            // No default value - handle rename pattern: `originalProp: localVar`
+            let (prop_name, local_name) = if let Some(colon_pos) = prop_part.find(':') {
+                let pn = prop_part[..colon_pos].trim();
+                let ln = prop_part[colon_pos + 1..].trim();
+                (pn, ln)
+            } else {
+                (prop_part, prop_part)
+            };
+
+            // Add to seen list for rest_props exclusion
+            seen.push(prop_name.to_string());
 
             // Only generate $.prop() if this is a source prop or exported
-            let is_exported = exported_names.contains(&prop_part.to_string());
-            if prop_source_vars.contains(&prop_part.to_string()) || is_exported {
+            let is_exported = exported_names.contains(&local_name.to_string());
+            if prop_source_vars.contains(&local_name.to_string()) || is_exported {
                 // Calculate flags using the official logic (no lazy initial for props without defaults)
-                let flags = calculate_prop_flags(prop_part, analysis, false);
+                let flags = calculate_prop_flags(prop_name, analysis, false);
 
                 declarators.push(format!(
                     "{} = $.prop($$props, '{}', {})",
-                    prop_part, prop_part, flags
+                    local_name, prop_name, flags
                 ));
             }
             // Read-only props without defaults are accessed directly via $$props.propName
