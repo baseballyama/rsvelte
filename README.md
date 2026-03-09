@@ -37,6 +37,29 @@ const ast = parse('<h1>Hello</h1>', { modern: true });
 
 The API matches the official [`svelte/compiler`](https://svelte.dev/docs/svelte-compiler) — `compile`, `compileModule`, `parse`, and `VERSION` are all available.
 
+### Using with Vite
+
+Add `@rsvelte/compiler` and alias `svelte/compiler` in your Vite config:
+
+```bash
+npm install @rsvelte/compiler
+```
+
+```js
+// vite.config.js
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  resolve: {
+    alias: { 'svelte/compiler': '@rsvelte/compiler' }
+  },
+  plugins: [svelte()]
+});
+```
+
+This makes `@sveltejs/vite-plugin-svelte` use the Rust compiler instead of the JavaScript one — no other changes needed.
+
 ### Rust
 
 ```rust
