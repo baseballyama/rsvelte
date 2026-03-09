@@ -2,6 +2,51 @@
 
 A Rust implementation of the Svelte compiler with **100% test compatibility** with the official compiler.
 
+## Quick Start
+
+### Node.js
+
+Install the package:
+
+```bash
+npm install @rsvelte/compiler
+```
+
+Use it as a drop-in replacement for `svelte/compiler`:
+
+```js
+import { compile, compileModule, parse } from '@rsvelte/compiler';
+
+// Compile a Svelte component
+const result = compile('<h1>Hello, {name}!</h1>', {
+  generate: 'client', // or 'server'
+  filename: 'App.svelte',
+});
+
+console.log(result.js.code);
+console.log(result.css?.code);
+
+// Compile a Svelte module (.svelte.js / .svelte.ts)
+const moduleResult = compileModule('export const count = $state(0);', {
+  filename: 'counter.svelte.js',
+});
+
+// Parse into AST
+const ast = parse('<h1>Hello</h1>', { modern: true });
+```
+
+The API matches the official [`svelte/compiler`](https://svelte.dev/docs/svelte-compiler) — `compile`, `compileModule`, `parse`, and `VERSION` are all available.
+
+### Rust
+
+```rust
+use rsvelte::{compile, CompileOptions};
+
+let source = r#"<h1>Hello, {name}!</h1>"#;
+let result = compile(source, CompileOptions::default()).unwrap();
+println!("{}", result.js.code);
+```
+
 ## Highlights
 
 - **3,028 / 3,028 tests passing** — fully compatible with the official Svelte compiler test suite
@@ -68,23 +113,6 @@ Key design decisions:
 - Parallel processing with rayon
 - JavaScript parsing and code generation via OXC
 - Direct AST passing between phases (no re-parsing)
-
-## Usage
-
-### Rust API
-
-```rust
-use svelte_compiler_rust::{compile, CompileOptions};
-
-let source = r#"<h1>Hello, {name}!</h1>"#;
-let result = compile(source, CompileOptions::default()).unwrap();
-```
-
-### WASM
-
-```bash
-wasm-pack build --target web --release -- --features wasm --no-default-features
-```
 
 ## Development
 
