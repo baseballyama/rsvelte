@@ -76,13 +76,13 @@ pub fn validate_element(
                                     if i >= context.analysis.source.len() {
                                         break;
                                     }
-                                    let ch = context.analysis.source.chars().nth(i);
-                                    match ch {
-                                        Some('(') => {
+                                    let byte = context.analysis.source.as_bytes().get(i).copied();
+                                    match byte {
+                                        Some(b'(') => {
                                             is_parenthesized = true;
                                             break;
                                         }
-                                        Some('{') => {
+                                        Some(b'{') => {
                                             break;
                                         }
                                         _ => {}

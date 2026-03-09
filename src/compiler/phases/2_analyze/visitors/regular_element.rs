@@ -916,9 +916,9 @@ pub fn visit(
     if element.end >= 2 {
         let end_idx = element.end as usize;
         if end_idx <= context.analysis.source.len() {
-            let char_at_end_minus_2 = context.analysis.source.chars().nth(end_idx - 2);
+            let byte_at_end_minus_2 = context.analysis.source.as_bytes().get(end_idx - 2);
 
-            if char_at_end_minus_2 == Some('/')
+            if byte_at_end_minus_2 == Some(&b'/')
                 && !is_void(node_name)
                 && !is_svg(node_name)
                 && !is_mathml(node_name)

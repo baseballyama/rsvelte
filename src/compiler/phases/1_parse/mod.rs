@@ -251,4 +251,54 @@ mod tests {
             result.err()
         );
     }
+
+    #[test]
+    fn test_parse_multibyte_style_directive() {
+        // Regression test: style directives with quoted values after multibyte characters
+        // Bug: chars().nth() was used with byte index, causing wrong quote detection
+        let source = "<script lang=\"ts\">\n  interface Props {\n    /** あ */\n    content: string;\n  }\n  const { content }: Props = $props();\n</script>\n\n<div style:width=\"100%\">{content}</div>";
+
+        assert_ne!(
+            source.len(),
+            source.chars().count(),
+            "Source should contain multibyte chars"
+        );
+        let result = parse(source, ParseOptions::default());
+        assert!(
+            result.is_ok(),
+            "style:width with multibyte chars should parse: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_multibyte_complex_template() {
+        // Regression test: complex template with style directives, if blocks, and multibyte chars
+        let source = concat!(
+            "<script lang=\"ts\">\n",
+            "  interface Props {\n",
+            "    /** アバター */\n",
+            "    content: 'image' | 'initial';\n",
+            "    size?: string;\n",
+            "  }\n",
+            "  const { content, size = 's' }: Props = $props();\n",
+            "  const px = $derived.by(() => size === 'xs' ? 20 : 32);\n",
+            "</script>\n\n",
+            "<div class=\"avatar\" style:width={`${px}px`} style:height={`${px}px`}>\n",
+            "  {#if content === 'image'}\n",
+            "    <span>img</span>\n",
+            "  {:else}\n",
+            "    <div style:width=\"100%\" style:height=\"100%\">init</div>\n",
+            "  {/if}\n",
+            "</div>\n",
+        );
+
+        assert_ne!(source.len(), source.chars().count());
+        let result = parse(source, ParseOptions::default());
+        assert!(
+            result.is_ok(),
+            "Complex template with multibyte should parse: {:?}",
+            result.err()
+        );
+    }
 }

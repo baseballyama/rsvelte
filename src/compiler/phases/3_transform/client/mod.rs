@@ -8151,8 +8151,8 @@ fn transform_read_only_props(line: &str, read_only_props: &[String]) -> String {
         for mat in re.find_iter(&result.clone()) {
             // Check if preceded by . (property access) or $ (dollar identifier)
             if mat.start() > 0 {
-                let prev_char = result.chars().nth(mat.start() - 1);
-                if prev_char == Some('.') || prev_char == Some('$') {
+                let prev_byte = result.as_bytes().get(mat.start() - 1).copied();
+                if prev_byte == Some(b'.') || prev_byte == Some(b'$') {
                     new_result.push_str(&result[last_end..mat.end()]);
                     last_end = mat.end();
                     continue;
@@ -11376,7 +11376,7 @@ fn is_shadowed_by_for_loop_var(chars: &[char], var_start: usize, var_name: &str)
                                             // Ensure it's a word boundary (next char is not alphanumeric/underscore)
                                             if after >= header.len()
                                                 || !is_identifier_char(
-                                                    header.chars().nth(after).unwrap_or(' '),
+                                                    header[after..].chars().next().unwrap_or(' '),
                                                 )
                                             {
                                                 return true;

@@ -203,17 +203,17 @@ pub fn is_unparenthesized_sequence_expression(
                 if i >= source.len() {
                     break;
                 }
-                let ch = source.chars().nth(i);
-                match ch {
-                    Some('(') => {
+                let byte = source.as_bytes().get(i).copied();
+                match byte {
+                    Some(b'(') => {
                         // Expression is parenthesized
                         return false;
                     }
-                    Some('{') => {
+                    Some(b'{') => {
                         // Found opening brace without parenthesis - unparenthesized
                         return true;
                     }
-                    Some(c) if c.is_whitespace() => {
+                    Some(b) if (b as char).is_ascii_whitespace() => {
                         // Skip whitespace
                         continue;
                     }

@@ -421,8 +421,8 @@ impl<'a> Parser<'a> {
 
         // Trim trailing whitespace from the pattern
         while self.index > 0 {
-            let prev_char = self.source.chars().nth(self.index - 1).unwrap_or(' ');
-            if prev_char.is_whitespace() {
+            let prev_byte = self.bytes[self.index - 1];
+            if (prev_byte as char).is_ascii_whitespace() {
                 self.index -= 1;
             } else {
                 break;

@@ -1123,7 +1123,7 @@ impl Parser<'_> {
             self.skip_whitespace();
             // Handle quoted value: ="{expression}"
             if self.eat_optional("\"") || self.eat_optional("'") {
-                let quote = if self.source.chars().nth(self.index - 1) == Some('"') {
+                let quote = if self.bytes[self.index - 1] == b'"' {
                     '"'
                 } else {
                     '\''
@@ -1228,7 +1228,7 @@ impl Parser<'_> {
             self.skip_whitespace();
             // Handle quoted value: ="{expression}"
             if self.eat_optional("\"") || self.eat_optional("'") {
-                let quote = if self.source.chars().nth(self.index - 1) == Some('"') {
+                let quote = if self.bytes[self.index - 1] == b'"' {
                     '"'
                 } else {
                     '\''
@@ -1357,7 +1357,7 @@ impl Parser<'_> {
             self.skip_whitespace();
             // Handle quoted value: ="{expression}" or ="value"
             if self.eat_optional("\"") || self.eat_optional("'") {
-                let quote = if self.source.chars().nth(self.index - 1) == Some('"') {
+                let quote = if self.bytes[self.index - 1] == b'"' {
                     '"'
                 } else {
                     '\''
@@ -1574,7 +1574,7 @@ impl Parser<'_> {
                 })
             } else if self.eat_optional("\"") || self.eat_optional("'") {
                 // Quoted string value with potential expressions: "red{variable}"
-                let quote = if self.source.chars().nth(self.index - 1) == Some('"') {
+                let quote = if self.bytes[self.index - 1] == b'"' {
                     '"'
                 } else {
                     '\''
@@ -1752,7 +1752,7 @@ impl Parser<'_> {
             self.skip_whitespace();
             // Handle quoted value: ="{expression}"
             if self.eat_optional("\"") || self.eat_optional("'") {
-                let quote = if self.source.chars().nth(self.index - 1) == Some('"') {
+                let quote = if self.bytes[self.index - 1] == b'"' {
                     '"'
                 } else {
                     '\''
