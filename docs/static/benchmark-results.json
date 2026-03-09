@@ -1,27 +1,27 @@
 {
-  "generatedAt": "2026-03-03T23:48:29.146Z",
-  "commitSha": "7cae681",
+  "generatedAt": "2026-03-09T11:19:02.566Z",
+  "commitSha": "3bc0e02",
   "testFilesCount": 3654,
   "javascript": {
     "name": "JavaScript (svelte/compiler)",
     "filesCount": 3654,
-    "durationMs": 986.9337640000002,
-    "throughputFilesPerSec": 3702.376120146599
+    "durationMs": 688.9318886666666,
+    "throughputFilesPerSec": 5303.862486423464
   },
   "rustSingleThread": {
     "name": "Rust (single-threaded)",
     "filesCount": 3654,
-    "durationMs": 1434.8249000000003,
-    "throughputFilesPerSec": 2546.652208224153
+    "durationMs": 332.5967,
+    "throughputFilesPerSec": 10986.278577027371
   },
   "rustMultiThread": {
     "name": "Rust (multi-threaded)",
     "filesCount": 3654,
-    "durationMs": 363.06003333333337,
-    "throughputFilesPerSec": 10064.45123262902
+    "durationMs": 43.605133333333335,
+    "throughputFilesPerSec": 83797.47338616096
   },
   "speedup": {
-    "singleThreadVsJs": 0.6878426517409895,
-    "multiThreadVsJs": 2.71837622813711
+    "singleThreadVsJs": 2.071373193620582,
+    "multiThreadVsJs": 15.799329941276026
   }
 }
