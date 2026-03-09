@@ -153,9 +153,146 @@ pub fn walk_js_node(node: &Value, context: &mut VisitorContext) -> Result<(), An
     Ok(())
 }
 
+/// Walk the "body" field of a node (array or single node).
+#[inline]
+fn walk_body(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    if let Some(body) = node.get("body") {
+        if let Some(body_array) = body.as_array() {
+            for child in body_array {
+                walk_js_node(child, context)?;
+            }
+        } else {
+            walk_js_node(body, context)?;
+        }
+    }
+    Ok(())
+}
+
+/// Fallback child visitor for unknown node types.
+/// Checks all common fields broadly (the previous behavior).
+fn visit_children_fallback(
+    node: &Value,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    // body (array or single node)
+    walk_body(node, context)?;
+
+    if let Some(expression) = node.get("expression") {
+        walk_js_node(expression, context)?;
+    }
+    if let Some(declarations) = node.get("declarations").and_then(|d| d.as_array()) {
+        for decl in declarations {
+            walk_js_node(decl, context)?;
+        }
+    }
+    if let Some(arguments) = node.get("arguments").and_then(|a| a.as_array()) {
+        for arg in arguments {
+            walk_js_node(arg, context)?;
+        }
+    }
+    if let Some(consequent) = node.get("consequent") {
+        walk_js_node(consequent, context)?;
+    }
+    if let Some(alternate) = node.get("alternate") {
+        walk_js_node(alternate, context)?;
+    }
+    if let Some(test) = node.get("test") {
+        walk_js_node(test, context)?;
+    }
+    if let Some(init) = node.get("init") {
+        walk_js_node(init, context)?;
+    }
+    if let Some(update) = node.get("update") {
+        walk_js_node(update, context)?;
+    }
+    if let Some(value) = node.get("value") {
+        walk_js_node(value, context)?;
+    }
+    let computed = node
+        .get("computed")
+        .and_then(|c| c.as_bool())
+        .unwrap_or(false);
+    if computed && let Some(key) = node.get("key") {
+        walk_js_node(key, context)?;
+    }
+    if let Some(properties) = node.get("properties").and_then(|p| p.as_array()) {
+        for prop in properties {
+            walk_js_node(prop, context)?;
+        }
+    }
+    if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
+        for elem in elements {
+            if !elem.is_null() {
+                walk_js_node(elem, context)?;
+            }
+        }
+    }
+    if let Some(left) = node.get("left") {
+        walk_js_node(left, context)?;
+    }
+    if let Some(right) = node.get("right") {
+        walk_js_node(right, context)?;
+    }
+    if let Some(argument) = node.get("argument") {
+        walk_js_node(argument, context)?;
+    }
+    if let Some(expressions) = node.get("expressions").and_then(|e| e.as_array()) {
+        for expr in expressions {
+            walk_js_node(expr, context)?;
+        }
+    }
+    if let Some(quasis) = node.get("quasis").and_then(|q| q.as_array()) {
+        for quasi in quasis {
+            walk_js_node(quasi, context)?;
+        }
+    }
+    if let Some(callee) = node.get("callee") {
+        walk_js_node(callee, context)?;
+    }
+    if let Some(params) = node.get("params").and_then(|p| p.as_array()) {
+        for param in params {
+            if let Some(right) = param.get("right") {
+                walk_js_node(right, context)?;
+            }
+        }
+    }
+    if let Some(tag) = node.get("tag") {
+        walk_js_node(tag, context)?;
+    }
+    if let Some(quasi) = node.get("quasi") {
+        walk_js_node(quasi, context)?;
+    }
+    if let Some(source) = node.get("source") {
+        walk_js_node(source, context)?;
+    }
+    if let Some(discriminant) = node.get("discriminant") {
+        walk_js_node(discriminant, context)?;
+    }
+    if let Some(cases) = node.get("cases").and_then(|c| c.as_array()) {
+        for case in cases {
+            walk_js_node(case, context)?;
+        }
+    }
+    if let Some(block) = node.get("block") {
+        walk_js_node(block, context)?;
+    }
+    if let Some(handler) = node.get("handler") {
+        walk_js_node(handler, context)?;
+    }
+    if let Some(finalizer) = node.get("finalizer") {
+        walk_js_node(finalizer, context)?;
+    }
+    if let Some(param) = node.get("param") {
+        walk_js_node(param, context)?;
+    }
+    Ok(())
+}
+
 /// Visit common child nodes of a JavaScript AST node.
 ///
-/// This handles common fields like body, expression, arguments, etc.
+/// Dispatches based on node type to minimize HashMap lookups per node.
+/// Known node types only check the fields relevant to them (typically 1-3).
+/// Unknown node types fall back to checking all common fields.
 ///
 /// # Arguments
 ///
@@ -190,145 +327,238 @@ fn visit_children(node: &Value, context: &mut VisitorContext) -> Result<(), Anal
         _ => {}
     }
 
-    // Visit body (array or single node)
-    if let Some(body) = node.get("body") {
-        if let Some(body_array) = body.as_array() {
-            for child in body_array {
-                walk_js_node(child, context)?;
-            }
-        } else {
-            walk_js_node(body, context)?;
+    // Dispatch based on node type to minimize HashMap lookups
+    match node_type {
+        Some("Program") | Some("BlockStatement") => {
+            // body[]
+            walk_body(node, context)?;
         }
-    }
-
-    // Visit expression
-    if let Some(expression) = node.get("expression") {
-        walk_js_node(expression, context)?;
-    }
-
-    // Visit declarations
-    if let Some(declarations) = node.get("declarations").and_then(|d| d.as_array()) {
-        for decl in declarations {
-            walk_js_node(decl, context)?;
-        }
-    }
-
-    // Visit arguments
-    if let Some(arguments) = node.get("arguments").and_then(|a| a.as_array()) {
-        for arg in arguments {
-            walk_js_node(arg, context)?;
-        }
-    }
-
-    // Visit consequent and alternate (if statement)
-    if let Some(consequent) = node.get("consequent") {
-        walk_js_node(consequent, context)?;
-    }
-    if let Some(alternate) = node.get("alternate") {
-        walk_js_node(alternate, context)?;
-    }
-
-    // Visit test (if, while, etc.)
-    if let Some(test) = node.get("test") {
-        walk_js_node(test, context)?;
-    }
-
-    // Visit init, update (for loop)
-    if let Some(init) = node.get("init") {
-        walk_js_node(init, context)?;
-    }
-    if let Some(update) = node.get("update") {
-        walk_js_node(update, context)?;
-    }
-
-    // Visit value (MethodDefinition, Property, etc.)
-    if let Some(value) = node.get("value") {
-        walk_js_node(value, context)?;
-    }
-
-    // Visit key for computed properties
-    let computed = node
-        .get("computed")
-        .and_then(|c| c.as_bool())
-        .unwrap_or(false);
-    if computed && let Some(key) = node.get("key") {
-        walk_js_node(key, context)?;
-    }
-
-    // Visit properties (ObjectExpression, ObjectPattern)
-    if let Some(properties) = node.get("properties").and_then(|p| p.as_array()) {
-        for prop in properties {
-            walk_js_node(prop, context)?;
-        }
-    }
-
-    // Visit elements (ArrayExpression, ArrayPattern)
-    if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
-        for elem in elements {
-            if !elem.is_null() {
-                walk_js_node(elem, context)?;
+        Some("VariableDeclaration") => {
+            // declarations[]
+            if let Some(declarations) = node.get("declarations").and_then(|d| d.as_array()) {
+                for decl in declarations {
+                    walk_js_node(decl, context)?;
+                }
             }
         }
-    }
-
-    // Visit left and right (BinaryExpression, LogicalExpression, AssignmentExpression)
-    if let Some(left) = node.get("left") {
-        walk_js_node(left, context)?;
-    }
-    if let Some(right) = node.get("right") {
-        walk_js_node(right, context)?;
-    }
-
-    // Visit object and property (MemberExpression)
-    // Note: MemberExpression visitor doesn't visit children, so we need to handle it here
-    if node_type == Some("MemberExpression") {
-        if let Some(object) = node.get("object") {
-            walk_js_node(object, context)?;
-        }
-        if let Some(property) = node.get("property") {
-            // Only visit property if computed (dynamic property access)
-            if computed {
-                walk_js_node(property, context)?;
+        Some("IfStatement") => {
+            // test, consequent, alternate
+            if let Some(test) = node.get("test") {
+                walk_js_node(test, context)?;
+            }
+            if let Some(consequent) = node.get("consequent") {
+                walk_js_node(consequent, context)?;
+            }
+            if let Some(alternate) = node.get("alternate") {
+                walk_js_node(alternate, context)?;
             }
         }
-    }
-
-    // Visit argument (UnaryExpression, UpdateExpression, SpreadElement, etc.)
-    if let Some(argument) = node.get("argument") {
-        walk_js_node(argument, context)?;
-    }
-
-    // Visit expressions (SequenceExpression, TemplateLiteral)
-    if let Some(expressions) = node.get("expressions").and_then(|e| e.as_array()) {
-        for expr in expressions {
-            walk_js_node(expr, context)?;
+        Some("ForStatement") => {
+            // init, test, update, body
+            if let Some(init) = node.get("init") {
+                walk_js_node(init, context)?;
+            }
+            if let Some(test) = node.get("test") {
+                walk_js_node(test, context)?;
+            }
+            if let Some(update) = node.get("update") {
+                walk_js_node(update, context)?;
+            }
+            walk_body(node, context)?;
         }
-    }
-
-    // Visit quasis (TemplateLiteral)
-    if let Some(quasis) = node.get("quasis").and_then(|q| q.as_array()) {
-        for quasi in quasis {
-            walk_js_node(quasi, context)?;
-        }
-    }
-
-    // Visit callee (CallExpression, NewExpression)
-    // Note: These should be handled by their own visitors, but add fallback
-    if node_type != Some("CallExpression")
-        && node_type != Some("NewExpression")
-        && let Some(callee) = node.get("callee")
-    {
-        walk_js_node(callee, context)?;
-    }
-
-    // Visit params (FunctionDeclaration, FunctionExpression, ArrowFunctionExpression)
-    // Note: Parameters should be in scope, but we need to walk default values
-    if let Some(params) = node.get("params").and_then(|p| p.as_array()) {
-        for param in params {
-            // Walk default values in AssignmentPattern
-            if let Some(right) = param.get("right") {
+        Some("ForInStatement") | Some("ForOfStatement") => {
+            // left, right, body
+            if let Some(left) = node.get("left") {
+                walk_js_node(left, context)?;
+            }
+            if let Some(right) = node.get("right") {
                 walk_js_node(right, context)?;
             }
+            walk_body(node, context)?;
+        }
+        Some("WhileStatement") | Some("DoWhileStatement") => {
+            // test, body
+            if let Some(test) = node.get("test") {
+                walk_js_node(test, context)?;
+            }
+            walk_body(node, context)?;
+        }
+        Some("SwitchStatement") => {
+            // discriminant, cases[]
+            if let Some(discriminant) = node.get("discriminant") {
+                walk_js_node(discriminant, context)?;
+            }
+            if let Some(cases) = node.get("cases").and_then(|c| c.as_array()) {
+                for case in cases {
+                    walk_js_node(case, context)?;
+                }
+            }
+        }
+        Some("SwitchCase") => {
+            // test, consequent[]
+            if let Some(test) = node.get("test") {
+                walk_js_node(test, context)?;
+            }
+            if let Some(consequent) = node.get("consequent").and_then(|c| c.as_array()) {
+                for stmt in consequent {
+                    walk_js_node(stmt, context)?;
+                }
+            }
+        }
+        Some("TryStatement") => {
+            // block, handler, finalizer
+            if let Some(block) = node.get("block") {
+                walk_js_node(block, context)?;
+            }
+            if let Some(handler) = node.get("handler") {
+                walk_js_node(handler, context)?;
+            }
+            if let Some(finalizer) = node.get("finalizer") {
+                walk_js_node(finalizer, context)?;
+            }
+        }
+        Some("CatchClause") => {
+            // param, body
+            if let Some(param) = node.get("param") {
+                walk_js_node(param, context)?;
+            }
+            walk_body(node, context)?;
+        }
+        Some("ReturnStatement")
+        | Some("ThrowStatement")
+        | Some("SpreadElement")
+        | Some("UnaryExpression")
+        | Some("YieldExpression")
+        | Some("RestElement") => {
+            // argument
+            if let Some(argument) = node.get("argument") {
+                walk_js_node(argument, context)?;
+            }
+        }
+        Some("BinaryExpression") | Some("LogicalExpression") => {
+            // left, right
+            if let Some(left) = node.get("left") {
+                walk_js_node(left, context)?;
+            }
+            if let Some(right) = node.get("right") {
+                walk_js_node(right, context)?;
+            }
+        }
+        Some("ConditionalExpression") => {
+            // test, consequent, alternate
+            if let Some(test) = node.get("test") {
+                walk_js_node(test, context)?;
+            }
+            if let Some(consequent) = node.get("consequent") {
+                walk_js_node(consequent, context)?;
+            }
+            if let Some(alternate) = node.get("alternate") {
+                walk_js_node(alternate, context)?;
+            }
+        }
+        Some("ObjectExpression") | Some("ObjectPattern") => {
+            // properties[]
+            if let Some(properties) = node.get("properties").and_then(|p| p.as_array()) {
+                for prop in properties {
+                    walk_js_node(prop, context)?;
+                }
+            }
+        }
+        Some("ArrayExpression") | Some("ArrayPattern") => {
+            // elements[]
+            if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
+                for elem in elements {
+                    if !elem.is_null() {
+                        walk_js_node(elem, context)?;
+                    }
+                }
+            }
+        }
+        Some("Property") => {
+            // key (if computed), value
+            if node
+                .get("computed")
+                .and_then(|c| c.as_bool())
+                .unwrap_or(false)
+                && let Some(key) = node.get("key")
+            {
+                walk_js_node(key, context)?;
+            }
+            if let Some(value) = node.get("value") {
+                walk_js_node(value, context)?;
+            }
+        }
+        Some("SequenceExpression") => {
+            // expressions[]
+            if let Some(expressions) = node.get("expressions").and_then(|e| e.as_array()) {
+                for expr in expressions {
+                    walk_js_node(expr, context)?;
+                }
+            }
+        }
+        Some("TemplateLiteral") => {
+            // expressions[], quasis[]
+            if let Some(expressions) = node.get("expressions").and_then(|e| e.as_array()) {
+                for expr in expressions {
+                    walk_js_node(expr, context)?;
+                }
+            }
+            if let Some(quasis) = node.get("quasis").and_then(|q| q.as_array()) {
+                for quasi in quasis {
+                    walk_js_node(quasi, context)?;
+                }
+            }
+        }
+        Some("TaggedTemplateExpression") => {
+            // tag, quasi
+            if let Some(tag) = node.get("tag") {
+                walk_js_node(tag, context)?;
+            }
+            if let Some(quasi) = node.get("quasi") {
+                walk_js_node(quasi, context)?;
+            }
+        }
+        Some("AssignmentPattern") => {
+            // left, right
+            if let Some(left) = node.get("left") {
+                walk_js_node(left, context)?;
+            }
+            if let Some(right) = node.get("right") {
+                walk_js_node(right, context)?;
+            }
+        }
+        Some("MethodDefinition") => {
+            // key (if computed), value
+            if node
+                .get("computed")
+                .and_then(|c| c.as_bool())
+                .unwrap_or(false)
+                && let Some(key) = node.get("key")
+            {
+                walk_js_node(key, context)?;
+            }
+            if let Some(value) = node.get("value") {
+                walk_js_node(value, context)?;
+            }
+        }
+        Some("ExportAllDeclaration") => {
+            // no children to walk
+        }
+        Some("ImportExpression") => {
+            // source
+            if let Some(source) = node.get("source") {
+                walk_js_node(source, context)?;
+            }
+        }
+        Some("ChainExpression") | Some("ParenthesizedExpression") => {
+            // expression
+            if let Some(expression) = node.get("expression") {
+                walk_js_node(expression, context)?;
+            }
+        }
+        _ => {
+            // Fallback for unknown node types: check all common fields
+            visit_children_fallback(node, context)?;
         }
     }
 
