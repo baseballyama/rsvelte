@@ -7,7 +7,8 @@ use napi_derive::napi;
 use serde_json::Value;
 
 use crate::compiler::{
-    CompileOptions, CssMode, ExperimentalOptions, GenerateMode, Namespace, compile as rust_compile,
+    CompileOptions, CssMode, ExperimentalOptions, GenerateMode, ModuleCompileOptions, Namespace,
+    compile as rust_compile, compile_module as rust_compile_module,
 };
 
 /// Compile a Svelte component.
@@ -211,4 +212,60 @@ fn parse_options(options: &Value) -> napi::Result<CompileOptions> {
     }
 
     Ok(opts)
+}
+
+/// Compile a Svelte module (.svelte.js/.svelte.ts).
+#[napi(js_name = "compileModule")]
+pub fn napi_compile_module(source: String, options: Value) -> napi::Result<Value> {
+    let obj = options.as_object();
+
+    let mut opts = ModuleCompileOptions::default();
+
+    if let Some(obj) = obj {
+        if let Some(v) = obj.get("dev").and_then(|v| v.as_bool()) {
+            opts.dev = v;
+        }
+        if let Some(v) = obj.get("generate").and_then(|v| v.as_str()) {
+            opts.generate = match v {
+                "server" | "ssr" => GenerateMode::Server,
+                "false" => GenerateMode::None,
+                _ => GenerateMode::Client,
+            };
+        }
+        if let Some(v) = obj.get("filename").and_then(|v| v.as_str()) {
+            opts.filename = Some(v.to_string());
+        }
+        if let Some(v) = obj.get("rootDir").and_then(|v| v.as_str()) {
+            opts.root_dir = Some(v.to_string());
+        }
+        if let Some(exp) = obj.get("experimental").and_then(|v| v.as_object())
+            && let Some(v) = exp.get("async").and_then(|v| v.as_bool())
+        {
+            opts.experimental = ExperimentalOptions { r#async: v };
+        }
+    }
+
+    match rust_compile_module(&source, opts) {
+        Ok(result) => {
+            let js_obj = serde_json::json!({
+                "code": result.js.code,
+                "map": result.js.map.as_deref()
+                    .map(|m| serde_json::from_str::<Value>(m).unwrap_or(Value::Null))
+                    .unwrap_or(Value::Null),
+            });
+
+            let output = serde_json::json!({
+                "js": js_obj,
+                "css": Value::Null,
+                "warnings": [],
+                "metadata": {
+                    "runes": true,
+                },
+                "ast": Value::Null,
+            });
+
+            Ok(output)
+        }
+        Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
+    }
 }

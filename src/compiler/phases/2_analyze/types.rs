@@ -1273,7 +1273,16 @@ impl ComponentAnalysis {
             if filename == "(unknown)" {
                 css.content.styles.clone()
             } else {
-                filename.clone()
+                // Make filename relative to rootDir before hashing,
+                // matching Svelte's adjust() in state.js
+                let mut fname = filename.replace('\\', "/");
+                if let Some(ref root_dir) = options.root_dir {
+                    let rd = root_dir.replace('\\', "/");
+                    if fname.starts_with(&rd) {
+                        fname = fname[rd.len()..].trim_start_matches('/').to_string();
+                    }
+                }
+                fname
             }
         } else {
             css.content.styles.clone()

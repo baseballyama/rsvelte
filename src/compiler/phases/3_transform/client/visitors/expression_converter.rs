@@ -166,8 +166,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                         .as_deref()
                         .unwrap_or(&name_str)
                         .to_string();
-                    let needs_bracket = prop_name.contains('-')
-                        || prop_name.chars().next().is_some_and(|c| c.is_ascii_digit());
+                    let needs_bracket = !is_valid_js_identifier(&prop_name);
                     return JsExpr::Member(JsMemberExpression {
                         object: Box::new(JsExpr::Identifier("$$props".into())),
                         property: if needs_bracket {
@@ -1553,8 +1552,7 @@ fn convert_identifier(
         // will be handled by apply_transforms_to_expression() later.
         if !is_source && !is_exported {
             let prop_name = binding.prop_alias.as_deref().unwrap_or(&name).to_string();
-            let needs_bracket = prop_name.contains('-')
-                || prop_name.chars().next().is_some_and(|c| c.is_ascii_digit());
+            let needs_bracket = !is_valid_js_identifier(&prop_name);
             return JsExpr::Member(JsMemberExpression {
                 object: Box::new(JsExpr::Identifier("$$props".into())),
                 property: if needs_bracket {
@@ -4527,6 +4525,18 @@ impl From<JsExpr> for JsLiteral {
             _ => JsLiteral::Null,
         }
     }
+}
+
+fn is_valid_js_identifier(s: &str) -> bool {
+    if s.is_empty() {
+        return false;
+    }
+    let mut chars = s.chars();
+    let first = chars.next().unwrap();
+    if !first.is_alphabetic() && first != '_' && first != '$' {
+        return false;
+    }
+    chars.all(|c| c.is_alphanumeric() || c == '_' || c == '$')
 }
 
 #[cfg(test)]
