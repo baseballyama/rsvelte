@@ -12,6 +12,7 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = ["native"]
 native = ["rayon", "miette/fancy", "jemalloc"]
+napi = ["dep:napi", "dep:napi-derive", "dep:napi-build"]
 jemalloc = ["dep:tikv-jemallocator"]
 wasm = ["wasm-bindgen", "console_error_panic_hook", "getrandom/js"]
 
@@ -62,6 +63,10 @@ walkdir = "2.5"
 # Time
 chrono = "0.4"
 
+# N-API support (optional)
+napi = { version = "2", default-features = false, features = ["napi9", "serde-json"], optional = true }
+napi-derive = { version = "2", optional = true }
+
 # WASM support (optional)
 wasm-bindgen = { version = "0.2", optional = true }
 console_error_panic_hook = { version = "0.1", optional = true }
@@ -72,6 +77,9 @@ indexmap = { version = "2.13.0", features = ["serde"] }
 # Better multi-threaded memory allocator (optional, Unix/Mac only)
 [target.'cfg(all(not(windows), not(target_arch = "wasm32")))'.dependencies]
 tikv-jemallocator = { version = "0.6", optional = true }
+
+[build-dependencies]
+napi-build = { version = "2", optional = true }
 
 [dev-dependencies]
 # Testing
@@ -109,7 +117,7 @@ wasm-opt = false
 lto = "fat"
 codegen-units = 1
 opt-level = 3
-strip = "symbols"
+strip = false
 debug = false
 panic = "abort"
 

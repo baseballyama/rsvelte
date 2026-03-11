@@ -25,6 +25,9 @@ pub mod ast;
 pub mod compiler;
 pub mod error;
 
+#[cfg(feature = "napi")]
+pub mod napi;
+
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
