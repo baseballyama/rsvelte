@@ -153,6 +153,23 @@ impl<'a> ServerCodeGenerator<'a> {
         let analysis_uses_props = self.analysis.map(|a| a.uses_props).unwrap_or(false);
         let analysis_uses_rest_props = self.analysis.map(|a| a.uses_rest_props).unwrap_or(false);
         let analysis_uses_slots = self.analysis.map(|a| a.uses_slots).unwrap_or(false);
+        let analysis_has_slot_names = self
+            .analysis
+            .map(|a| !a.slot_names.is_empty())
+            .unwrap_or(false);
+        let analysis_has_exports = self
+            .analysis
+            .map(|a| !a.exports.is_empty())
+            .unwrap_or(false);
+        let analysis_has_bindable_props = self
+            .analysis
+            .map(|a| {
+                a.root
+                    .bindings
+                    .iter()
+                    .any(|b| b.kind == BindingKind::BindableProp && !b.name.starts_with("$$"))
+            })
+            .unwrap_or(false);
         let uses_component_bindings = self
             .analysis
             .map(|a| a.uses_component_bindings)
@@ -350,6 +367,9 @@ impl<'a> ServerCodeGenerator<'a> {
             || analysis_uses_props
             || analysis_uses_rest_props
             || analysis_uses_slots
+            || analysis_has_slot_names
+            || analysis_has_exports
+            || analysis_has_bindable_props
             || script_uses_props;
 
         let props_param = if should_inject_props { ", $$props" } else { "" };

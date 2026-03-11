@@ -853,30 +853,7 @@ fn transform_client_with_visitors(
                             )],
                         ));
                     }
-                    _ => {
-                        if matches!(binding.declaration_kind,
-                            crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Let
-                            | crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Var
-                        ) {
-                            exports_members.push(b::getter(
-                                alias,
-                                vec![JsStatement::Return(
-                                    super::js_ast::nodes::JsReturnStatement {
-                                        argument: Some(Box::new(b::id(name))),
-                                    },
-                                )],
-                            ));
-                            exports_members.push(b::setter(
-                                alias,
-                                "$$value",
-                                vec![b::stmt(b::assign(b::id(name), b::id("$$value")))],
-                            ));
-                        } else if alias == name {
-                            exports_members.push(b::prop_shorthand(name));
-                        } else {
-                            exports_members.push(b::prop(alias, b::id(name)));
-                        }
-                    }
+                    _ => {}
                 }
             } else if alias == name {
                 exports_members.push(b::prop_shorthand(name));
@@ -915,6 +892,12 @@ fn transform_client_with_visitors(
                     ));
                 }
             }
+        }
+
+        // In dev mode, add ...$.legacy_api() spread
+        // Reference: transform-client.js line 353-354
+        if options.dev {
+            exports_members.push(b::spread(b::call(b::member_path("$.legacy_api"), vec![])));
         }
 
         if !exports_members.is_empty() {
@@ -8128,7 +8111,7 @@ fn transform_props_destructuring(
                     // $bindable() with no args - no default value
                     // Still need to generate $.prop() but without a default
                     seen.push(prop_name.to_string());
-                    let flags = calculate_prop_flags(prop_name, analysis, false);
+                    let flags = calculate_prop_flags(local_name, analysis, false);
                     declarators.push(format!(
                         "{} = $.prop($$props, '{}', {})",
                         local_name, prop_name, flags
@@ -8160,7 +8143,7 @@ fn transform_props_destructuring(
             let is_simple = is_simple_expression_str(default_value);
 
             // Calculate flags using the official logic
-            let flags = calculate_prop_flags(prop_name, analysis, !is_simple);
+            let flags = calculate_prop_flags(local_name, analysis, !is_simple);
 
             // Check if the value needs $.proxy() wrapping.
             // Only $bindable() defaults get proxy-wrapped (similar to $state).
@@ -8213,7 +8196,7 @@ fn transform_props_destructuring(
             let is_exported = exported_names.contains(&local_name.to_string());
             if prop_source_vars.contains(&local_name.to_string()) || is_exported {
                 // Calculate flags using the official logic (no lazy initial for props without defaults)
-                let flags = calculate_prop_flags(prop_name, analysis, false);
+                let flags = calculate_prop_flags(local_name, analysis, false);
 
                 declarators.push(format!(
                     "{} = $.prop($$props, '{}', {})",

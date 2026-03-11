@@ -5,7 +5,9 @@
 
 use crate::ast::template::{Attribute, AttributeNode};
 use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
-use crate::compiler::phases::phase3_transform::client::visitors::shared::events::build_event;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::events::{
+    build_delegated_event_assignment, build_event,
+};
 use crate::compiler::utils::can_delegate_event;
 
 /// Visit an Attribute node and generate client-side code.
@@ -200,15 +202,21 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
 
     let passive = is_passive_event(event_name);
 
-    let event_call = build_event(
-        event_name,
-        &context.state.node,
-        handler,
-        capture,
-        if passive == Some(true) { passive } else { None },
-        delegated,
-    );
-    let statement = b::stmt(event_call);
+    let statement = if delegated {
+        b::stmt(build_delegated_event_assignment(
+            event_name,
+            &context.state.node,
+            handler,
+        ))
+    } else {
+        b::stmt(build_event(
+            event_name,
+            &context.state.node,
+            handler,
+            capture,
+            if passive == Some(true) { passive } else { None },
+        ))
+    };
 
     // Check if the parent is a special element (svelte:window, svelte:document, svelte:body)
     let is_special_element = context.current_parent().is_some_and(|parent| {
@@ -221,11 +229,11 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
         )
     });
 
-    if is_special_element {
-        // Special elements: run parent-first (init)
+    if delegated || is_special_element {
+        // Delegated events and special elements go to init (run parent-first)
         context.state.init.push(statement);
     } else {
-        // Regular elements: run after update
+        // Non-delegated regular element events: run after update
         context.state.after_update.push(statement);
     }
 }

@@ -1044,11 +1044,69 @@ pub(crate) fn detect_props_spread_pattern(script: &str) -> bool {
             }
         }
     }
+
+    // Multi-line check: collapse newlines and check again
+    if script.contains("$props()") && script.contains("...") {
+        let collapsed: String = script
+            .chars()
+            .map(|c| if c == '\n' || c == '\r' { ' ' } else { c })
+            .collect();
+        let collapsed = collapsed.replace("  ", " ");
+        if (collapsed.contains("let {") || collapsed.contains("const {"))
+            && collapsed.contains("} = $props()")
+            && collapsed.contains("...")
+        {
+            return true;
+        }
+    }
+
     false
+}
+
+/// Collapse multi-line `let/const { ... } = $$props` destructurings into single lines.
+fn collapse_multiline_destructuring(script: &str) -> String {
+    let mut result = String::new();
+    let mut in_destructure = false;
+    let mut accum = String::new();
+
+    for line in script.lines() {
+        let trimmed = line.trim();
+
+        if !in_destructure {
+            // Check if this line starts a multi-line destructure
+            if (trimmed.starts_with("let {") || trimmed.starts_with("const {"))
+                && !trimmed.contains('}')
+            {
+                in_destructure = true;
+                accum.clear();
+                accum.push_str(trimmed);
+                accum.push(' ');
+                continue;
+            }
+            result.push_str(line);
+            result.push('\n');
+        } else {
+            // Accumulating lines of a multi-line destructure
+            accum.push_str(trimmed);
+            accum.push(' ');
+            if trimmed.contains('}') {
+                in_destructure = false;
+                // Clean up extra whitespace
+                let collapsed = accum.trim().to_string();
+                result.push_str("\t\t");
+                result.push_str(&collapsed);
+                result.push('\n');
+            }
+        }
+    }
+
+    result
 }
 
 /// Transform script code to use proper destructuring for props spread pattern.
 pub(crate) fn transform_props_spread(script: &str) -> String {
+    // First, collapse multi-line destructurings into single lines
+    let script = collapse_multiline_destructuring(script);
     let mut result = String::new();
 
     for line in script.lines() {

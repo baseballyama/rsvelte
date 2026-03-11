@@ -35,7 +35,6 @@ pub fn build_event(
     handler: JsExpr,
     capture: bool,
     passive: Option<bool>,
-    delegated: bool,
 ) -> JsExpr {
     let mut args = vec![b::string(event_name), node.clone(), handler];
 
@@ -50,9 +49,26 @@ pub fn build_event(
         args.push(b::boolean(passive_val));
     }
 
-    let callee = if delegated { "$.delegated" } else { "$.event" };
+    b::call(b::member_path("$.event"), args)
+}
 
-    b::call(b::member_path(callee), args)
+/// Build a delegated event assignment: `element.__eventname = handler`
+/// Reference: events.js lines 34-42 in the official compiler
+pub fn build_delegated_event_assignment(
+    event_name: &str,
+    node: &JsExpr,
+    handler: JsExpr,
+) -> JsExpr {
+    let prop_name = format!("__{}", event_name);
+    b::assign(
+        JsExpr::Member(JsMemberExpression {
+            object: Box::new(node.clone()),
+            property: JsMemberProperty::Identifier(prop_name.into()),
+            computed: false,
+            optional: false,
+        }),
+        handler,
+    )
 }
 
 /// Check if a JSON expression contains a call expression.

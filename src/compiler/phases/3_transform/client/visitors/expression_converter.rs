@@ -460,29 +460,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 }
             }
 
-            // Check if the object is a rest_prop identifier and should be transformed to $$props
-            let should_transform_to_props = if !computed
-                && context.state.analysis.runes
-                && !context.state.in_direct_assignment_lhs
-            {
-                if let Some(name) = get_jsnode_identifier_name(object) {
-                    if let Some(binding) = context.state.get_binding(&name) {
-                        matches!(binding.kind, BindingKind::RestProp)
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
-            } else {
-                false
-            };
-
-            let conv_object = if should_transform_to_props {
-                Box::new(JsExpr::Identifier("$$props".into()))
-            } else {
-                Box::new(convert_js_node(object, context))
-            };
+            let conv_object = { Box::new(convert_js_node(object, context)) };
 
             let conv_property = if computed {
                 JsMemberProperty::Expression(Box::new(convert_js_node(property, context)))
@@ -1700,30 +1678,7 @@ fn convert_member_expression(
         }
     }
 
-    // Check if the object is a rest_prop identifier and should be transformed to $$props
-    let should_transform_to_props =
-        if !computed && context.state.analysis.runes && !context.state.in_direct_assignment_lhs {
-            // Check if object is an Identifier
-            if let Some(object_obj) = obj.get("object").and_then(|o| o.as_object())
-                && let Some("Identifier") = object_obj.get("type").and_then(|t| t.as_str())
-                && let Some(name) = object_obj.get("name").and_then(|n| n.as_str())
-            {
-                // Check if this identifier is a rest_prop binding
-                if let Some(binding) = context.state.get_binding(name) {
-                    matches!(binding.kind, BindingKind::RestProp)
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-
-    let object = if should_transform_to_props {
-        Box::new(JsExpr::Identifier("$$props".into()))
-    } else {
+    let object = {
         obj.get("object")
             .map(|o| Box::new(convert_json_value(o, context)))
             .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".into())))
