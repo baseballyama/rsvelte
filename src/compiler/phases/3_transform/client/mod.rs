@@ -28,7 +28,7 @@ use super::js_ast::{
     nodes::{
         JsBlockStatement, JsExportDefault, JsExportDefaultDeclaration, JsExpr,
         JsFunctionDeclaration, JsImportDeclaration, JsImportSpecifier, JsObjectMember, JsPattern,
-        JsProgram, JsPropertyKey, JsPropertyKind, JsStatement, JsVariableKind,
+        JsProgram, JsPropertyKey, JsStatement, JsVariableKind,
     },
 };
 use crate::ast::template::Root;
@@ -498,14 +498,14 @@ fn transform_client_with_visitors(
                 ),
             ));
         }
+    }
 
-        // $$slots: when uses_slots
-        if analysis.uses_slots {
-            component_body.push(b::const_decl(
-                "$$slots",
-                b::call(b::member_path("$.sanitize_slots"), vec![b::id("$$props")]),
-            ));
-        }
+    // $$slots: when uses_slots (applies in both runes and legacy mode)
+    if analysis.uses_slots {
+        component_body.push(b::const_decl(
+            "$$slots",
+            b::call(b::member_path("$.sanitize_slots"), vec![b::id("$$props")]),
+        ));
     }
 
     // Add $.push at the start if injecting context
@@ -766,40 +766,50 @@ fn transform_client_with_visitors(
                         }
                     }
                     BindingKind::State => {
-                        // getter + $.set setter with proxy
-                        let last_is_getter = exports_members.last().is_some_and(|m| match m {
-                            JsObjectMember::Property(p) => matches!(p.kind, JsPropertyKind::Get),
+                        // Remove previously added members for this alias
+                        while exports_members.last().is_some_and(|m| match m {
+                            JsObjectMember::Property(p) => match &p.key {
+                                JsPropertyKey::Identifier(k) => k == alias,
+                                _ => false,
+                            },
                             _ => false,
-                        });
-                        if !last_is_getter {
-                            // Replace last simple init with getter/setter
+                        }) {
                             exports_members.pop();
-                            exports_members.push(b::getter(
-                                alias,
-                                vec![JsStatement::Return(
-                                    super::js_ast::nodes::JsReturnStatement {
-                                        argument: Some(Box::new(b::call(
-                                            b::member_path("$.get"),
-                                            vec![b::id(name)],
-                                        ))),
-                                    },
-                                )],
-                            ));
-                            exports_members.push(b::setter(
-                                alias,
-                                "$$value",
-                                vec![b::stmt(b::call(
-                                    b::member_path("$.set"),
-                                    vec![
-                                        b::id(name),
-                                        b::call(b::member_path("$.proxy"), vec![b::id("$$value")]),
-                                    ],
-                                ))],
-                            ));
                         }
+                        exports_members.push(b::getter(
+                            alias,
+                            vec![JsStatement::Return(
+                                super::js_ast::nodes::JsReturnStatement {
+                                    argument: Some(Box::new(b::call(
+                                        b::member_path("$.get"),
+                                        vec![b::id(name)],
+                                    ))),
+                                },
+                            )],
+                        ));
+                        exports_members.push(b::setter(
+                            alias,
+                            "$$value",
+                            vec![b::stmt(b::call(
+                                b::member_path("$.set"),
+                                vec![
+                                    b::id(name),
+                                    b::call(b::member_path("$.proxy"), vec![b::id("$$value")]),
+                                ],
+                            ))],
+                        ));
                     }
                     BindingKind::RawState => {
-                        exports_members.pop();
+                        // Remove previously added members for this alias
+                        while exports_members.last().is_some_and(|m| match m {
+                            JsObjectMember::Property(p) => match &p.key {
+                                JsPropertyKey::Identifier(k) => k == alias,
+                                _ => false,
+                            },
+                            _ => false,
+                        }) {
+                            exports_members.pop();
+                        }
                         exports_members.push(b::getter(
                             alias,
                             vec![JsStatement::Return(
@@ -820,23 +830,70 @@ fn transform_client_with_visitors(
                             ))],
                         ));
                     }
-                    _ => {}
+                    BindingKind::Derived => {
+                        // Remove previously added members for this alias
+                        while exports_members.last().is_some_and(|m| match m {
+                            JsObjectMember::Property(p) => match &p.key {
+                                JsPropertyKey::Identifier(k) => k == alias,
+                                _ => false,
+                            },
+                            _ => false,
+                        }) {
+                            exports_members.pop();
+                        }
+                        exports_members.push(b::getter(
+                            alias,
+                            vec![JsStatement::Return(
+                                super::js_ast::nodes::JsReturnStatement {
+                                    argument: Some(Box::new(b::call(
+                                        b::member_path("$.get"),
+                                        vec![b::id(name)],
+                                    ))),
+                                },
+                            )],
+                        ));
+                    }
+                    _ => {
+                        if matches!(binding.declaration_kind,
+                            crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Let
+                            | crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Var
+                        ) {
+                            exports_members.push(b::getter(
+                                alias,
+                                vec![JsStatement::Return(
+                                    super::js_ast::nodes::JsReturnStatement {
+                                        argument: Some(Box::new(b::id(name))),
+                                    },
+                                )],
+                            ));
+                            exports_members.push(b::setter(
+                                alias,
+                                "$$value",
+                                vec![b::stmt(b::assign(b::id(name), b::id("$$value")))],
+                            ));
+                        } else if alias == name {
+                            exports_members.push(b::prop_shorthand(name));
+                        } else {
+                            exports_members.push(b::prop(alias, b::id(name)));
+                        }
+                    }
                 }
+            } else if alias == name {
+                exports_members.push(b::prop_shorthand(name));
             } else {
-                // No binding found - simple init
-                if alias == name {
-                    exports_members.push(b::prop_shorthand(name));
-                } else {
-                    exports_members.push(b::prop(alias, b::id(name)));
-                }
+                exports_members.push(b::prop(alias, b::id(name)));
             }
         }
 
         // Add bindable props with getter/setter when accessors is enabled
         if analysis.accessors {
             for binding in &analysis.root.bindings {
+                let binding_prop_name = binding.prop_alias.as_deref().unwrap_or(&binding.name);
                 if matches!(binding.kind, BindingKind::BindableProp)
-                    && !analysis.exports.iter().any(|e| e.name == binding.name)
+                    && !analysis.exports.iter().any(|e| {
+                        let export_alias = e.alias.as_deref().unwrap_or(&e.name);
+                        e.name == binding.name || export_alias == binding_prop_name
+                    })
                 {
                     let name = &binding.name;
                     let alias = binding.prop_alias.as_deref().unwrap_or(name);
@@ -2063,7 +2120,7 @@ fn transform_instance_script_for_visitors(
     // Collect read-only props (props that are not sources and not exported with defaults)
     // These should be accessed directly via $$props.propName
     // Only applicable in runes mode - in legacy mode all props are sources
-    let read_only_props: Vec<String> = if analysis.runes {
+    let read_only_props: Vec<(String, String)> = if analysis.runes {
         analysis
             .root
             .bindings
@@ -2076,10 +2133,13 @@ fn transform_instance_script_for_visitors(
                     && !b.mutated
                     && !exported_names.contains(&b.name)
             })
-            .map(|b| b.name.clone())
+            .map(|b| {
+                let prop_name = b.prop_alias.as_deref().unwrap_or(&b.name).to_string();
+                (b.name.clone(), prop_name)
+            })
             .collect()
     } else {
-        Vec::new() // In legacy mode, no props are read-only
+        Vec::new()
     };
 
     // Collect legacy state variables (in non-runes mode, State bindings are promoted
@@ -2128,7 +2188,7 @@ fn transform_instance_script_for_visitors(
                                prop_assignment_transform_vars: &[String],
                                exported_names: &[String],
                                rest_prop_vars: &[String],
-                               read_only_props: &[String],
+                               read_only_props: &[(String, String)],
                                legacy_state_vars: &[(
         String,
         Option<String>,
@@ -2313,6 +2373,7 @@ fn transform_instance_script_for_visitors(
             dev,
             analysis,
             store_sub_vars,
+            read_only_props,
         );
 
         // Skip empty transformations (e.g., read-only $props() with no defaults)
@@ -2926,6 +2987,7 @@ fn transform_client_runes_with_skip_and_state(
     dev: bool,
     analysis: &ComponentAnalysis,
     store_sub_vars: &[String],
+    read_only_props: &[(String, String)],
 ) -> String {
     let mut result = line.to_string();
 
@@ -3561,8 +3623,13 @@ fn transform_client_runes_with_skip_and_state(
 
     // Transform $props() destructuring to $.prop() calls (only for source props)
     if result.contains("$props()")
-        && let Some(transformed) =
-            transform_props_destructuring(&result, prop_source_vars, exported_names, analysis)
+        && let Some(transformed) = transform_props_destructuring(
+            &result,
+            prop_source_vars,
+            exported_names,
+            analysis,
+            read_only_props,
+        )
     {
         return transformed;
     }
@@ -7944,6 +8011,7 @@ fn transform_props_destructuring(
     prop_source_vars: &[String],
     exported_names: &[String],
     analysis: &ComponentAnalysis,
+    read_only_props: &[(String, String)],
 ) -> Option<String> {
     let trimmed = line.trim();
 
@@ -8075,7 +8143,20 @@ fn transform_props_destructuring(
             // Add this prop name to the "seen" list for rest_props exclusion
             seen.push(prop_name.to_string());
 
-            // Check if the default value is a simple expression
+            // Transform default value: apply read-only prop substitutions
+            let default_value = {
+                let mut dv = default_value.to_string();
+                if !read_only_props.is_empty() {
+                    dv = transform_read_only_props(&dv, read_only_props);
+                }
+                if !prop_source_vars.is_empty() {
+                    dv = wrap_prop_source_reads(&dv, prop_source_vars);
+                }
+                dv
+            };
+            let default_value = default_value.as_str();
+
+            // Check if the TRANSFORMED default value is a simple expression
             let is_simple = is_simple_expression_str(default_value);
 
             // Calculate flags using the official logic
@@ -8216,14 +8297,26 @@ fn transform_rest_prop_member_access(line: &str, rest_prop_vars: &[String]) -> S
 
 /// Transform read-only props to $$props.propName.
 /// Read-only props are props that are not reassigned or mutated.
-fn transform_read_only_props(line: &str, read_only_props: &[String]) -> String {
+fn is_valid_js_identifier(s: &str) -> bool {
+    if s.is_empty() {
+        return false;
+    }
+    let mut chars = s.chars();
+    let first = chars.next().unwrap();
+    if !first.is_alphabetic() && first != '_' && first != '$' {
+        return false;
+    }
+    chars.all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+}
+
+fn transform_read_only_props(line: &str, read_only_props: &[(String, String)]) -> String {
     let mut result = line.to_string();
 
-    for prop_name in read_only_props {
+    for (local_name, prop_name) in read_only_props {
         // Create a regex pattern that matches the prop name as a complete identifier
         // Rust regex doesn't support lookbehind, so we match with word boundaries
         // and handle the prefix check manually
-        let pattern = format!(r"\b{}\b", regex::escape(prop_name));
+        let pattern = format!(r"\b{}\b", regex::escape(local_name));
         let re = match get_or_compile_regex(&pattern) {
             Some(r) => r,
             None => continue,
@@ -8316,13 +8409,23 @@ fn transform_read_only_props(line: &str, read_only_props: &[String]) -> String {
                     && !is_template_literal
             };
 
-            // Replace with $$props.propName
+            // Replace with $$props.propName or $$props['propName']
             new_result.push_str(&result[last_end..mat.start()]);
+            let use_bracket = !is_valid_js_identifier(prop_name);
             if is_shorthand {
-                // Expand shorthand: `{ prop }` -> `{ prop: $$props.prop }`
+                new_result.push_str(local_name);
+                if use_bracket {
+                    new_result.push_str(": $$props['");
+                    new_result.push_str(prop_name);
+                    new_result.push_str("']");
+                } else {
+                    new_result.push_str(": $$props.");
+                    new_result.push_str(prop_name);
+                }
+            } else if use_bracket {
+                new_result.push_str("$$props['");
                 new_result.push_str(prop_name);
-                new_result.push_str(": $$props.");
-                new_result.push_str(prop_name);
+                new_result.push_str("']");
             } else {
                 new_result.push_str("$$props.");
                 new_result.push_str(prop_name);
@@ -17726,6 +17829,7 @@ mod tests {
             false, // dev
             &analysis,
             &[], // store_sub_vars
+            &[], // read_only_props
         );
         println!("Input:  {}", input);
         println!("Result: {}", result);
@@ -17789,6 +17893,7 @@ fn test_derived_object_literal_double_wrap() {
         false, // dev
         &analysis,
         &[], // store_sub_vars
+        &[], // read_only_props
     );
     println!("After first transform: {}", result1);
 
