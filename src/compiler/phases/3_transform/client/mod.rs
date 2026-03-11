@@ -104,10 +104,10 @@ fn get_or_compile_regex(pattern: &str) -> Option<Regex> {
 pub fn transform_client(
     analysis: &ComponentAnalysis,
     ast: &Root,
-    _source: &str,
+    source: &str,
     options: &CompileOptions,
 ) -> Result<String, TransformError> {
-    transform_client_with_visitors(analysis, ast, options)
+    transform_client_with_visitors(analysis, ast, source, options)
 }
 
 /// Transform using the visitor-based system.
@@ -132,6 +132,7 @@ pub fn transform_client(
 fn transform_client_with_visitors(
     analysis: &ComponentAnalysis,
     ast: &Root,
+    source: &str,
     options: &CompileOptions,
 ) -> Result<String, TransformError> {
     use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment;
@@ -1059,8 +1060,11 @@ fn transform_client_with_visitors(
     // Add CSS declaration if needed
     if analysis.css.has_css && analysis.inject_styles {
         let hash = b::string(analysis.css.hash.clone());
-        // TODO: Generate actual CSS code
-        let code = b::string("/* CSS code placeholder */".to_string());
+        // Render the actual scoped CSS code
+        let css_code = super::css::render_stylesheet(analysis, source, options)
+            .map(|output| output.code)
+            .unwrap_or_default();
+        let code = b::string(css_code);
         body.push(b::const_decl(
             "$$css",
             b::object(vec![
@@ -8034,6 +8038,12 @@ fn transform_props_destructuring(
             //   local_name = "disabledProp" (the local variable)
             let (prop_name, local_name) = if let Some(colon_pos) = name_part.find(':') {
                 let pn = name_part[..colon_pos].trim();
+                // Strip surrounding quotes from prop name (e.g., 'weird-name': localVar)
+                let pn = pn
+                    .strip_prefix('\'')
+                    .and_then(|s| s.strip_suffix('\''))
+                    .or_else(|| pn.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
+                    .unwrap_or(pn);
                 let ln = name_part[colon_pos + 1..].trim();
                 (pn, ln)
             } else {
@@ -8103,6 +8113,12 @@ fn transform_props_destructuring(
             // No default value - handle rename pattern: `originalProp: localVar`
             let (prop_name, local_name) = if let Some(colon_pos) = prop_part.find(':') {
                 let pn = prop_part[..colon_pos].trim();
+                // Strip surrounding quotes from prop name
+                let pn = pn
+                    .strip_prefix('\'')
+                    .and_then(|s| s.strip_suffix('\''))
+                    .or_else(|| pn.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
+                    .unwrap_or(pn);
                 let ln = prop_part[colon_pos + 1..].trim();
                 (pn, ln)
             } else {
