@@ -8,7 +8,7 @@
 use crate::ast::template::AttachTag;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
-use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_expression;
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::get_blockers_for_exprs;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
@@ -33,8 +33,10 @@ pub fn attach_tag(node: &AttachTag, context: &mut ComponentContext) -> Transform
     // Convert the expression from AST to JS AST
     let js_expr = convert_expression(&node.expression, context);
 
-    // Apply transforms (e.g., $.get() wrapping for reactive values)
-    let expression = apply_transforms_to_expression(&js_expr, context);
+    // Apply transforms using build_expression (mirrors official AttachTag.js)
+    // This applies both transforms AND legacy $.untrack() wrapping
+    let expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
+    let expression = build_expression(context, &js_expr, &expr_metadata);
 
     // Create the $.attach call: $.attach(node, () => expression)
     let mut statement = b::stmt(b::call(

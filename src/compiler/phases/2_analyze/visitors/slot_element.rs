@@ -73,6 +73,22 @@ pub fn visit(slot: &mut SlotElement, context: &mut VisitorContext) -> Result<(),
     // This matches the official Svelte compiler (SlotElement.js line 39)
     context.analysis.slot_names.insert(name, String::new());
 
+    // Visit attribute expressions to register template references
+    // (e.g., <slot dummy={dummy}> needs `dummy` tracked as template reference)
+    // This corresponds to context.next() in the official SlotElement.js visitor
+    for attr in &slot.attributes {
+        match attr {
+            Attribute::Attribute(a) => {
+                super::attribute::visit_attribute_value_expressions(&a.value, context)?;
+            }
+            Attribute::SpreadAttribute(spread) => {
+                let v = spread.expression.as_json();
+                super::script::walk_js_node(v, context)?;
+            }
+            _ => {}
+        }
+    }
+
     // Analyze fallback children
     fragment::analyze(&mut slot.fragment, context)?;
 

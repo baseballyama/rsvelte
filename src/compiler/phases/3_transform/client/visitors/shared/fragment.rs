@@ -382,6 +382,24 @@ pub fn process_children<F>(
             TemplateNode::ExpressionTag(expr) => {
                 sequence.push(TextOrExpr::Expr(expr.clone()));
             }
+            // Comment nodes: push to template as static content when preserveComments
+            // is true, otherwise skip. This matches the official compiler's Comment visitor
+            // which calls `context.state.template.push_comment()`.
+            TemplateNode::Comment(comment) => {
+                if context.state.options.preserve_comments {
+                    // Flush any pending text/expression sequence
+                    if !sequence.is_empty() {
+                        flush_sequence(sequence, &mut prev, &mut skipped, context);
+                        sequence = Vec::new();
+                    }
+                    context
+                        .state
+                        .template
+                        .push_comment(Some(comment.data.to_string()));
+                    skipped += 1;
+                }
+                // When preserve_comments is false, the node was already filtered by clean_nodes
+            }
             // ConstTag doesn't produce DOM nodes - just visit it to add declarations
             TemplateNode::ConstTag(_) => {
                 // Flush any pending sequence
@@ -510,6 +528,25 @@ fn push_static_element_to_template(
     css_hash: &str,
     preserve_comments: bool,
 ) {
+    push_static_element_to_template_inner(
+        node,
+        template,
+        namespace,
+        css_hash,
+        preserve_comments,
+        false,
+    );
+}
+
+/// Inner implementation with preserve_whitespace tracking.
+fn push_static_element_to_template_inner(
+    node: &TemplateNode,
+    template: &mut Template,
+    namespace: &str,
+    css_hash: &str,
+    preserve_comments: bool,
+    preserve_whitespace: bool,
+) {
     match node {
         TemplateNode::RegularElement(elem) => {
             // Determine if this is an HTML element (not SVG/MathML)
@@ -521,7 +558,7 @@ fn push_static_element_to_template(
             };
 
             // Push the element opening tag
-            template.push_element(elem_name, elem.start, is_html);
+            template.push_element(elem_name.clone(), elem.start, is_html);
 
             // Handle <noscript> - it's rendered empty (children are stripped)
             // This matches the behavior in visit_regular_element
@@ -597,22 +634,37 @@ fn push_static_element_to_template(
             // trim leading/trailing whitespace-only text nodes)
             let children = &elem.fragment.nodes;
 
-            // Preserve whitespace for <script> elements, matching the official compiler
-            // behavior (RegularElement.js line 317: `name === 'script' || state.preserve_whitespace`)
-            let preserve_ws = elem.name == "script";
+            // Preserve whitespace for <script>, <pre>, and <textarea> elements,
+            // matching the official compiler behavior
+            let preserve_ws =
+                elem.name == "script" || elem.name == "pre" || elem.name == "textarea";
 
-            if preserve_ws {
-                // For script elements, add all children without whitespace trimming
+            let effective_preserve_ws = preserve_ws || preserve_whitespace;
+            if effective_preserve_ws {
+                // For script/pre/textarea elements, add all children without whitespace trimming
+                let mut is_first = true;
                 for child in children.iter() {
                     if !preserve_comments && matches!(child, TemplateNode::Comment(_)) {
                         continue;
                     }
-                    push_static_element_to_template(
+                    // Strip leading newline from first text child of <pre>
+                    // to prevent browsers from stripping it (which would break hydration)
+                    if is_first
+                        && elem.name == "pre"
+                        && let TemplateNode::Text(text) = child
+                        && (text.data.as_str() == "\n" || text.data.as_str() == "\r\n")
+                    {
+                        is_first = false;
+                        continue;
+                    }
+                    is_first = false;
+                    push_static_element_to_template_inner(
                         child,
                         template,
                         &child_namespace,
                         css_hash,
                         preserve_comments,
+                        effective_preserve_ws,
                     );
                 }
             } else {
@@ -663,40 +715,86 @@ fn push_static_element_to_template(
                     if !preserve_comments && matches!(child, TemplateNode::Comment(_)) {
                         continue;
                     }
-                    // Trim leading/trailing whitespace from boundary text nodes
-                    // to match clean_nodes/trim_whitespace behavior for Fragment children
+                    // Trim/collapse whitespace from text nodes to match clean_nodes behavior
                     if let TemplateNode::Text(text) = child {
+                        let ws = |c: char| c == ' ' || c == '\t' || c == '\n' || c == '\r';
                         let mut data = text.data.to_string();
                         let mut raw = text.raw.to_string();
                         if Some(i) == first_meaningful {
-                            let ws = |c: char| c == ' ' || c == '\t' || c == '\n' || c == '\r';
+                            // First text: trim leading whitespace entirely
                             data = data.trim_start_matches(ws).to_string();
                             raw = raw.trim_start_matches(ws).to_string();
+                        } else {
+                            // Non-first text: collapse leading whitespace to single space
+                            let trimmed_data = data.trim_start_matches(ws);
+                            if trimmed_data.len() < data.len() && !trimmed_data.is_empty() {
+                                data = format!(" {}", trimmed_data);
+                            } else if trimmed_data.is_empty() && !data.is_empty() {
+                                data = " ".to_string();
+                            }
+                            let trimmed_raw = raw.trim_start_matches(ws);
+                            if trimmed_raw.len() < raw.len() && !trimmed_raw.is_empty() {
+                                raw = format!(" {}", trimmed_raw);
+                            } else if trimmed_raw.is_empty() && !raw.is_empty() {
+                                raw = " ".to_string();
+                            }
                         }
                         if Some(i) == last_meaningful {
-                            let ws = |c: char| c == ' ' || c == '\t' || c == '\n' || c == '\r';
+                            // Last text: trim trailing whitespace entirely
                             data = data.trim_end_matches(ws).to_string();
                             raw = raw.trim_end_matches(ws).to_string();
+                        } else {
+                            // Non-last text: collapse trailing whitespace to single space
+                            let trimmed_data = data.trim_end_matches(ws);
+                            if trimmed_data.len() < data.len() && !trimmed_data.is_empty() {
+                                data = format!("{} ", trimmed_data);
+                            } else if trimmed_data.is_empty() && !data.is_empty() {
+                                data = " ".to_string();
+                            }
+                            let trimmed_raw = raw.trim_end_matches(ws);
+                            if trimmed_raw.len() < raw.len() && !trimmed_raw.is_empty() {
+                                raw = format!("{} ", trimmed_raw);
+                            } else if trimmed_raw.is_empty() && !raw.is_empty() {
+                                raw = " ".to_string();
+                            }
                         }
-                        if !data.is_empty() {
+                        // Skip whitespace-only text that would collapse to just space
+                        // in SVG namespace (can_remove_entirely logic)
+                        if !data.is_empty()
+                            && !(data == " "
+                                && (child_namespace == "svg"
+                                    || matches!(
+                                        elem_name.as_str(),
+                                        "select"
+                                            | "tr"
+                                            | "table"
+                                            | "tbody"
+                                            | "thead"
+                                            | "tfoot"
+                                            | "colgroup"
+                                            | "datalist"
+                                    )))
+                        {
                             let mut trimmed = text.clone();
                             trimmed.data = compact_str::CompactString::new(&data);
                             trimmed.raw = compact_str::CompactString::new(&raw);
-                            push_static_element_to_template(
+                            push_static_element_to_template_inner(
                                 &TemplateNode::Text(trimmed),
                                 template,
                                 &child_namespace,
                                 css_hash,
                                 preserve_comments,
+                                false,
                             );
                         }
                     } else {
-                        push_static_element_to_template(
+                        push_static_element_to_template_inner(
                             child,
                             template,
                             &child_namespace,
                             css_hash,
                             preserve_comments,
+                            false,
                         );
                     }
                 }

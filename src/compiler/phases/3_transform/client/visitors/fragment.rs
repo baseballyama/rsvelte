@@ -183,10 +183,12 @@ pub fn fragment(
         destructure_array_counter: context.state.destructure_array_counter,
         needs_props_from_events: context.state.needs_props_from_events.clone(),
         hidden_let_bindings: context.state.hidden_let_bindings.clone(),
+        shadowed_prop_names: context.state.shadowed_prop_names.clone(),
         blocker_map: context.state.blocker_map.clone(),
         extra_blocker_indices: Vec::new(),
         is_standalone: false,
         const_blocker_map: context.state.const_blocker_map.clone(),
+        needs_mutation_validation: context.state.needs_mutation_validation.clone(),
     };
 
     // Swap context.state with our local state so that process_children uses it

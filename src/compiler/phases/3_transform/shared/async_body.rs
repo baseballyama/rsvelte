@@ -100,10 +100,19 @@ pub fn compute_blocker_map(raw_script: &str) -> std::collections::HashMap<String
             // Also add referenced variables that are instance-scope declarations.
             // This mimics the official compiler's trace_references which walks
             // CallExpressions with touch() and adds all referenced bindings to writes.
+            // Allow overwriting existing entries with higher indices - the official
+            // compiler overwrites binding.blocker when a later statement references
+            // the same variable.
             let referenced_ids = extract_all_identifiers_from_statement(trimmed_stmt);
             for ref_id in &referenced_ids {
-                if all_declared_vars.contains(ref_id) && !blocker_map.contains_key(ref_id) {
-                    blocker_map.insert(ref_id.clone(), current_async_index);
+                if all_declared_vars.contains(ref_id) {
+                    let should_update = match blocker_map.get(ref_id) {
+                        None => true,
+                        Some(&existing) => current_async_index > existing,
+                    };
+                    if should_update {
+                        blocker_map.insert(ref_id.clone(), current_async_index);
+                    }
                 }
             }
 
@@ -122,11 +131,27 @@ pub fn compute_blocker_map(raw_script: &str) -> std::collections::HashMap<String
             let current_async_index = async_index;
             async_index += 1;
 
-            // Also resolve transitive deps for non-declaration async statements
+            // Skip $effect calls for blocker tracking - the official compiler's
+            // trace_references skips $effect calls because effects only run after
+            // async work completes. But $effect.pre is NOT skipped.
+            // After transformation: $effect -> $.user_effect, $effect.pre -> $.user_pre_effect
+            if is_user_effect_call(trimmed_stmt) {
+                continue;
+            }
+
+            // For non-$effect statements, trace all referenced identifiers and
+            // update their blocker indices. Allow overwriting with higher indices
+            // to match the official compiler's behavior.
             let referenced_ids = extract_all_identifiers_from_statement(trimmed_stmt);
             for ref_id in &referenced_ids {
-                if all_declared_vars.contains(ref_id) && !blocker_map.contains_key(ref_id) {
-                    blocker_map.insert(ref_id.clone(), current_async_index);
+                if all_declared_vars.contains(ref_id) {
+                    let should_update = match blocker_map.get(ref_id) {
+                        None => true,
+                        Some(&existing) => current_async_index > existing,
+                    };
+                    if should_update {
+                        blocker_map.insert(ref_id.clone(), current_async_index);
+                    }
                 }
             }
             resolve_transitive_function_deps(
@@ -355,22 +380,62 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
                 // Also add referenced variables that are instance-scope declarations.
                 // This mimics the official compiler's trace_references which walks
                 // CallExpressions with touch() and adds all referenced bindings to writes.
+                // Allow overwriting with higher indices.
                 if let Some(init) = &decl.init {
                     let referenced_ids = extract_all_identifiers_from_statement(init);
                     for ref_id in &referenced_ids {
-                        if all_declared_vars.contains(ref_id) && !blocker_map.contains_key(ref_id) {
+                        if all_declared_vars.contains(ref_id) {
+                            let should_update = match blocker_map.get(ref_id) {
+                                None => true,
+                                Some(&existing) => idx > existing,
+                            };
+                            if should_update {
+                                blocker_map.insert(ref_id.clone(), idx);
+                            }
+                        }
+                    }
+                }
+            }
+            AsyncStmtKind::ExprAwait(expr)
+            | AsyncStmtKind::ExprSimple(expr)
+            | AsyncStmtKind::ExprVoid(expr) => {
+                // Skip $effect calls for blocker tracking (same as official compiler).
+                // $effect.pre is NOT skipped.
+                if is_user_effect_call(expr) {
+                    continue;
+                }
+                // Non-declaration async statements can still reference instance-scope
+                // variables, which should update their blocker indices.
+                let referenced_ids = extract_all_identifiers_from_statement(expr);
+                for ref_id in &referenced_ids {
+                    if all_declared_vars.contains(ref_id) {
+                        let should_update = match blocker_map.get(ref_id) {
+                            None => true,
+                            Some(&existing) => idx > existing,
+                        };
+                        if should_update {
                             blocker_map.insert(ref_id.clone(), idx);
                         }
                     }
                 }
             }
-            AsyncStmtKind::ExprAwait(_)
-            | AsyncStmtKind::ExprSimple(_)
-            | AsyncStmtKind::ExprVoid(_)
-            | AsyncStmtKind::Block(_)
-            | AsyncStmtKind::Noop
-            | AsyncStmtKind::VoidNoop => {
-                // Non-variable statements don't contribute to blocker_map
+            AsyncStmtKind::Block(block_text) => {
+                // Block statements can also reference variables
+                let referenced_ids = extract_all_identifiers_from_statement(block_text);
+                for ref_id in &referenced_ids {
+                    if all_declared_vars.contains(ref_id) {
+                        let should_update = match blocker_map.get(ref_id) {
+                            None => true,
+                            Some(&existing) => idx > existing,
+                        };
+                        if should_update {
+                            blocker_map.insert(ref_id.clone(), idx);
+                        }
+                    }
+                }
+            }
+            AsyncStmtKind::Noop | AsyncStmtKind::VoidNoop => {
+                // Noop statements don't contribute to blocker_map
             }
         }
     }
@@ -485,10 +550,13 @@ fn build_thunk(stmt: &AsyncStmt) -> String {
             format!("async () => {}", expr)
         }
         AsyncStmtKind::ExprVoid(expr) => {
+            // Always wrap the expression in parens after `void` to handle cases
+            // like `void (y = await ...)` which would be invalid without parens.
+            // This matches the official compiler's b.unary('void', expression) behavior.
             if stmt.has_await {
-                format!("async () => void {}", expr)
+                format!("async () => void ({})", expr)
             } else {
-                format!("() => void {}", expr)
+                format!("() => void ({})", expr)
             }
         }
         AsyncStmtKind::Block(block) => {
@@ -845,23 +913,44 @@ fn split_top_level_statements(script: &str) -> Vec<String> {
                         // Expression statements with object patterns (assignments)
                         && !is_object_expr_context(stmt_so_far);
                     if is_block_end {
-                        let stmt = stmt_so_far.to_string();
-                        if !stmt.is_empty() {
-                            statements.push(stmt);
-                        }
-                        // Skip any trailing semicolons or whitespace
-                        i += 1;
-                        while i < len
-                            && (bytes[i] == b';'
-                                || bytes[i] == b' '
-                                || bytes[i] == b'\n'
-                                || bytes[i] == b'\t'
-                                || bytes[i] == b'\r')
+                        // Check if the next token is `catch` or `finally` - if so,
+                        // this is a try-catch/try-finally and should NOT be split here.
+                        let mut peek = i + 1;
+                        while peek < len
+                            && (bytes[peek] == b' '
+                                || bytes[peek] == b'\n'
+                                || bytes[peek] == b'\t'
+                                || bytes[peek] == b'\r')
                         {
-                            i += 1;
+                            peek += 1;
                         }
-                        stmt_start = i;
-                        continue;
+                        let rest_after = &script[peek..];
+                        let is_try_continuation = rest_after.starts_with("catch ")
+                            || rest_after.starts_with("catch(")
+                            || rest_after.starts_with("catch{")
+                            || rest_after.starts_with("catch\n")
+                            || rest_after.starts_with("finally ")
+                            || rest_after.starts_with("finally{")
+                            || rest_after.starts_with("finally\n");
+                        if !is_try_continuation {
+                            let stmt = stmt_so_far.to_string();
+                            if !stmt.is_empty() {
+                                statements.push(stmt);
+                            }
+                            // Skip any trailing semicolons or whitespace
+                            i += 1;
+                            while i < len
+                                && (bytes[i] == b';'
+                                    || bytes[i] == b' '
+                                    || bytes[i] == b'\n'
+                                    || bytes[i] == b'\t'
+                                    || bytes[i] == b'\r')
+                            {
+                                i += 1;
+                            }
+                            stmt_start = i;
+                            continue;
+                        }
                     }
                 }
             }
@@ -1060,6 +1149,28 @@ fn is_function_var_declaration(s: &str) -> bool {
 fn is_variable_declaration(s: &str) -> bool {
     let s = s.trim();
     s.starts_with("let ") || s.starts_with("const ") || s.starts_with("var ")
+}
+
+/// Check if a statement is a `$effect(...)` or `$.user_effect(...)` call.
+/// The official compiler skips `$effect` calls in `trace_references` because effects only run
+/// after async work completes. `$effect.pre` (transformed to `$.user_pre_effect`) is NOT skipped.
+/// This function works on both raw (pre-transformation) and transformed script text.
+fn is_user_effect_call(s: &str) -> bool {
+    let s = s.trim();
+    // Strip trailing semicolons for matching
+    let s = s.strip_suffix(';').unwrap_or(s).trim();
+    // After transformation, $effect(...) becomes $.user_effect(...)
+    // and may be wrapped in `void` e.g. `void $.user_effect(...)`
+    let check = if let Some(rest) = s.strip_prefix("void ") {
+        rest.trim()
+    } else {
+        s
+    };
+    // Match $effect( or $.user_effect( but NOT $effect.pre( or $.user_pre_effect(
+    if check.starts_with("$effect.pre(") || check.starts_with("$.user_pre_effect(") {
+        return false;
+    }
+    check.starts_with("$effect(") || check.starts_with("$.user_effect(")
 }
 
 /// Check if a statement is an expression statement (not a declaration, not a control structure).
@@ -1327,9 +1438,53 @@ fn extract_all_identifiers_from_statement(stmt: &str) -> Vec<String> {
     while i < len {
         let ch = bytes[i];
 
-        // Skip string literals
-        if ch == b'\'' || ch == b'"' || ch == b'`' {
+        // Skip regular string literals (single/double quotes)
+        if ch == b'\'' || ch == b'"' {
             i = skip_string(bytes, i);
+            continue;
+        }
+
+        // For template literals, skip text parts but recurse into ${} interpolations
+        if ch == b'`' {
+            i += 1;
+            while i < len {
+                if bytes[i] == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == b'`' {
+                    i += 1;
+                    break;
+                }
+                if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                    // Extract interpolation content and recurse
+                    i += 2;
+                    let interp_start = i;
+                    let mut depth = 1i32;
+                    while i < len && depth > 0 {
+                        if bytes[i] == b'{' {
+                            depth += 1;
+                        } else if bytes[i] == b'}' {
+                            depth -= 1;
+                        } else if bytes[i] == b'\'' || bytes[i] == b'"' || bytes[i] == b'`' {
+                            i = skip_string(bytes, i);
+                            continue;
+                        }
+                        if depth > 0 {
+                            i += 1;
+                        }
+                    }
+                    // Extract identifiers from the interpolation
+                    if i > interp_start {
+                        let interp_text = &stmt[interp_start..i];
+                        let inner_ids = extract_all_identifiers_from_statement(interp_text);
+                        identifiers.extend(inner_ids);
+                    }
+                    i += 1; // skip closing }
+                    continue;
+                }
+                i += 1;
+            }
             continue;
         }
 
@@ -1879,18 +2034,20 @@ mod tests {
     }
 
     #[test]
-    fn test_referenced_var_gets_lowest_index() {
-        // A variable referenced in multiple async statements should get the lowest promise index
+    fn test_referenced_var_gets_highest_index() {
+        // A variable referenced in multiple async statements should get the highest promise index,
+        // matching the official compiler behavior where binding.blocker gets overwritten by later
+        // trace_references calls.
         let script = "let a = await fetch();\nlet b = await transform(a);\nlet c = await use(a);";
         let map = compute_blocker_map(script);
 
         // 'a' is referenced in both the 'b' and 'c' statements
-        // It should get index 0 (from the first statement where it's declared)
+        // It should get index 2 (from the last statement that references it)
         assert!(map.contains_key("a"), "Should contain 'a'. Map: {:?}", map);
         assert_eq!(
             map.get("a").copied(),
-            Some(0),
-            "a should have index 0 (its own declaration). Map: {:?}",
+            Some(2),
+            "a should have index 2 (highest referencing statement). Map: {:?}",
             map
         );
     }

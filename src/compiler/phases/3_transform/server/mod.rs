@@ -54,6 +54,7 @@ pub fn transform_server(
         options.experimental.r#async,
     );
     generator.preserve_whitespace = options.preserve_whitespace;
+    generator.preserve_comments = options.preserve_comments;
 
     // Handle CSS injection for <svelte:options css="injected" />
     if analysis.inject_styles && analysis.css.has_css && !analysis.css.hash.is_empty() {
@@ -101,6 +102,8 @@ pub(crate) struct ServerCodeGenerator<'a> {
     pub(crate) namespace: String,
     /// Whether to preserve whitespace (from <svelte:options preserveWhitespace /> or compile option).
     pub(crate) preserve_whitespace: bool,
+    /// Whether to preserve HTML comments in server output (from preserveComments option).
+    pub(crate) preserve_comments: bool,
     /// Whether we're inside a control-flow block body (if/each block body).
     /// When true, async expressions use plain `await expr` instead of `(await $.save(expr))()`.
     pub(crate) in_block_body: bool,
@@ -336,6 +339,7 @@ impl<'a> ServerCodeGenerator<'a> {
             is_typescript,
             namespace,
             preserve_whitespace: false,
+            preserve_comments: false,
             in_block_body: false,
             in_if_body: false,
             const_promises_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
@@ -364,6 +368,7 @@ impl<'a> ServerCodeGenerator<'a> {
             is_typescript: self.is_typescript,
             namespace: self.namespace.clone(),
             preserve_whitespace: self.preserve_whitespace,
+            preserve_comments: self.preserve_comments,
             in_block_body: self.in_block_body,
             in_if_body: self.in_if_body,
             const_promises_counter: self.const_promises_counter.clone(),
@@ -609,18 +614,171 @@ impl<'a> ServerCodeGenerator<'a> {
         }
     }
 
+    /// Apply the official compiler's `clean_nodes` whitespace collapsing logic.
+    ///
+    /// When hoisted nodes (SnippetBlock, ConstTag, etc.) are between text nodes,
+    /// the whitespace should be collapsed as if the hoisted nodes don't exist.
+    /// e.g., `A\n{#snippet}...{/snippet}\nB` becomes `A B` (single space).
+    ///
+    /// Corresponds to `clean_nodes` in `svelte/packages/svelte/src/compiler/phases/3-transform/utils.js`.
+    #[allow(dead_code)]
+    pub(crate) fn clean_nodes_whitespace(
+        nodes: &[TemplateNode],
+        can_remove_entirely: bool,
+    ) -> Vec<TemplateNode> {
+        fn is_hoisted(n: &TemplateNode) -> bool {
+            matches!(
+                n,
+                TemplateNode::SnippetBlock(_)
+                    | TemplateNode::ConstTag(_)
+                    | TemplateNode::SvelteBody(_)
+                    | TemplateNode::SvelteWindow(_)
+                    | TemplateNode::SvelteDocument(_)
+                    | TemplateNode::SvelteHead(_)
+                    | TemplateNode::TitleElement(_)
+                    | TemplateNode::Comment(_)
+            )
+        }
+
+        fn starts_with_ws(s: &str) -> bool {
+            s.starts_with([' ', '\t', '\r', '\n', '\x0C'])
+        }
+
+        fn ends_with_ws(s: &str) -> bool {
+            s.ends_with([' ', '\t', '\r', '\n', '\x0C'])
+        }
+
+        fn replace_leading_ws(s: &str, replacement: &str) -> String {
+            let trimmed = s.trim_start_matches([' ', '\t', '\r', '\n', '\x0C']);
+            format!("{}{}", replacement, trimmed)
+        }
+
+        fn replace_trailing_ws(s: &str, replacement: &str) -> String {
+            let trimmed = s.trim_end_matches([' ', '\t', '\r', '\n', '\x0C']);
+            format!("{}{}", trimmed, replacement)
+        }
+
+        let mut result: Vec<TemplateNode> = nodes.to_vec();
+
+        // Build list of non-hoisted node indices for adjacency analysis
+        let non_hoisted_indices: Vec<usize> = result
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| !is_hoisted(n))
+            .map(|(i, _)| i)
+            .collect();
+
+        // Apply whitespace collapsing for text nodes based on non-hoisted neighbors
+        for (pos, &idx) in non_hoisted_indices.iter().enumerate() {
+            if let TemplateNode::Text(text) = &result[idx] {
+                let mut data = text.data.to_string();
+
+                let prev = if pos > 0 {
+                    Some(&result[non_hoisted_indices[pos - 1]])
+                } else {
+                    None
+                };
+                let next = if pos + 1 < non_hoisted_indices.len() {
+                    Some(&result[non_hoisted_indices[pos + 1]])
+                } else {
+                    None
+                };
+
+                // If prev is not an ExpressionTag, collapse leading whitespace
+                if !matches!(prev, Some(TemplateNode::ExpressionTag(_))) && starts_with_ws(&data) {
+                    let prev_ends =
+                        matches!(prev, Some(TemplateNode::Text(t)) if ends_with_ws(&t.data));
+                    let replacement = if prev_ends { "" } else { " " };
+                    data = replace_leading_ws(&data, replacement);
+                }
+
+                // If next is not an ExpressionTag, collapse trailing whitespace
+                if !matches!(next, Some(TemplateNode::ExpressionTag(_))) && ends_with_ws(&data) {
+                    data = replace_trailing_ws(&data, " ");
+                }
+
+                // Skip empty or whitespace-only text in can_remove_entirely mode
+                if data.is_empty() || (data == " " && can_remove_entirely) {
+                    let mut modified = text.clone();
+                    modified.data = "".into();
+                    result[idx] = TemplateNode::Text(modified);
+                    continue;
+                }
+
+                let mut modified = text.clone();
+                modified.data = data.into();
+                result[idx] = TemplateNode::Text(modified);
+            }
+        }
+
+        // Filter out empty text nodes created by collapsing
+        result
+            .into_iter()
+            .filter(|n| {
+                if let TemplateNode::Text(t) = n {
+                    !t.data.is_empty()
+                } else {
+                    true
+                }
+            })
+            .collect()
+    }
+
+    /// Infer namespace from fragment children nodes.
+    /// If all RegularElement children are SVG, returns "svg".
+    /// If all are MathML, returns "mathml".
+    /// Otherwise returns the parent namespace.
+    fn infer_namespace_from_nodes_static(
+        nodes: &[&TemplateNode],
+        parent_namespace: &str,
+    ) -> String {
+        let mut found_namespace: Option<&str> = None;
+
+        for node in nodes {
+            if let TemplateNode::RegularElement(el) = node {
+                if el.metadata.svg {
+                    match found_namespace {
+                        None => found_namespace = Some("svg"),
+                        Some("svg") => {}
+                        _ => return "html".to_string(),
+                    }
+                } else if el.metadata.mathml {
+                    match found_namespace {
+                        None => found_namespace = Some("mathml"),
+                        Some("mathml") => {}
+                        _ => return "html".to_string(),
+                    }
+                } else {
+                    return "html".to_string();
+                }
+            }
+        }
+
+        found_namespace
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| parent_namespace.to_string())
+    }
+
     pub(crate) fn generate_component(&mut self, fragment: &Fragment) -> Result<(), TransformError> {
         let nodes: Vec<_> = fragment.nodes.iter().collect();
         let len = nodes.len();
+
+        // Infer namespace from fragment children for SVG whitespace stripping
+        let inferred_ns = Self::infer_namespace_from_nodes_static(&nodes, &self.namespace);
+        if inferred_ns != self.namespace {
+            self.namespace = inferred_ns.clone();
+        }
+        let can_remove_whitespace_entirely = inferred_ns == "svg";
 
         // Helper to check if a node is "meaningful" for SSR output purposes
         // SvelteWindow, SvelteDocument, SvelteBody don't render anything in SSR
         // When preserveWhitespace is true, whitespace-only text IS meaningful
         let preserve_ws = self.preserve_whitespace;
+        let preserve_cmts = self.preserve_comments;
         let is_ssr_meaningful = |n: &&TemplateNode| {
             (!matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data))
                 || preserve_ws)
-                && !matches!(n, TemplateNode::Comment(_))
+                && (!matches!(n, TemplateNode::Comment(_)) || preserve_cmts)
                 && !matches!(n, TemplateNode::SvelteWindow(_))
                 && !matches!(n, TemplateNode::SvelteDocument(_))
                 && !matches!(n, TemplateNode::SvelteBody(_))
@@ -657,6 +815,11 @@ impl<'a> ServerCodeGenerator<'a> {
         // Track whether we need to trim leading whitespace from the first text node
         // When an anchor comment is added, the next text should not have a leading space
         let mut trim_leading_ws = needs_anchor;
+        // Track whether the previous visible text ended with whitespace.
+        // Used to collapse whitespace across hoisted nodes (SnippetBlock, ConstTag).
+        // When text before a hoisted node ends with whitespace and text after starts with
+        // whitespace, the leading whitespace of the text-after is trimmed to avoid double space.
+        let mut prev_text_ends_with_ws = false;
 
         for (i, node) in nodes.iter().enumerate() {
             // Skip whitespace-only text at root level (unless preserveWhitespace is set)
@@ -664,6 +827,11 @@ impl<'a> ServerCodeGenerator<'a> {
                 && let TemplateNode::Text(text) = node
                 && is_svelte_whitespace_only(&text.data)
             {
+                // In SVG namespace, skip whitespace-only text nodes entirely
+                // (matching official compiler's can_remove_entirely in clean_nodes)
+                if can_remove_whitespace_entirely {
+                    continue;
+                }
                 // Skip if there is no meaningful content at all (e.g. component with only
                 // <script> blocks and no template nodes - whitespace between/after scripts
                 // should not be emitted as $$renderer.push(` `)).
@@ -678,18 +846,36 @@ impl<'a> ServerCodeGenerator<'a> {
                 if last_meaningful_idx.is_some() && i > last_meaningful_idx.unwrap() {
                     continue;
                 }
-                // Skip whitespace between snippets and other elements at root level
+                // Skip whitespace adjacent to snippets at root level, but only
+                // when the snippet is at the edge (no non-hoisted content on the other side).
+                // When snippets are between content nodes, we need to preserve one space
+                // (matching clean_nodes which merges text around hoisted nodes).
+                //
                 // Check if previous node is a snippet
                 if i > 0
                     && let TemplateNode::SnippetBlock(_) = nodes[i - 1]
                 {
+                    // Skip whitespace after snippet UNLESS there's meaningful content
+                    // after this whitespace (i.e., the snippet was between content nodes)
+                    // In that case the whitespace BEFORE the snippet already produced the space.
                     continue;
                 }
                 // Check if next node is a snippet
                 if i + 1 < len
                     && let TemplateNode::SnippetBlock(_) = nodes[i + 1]
                 {
-                    continue;
+                    // Check if there's meaningful content after the snippet
+                    // If so, keep this whitespace to produce the space between the
+                    // pre-snippet content and the post-snippet content
+                    let has_content_after_snippet = nodes[i + 2..].iter().any(|n| {
+                        !matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data))
+                            && (!matches!(n, TemplateNode::Comment(_)) || self.preserve_comments)
+                            && !matches!(n, TemplateNode::SnippetBlock(_))
+                    });
+                    if !has_content_after_snippet {
+                        continue;
+                    }
+                    // Keep this whitespace - it will produce a space
                 }
                 // Skip whitespace after SvelteHead (head elements are hoisted in official compiler)
                 if i > 0 && matches!(nodes[i - 1], TemplateNode::SvelteHead(_)) {
@@ -720,17 +906,23 @@ impl<'a> ServerCodeGenerator<'a> {
                 if i + 1 < len && matches!(nodes[i + 1], TemplateNode::SvelteBody(_)) {
                     continue;
                 }
-                // Comments are skipped during rendering. Whitespace around them should
-                // collapse to a single space (matching clean_nodes behavior which strips
-                // comments first, then collapses adjacent whitespace). Skip whitespace
-                // BEFORE a comment; keep whitespace AFTER to produce one space total.
-                if i + 1 < len && matches!(nodes[i + 1], TemplateNode::Comment(_)) {
+                // Comments are skipped during rendering (unless preserveComments is set).
+                // Whitespace around them should collapse to a single space (matching
+                // clean_nodes behavior which strips comments first, then collapses
+                // adjacent whitespace). Skip whitespace BEFORE a comment; keep whitespace
+                // AFTER to produce one space total.
+                if !self.preserve_comments
+                    && i + 1 < len
+                    && matches!(nodes[i + 1], TemplateNode::Comment(_))
+                {
                     continue;
                 }
             }
             // Handle text node modifications:
             // 1. Trim leading whitespace from the first text after anchor comment
             // 2. Trim trailing whitespace from the last meaningful text node
+            // 3. Collapse leading whitespace when previous text ended with whitespace
+            //    (across hoisted nodes like SnippetBlock)
             // Skip these modifications when preserveWhitespace is set
             if !self.preserve_whitespace
                 && let TemplateNode::Text(text) = node
@@ -748,6 +940,21 @@ impl<'a> ServerCodeGenerator<'a> {
                     trim_leading_ws = false;
                 }
 
+                // Collapse leading whitespace when previous visible text ended with whitespace.
+                // This handles the case where a hoisted node (SnippetBlock) was between
+                // two text nodes: "A\n" + SnippetBlock + "\nB" → "A B" (not "A  B")
+                if prev_text_ends_with_ws {
+                    let trimmed = modified_data
+                        .trim_start_matches(|c: char| {
+                            matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0C')
+                        })
+                        .to_string();
+                    if trimmed != modified_data {
+                        modified_data = trimmed;
+                        needs_modification = true;
+                    }
+                }
+
                 // Trim trailing whitespace from the last meaningful text node
                 if last_meaningful_idx.is_some() && i == last_meaningful_idx.unwrap() {
                     let trimmed = modified_data.trim_end().to_string();
@@ -756,6 +963,9 @@ impl<'a> ServerCodeGenerator<'a> {
                         needs_modification = true;
                     }
                 }
+
+                // Track whether this text ends with whitespace (for collapsing across hoisted nodes)
+                prev_text_ends_with_ws = modified_data.ends_with([' ', '\t', '\r', '\n']);
 
                 if needs_modification {
                     let mut modified_text = text.clone();
@@ -770,6 +980,12 @@ impl<'a> ServerCodeGenerator<'a> {
                     && i >= first_meaningful_idx.unwrap()
                 {
                     trim_leading_ws = false;
+                }
+                // Reset prev_text_ends_with_ws for non-hoisted nodes
+                if !matches!(node, TemplateNode::SnippetBlock(_))
+                    && !matches!(node, TemplateNode::ConstTag(_))
+                {
+                    prev_text_ends_with_ws = false;
                 }
             }
 

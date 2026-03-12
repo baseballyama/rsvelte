@@ -106,9 +106,14 @@ impl ScriptContent {
             raw
         };
 
-        let uses_runes = has_rune_text(&raw, "$state")
-            || has_rune_text(&raw, "$derived")
-            || has_rune_text(&raw, "$effect")
+        // Extract imported names to avoid false-positive rune detection.
+        // If `state` is imported (e.g., `import { state } from './store'`), then
+        // `$state` is a store subscription, not a rune call.
+        let imported_names = extract_imported_names(&raw);
+
+        let uses_runes = has_rune_text_not_imported(&raw, "$state", &imported_names)
+            || has_rune_text_not_imported(&raw, "$derived", &imported_names)
+            || has_rune_text_not_imported(&raw, "$effect", &imported_names)
             || has_rune_text(&raw, "$props");
 
         Self {
@@ -171,6 +176,112 @@ fn has_rune_text(raw: &str, rune_name: &str) -> bool {
         return true;
     }
     false
+}
+
+/// Check if a rune name appears as a genuine rune usage that is NOT a store subscription.
+/// A rune like `$state` is a store subscription if `state` is imported.
+fn has_rune_text_not_imported(
+    raw: &str,
+    rune_name: &str,
+    imported_names: &std::collections::HashSet<String>,
+) -> bool {
+    if !has_rune_text(raw, rune_name) {
+        return false;
+    }
+    // The base name is the rune name without the leading `$`
+    let base_name = &rune_name[1..];
+    // Also handle `.` suffixes like `$state.raw` -> base is `state`
+    let base_name = base_name.split('.').next().unwrap_or(base_name);
+    // If the base name is imported, this is a store subscription, not a rune
+    !imported_names.contains(base_name)
+}
+
+/// Extract imported names from script source text, excluding imports from svelte/* modules.
+/// Looks for `import { name1, name2 } from '...'` and `import name from '...'` patterns.
+/// Names imported from `svelte/store` or other `svelte/*` modules are excluded because
+/// `$derived` from `import { derived } from 'svelte/store'` is still a rune, not a store subscription.
+pub fn extract_imported_names(raw: &str) -> std::collections::HashSet<String> {
+    let mut names = std::collections::HashSet::new();
+
+    for line in raw.lines() {
+        let trimmed = line.trim();
+        if !trimmed.starts_with("import ") {
+            continue;
+        }
+
+        // Extract the source module from the import statement
+        let source = extract_import_source(trimmed);
+
+        // Skip imports from svelte/* modules - these are framework imports, not user stores.
+        // `import { derived } from 'svelte/store'` still allows `$derived` to be a rune.
+        if let Some(ref src) = source
+            && (src.starts_with("svelte/") || src == "svelte")
+        {
+            continue;
+        }
+
+        // Handle: import { name1, name2 as alias } from '...'
+        if let Some(brace_start) = trimmed.find('{')
+            && let Some(brace_end) = trimmed[brace_start..].find('}')
+        {
+            let inside = &trimmed[brace_start + 1..brace_start + brace_end];
+            for part in inside.split(',') {
+                let part = part.trim();
+                if part.is_empty() {
+                    continue;
+                }
+                // Handle "name as alias" - we want "name" (the original import)
+                // but also "alias" since that's what's used in the script
+                if let Some(as_pos) = part.find(" as ") {
+                    let original = part[..as_pos].trim();
+                    let alias = part[as_pos + 4..].trim();
+                    names.insert(original.to_string());
+                    names.insert(alias.to_string());
+                } else {
+                    names.insert(part.to_string());
+                }
+            }
+        }
+
+        // Handle: import name from '...'
+        // But NOT: import { ... } from '...' or import * as name from '...'
+        let after_import = trimmed[7..].trim();
+        if !after_import.starts_with('{')
+            && !after_import.starts_with('*')
+            && !after_import.starts_with('\'')
+            && !after_import.starts_with('"')
+        {
+            // Default import: "import Name from '...'"
+            if let Some(from_pos) = after_import.find(" from ") {
+                let name = after_import[..from_pos].trim();
+                // Could be "Name, { a, b }" - take only the default import part
+                let name = name.split(',').next().unwrap_or(name).trim();
+                if !name.is_empty()
+                    && name
+                        .chars()
+                        .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+                {
+                    names.insert(name.to_string());
+                }
+            }
+        }
+    }
+
+    names
+}
+
+/// Extract the source module string from an import statement.
+/// Returns the module path without quotes.
+fn extract_import_source(import_line: &str) -> Option<String> {
+    // Look for from '...' or from "..."
+    let from_pos = import_line.find(" from ")?;
+    let after_from = import_line[from_pos + 6..].trim();
+    let quote_char = after_from.chars().next()?;
+    if quote_char != '\'' && quote_char != '"' {
+        return None;
+    }
+    let end_pos = after_from[1..].find(quote_char)?;
+    Some(after_from[1..1 + end_pos].to_string())
 }
 
 /// Strip TypeScript syntax from source code, producing valid JavaScript.
@@ -963,6 +1074,10 @@ pub struct ComponentAnalysis {
     /// Whether the component uses runes
     pub runes: bool,
 
+    /// Whether the runes option was explicitly set (Some(true/false)) vs auto-detected (None).
+    /// When explicitly set to false, auto-detection should not override it.
+    pub runes_explicitly_set: Option<bool>,
+
     /// Whether experimental.async is enabled
     pub experimental_async: bool,
 
@@ -1132,6 +1247,7 @@ impl ComponentAnalysis {
             css: CssAnalysis::default(),
             name,
             runes: initial_runes,
+            runes_explicitly_set: options.runes,
             experimental_async: options.experimental.r#async,
             has_await: false,
             maybe_runes: false,
@@ -1196,7 +1312,9 @@ impl ComponentAnalysis {
         if let Some(ref script) = ast.instance {
             let content =
                 ScriptContent::from_script_with_ts(script, &self.source, any_script_is_typescript);
-            if content.uses_runes {
+            // Only auto-detect runes from script content if runes wasn't explicitly set.
+            // When options.runes is Some(false), we must respect that and not override.
+            if content.uses_runes && self.runes_explicitly_set.is_none() {
                 self.runes = true;
             }
             self.instance_script_content = Some(content);
@@ -1242,11 +1360,14 @@ impl ComponentAnalysis {
             return Err(err);
         }
 
-        // Update runes flag based on bindings
-        for binding in &self.root.bindings {
-            if binding.kind.is_rune() {
-                self.runes = true;
-                break;
+        // Update runes flag based on bindings, but only if runes wasn't explicitly set.
+        // When options.runes is Some(false), we must respect that.
+        if self.runes_explicitly_set.is_none() {
+            for binding in &self.root.bindings {
+                if binding.kind.is_rune() {
+                    self.runes = true;
+                    break;
+                }
             }
         }
 
@@ -1288,8 +1409,36 @@ impl ComponentAnalysis {
             css.content.styles.clone()
         };
 
-        self.css.hash =
-            crate::compiler::phases::phase3_transform::css::generate_css_hash(&hash_source);
+        self.css.hash = if let Some(ref css_hash_fn) = options.css_hash {
+            // Use custom cssHash function
+            let component_name = options
+                .filename
+                .as_deref()
+                .map(|f| {
+                    let parts: Vec<&str> = f.split(['/', '\\']).collect();
+                    let basename = parts.last().unwrap_or(&"Component");
+                    basename
+                        .strip_suffix(".svelte")
+                        .unwrap_or(basename)
+                        .to_string()
+                })
+                .unwrap_or_else(|| "Component".to_string());
+            let filename = options
+                .filename
+                .clone()
+                .unwrap_or_else(|| "(unknown)".to_string());
+            let input = crate::compiler::CssHashInput {
+                name: component_name,
+                filename,
+                css: css.content.styles.clone(),
+                hash: std::sync::Arc::new(|s: &str| {
+                    crate::compiler::phases::phase3_transform::css::generate_css_hash(s)
+                }),
+            };
+            css_hash_fn(&input)
+        } else {
+            crate::compiler::phases::phase3_transform::css::generate_css_hash(&hash_source)
+        };
 
         // TODO: Analyze for keyframes and :global selectors
         Ok(())

@@ -207,7 +207,15 @@ fn parse_options(options: &Value) -> napi::Result<CompileOptions> {
             };
         }
 
-        // cssHash - skip (JS function, use default)
+        // cssHash - JS function can't be called from Rust, but cssHashOverride
+        // provides the pre-computed result from the test harness
+        if let Some(v) = obj.get("cssHashOverride").and_then(|v| v.as_str()) {
+            let hash_override = v.to_string();
+            opts.css_hash = Some(std::sync::Arc::new(
+                move |_: &crate::compiler::CssHashInput| hash_override.clone(),
+            ));
+        }
+
         // warningFilter - skip (JS function, use default)
     }
 

@@ -114,10 +114,24 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
         b::id("$$snippet")
     };
 
+    // If we have a chain expression then ensure a nullish snippet function gets turned into an empty one
+    let is_chain_expression = node
+        .expression
+        .as_json()
+        .as_object()
+        .and_then(|obj| obj.get("type"))
+        .and_then(|t| t.as_str())
+        == Some("ChainExpression");
+
     // Build the call based on whether the snippet is dynamic
     let call = if node.metadata.dynamic {
         // Dynamic snippet: use $.snippet() helper
-        let mut call_args = vec![context.state.node.clone(), b::thunk(snippet_function)];
+        let snippet_fn = if is_chain_expression {
+            b::logical_str("??", snippet_function, b::member_path("$.noop"))
+        } else {
+            snippet_function
+        };
+        let mut call_args = vec![context.state.node.clone(), b::thunk(snippet_fn)];
         call_args.extend(args);
         b::call(b::member_path("$.snippet"), call_args)
     } else {

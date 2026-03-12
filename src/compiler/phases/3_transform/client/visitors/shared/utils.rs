@@ -1239,6 +1239,11 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     && !local_scope.contains(&name)
                     && let Some(transform) = context.state.transform.get(name.as_str())
                     && let Some(mutate_fn) = transform.mutate
+                    // If the argument chain already contains a read-transform Call node
+                    // (e.g., count().a from a prop read transform), the mutation wrapping
+                    // was already applied by expression_converter.rs. Skip to avoid
+                    // double-wrapping (which would generate count(count(count().a++, true), true)).
+                    && !has_call_in_base_chain(update.argument.as_ref())
                 {
                     // Transform the argument so that reactive reads inside the
                     // update expression get wrapped properly, e.g. `global.value.count++`
@@ -2383,8 +2388,42 @@ pub fn validate_binding(
 /// template node cloning. These will be re-added when dev mode is implemented.
 #[inline]
 pub fn add_svelte_meta(expression: JsExpr) -> JsStatement {
-    // TODO: Check if in dev mode and add source location metadata
+    // Non-dev mode or when called without meta info: just wrap in statement
     b::stmt(expression)
+}
+
+/// Add svelte meta wrapper for dev mode with source location and type info.
+/// In dev mode, wraps the expression with $.add_svelte_meta() for debugging
+/// and ownership tracking.
+///
+/// Reference: utils.js add_svelte_meta function
+pub fn add_svelte_meta_dev(
+    expression: JsExpr,
+    meta_type: &str,
+    component_name: &str,
+    line: usize,
+    column: usize,
+    additional: Option<Vec<(String, JsExpr)>>,
+    dev: bool,
+) -> JsStatement {
+    if !dev {
+        return b::stmt(expression);
+    }
+
+    let mut args: Vec<JsExpr> = vec![
+        b::arrow(vec![], expression),
+        b::string(meta_type),
+        b::id(component_name),
+        b::literal_number(line as f64),
+        b::literal_number(column as f64),
+    ];
+
+    if let Some(entries) = additional {
+        let props: Vec<JsObjectMember> = entries.into_iter().map(|(k, v)| b::prop(&k, v)).collect();
+        args.push(b::object(props));
+    }
+
+    b::stmt(b::call(b::member_path("$.add_svelte_meta"), args))
 }
 
 /// Build a template effect.
@@ -2712,18 +2751,17 @@ pub fn validate_mutation(
     let mut full_path = vec![b::string(&root_name)];
     full_path.extend(path);
 
+    // Set the needs_mutation_validation flag
+    context.state.needs_mutation_validation.set(true);
+
     // Build the validation call
     let prop_alias = binding.prop_alias.as_ref().unwrap_or(&binding.name).clone();
 
     let args = vec![b::string(&prop_alias), b::array(full_path), expression];
 
-    // TODO: Add source location when available
-    // if let Some((line, column)) = loc {
-    //     args.push(b::literal_number(line as f64));
-    //     args.push(b::literal_number(column as f64));
-    // }
+    // TODO: Add source location (line, column) when original AST positions are available
 
-    b::call(b::member_path("$ownership_validator.mutation"), args)
+    b::call(b::member_path("$$ownership_validator.mutation"), args)
 }
 
 /// Get the root object identifier from a member expression chain.

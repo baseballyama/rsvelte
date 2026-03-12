@@ -3,6 +3,8 @@
 //! Corresponds to utilities in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/events.js`.
 
+use compact_str::CompactString;
+
 use crate::ast::js::Expression;
 use crate::ast::template::OnDirective;
 use crate::compiler::phases::phase3_transform::client::types::*;
@@ -59,16 +61,35 @@ pub fn build_delegated_event_assignment(
     node: &JsExpr,
     handler: JsExpr,
 ) -> JsExpr {
-    let prop_name = format!("__{}", event_name);
-    b::assign(
-        JsExpr::Member(JsMemberExpression {
-            object: Box::new(node.clone()),
-            property: JsMemberProperty::Identifier(prop_name.into()),
-            computed: false,
-            optional: false,
-        }),
-        handler,
+    b::call(
+        b::member_path("$.delegated"),
+        vec![b::string(event_name), node.clone(), handler],
     )
+}
+
+/// In dev mode, convert arrow function event handlers to named function expressions
+/// for better debugging (stack traces show the event name).
+/// Reference: events.js `build_event` in the official Svelte compiler.
+pub fn convert_arrow_to_named_function(handler: JsExpr, name: CompactString) -> JsExpr {
+    if let JsExpr::Arrow(arrow) = handler {
+        let body = match arrow.body {
+            JsArrowBody::Expression(expr) => JsBlockStatement {
+                body: vec![JsStatement::Return(JsReturnStatement {
+                    argument: Some(expr),
+                })],
+            },
+            JsArrowBody::Block(block) => block,
+        };
+        JsExpr::Function(JsFunctionExpression {
+            id: Some(name),
+            params: arrow.params,
+            body,
+            is_async: arrow.is_async,
+            is_generator: false,
+        })
+    } else {
+        handler
+    }
 }
 
 /// Check if a JSON expression contains a call expression.

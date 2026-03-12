@@ -14,10 +14,25 @@ pub struct ElementInfo {
     pub classes: Vec<String>,
     pub ids: Vec<String>,
     pub has_dynamic_class: bool,
+    /// Whether this is a dynamic element (<svelte:element>), which matches any type selector
+    pub is_dynamic: bool,
 }
 
 impl ElementInfo {
     pub fn from_element(el: &template::RegularElement) -> Self {
+        Self::from_attributes(&el.name, &el.attributes, false)
+    }
+
+    pub fn from_svelte_element(el: &template::SvelteDynamicElement) -> Self {
+        // Use empty tag name - the is_dynamic flag will make type selectors always match
+        Self::from_attributes("", &el.attributes, true)
+    }
+
+    fn from_attributes(
+        tag_name: &str,
+        attributes: &[template::Attribute],
+        is_dynamic: bool,
+    ) -> Self {
         use template::Attribute;
 
         let mut classes = Vec::new();
@@ -25,7 +40,7 @@ impl ElementInfo {
         let mut has_spread = false;
         let mut has_dynamic_class = false;
 
-        for attr in &el.attributes {
+        for attr in attributes {
             match attr {
                 Attribute::Attribute(a) => {
                     if a.name == "class" {
@@ -67,11 +82,12 @@ impl ElementInfo {
         }
 
         Self {
-            tag_name: el.name.to_string(),
+            tag_name: tag_name.to_string(),
             has_spread,
             classes,
             ids,
             has_dynamic_class,
+            is_dynamic,
         }
     }
 }
@@ -286,7 +302,11 @@ fn element_matches_simple_selectors(
     for selector in selectors {
         match selector {
             CssSimpleSelector::Type(name) => {
-                if name != "*" && !name.eq_ignore_ascii_case(&element.tag_name) {
+                // SvelteElement (dynamic tag) matches any type selector, just like the official compiler
+                if name != "*"
+                    && !element.is_dynamic
+                    && !name.eq_ignore_ascii_case(&element.tag_name)
+                {
                     return false;
                 }
             }
@@ -506,7 +526,13 @@ fn mark_elements_scoped_with_ancestors(
                 mark_elements_scoped_with_ancestors(&mut head.fragment, css_selectors, ancestors);
             }
             TemplateNode::SvelteElement(el) => {
+                let element_info = ElementInfo::from_svelte_element(el);
+                el.metadata.scoped = css_selectors.iter().any(|selector| {
+                    complex_selector_matches_element(selector, &element_info, ancestors)
+                });
+                ancestors.push(element_info);
                 mark_elements_scoped_with_ancestors(&mut el.fragment, css_selectors, ancestors);
+                ancestors.pop();
             }
             TemplateNode::SlotElement(slot) => {
                 mark_elements_scoped_with_ancestors(&mut slot.fragment, css_selectors, ancestors);
@@ -618,7 +644,22 @@ fn propagate_scoping_to_ancestors(
                 propagate_scoping_to_ancestors(&mut head.fragment, css_selectors, ancestors);
             }
             TemplateNode::SvelteElement(el) => {
+                let element_info = ElementInfo::from_svelte_element(el);
+
+                if !el.metadata.scoped {
+                    el.metadata.scoped = css_selectors.iter().any(|selector| {
+                        element_is_ancestor_in_matching_selector(&element_info, selector)
+                            && subtree_has_matching_subject(
+                                &el.fragment,
+                                selector,
+                                std::slice::from_ref(&element_info),
+                            )
+                    });
+                }
+
+                ancestors.push(element_info);
                 propagate_scoping_to_ancestors(&mut el.fragment, css_selectors, ancestors);
+                ancestors.pop();
             }
             TemplateNode::SlotElement(slot) => {
                 propagate_scoping_to_ancestors(&mut slot.fragment, css_selectors, ancestors);

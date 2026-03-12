@@ -139,6 +139,19 @@ impl<'a> ServerCodeGenerator<'a> {
             let (imports, rest) = extract_imports_module(&raw_script);
             // Apply class field transformation for $derived fields in module-level classes
             let rest = transform_class_fields_server(&rest);
+            // Remove $effect(), $effect.pre(), $effect.root(), $inspect(), $inspect.trace() blocks
+            // These are client-side only and should not appear in SSR output.
+            // This must be done for module scripts too (e.g., class constructors using $effect.root).
+            let rest = if rest.contains("$effect(")
+                || rest.contains("$effect.pre(")
+                || rest.contains("$effect.root(")
+                || rest.contains("$inspect(")
+                || rest.contains("$inspect.trace(")
+            {
+                super::transform_script::remove_effect_blocks(&rest, false)
+            } else {
+                rest
+            };
             let transformed = transform_script_content_module(&rest);
 
             (imports, transformed)
@@ -232,6 +245,11 @@ impl<'a> ServerCodeGenerator<'a> {
             // Extract legacy reactive ($:) variable declarations before any transforms
             let legacy_reactive_decl = extract_legacy_reactive_var_declaration(&raw_script);
 
+            // Extract imported names before extracting imports (to detect store subscriptions
+            // vs rune calls, e.g., `import { state } from './store'` means $state is a store sub)
+            let imported_names =
+                crate::compiler::phases::phase2_analyze::types::extract_imported_names(&raw_script);
+
             // Extract imports and transform the rest
             let (imports, rest) = extract_imports(&raw_script);
 
@@ -303,9 +321,13 @@ impl<'a> ServerCodeGenerator<'a> {
             };
 
             let transformed = if reexported_props.is_empty() {
-                transform_script_content(&rest)
+                transform_script_content_with_imports(&rest, &imported_names)
             } else {
-                transform_script_content_with_props(&rest, &reexported_props)
+                transform_script_content_with_props_and_imports(
+                    &rest,
+                    &reexported_props,
+                    &imported_names,
+                )
             };
 
             // Prepend legacy reactive variable declarations if any

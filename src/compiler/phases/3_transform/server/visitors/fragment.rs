@@ -9,6 +9,73 @@ use crate::compiler::phases::phase3_transform::utils::{
     is_svelte_whitespace_only, svelte_trim_end, svelte_trim_start,
 };
 
+/// Infer namespace from fragment children nodes.
+/// If all RegularElement children are SVG, returns "svg".
+/// If all are MathML, returns "mathml".
+/// Otherwise returns the parent namespace.
+fn infer_namespace_from_nodes(nodes: &[&TemplateNode], parent_namespace: &str) -> String {
+    // Check if all RegularElement children share the same namespace
+    let mut found_namespace: Option<&str> = None;
+
+    for node in nodes {
+        match node {
+            TemplateNode::RegularElement(el) => {
+                if el.metadata.svg {
+                    match found_namespace {
+                        None => found_namespace = Some("svg"),
+                        Some("svg") => {}
+                        _ => return "html".to_string(),
+                    }
+                } else if el.metadata.mathml {
+                    match found_namespace {
+                        None => found_namespace = Some("mathml"),
+                        Some("mathml") => {}
+                        _ => return "html".to_string(),
+                    }
+                } else {
+                    return "html".to_string();
+                }
+            }
+            // Recurse into control flow blocks to check their children
+            TemplateNode::IfBlock(if_block) => {
+                for node in &if_block.consequent.nodes {
+                    if let TemplateNode::RegularElement(el) = node {
+                        if el.metadata.svg {
+                            match found_namespace {
+                                None => found_namespace = Some("svg"),
+                                Some("svg") => {}
+                                _ => return "html".to_string(),
+                            }
+                        } else if !el.metadata.mathml {
+                            return "html".to_string();
+                        }
+                    }
+                }
+            }
+            TemplateNode::EachBlock(each_block) => {
+                for node in &each_block.body.nodes {
+                    if let TemplateNode::RegularElement(el) = node {
+                        if el.metadata.svg {
+                            match found_namespace {
+                                None => found_namespace = Some("svg"),
+                                Some("svg") => {}
+                                _ => return "html".to_string(),
+                            }
+                        } else if !el.metadata.mathml {
+                            return "html".to_string();
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    found_namespace
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| parent_namespace.to_string())
+}
+
 impl<'a> ServerCodeGenerator<'a> {
     /// Generate body parts from a fragment.
     pub(crate) fn generate_fragment_body_parts(
@@ -32,9 +99,18 @@ impl<'a> ServerCodeGenerator<'a> {
         let nodes: Vec<_> = fragment.nodes.iter().collect();
         let len = nodes.len();
 
+        // Infer namespace from children nodes (matching official compiler's infer_namespace)
+        let inferred_namespace = infer_namespace_from_nodes(&nodes, &self.namespace);
+        body_generator.namespace = inferred_namespace.clone();
+
+        // In SVG namespace, whitespace-only text nodes between non-text elements
+        // can be entirely removed (matching official compiler's can_remove_entirely logic)
+        let can_remove_whitespace_entirely = inferred_namespace == "svg";
+
         // Find first meaningful node (skip whitespace-only text, comments, and snippet blocks)
         // Snippet blocks are hoisted and don't produce inline output
         // When preserveWhitespace is set, don't skip whitespace-only text nodes
+        // When preserveComments is set, don't skip comment nodes
         let mut start_idx = 0;
         if !self.preserve_whitespace {
             while start_idx < len {
@@ -43,7 +119,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         start_idx += 1;
                         continue;
                     }
-                    TemplateNode::Comment(_) => {
+                    TemplateNode::Comment(_) if !self.preserve_comments => {
                         start_idx += 1;
                         continue;
                     }
@@ -61,7 +137,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         end_idx -= 1;
                         continue;
                     }
-                    TemplateNode::Comment(_) => {
+                    TemplateNode::Comment(_) if !self.preserve_comments => {
                         end_idx -= 1;
                         continue;
                     }
@@ -126,20 +202,35 @@ impl<'a> ServerCodeGenerator<'a> {
         // after these should be skipped since they don't produce inline HTML output.
         // SnippetBlock is hoisted, so whitespace between it and the next content is removed.
         let mut prev_was_const_tag = false;
+        // Track whether the previous visible text ended with whitespace, for collapsing
+        // whitespace across hoisted nodes (matching clean_nodes behavior in the official compiler)
+        let mut prev_text_ends_with_ws = false;
         let meaningful_nodes_raw = &nodes[start_idx..end_idx];
         // Sort ConstTag nodes topologically (matching official compiler's sort_const_tags)
         let sorted_meaningful_nodes = body_generator.sort_const_tags_in_nodes(meaningful_nodes_raw);
+
         let meaningful_nodes = sorted_meaningful_nodes.as_slice();
         for (i, node) in meaningful_nodes.iter().enumerate() {
             let is_last = i == meaningful_nodes.len() - 1;
 
-            // Skip whitespace-only text nodes after ConstTag (unless preserving whitespace)
+            // Skip whitespace-only text nodes after ConstTag/SnippetBlock (unless preserving whitespace)
             if !self.preserve_whitespace
                 && prev_was_const_tag
                 && let TemplateNode::Text(text) = node
                 && is_svelte_whitespace_only(&text.data)
             {
                 prev_was_const_tag = false;
+                continue;
+            }
+
+            // In SVG namespace, skip whitespace-only text nodes between non-text elements.
+            // This matches the official compiler's clean_nodes behavior where
+            // can_remove_entirely is true for SVG (except inside <text> elements).
+            if !self.preserve_whitespace
+                && can_remove_whitespace_entirely
+                && let TemplateNode::Text(text) = node
+                && is_svelte_whitespace_only(&text.data)
+            {
                 continue;
             }
 
@@ -154,6 +245,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 if is_last {
                     modified_text.data = modified_text.data.trim_end().to_string().into();
                 }
+                prev_text_ends_with_ws = modified_text.data.ends_with([' ', '\t', '\r', '\n']);
                 body_generator.generate_node(&TemplateNode::Text(modified_text), false)?;
                 just_had_title = false;
                 prev_was_const_tag = false;
@@ -167,18 +259,42 @@ impl<'a> ServerCodeGenerator<'a> {
                 body_generator.flush_async_consts();
             }
             prev_was_const_tag = is_const_tag || matches!(node, TemplateNode::SnippetBlock(_));
-            // For the last text node in a fragment, trim trailing whitespace
-            // Use svelte_trim_end which does NOT trim non-breaking space (\u{00A0})
-            // Skip when preserveWhitespace is true
-            if !self.preserve_whitespace
-                && is_last
-                && let TemplateNode::Text(text) = node
-            {
-                let mut modified_text = text.clone();
-                modified_text.data = svelte_trim_end(&modified_text.data).to_string().into();
-                body_generator.generate_node(&TemplateNode::Text(modified_text), false)?;
+
+            // Handle text nodes: apply whitespace collapsing matching clean_nodes behavior
+            if let TemplateNode::Text(text) = node {
+                let mut data = text.data.to_string();
+
+                // Collapse leading whitespace when previous visible text ended with whitespace
+                // This handles the case where a hoisted node (SnippetBlock) was between
+                // two text nodes: A\n{#snippet}...{/snippet}\nB → A B (not A  B)
+                if !self.preserve_whitespace && prev_text_ends_with_ws {
+                    data = data
+                        .trim_start_matches(|c: char| {
+                            matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0C')
+                        })
+                        .to_string();
+                }
+
+                // For the last text node, trim trailing whitespace
+                if !self.preserve_whitespace && is_last {
+                    data = svelte_trim_end(&data).to_string();
+                }
+
+                prev_text_ends_with_ws = data.ends_with([' ', '\t', '\r', '\n']);
+
+                if !data.is_empty() {
+                    let mut modified_text = text.clone();
+                    modified_text.data = data.into();
+                    body_generator.generate_node(&TemplateNode::Text(modified_text), false)?;
+                }
                 continue;
             }
+
+            // Non-text node: reset prev_text_ends_with_ws if it's not hoisted
+            if !is_const_tag && !matches!(node, TemplateNode::SnippetBlock(_)) {
+                prev_text_ends_with_ws = false;
+            }
+
             body_generator.generate_node(node, false)?;
         }
 
@@ -259,7 +375,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Find first and last meaningful content
         // Skip whitespace-only text nodes and comment nodes when trimming
-        // Unless preserveWhitespace is set
+        // Unless preserveWhitespace/preserveComments is set
         let mut start_idx = 0;
         let mut end_idx = len;
 
@@ -270,7 +386,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         start_idx += 1;
                         continue;
                     }
-                    TemplateNode::Comment(_) => {
+                    TemplateNode::Comment(_) if !self.preserve_comments => {
                         start_idx += 1;
                         continue;
                     }
@@ -284,7 +400,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         end_idx -= 1;
                         continue;
                     }
-                    TemplateNode::Comment(_) => {
+                    TemplateNode::Comment(_) if !self.preserve_comments => {
                         end_idx -= 1;
                         continue;
                     }

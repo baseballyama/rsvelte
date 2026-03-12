@@ -123,11 +123,24 @@ pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<
 
     for (idx, node) in fragment.nodes.iter_mut().enumerate() {
         // Push ignores for this node
-        let has_ignores = ignore_info[idx]
+        let ignore_codes = ignore_info[idx]
             .as_ref()
-            .is_some_and(|(p, _)| !p.ignores.is_empty());
+            .map(|(p, _)| p.ignores.clone())
+            .unwrap_or_default();
+        let has_ignores = !ignore_codes.is_empty();
         if has_ignores {
-            context.push_ignore(ignore_info[idx].as_ref().unwrap().0.ignores.clone());
+            context.push_ignore(ignore_codes.clone());
+
+            // Store ignored codes on element metadata for use during code generation
+            match node {
+                TemplateNode::RegularElement(elem) => {
+                    elem.metadata.ignored_codes = ignore_codes.clone();
+                }
+                TemplateNode::HtmlTag(tag) => {
+                    tag.metadata.ignored_codes = ignore_codes.clone();
+                }
+                _ => {}
+            }
         }
 
         // Visit the node

@@ -448,6 +448,11 @@ pub fn visit_regular_element(
             false
         };
 
+        let ignore_hydration = node
+            .metadata
+            .ignored_codes
+            .iter()
+            .any(|c| c == "hydration_attribute_changed");
         build_attribute_effect(
             &attributes,
             &class_directives,
@@ -456,6 +461,7 @@ pub fn visit_regular_element(
             node_expr,
             &css_hash,
             should_remove_defaults,
+            ignore_hydration,
         );
     } else {
         // Find class attribute for special handling
@@ -1526,10 +1532,17 @@ fn build_element_attribute_update(
         "$.set_attribute"
     };
 
-    b::call(
-        b::member_path(set_fn),
-        vec![b::id(node_id), b::string(name), value],
-    )
+    let mut args = vec![b::id(node_id), b::string(name), value];
+    if element
+        .metadata
+        .ignored_codes
+        .iter()
+        .any(|c| c == "hydration_attribute_changed")
+    {
+        args.push(b::boolean(true));
+    }
+
+    b::call(b::member_path(set_fn), args)
 }
 
 /// Checks if a <select>, <optgroup>, or <option> element has rich content that requires

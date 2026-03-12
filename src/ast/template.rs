@@ -191,6 +191,8 @@ pub struct HtmlTag {
 pub struct TagMetadata {
     /// Expression metadata
     pub expression: ExpressionMetadata,
+    /// Warning codes ignored via `<!-- svelte-ignore ... -->` comments preceding this node.
+    pub ignored_codes: Vec<String>,
 }
 
 /// A const tag: `{@const declaration}`.
@@ -1248,6 +1250,9 @@ pub struct RegularElementMetadata {
     /// Whether this element is in the MathML namespace.
     /// Set during Phase 2 analysis based on element name.
     pub mathml: bool,
+    /// Warning codes ignored via `<!-- svelte-ignore ... -->` comments preceding this element.
+    /// Set during Phase 2 analysis from preceding svelte-ignore comments.
+    pub ignored_codes: Vec<String>,
 }
 
 /// Metadata for SvelteDynamicElement nodes (<svelte:element>), populated during Phase 2 analysis.
@@ -1262,6 +1267,9 @@ pub struct SvelteDynamicElementMetadata {
     /// Expression metadata for the tag expression (the `this` attribute value).
     /// Tracks has_await, has_call, etc. for async handling.
     pub expression: ExpressionMetadata,
+    /// Whether this element has been matched by a CSS selector and needs the scoping class.
+    /// Set during Phase 2 analysis by the CSS pruner/scoping pass.
+    pub scoped: bool,
 }
 
 /// Metadata for Component nodes, populated during Phase 2 analysis.

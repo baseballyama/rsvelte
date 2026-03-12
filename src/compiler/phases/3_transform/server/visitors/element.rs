@@ -281,14 +281,12 @@ impl<'a> ServerCodeGenerator<'a> {
             // If we have a content-editable binding, generate children into a sub-generator
             // and emit ContentEditableBody which will generate the if/else pattern
             if let Some(ref body_expr) = content_editable_expr {
-                // Generate children into a child generator to capture them as OutputPart
-                let mut children_generator = self.new_child_generator(false);
-                for child in element.fragment.nodes.iter() {
-                    children_generator.generate_node(child, false)?;
-                }
+                // Generate children using fragment processing for proper whitespace trimming
+                let children_body =
+                    self.generate_fragment_body_parts_inner(&element.fragment, true)?;
                 self.output_parts.push(OutputPart::ContentEditableBody {
                     value_expr: body_expr.clone(),
-                    children_body: children_generator.output_parts,
+                    children_body,
                 });
                 self.output_parts
                     .push(OutputPart::Html(format!("</{}>", name)));
@@ -316,6 +314,27 @@ impl<'a> ServerCodeGenerator<'a> {
             // Children - filter and process with position awareness
             // First, filter out comments and find meaningful content boundaries
             let children: Vec<_> = element.fragment.nodes.iter().collect();
+
+            // For <pre> and <textarea>, preserve whitespace in children
+            // This matches the official compiler behavior
+            let preserve_children_whitespace =
+                self.preserve_whitespace || name == "pre" || name == "textarea";
+
+            if preserve_children_whitespace {
+                // Preserve whitespace: output children as-is (no trimming/collapsing)
+                let saved_preserve = self.preserve_whitespace;
+                self.preserve_whitespace = true;
+                for child in &children {
+                    if matches!(child, TemplateNode::Comment(_)) {
+                        continue;
+                    }
+                    self.generate_node(child, false)?;
+                }
+                self.preserve_whitespace = saved_preserve;
+                self.output_parts
+                    .push(OutputPart::Html(format!("</{}>", name)));
+                return Ok(());
+            }
 
             // Find first and last non-whitespace, non-comment, non-snippet children
             // Snippet blocks are hoisted and don't produce inline output
@@ -362,36 +381,10 @@ impl<'a> ServerCodeGenerator<'a> {
                         // - SVG elements (except <text>) strip internal whitespace
                         // - Table-related elements strip internal whitespace
                         // - select/optgroup strip internal whitespace
-                        let is_svg_parent = matches!(
-                            name,
-                            "svg"
-                                | "g"
-                                | "defs"
-                                | "symbol"
-                                | "marker"
-                                | "clipPath"
-                                | "mask"
-                                | "pattern"
-                                | "linearGradient"
-                                | "radialGradient"
-                                | "filter"
-                                | "feBlend"
-                                | "feColorMatrix"
-                                | "feComponentTransfer"
-                                | "feComposite"
-                                | "feConvolveMatrix"
-                                | "feDiffuseLighting"
-                                | "feDisplacementMap"
-                                | "feFlood"
-                                | "feGaussianBlur"
-                                | "feImage"
-                                | "feMerge"
-                                | "feMorphology"
-                                | "feOffset"
-                                | "feSpecularLighting"
-                                | "feTile"
-                                | "feTurbulence"
-                        );
+                        // In SVG namespace, whitespace can be removed entirely
+                        // except inside <text> elements (matching official compiler's
+                        // can_remove_entirely in clean_nodes)
+                        let is_svg_parent = element.metadata.svg && name != "text";
                         let can_remove_whitespace = is_svg_parent
                             || matches!(
                                 name,
@@ -418,22 +411,26 @@ impl<'a> ServerCodeGenerator<'a> {
                         continue;
                     }
 
-                    // For text nodes, strip leading/trailing whitespace and collapse internal whitespace
+                    // For text nodes, only collapse leading/trailing whitespace
+                    // matching the official compiler's clean_nodes behavior:
+                    // - Leading whitespace → trimmed (first) or collapsed to ' ' (others)
+                    // - Trailing whitespace → trimmed (last) or collapsed to ' ' (others)
+                    // - Internal whitespace is preserved as-is
+                    let is_last = last_content.is_some() && i == last_content.unwrap();
                     if is_first_content {
-                        // First content: trim leading whitespace
-                        // If this is also the last content, trim trailing too
-                        let is_last = last_content.is_some() && i == last_content.unwrap();
-                        let trimmed = if is_last {
-                            // Both first and last - trim both sides
-                            svelte_trim(data)
+                        let mut result = svelte_trim_start(data).to_string();
+                        if is_last {
+                            result = svelte_trim_end(&result).to_string();
                         } else {
-                            svelte_trim_start(data)
-                        };
-                        if !trimmed.is_empty() {
-                            // Collapse internal whitespace
-                            let collapsed = collapse_whitespace(trimmed);
+                            // Collapse trailing whitespace to single space
+                            let rtrimmed = result.trim_end();
+                            if rtrimmed.len() < result.len() && !rtrimmed.is_empty() {
+                                result = format!("{} ", rtrimmed);
+                            }
+                        }
+                        if !result.is_empty() {
                             self.output_parts.push(OutputPart::Html(escape_html(
-                                &sanitize_template_string(&collapsed),
+                                &sanitize_template_string(&result),
                             )));
                         }
                         has_output_content = true;
@@ -441,18 +438,43 @@ impl<'a> ServerCodeGenerator<'a> {
                         continue;
                     }
 
-                    // Check if this is the last content - trim trailing
-                    if last_content.is_some() && i == last_content.unwrap() {
-                        let trimmed = svelte_trim_end(data);
-                        if !trimmed.is_empty() {
-                            let collapsed = collapse_whitespace(trimmed);
+                    if is_last {
+                        // Collapse leading whitespace to space, trim trailing
+                        let ltrimmed = data.trim_start();
+                        let mut result = if ltrimmed.len() < data.len() && !ltrimmed.is_empty() {
+                            format!(" {}", ltrimmed)
+                        } else {
+                            data.to_string()
+                        };
+                        result = svelte_trim_end(&result).to_string();
+                        if !result.is_empty() {
                             self.output_parts.push(OutputPart::Html(escape_html(
-                                &sanitize_template_string(&collapsed),
+                                &sanitize_template_string(&result),
                             )));
                         }
                         has_output_content = true;
                         continue;
                     }
+
+                    // Middle text: collapse leading and trailing whitespace to spaces
+                    let ltrimmed = data.trim_start();
+                    let mut result = if ltrimmed.len() < data.len() && !ltrimmed.is_empty() {
+                        format!(" {}", ltrimmed)
+                    } else {
+                        data.to_string()
+                    };
+                    let rtrimmed = result.trim_end();
+                    if rtrimmed.len() < result.len() && !rtrimmed.is_empty() {
+                        result = format!("{} ", rtrimmed);
+                    }
+                    if !result.is_empty() {
+                        self.output_parts.push(OutputPart::Html(escape_html(
+                            &sanitize_template_string(&result),
+                        )));
+                    }
+                    has_output_content = true;
+                    is_first_content = false;
+                    continue;
                 }
 
                 self.generate_node(child, false)?;
@@ -848,6 +870,25 @@ impl<'a> ServerCodeGenerator<'a> {
         } else {
             self.output_parts.push(OutputPart::Html(">".to_string()));
 
+            // For <pre> and <textarea>, preserve whitespace in children
+            let preserve_children_whitespace =
+                self.preserve_whitespace || name == "pre" || name == "textarea";
+
+            if preserve_children_whitespace {
+                let saved_preserve = self.preserve_whitespace;
+                self.preserve_whitespace = true;
+                for child in element.fragment.nodes.iter() {
+                    if matches!(child, TemplateNode::Comment(_)) {
+                        continue;
+                    }
+                    self.generate_node(child, false)?;
+                }
+                self.preserve_whitespace = saved_preserve;
+                self.output_parts
+                    .push(OutputPart::Html(format!("</{}>", name)));
+                return Ok(());
+            }
+
             // Generate children with proper whitespace handling
             let children: Vec<_> = element
                 .fragment
@@ -868,10 +909,9 @@ impl<'a> ServerCodeGenerator<'a> {
             let mut is_first_content = true;
 
             // Determine if whitespace-only text nodes can be removed entirely
-            let is_svg_parent = matches!(
-                name,
-                "svg" | "g" | "defs" | "symbol" | "marker" | "clipPath" | "mask" | "pattern"
-            );
+            // In SVG namespace, whitespace can be removed entirely
+            // except inside <text> elements (matching official compiler)
+            let is_svg_parent = element.metadata.svg && name != "text";
             let can_remove_whitespace = is_svg_parent
                 || matches!(
                     name,
@@ -1975,6 +2015,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 dir.name.to_string()
             };
 
+            let expr_value = self.transform_store_refs(&expr_value);
             directive_props.push(format!("'{}': {}", dir.name, expr_value));
         }
 

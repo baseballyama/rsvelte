@@ -96,14 +96,21 @@ pub fn snippet_block(node: &SnippetBlock, context: &mut ComponentContext) {
         }
     }
 
-    // Clear blocker_map for snippet body since snippets are independent functions
-    // that don't share the instance script's async context. Without this, snippet
-    // parameters that share names with blocked instance variables would cause
-    // false positive blocker detection in template_effect.
+    // Save and adjust blocker_map for snippet body. Snippets can reference
+    // instance-level blocked variables, so we preserve the blocker_map.
+    // However, snippet parameters that shadow blocked instance variables
+    // should NOT be treated as blocked.
     let saved_blocker_map = {
         let mut map = context.state.blocker_map.borrow_mut();
         let saved = map.clone();
-        map.clear();
+        // Remove entries for snippet parameter names since they shadow instance vars
+        for param in &node.parameters {
+            // Extract all identifier names from the parameter pattern
+            let param_names = extract_param_names(param);
+            for name in &param_names {
+                map.remove(name);
+            }
+        }
         saved
     };
 
@@ -161,6 +168,62 @@ struct ParameterInfo {
     pattern: JsPattern,
     /// Any declarations needed at the start of the body
     declarations: Vec<JsStatement>,
+}
+
+/// Extract all parameter names from a snippet parameter expression.
+/// Used to remove snippet parameter names from the blocker_map so that
+/// parameters that shadow blocked instance variables don't cause false blockers.
+fn extract_param_names(param: &Expression) -> Vec<String> {
+    let val = param.as_json();
+    let mut names = Vec::new();
+    extract_param_names_from_json(val, &mut names);
+    names
+}
+
+fn extract_param_names_from_json(val: &serde_json::Value, names: &mut Vec<String>) {
+    if let serde_json::Value::Object(obj) = val {
+        let param_type = obj.get("type").and_then(|v| v.as_str());
+        match param_type {
+            Some("Identifier") => {
+                if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                    names.push(name.to_string());
+                }
+            }
+            Some("AssignmentPattern") => {
+                if let Some(left) = obj.get("left") {
+                    extract_param_names_from_json(left, names);
+                }
+            }
+            Some("ObjectPattern") => {
+                if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
+                    for prop in properties {
+                        if let Some(value) = prop.get("value") {
+                            extract_param_names_from_json(value, names);
+                        } else if prop.get("type").and_then(|v| v.as_str()) == Some("RestElement")
+                            && let Some(arg) = prop.get("argument")
+                        {
+                            extract_param_names_from_json(arg, names);
+                        }
+                    }
+                }
+            }
+            Some("ArrayPattern") => {
+                if let Some(elements) = obj.get("elements").and_then(|v| v.as_array()) {
+                    for elem in elements {
+                        if !elem.is_null() {
+                            extract_param_names_from_json(elem, names);
+                        }
+                    }
+                }
+            }
+            Some("RestElement") => {
+                if let Some(arg) = obj.get("argument") {
+                    extract_param_names_from_json(arg, names);
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 /// Process a snippet parameter.

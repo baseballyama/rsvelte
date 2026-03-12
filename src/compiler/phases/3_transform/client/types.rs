@@ -406,7 +406,7 @@ impl<'a> ComponentContext<'a> {
                 // Fast path: single static class attribute, no class directives
                 // Build $.set_class call directly
                 let css_hash = self.state.analysis.css.hash.clone();
-                let is_scoped = self.state.analysis.css.has_css && !css_hash.is_empty();
+                let is_scoped = elem.metadata.scoped && !css_hash.is_empty();
 
                 if let Attribute::Attribute(attr) = &attributes[0] {
                     // Extract the text value
@@ -451,10 +451,7 @@ impl<'a> ComponentContext<'a> {
                 // the element has explicit class/attribute values that match CSS selectors.
                 // Synthesized class attributes (start == u32::MAX, from class-directive-only elements)
                 // should NOT be scoped because no CSS selector can match the empty class.
-                let is_synthetic =
-                    matches!(&attributes[0], Attribute::Attribute(a) if a.start == u32::MAX);
-                let is_scoped =
-                    !is_synthetic && self.state.analysis.css.has_css && !css_hash.is_empty();
+                let is_scoped = elem.metadata.scoped && !css_hash.is_empty();
                 let class_attr_value = if let Attribute::Attribute(a) = &attributes[0] {
                     Some(&a.value)
                 } else {
@@ -482,7 +479,12 @@ impl<'a> ComponentContext<'a> {
                 );
             } else if !attributes.is_empty() {
                 // Multiple attributes or non-class attributes -> build_attribute_effect
-                let css_hash = self.state.analysis.css.hash.clone();
+                // Only pass the CSS hash when the element is scoped (matched by CSS selectors)
+                let css_hash = if elem.metadata.scoped {
+                    self.state.analysis.css.hash.clone()
+                } else {
+                    String::new()
+                };
                 build_attribute_effect(
                     &attributes,
                     &class_directives,
@@ -491,6 +493,7 @@ impl<'a> ComponentContext<'a> {
                     element_id.clone(),
                     &css_hash,
                     false, // should_remove_defaults - not needed for svelte:element
+                    false, // ignore_hydration - not needed for svelte:element
                 );
             } else if !class_directives.is_empty() {
                 // Class directives only (no class attribute) on svelte:element
@@ -514,7 +517,7 @@ impl<'a> ComponentContext<'a> {
                     self,
                     false, // is_html=false for svelte:element
                     &css_hash,
-                    false, // is_scoped=false: don't add CSS hash when no class attribute on svelte:element
+                    elem.metadata.scoped && !css_hash.is_empty(),
                 );
             }
 
@@ -598,9 +601,16 @@ impl<'a> ComponentContext<'a> {
         };
 
         // Build $.element(...) call
-        // $.element(anchor, get_tag, is_svg_or_mathml, callback, namespace)
+        // $.element(anchor, get_tag, is_svg_or_mathml, callback, namespace, location)
         // Use metadata from Phase 2 analysis (set in svelte_element.rs visitor)
         let is_svg_or_mathml = b::boolean(elem.metadata.svg || elem.metadata.mathml);
+
+        // Clone get_tag before moving it - needed for dev-mode validate calls
+        let get_tag_for_validate = if self.state.dev {
+            Some(get_tag.clone())
+        } else {
+            None
+        };
 
         let mut element_args = vec![self.state.node.clone(), get_tag, is_svg_or_mathml];
 
@@ -639,6 +649,21 @@ impl<'a> ComponentContext<'a> {
         for _let_dir in &let_directives {
             // TODO: Implement LetDirective handling
         }
+
+        // Dev mode: add validation calls (matches official SvelteElement.js lines 120-125)
+        if let Some(get_tag_dev) = get_tag_for_validate {
+            statements.push(b::stmt(b::call(
+                b::member_path("$.validate_dynamic_element_tag"),
+                vec![get_tag_dev.clone()],
+            )));
+            if !elem.fragment.nodes.is_empty() {
+                statements.push(b::stmt(b::call(
+                    b::member_path("$.validate_void_dynamic_element"),
+                    vec![get_tag_dev],
+                )));
+            }
+        }
+
         statements.push(element_call_stmt);
 
         // If the tag expression has await or blockers, wrap in $.async()
@@ -819,6 +844,80 @@ impl<'a> ComponentContext<'a> {
         let mut lets: Vec<JsStatement> = Vec::new();
         let mut name = b::string("default".to_string());
 
+        // Track let directive binding names for transform registration
+        let mut let_binding_names: Vec<String> = Vec::new();
+
+        // First pass: collect let directives to register transforms before processing attributes
+        for attribute in &slot.attributes {
+            if let Attribute::LetDirective(let_dir) = attribute {
+                let prop_name = &let_dir.name;
+
+                let is_simple = match &let_dir.expression {
+                    None => true,
+                    Some(expr) => expr.is_identifier_node(),
+                };
+
+                if is_simple {
+                    let binding_name = match &let_dir.expression {
+                        Some(expr) => expr.identifier_name().unwrap_or(prop_name).to_string(),
+                        None => prop_name.to_string(),
+                    };
+
+                    let derived_fn = if self.state.analysis.runes {
+                        "$.derived"
+                    } else {
+                        "$.derived_safe_equal"
+                    };
+
+                    lets.push(b::const_decl(
+                        &binding_name,
+                        b::call(
+                            b::member_path(derived_fn),
+                            vec![b::thunk(b::member(
+                                b::id("$$slotProps"),
+                                prop_name.to_string(),
+                            ))],
+                        ),
+                    ));
+
+                    let_binding_names.push(binding_name);
+                }
+            }
+        }
+
+        // Let bindings first, they can be used on attributes
+        for let_stmt in &lets {
+            self.state.init.push(let_stmt.clone());
+        }
+
+        // Register transforms for let directive bindings ($.get(name) when reading)
+        // Save existing transforms so we can restore them after
+        let mut saved_transforms: Vec<(
+            String,
+            Option<crate::compiler::phases::phase3_transform::client::types::IdentifierTransform>,
+        )> = Vec::new();
+
+        for binding_name in &let_binding_names {
+            let existing = self.state.transform.get(binding_name).cloned();
+            saved_transforms.push((binding_name.clone(), existing));
+
+            self.state.transform.insert(
+                binding_name.clone(),
+                crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
+                    read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
+                    read_source: None,
+                    assign: None,
+                    mutate: None,
+                    update: None,
+                    skip_proxy: false,
+                    is_defined: false,
+                    is_reactive: true,
+                    replacement_id: None,
+                },
+            );
+        }
+
+        // Second pass: process non-let attributes with transforms registered
         for attribute in &slot.attributes {
             match attribute {
                 Attribute::SpreadAttribute(spread) => {
@@ -846,49 +945,11 @@ impl<'a> ComponentContext<'a> {
                         }
                     }
                 }
-                Attribute::LetDirective(let_dir) => {
-                    // Process let directives - these create bindings that are available
-                    // outside the slot element (in the component's init statements)
-                    let prop_name = &let_dir.name;
-
-                    // Check if expression is an Identifier or null (simple case)
-                    let is_simple = match &let_dir.expression {
-                        None => true,
-                        Some(expr) => expr.is_identifier_node(),
-                    };
-
-                    if is_simple {
-                        // Simple case: let:x or let:x={y}
-                        let binding_name = match &let_dir.expression {
-                            Some(expr) => expr.identifier_name().unwrap_or(prop_name).to_string(),
-                            None => prop_name.to_string(),
-                        };
-
-                        let derived_fn = if self.state.analysis.runes {
-                            "$.derived"
-                        } else {
-                            "$.derived_safe_equal"
-                        };
-
-                        lets.push(b::const_decl(
-                            &binding_name,
-                            b::call(
-                                b::member_path(derived_fn),
-                                vec![b::thunk(b::member(
-                                    b::id("$$slotProps"),
-                                    prop_name.to_string(),
-                                ))],
-                            ),
-                        ));
-                    }
+                Attribute::LetDirective(_) => {
+                    // Already processed in first pass
                 }
                 _ => {}
             }
-        }
-
-        // Let bindings first, they can be used on attributes
-        for let_stmt in &lets {
-            self.state.init.push(let_stmt.clone());
         }
 
         // Build props expression
@@ -920,6 +981,17 @@ impl<'a> ComponentContext<'a> {
                 b::arrow_block(vec![b::id_pattern("$$anchor")], block.body)
             }
         };
+
+        // Restore original transforms after visiting children
+        for (name, saved) in &saved_transforms {
+            if let Some(original_transform) = saved {
+                self.state
+                    .transform
+                    .insert(name.clone(), original_transform.clone());
+            } else {
+                self.state.transform.remove(name);
+            }
+        }
 
         // Generate: $.slot(node, $$props, name, props_expression, fallback)
         let slot_call = b::call(
@@ -1211,7 +1283,9 @@ impl<'a> ComponentContext<'a> {
     fn visit_special_element(&mut self, element: &crate::ast::template::SvelteElement, id: &str) {
         use crate::ast::template::Attribute;
         use crate::compiler::phases::phase3_transform::client::visitors::attribute::is_event_attribute;
-        use crate::compiler::phases::phase3_transform::client::visitors::shared::events::build_event;
+        use crate::compiler::phases::phase3_transform::client::visitors::shared::events::{
+            build_event, convert_arrow_to_named_function,
+        };
         use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
@@ -1258,13 +1332,15 @@ impl<'a> ComponentContext<'a> {
                         // Build the $.event() call
                         // For special elements, events are never delegated and always go to init
                         let passive = is_passive_event(event_name);
-                        let event_call = build_event(
-                            event_name,
-                            &self.state.node,
-                            handler,
-                            capture,
-                            passive,
-                        );
+                        // In dev mode, convert arrow function handlers to named functions
+                        let handler = if self.state.options.dev {
+                            let name = self.state.memoizer.generate_id(event_name);
+                            convert_arrow_to_named_function(handler, name.into())
+                        } else {
+                            handler
+                        };
+                        let event_call =
+                            build_event(event_name, &self.state.node, handler, capture, passive);
                         self.state.init.push(b::stmt(event_call));
                     }
                 }
@@ -1545,8 +1621,19 @@ pub struct ComponentClientTransformState<'a> {
     /// Uses `Rc<Cell<bool>>` so the flag is shared across all child states.
     pub needs_props_from_events: Rc<Cell<bool>>,
 
+    /// Whether the component needs ownership mutation validation.
+    /// Set to true when `validate_mutation()` or ownership binding validation is used.
+    /// Uses `Rc<Cell<bool>>` so the flag is shared across all child states.
+    pub needs_mutation_validation: Rc<Cell<bool>>,
+
     /// Binding names hidden from `get_binding()` in named slot contexts.
     pub hidden_let_bindings: FxHashSet<String>,
+
+    /// Names of function parameters that shadow prop bindings.
+    /// When a function parameter has the same name as a destructured prop,
+    /// the parameter shadows the prop and should NOT be replaced with `$$props.x`.
+    /// This is populated when entering function bodies and cleared when leaving.
+    pub shadowed_prop_names: im::HashSet<String>,
 
     /// Mapping from variable names to their promise indices in $$promises.
     /// Populated during async body transformation, used by template visitors
@@ -1701,7 +1788,9 @@ impl<'a> ComponentClientTransformState<'a> {
             local_var_init_types: Vec::new(),
             destructure_array_counter: 0,
             needs_props_from_events: Rc::new(Cell::new(false)),
+            needs_mutation_validation: Rc::new(Cell::new(false)),
             hidden_let_bindings: FxHashSet::default(),
+            shadowed_prop_names: im::HashSet::new(),
             blocker_map: Rc::new(std::cell::RefCell::new(std::collections::HashMap::new())),
             extra_blocker_indices: Vec::new(),
             is_standalone: false,

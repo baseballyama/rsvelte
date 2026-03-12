@@ -97,13 +97,17 @@ impl<'a> ServerCodeGenerator<'a> {
         } else {
             // Build inline HTML attribute strings for the callback form
             let mut attr_parts: Vec<String> = Vec::new();
-            let css_hash: Option<String> = self.analysis.and_then(|a| {
-                if !a.css.hash.is_empty() {
-                    Some(a.css.hash.clone())
-                } else {
-                    None
-                }
-            });
+            let css_hash: Option<String> = if elem.metadata.scoped {
+                self.analysis.and_then(|a| {
+                    if !a.css.hash.is_empty() {
+                        Some(a.css.hash.clone())
+                    } else {
+                        None
+                    }
+                })
+            } else {
+                None
+            };
 
             // Collect class and style directives
             let mut class_directives: Vec<&crate::ast::template::ClassDirective> = Vec::new();
@@ -128,15 +132,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         if name == "class" && !class_directives.is_empty() {
                             // Use $.attr_class() when class directives are present
                             handled_class = true;
-                            // For synthesized class attributes (start == u32::MAX, from class-directive-only
-                            // elements), don't bake in the CSS hash. The CSS pruner can't match svelte:element
-                            // with only class directives (no explicit class value), so is_scoped would be false
-                            // in the official compiler, meaning no hash in the class value.
-                            let effective_css_hash = if node.start == u32::MAX {
-                                &None
-                            } else {
-                                &css_hash
-                            };
+                            let effective_css_hash = &css_hash;
                             let base_value =
                                 self.build_class_base_value(node, effective_css_hash)?;
                             let directives_obj = self.build_class_directives_obj(&class_directives);
@@ -232,7 +228,14 @@ impl<'a> ServerCodeGenerator<'a> {
             // Handle class directives without a class attribute
             if !class_directives.is_empty() && !handled_class {
                 let directives_obj = self.build_class_directives_obj(&class_directives);
-                attr_parts.push(format!("${{$.attr_class('', void 0, {})}}", directives_obj));
+                if let Some(ref hash) = css_hash {
+                    attr_parts.push(format!(
+                        "${{$.attr_class('{}', void 0, {})}}",
+                        hash, directives_obj
+                    ));
+                } else {
+                    attr_parts.push(format!("${{$.attr_class('', void 0, {})}}", directives_obj));
+                }
             }
 
             // Handle style directives without a style attribute

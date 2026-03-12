@@ -468,6 +468,9 @@ impl<'a> ServerCodeGenerator<'a> {
                     TemplateNode::SvelteComponent(elem) => {
                         get_let_directive_params(&elem.attributes, &self.source)
                     }
+                    TemplateNode::SlotElement(slot) => {
+                        get_let_directive_params(&slot.attributes, &self.source)
+                    }
                     _ => get_let_directives(node),
                 };
                 let entry = slot_children.entry(slot_name.clone()).or_insert_with(|| {

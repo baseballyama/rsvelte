@@ -277,16 +277,17 @@ pub(crate) fn replace_store_identifier_in_script(
                         }
                     };
 
-                    // Check if `$store` appears inside an arrow function parameter list like `($store) =>`.
+                    // Check if `$store` appears inside a function parameter list like `($store) => ...`
+                    // or `function foo($store) { ... }`.
                     // This happens when preceding char is `(` or `,` (inside param list)
                     // and following char after the store ref (and any `,`/whitespace) is `)`,
-                    // and that `)` is followed by `=>`.
-                    let is_in_paren_arrow_param = if !is_param_decl {
+                    // and that `)` is followed by `=>` (arrow) or `{` (regular function).
+                    let is_in_paren_fn_param = if !is_param_decl {
                         // Check if the char immediately before $store (skipping whitespace back) is `(` or `,`
                         let prev_char = result.chars().rev().find(|c| !c.is_whitespace());
                         let preceded_by_paren_or_comma = matches!(prev_char, Some('(') | Some(','));
                         if preceded_by_paren_or_comma {
-                            // Look for `)` after $store, then `=>`
+                            // Look for `)` after $store, then `=>` or `{`
                             let mut k = j; // j is already at first non-whitespace after store_ref
                             // Skip past `)`, `,`, or whitespace to find the closing paren of param list
                             let mut paren_balance: i32 = 0;
@@ -303,20 +304,24 @@ pub(crate) fn replace_store_identifier_in_script(
                                     ')' => {
                                         if paren_balance == 0 {
                                             // This is the closing paren of the param list
-                                            // Check if followed by `=>`
+                                            // Check if followed by `=>` (arrow) or `{` (regular function)
                                             let mut m = k + 1;
                                             while m < chars.len() && chars[m].is_whitespace() {
                                                 m += 1;
                                             }
-                                            if m + 1 < chars.len()
+                                            let is_arrow = m + 1 < chars.len()
                                                 && chars[m] == '='
-                                                && chars[m + 1] == '>'
-                                            {
+                                                && chars[m + 1] == '>';
+                                            let is_func_body = m < chars.len() && chars[m] == '{';
+                                            if is_arrow || is_func_body {
                                                 found_close = true;
                                                 // Register shadow: $store is a parameter,
-                                                // it shadows in the arrow function body
+                                                // it shadows in the function body.
+                                                // Use brace_depth + 1 so the shadow is only
+                                                // active inside the function body block,
+                                                // not at the call site level.
                                                 shadowed_params
-                                                    .push((brace_depth, paren_depth - 1));
+                                                    .push((brace_depth + 1, paren_depth - 1));
                                             }
                                             break;
                                         } else {
@@ -337,10 +342,7 @@ pub(crate) fn replace_store_identifier_in_script(
                         false
                     };
 
-                    if !is_in_store_call
-                        && !is_shadowed
-                        && !is_param_decl
-                        && !is_in_paren_arrow_param
+                    if !is_in_store_call && !is_shadowed && !is_param_decl && !is_in_paren_fn_param
                     {
                         result.push_str(&format!(
                             "$.store_get($$store_subs ??= {{}}, '{}', {})",

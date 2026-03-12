@@ -204,6 +204,25 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                         };
 
                         context.state.transform.insert(name.clone(), transform);
+                    } else {
+                        // Non-source props: read from $$props.name
+                        // Corresponds to Program.js lines 125-134:
+                        // context.state.transform[name] = {
+                        //     read: (node) => b.member(b.id('$$props'), node)
+                        // };
+                        let transform = IdentifierTransform {
+                            read: Some(non_source_prop_read),
+                            read_source: None,
+                            assign: None,
+                            mutate: None,
+                            update: None,
+                            skip_proxy: false,
+                            is_defined: false,
+                            is_reactive: true,
+                            replacement_id: None,
+                        };
+
+                        context.state.transform.insert(name.clone(), transform);
                     }
                 }
                 BindingKind::State | BindingKind::RawState | BindingKind::Derived => {
@@ -419,6 +438,29 @@ fn store_sub_update(operator: JsUpdateOp, argument: JsExpr, prefix: bool) -> JsE
 // ============================================================================
 // Prop transform functions
 // ============================================================================
+
+/// Transform a non-source prop read.
+///
+/// Non-source props (in runes mode: props that are not reassigned, not mutated,
+/// and have no initial value) are accessed directly via `$$props.name`.
+///
+/// Corresponds to Program.js lines 131-134:
+/// ```js
+/// context.state.transform[name] = {
+///     read: (node) => b.member(b.id('$$props'), node)
+/// };
+/// ```
+fn non_source_prop_read(node: JsExpr) -> JsExpr {
+    JsExpr::Member(JsMemberExpression {
+        object: Box::new(b::id("$$props")),
+        property: match &node {
+            JsExpr::Identifier(name) => JsMemberProperty::Identifier(name.clone()),
+            _ => JsMemberProperty::Expression(Box::new(node)),
+        },
+        computed: false,
+        optional: false,
+    })
+}
 
 /// Transform a prop read.
 ///

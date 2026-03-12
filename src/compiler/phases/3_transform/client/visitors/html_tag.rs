@@ -62,13 +62,31 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
     // Create thunk and apply unthunk optimization
     let thunked = b::thunk(html_expr);
 
-    // Build arguments: $.html(node, thunked_expression, is_svg?, is_mathml?)
+    // Check for hydration_html_changed ignore
+    let ignore_hydration = node
+        .metadata
+        .ignored_codes
+        .iter()
+        .any(|c| c == "hydration_html_changed");
+
+    // Build arguments: $.html(node, thunked_expression, is_svg?, is_mathml?, ignore_hydration?)
     let mut html_args = vec![context.state.node.clone(), thunked];
 
-    if is_svg {
-        html_args.push(b::boolean(true));
-    } else if is_mathml {
-        html_args.push(b::boolean(false));
+    if is_svg || is_mathml || ignore_hydration {
+        html_args.push(if is_svg {
+            b::boolean(true)
+        } else {
+            b::boolean(false)
+        });
+    }
+    if is_mathml || ignore_hydration {
+        html_args.push(if is_mathml {
+            b::boolean(true)
+        } else {
+            b::boolean(false)
+        });
+    }
+    if ignore_hydration {
         html_args.push(b::boolean(true));
     }
 

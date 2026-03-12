@@ -112,6 +112,9 @@ pub fn analyze_component(
             }),
             props: ce_opts.props.clone(),
         });
+        // Custom elements always inject styles (into shadow DOM)
+        // Reference: analyze/index.js line 527: inject_styles: options.css === 'injected' || is_custom_element
+        analysis.inject_styles = true;
     }
 
     // Check for options_missing_custom_element warning
@@ -230,6 +233,16 @@ pub fn analyze_component(
             || template_has_rune_references
         {
             analysis.runes = true;
+        }
+    }
+
+    // In runes mode, immutable is always true and accessors is always false
+    // (unless it's a custom element). This overrides any options passed by the user.
+    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js
+    if analysis.runes {
+        analysis.immutable = true;
+        if analysis.custom_element.is_none() {
+            analysis.accessors = false;
         }
     }
 
@@ -617,6 +630,46 @@ pub fn analyze_component(
     // handles CSS hash injection in its transform visitor.
     synthesize_class_style_attributes(&mut ast.fragment, &analysis);
 
+    // Deconflict component name with existing declarations and references.
+    // This mirrors the official Svelte compiler's `module.scope.generate(component_name)`
+    // which ensures the exported function name doesn't shadow imported identifiers or
+    // other declarations/references. For example, if a component uses `<Countdown .../>`
+    // (self-reference) and the filename is also `Countdown.svelte`, the function name
+    // should be `Countdown_1`.
+    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L468
+    {
+        // Collect all names that are used across all scopes (declarations + references)
+        let mut used_names = rustc_hash::FxHashSet::default();
+        // Check root scope
+        for key in analysis.root.scope.declarations.keys() {
+            used_names.insert(key.clone());
+        }
+        for r in &analysis.root.scope.references {
+            used_names.insert(r.name.clone());
+        }
+        // Check all child scopes
+        for scope in &analysis.root.all_scopes {
+            for key in scope.declarations.keys() {
+                used_names.insert(key.clone());
+            }
+            for r in &scope.references {
+                used_names.insert(r.name.clone());
+            }
+        }
+        // Also collect component names from template AST since they're identifiers
+        // that need deconfliction but may not be in scope references
+        collect_template_component_names(&ast.fragment.nodes, &mut used_names);
+
+        let mut name = analysis.name.clone();
+        let base = name.clone();
+        let mut counter = 1u32;
+        while used_names.contains(&name) {
+            name = format!("{}_{}", base, counter);
+            counter += 1;
+        }
+        analysis.name = name;
+    }
+
     Ok(analysis)
 }
 
@@ -630,6 +683,7 @@ pub fn analyze_component(
 ///
 /// This corresponds to the official Svelte compiler's post-analysis loop at
 /// `2-analyze/index.js` lines 875-930.
+#[allow(clippy::only_used_in_recursion)]
 fn synthesize_class_style_attributes(
     fragment: &mut crate::ast::template::Fragment,
     analysis: &ComponentAnalysis,
@@ -643,12 +697,8 @@ fn synthesize_class_style_attributes(
                 synthesize_class_style_attributes(&mut el.fragment, analysis);
             }
             TemplateNode::SvelteElement(el) => {
-                // For svelte:element, scoping depends on whether CSS hash is present
-                // and the element has dynamic tag. In the official compiler, svelte:element
-                // is always in analysis.elements and goes through the same synthesis.
-                // We check if CSS hash is present as the scoping condition.
-                let is_scoped = analysis.css.has_css && !analysis.css.hash.is_empty();
-                synthesize_for_element_attrs(&mut el.attributes, is_scoped);
+                // Use the scoped flag set during CSS scoping pass
+                synthesize_for_element_attrs(&mut el.attributes, el.metadata.scoped);
                 synthesize_class_style_attributes(&mut el.fragment, analysis);
             }
             TemplateNode::Component(comp) => {
@@ -3141,6 +3191,81 @@ fn build_keypath_parts(expr: &serde_json::Value, parts: &mut Vec<String>) {
             let mut ids: Vec<String> = Vec::new();
             extract_all_identifiers_from_expr(expr, &mut ids);
             parts.extend(ids);
+        }
+    }
+}
+
+/// Recursively collect component names from template AST nodes.
+/// These names represent identifiers that are referenced in the template and need to be
+/// considered during component name deconfliction.
+fn collect_template_component_names(
+    nodes: &[crate::ast::template::TemplateNode],
+    names: &mut rustc_hash::FxHashSet<String>,
+) {
+    use crate::ast::template::TemplateNode;
+    for node in nodes {
+        match node {
+            TemplateNode::Component(c) => {
+                names.insert(c.name.to_string());
+                collect_template_component_names(&c.fragment.nodes, names);
+            }
+            TemplateNode::RegularElement(e) => {
+                collect_template_component_names(&e.fragment.nodes, names);
+            }
+            TemplateNode::IfBlock(b) => {
+                collect_template_component_names(&b.consequent.nodes, names);
+                if let Some(alt) = &b.alternate {
+                    collect_template_component_names(&alt.nodes, names);
+                }
+            }
+            TemplateNode::EachBlock(b) => {
+                collect_template_component_names(&b.body.nodes, names);
+                if let Some(fallback) = &b.fallback {
+                    collect_template_component_names(&fallback.nodes, names);
+                }
+            }
+            TemplateNode::AwaitBlock(b) => {
+                if let Some(pending) = &b.pending {
+                    collect_template_component_names(&pending.nodes, names);
+                }
+                if let Some(then) = &b.then {
+                    collect_template_component_names(&then.nodes, names);
+                }
+                if let Some(catch) = &b.catch {
+                    collect_template_component_names(&catch.nodes, names);
+                }
+            }
+            TemplateNode::KeyBlock(b) => {
+                collect_template_component_names(&b.fragment.nodes, names);
+            }
+            TemplateNode::SnippetBlock(b) => {
+                collect_template_component_names(&b.body.nodes, names);
+            }
+            TemplateNode::SlotElement(s) => {
+                collect_template_component_names(&s.fragment.nodes, names);
+            }
+            TemplateNode::SvelteElement(e) => {
+                collect_template_component_names(&e.fragment.nodes, names);
+            }
+            TemplateNode::SvelteComponent(c) => {
+                collect_template_component_names(&c.fragment.nodes, names);
+            }
+            TemplateNode::SvelteHead(h) => {
+                collect_template_component_names(&h.fragment.nodes, names);
+            }
+            TemplateNode::SvelteBoundary(b) => {
+                collect_template_component_names(&b.fragment.nodes, names);
+            }
+            TemplateNode::SvelteSelf(_) => {
+                // svelte:self doesn't introduce a new name reference
+            }
+            TemplateNode::SvelteFragment(f) => {
+                collect_template_component_names(&f.fragment.nodes, names);
+            }
+            TemplateNode::TitleElement(t) => {
+                collect_template_component_names(&t.fragment.nodes, names);
+            }
+            _ => {}
         }
     }
 }

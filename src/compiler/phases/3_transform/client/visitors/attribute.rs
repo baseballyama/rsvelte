@@ -6,7 +6,7 @@
 use crate::ast::template::{Attribute, AttributeNode};
 use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::events::{
-    build_delegated_event_assignment, build_event,
+    build_delegated_event_assignment, build_event, convert_arrow_to_named_function,
 };
 use crate::compiler::utils::can_delegate_event;
 
@@ -202,6 +202,14 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
 
     let passive = is_passive_event(event_name);
 
+    // In dev mode, convert arrow function handlers to named functions for better stack traces
+    let handler = if context.state.options.dev {
+        let name = context.state.memoizer.generate_id(event_name);
+        convert_arrow_to_named_function(handler, name.into())
+    } else {
+        handler
+    };
+
     let statement = if delegated {
         b::stmt(build_delegated_event_assignment(
             event_name,
@@ -297,11 +305,8 @@ pub fn build_event_handler(
         let binding = context.state.get_binding(name);
 
         if let Some(binding) = &binding {
-            use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-
-            // If it's a function binding, use it as-is
-            if matches!(binding.kind, BindingKind::Normal) {
-                // TODO: Check if binding.is_function() - for now, assume it is
+            // If the binding's initial value is a function, use it as-is
+            if binding.is_function() {
                 return js_expr;
             }
         }
@@ -324,6 +329,8 @@ pub fn build_event_handler(
     // For now, we'll do a simple check
     let has_call = expression_has_call(&expr_tag.expression);
 
+    let mut js_expr = js_expr;
+
     if has_call {
         // Memoize the handler to avoid re-evaluating on each event
         let handler_name = context.state.memoizer.generate_id("event_handler");
@@ -337,36 +344,45 @@ pub fn build_event_handler(
             .init
             .push(b::var_decl(&handler_name, Some(derived_call)));
 
-        // Use $.get(handler_id) to get the current value
-        let get_call = b::call(b::member_path("$.get"), vec![b::id(&handler_name)]);
-
-        // Wrap in a function that applies the handler
-        let apply_call = b::call(
-            b::optional_member(get_call, "apply"),
-            vec![b::this(), b::id("$$args")],
-        );
-
-        return b::function_expr(
-            None,
-            vec![b::rest_pattern(b::id_pattern("$$args"))],
-            vec![b::stmt(apply_call)],
-        );
+        // Use $.get(handler_id) to get the current value - this becomes the new handler
+        js_expr = b::call(b::member_path("$.get"), vec![b::id(&handler_name)]);
     }
 
     // Wrap in a function that applies the expression
     let apply_call = if context.state.dev {
         // In dev mode, use $.apply() for better error messages
-        // TODO: Add source location information
-        b::call(
-            b::member_path("$.apply"),
-            vec![
-                b::arrow(vec![], js_expr),
-                b::this(),
-                b::id("$$args"),
-                b::id(&context.state.analysis.name),
-                b::array(vec![b::number(0.0), b::number(0.0)]), // TODO: Add real line/column
-            ],
-        )
+        // Compute line/column from expression start position
+        let (line, column) = if let Some(start) = expr_tag.expression.start() {
+            locate_in_source(&context.state.analysis.source, start as usize)
+        } else {
+            (0, 0)
+        };
+
+        // Check has_side_effects and remove_parens (matches official events.js lines 142-156)
+        let side_effects = expression_has_side_effects(&expr_tag.expression);
+        let remove_parens = expression_is_removable_call(&expr_tag.expression);
+
+        let mut apply_args = vec![
+            b::arrow(vec![], js_expr),
+            b::this(),
+            b::id("$$args"),
+            b::id(&context.state.analysis.name),
+            b::array(vec![b::number(line as f64), b::number(column as f64)]),
+        ];
+
+        // Only add has_side_effects if true, or if remove_parens needs to be added
+        if side_effects || remove_parens {
+            apply_args.push(if side_effects {
+                b::boolean(true)
+            } else {
+                b::undefined()
+            });
+        }
+        if remove_parens {
+            apply_args.push(b::boolean(true));
+        }
+
+        b::call(b::member_path("$.apply"), apply_args)
     } else {
         b::call(
             b::optional_member(js_expr, "apply"),
@@ -453,6 +469,70 @@ fn json_value_has_call(val: &serde_json::Value) -> bool {
         serde_json::Value::Array(arr) => arr.iter().any(json_value_has_call),
         _ => false,
     }
+}
+
+/// Compute 1-based line and 0-based column from a byte offset in source code.
+/// This matches the behavior of the `locator` function in the official Svelte compiler,
+/// which uses `getLocator(source, { offsetLine: 1 })` from `locate-character`.
+pub fn locate_in_source(source: &str, offset: usize) -> (usize, usize) {
+    let offset = offset.min(source.len());
+    let mut line = 1usize; // 1-based lines (offsetLine: 1)
+    let mut col = 0usize;
+    for (i, ch) in source.char_indices() {
+        if i >= offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            col = 0;
+        } else {
+            col += 1;
+        }
+    }
+    (line, col)
+}
+
+/// Check if an expression has side effects.
+/// Matches `has_side_effects` in events.js.
+fn expression_has_side_effects(expr: &crate::ast::js::Expression) -> bool {
+    let json = expr.as_json();
+    json_has_side_effects(json)
+}
+
+fn json_has_side_effects(value: &serde_json::Value) -> bool {
+    if let Some(node_type) = value.get("type").and_then(|t| t.as_str()) {
+        match node_type {
+            "CallExpression" | "NewExpression" | "AssignmentExpression" | "UpdateExpression" => {
+                return true;
+            }
+            "SequenceExpression" => {
+                if let Some(serde_json::Value::Array(exprs)) = value.get("expressions") {
+                    return exprs.iter().any(json_has_side_effects);
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+/// Check if expression is a call with no arguments to an identifier (for remove_parens).
+/// Matches the `remove_parens` check in events.js.
+fn expression_is_removable_call(expr: &crate::ast::js::Expression) -> bool {
+    let json = expr.as_json();
+    if json.get("type").and_then(|t| t.as_str()) == Some("CallExpression") {
+        let args_empty = json
+            .get("arguments")
+            .and_then(|a| a.as_array())
+            .is_some_and(|a| a.is_empty());
+        let callee_is_identifier = json
+            .get("callee")
+            .and_then(|c| c.get("type"))
+            .and_then(|t| t.as_str())
+            == Some("Identifier");
+        return args_empty && callee_is_identifier;
+    }
+    false
 }
 
 #[cfg(test)]

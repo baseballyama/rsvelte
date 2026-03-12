@@ -72,6 +72,14 @@ pub fn on_directive(node: &OnDirective, context: &mut ComponentContext) -> JsExp
         None
     };
 
+    // In dev mode, convert arrow function handlers to named functions for better stack traces
+    let handler = if context.state.options.dev {
+        let name = context.state.memoizer.generate_id(&node.name);
+        crate::compiler::phases::phase3_transform::client::visitors::shared::events::convert_arrow_to_named_function(handler, name.into())
+    } else {
+        handler
+    };
+
     // Build the $.event() call
     build_event(&node.name, &context.state.node, handler, capture, passive)
 }

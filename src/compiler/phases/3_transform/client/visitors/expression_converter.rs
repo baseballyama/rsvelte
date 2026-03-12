@@ -1507,7 +1507,9 @@ fn convert_identifier(
         .to_string();
 
     // Check if this is a prop that needs special handling
+    // Skip if this name is shadowed by a function parameter
     if context.state.analysis.runes
+        && !context.state.shadowed_prop_names.contains(&name)
         && let Some(binding) = context.state.get_binding(&name)
         && matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp)
     {
@@ -2630,9 +2632,11 @@ fn convert_arrow_function(
     // For example, in `createRawSnippet((count) => { ... })`, the `count` parameter
     // shadows the outer `$state` variable `count`, so `$.get()` should NOT be applied.
     let saved_transform = context.state.transform.clone();
+    let saved_shadowed = context.state.shadowed_prop_names.clone();
     let param_names = extract_param_names_from_json(obj);
     for name in &param_names {
         context.state.transform.remove(name);
+        context.state.shadowed_prop_names.insert(name.clone());
     }
 
     // Push a new local scope frame for the arrow function body.
@@ -2656,8 +2660,9 @@ fn convert_arrow_function(
     // Pop the local scope frame
     context.state.pop_local_scope();
 
-    // Restore transforms
+    // Restore transforms and shadowed props
     context.state.transform = saved_transform;
+    context.state.shadowed_prop_names = saved_shadowed;
 
     JsExpr::Arrow(JsArrowFunction {
         params: params.into(),
@@ -2682,9 +2687,11 @@ fn convert_function_expression(
 
     // Save transforms and remove any for parameter names that shadow outer variables.
     let saved_transform = context.state.transform.clone();
+    let saved_shadowed = context.state.shadowed_prop_names.clone();
     let param_names = extract_param_names_from_json(obj);
     for name in &param_names {
         context.state.transform.remove(name);
+        context.state.shadowed_prop_names.insert(name.clone());
     }
 
     // Push a new local scope frame for the function body
@@ -2699,8 +2706,9 @@ fn convert_function_expression(
     // Pop the local scope frame
     context.state.pop_local_scope();
 
-    // Restore transforms
+    // Restore transforms and shadowed props
     context.state.transform = saved_transform;
+    context.state.shadowed_prop_names = saved_shadowed;
 
     let is_async = obj.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
 
@@ -3267,9 +3275,11 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
 
             // Save transforms and remove any for parameter names that shadow outer variables.
             let saved_transform = context.state.transform.clone();
+            let saved_shadowed = context.state.shadowed_prop_names.clone();
             let param_names = extract_param_names_from_json(obj);
             for name in &param_names {
                 context.state.transform.remove(name);
+                context.state.shadowed_prop_names.insert(name.clone());
             }
 
             // Push a new local scope frame for the function body
@@ -3284,8 +3294,9 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             // Pop the local scope frame
             context.state.pop_local_scope();
 
-            // Restore transforms
+            // Restore transforms and shadowed props
             context.state.transform = saved_transform;
+            context.state.shadowed_prop_names = saved_shadowed;
 
             let is_async = obj.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
             let is_generator = obj
@@ -3414,9 +3425,19 @@ fn convert_assignment_expression(
     // `rows` into `rows()`, making it impossible to identify the root identifier later.
     let original_root_name = obj.get("left").and_then(extract_root_identifier_from_json);
 
+    // Check if this assignment needs ownership mutation validation (dev mode only).
+    // We need to check the ORIGINAL JSON left-hand side because transforms may have
+    // already altered the LHS (e.g., `object.count` -> `object().count`).
+    // Reference: validate_mutation in utils.js
+    let ownership_info = if context.state.dev {
+        check_ownership_validation(obj.get("left"), context)
+    } else {
+        None
+    };
+
     // Try to apply reactive transformations for state variables
     // This corresponds to the build_assignment logic in the official Svelte compiler
-    if let Some(transformed) = try_transform_assignment(
+    let result = if let Some(transformed) = try_transform_assignment(
         operator_str,
         &left,
         &right,
@@ -3424,14 +3445,160 @@ fn convert_assignment_expression(
         original_root_name.as_deref(),
         context,
     ) {
-        return transformed;
+        transformed
+    } else {
+        JsExpr::Assignment(JsAssignmentExpression {
+            operator,
+            left,
+            right,
+        })
+    };
+
+    // Wrap with ownership validation if needed
+    if let Some((prop_alias, path, source_loc)) = ownership_info {
+        use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+        context.state.needs_mutation_validation.set(true);
+        let mut args = vec![b::string(&prop_alias), b::array(path), result];
+        if let Some((line, col)) = source_loc {
+            args.push(b::literal_number(line as f64));
+            args.push(b::literal_number(col as f64));
+        }
+        b::call(b::member_path("$$ownership_validator.mutation"), args)
+    } else {
+        result
+    }
+}
+
+/// Check if an assignment expression's LHS is a member expression targeting a prop,
+/// and if so, return the ownership validation info (prop_alias, path array, optional source location).
+/// This works on the original JSON AST before transforms are applied.
+#[allow(clippy::type_complexity)]
+fn check_ownership_validation(
+    left_json: Option<&Value>,
+    context: &ComponentContext,
+) -> Option<(String, Vec<JsExpr>, Option<(usize, usize)>)> {
+    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+    let left_val = left_json?;
+    let left_obj = left_val.as_object()?;
+
+    // Only validate member expressions
+    if left_obj.get("type")?.as_str()? != "MemberExpression" {
+        return None;
     }
 
-    JsExpr::Assignment(JsAssignmentExpression {
-        operator,
-        left,
-        right,
-    })
+    // Get the root object name
+    let root_name = get_root_identifier_from_member_json(left_val)?;
+
+    // Get the binding for the root object
+    let binding = context.state.get_binding(&root_name)?;
+
+    // Only validate mutations to props
+    if !matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp) {
+        return None;
+    }
+
+    // Build the property path
+    let path = build_member_path_from_json(left_val, context);
+
+    let prop_alias = binding.prop_alias.as_ref().unwrap_or(&binding.name).clone();
+
+    // Get source location from the root identifier's start position
+    let source_loc = get_root_start_position(left_val).and_then(|start| {
+        let source = &context.state.analysis.source;
+        if !source.is_empty() {
+            Some(super::attribute::locate_in_source(source, start as usize))
+        } else {
+            None
+        }
+    });
+
+    Some((prop_alias, path, source_loc))
+}
+
+/// Get the start position of the root identifier in a member expression chain.
+fn get_root_start_position(val: &Value) -> Option<u32> {
+    let obj = val.as_object()?;
+    match obj.get("type")?.as_str()? {
+        "Identifier" => obj.get("start")?.as_u64().map(|n| n as u32),
+        "MemberExpression" => get_root_start_position(obj.get("object")?),
+        _ => None,
+    }
+}
+
+/// Get the root identifier name from a JSON member expression chain.
+fn get_root_identifier_from_member_json(val: &Value) -> Option<String> {
+    let obj = val.as_object()?;
+    match obj.get("type")?.as_str()? {
+        "Identifier" => obj.get("name")?.as_str().map(|s| s.to_string()),
+        "MemberExpression" => get_root_identifier_from_member_json(obj.get("object")?),
+        _ => None,
+    }
+}
+
+/// Build the property path array from a JSON member expression.
+/// Returns [root_name, prop1, prop2, ...] for obj.prop1.prop2.
+fn build_member_path_from_json(val: &Value, context: &ComponentContext) -> Vec<JsExpr> {
+    use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+    let mut path = Vec::new();
+    let mut current = val;
+
+    while let Some(obj) = current.as_object() {
+        match obj.get("type").and_then(|t| t.as_str()) {
+            Some("MemberExpression") => {
+                let property = obj.get("property");
+                let computed = obj
+                    .get("computed")
+                    .and_then(|c| c.as_bool())
+                    .unwrap_or(false);
+
+                if let Some(prop_obj) = property.and_then(|p| p.as_object()) {
+                    let prop_type = prop_obj.get("type").and_then(|t| t.as_str());
+                    if prop_type == Some("Identifier") {
+                        let name = prop_obj.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                        if computed {
+                            // Check if there's a transform for this identifier
+                            if let Some(transform) = context.state.transform.get(name) {
+                                if let Some(read_fn) = transform.read {
+                                    path.push(read_fn(JsExpr::Identifier(name.into())));
+                                } else {
+                                    path.push(b::id(name));
+                                }
+                            } else {
+                                path.push(b::id(name));
+                            }
+                        } else {
+                            path.push(b::string(name));
+                        }
+                    } else if prop_type == Some("Literal") {
+                        // Literal property (e.g., obj[0])
+                        if let Some(val) = prop_obj.get("value") {
+                            if let Some(n) = val.as_f64() {
+                                path.push(b::literal_number(n));
+                            } else if let Some(s) = val.as_str() {
+                                path.push(b::string(s));
+                            }
+                        }
+                    }
+                }
+
+                current = match obj.get("object") {
+                    Some(o) => o,
+                    None => break,
+                };
+            }
+            Some("Identifier") => {
+                let name = obj.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                path.push(b::string(name));
+                break;
+            }
+            _ => break,
+        }
+    }
+
+    path.reverse();
+    path
 }
 
 /// Try to apply reactive transformations to an assignment expression.
@@ -3510,7 +3677,9 @@ fn try_transform_assignment(
             && is_non_coercive_operator(operator)
             && should_proxy_value(right_json, context);
 
-        return Some(assign_fn(b::id(&root_name), value, needs_proxy));
+        let result = assign_fn(b::id(&root_name), value, needs_proxy);
+        let result = apply_store_ref_transform(result, &root_name, context);
+        return Some(result);
     }
 
     // Case: Mutation (root identifier !== left, i.e., member expression assignment)
@@ -3551,7 +3720,9 @@ fn try_transform_assignment(
 
         let mutation_expr = b::assign_op(operator, visited_left, visited_right);
 
-        return Some(mutate_fn(b::id(&root_name), mutation_expr));
+        let result = mutate_fn(b::id(&root_name), mutation_expr);
+        let result = apply_store_ref_transform(result, &root_name, context);
+        return Some(result);
     }
 
     None
@@ -4207,16 +4378,38 @@ fn convert_update_expression(
     // Restore the flag
     context.state.in_direct_assignment_lhs = saved_flag;
 
-    // Try to apply reactive transformations for state variables and store subscriptions
-    if let Some(transformed) = try_transform_update(operator, prefix, &argument, context) {
-        return transformed;
-    }
+    // Check if this update expression needs ownership mutation validation (dev mode only).
+    let ownership_info = if context.state.dev {
+        check_ownership_validation(argument_value, context)
+    } else {
+        None
+    };
 
-    JsExpr::Update(JsUpdateExpression {
-        operator,
-        argument,
-        prefix,
-    })
+    // Try to apply reactive transformations for state variables and store subscriptions
+    let result =
+        if let Some(transformed) = try_transform_update(operator, prefix, &argument, context) {
+            transformed
+        } else {
+            JsExpr::Update(JsUpdateExpression {
+                operator,
+                argument,
+                prefix,
+            })
+        };
+
+    // Wrap with ownership validation if needed
+    if let Some((prop_alias, path, source_loc)) = ownership_info {
+        use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+        context.state.needs_mutation_validation.set(true);
+        let mut args = vec![b::string(&prop_alias), b::array(path), result];
+        if let Some((line, col)) = source_loc {
+            args.push(b::literal_number(line as f64));
+            args.push(b::literal_number(col as f64));
+        }
+        b::call(b::member_path("$$ownership_validator.mutation"), args)
+    } else {
+        result
+    }
 }
 
 /// Extract an identifier name from a JSON AST node if it's a simple Identifier.
@@ -4260,7 +4453,11 @@ fn try_transform_update(
         && name == root_name
         && let Some(update_fn) = transform.update
     {
-        return Some(update_fn(operator, argument.clone(), prefix));
+        let result = update_fn(operator, argument.clone(), prefix);
+        // For store subscriptions, apply the underlying store's read transform
+        // to replace bare `store` with `$$props.store` for non-source props.
+        let result = apply_store_ref_transform(result, name, context);
+        return Some(result);
     }
 
     // Case 2: Member expression update (like `$store.prop++` or `$store[0].value++`)
@@ -4268,20 +4465,75 @@ fn try_transform_update(
     // Skip for reactive imports (where replacement_id is set) because
     // apply_transforms_to_expression will handle the mutation wrapping with
     // properly read-transformed arguments.
+    // Case 2: Member expression update (like `$store.prop++` or `$store[0].value++`)
+    // Only apply store-related mutate transforms here.
+    // For prop transforms, the mutate will be applied by apply_transforms_to_expression
+    // to avoid double-wrapping issues.
     if let Some(mutate_fn) = transform.mutate
         && transform.replacement_id.is_none()
     {
-        // Build the update expression as the mutation
-        let update_expr = JsExpr::Update(JsUpdateExpression {
-            operator,
-            argument: Box::new(argument.clone()),
-            prefix,
+        // Check if this is a prop/bindable_prop - skip those, let apply_transforms handle
+        let binding = context.state.get_binding(&root_name);
+        let is_prop = binding.is_some_and(|b| {
+            matches!(
+                b.kind,
+                crate::compiler::phases::phase2_analyze::scope::BindingKind::Prop
+                    | crate::compiler::phases::phase2_analyze::scope::BindingKind::BindableProp
+            )
         });
 
-        return Some(mutate_fn(b::id(&root_name), update_expr));
+        if !is_prop {
+            // Build the update expression as the mutation
+            let update_expr = JsExpr::Update(JsUpdateExpression {
+                operator,
+                argument: Box::new(argument.clone()),
+                prefix,
+            });
+
+            let result = mutate_fn(b::id(&root_name), update_expr);
+            let result = apply_store_ref_transform(result, &root_name, context);
+            return Some(result);
+        }
     }
 
     None
+}
+
+/// For store subscription transforms (assign/mutate/update), the transform functions
+/// produce calls like `$.store_set(store, ...)` or `$.store_mutate(store, ...)`
+/// where `store` is a bare identifier. If the underlying store variable has a read
+/// transform (e.g., non-source props → `$$props.store`), we need to replace the bare
+/// identifier with the transformed reference.
+///
+/// This function replaces the first argument of a Call expression if it matches
+/// the store name as a bare identifier.
+fn apply_store_ref_transform(
+    mut result: JsExpr,
+    store_sub_name: &str,
+    context: &ComponentContext,
+) -> JsExpr {
+    if !store_sub_name.starts_with('$') {
+        return result;
+    }
+    let store_name = &store_sub_name[1..];
+
+    if let Some(store_transform) = context.state.transform.get(store_name)
+        && let Some(read_fn) = store_transform.read
+    {
+        let transformed_ref = read_fn(JsExpr::Identifier(store_name.into()));
+        // Only apply for member expressions (non-source props → $$props.X).
+        // Call-based transforms (source props → X()) are already handled by
+        // apply_transforms_to_expression, so we skip those to avoid double transformation.
+        if matches!(&transformed_ref, JsExpr::Member(_))
+            && let JsExpr::Call(ref mut call) = result
+            && let Some(first_arg) = call.arguments.first_mut()
+            && matches!(first_arg, JsExpr::Identifier(n) if n.as_str() == store_name)
+        {
+            *first_arg = transformed_ref;
+        }
+    }
+
+    result
 }
 
 /// Convert a SequenceExpression node.

@@ -119,10 +119,31 @@ pub fn transform_template<'a>(
         call = b::call(b::member(b::id("$"), "with_script"), vec![call]);
     }
 
-    if state.options.dev
-        && let Some(loc) = locator
-    {
-        let locations = build_locations(&state.template.nodes, loc);
+    if state.options.dev {
+        // Create a locator from the source if one wasn't provided
+        let auto_locator: Locator;
+        let loc_ref: &Locator = if let Some(loc) = locator {
+            loc
+        } else {
+            let source = state.analysis.source.clone();
+            auto_locator = Box::new(move |offset: u32| {
+                let offset = offset as usize;
+                let bytes = source.as_bytes();
+                let mut line = 1usize;
+                let mut col = 0usize;
+                for &byte in bytes.iter().take(offset.min(bytes.len())) {
+                    if byte == b'\n' {
+                        line += 1;
+                        col = 0;
+                    } else {
+                        col += 1;
+                    }
+                }
+                Location { line, column: col }
+            });
+            &auto_locator
+        };
+        let locations = build_locations(&state.template.nodes, loc_ref);
         call = b::call(
             b::member(b::id("$"), "add_locations"),
             vec![

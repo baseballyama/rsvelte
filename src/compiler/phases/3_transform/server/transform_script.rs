@@ -11,27 +11,57 @@ use super::transform_store::{
 };
 
 /// Transform script content for server-side rendering.
+#[allow(dead_code)]
 pub(crate) fn transform_script_content(script: &str) -> String {
-    transform_script_content_inner(script, false, &[])
+    transform_script_content_inner(script, false, &[], &std::collections::HashSet::new())
 }
 
 /// Transform script content with additional bindable prop names from `export { x }` patterns.
+#[allow(dead_code)]
 pub(crate) fn transform_script_content_with_props(
     script: &str,
     reexported_props: &[(String, String)],
 ) -> String {
-    transform_script_content_inner(script, false, reexported_props)
+    transform_script_content_inner(
+        script,
+        false,
+        reexported_props,
+        &std::collections::HashSet::new(),
+    )
 }
 
 pub(crate) fn transform_script_content_module(script: &str) -> String {
-    transform_script_content_inner(script, true, &[])
+    transform_script_content_inner(script, true, &[], &std::collections::HashSet::new())
+}
+
+/// Transform script content for server-side rendering, with pre-extracted imported names.
+pub(crate) fn transform_script_content_with_imports(
+    script: &str,
+    imported_names: &std::collections::HashSet<String>,
+) -> String {
+    transform_script_content_inner(script, false, &[], imported_names)
+}
+
+/// Transform script content with additional bindable prop names and pre-extracted imported names.
+pub(crate) fn transform_script_content_with_props_and_imports(
+    script: &str,
+    reexported_props: &[(String, String)],
+    imported_names: &std::collections::HashSet<String>,
+) -> String {
+    transform_script_content_inner(script, false, reexported_props, imported_names)
 }
 
 fn transform_script_content_inner(
     script: &str,
     is_module: bool,
     reexported_props: &[(String, String)],
+    imported_names: &std::collections::HashSet<String>,
 ) -> String {
+    // Check if rune base names are imported (making $state/$derived store subscriptions, not runes).
+    // If `state` is imported, `$state(0)` is a store subscription call, not a rune call.
+    let state_imported = imported_names.contains("state");
+    let derived_imported = imported_names.contains("derived");
+
     // Split comma-separated variable declarations into individual statements BEFORE
     // rune transforms. This ensures that `const a = 1, b = 2, c = 3;` is split into
     // individual statements, but rune-generated comma patterns (e.g., from
@@ -44,12 +74,36 @@ fn transform_script_content_inner(
     let script = script.replace("$effect.tracking()", "false");
     let script = script.replace("$props.id()", "$.props_id($$renderer)");
     let script = transform_state_snapshot_server(&script);
-    let script = transform_object_destructure_state(&script);
-    let script = transform_rune_call_multiline(&script, "$state.raw(");
-    let script = transform_array_destructure_state(&script);
-    let script = transform_rune_call_multiline(&script, "$state(");
-    let script = transform_rune_call_multiline(&script, "$derived.by(");
-    let script = transform_rune_call_multiline(&script, "$derived(");
+    let script = if !state_imported {
+        transform_object_destructure_state(&script)
+    } else {
+        script
+    };
+    let script = if !state_imported {
+        transform_rune_call_multiline(&script, "$state.raw(")
+    } else {
+        script
+    };
+    let script = if !state_imported {
+        transform_array_destructure_state(&script)
+    } else {
+        script
+    };
+    let script = if !state_imported {
+        transform_rune_call_multiline(&script, "$state(")
+    } else {
+        script
+    };
+    let script = if !derived_imported {
+        transform_rune_call_multiline(&script, "$derived.by(")
+    } else {
+        script
+    };
+    let script = if !derived_imported {
+        transform_rune_call_multiline(&script, "$derived(")
+    } else {
+        script
+    };
     let script = transform_rune_call_multiline(&script, "$bindable(");
     let script = transform_store_destructure_assignments(&script);
     let script = transform_store_assignments(&script);
@@ -903,6 +957,11 @@ pub(crate) fn flatten_store_get_destructures(script: &str) -> String {
 }
 
 fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
+    // First, find function scopes where the rune name is shadowed by a parameter.
+    // E.g., `function bar($derived, $effect) { ... }` shadows `$derived` inside bar.
+    let rune_name = &prefix[..prefix.len() - 1]; // e.g., "$derived(" -> "$derived"
+    let shadow_ranges = find_rune_shadow_ranges(script, rune_name);
+
     let mut result = String::new();
     let chars: Vec<char> = script.chars().collect();
     let prefix_chars: Vec<char> = prefix.chars().collect();
@@ -915,6 +974,18 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
         if i + prefix_len <= chars.len() {
             let potential: String = chars[i..i + prefix_len].iter().collect();
             if potential == prefix {
+                // Check if this occurrence is inside a shadowed scope
+                let is_shadowed = shadow_ranges
+                    .iter()
+                    .any(|&(start, end)| i >= start && i < end);
+
+                if is_shadowed {
+                    // Don't transform - keep the original text
+                    result.push_str(&potential);
+                    i += prefix_len;
+                    continue;
+                }
+
                 let mut depth = 1;
                 let start = i + prefix_len;
                 let mut end = start;
@@ -968,6 +1039,226 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
     }
 
     result
+}
+
+/// Find byte ranges in the script where a rune name (e.g., `$derived`) is shadowed
+/// by a function parameter. Returns a list of (start, end) char index ranges.
+fn find_rune_shadow_ranges(script: &str, rune_name: &str) -> Vec<(usize, usize)> {
+    let mut ranges = Vec::new();
+    let chars: Vec<char> = script.chars().collect();
+    let len = chars.len();
+    let fn_keyword = "function";
+    let fn_len = fn_keyword.len();
+    let arrow_params_pattern = rune_name;
+
+    let mut i = 0;
+    while i < len {
+        // Skip strings
+        if chars[i] == '"' || chars[i] == '\'' || chars[i] == '`' {
+            let quote = chars[i];
+            i += 1;
+            while i < len && !(chars[i] == quote && (i == 0 || chars[i - 1] != '\\')) {
+                i += 1;
+            }
+            if i < len {
+                i += 1;
+            }
+            continue;
+        }
+
+        // Check for `function` keyword
+        if i + fn_len <= len {
+            let word: String = chars[i..i + fn_len].iter().collect();
+            if word == fn_keyword {
+                // Make sure it's not part of a larger identifier
+                let before_ok = i == 0
+                    || !chars[i - 1].is_alphanumeric()
+                        && chars[i - 1] != '_'
+                        && chars[i - 1] != '$';
+                let after_ok = i + fn_len >= len
+                    || !chars[i + fn_len].is_alphanumeric()
+                        && chars[i + fn_len] != '_'
+                        && chars[i + fn_len] != '$';
+                if before_ok && after_ok {
+                    // Find the opening parenthesis for parameters
+                    let mut j = i + fn_len;
+                    // Skip optional function name
+                    while j < len && chars[j].is_whitespace() {
+                        j += 1;
+                    }
+                    // Skip function name if present (could be identifier or *)
+                    if j < len
+                        && (chars[j].is_alphanumeric()
+                            || chars[j] == '_'
+                            || chars[j] == '$'
+                            || chars[j] == '*')
+                    {
+                        while j < len && chars[j] != '(' {
+                            j += 1;
+                        }
+                    }
+                    if j < len && chars[j] == '(' {
+                        // Extract parameter list
+                        let param_start = j + 1;
+                        let mut depth = 1;
+                        let mut param_end = param_start;
+                        while param_end < len && depth > 0 {
+                            match chars[param_end] {
+                                '(' => depth += 1,
+                                ')' => depth -= 1,
+                                _ => {}
+                            }
+                            if depth > 0 {
+                                param_end += 1;
+                            }
+                        }
+                        let params: String = chars[param_start..param_end].iter().collect();
+                        // Check if any parameter matches the rune name
+                        if params_contain_name(&params, arrow_params_pattern) {
+                            // Find the function body (opening brace)
+                            let mut k = param_end + 1;
+                            while k < len && chars[k].is_whitespace() {
+                                k += 1;
+                            }
+                            if k < len && chars[k] == '{' {
+                                // Find matching closing brace
+                                let body_start = k;
+                                let mut brace_depth = 1;
+                                let mut body_end = k + 1;
+                                let mut in_str = false;
+                                let mut str_char = ' ';
+                                while body_end < len && brace_depth > 0 {
+                                    let c = chars[body_end];
+                                    if (c == '"' || c == '\'' || c == '`')
+                                        && (body_end == 0 || chars[body_end - 1] != '\\')
+                                    {
+                                        if !in_str {
+                                            in_str = true;
+                                            str_char = c;
+                                        } else if c == str_char {
+                                            in_str = false;
+                                        }
+                                    }
+                                    if !in_str {
+                                        match c {
+                                            '{' => brace_depth += 1,
+                                            '}' => brace_depth -= 1,
+                                            _ => {}
+                                        }
+                                    }
+                                    body_end += 1;
+                                }
+                                ranges.push((body_start, body_end));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Also check for arrow functions: (params) => { ... }  or ($derived) => expr
+        // Pattern: ( ... rune_name ... ) =>
+        if chars[i] == '(' {
+            let paren_start = i + 1;
+            let mut depth = 1;
+            let mut paren_end = paren_start;
+            let mut in_str = false;
+            let mut str_char = ' ';
+            while paren_end < len && depth > 0 {
+                let c = chars[paren_end];
+                if (c == '"' || c == '\'' || c == '`')
+                    && (paren_end == 0 || chars[paren_end - 1] != '\\')
+                {
+                    if !in_str {
+                        in_str = true;
+                        str_char = c;
+                    } else if c == str_char {
+                        in_str = false;
+                    }
+                }
+                if !in_str {
+                    match c {
+                        '(' => depth += 1,
+                        ')' => depth -= 1,
+                        _ => {}
+                    }
+                }
+                if depth > 0 {
+                    paren_end += 1;
+                }
+            }
+            let params: String = chars[paren_start..paren_end].iter().collect();
+            if params_contain_name(&params, arrow_params_pattern) {
+                // Check if followed by =>
+                let mut k = paren_end + 1;
+                while k < len && chars[k].is_whitespace() {
+                    k += 1;
+                }
+                if k + 1 < len && chars[k] == '=' && chars[k + 1] == '>' {
+                    // Arrow function - find body
+                    let mut body_k = k + 2;
+                    while body_k < len && chars[body_k].is_whitespace() {
+                        body_k += 1;
+                    }
+                    if body_k < len && chars[body_k] == '{' {
+                        let body_start = body_k;
+                        let mut brace_depth = 1;
+                        let mut body_end = body_k + 1;
+                        let mut in_str2 = false;
+                        let mut str_char2 = ' ';
+                        while body_end < len && brace_depth > 0 {
+                            let c = chars[body_end];
+                            if (c == '"' || c == '\'' || c == '`')
+                                && (body_end == 0 || chars[body_end - 1] != '\\')
+                            {
+                                if !in_str2 {
+                                    in_str2 = true;
+                                    str_char2 = c;
+                                } else if c == str_char2 {
+                                    in_str2 = false;
+                                }
+                            }
+                            if !in_str2 {
+                                match c {
+                                    '{' => brace_depth += 1,
+                                    '}' => brace_depth -= 1,
+                                    _ => {}
+                                }
+                            }
+                            body_end += 1;
+                        }
+                        ranges.push((body_start, body_end));
+                    }
+                }
+            }
+        }
+
+        i += 1;
+    }
+
+    ranges
+}
+
+/// Check if a parameter list string contains a specific name as a standalone parameter.
+fn params_contain_name(params: &str, name: &str) -> bool {
+    // Split by comma and check each parameter
+    for param in params.split(',') {
+        let trimmed = param.trim();
+        // Handle destructuring, defaults, rest params
+        let ident = trimmed
+            .trim_start_matches("...")
+            .split('=')
+            .next()
+            .unwrap_or("")
+            .split(':')
+            .next()
+            .unwrap_or("")
+            .trim();
+        if ident == name {
+            return true;
+        }
+    }
+    false
 }
 
 fn add_statement_semicolon(line: &str) -> String {
@@ -1710,6 +2001,11 @@ fn find_matching_paren_server(s: &str) -> Option<usize> {
 /// When `use_async` is true, $effect/$effect.pre are replaced with `/* $$async_noop */`
 /// markers so the async body transform generates placeholder slots in the run array.
 pub(crate) fn remove_effect_blocks(script: &str, use_async: bool) -> String {
+    // Check if `effect` is imported - if so, `$effect(` is a store subscription, not a rune
+    let imported_names =
+        crate::compiler::phases::phase2_analyze::types::extract_imported_names(script);
+    let effect_imported = imported_names.contains("effect");
+
     let mut result = script.to_string();
 
     // Effect runes that need noop markers in async mode
@@ -1718,6 +2014,11 @@ pub(crate) fn remove_effect_blocks(script: &str, use_async: bool) -> String {
     let inspect_runes = ["$inspect.trace(", "$inspect("];
 
     for rune in effect_runes {
+        // Skip $effect( removal if `effect` is imported (it's a store subscription)
+        // But still process $effect.root( and $effect.pre( as they can't be store subscriptions
+        if effect_imported && rune == "$effect(" {
+            continue;
+        }
         if use_async && rune != "$effect.root(" {
             result = remove_rune_statement_with_noop(&result, rune);
         } else {
@@ -2013,6 +2314,28 @@ fn transform_reexported_prop_declarations(
         if trimmed.starts_with("let ") || trimmed.starts_with("var ") {
             let rest = &trimmed[4..]; // skip "let " or "var "
             let rest_trimmed = rest.trim().trim_end_matches(';').trim();
+
+            // Check for destructured pattern: `let { a, b, c } = expr`
+            if rest_trimmed.starts_with('{') || rest_trimmed.starts_with('[') {
+                // Check if any extracted name is a reexported prop
+                let names = extract_destructured_names_simple(rest_trimmed);
+                let has_reexported = names
+                    .iter()
+                    .any(|name| reexported_props.iter().any(|(local, _)| local == name));
+
+                if has_reexported
+                    && let Some(flattened) =
+                        flatten_destructured_let_ssr(rest_trimmed, reexported_props)
+                {
+                    let indent = &line[..line.len() - trimmed.len()];
+                    for decl_line in flattened.lines() {
+                        result.push_str(indent);
+                        result.push_str(decl_line);
+                        result.push('\n');
+                    }
+                    continue;
+                }
+            }
 
             // Simple case: `let x = value` or `let x`
             if let Some(eq_pos) = find_simple_assignment(rest_trimmed) {
@@ -2389,4 +2712,262 @@ fn split_top_level_commas(s: &str) -> Vec<&str> {
     }
     parts.push(&s[start..]);
     parts
+}
+
+/// Extract simple identifier names from a destructuring pattern (for checking if reexported)
+fn extract_destructured_names_simple(pattern: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    let pattern = pattern.trim();
+
+    // Remove outer braces/brackets
+    let inner = if (pattern.starts_with('{') && pattern.ends_with('}'))
+        || (pattern.starts_with('[') && pattern.ends_with(']'))
+    {
+        // Find the = RHS part and exclude it
+        if let Some(end) = find_pattern_end_simple(pattern) {
+            &pattern[1..end - 1]
+        } else {
+            &pattern[1..pattern.len() - 1]
+        }
+    } else {
+        return names;
+    };
+
+    // Split by commas respecting nesting
+    let parts = split_by_comma_respecting_nesting(inner);
+    for part in parts {
+        let part = part.trim();
+        if part.is_empty() || part.starts_with("...") {
+            continue;
+        }
+        // Check for key: value pattern
+        if let Some(colon_pos) = find_colon_at_depth_0(part) {
+            let value = part[colon_pos + 1..].trim();
+            if value.starts_with('{') || value.starts_with('[') {
+                // Nested destructuring - recurse
+                let mut nested = extract_destructured_names_simple(value);
+                names.append(&mut nested);
+            } else {
+                // Simple rename: key: name or key: name = default
+                let name = if let Some(eq_pos) = value.find('=') {
+                    let before_eq = value[..eq_pos].trim();
+                    if !before_eq.contains('=') {
+                        before_eq
+                    } else {
+                        value
+                    }
+                } else {
+                    value
+                };
+                if is_simple_identifier_name(name) {
+                    names.push(name.to_string());
+                }
+            }
+        } else {
+            // Simple name or name = default
+            let name = if let Some(eq_pos) = part.find('=') {
+                let before_eq = part[..eq_pos].trim();
+                if !before_eq.contains('=') {
+                    before_eq
+                } else {
+                    part
+                }
+            } else {
+                part
+            };
+            if is_simple_identifier_name(name) {
+                names.push(name.to_string());
+            }
+        }
+    }
+    names
+}
+
+fn find_pattern_end_simple(s: &str) -> Option<usize> {
+    let chars: Vec<char> = s.chars().collect();
+    let mut depth = 0;
+    for (i, &ch) in chars.iter().enumerate() {
+        match ch {
+            '{' | '[' => depth += 1,
+            '}' | ']' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i + 1);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn find_colon_at_depth_0(s: &str) -> Option<usize> {
+    let chars: Vec<char> = s.chars().collect();
+    let mut depth = 0;
+    for (i, &ch) in chars.iter().enumerate() {
+        match ch {
+            '{' | '[' | '(' => depth += 1,
+            '}' | ']' | ')' => depth -= 1,
+            ':' if depth == 0 => return Some(i),
+            _ => {}
+        }
+    }
+    None
+}
+
+fn is_simple_identifier_name(s: &str) -> bool {
+    let s = s.trim();
+    !s.is_empty()
+        && s.chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+        && !s.chars().next().unwrap().is_numeric()
+}
+
+fn split_by_comma_respecting_nesting(s: &str) -> Vec<&str> {
+    let chars: Vec<char> = s.chars().collect();
+    let mut result = Vec::new();
+    let mut depth = 0;
+    let mut start = 0;
+    for (i, &ch) in chars.iter().enumerate() {
+        match ch {
+            '{' | '[' | '(' => depth += 1,
+            '}' | ']' | ')' => depth -= 1,
+            ',' if depth == 0 => {
+                result.push(&s[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    result.push(&s[start..]);
+    result
+}
+
+/// Flatten a destructured `let { ... } = expr` for SSR where some bindings are re-exported.
+fn flatten_destructured_let_ssr(
+    declaration: &str,
+    reexported_props: &[(String, String)],
+) -> Option<String> {
+    let trimmed = declaration.trim();
+    let pattern_end = find_pattern_end_simple(trimmed)?;
+    let pattern = &trimmed[..pattern_end];
+    let rhs_part = trimmed[pattern_end..].trim();
+    let rhs = rhs_part
+        .strip_prefix('=')?
+        .trim()
+        .trim_end_matches(';')
+        .trim();
+
+    let mut declarations = Vec::new();
+    declarations.push(format!("let tmp = {};", rhs));
+
+    flatten_destructured_let_ssr_inner(pattern, "tmp", reexported_props, &mut declarations)?;
+
+    Some(declarations.join("\n"))
+}
+
+fn flatten_destructured_let_ssr_inner(
+    pattern: &str,
+    base_path: &str,
+    reexported_props: &[(String, String)],
+    declarations: &mut Vec<String>,
+) -> Option<()> {
+    let pattern = pattern.trim();
+
+    if pattern.starts_with('{') && pattern.ends_with('}') {
+        let inner = &pattern[1..pattern.len() - 1];
+        let properties = split_by_comma_respecting_nesting(inner);
+
+        for prop in properties {
+            let prop = prop.trim();
+            if prop.is_empty() {
+                continue;
+            }
+
+            if let Some(colon_pos) = find_colon_at_depth_0(prop) {
+                let key = prop[..colon_pos].trim();
+                let value_pattern = prop[colon_pos + 1..].trim();
+                let new_path = format!("{}.{}", base_path, key);
+
+                if value_pattern.starts_with('{') || value_pattern.starts_with('[') {
+                    flatten_destructured_let_ssr_inner(
+                        value_pattern,
+                        &new_path,
+                        reexported_props,
+                        declarations,
+                    )?;
+                } else {
+                    let (binding_name, default_value) = split_name_default(value_pattern);
+                    let is_reexported = reexported_props
+                        .iter()
+                        .find(|(local, _)| local == binding_name);
+
+                    if let Some((_, prop_name)) = is_reexported {
+                        if let Some(default_val) = default_value {
+                            declarations.push(format!(
+                                "let {} = $.fallback($$props['{}'], () => $.fallback({}, {}), true);",
+                                binding_name, prop_name, new_path, default_val
+                            ));
+                        } else {
+                            declarations.push(format!(
+                                "let {} = $.fallback($$props['{}'], () => {}, true);",
+                                binding_name, prop_name, new_path
+                            ));
+                        }
+                    } else if let Some(default_val) = default_value {
+                        declarations.push(format!(
+                            "let {} = {} ?? {};",
+                            binding_name, new_path, default_val
+                        ));
+                    } else {
+                        declarations.push(format!("let {} = {};", binding_name, new_path));
+                    }
+                }
+            } else {
+                let (binding_name, default_value) = split_name_default(prop);
+                let new_path = format!("{}.{}", base_path, binding_name);
+                let is_reexported = reexported_props
+                    .iter()
+                    .find(|(local, _)| local == binding_name);
+
+                if let Some((_, prop_name)) = is_reexported {
+                    if let Some(default_val) = default_value {
+                        declarations.push(format!(
+                            "let {} = $.fallback($$props['{}'], () => $.fallback({}, {}), true);",
+                            binding_name, prop_name, new_path, default_val
+                        ));
+                    } else {
+                        declarations.push(format!(
+                            "let {} = $.fallback($$props['{}'], () => {}, true);",
+                            binding_name, prop_name, new_path
+                        ));
+                    }
+                } else if let Some(default_val) = default_value {
+                    declarations.push(format!(
+                        "let {} = {} ?? {};",
+                        binding_name, new_path, default_val
+                    ));
+                } else {
+                    declarations.push(format!("let {} = {};", binding_name, new_path));
+                }
+            }
+        }
+    } else {
+        return None;
+    }
+
+    Some(())
+}
+
+fn split_name_default(s: &str) -> (&str, Option<&str>) {
+    let s = s.trim();
+    if let Some(eq_pos) = s.find('=') {
+        let after = s.get(eq_pos + 1..eq_pos + 2).unwrap_or("");
+        if after == "=" || after == ">" {
+            return (s, None);
+        }
+        (s[..eq_pos].trim(), Some(s[eq_pos + 1..].trim()))
+    } else {
+        (s, None)
+    }
 }

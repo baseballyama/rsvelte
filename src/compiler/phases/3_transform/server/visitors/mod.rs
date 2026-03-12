@@ -74,6 +74,15 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 Ok(())
             }
+            TemplateNode::Comment(comment) => {
+                // Output HTML comments when preserve_comments is enabled
+                if self.preserve_comments {
+                    let data = &comment.data;
+                    self.output_parts
+                        .push(super::OutputPart::Html(format!("<!--{}-->", data)));
+                }
+                Ok(())
+            }
             _ => Ok(()),
         }
     }

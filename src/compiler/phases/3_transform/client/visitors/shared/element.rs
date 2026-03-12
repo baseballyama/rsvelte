@@ -1184,6 +1184,7 @@ fn get_directive_expression(directive: &StyleDirective) -> crate::ast::js::Expre
 /// var event_handler = () => $.set(changed, 'a');
 /// $.attribute_effect(div, ($0) => ({ ...$0, ona: event_handler }), [() => get_rest()]);
 /// ```
+#[allow(clippy::too_many_arguments)]
 pub fn build_attribute_effect(
     attributes: &[&crate::ast::template::Attribute],
     class_directives: &[&ClassDirective],
@@ -1192,6 +1193,7 @@ pub fn build_attribute_effect(
     element_id: JsExpr,
     css_hash: &str,
     should_remove_defaults: bool,
+    ignore_hydration: bool,
 ) {
     use crate::ast::template::Attribute;
     use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
@@ -1336,29 +1338,47 @@ pub fn build_attribute_effect(
     let has_async = async_values.is_some();
     let has_blockers = blockers.is_some();
 
-    if has_memoized || has_async || has_blockers || !css_hash.is_empty() || should_remove_defaults {
+    if has_memoized
+        || has_async
+        || has_blockers
+        || !css_hash.is_empty()
+        || should_remove_defaults
+        || ignore_hydration
+    {
         // Add sync_values (or undefined if none)
         args.push(sync_values.unwrap_or_else(b::undefined));
 
         // Add async_values if present
-        if has_async || has_blockers || !css_hash.is_empty() || should_remove_defaults {
+        if has_async
+            || has_blockers
+            || !css_hash.is_empty()
+            || should_remove_defaults
+            || ignore_hydration
+        {
             args.push(async_values.unwrap_or_else(b::undefined));
         }
 
         // Add blockers if present
-        if has_blockers || !css_hash.is_empty() || should_remove_defaults {
+        if has_blockers || !css_hash.is_empty() || should_remove_defaults || ignore_hydration {
             args.push(blockers.unwrap_or_else(b::undefined));
         }
 
-        // Add CSS hash if present, or undefined if we need should_remove_defaults
+        // Add CSS hash if present, or undefined if we need should_remove_defaults or ignore_hydration
         if !css_hash.is_empty() {
             args.push(b::string(css_hash));
-        } else if should_remove_defaults {
+        } else if should_remove_defaults || ignore_hydration {
             args.push(b::undefined());
         }
 
-        // Add should_remove_defaults if true
+        // Add should_remove_defaults if true, or undefined if ignore_hydration needs to be added
         if should_remove_defaults {
+            args.push(b::boolean(true));
+        } else if ignore_hydration {
+            args.push(b::undefined());
+        }
+
+        // Add ignore_hydration if true
+        if ignore_hydration {
             args.push(b::boolean(true));
         }
     }

@@ -1037,8 +1037,8 @@ pub fn visit(
                 }
             }
             Attribute::AttachTag(_) => {
-                // Re-borrow the attach tag for the visit call
-                if let Attribute::AttachTag(attach) = &element.attributes[i] {
+                // Re-borrow the attach tag mutably for the visit call
+                if let Attribute::AttachTag(attach) = &mut element.attributes[i] {
                     super::attach_tag::visit(attach, context)?;
                 }
             }

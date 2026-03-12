@@ -514,26 +514,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     let each_statement = add_svelte_meta(each_call);
 
     // Build statements to add to init
-    let mut statements = vec![each_statement];
-
-    // Add dev validation for keyed each blocks
-    if context.state.dev && node.metadata.keyed {
-        let validate_call = b::call(
-            b::member_path("$.validate_each_keys"),
-            vec![
-                if is_async {
-                    b::thunk(b::call(
-                        b::member_path("$.get"),
-                        vec![b::id("$$collection")],
-                    ))
-                } else {
-                    get_collection.clone()
-                },
-                build_key_function(node, context, key_uses_index, &index),
-            ],
-        );
-        statements.insert(0, b::stmt(validate_call));
-    }
+    let statements = vec![each_statement];
 
     // Handle async wrapping
     // Reference: official EachBlock.js lines 337-354

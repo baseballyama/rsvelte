@@ -181,6 +181,14 @@ pub(crate) fn transform_export_let_declarations(script: &str) -> String {
 fn transform_single_export_let(declaration: &str) -> String {
     let mut result = String::new();
 
+    // Check if this is a destructured export let pattern
+    let trimmed = declaration.trim();
+    if (trimmed.starts_with('{') || trimmed.starts_with('['))
+        && let Some(flattened) = transform_destructured_export_let_ssr(trimmed)
+    {
+        return flattened;
+    }
+
     let declarators = split_declarators(declaration);
 
     for declarator in declarators {
@@ -1659,4 +1667,287 @@ fn sort_reactive_statements_topologically(stmts: Vec<Vec<&str>>) -> Vec<Vec<&str
         .into_iter()
         .map(|i| stmts[i].clone())
         .collect()
+}
+
+/// Transform destructured `export let { ... } = expr` into flattened
+/// `$.fallback()` calls for SSR.
+///
+/// Example:
+///   `{ a, b: { c }, e: [e_one], g = default_g } = THING`
+/// becomes:
+///   `let tmp = THING,
+///       $$array = $.to_array(tmp.e, 1),
+///       a = $.fallback($$props['a'], () => tmp.a, true),
+///       c = $.fallback($$props['c'], () => tmp.b.c, true),
+///       e_one = $.fallback($$props['e_one'], () => $$array[0], true),
+///       g = $.fallback($$props['g'], () => $.fallback(tmp.g, default_g), true);`
+fn transform_destructured_export_let_ssr(declaration: &str) -> Option<String> {
+    let trimmed = declaration.trim();
+
+    // Find the `= RHS` assignment
+    let pattern_end = find_destructuring_pattern_end_ssr(trimmed)?;
+    let pattern = trimmed[..pattern_end].trim();
+    let rhs_part = trimmed[pattern_end..].trim();
+    let rhs = rhs_part.strip_prefix('=')?.trim();
+    let rhs = rhs.trim_end_matches(';').trim();
+
+    let mut declarations = Vec::new();
+    let mut array_counter = 0;
+
+    declarations.push(format!("tmp = {}", rhs));
+
+    extract_destructured_export_paths_ssr(pattern, "tmp", &mut declarations, &mut array_counter)?;
+
+    Some(format!("let {};", declarations.join(",\n\t")))
+}
+
+fn find_destructuring_pattern_end_ssr(s: &str) -> Option<usize> {
+    let chars: Vec<char> = s.chars().collect();
+    let first = chars.first()?;
+    if *first != '{' && *first != '[' {
+        return None;
+    }
+
+    let mut depth = 0;
+    let mut i = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    while i < chars.len() {
+        if in_string {
+            if chars[i] == '\\' {
+                i += 2;
+                continue;
+            }
+            if chars[i] == string_char {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        if chars[i] == '\'' || chars[i] == '"' || chars[i] == '`' {
+            in_string = true;
+            string_char = chars[i];
+            i += 1;
+            continue;
+        }
+
+        if chars[i] == '{' || chars[i] == '[' {
+            depth += 1;
+        } else if chars[i] == '}' || chars[i] == ']' {
+            depth -= 1;
+            if depth == 0 {
+                return Some(i + 1);
+            }
+        }
+
+        i += 1;
+    }
+    None
+}
+
+fn extract_destructured_export_paths_ssr(
+    pattern: &str,
+    base_path: &str,
+    declarations: &mut Vec<String>,
+    array_counter: &mut usize,
+) -> Option<()> {
+    let pattern = pattern.trim();
+
+    if pattern.starts_with('{') && pattern.ends_with('}') {
+        let inner = &pattern[1..pattern.len() - 1];
+        let properties = split_destructuring_properties_ssr(inner);
+
+        for prop in properties {
+            let prop = prop.trim();
+            if prop.is_empty() {
+                continue;
+            }
+
+            if prop.starts_with("...") {
+                // Rest element - skip for now
+                continue;
+            }
+
+            if let Some((key, value_pattern)) = split_property_key_value_ssr(prop) {
+                let new_path = format!("{}.{}", base_path, key);
+
+                if value_pattern.starts_with('{') || value_pattern.starts_with('[') {
+                    extract_destructured_export_paths_ssr(
+                        value_pattern,
+                        &new_path,
+                        declarations,
+                        array_counter,
+                    )?;
+                } else {
+                    let (binding_name, default_value) =
+                        split_binding_name_default_ssr(value_pattern);
+                    if let Some(default_val) = default_value {
+                        declarations.push(format!(
+                            "{} = $.fallback($$props['{}'], () => $.fallback({}, {}), true)",
+                            binding_name, binding_name, new_path, default_val
+                        ));
+                    } else {
+                        declarations.push(format!(
+                            "{} = $.fallback($$props['{}'], () => {}, true)",
+                            binding_name, binding_name, new_path
+                        ));
+                    }
+                }
+            } else {
+                let (binding_name, default_value) = split_binding_name_default_ssr(prop);
+                let new_path = format!("{}.{}", base_path, binding_name);
+                if let Some(default_val) = default_value {
+                    declarations.push(format!(
+                        "{} = $.fallback($$props['{}'], () => $.fallback({}, {}), true)",
+                        binding_name, binding_name, new_path, default_val
+                    ));
+                } else {
+                    declarations.push(format!(
+                        "{} = $.fallback($$props['{}'], () => {}, true)",
+                        binding_name, binding_name, new_path
+                    ));
+                }
+            }
+        }
+    } else if pattern.starts_with('[') && pattern.ends_with(']') {
+        let inner = &pattern[1..pattern.len() - 1];
+        let elements = split_destructuring_properties_ssr(inner);
+        let total_count = elements.len();
+
+        let array_var = if *array_counter == 0 {
+            "$$array".to_string()
+        } else {
+            format!("$$array_{}", array_counter)
+        };
+        *array_counter += 1;
+
+        // SSR: use $.to_array() directly (no $.derived wrapper)
+        declarations.push(format!(
+            "{} = $.to_array({}, {})",
+            array_var, base_path, total_count
+        ));
+
+        for (idx, elem) in elements.iter().enumerate() {
+            let elem = elem.trim();
+            if elem.is_empty() {
+                continue;
+            }
+
+            if let Some(rest_pattern) = elem.strip_prefix("...") {
+                let rest_pattern = rest_pattern.trim();
+                if rest_pattern.starts_with('{') || rest_pattern.starts_with('[') {
+                    let slice_path = format!("{}.slice({})", array_var, idx);
+                    extract_destructured_export_paths_ssr(
+                        rest_pattern,
+                        &slice_path,
+                        declarations,
+                        array_counter,
+                    )?;
+                } else {
+                    declarations.push(format!(
+                        "{} = $.fallback($$props['{}'], () => {}.slice({}), true)",
+                        rest_pattern, rest_pattern, array_var, idx
+                    ));
+                }
+                continue;
+            }
+
+            // SSR: direct array access (no $.get() wrapper)
+            let element_path = format!("{}[{}]", array_var, idx);
+
+            if elem.starts_with('{') || elem.starts_with('[') {
+                extract_destructured_export_paths_ssr(
+                    elem,
+                    &element_path,
+                    declarations,
+                    array_counter,
+                )?;
+            } else {
+                let (binding_name, default_value) = split_binding_name_default_ssr(elem);
+                if let Some(default_val) = default_value {
+                    declarations.push(format!(
+                        "{} = $.fallback($$props['{}'], () => $.fallback({}, {}), true)",
+                        binding_name, binding_name, element_path, default_val
+                    ));
+                } else {
+                    declarations.push(format!(
+                        "{} = $.fallback($$props['{}'], () => {}, true)",
+                        binding_name, binding_name, element_path
+                    ));
+                }
+            }
+        }
+    } else {
+        return None;
+    }
+
+    Some(())
+}
+
+fn split_property_key_value_ssr(prop: &str) -> Option<(&str, &str)> {
+    let chars: Vec<char> = prop.chars().collect();
+    let mut depth = 0;
+    for (i, &ch) in chars.iter().enumerate() {
+        match ch {
+            '{' | '[' | '(' => depth += 1,
+            '}' | ']' | ')' => depth -= 1,
+            ':' if depth == 0 => {
+                return Some((prop[..i].trim(), prop[i + 1..].trim()));
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn split_binding_name_default_ssr(s: &str) -> (&str, Option<&str>) {
+    let s = s.trim();
+    if let Some(eq_pos) = s.find('=') {
+        let after = s.get(eq_pos + 1..eq_pos + 2).unwrap_or("");
+        if after == "=" || after == ">" {
+            return (s, None);
+        }
+        (s[..eq_pos].trim(), Some(s[eq_pos + 1..].trim()))
+    } else {
+        (s, None)
+    }
+}
+
+fn split_destructuring_properties_ssr(s: &str) -> Vec<&str> {
+    let chars: Vec<char> = s.chars().collect();
+    let mut result = Vec::new();
+    let mut depth = 0;
+    let mut start = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    for (i, &ch) in chars.iter().enumerate() {
+        if in_string {
+            if ch == '\\' {
+                continue;
+            }
+            if ch == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+        if ch == '\'' || ch == '"' || ch == '`' {
+            in_string = true;
+            string_char = ch;
+            continue;
+        }
+        match ch {
+            '{' | '[' | '(' => depth += 1,
+            '}' | ']' | ')' => depth -= 1,
+            ',' if depth == 0 => {
+                result.push(&s[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    result.push(&s[start..]);
+    result
 }

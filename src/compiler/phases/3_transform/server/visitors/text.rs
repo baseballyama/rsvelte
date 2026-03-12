@@ -32,7 +32,7 @@ impl<'a> ServerCodeGenerator<'a> {
             // but in SVG/MathML namespace or certain HTML elements (select, tr, table, etc.),
             // whitespace-only text nodes are entirely removed.
             // This matches the `can_remove_entirely` logic in the official compiler's clean_nodes.
-            let can_remove_entirely = self.namespace == "svg" || self.namespace == "mathml";
+            let can_remove_entirely = self.namespace == "svg";
             if !data.is_empty() && !can_remove_entirely {
                 self.output_parts.push(OutputPart::Html(" ".to_string()));
             }

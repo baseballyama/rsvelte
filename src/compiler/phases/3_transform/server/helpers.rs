@@ -543,6 +543,9 @@ pub(crate) fn get_slot_name(node: &TemplateNode) -> String {
         TemplateNode::SvelteFragment(frag) => {
             extract_slot_from_attributes(&frag.attributes).unwrap_or_else(|| "default".to_string())
         }
+        TemplateNode::SlotElement(slot) => {
+            extract_slot_from_attributes(&slot.attributes).unwrap_or_else(|| "default".to_string())
+        }
         _ => "default".to_string(),
     }
 }

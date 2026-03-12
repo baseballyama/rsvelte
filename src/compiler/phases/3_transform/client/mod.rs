@@ -290,17 +290,22 @@ fn transform_client_with_visitors(
             needs_store_cleanup = true;
         }
 
-        // Check if the store comes from a prop - if so, we need to call it as a function
-        // e.g., count() instead of count
-        let is_prop_store = binding_by_name
-            .get(store_name)
+        // Check if the store comes from a prop
+        let store_binding = binding_by_name.get(store_name);
+        let is_prop_store = store_binding
             .is_some_and(|b| matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp));
+
+        // For prop stores, check if it's a prop source (reassigned, mutated, has initial, etc.)
+        // Source props use function call syntax: store()
+        // Non-source props use member access: $$props.store
+        let is_source_prop =
+            is_prop_store && store_binding.is_some_and(|b| utils::is_prop_source(b, analysis));
 
         // Check if the store is a derived or state variable - if so, wrap with $.get()
         // e.g., $.get(store) instead of store
         // LegacyReactive bindings (from `$: z = expr`) are also state variables
         // that need $.get() wrapping.
-        let is_derived_or_state = binding_by_name.get(store_name).is_some_and(|b| {
+        let is_derived_or_state = store_binding.is_some_and(|b| {
             matches!(
                 b.kind,
                 BindingKind::State
@@ -314,11 +319,31 @@ fn transform_client_with_visitors(
         let is_reactive_import = reactive_import_names.iter().any(|n| n == store_name);
 
         // Generate: const $store = () => $.store_get(store, '$store', $$stores);
-        // or: const $store = () => $.store_get(store(), '$store', $$stores); for prop stores
+        // or: const $store = () => $.store_get(store(), '$store', $$stores); for source prop stores
+        // or: const $store = () => $.store_get($$props.store, '$store', $$stores); for non-source prop stores
         // or: const $store = () => $.store_get($.get(store), '$store', $$stores); for derived/state stores
         // or: const $store = () => $.store_get($$_import_store(), '$store', $$stores); for reactive imports
-        let store_access = if is_prop_store {
+        let store_access = if is_source_prop {
             b::call(b::id(store_name), vec![])
+        } else if is_prop_store {
+            // Non-source prop: access via $$props.store or $$props['alias']
+            // prop_alias is always set for $props() destructuring, but it only differs
+            // from the local name when there's a rename (e.g., `{ foo: bar }`)
+            let prop_alias = store_binding.and_then(|b| b.prop_alias.as_deref());
+            let actual_alias = prop_alias.filter(|alias| *alias != store_name);
+            if let Some(alias) = actual_alias {
+                // $$props['alias'] for renamed props
+                use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+                JsExpr::Member(JsMemberExpression {
+                    object: Box::new(b::id("$$props")),
+                    property: JsMemberProperty::Expression(Box::new(b::string(alias))),
+                    computed: true,
+                    optional: false,
+                })
+            } else {
+                // $$props.store for non-aliased props
+                b::member_path(&format!("$$props.{}", store_name))
+            }
         } else if is_reactive_import {
             b::call(b::id(format!("$$_import_{}", store_name)), vec![])
         } else if is_derived_or_state {
@@ -418,13 +443,16 @@ fn transform_client_with_visitors(
         )
     });
 
+    let is_legacy_component_api =
+        options.compatibility.component_api == crate::compiler::ComponentApi::V4;
     let should_inject_context = options.dev
         || analysis.needs_context
         || !analysis.reactive_statements.is_empty()
         || has_reactive_statements  // Reactive $: statements detected in script
         || !analysis.exports.is_empty()  // All exports (not just reactive) trigger context injection
         || reactive_export_count > 0
-        || bindable_prop_count > 0;
+        || bindable_prop_count > 0
+        || is_legacy_component_api; // componentApi: 4 needs $.push/$.pop
     // Note: needs_store_cleanup does NOT require context injection ($.push/$.pop)
     // Store subscriptions are independent of the component context
 
@@ -441,7 +469,8 @@ fn transform_client_with_visitors(
         || analysis.uses_rest_props
         || analysis.uses_slots
         || !analysis.slot_names.is_empty()
-        || has_prop_bindings; // Legacy mode props need $$props parameter
+        || has_prop_bindings  // Legacy mode props need $$props parameter
+        || is_legacy_component_api; // componentApi: 4 needs $$props for $set/$on
 
     // Build component function body
     // Pre-allocate for typical component body size
@@ -506,6 +535,27 @@ fn transform_client_with_visitors(
             "$$slots",
             b::call(b::member_path("$.sanitize_slots"), vec![b::id("$$props")]),
         ));
+    }
+
+    // Add componentApi: 4 new.target check at the very start
+    // Reference: transform-client.js lines 569-582
+    if options.compatibility.component_api == crate::compiler::ComponentApi::V4 {
+        // if (new.target) return $$_createClassComponent({ component: ComponentName, ...$$anchor });
+        component_body.push(JsStatement::If(super::js_ast::nodes::JsIfStatement {
+            test: Box::new(b::id("new.target")),
+            consequent: Box::new(JsStatement::Return(
+                super::js_ast::nodes::JsReturnStatement {
+                    argument: Some(Box::new(b::call(
+                        b::id("$$_createClassComponent"),
+                        vec![b::object(vec![
+                            b::prop("component", b::id(&analysis.name)),
+                            b::spread(b::id("$$anchor")),
+                        ])],
+                    ))),
+                },
+            )),
+            alternate: None,
+        }));
     }
 
     // Add $.push at the start if injecting context
@@ -673,7 +723,7 @@ fn transform_client_with_visitors(
     //   - state/raw_state: getter/setter pair
     // For accessors mode, bindable props also get getter/setter.
     let component_returned_object_len = analysis.exports.len() + bindable_prop_count;
-    let needs_exports = component_returned_object_len > 0;
+    let needs_exports = component_returned_object_len > 0 || is_legacy_component_api;
     if needs_exports {
         let mut exports_members: Vec<JsObjectMember> = Vec::new();
 
@@ -894,9 +944,26 @@ fn transform_client_with_visitors(
             }
         }
 
-        // In dev mode, add ...$.legacy_api() spread
-        // Reference: transform-client.js line 353-354
-        if options.dev {
+        // Add legacy API compatibility members
+        // Reference: transform-client.js lines 338-356
+        if options.compatibility.component_api == crate::compiler::ComponentApi::V4 {
+            // $set: $.update_legacy_props
+            exports_members.push(b::prop("$set", b::member_path("$.update_legacy_props")));
+            // $on: ($$event_name, $$event_cb) => $.add_legacy_event_listener($$props, $$event_name, $$event_cb)
+            exports_members.push(b::prop(
+                "$on",
+                b::arrow(
+                    vec![
+                        JsPattern::Identifier("$$event_name".into()),
+                        JsPattern::Identifier("$$event_cb".into()),
+                    ],
+                    b::call(
+                        b::member_path("$.add_legacy_event_listener"),
+                        vec![b::id("$$props"), b::id("$$event_name"), b::id("$$event_cb")],
+                    ),
+                ),
+            ));
+        } else if options.dev {
             exports_members.push(b::spread(b::call(b::member_path("$.legacy_api"), vec![])));
         }
 
@@ -919,6 +986,26 @@ fn transform_client_with_visitors(
 
     // Add template body statements
     component_body.extend(template_body.body);
+
+    // Add $$ownership_validator declaration if needed
+    // Reference: transform-client.js lines 389-393
+    // The official compiler uses unshift to put this at the start of the body,
+    // after $.push (which is also unshifted later, so push ends up first)
+    if context.state.needs_mutation_validation.get() {
+        // var $$ownership_validator = $.create_ownership_validator($$props)
+        let ownership_decl = b::var_decl(
+            "$$ownership_validator",
+            Some(b::call(
+                b::member_path("$.create_ownership_validator"),
+                vec![b::id("$$props")],
+            )),
+        );
+        // Insert after $.push (position 0 is push when should_inject_context)
+        // In the official compiler, this is unshifted before push is unshifted,
+        // so it ends up right after push
+        let insert_pos = if should_inject_context { 1 } else { 0 };
+        component_body.insert(insert_pos, ownership_decl);
+    }
 
     // Bind static exports to props so that people can access them with bind:x
     // Reference: transform-client.js lines 406-416
@@ -1009,6 +1096,18 @@ fn transform_client_with_visitors(
     // Pre-allocate for typical program structure
     let mut body: Vec<JsStatement> = Vec::with_capacity(16);
 
+    // Add componentApi: 4 import (must come first)
+    // Reference: transform-client.js line 570
+    if options.compatibility.component_api == crate::compiler::ComponentApi::V4 {
+        body.push(JsStatement::Import(JsImportDeclaration {
+            specifiers: vec![JsImportSpecifier::Named {
+                imported: "createClassComponent".into(),
+                local: "$$_createClassComponent".into(),
+            }],
+            source: "svelte/legacy".into(),
+        }));
+    }
+
     // Add disclose-version import (always first)
     body.push(JsStatement::Import(JsImportDeclaration {
         specifiers: vec![],
@@ -1043,6 +1142,28 @@ fn transform_client_with_visitors(
         source: "svelte/internal/client".into(),
     }));
 
+    // In dev mode, add ComponentName[$.FILENAME] = 'filename.svelte'
+    // Reference: transform-client.js line 544-551
+    if options.dev
+        && let Some(ref filename) = options.filename
+    {
+        let fname = filename.replace('\\', "/");
+        let relative_filename = if let Some(ref root_dir) = options.root_dir {
+            let rd = root_dir.replace('\\', "/");
+            if fname.starts_with(&rd) {
+                fname[rd.len()..].trim_start_matches('/').to_string()
+            } else {
+                fname
+            }
+        } else {
+            fname
+        };
+        body.push(b::stmt(b::assign(
+            b::member_computed(b::id(&analysis.name), b::member(b::id("$"), "FILENAME")),
+            b::string(relative_filename),
+        )));
+    }
+
     // Process module script content - extract imports separately from other content
     // This is needed because module_level_snippets must come after imports but before exports
     // Reference: transform-client.js line 513: body = [...imports, ...state.module_level_snippets, ...body];
@@ -1055,7 +1176,7 @@ fn transform_client_with_visitors(
         let (module_imports, rest) = extract_imports(&raw);
         // Add module script imports first
         for import_line in module_imports {
-            body.push(JsStatement::Raw(import_line.into()));
+            body.push(JsStatement::Raw(import_line.trim().into()));
         }
         let rest_trimmed = rest.trim();
         if rest_trimmed.is_empty() {
@@ -1072,7 +1193,7 @@ fn transform_client_with_visitors(
     if let Some(ref instance_content) = analysis.instance_script_content {
         let (script_imports, _) = extract_imports(&instance_content.raw);
         for import_line in script_imports {
-            body.push(JsStatement::Raw(import_line.into()));
+            body.push(JsStatement::Raw(import_line.trim().into()));
         }
     }
 
@@ -1141,6 +1262,56 @@ fn transform_client_with_visitors(
             b::member_path("$.delegate"),
             vec![b::array(event_literals)],
         )));
+    }
+
+    // Add customElements.define() for custom element components
+    // Reference: transform-client.js lines 596-677
+    if let Some(ref ce) = analysis.custom_element {
+        // Build props config
+        let props_str = b::object(vec![]); // TODO: populate from ce.props if needed
+
+        // Build slots array
+        let slots_str = b::array(
+            analysis
+                .slot_names
+                .keys()
+                .map(|name| b::string(name.clone()))
+                .collect(),
+        );
+
+        // Build accessors array
+        let accessors_str = b::array(
+            analysis
+                .exports
+                .iter()
+                .map(|e| b::string(e.alias.as_deref().unwrap_or(&e.name).to_string()))
+                .collect(),
+        );
+
+        // Build shadow root init
+        let shadow_mode = ce.shadow.as_deref().unwrap_or("open");
+        let shadow_root_init = if shadow_mode == "none" {
+            None
+        } else {
+            Some(b::object(vec![b::prop("mode", b::string(shadow_mode))]))
+        };
+
+        // $.create_custom_element(Component, props, slots, accessors, shadowRootInit)
+        let mut create_ce_args = vec![b::id(&analysis.name), props_str, slots_str, accessors_str];
+        if let Some(init) = shadow_root_init {
+            create_ce_args.push(init);
+        }
+        let create_ce = b::call(b::member_path("$.create_custom_element"), create_ce_args);
+
+        // If tag name is provided, call customElements.define
+        if let Some(ref tag) = ce.tag {
+            body.push(b::stmt(b::call(
+                b::member_path("customElements.define"),
+                vec![b::string(tag.clone()), create_ce],
+            )));
+        } else {
+            body.push(b::stmt(create_ce));
+        }
     }
 
     // Create the program
@@ -1701,7 +1872,7 @@ fn transform_module_script_runes(script: &str, analysis: &ComponentAnalysis) -> 
         result = result.replace("$derived.by(", "$.derived(");
     }
 
-    // Transform $derived() to $.derived(() => expr)
+    // Transform $derived() to $.derived(() => expr) or $.async_derived() for async
     // Need to wrap state variable references inside the expression with $.get()
     while let Some(pos) = result.find("$derived(") {
         if result[..pos].ends_with('$') {
@@ -1718,12 +1889,47 @@ fn transform_module_script_runes(script: &str, analysis: &ComponentAnalysis) -> 
                 &module_non_reactive_vars,
                 &module_proxy_vars,
             );
-            result = format!(
-                "{}$.derived(() => {}){}",
-                &result[..pos],
-                wrapped_content,
-                &result[derived_start + content_end + 1..]
-            );
+            let trimmed_content = content.trim();
+            let contains_await = contains_direct_await_in_expression(trimmed_content);
+
+            if contains_await {
+                // For async derived: await $.async_derived(async () => expr)
+                // Apply $.save() wrapping for non-final await expressions
+                let saved_content = wrap_await_with_save_in_async_derived(wrapped_content.trim());
+                let inner_expr = strip_top_level_await_from_expr(&saved_content);
+                let inner_has_nested_await = contains_direct_await_in_expression(&inner_expr);
+
+                let new_derived = if inner_has_nested_await {
+                    let is_object = saved_content.trim().starts_with('{');
+                    if is_object {
+                        format!("await $.async_derived(async () => ({}))", saved_content)
+                    } else {
+                        format!("await $.async_derived(async () => {})", saved_content)
+                    }
+                } else {
+                    let inner_trimmed = inner_expr.trim();
+                    let inner_is_object = inner_trimmed.starts_with('{');
+                    if inner_is_object {
+                        format!("await $.async_derived(() => ({}))", inner_expr)
+                    } else {
+                        let thunk_arg = unthunk_string(&inner_expr);
+                        format!("await $.async_derived({})", thunk_arg)
+                    }
+                };
+                result = format!(
+                    "{}{}{}",
+                    &result[..pos],
+                    new_derived,
+                    &result[derived_start + content_end + 1..]
+                );
+            } else {
+                result = format!(
+                    "{}$.derived(() => {}){}",
+                    &result[..pos],
+                    wrapped_content,
+                    &result[derived_start + content_end + 1..]
+                );
+            }
         } else {
             break;
         }
@@ -1776,6 +1982,10 @@ fn transform_module_script_runes(script: &str, analysis: &ComponentAnalysis) -> 
             &module_proxy_vars,
         );
     }
+
+    // Transform $effect.root(), $effect.pre(), $effect.tracking(), $effect()
+    // These rune calls can appear in module scripts (e.g., inside class constructors)
+    result = apply_effect_rune_transforms(result);
 
     result
 }
@@ -2256,6 +2466,22 @@ fn transform_instance_script_for_visitors(
 
         // Handle legacy export let declarations
         if has_legacy_export_let && first_line_trimmed.starts_with("export let ") {
+            // Check if this is a destructured export let pattern
+            let after_export_let = first_line_trimmed[11..].trim();
+            if after_export_let.starts_with('{') || after_export_let.starts_with('[') {
+                // Destructured export let: flatten using extract_paths pattern
+                if let Some(flattened) = transform_destructured_export_let(&statement, analysis) {
+                    let flattened = wrap_state_vars_in_expr(
+                        &flattened,
+                        state_vars,
+                        non_reactive_state_vars,
+                        proxy_vars,
+                    );
+                    result.push_str(&flattened);
+                    result.push('\n');
+                    return;
+                }
+            }
             // Use the full statement for multi-line export declarations
             let transformed = transform_export_let(&statement, analysis);
             // After converting to $.prop(), apply prop read wrapping to the DEFAULT VALUE
@@ -3349,30 +3575,19 @@ fn transform_client_runes_with_skip_and_state(
 
                     let new_derived = if contains_direct_await {
                         // For async derived: await $.async_derived(() => inner_expr)
-                        // The official compiler applies b.thunk(expression, true) + unthunk
-                        // which strips `async/await` from simple cases:
-                        //   $derived(await Promise.resolve(5))
-                        //   -> thunk: async () => await Promise.resolve(5)
-                        //   -> unthunk: () => Promise.resolve(5)
-                        //   -> await $.async_derived(() => Promise.resolve(5))
-                        //
-                        // For complex cases with nested await:
-                        //   $derived(await fetch(await url))
-                        //   -> async () => await fetch(await url)  (kept as-is)
-                        //   -> await $.async_derived(async () => await fetch(await url))
-                        //
-                        // The outer `await` is important - it tells transform_async_body
-                        // that this statement needs an async thunk in $.run()
-                        let inner_expr = strip_top_level_await_from_expr(wrapped_trimmed);
+                        // Apply $.save() wrapping for non-final await expressions
+                        let saved_content = wrap_await_with_save_in_async_derived(wrapped_trimmed);
+                        let inner_expr = strip_top_level_await_from_expr(&saved_content);
                         let inner_has_nested_await =
                             contains_direct_await_in_expression(&inner_expr);
 
                         if inner_has_nested_await {
                             // Complex case: inner expression still has await
-                            if is_object_literal {
-                                format!("await $.async_derived(async () => ({}))", wrapped_content)
+                            let is_obj = saved_content.trim().starts_with('{');
+                            if is_obj {
+                                format!("await $.async_derived(async () => ({}))", saved_content)
                             } else {
-                                format!("await $.async_derived(async () => {})", wrapped_content)
+                                format!("await $.async_derived(async () => {})", saved_content)
                             }
                         } else {
                             // Simple case: strip await, use sync thunk
@@ -3493,38 +3708,112 @@ fn transform_client_runes_with_skip_and_state(
     }
 
     // Transform $inspect.trace(...) - in non-dev mode, remove the entire statement
-    // $inspect.trace() is used to log effect dependencies and should be stripped in production
+    // In dev mode, transform the enclosing block body to wrap remaining statements in $.trace()
     while let Some(pos) = result.find("$inspect.trace(") {
-        if !dev {
-            let trace_start = pos + 15; // after "$inspect.trace("
-            if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
-                let mut end = trace_start + content_end + 1;
-                // Also consume trailing semicolons and whitespace/newline
-                while end < result.len()
-                    && (result.as_bytes()[end] == b';'
-                        || result.as_bytes()[end] == b' '
-                        || result.as_bytes()[end] == b'\t'
-                        || result.as_bytes()[end] == b'\n'
-                        || result.as_bytes()[end] == b'\r')
-                {
-                    end += 1;
-                }
-                // Remove leading whitespace/tabs on the same line as $inspect.trace
-                let mut start = pos;
-                while start > 0
-                    && (result.as_bytes()[start - 1] == b' '
-                        || result.as_bytes()[start - 1] == b'\t')
-                {
-                    start -= 1;
-                }
+        let trace_start = pos + 15; // after "$inspect.trace("
+        if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
+            let trace_arg = result[trace_start..trace_start + content_end]
+                .trim()
+                .to_string();
+            let mut end = trace_start + content_end + 1;
+            // Also consume trailing semicolons and whitespace/newline
+            while end < result.len()
+                && (result.as_bytes()[end] == b';'
+                    || result.as_bytes()[end] == b' '
+                    || result.as_bytes()[end] == b'\t'
+                    || result.as_bytes()[end] == b'\n'
+                    || result.as_bytes()[end] == b'\r')
+            {
+                end += 1;
+            }
+            // Remove leading whitespace/tabs on the same line as $inspect.trace
+            let mut start = pos;
+            while start > 0
+                && (result.as_bytes()[start - 1] == b' ' || result.as_bytes()[start - 1] == b'\t')
+            {
+                start -= 1;
+            }
+
+            if !dev {
+                // In non-dev mode, just remove the $inspect.trace() statement
                 result = format!("{}{}", &result[..start], &result[end..]);
             } else {
-                break;
+                // In dev mode, transform the enclosing function body:
+                // Remove $inspect.trace(...); and wrap remaining body in:
+                //   return $.trace(() => arg, () => { ...remaining... });
+                //
+                // The $inspect.trace() is always the first statement in a block body.
+                // We need to find the enclosing block's closing brace to wrap everything.
+
+                // Remove the $inspect.trace line first
+                let before_trace = &result[..start];
+                let after_trace = &result[end..];
+
+                // Find the opening brace of the enclosing block before $inspect.trace
+                // This is the `{` after the arrow/function that contains $inspect.trace
+                let mut brace_pos = None;
+                let before_bytes = before_trace.as_bytes();
+                let mut i = before_bytes.len();
+                while i > 0 {
+                    i -= 1;
+                    if before_bytes[i] == b'{' {
+                        brace_pos = Some(i);
+                        break;
+                    }
+                    // Skip whitespace and newlines
+                    if before_bytes[i] != b' '
+                        && before_bytes[i] != b'\t'
+                        && before_bytes[i] != b'\n'
+                        && before_bytes[i] != b'\r'
+                    {
+                        break;
+                    }
+                }
+
+                if let Some(brace_idx) = brace_pos {
+                    // Find the matching closing brace for this block
+                    let body_start = brace_idx + 1;
+                    let combined = format!("{}{}", before_trace, after_trace);
+                    let body_content = &combined[body_start..];
+
+                    if let Some(close_brace) = find_matching_brace(body_content) {
+                        // Extract the remaining body (everything between { and } after removing $inspect.trace)
+                        let remaining_body = combined[body_start..body_start + close_brace].trim();
+                        // Skip past the closing brace itself
+                        let after_block = &combined[body_start + close_brace + 1..];
+
+                        // Build the trace argument thunk
+                        let trace_thunk = if trace_arg.is_empty() {
+                            // No argument - extract function name from context for default label
+                            // Look for `function NAME(` pattern before the block
+                            let before_block = &combined[..brace_idx];
+                            let default_label =
+                                extract_enclosing_function_name(before_block).unwrap_or("trace");
+                            format!("() => '{}'", default_label)
+                        } else {
+                            format!("() => {}", trace_arg)
+                        };
+
+                        // Build: { return $.trace(thunk, () => { remaining_body }); }
+                        result = format!(
+                            "{}{{return $.trace({}, () => {{\n{}\n}});\n}}{}",
+                            &combined[..brace_idx],
+                            trace_thunk,
+                            remaining_body,
+                            after_block
+                        );
+                    } else {
+                        // Couldn't find matching brace, just remove the trace call
+                        result = format!("{}{}", before_trace, after_trace);
+                    }
+                } else {
+                    // No enclosing brace found, just remove the trace call
+                    result = format!("{}{}", before_trace, after_trace);
+                }
             }
         } else {
             break;
         }
-        // In dev mode, $inspect.trace is kept (handled by effect generation)
     }
 
     // Transform $inspect(...) - in non-dev mode, remove the entire call
@@ -3547,10 +3836,11 @@ fn transform_client_runes_with_skip_and_state(
                         let callback = &result[with_content_start..with_content_start + with_end];
                         let rest = &result[with_content_start + with_end + 1..];
 
-                        // Build: $.inspect(() => [args], (...$$args) => callback(...$$args))
+                        // Build: $.inspect(() => [args], (...$$args) => (callback)(...$$args))
                         // Note: No third argument for $inspect().with
+                        // The callback must be wrapped in parens so arrow functions are valid call targets
                         result = format!(
-                            "{}$.inspect(() => [{}], (...$$args) => {}(...$$args)){}",
+                            "{}$.inspect(() => [{}], (...$$args) => ({})(...$$args)){}",
                             &result[..pos],
                             args_content,
                             callback,
@@ -3617,6 +3907,112 @@ fn transform_client_runes_with_skip_and_state(
         return transformed;
     }
 
+    // In dev mode, wrap $.state() and $.derived() declarations with $.tag() for debugging
+    // This allows $inspect.trace() to show variable names in the output.
+    // Pattern: `let name = $.state(...)` -> `let name = $.tag($.state(...), 'name')`
+    // Also handles $.derived(), $.state($.proxy(...))
+    if dev {
+        result = wrap_state_derived_with_tag(&result);
+    }
+
+    result
+}
+
+/// Wrap `$.state(...)`, `$.derived(...)`, and `$.proxy(...)` declarations with `$.tag()`/`$.tag_proxy()` in dev mode.
+/// This tags signals with their variable names for better debugging with `$inspect.trace()`.
+///
+/// Transforms:
+/// - `let name = $.state(...)` -> `let name = $.tag($.state(...), 'name')`
+/// - `let name = $.derived(...)` -> `let name = $.tag($.derived(...), 'name')`
+/// - `let name = $.state($.proxy(...))` -> `let name = $.tag($.state($.proxy(...)), 'name')`
+/// - `let name = $.proxy(...)` -> `let name = $.tag_proxy($.proxy(...), 'name')`
+fn wrap_state_derived_with_tag(input: &str) -> String {
+    let mut result = input.to_string();
+
+    // Patterns to check and their prefix lengths
+    // (pattern, prefix_len, tag_fn)
+    let patterns: &[(&str, usize, &str)] = &[
+        ("$.state(", 8, "$.tag"),
+        ("$.derived(", 10, "$.tag"),
+        ("$.proxy(", 8, "$.tag_proxy"),
+    ];
+
+    // Process each declaration keyword
+    for keyword in &["let ", "const ", "var "] {
+        let mut search_from = 0;
+        loop {
+            let rest = &result[search_from..];
+            let Some(kw_pos) = rest.find(keyword) else {
+                break;
+            };
+            let abs_kw_pos = search_from + kw_pos;
+            let after_kw = &result[abs_kw_pos + keyword.len()..];
+
+            // Extract variable name (simple identifier before `=`)
+            let var_name: String = after_kw
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '$')
+                .collect();
+
+            if var_name.is_empty() {
+                search_from = abs_kw_pos + keyword.len();
+                continue;
+            }
+
+            // Find ` = ` after variable name
+            let after_name = &after_kw[var_name.len()..];
+            let trimmed = after_name.trim_start();
+            if !trimmed.starts_with('=') {
+                search_from = abs_kw_pos + keyword.len();
+                continue;
+            }
+            let eq_offset = after_name.len() - trimmed.len();
+            let rhs_start_in_result = abs_kw_pos + keyword.len() + var_name.len() + eq_offset + 1;
+            let rhs = result[rhs_start_in_result..].trim_start();
+            let rhs_trim_offset = result[rhs_start_in_result..].len() - rhs.len();
+            let rhs_abs_start = rhs_start_in_result + rhs_trim_offset;
+
+            // Check which pattern matches
+            let mut matched = false;
+            for &(pattern, prefix_len, tag_fn) in patterns {
+                if !rhs.starts_with(pattern) {
+                    continue;
+                }
+
+                // Skip $.proxy if it's already inside $.state (e.g., $.state($.proxy(...)))
+                // Those are handled by the $.state match
+                if pattern == "$.proxy(" {
+                    // Check if this $.proxy is already tagged (inside $.tag or $.tag_proxy)
+                    let before = &result[..rhs_abs_start];
+                    if before.ends_with("$.tag(") || before.ends_with("$.tag_proxy(") {
+                        break;
+                    }
+                }
+
+                let inner_start = rhs_abs_start + prefix_len;
+                if let Some(close_paren) = find_matching_paren(&result[inner_start..]) {
+                    let call_end = inner_start + close_paren + 1;
+                    let call_expr = &result[rhs_abs_start..call_end];
+
+                    let tagged = format!("{}({}, '{}')", tag_fn, call_expr, var_name);
+                    result = format!(
+                        "{}{}{}",
+                        &result[..rhs_abs_start],
+                        tagged,
+                        &result[call_end..]
+                    );
+                    search_from = rhs_abs_start + tagged.len();
+                    matched = true;
+                }
+                break;
+            }
+
+            if !matched {
+                search_from = abs_kw_pos + keyword.len();
+            }
+        }
+    }
+
     result
 }
 
@@ -3678,8 +4074,43 @@ fn transform_derived_destructuring(
     let mut declarations = Vec::new();
     let mut array_counter = 0;
     let wrapped_source = wrap_state_vars_in_expr(source, state_vars, non_reactive_vars, proxy_vars);
+    let contains_await = contains_direct_await_in_expression(source);
     let base_expr = if source_is_identifier {
         wrapped_source.clone()
+    } else if contains_await {
+        // Async derived destructuring: use $.async_derived()
+        // Apply $.save() wrapping for non-final await expressions
+        let saved_content = wrap_await_with_save_in_async_derived(wrapped_source.trim());
+        let inner_expr = strip_top_level_await_from_expr(&saved_content);
+        let inner_has_nested_await = contains_direct_await_in_expression(&inner_expr);
+
+        if inner_has_nested_await {
+            let is_object = saved_content.trim().starts_with('{');
+            if is_object {
+                declarations.push(format!(
+                    "$$d = await $.async_derived(async () => ({}))",
+                    saved_content
+                ));
+            } else {
+                declarations.push(format!(
+                    "$$d = await $.async_derived(async () => {})",
+                    saved_content
+                ));
+            }
+        } else {
+            let inner_trimmed = inner_expr.trim();
+            let inner_is_object = inner_trimmed.starts_with('{');
+            if inner_is_object {
+                declarations.push(format!(
+                    "$$d = await $.async_derived(() => ({}))",
+                    inner_expr
+                ));
+            } else {
+                let thunk_arg = unthunk_string(&inner_expr);
+                declarations.push(format!("$$d = await $.async_derived({})", thunk_arg));
+            }
+        }
+        "$.get($$d)".to_string()
     } else {
         // When the source is an object literal (starts with {), we must wrap it in
         // parentheses to avoid the arrow function body being parsed as a block:
@@ -4741,6 +5172,17 @@ fn transform_reactive_statement(
         return String::new();
     }
 
+    // Extract locally-declared variables from the body (e.g., `for (let i = 0; ...)`)
+    // and treat them as non-reactive so they won't be wrapped in $.get()/$.update() etc.
+    let local_vars = extract_locally_declared_vars(body);
+    let mut augmented_non_reactive: Vec<String> = non_reactive_state_vars.to_vec();
+    for lv in &local_vars {
+        if state_vars.contains(lv) && !augmented_non_reactive.contains(lv) {
+            augmented_non_reactive.push(lv.clone());
+        }
+    }
+    let non_reactive_state_vars = &augmented_non_reactive;
+
     // Collapse method chain continuations into a single line.
     // For multi-line reactive statements like:
     //   $: ids = new Array(count)
@@ -5379,6 +5821,30 @@ fn transform_state_update_expressions(
         );
     }
     result
+}
+
+/// Extract variable names declared locally within a reactive statement body.
+///
+/// This catches `let`/`const`/`var` declarations including those in `for` loop
+/// init clauses (e.g., `for (let i = 0; ...)`). These locally-declared variables
+/// should NOT be treated as reactive state variables even if they share a name
+/// with a component-level state variable.
+fn extract_locally_declared_vars(body: &str) -> Vec<String> {
+    let mut vars = Vec::new();
+    // Match patterns like: `let x`, `const x`, `var x`, including inside `for (let x`
+    // We scan for declaration keywords followed by an identifier.
+    let re = match get_or_compile_regex(
+        r"(?:^|[^a-zA-Z0-9_$])(let|const|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)",
+    ) {
+        Some(re) => re,
+        None => return vars,
+    };
+    for cap in re.captures_iter(body) {
+        if let Some(m) = cap.get(2) {
+            vars.push(m.as_str().to_string());
+        }
+    }
+    vars
 }
 
 /// Transform simple assignments to state variables into $.set() calls within reactive statements.
@@ -6904,12 +7370,6 @@ fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> String {
                     !next_char.is_alphanumeric() && next_char != '_' && next_char != '$'
                 };
 
-                // Check if already transformed: identifier followed by "()" with empty parens
-                // e.g., `a()` should NOT become `a()()`, but `callback(args)` SHOULD become `callback()(args)`
-                let is_already_transformed = after_idx + 1 < chars.len()
-                    && chars[after_idx] == '('
-                    && chars[after_idx + 1] == ')';
-
                 // Check if this is a target of an update expression (++ or --)
                 // e.g., x++ or ++x - these should not be wrapped with ()
                 // as they need special $.update_prop() handling
@@ -6964,15 +7424,27 @@ fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> String {
 
                 if before_ok
                     && after_ok
-                    && !is_already_transformed
                     && !is_update_target
                     && !is_assignment_target
                     && !is_inside_update_call
                     && !is_shadowed
                 {
-                    // Replace with prop_name()
-                    new_result.push_str(prop_name);
-                    new_result.push_str("()");
+                    // Check if this is a shorthand property in an object literal.
+                    // e.g., `{ value }` should become `{ value: value() }` not `{ value() }`
+                    // because `{ value() }` is a method definition, not a property.
+                    let is_shorthand = is_shorthand_object_property(&chars, i, prop_name.len());
+
+                    if is_shorthand {
+                        // Expand shorthand: { foo } -> { foo: foo() }
+                        new_result.push_str(prop_name);
+                        new_result.push_str(": ");
+                        new_result.push_str(prop_name);
+                        new_result.push_str("()");
+                    } else {
+                        // Replace with prop_name()
+                        new_result.push_str(prop_name);
+                        new_result.push_str("()");
+                    }
                     i += prop_name.len();
                     continue;
                 }
@@ -7205,14 +7677,29 @@ fn wrap_prop_source_reads(expr: &str, prop_vars: &[String]) -> String {
                             has_paren_after && (has_get_before || has_set_before)
                         };
 
-                        // Check if object property key
+                        // Check if object property key (not ternary operator)
+                        // A property key follows `{`, `,`, or starts a line.
+                        // The ternary colon `:` should not be confused with property colon.
                         let is_property_key = {
                             let after_idx2 = i + var_chars.len();
                             let mut k = after_idx2;
                             while k < chars.len() && chars[k].is_whitespace() {
                                 k += 1;
                             }
-                            k < chars.len() && chars[k] == ':'
+                            let has_colon_after = k < chars.len() && chars[k] == ':';
+                            if has_colon_after {
+                                // Check if this is in an object literal context by looking
+                                // at what precedes the identifier (skip whitespace).
+                                let mut j = i;
+                                while j > 0 && chars[j - 1].is_whitespace() {
+                                    j -= 1;
+                                }
+                                let prev_char = if j > 0 { Some(chars[j - 1]) } else { None };
+                                // Property keys follow `{`, `,`, or `\n` (for multi-line objects)
+                                matches!(prev_char, Some('{') | Some(','))
+                            } else {
+                                false
+                            }
                         };
 
                         // Check if shorthand property
@@ -7300,19 +7787,31 @@ fn transform_let_with_reexported_props(line: &str, analysis: &ComponentAnalysis)
     // Split by commas (respecting nesting)
     let declarators = split_declarators(rest);
 
-    // Check if any declarator is a BindableProp
+    // Check if any declarator is a BindableProp (including destructured patterns)
     let has_any_prop = declarators.iter().any(|decl| {
         let decl = decl.trim();
-        let name = if let Some(eq_pos) = decl.find('=') {
-            decl[..eq_pos].trim()
+        if decl.starts_with('{') || decl.starts_with('[') {
+            // Destructured pattern - check if any extracted name is a BindableProp
+            let names = extract_destructured_prop_names(decl);
+            names.iter().any(|name| {
+                analysis
+                    .root
+                    .find_binding_any_scope(name)
+                    .and_then(|idx| analysis.root.bindings.get(idx))
+                    .is_some_and(|b| b.kind == BindingKind::BindableProp)
+            })
         } else {
-            decl
-        };
-        analysis
-            .root
-            .find_binding_any_scope(name)
-            .and_then(|idx| analysis.root.bindings.get(idx))
-            .is_some_and(|b| b.kind == BindingKind::BindableProp)
+            let name = if let Some(eq_pos) = decl.find('=') {
+                decl[..eq_pos].trim()
+            } else {
+                decl
+            };
+            analysis
+                .root
+                .find_binding_any_scope(name)
+                .and_then(|idx| analysis.root.bindings.get(idx))
+                .is_some_and(|b| b.kind == BindingKind::BindableProp)
+        }
     });
 
     if !has_any_prop {
@@ -7324,6 +7823,31 @@ fn transform_let_with_reexported_props(line: &str, analysis: &ComponentAnalysis)
     for decl in declarators {
         let decl = decl.trim();
         if decl.is_empty() {
+            continue;
+        }
+
+        // Handle destructured patterns: let { a, b, c } = { ... }
+        if decl.starts_with('{') || decl.starts_with('[') {
+            if let Some(pattern_end) = find_destructuring_pattern_end(decl) {
+                let pattern = decl[..pattern_end].trim();
+                let rhs_part = decl[pattern_end..].trim();
+                if let Some(rhs) = rhs_part.strip_prefix('=') {
+                    let rhs = rhs.trim().trim_end_matches(';').trim();
+                    // Create a tmp variable and flatten the destructuring
+                    results.push(format!("let tmp = {};", rhs));
+                    if let Some(flattened) =
+                        flatten_destructured_let_with_reexported_props(pattern, "tmp", analysis)
+                    {
+                        results.push(flattened);
+                    } else {
+                        // Fallback: keep original
+                        results.push(format!("let {} = {};", pattern, rhs));
+                    }
+                    continue;
+                }
+            }
+            // Fallback
+            results.push(format!("let {};", decl));
             continue;
         }
 
@@ -7704,6 +8228,452 @@ fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> String {
     }
 
     results.join("\n")
+}
+
+/// Transform destructured `export let { ... } = expr` patterns into flattened
+/// `$.prop()` calls with path-based accessors.
+///
+/// Corresponds to the official Svelte compiler's `extract_paths` pattern used in
+/// `VariableDeclaration.js` to flatten destructuring.
+///
+/// Example:
+///   `export let { a, b: { c }, e: [e_one], g = default_g } = THING`
+/// becomes:
+///   `let tmp = THING,
+///       $$array = $.derived(() => $.to_array(tmp.e, 1)),
+///       a = $.prop($$props, 'a', 24, () => tmp.a),
+///       c = $.prop($$props, 'c', 24, () => tmp.b.c),
+///       e_one = $.prop($$props, 'e_one', 24, () => $.get($$array)[0]),
+///       g = $.prop($$props, 'g', 24, () => $.fallback(tmp.g, default_g));`
+fn transform_destructured_export_let(
+    statement: &str,
+    analysis: &ComponentAnalysis,
+) -> Option<String> {
+    let trimmed = statement.trim();
+    let rest = trimmed.strip_prefix("export let ")?.trim();
+
+    // Find the `= RHS` assignment
+    // We need to find the `=` that separates the pattern from the RHS value
+    // The pattern can contain `=` for default values, so we need to find the
+    // `=` that is at the top level outside the pattern
+    let pattern_end = find_destructuring_pattern_end(rest)?;
+    let pattern = rest[..pattern_end].trim();
+    let rhs_part = rest[pattern_end..].trim();
+    let rhs = rhs_part.strip_prefix('=')?.trim();
+    let rhs = rhs.trim_end_matches(';').trim();
+
+    let mut declarations = Vec::new();
+    let mut array_counter = 0;
+
+    // First declaration: tmp = RHS
+    declarations.push(format!("tmp = {}", rhs));
+
+    // Process the destructuring pattern
+    extract_destructured_export_paths(
+        pattern,
+        "tmp",
+        &mut declarations,
+        &mut array_counter,
+        analysis,
+    )?;
+
+    Some(format!("let {};", declarations.join(",\n\t")))
+}
+
+/// Find the end position of a destructuring pattern in `{ ... } = RHS` or `[ ... ] = RHS`.
+/// Returns the position after the closing `}` or `]`.
+fn find_destructuring_pattern_end(s: &str) -> Option<usize> {
+    let s = s.trim();
+    let first = s.chars().next()?;
+    if first != '{' && first != '[' {
+        return None;
+    }
+
+    let chars: Vec<char> = s.chars().collect();
+    let mut depth = 0;
+    let mut i = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    while i < chars.len() {
+        if in_string {
+            if chars[i] == '\\' {
+                i += 2;
+                continue;
+            }
+            if chars[i] == string_char {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        if chars[i] == '\'' || chars[i] == '"' || chars[i] == '`' {
+            in_string = true;
+            string_char = chars[i];
+            i += 1;
+            continue;
+        }
+
+        if chars[i] == '{' || chars[i] == '[' {
+            depth += 1;
+        } else if chars[i] == '}' || chars[i] == ']' {
+            depth -= 1;
+            if depth == 0 {
+                return Some(i + 1);
+            }
+        }
+
+        i += 1;
+    }
+    None
+}
+
+/// Recursively extract paths from a destructuring pattern for `export let` props.
+fn extract_destructured_export_paths(
+    pattern: &str,
+    base_path: &str,
+    declarations: &mut Vec<String>,
+    array_counter: &mut usize,
+    analysis: &ComponentAnalysis,
+) -> Option<()> {
+    let pattern = pattern.trim();
+
+    if pattern.starts_with('{') && pattern.ends_with('}') {
+        // Object destructuring
+        let inner = &pattern[1..pattern.len() - 1];
+        let properties = split_destructuring_properties(inner);
+
+        for prop in properties {
+            let prop = prop.trim();
+            if prop.is_empty() {
+                continue;
+            }
+
+            // Handle rest element: ...rest
+            if let Some(rest_name) = prop.strip_prefix("...") {
+                let rest_name = rest_name.trim();
+                let flags = calculate_prop_flags(rest_name, analysis, true);
+                // Rest elements need special handling
+                let body = format!(
+                    "const {{ {} }} = {}; return {};",
+                    rest_name, base_path, rest_name
+                );
+                declarations.push(format!(
+                    "{} = $.prop($$props, '{}', {}, () => {{ {} }})",
+                    rest_name, rest_name, flags, body
+                ));
+                continue;
+            }
+
+            // Check for default value: name = default
+            // Check for rename: key: value
+            if let Some((key, value_pattern)) = split_property_key_value(prop) {
+                // Renamed property: key: value_pattern
+                let new_path = format!("{}.{}", base_path, key);
+
+                if value_pattern.starts_with('{') || value_pattern.starts_with('[') {
+                    // Nested destructuring: b: { c, d: [...] }
+                    extract_destructured_export_paths(
+                        value_pattern,
+                        &new_path,
+                        declarations,
+                        array_counter,
+                        analysis,
+                    )?;
+                } else {
+                    // Simple rename: b: c  or  b: c = default
+                    let (binding_name, default_value) = split_binding_name_default(value_pattern);
+                    let flags = calculate_prop_flags(binding_name, analysis, true);
+                    if let Some(default_val) = default_value {
+                        declarations.push(format!(
+                            "{} = $.prop($$props, '{}', {}, () => $.fallback({}, {}))",
+                            binding_name, binding_name, flags, new_path, default_val
+                        ));
+                    } else {
+                        declarations.push(format!(
+                            "{} = $.prop($$props, '{}', {}, () => {})",
+                            binding_name, binding_name, flags, new_path
+                        ));
+                    }
+                }
+            } else {
+                // Simple property: a  or  a = default
+                let (binding_name, default_value) = split_binding_name_default(prop);
+                let new_path = format!("{}.{}", base_path, binding_name);
+                let flags = calculate_prop_flags(binding_name, analysis, true);
+                if let Some(default_val) = default_value {
+                    declarations.push(format!(
+                        "{} = $.prop($$props, '{}', {}, () => $.fallback({}, {}))",
+                        binding_name, binding_name, flags, new_path, default_val
+                    ));
+                } else {
+                    declarations.push(format!(
+                        "{} = $.prop($$props, '{}', {}, () => {})",
+                        binding_name, binding_name, flags, new_path
+                    ));
+                }
+            }
+        }
+    } else if pattern.starts_with('[') && pattern.ends_with(']') {
+        // Array destructuring
+        let inner = &pattern[1..pattern.len() - 1];
+        let elements = split_destructuring_properties(inner);
+        let _non_empty_count = elements.iter().filter(|e| !e.trim().is_empty()).count();
+        let total_count = elements.len(); // include holes for array length
+
+        // Create an $$array derived for array conversion
+        let array_var = if *array_counter == 0 {
+            "$$array".to_string()
+        } else {
+            format!("$$array_{}", array_counter)
+        };
+        *array_counter += 1;
+
+        declarations.push(format!(
+            "{} = $.derived(() => $.to_array({}, {}))",
+            array_var, base_path, total_count
+        ));
+
+        for (idx, elem) in elements.iter().enumerate() {
+            let elem = elem.trim();
+            if elem.is_empty() {
+                continue; // Skip holes
+            }
+
+            // Handle rest element: ...rest
+            if let Some(rest_pattern) = elem.strip_prefix("...") {
+                let rest_pattern = rest_pattern.trim();
+                if rest_pattern.starts_with('{') || rest_pattern.starts_with('[') {
+                    // Rest with nested destructuring
+                    let slice_path = format!("$.get({}).slice({})", array_var, idx);
+                    extract_destructured_export_paths(
+                        rest_pattern,
+                        &slice_path,
+                        declarations,
+                        array_counter,
+                        analysis,
+                    )?;
+                } else {
+                    let flags = calculate_prop_flags(rest_pattern, analysis, true);
+                    declarations.push(format!(
+                        "{} = $.prop($$props, '{}', {}, () => $.get({}).slice({}))",
+                        rest_pattern, rest_pattern, flags, array_var, idx
+                    ));
+                }
+                continue;
+            }
+
+            let element_path = format!("$.get({})[{}]", array_var, idx);
+
+            if elem.starts_with('{') || elem.starts_with('[') {
+                // Nested destructuring in array
+                extract_destructured_export_paths(
+                    elem,
+                    &element_path,
+                    declarations,
+                    array_counter,
+                    analysis,
+                )?;
+            } else {
+                // Simple element or with default
+                let (binding_name, default_value) = split_binding_name_default(elem);
+                let flags = calculate_prop_flags(binding_name, analysis, true);
+                if let Some(default_val) = default_value {
+                    declarations.push(format!(
+                        "{} = $.prop($$props, '{}', {}, () => $.fallback({}, {}))",
+                        binding_name, binding_name, flags, element_path, default_val
+                    ));
+                } else {
+                    declarations.push(format!(
+                        "{} = $.prop($$props, '{}', {}, () => {})",
+                        binding_name, binding_name, flags, element_path
+                    ));
+                }
+            }
+        }
+    } else {
+        return None;
+    }
+
+    Some(())
+}
+
+/// Flatten a destructured `let { ... }` pattern where some bindings are re-exported.
+/// Non-exported bindings become `name = tmp.prop`, exported bindings become `$.prop()` calls.
+fn flatten_destructured_let_with_reexported_props(
+    pattern: &str,
+    base_path: &str,
+    analysis: &ComponentAnalysis,
+) -> Option<String> {
+    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+    let pattern = pattern.trim();
+    let mut declarations = Vec::new();
+
+    if pattern.starts_with('{') && pattern.ends_with('}') {
+        let inner = &pattern[1..pattern.len() - 1];
+        let properties = split_destructuring_properties(inner);
+
+        for prop in properties {
+            let prop = prop.trim();
+            if prop.is_empty() {
+                continue;
+            }
+
+            if let Some((key, value_pattern)) = split_property_key_value(prop) {
+                let new_path = format!("{}.{}", base_path, key);
+
+                if value_pattern.starts_with('{') || value_pattern.starts_with('[') {
+                    // Nested destructuring - recurse
+                    if let Some(nested) = flatten_destructured_let_with_reexported_props(
+                        value_pattern,
+                        &new_path,
+                        analysis,
+                    ) {
+                        declarations.push(nested);
+                    }
+                } else {
+                    let (binding_name, default_value) = split_binding_name_default(value_pattern);
+                    let is_prop = analysis
+                        .root
+                        .find_binding_any_scope(binding_name)
+                        .and_then(|idx| analysis.root.bindings.get(idx))
+                        .is_some_and(|b| b.kind == BindingKind::BindableProp);
+
+                    if is_prop {
+                        let flags = calculate_prop_flags(binding_name, analysis, true);
+                        if let Some(default_val) = default_value {
+                            declarations.push(format!(
+                                "let {} = $.prop($$props, '{}', {}, () => $.fallback({}, {}));",
+                                binding_name, binding_name, flags, new_path, default_val
+                            ));
+                        } else {
+                            declarations.push(format!(
+                                "let {} = $.prop($$props, '{}', {}, () => {});",
+                                binding_name, binding_name, flags, new_path
+                            ));
+                        }
+                    } else if let Some(default_val) = default_value {
+                        declarations.push(format!(
+                            "let {} = {} !== undefined ? {} : {};",
+                            binding_name, new_path, new_path, default_val
+                        ));
+                    } else {
+                        declarations.push(format!("let {} = {};", binding_name, new_path));
+                    }
+                }
+            } else {
+                let (binding_name, default_value) = split_binding_name_default(prop);
+                let new_path = format!("{}.{}", base_path, binding_name);
+                let is_prop = analysis
+                    .root
+                    .find_binding_any_scope(binding_name)
+                    .and_then(|idx| analysis.root.bindings.get(idx))
+                    .is_some_and(|b| b.kind == BindingKind::BindableProp);
+
+                if is_prop {
+                    let flags = calculate_prop_flags(binding_name, analysis, true);
+                    if let Some(default_val) = default_value {
+                        declarations.push(format!(
+                            "let {} = $.prop($$props, '{}', {}, () => $.fallback({}, {}));",
+                            binding_name, binding_name, flags, new_path, default_val
+                        ));
+                    } else {
+                        declarations.push(format!(
+                            "let {} = $.prop($$props, '{}', {}, () => {});",
+                            binding_name, binding_name, flags, new_path
+                        ));
+                    }
+                } else if let Some(default_val) = default_value {
+                    declarations.push(format!(
+                        "let {} = {} !== undefined ? {} : {};",
+                        binding_name, new_path, new_path, default_val
+                    ));
+                } else {
+                    declarations.push(format!("let {} = {};", binding_name, new_path));
+                }
+            }
+        }
+    } else {
+        return None;
+    }
+
+    Some(declarations.join("\n"))
+}
+
+/// Split a property pattern into key and value parts around `:`.
+/// Returns None if there's no `:` (simple property like `a` or `a = default`).
+/// Handles nested patterns so `b: { c }` splits into `("b", "{ c }")`.
+fn split_property_key_value(prop: &str) -> Option<(&str, &str)> {
+    let chars: Vec<char> = prop.chars().collect();
+    let mut depth = 0;
+    for (i, &ch) in chars.iter().enumerate() {
+        match ch {
+            '{' | '[' | '(' => depth += 1,
+            '}' | ']' | ')' => depth -= 1,
+            ':' if depth == 0 => {
+                return Some((prop[..i].trim(), prop[i + 1..].trim()));
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Split a binding name from its default value.
+/// `name = default` -> `("name", Some("default"))`
+/// `name` -> `("name", None)`
+fn split_binding_name_default(s: &str) -> (&str, Option<&str>) {
+    let s = s.trim();
+    if let Some(eq_pos) = s.find('=') {
+        // Make sure this isn't == or =>
+        let after = s.get(eq_pos + 1..eq_pos + 2).unwrap_or("");
+        if after == "=" || after == ">" {
+            return (s, None);
+        }
+        (s[..eq_pos].trim(), Some(s[eq_pos + 1..].trim()))
+    } else {
+        (s, None)
+    }
+}
+
+/// Split destructuring properties/elements by comma, respecting nesting depth.
+fn split_destructuring_properties(s: &str) -> Vec<&str> {
+    let chars: Vec<char> = s.chars().collect();
+    let mut result = Vec::new();
+    let mut depth = 0;
+    let mut start = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    for (i, &ch) in chars.iter().enumerate() {
+        if in_string {
+            if ch == '\\' {
+                continue;
+            }
+            if ch == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+        if ch == '\'' || ch == '"' || ch == '`' {
+            in_string = true;
+            string_char = ch;
+            continue;
+        }
+        match ch {
+            '{' | '[' | '(' => depth += 1,
+            '}' | ']' | ')' => depth -= 1,
+            ',' if depth == 0 => {
+                result.push(&s[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    result.push(&s[start..]);
+    result
 }
 
 /// Calculate the prop flags for a given prop name.
@@ -8354,10 +9324,21 @@ fn transform_read_only_props(line: &str, read_only_props: &[(String, String)]) -
                             .unwrap_or(false)
                     })
             };
+            // Check if comma is in a variable declaration context (e.g., `let a, b`)
+            // but NOT in a function call argument (e.g., `foo(a, b)`)
+            let is_declaration_comma = trimmed_before.ends_with(',') && {
+                // Walk back past any previous declarators to find if there's a let/const/var
+                // This handles: `let a, b` where trimmed_before for `b` is `let a,`
+                let before_comma = trimmed_before[..trimmed_before.len() - 1].trim_end();
+                // Find the start of this statement by looking for the declaration keyword
+                // We need to check if this comma is part of a `let/const/var` multi-declarator
+                // or a destructuring pattern, not a function call argument
+                is_in_variable_declaration_list(before_comma)
+            };
             if trimmed_before.ends_with("let")
                 || trimmed_before.ends_with("const")
                 || trimmed_before.ends_with("var")
-                || trimmed_before.ends_with(',')
+                || is_declaration_comma
                 || is_destructuring_brace
             {
                 new_result.push_str(&result[last_end..mat.end()]);
@@ -8368,6 +9349,14 @@ fn transform_read_only_props(line: &str, read_only_props: &[(String, String)]) -
             // Check if this is a destructuring pattern
             // Look for patterns like `{ prop }` or `{ prop, ... }`
             if is_in_destructuring_pattern(&result, mat.start()) {
+                new_result.push_str(&result[last_end..mat.end()]);
+                last_end = mat.end();
+                continue;
+            }
+
+            // Check if this is a function parameter or inside a function body where
+            // a parameter shadows this prop name (e.g., `function render(state) { return state }`)
+            if is_in_function_param_or_shadowed(&result, mat.start(), Some(local_name)) {
                 new_result.push_str(&result[last_end..mat.end()]);
                 last_end = mat.end();
                 continue;
@@ -8421,6 +9410,215 @@ fn transform_read_only_props(line: &str, read_only_props: &[(String, String)]) -
     }
 
     result
+}
+
+/// Check if text before a comma represents a variable declaration list.
+/// Returns true for patterns like `let a` (from `let a, b`) but false for
+/// function call arguments like `foo('str'` (from `foo('str', arg)`).
+fn is_in_variable_declaration_list(before_comma: &str) -> bool {
+    // Simple heuristic: scan backwards past identifiers, assignments, and values
+    // to find if there's a let/const/var keyword at the top level (not inside parens/brackets).
+    // We need to handle: `let a = 1, b` -> before_comma for b is `let a = 1`
+    // But NOT: `console.log('str'` -> not a declaration
+    let trimmed = before_comma.trim();
+
+    // Quick checks for common declaration patterns
+    if trimmed.starts_with("let ") || trimmed.starts_with("const ") || trimmed.starts_with("var ") {
+        // Make sure we're at the top level (not inside nested parens/braces)
+        // Count unmatched parens and braces
+        let mut paren_depth: i32 = 0;
+        let mut brace_depth: i32 = 0;
+        let mut bracket_depth: i32 = 0;
+        let mut in_string = false;
+        let mut string_char = ' ';
+
+        for c in trimmed.chars() {
+            if in_string {
+                if c == '\\' {
+                    continue;
+                }
+                if c == string_char {
+                    in_string = false;
+                }
+                continue;
+            }
+            match c {
+                '"' | '\'' | '`' => {
+                    in_string = true;
+                    string_char = c;
+                }
+                '(' => paren_depth += 1,
+                ')' => paren_depth -= 1,
+                '{' => brace_depth += 1,
+                '}' => brace_depth -= 1,
+                '[' => bracket_depth += 1,
+                ']' => bracket_depth -= 1,
+                _ => {}
+            }
+        }
+
+        // If we're at the top level (all brackets balanced), this is a declaration list
+        paren_depth == 0 && brace_depth == 0 && bracket_depth == 0
+    } else {
+        false
+    }
+}
+
+/// Check if a position is inside a function parameter list, or inside a function body
+/// where a parameter with the given `name` shadows the identifier.
+fn is_in_function_param_or_shadowed(code: &str, pos: usize, name: Option<&str>) -> bool {
+    let bytes = code.as_bytes();
+
+    // Track brace depth to determine function scope boundaries.
+    // We scan backwards from pos to find enclosing function scopes.
+    // For each enclosing function scope, check if the parameter list
+    // contains the identifier name.
+
+    let mut brace_depth: i32 = 0;
+
+    let mut i = pos;
+    while i > 0 {
+        i -= 1;
+        match bytes[i] {
+            b'}' => brace_depth += 1,
+            b'{' => {
+                if brace_depth == 0 {
+                    // We've found an enclosing `{` at the same level.
+                    // Check if this is a function body by looking for `)` before `{`.
+                    let before_brace = code[..i].trim_end();
+                    if before_brace.ends_with(')') {
+                        // Find the matching `(`
+                        let close_paren = before_brace.len() - 1;
+                        let mut pd: i32 = 0;
+                        let mut open_paren = None;
+                        let bb = before_brace.as_bytes();
+                        let mut j = close_paren + 1;
+                        while j > 0 {
+                            j -= 1;
+                            match bb[j] {
+                                b')' => pd += 1,
+                                b'(' => {
+                                    pd -= 1;
+                                    if pd == 0 {
+                                        open_paren = Some(j);
+                                        break;
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                        if let Some(op) = open_paren {
+                            let before_paren = before_brace[..op].trim_end();
+                            // Check if preceded by function keyword
+                            let is_func = before_paren.ends_with("function")
+                                || before_paren.ends_with("function*")
+                                || {
+                                    // function name(...)
+                                    let stripped = before_paren.trim_end_matches(|c: char| {
+                                        c.is_alphanumeric() || c == '_' || c == '$'
+                                    });
+                                    let stripped = stripped.trim_end();
+                                    stripped.ends_with("function")
+                                        || stripped.ends_with("function*")
+                                        || stripped.ends_with("async function")
+                                };
+                            let is_arrow = {
+                                // Check after `)` for `=>`
+                                let after_close = before_brace[close_paren + 1..].trim_start();
+                                after_close.starts_with("=>")
+                            };
+                            if is_func || is_arrow {
+                                // Extract param list text
+                                let param_text = &before_brace[op + 1..close_paren];
+                                if let Some(name) = name {
+                                    // Check if the param list contains this identifier
+                                    let pattern = format!(r"\b{}\b", regex::escape(name));
+                                    if let Some(re) = get_or_compile_regex(&pattern)
+                                        && re.is_match(param_text)
+                                    {
+                                        return true;
+                                    }
+                                } else {
+                                    // No name specified - we're checking if pos is IN the param list
+                                    // This is the case when pos is between op and close_paren
+                                    if pos > op && pos < close_paren + i + 1 {
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Also check for `=>` after `{` (already inside arrow body)
+                    // Continue scanning upward for more enclosing scopes
+                } else {
+                    brace_depth -= 1;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Also check direct parameter list containment (pos is inside `(...)`)
+    let before = &code[..pos];
+    let mut paren_depth: i32 = 0;
+    let mut last_open_paren = None;
+    let mut k = before.len();
+    while k > 0 {
+        k -= 1;
+        match bytes[k] {
+            b')' => paren_depth += 1,
+            b'(' => {
+                if paren_depth == 0 {
+                    last_open_paren = Some(k);
+                    break;
+                }
+                paren_depth -= 1;
+            }
+            _ => {}
+        }
+    }
+
+    if let Some(open_idx) = last_open_paren {
+        let before_paren = code[..open_idx].trim_end();
+        let is_func_param =
+            before_paren.ends_with("function") || before_paren.ends_with("function*") || {
+                let stripped = before_paren
+                    .trim_end_matches(|c: char| c.is_alphanumeric() || c == '_' || c == '$');
+                let stripped = stripped.trim_end();
+                stripped.ends_with("function")
+                    || stripped.ends_with("function*")
+                    || stripped.ends_with("async function")
+            };
+
+        if is_func_param {
+            return true;
+        }
+
+        // Check if closing `)` is followed by `=>` or `{`
+        let mut paren_depth2: i32 = 0;
+        let mut close_idx = None;
+        for (j, &b) in code.as_bytes()[open_idx..].iter().enumerate() {
+            match b {
+                b'(' => paren_depth2 += 1,
+                b')' => {
+                    paren_depth2 -= 1;
+                    if paren_depth2 == 0 {
+                        close_idx = Some(open_idx + j);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        if let Some(ci) = close_idx {
+            let after_close = code[ci + 1..].trim_start();
+            if after_close.starts_with("=>") {
+                return true;
+            }
+        }
+    }
+
+    false
 }
 
 /// Check if a position is inside a destructuring pattern.
@@ -13420,6 +14618,84 @@ fn find_matching_paren(s: &str) -> Option<usize> {
     None
 }
 
+/// Extract the name of the enclosing function from the text before a block opening.
+/// Looks for patterns like `function NAME(` just before `{`.
+/// Returns None if no named function is found.
+fn extract_enclosing_function_name(before_block: &str) -> Option<&str> {
+    let trimmed = before_block.trim_end();
+    // Look for `function NAME(...)` pattern
+    // The pattern should end with `)` just before the `{`
+    if let Some(paren_close) = trimmed.rfind(')') {
+        let before_paren = &trimmed[..paren_close];
+        if let Some(paren_open) = before_paren.rfind('(') {
+            let before_params = trimmed[..paren_open].trim_end();
+            // Check if this is `function NAME`
+            if let Some(fn_pos) = before_params.rfind("function ") {
+                let name_part = before_params[fn_pos + 9..].trim();
+                if !name_part.is_empty()
+                    && name_part
+                        .chars()
+                        .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+                {
+                    return Some(name_part);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Find the position of the matching closing brace `}` for a string that starts
+/// right after the opening `{`. Returns the index of the `}` within the string.
+/// Handles nested braces, strings, and comments.
+fn find_matching_brace(s: &str) -> Option<usize> {
+    let mut depth = 1i32;
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            // Skip string literals
+            b'\'' | b'"' | b'`' => {
+                let quote = bytes[i];
+                i += 1;
+                while i < bytes.len() {
+                    if bytes[i] == b'\\' {
+                        i += 1; // skip escaped char
+                    } else if bytes[i] == quote {
+                        break;
+                    }
+                    i += 1;
+                }
+            }
+            // Skip single-line comments
+            b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'/' => {
+                i += 2;
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            // Skip multi-line comments
+            b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'*' => {
+                i += 2;
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i += 1; // skip past */
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
 /// Determine if an expression needs proxying (could return an object/array).
 ///
 /// Returns `true` for:
@@ -14078,6 +15354,182 @@ fn strip_top_level_await_from_expr(expr: &str) -> String {
     } else {
         trimmed.to_string()
     }
+}
+
+/// Wrap non-final `await expr` in async derived expressions with `$.save()`.
+///
+/// In the official Svelte compiler, `await` expressions that precede other reactive
+/// reads inside `$derived` / async_derived are wrapped with `$.save()` to preserve
+/// reactive context across the await boundary.
+///
+/// Example: `(await get_promise()) * get_num()`
+///   becomes: `(await $.save(get_promise()))() * get_num()`
+///
+/// The rule: if the `await expr` is not the entirety of the expression (i.e., there's
+/// more code after it), wrap with `$.save()` and add `()` invocation after the await.
+fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
+    let trimmed = expr.trim();
+    let chars: Vec<char> = trimmed.chars().collect();
+    let len = chars.len();
+    let mut result = String::with_capacity(len + 20);
+    let mut i = 0;
+
+    while i < len {
+        // Skip strings
+        if chars[i] == '\'' || chars[i] == '"' || chars[i] == '`' {
+            let quote = chars[i];
+            result.push(chars[i]);
+            i += 1;
+            while i < len && chars[i] != quote {
+                if chars[i] == '\\' {
+                    result.push(chars[i]);
+                    i += 1;
+                    if i < len {
+                        result.push(chars[i]);
+                        i += 1;
+                    }
+                } else if quote == '`' && chars[i] == '$' && i + 1 < len && chars[i + 1] == '{' {
+                    // Template literal interpolation - recurse
+                    result.push(chars[i]);
+                    result.push(chars[i + 1]);
+                    i += 2;
+                    let mut depth = 1;
+                    let start = i;
+                    while i < len && depth > 0 {
+                        if chars[i] == '{' {
+                            depth += 1;
+                        } else if chars[i] == '}' {
+                            depth -= 1;
+                        }
+                        if depth > 0 {
+                            i += 1;
+                        }
+                    }
+                    let inner: String = chars[start..i].iter().collect();
+                    result.push_str(&wrap_await_with_save_in_async_derived(&inner));
+                    if i < len {
+                        result.push(chars[i]); // closing }
+                        i += 1;
+                    }
+                } else {
+                    result.push(chars[i]);
+                    i += 1;
+                }
+            }
+            if i < len {
+                result.push(chars[i]); // closing quote
+                i += 1;
+            }
+            continue;
+        }
+
+        // Skip async arrow functions - don't transform await inside them
+        if i + 5 < len {
+            let word: String = chars[i..i + 5].iter().collect();
+            if word == "async" {
+                // Check if followed by space/paren and then arrow function
+                let rest: String = chars[i..].iter().collect();
+                if rest.starts_with("async (") || rest.starts_with("async()") {
+                    // This is an async arrow function or async function - skip to end
+                    result.push_str(&rest);
+                    return result;
+                }
+            }
+        }
+
+        // Check for 'await' keyword
+        if i + 5 <= len {
+            let word: String = chars[i..i + 5].iter().collect();
+            if word == "await"
+                && (i == 0 || !chars[i - 1].is_alphanumeric() && chars[i - 1] != '_')
+                && (i + 5 >= len || !chars[i + 5].is_alphanumeric() && chars[i + 5] != '_')
+            {
+                // Found an `await` keyword.
+                // Check if there's more expression content after the await + its argument.
+                // We need to find the end of the await argument to check if there's more.
+                let after_await = i + 5;
+                let mut arg_start = after_await;
+                // Skip whitespace after 'await'
+                while arg_start < len && chars[arg_start].is_whitespace() {
+                    arg_start += 1;
+                }
+
+                // Find the extent of the await argument
+                // It goes until we hit a binary operator (+, *, -, /, %, etc.) at the same depth,
+                // or end of expression
+                let mut j = arg_start;
+                let mut paren_depth = 0;
+                let mut bracket_depth = 0;
+                let mut brace_depth = 0;
+
+                while j < len {
+                    match chars[j] {
+                        '(' => paren_depth += 1,
+                        ')' => {
+                            if paren_depth == 0 {
+                                break;
+                            }
+                            paren_depth -= 1;
+                        }
+                        '[' => bracket_depth += 1,
+                        ']' => {
+                            if bracket_depth == 0 {
+                                break;
+                            }
+                            bracket_depth -= 1;
+                        }
+                        '{' => brace_depth += 1,
+                        '}' => {
+                            if brace_depth == 0 {
+                                break;
+                            }
+                            brace_depth -= 1;
+                        }
+                        '*' | '+' | '-' | '/' | '%' | '&' | '|' | '^' | '<' | '>'
+                            if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 =>
+                        {
+                            // Binary operator at top level - this is where the await arg ends
+                            break;
+                        }
+                        ',' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => break,
+                        '?' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => break,
+                        ':' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => break,
+                        _ => {}
+                    }
+                    j += 1;
+                }
+
+                // The await argument is chars[arg_start..j]
+                let await_arg: String = chars[arg_start..j].iter().collect();
+                let await_arg_trimmed = await_arg.trim();
+
+                // Check if there's more expression after this await+arg
+                let remaining: String = chars[j..].iter().collect();
+                let remaining_trimmed = remaining.trim();
+                let has_more_after = !remaining_trimmed.is_empty()
+                    && remaining_trimmed != ")"
+                    && remaining_trimmed != "))"
+                    && remaining_trimmed != ";";
+
+                if has_more_after {
+                    // Wrap with $.save: `await expr` -> `(await $.save(expr))()`
+                    result.push_str(&format!("(await $.save({}))()", await_arg_trimmed));
+                    i = j;
+                } else {
+                    // Last expression - keep as is
+                    result.push_str("await ");
+                    result.push_str(await_arg_trimmed);
+                    i = j;
+                }
+                continue;
+            }
+        }
+
+        result.push(chars[i]);
+        i += 1;
+    }
+
+    result
 }
 
 // ============================================================================
@@ -15713,14 +17165,21 @@ fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> S
 fn unthunk_string(expr: &str) -> String {
     let trimmed = expr.trim();
 
-    // Check if the expression is a simple call: identifier() or identifier.method()
-    // Pattern: the expr ends with "()" and the part before "()" is a valid identifier
+    // Check if the expression is a simple call: identifier() or $.method()
+    // IMPORTANT: Only plain identifiers and `$.xxx` member expressions are unthunked.
+    // This matches the official Svelte compiler's unthunk() which checks
+    // `expression.body.callee.type === 'Identifier'` (not arbitrary MemberExpression).
+    // The `$.xxx` exception is for Svelte runtime functions (e.g., `$.effect_tracking()`).
+    // e.g., `() => foo()` -> `foo`, `() => $.get(x)` -> `$.get(x)` (kept as call)
+    // but `() => value.toString()` stays as `() => value.toString()`
     if let Some(callee) = trimmed.strip_suffix("()") {
-        let is_simple_identifier = !callee.is_empty()
+        let is_plain_identifier = !callee.is_empty()
             && callee
                 .chars()
-                .all(|c| c.is_alphanumeric() || c == '_' || c == '$' || c == '.');
-        if is_simple_identifier {
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '$');
+        let is_dollar_member = callee.starts_with("$.")
+            && callee[2..].chars().all(|c| c.is_alphanumeric() || c == '_');
+        if is_plain_identifier || is_dollar_member {
             return callee.to_string();
         }
     }
@@ -17837,11 +19296,16 @@ mod tests {
             "Should transform 'a + b' to 'a() + b()'"
         );
 
-        // Don't double-transform
+        // Function calls with prop names should still get the getter wrapper.
+        // `a()` in source means "call the prop getter, then call the result".
+        // So `a()` -> `a()()` is correct (getter + original call).
         let result2 = transform_prop_reads_in_expr("a() + b()", &prop_vars);
         println!("Input: 'a() + b()'");
         println!("Result: '{}'", result2);
-        assert_eq!(result2, "a() + b()", "Should not double-transform");
+        assert_eq!(
+            result2, "a()() + b()()",
+            "Should wrap prop name reads even when followed by ()"
+        );
 
         // Multiplication
         let prop_vars2 = vec!["c".to_string()];

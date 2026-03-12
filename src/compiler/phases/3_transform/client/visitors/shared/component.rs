@@ -477,7 +477,14 @@ pub fn build_component(
                 ],
             );
 
-            statements.push(add_svelte_meta(dynamic_call));
+            let meta_stmt = build_component_meta_stmt(
+                dynamic_call,
+                &node,
+                &context.state.analysis.name,
+                context.state.dev,
+                &context.state.analysis.source,
+            );
+            statements.push(meta_stmt);
         }
     } else {
         // Static component
@@ -511,7 +518,14 @@ pub fn build_component(
                 context,
             );
 
-            statements.push(add_svelte_meta(component_call));
+            let meta_stmt = build_component_meta_stmt(
+                component_call,
+                &node,
+                &context.state.analysis.name,
+                context.state.dev,
+                &context.state.analysis.source,
+            );
+            statements.push(meta_stmt);
         }
     }
 
@@ -1487,15 +1501,40 @@ fn process_bind_directive(
     delayed_props.push(DelayedProp { prop: getter });
     delayed_props.push(DelayedProp { prop: setter });
 
-    // Dev mode: add ownership validation
-    if context.state.dev {
-        // TODO: Add ownership validation for bindable props
-        let _ = (
-            is_component_dynamic,
-            intermediate_name,
-            component_name,
-            binding_initializers,
-        );
+    // Dev mode: add ownership validation for bindable props
+    // Reference: component.js lines 207-230
+    let is_sequence_expression = {
+        let json = bind.expression.as_json();
+        json.as_object()
+            .and_then(|o| o.get("type"))
+            .and_then(|t| t.as_str())
+            == Some("SequenceExpression")
+    };
+    if context.state.dev && bind.name.as_str() != "this" && !is_sequence_expression {
+        // Get the root identifier of the binding expression
+        let root_name = get_binding_root_name(&bind.expression);
+        if let Some(ref root) = root_name {
+            let binding = context.state.get_binding(root);
+            if let Some(binding) = binding {
+                use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                if matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp) {
+                    context.state.needs_mutation_validation.set(true);
+                    let comp_name = if is_component_dynamic {
+                        intermediate_name
+                    } else {
+                        component_name
+                    };
+                    binding_initializers.push(b::stmt(b::call(
+                        b::member_path("$$ownership_validator.binding"),
+                        vec![
+                            b::string(&binding.name),
+                            b::id(comp_name),
+                            b::thunk(transformed_expression.clone()),
+                        ],
+                    )));
+                }
+            }
+        }
     }
 }
 
@@ -2456,11 +2495,36 @@ fn build_props_expression(props_and_spreads: Vec<PropsEntry>) -> JsExpr {
 /// Add Svelte metadata wrapper for dev mode.
 ///
 /// Note: Parameters removed to avoid unnecessary cloning.
-/// Will be re-added when dev mode is implemented.
-#[inline]
-fn add_svelte_meta(expression: JsExpr) -> JsStatement {
-    // TODO: Implement dev mode metadata wrapping
-    b::stmt(expression)
+/// Build a component instantiation statement with dev-mode metadata.
+/// In dev mode, wraps with $.add_svelte_meta() for ownership tracking.
+fn build_component_meta_stmt(
+    expression: JsExpr,
+    node: &ComponentNode,
+    analysis_name: &str,
+    dev: bool,
+    source: &str,
+) -> JsStatement {
+    if !dev {
+        return b::stmt(expression);
+    }
+
+    let (start, tag_name) = match node {
+        ComponentNode::Component(comp) => (comp.start, comp.name.to_string()),
+        ComponentNode::SvelteComponent(comp) => (comp.start, "svelte:component".to_string()),
+        ComponentNode::SvelteSelf(_) => (0, "svelte:self".to_string()),
+    };
+
+    let (line, col) = super::super::attribute::locate_in_source(source, start as usize);
+
+    super::utils::add_svelte_meta_dev(
+        expression,
+        "component",
+        analysis_name,
+        line,
+        col,
+        Some(vec![("componentTag".to_string(), b::string(&tag_name))]),
+        dev,
+    )
 }
 
 // NOTE: expression_might_have_state was removed in favor of
@@ -2469,6 +2533,25 @@ fn add_svelte_meta(expression: JsExpr) -> JsStatement {
 /// Extract identifier name from an expression.
 fn extract_identifier_name(expr: &Expression) -> Option<String> {
     expr.identifier_name().map(|s| s.to_string())
+}
+
+/// Get the root identifier name from an expression, traversing through member expressions.
+/// E.g., `obj.foo.bar` returns `"obj"`, `obj` returns `"obj"`, other types return None.
+fn get_binding_root_name(expr: &Expression) -> Option<String> {
+    let json = expr.as_json();
+    get_root_identifier_from_json(json)
+}
+
+fn get_root_identifier_from_json(val: &serde_json::Value) -> Option<String> {
+    let obj = val.as_object()?;
+    match obj.get("type")?.as_str()? {
+        "Identifier" => obj.get("name")?.as_str().map(|s| s.to_string()),
+        "MemberExpression" => {
+            let object = obj.get("object")?;
+            get_root_identifier_from_json(object)
+        }
+        _ => None,
+    }
 }
 
 /// Check if expression is a store subscription.

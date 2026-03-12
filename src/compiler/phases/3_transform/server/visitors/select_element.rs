@@ -221,13 +221,17 @@ impl<'a> ServerCodeGenerator<'a> {
             self.output_parts
                 .push(OutputPart::TextareaBody { value_expr: expr });
         } else {
-            // No value - process children normally
+            // No value - process children with whitespace preserved (textarea content)
+            // Textarea content should not have whitespace collapsed
+            let saved_preserve = self.preserve_whitespace;
+            self.preserve_whitespace = true;
             for child in &element.fragment.nodes {
                 if matches!(child, TemplateNode::Comment(_)) {
                     continue;
                 }
                 self.generate_node(child, false)?;
             }
+            self.preserve_whitespace = saved_preserve;
         }
 
         self.output_parts

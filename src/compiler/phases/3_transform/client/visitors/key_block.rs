@@ -7,6 +7,7 @@ use crate::ast::template::KeyBlock;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_expression;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 
@@ -28,16 +29,16 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 /// });
 /// ```
 pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformResult {
-    use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
-
     // Add a comment marker to the template for hydration
     context.state.template.push_comment(None);
 
     let has_await = node.metadata.expression.has_await()
         || super::shared::utils::expression_has_await(&node.expression);
-    // Build the key expression
+    // Build the key expression using build_expression (mirrors official KeyBlock.js)
+    // This applies both transforms AND legacy $.untrack() wrapping
     let expression = convert_expression(&node.expression, context);
-    let transformed_expression = apply_transforms_to_expression(&expression, context);
+    let expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
+    let transformed_expression = build_expression(context, &expression, &expr_metadata);
 
     // Check blocker_map for blocked identifiers referenced in the expression
     let blocker_exprs_for_key = context.state.get_blockers_for_expr(&transformed_expression);
