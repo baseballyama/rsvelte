@@ -718,6 +718,21 @@ impl<'a> JsCodegen<'a> {
             self.indent_level += 1;
             self.newline();
             for (i, member) in obj.properties.iter().enumerate() {
+                // Insert blank line between getter/setter members,
+                // matching esrap's blank line behavior for object literals.
+                if i > 0 {
+                    let prev_is_gs = matches!(
+                        &obj.properties[i - 1],
+                        JsObjectMember::Property(p) if matches!(p.kind, JsPropertyKind::Get | JsPropertyKind::Set)
+                    );
+                    let curr_is_gs = matches!(
+                        member,
+                        JsObjectMember::Property(p) if matches!(p.kind, JsPropertyKind::Get | JsPropertyKind::Set)
+                    );
+                    if prev_is_gs || curr_is_gs {
+                        self.newline();
+                    }
+                }
                 self.indent();
                 self.emit_object_member(member);
                 if i < obj.properties.len() - 1 {
