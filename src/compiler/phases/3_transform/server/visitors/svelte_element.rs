@@ -50,6 +50,7 @@ impl<'a> ServerCodeGenerator<'a> {
             tag_expr,
             attrs_expr,
             body,
+            dev: self.dev,
         });
         Ok(())
     }

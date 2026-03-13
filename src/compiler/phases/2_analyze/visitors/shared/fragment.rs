@@ -139,6 +139,12 @@ pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<
                 TemplateNode::HtmlTag(tag) => {
                     tag.metadata.ignored_codes = ignore_codes.clone();
                 }
+                TemplateNode::Component(comp) => {
+                    comp.metadata.ignored_codes = ignore_codes.clone();
+                }
+                TemplateNode::SvelteComponent(comp) => {
+                    comp.ignored_codes = ignore_codes.clone();
+                }
                 _ => {}
             }
         }

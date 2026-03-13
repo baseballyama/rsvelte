@@ -85,7 +85,6 @@ impl ScriptContent {
         } else {
             String::new()
         };
-
         // Check if this script uses TypeScript
         let is_typescript = force_typescript
             || script.attributes.iter().any(|attr| {
@@ -1071,6 +1070,9 @@ pub struct ComponentAnalysis {
     /// Component name (derived from filename)
     pub name: String,
 
+    /// Original filename (e.g., "main.svelte") used for dev-mode source locations
+    pub filename: String,
+
     /// Whether the component uses runes
     pub runes: bool,
 
@@ -1246,6 +1248,20 @@ impl ComponentAnalysis {
             template: TemplateAnalysis::default(),
             css: CssAnalysis::default(),
             name,
+            filename: options
+                .filename
+                .as_ref()
+                .map(|f| {
+                    // Extract just the basename (e.g., "main.svelte" from "/path/to/main.svelte")
+                    f.rsplit('/')
+                        .next()
+                        .unwrap_or(f)
+                        .rsplit('\\')
+                        .next()
+                        .unwrap_or(f)
+                        .to_string()
+                })
+                .unwrap_or_else(|| "Component".to_string()),
             runes: initial_runes,
             runes_explicitly_set: options.runes,
             experimental_async: options.experimental.r#async,

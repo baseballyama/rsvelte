@@ -167,12 +167,14 @@ pub fn fragment(
         module_level_snippets: Vec::with_capacity(2),
         snippet_names: context.state.snippet_names.clone(),
         in_direct_assignment_lhs: false,
+        in_bind_directive: false,
         is_controlled_each: false,
         snippets: Vec::new(),
         // Root fragment starts at level 0; non-root fragments (e.g., inside {#if}/{#each})
         // start at level 1 so that snippets inside blocks are not hoisted to the root.
         // This matches the official compiler's `context.path.length === 1` check.
         template_nesting_level: if is_root_fragment { 0 } else { 1 },
+        in_control_flow_block: context.state.in_control_flow_block,
         each_index_used: context.state.each_index_used.clone(),
         each_index_name: context.state.each_index_name.clone(),
         ancestor_each_index_names: context.state.ancestor_each_index_names.clone(),

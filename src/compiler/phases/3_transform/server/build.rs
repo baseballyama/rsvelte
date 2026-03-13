@@ -374,9 +374,8 @@ impl<'a> ServerCodeGenerator<'a> {
         // Determine if we need $$renderer.component() wrapper
         // This matches the official compiler's should_inject_context logic (line 259):
         //   should_inject_context = dev || analysis.needs_context
-        // We don't have dev mode, so just needs_context.
         // Note: uses_props_spread also needs the wrapper for destructuring.
-        let should_inject_context = needs_context;
+        let should_inject_context = self.dev || needs_context;
         let needs_component_wrapper = should_inject_context || uses_props_spread;
 
         // Determine if we need $$props parameter
@@ -504,14 +503,39 @@ impl<'a> ServerCodeGenerator<'a> {
                     inner_body
                 };
 
+                // In dev mode, add component name as 2nd arg to $$renderer.component()
+                let component_second_arg = if self.dev {
+                    format!(", {}", self.component_name)
+                } else {
+                    String::new()
+                };
+
+                // In dev mode, add FILENAME assignment
+                let filename_section = if self.dev {
+                    if let Some(ref fname) = self.filename {
+                        // Use just the basename for the filename
+                        let basename = fname
+                            .rsplit('/')
+                            .next()
+                            .or_else(|| fname.rsplit('\\').next())
+                            .unwrap_or(fname);
+                        format!("{}[$.FILENAME] = '{}';\n\n", self.component_name, basename)
+                    } else {
+                        String::new()
+                    }
+                } else {
+                    String::new()
+                };
+
                 format!(
-                    r#"{async_import}import * as $ from 'svelte/internal/server';
+                    r#"{filename_section}{async_import}import * as $ from 'svelte/internal/server';
 {imports_section}{snippets_section}{css_const_section}{module_section}
 export default function {component_name}($$renderer{props_param}) {{
 {css_add_call}{props_declarations}	$$renderer.component(($$renderer) => {{
 {store_subs_decl}{inner_script}
-{instance_snippets}{inner_body}{store_subs_cleanup}{bind_props_code}	}});
+{instance_snippets}{inner_body}{store_subs_cleanup}{bind_props_code}	}}{component_second_arg});
 }}"#,
+                    filename_section = filename_section,
                     async_import = async_import,
                     imports_section = imports_section,
                     snippets_section = snippets_section,
@@ -526,7 +550,8 @@ export default function {component_name}($$renderer{props_param}) {{
                     instance_snippets = instance_snippets,
                     inner_body = inner_body,
                     bind_props_code = bind_props_code,
-                    store_subs_cleanup = store_subs_cleanup
+                    store_subs_cleanup = store_subs_cleanup,
+                    component_second_arg = component_second_arg
                 )
             } else {
                 // Build props declarations ($$sanitized_props, $$restProps)
@@ -3710,12 +3735,21 @@ export default function {component_name}($$renderer{props_param}) {{
                     tag_expr,
                     attrs_expr,
                     body,
+                    dev,
                 } => {
                     // Flush current HTML before svelte:element
                     if !current_html.is_empty() {
                         body_code
                             .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
                         current_html.clear();
+                    }
+
+                    // In dev mode, validate the dynamic element tag
+                    if *dev {
+                        body_code.push_str(&format!(
+                            "{}$.validate_dynamic_element_tag(() => {});\n",
+                            indent, tag_expr
+                        ));
                     }
 
                     // Generate $.element call with attributes and body callback
@@ -4263,10 +4297,41 @@ export default function {component_name}($$renderer{props_param}) {{
                         "null".to_string()
                     };
 
-                    body_code.push_str(&format!(
-                        "{}$.slot($$renderer, $$props, '{}', {}, {});\n",
-                        indent, name, props_expr, fallback_arg
-                    ));
+                    // Check if slot props contain await expressions.
+                    // If so, wrap in $$renderer.child_block(async ...) and extract
+                    // await expressions into const variables.
+                    // This corresponds to the official compiler's PromiseOptimiser
+                    // which wraps async slot props in child_block.
+                    if props_expr.contains("await ") {
+                        let inner_indent = format!("{}\t", indent);
+                        body_code.push_str(&format!(
+                            "{}$$renderer.child_block(async ($$renderer) => {{\n",
+                            indent
+                        ));
+
+                        // Extract await expressions from props and replace with const vars.
+                        // e.g., { message: await 'hello' } -> const $$0 = (await $.save("hello"))();
+                        //        then replace with { message: $$0 }
+                        let (extracted_consts, modified_props) =
+                            extract_await_from_slot_props(props_expr);
+                        for (i, await_expr) in extracted_consts.iter().enumerate() {
+                            body_code.push_str(&format!(
+                                "{}const $${} = (await $.save({}))();\n",
+                                inner_indent, i, await_expr
+                            ));
+                        }
+
+                        body_code.push_str(&format!(
+                            "{}$.slot($$renderer, $$props, '{}', {}, {});\n",
+                            inner_indent, name, modified_props, fallback_arg
+                        ));
+                        body_code.push_str(&format!("{}}});\n", indent));
+                    } else {
+                        body_code.push_str(&format!(
+                            "{}$.slot($$renderer, $$props, '{}', {}, {});\n",
+                            indent, name, props_expr, fallback_arg
+                        ));
+                    }
 
                     // Add closing marker
                     current_html.push_str("<!--]-->");
@@ -4691,6 +4756,11 @@ export default function {component_name}($$renderer{props_param}) {{
 
             result.push_str(&format!("function {}({}) {{\n", snippet.name, params));
 
+            // In dev mode, add snippet argument validation
+            if self.dev {
+                result.push_str("\t$.validate_snippet_args($$renderer);\n");
+            }
+
             // Generate body - snippets have their own counter scope
             let store_subs = self.get_store_sub_names();
             let store_subs_ref: Vec<(&str, &str)> = store_subs
@@ -4734,6 +4804,15 @@ export default function {component_name}($$renderer{props_param}) {{
                 "{}function {}({}) {{\n",
                 indent, snippet.name, params
             ));
+
+            // In dev mode, add snippet argument validation
+            if self.dev {
+                let inner_indent = "\t".repeat(indent_level + 1);
+                result.push_str(&format!(
+                    "{}$.validate_snippet_args($$renderer);\n",
+                    inner_indent
+                ));
+            }
 
             // Generate body - snippets have their own counter scope
             let store_subs = self.get_store_sub_names();
@@ -5108,4 +5187,114 @@ fn is_declared_via_export_let(script: &str, name: &str) -> bool {
         }
     }
     false
+}
+
+/// Extract `await expr` patterns from a slot props expression.
+///
+/// Given `{ message: await 'hello' }`, returns:
+///   - extracted_exprs: `["hello"]` (the expressions after await)
+///   - modified_props: `{ message: $$0 }` (with await replaced by const names)
+fn extract_await_from_slot_props(props_expr: &str) -> (Vec<String>, String) {
+    let mut extracted = Vec::new();
+    let mut modified = String::new();
+    let bytes = props_expr.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+
+    while i < len {
+        // Skip string literals
+        if bytes[i] == b'\'' || bytes[i] == b'"' || bytes[i] == b'`' {
+            let quote = bytes[i];
+            modified.push(bytes[i] as char);
+            i += 1;
+            while i < len && bytes[i] != quote {
+                if bytes[i] == b'\\' {
+                    modified.push(bytes[i] as char);
+                    i += 1;
+                    if i < len {
+                        modified.push(bytes[i] as char);
+                        i += 1;
+                    }
+                } else {
+                    modified.push(bytes[i] as char);
+                    i += 1;
+                }
+            }
+            if i < len {
+                modified.push(bytes[i] as char);
+                i += 1;
+            }
+            continue;
+        }
+
+        // Check for `await` keyword
+        if i + 5 <= len
+            && &props_expr[i..i + 5] == "await"
+            && (i == 0 || !bytes[i - 1].is_ascii_alphanumeric() && bytes[i - 1] != b'_')
+            && (i + 5 >= len || !bytes[i + 5].is_ascii_alphanumeric() && bytes[i + 5] != b'_')
+        {
+            // Skip whitespace after await
+            let mut j = i + 5;
+            while j < len && (bytes[j] == b' ' || bytes[j] == b'\t' || bytes[j] == b'\n') {
+                j += 1;
+            }
+
+            // Find end of await argument (until comma or closing brace at depth 0)
+            let arg_start = j;
+            let mut paren_depth = 0i32;
+            let mut bracket_depth = 0i32;
+            let mut brace_depth = 0i32;
+
+            while j < len {
+                match bytes[j] {
+                    b'(' => paren_depth += 1,
+                    b')' => {
+                        if paren_depth == 0 {
+                            break;
+                        }
+                        paren_depth -= 1;
+                    }
+                    b'[' => bracket_depth += 1,
+                    b']' => {
+                        if bracket_depth == 0 {
+                            break;
+                        }
+                        bracket_depth -= 1;
+                    }
+                    b'{' => brace_depth += 1,
+                    b'}' => {
+                        if brace_depth == 0 {
+                            break;
+                        }
+                        brace_depth -= 1;
+                    }
+                    b',' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => break,
+                    b'\'' | b'"' | b'`' => {
+                        let quote = bytes[j];
+                        j += 1;
+                        while j < len && bytes[j] != quote {
+                            if bytes[j] == b'\\' {
+                                j += 1;
+                            }
+                            j += 1;
+                        }
+                    }
+                    _ => {}
+                }
+                j += 1;
+            }
+
+            let await_arg = props_expr[arg_start..j].trim().to_string();
+            let idx = extracted.len();
+            extracted.push(await_arg);
+            modified.push_str(&format!("$${}", idx));
+            i = j;
+            continue;
+        }
+
+        modified.push(bytes[i] as char);
+        i += 1;
+    }
+
+    (extracted, modified)
 }

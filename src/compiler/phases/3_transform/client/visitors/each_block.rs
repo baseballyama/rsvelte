@@ -400,7 +400,10 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
 
     // Visit the each block body to get the body block
     // The Fragment visitor handles template creation and hoisting
+    let prev_in_control_flow = context.state.in_control_flow_block;
+    context.state.in_control_flow_block = true;
     let body_block = visit_fragment(&node.body, context);
+    context.state.in_control_flow_block = prev_in_control_flow;
 
     // Pop the each binding context
     context.state.each_binding_context.pop();
@@ -511,7 +514,21 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     let each_call = b::call(b::member_path("$.each"), each_args);
 
     // Add svelte metadata
-    let each_statement = add_svelte_meta(each_call);
+    let each_statement = if context.state.dev {
+        use crate::compiler::phases::phase3_transform::client::visitors::attribute::locate_in_source;
+        let (line, col) = locate_in_source(&context.state.analysis.source, node.start as usize);
+        super::shared::utils::add_svelte_meta_dev(
+            each_call,
+            "each",
+            &context.state.analysis.name,
+            line,
+            col,
+            None,
+            true,
+        )
+    } else {
+        add_svelte_meta(each_call)
+    };
 
     // Build statements to add to init
     let statements = vec![each_statement];
@@ -1071,6 +1088,15 @@ fn build_declarations(
                                 replacement_id: None,
                             },
                         );
+
+                        // In dev mode, eagerly evaluate to hit TDZ errors
+                        // Reference: EachBlock.js line 283-285
+                        if context.state.dev {
+                            declarations.push(b::stmt(b::call(
+                                b::member_path("$.get"),
+                                vec![b::id(&path.name)],
+                            )));
+                        }
                     } else {
                         declarations.push(b::let_decl(
                             &path.name,
@@ -1091,6 +1117,12 @@ fn build_declarations(
                                 replacement_id: None,
                             },
                         );
+
+                        // In dev mode, eagerly evaluate to hit TDZ errors
+                        // Reference: EachBlock.js line 283-285
+                        if context.state.dev {
+                            declarations.push(b::stmt(b::call(b::id(&path.name), vec![])));
+                        }
                     }
                 }
             }

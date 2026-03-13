@@ -143,7 +143,22 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
 
     // Build the statements list (derived decls + call)
     let mut statements: Vec<JsStatement> = derived_decls;
-    statements.push(b::stmt(call));
+    // In dev mode, wrap with $.add_svelte_meta() for render tags
+    if context.state.dev {
+        use crate::compiler::phases::phase3_transform::client::visitors::attribute::locate_in_source;
+        let (line, col) = locate_in_source(&context.state.analysis.source, node.start as usize);
+        statements.push(super::shared::utils::add_svelte_meta_dev(
+            call,
+            "render",
+            &context.state.analysis.name,
+            line,
+            col,
+            None,
+            true,
+        ));
+    } else {
+        statements.push(b::stmt(call));
+    }
 
     // Check for blockers from the blocker_map by scanning the call for identifiers.
     // We use collect_identifiers_from_statement (which recurses into arrow functions)

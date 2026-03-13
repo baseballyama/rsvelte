@@ -52,7 +52,10 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
     };
 
     // Visit the fragment - this returns a BlockStatement
+    let prev_in_control_flow = context.state.in_control_flow_block;
+    context.state.in_control_flow_block = true;
     let body_block = fragment(&node.fragment, context, false);
+    context.state.in_control_flow_block = prev_in_control_flow;
 
     // Convert BlockStatement to arrow function body expression
     let anchor_param = b::id_pattern("$$anchor");
@@ -67,10 +70,25 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
     );
 
     // Create the $.key() call statement
-    let key_call_stmt = b::stmt(b::call(
+    let key_call = b::call(
         b::member_path("$.key"),
         vec![context.state.node.clone(), key_expr, body],
-    ));
+    );
+    let key_call_stmt = if context.state.dev {
+        use crate::compiler::phases::phase3_transform::client::visitors::attribute::locate_in_source;
+        let (line, col) = locate_in_source(&context.state.analysis.source, node.start as usize);
+        super::shared::utils::add_svelte_meta_dev(
+            key_call,
+            "key",
+            &context.state.analysis.name,
+            line,
+            col,
+            None,
+            true,
+        )
+    } else {
+        b::stmt(key_call)
+    };
 
     // If the expression has await or blockers, wrap in $.async()
     if has_await || has_blockers {

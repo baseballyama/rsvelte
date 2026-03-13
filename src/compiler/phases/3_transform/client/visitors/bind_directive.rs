@@ -58,7 +58,10 @@ pub fn unified_build_bind_this(
         apply_transforms_to_expression, apply_transforms_to_expression_with_shadowed,
     };
 
+    let saved_in_bind = context.state.in_bind_directive;
+    context.state.in_bind_directive = true;
     let raw_expr = convert_expression(expression, context);
+    context.state.in_bind_directive = saved_in_bind;
 
     let (getter_expr, setter_expr) = if let JsExpr::Sequence(ref seq) = raw_expr {
         if seq.expressions.len() == 2 {
@@ -342,11 +345,53 @@ pub fn bind_directive(
     context: &mut ComponentContext,
     parent: crate::compiler::phases::phase3_transform::utils::ParentRef<'_>,
 ) -> TransformResult {
+    bind_directive_inner(node, context, parent, &[])
+}
+
+pub fn bind_directive_with_ignored(
+    node: &BindDirective,
+    context: &mut ComponentContext,
+    parent: crate::compiler::phases::phase3_transform::utils::ParentRef<'_>,
+    ignored_codes: &[String],
+) -> TransformResult {
+    bind_directive_inner(node, context, parent, ignored_codes)
+}
+
+fn bind_directive_inner(
+    node: &BindDirective,
+    context: &mut ComponentContext,
+    parent: crate::compiler::phases::phase3_transform::utils::ParentRef<'_>,
+    ignored_codes: &[String],
+) -> TransformResult {
     let binding_name = node.name.as_str();
 
     // Visit the expression to transform it using the full expression converter
     // (supports ArrowFunctionExpression, MemberExpression, etc.)
     let expression = convert_expression(&node.expression, context);
+
+    // In dev mode with runes, validate binding to non-reactive properties.
+    // Reference: BindDirective.js lines 26-41
+    if context.state.dev
+        && context.state.analysis.runes
+        && !is_sequence_expression(&expression)
+        && node.expression.is_member_expression()
+        && !ignored_codes
+            .iter()
+            .any(|c| c == "binding_property_non_reactive")
+    {
+        // For bind:this, only validate when inside a control flow block (if/each/await/key)
+        // since at the top level the binding is static and doesn't need validation.
+        // Reference: BindDirective.js lines 30-36
+        let should_validate = binding_name != "this"
+            || context.state.in_control_flow_block
+            || context.state.each_index_name.is_some();
+        if should_validate {
+            // Apply state/prop transforms so prop getters like `rows` become `rows()`
+            use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
+            let transformed_expr = apply_transforms_to_expression(&expression, context);
+            emit_validate_binding(node, &transformed_expr, context);
+        }
+    }
 
     // Check if it's a sequence expression (getter/setter pair)
     let (get, set) = if is_sequence_expression(&expression) {
@@ -2233,6 +2278,118 @@ fn collect_ast_identifiers_recursive(val: &serde_json::Value, names: &mut Vec<St
             }
         }
         _ => {}
+    }
+}
+
+/// Emit $.validate_binding() call for dev mode binding validation.
+/// Reference: validate_binding() in shared/utils.js lines 340-374
+pub fn emit_validate_binding(
+    node: &BindDirective,
+    expression: &JsExpr,
+    context: &mut ComponentContext,
+) {
+    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+    // Extract the root object name from the original AST expression
+    let root_name = match &node.expression {
+        Expression::Value(val) => extract_root_name_from_json(val),
+        Expression::Typed(te) => extract_root_name_from_json(te.as_json()),
+    };
+    let root_name = match root_name {
+        Some(n) => n,
+        None => return,
+    };
+
+    // Check if the root binding is a store_sub - skip validation for stores
+    if let Some(binding) = context.state.get_binding(&root_name)
+        && matches!(binding.kind, BindingKind::StoreSub)
+    {
+        return;
+    }
+
+    // Extract the source text for the binding directive
+    let source = &context.state.analysis.source;
+    let start = node.start as usize;
+    let end = node.end as usize;
+    let binding_text = if end > start && end <= source.len() {
+        source[start..end].to_string()
+    } else {
+        format!("bind:{}={{...}}", node.name)
+    };
+
+    // The expression should already have state/prop transforms applied.
+    // For calls from bind_directive_inner, the caller applies the transforms.
+    // For calls from component.rs, the expression is already transformed.
+
+    // Extract the member expression object and property from the transformed JsExpr
+    let (obj_expr, prop_expr) = match expression {
+        JsExpr::Member(m) => {
+            let obj = *m.object.clone();
+            let prop = if m.computed {
+                match &m.property {
+                    JsMemberProperty::Expression(expr) => *expr.clone(),
+                    JsMemberProperty::Identifier(name) => b::id(name.as_str()),
+                    JsMemberProperty::PrivateIdentifier(name) => b::string(name.clone()),
+                }
+            } else {
+                // Non-computed: property is an identifier, use it as a string literal
+                match &m.property {
+                    JsMemberProperty::Identifier(name) => b::string(name.clone()),
+                    JsMemberProperty::Expression(expr) => *expr.clone(),
+                    JsMemberProperty::PrivateIdentifier(name) => b::string(name.clone()),
+                }
+            };
+            (obj, prop)
+        }
+        _ => return,
+    };
+
+    // Get line/column for the binding
+    let (line, col) =
+        crate::compiler::phases::phase3_transform::client::visitors::attribute::locate_in_source(
+            source, start,
+        );
+
+    // If inside a store-backed each block, wrap with $.mark_store_binding()
+    // Reference: validate_binding() in shared/utils.js - `state.store_to_invalidate`
+    let has_store_to_invalidate = context
+        .state
+        .each_binding_context
+        .last()
+        .and_then(|ctx| ctx.store_to_invalidate.as_ref())
+        .is_some();
+    let obj_thunk = if has_store_to_invalidate {
+        b::thunk(b::sequence(vec![
+            b::call(b::member_path("$.mark_store_binding"), vec![]),
+            obj_expr,
+        ]))
+    } else {
+        b::thunk(obj_expr)
+    };
+
+    // Emit: $.validate_binding('bind:value={pojo.value}', [], () => pojo, () => 'value', line, col)
+    let stmt = b::stmt(b::call(
+        b::member_path("$.validate_binding"),
+        vec![
+            b::string(&binding_text),
+            b::array(vec![]), // blockers - typically empty
+            obj_thunk,
+            b::thunk(prop_expr),
+            b::literal_number(line as f64),
+            b::literal_number(col as f64),
+        ],
+    ));
+
+    context.state.init.push(stmt);
+}
+
+/// Extract the root identifier name from a JSON expression.
+fn extract_root_name_from_json(val: &serde_json::Value) -> Option<String> {
+    let obj = val.as_object()?;
+    match obj.get("type")?.as_str()? {
+        "Identifier" => obj.get("name")?.as_str().map(|s| s.to_string()),
+        "MemberExpression" => extract_root_name_from_json(obj.get("object")?),
+        _ => None,
     }
 }
 

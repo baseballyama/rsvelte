@@ -642,6 +642,26 @@ impl<'a> ComponentContext<'a> {
             element_args.push(b::thunk(ns_result.value));
         }
 
+        // Dev mode: add location [line, column] as the last argument
+        if self.state.dev {
+            use crate::compiler::phases::phase3_transform::client::visitors::attribute::locate_in_source;
+            let (line, col) = locate_in_source(&self.state.analysis.source, elem.start as usize);
+            // Ensure we have enough arguments before the location
+            // The function signature is: element(node, get_tag, is_svg_or_mathml, callback?, namespace?, location?)
+            // We need to fill in missing optional args with void 0
+            let current_len = element_args.len();
+            // We need at least 5 args before location (node, tag, svg_or_mathml, callback, namespace)
+            while element_args.len() < 5 {
+                element_args.push(b::undefined());
+            }
+            // Restore length if we added too many
+            let _ = current_len;
+            element_args.push(b::array(vec![
+                b::literal_number(line as f64),
+                b::literal_number(col as f64),
+            ]));
+        }
+
         let element_call_stmt = b::stmt(b::call(b::member_path("$.element"), element_args));
 
         // Handle LetDirectives by wrapping in ExpressionStatements
@@ -917,6 +937,14 @@ impl<'a> ComponentContext<'a> {
             );
         }
 
+        // Memoizer: track sync and async memoized expressions
+        // Each memoized entry gets an ID ($0, $1, ...) and is either sync or async
+        struct SlotMemoEntry {
+            expression: JsExpr,
+            is_async: bool,
+        }
+        let mut memo_entries: Vec<SlotMemoEntry> = Vec::new();
+
         // Second pass: process non-let attributes with transforms registered
         for attribute in &slot.attributes {
             match attribute {
@@ -930,7 +958,26 @@ impl<'a> ComponentContext<'a> {
                     spreads.push(b::thunk(transformed));
                 }
                 Attribute::Attribute(attr) => {
-                    let result = build_attribute_value(&attr.value, self, |value, _metadata| value);
+                    // Use the memoizer callback: if expression has_call or has_await,
+                    // memoize it and replace with $.get($N)
+                    let memo_idx_start = memo_entries.len();
+                    let result = build_attribute_value(&attr.value, self, |value, metadata| {
+                        let has_call = metadata.has_call();
+                        let has_await = metadata.has_await();
+                        if has_call || has_await {
+                            // This expression needs memoization
+                            // We'll track the index and expression, then replace with $.get($N)
+                            let idx = memo_idx_start + memo_entries.len();
+                            memo_entries.push(SlotMemoEntry {
+                                expression: value,
+                                is_async: has_await,
+                            });
+                            let param_id = b::id(format!("${idx}"));
+                            b::call(b::member_path("$.get"), vec![param_id])
+                        } else {
+                            value
+                        }
+                    });
 
                     if attr.name.as_str() == "name" {
                         name = result.value;
@@ -1005,7 +1052,108 @@ impl<'a> ComponentContext<'a> {
             ],
         );
 
-        self.state.init.push(b::stmt(slot_call));
+        // Check if we have any async memoized entries
+        let has_async = memo_entries.iter().any(|e| e.is_async);
+
+        if has_async {
+            // Build sync derived declarations
+            let sync_entries: Vec<(usize, &SlotMemoEntry)> = memo_entries
+                .iter()
+                .enumerate()
+                .filter(|(_, e)| !e.is_async)
+                .collect();
+
+            let async_entries: Vec<(usize, &SlotMemoEntry)> = memo_entries
+                .iter()
+                .enumerate()
+                .filter(|(_, e)| e.is_async)
+                .collect();
+
+            // Build statements: derived declarations + slot call
+            let mut statements: Vec<JsStatement> = Vec::new();
+
+            // Add sync derived declarations: let $N = $.derived(() => expr)
+            let derived_fn = if self.state.analysis.runes {
+                "$.derived"
+            } else {
+                "$.derived_safe_equal"
+            };
+            for (idx, entry) in &sync_entries {
+                statements.push(b::let_decl(
+                    format!("${idx}"),
+                    Some(b::call(
+                        b::member_path(derived_fn),
+                        vec![b::thunk(entry.expression.clone())],
+                    )),
+                ));
+            }
+
+            // Add the slot call
+            statements.push(b::stmt(slot_call));
+
+            // Build async_values array: [thunk1, thunk2]
+            let async_values = b::array(
+                async_entries
+                    .iter()
+                    .map(|(_, entry)| build_slot_async_thunk(&entry.expression))
+                    .collect(),
+            );
+
+            // Build async callback params: (node, $async_id_0, $async_id_1, ...)
+            let node_param_name = match &self.state.node {
+                JsExpr::Identifier(name) => name.to_string(),
+                _ => "node".to_string(),
+            };
+            let mut params: Vec<JsPattern> = vec![JsPattern::Identifier(node_param_name.into())];
+            for (idx, _) in &async_entries {
+                params.push(JsPattern::Identifier(format!("${idx}").into()));
+            }
+
+            // Generate: $.async(node, void 0, async_values, (node, $0) => { statements })
+            let async_call = b::call(
+                b::member_path("$.async"),
+                vec![
+                    self.state.node.clone(),
+                    b::undefined(), // blockers
+                    async_values,   // async_values
+                    b::arrow_block(params, statements),
+                ],
+            );
+
+            self.state.init.push(b::stmt(async_call));
+        } else if !memo_entries.is_empty() {
+            // Non-async case but with memoized entries:
+            // Wrap in a block scope with derived declarations
+            let derived_fn = if self.state.analysis.runes {
+                "$.derived"
+            } else {
+                "$.derived_safe_equal"
+            };
+            let mut statements: Vec<JsStatement> = Vec::new();
+            for (idx, entry) in memo_entries.iter().enumerate() {
+                let deep_read_expr = if !self.state.analysis.runes {
+                    // In legacy mode, add $.deep_read_state(deps) for reactive tracking
+                    // followed by $.untrack(() => expr)
+                    b::call(
+                        b::member_path(derived_fn),
+                        vec![b::thunk(entry.expression.clone())],
+                    )
+                } else {
+                    b::call(
+                        b::member_path(derived_fn),
+                        vec![b::thunk(entry.expression.clone())],
+                    )
+                };
+                statements.push(b::let_decl(format!("${idx}"), Some(deep_read_expr)));
+            }
+            statements.push(b::stmt(slot_call));
+            // Wrap in block scope so $0, $1, etc. don't leak
+            self.state.init.push(JsStatement::Block(
+                crate::compiler::phases::phase3_transform::js_ast::nodes::JsBlockStatement::with_body(statements)
+            ));
+        } else {
+            self.state.init.push(b::stmt(slot_call));
+        }
 
         TransformResult::None
     }
@@ -1555,6 +1703,10 @@ pub struct ComponentClientTransformState<'a> {
     /// This is used to skip rest_prop → $$props transformation for direct property assignments.
     pub in_direct_assignment_lhs: bool,
 
+    /// Flag indicating if we're inside a bind directive expression.
+    /// Used to skip coercive assignment transforms ($.assign_nullish, etc.) for bind setters.
+    pub in_bind_directive: bool,
+
     /// Flag indicating if the current EachBlock should be treated as "controlled".
     /// A controlled each block is one that is the only child of a static element.
     /// This flag is set in fragment.rs process_children and checked in each_block.rs.
@@ -1569,6 +1721,10 @@ pub struct ComponentClientTransformState<'a> {
     /// This is used by place_snippet_declaration to determine if a snippet is at root level.
     /// A value of 0 means we're at the component root, >0 means inside an element/block.
     pub template_nesting_level: usize,
+
+    /// Whether we are inside a control flow block (if/each/await/key).
+    /// Used for bind:this validation - bind:this only needs validation inside control flow blocks.
+    pub in_control_flow_block: bool,
 
     /// Shared flag for tracking whether the each block index variable was accessed
     /// during body traversal. Uses `Rc<Cell<bool>>` for interior mutability since
@@ -1776,9 +1932,11 @@ impl<'a> ComponentClientTransformState<'a> {
             module_level_snippets: Vec::new(),
             snippet_names: ImHashSet::new(),
             in_direct_assignment_lhs: false,
+            in_bind_directive: false,
             is_controlled_each: false,
             snippets: Vec::new(),
             template_nesting_level: 0,
+            in_control_flow_block: false,
             each_index_used: Rc::new(Cell::new(false)),
             each_index_name: None,
             ancestor_each_index_names: Vec::new(),
@@ -2899,6 +3057,40 @@ pub struct StateField {
 
     /// The type of state field ($state, $derived, etc.)
     pub field_type: String,
+}
+
+/// Build an async thunk for a memoized slot expression.
+///
+/// Optimizes `async () => await expr` patterns:
+/// - `async () => await func()` → `func` (if func is a simple identifier call with no args)
+/// - Other cases: `async () => expr` or the stripped await argument
+fn build_slot_async_thunk(expression: &JsExpr) -> JsExpr {
+    use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+    match expression {
+        JsExpr::Await(inner) => {
+            // Strip the await and optimize
+            match &**inner {
+                JsExpr::Call(call) if call.arguments.is_empty() => {
+                    if let JsExpr::Identifier(_) = &*call.callee {
+                        // `async () => await func()` → `func`
+                        (*call.callee).clone()
+                    } else {
+                        // `async () => await complex()` → `() => complex()`
+                        b::thunk((**inner).clone())
+                    }
+                }
+                _ => {
+                    // For simple expressions like `await 'hello'`, create `() => 'hello'`
+                    b::thunk((**inner).clone())
+                }
+            }
+        }
+        _ => {
+            // Not an await expression, wrap as async thunk
+            b::async_thunk(expression.clone())
+        }
+    }
 }
 
 #[cfg(test)]

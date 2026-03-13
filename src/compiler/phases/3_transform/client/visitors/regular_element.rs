@@ -19,7 +19,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::attach_tag::att
 use crate::compiler::phases::phase3_transform::client::visitors::attribute::{
     is_event_attribute, visit_event_attribute,
 };
-use crate::compiler::phases::phase3_transform::client::visitors::bind_directive::bind_directive;
+use crate::compiler::phases::phase3_transform::client::visitors::bind_directive::bind_directive_with_ignored;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::element::{
     build_attribute_effect, build_attribute_value, build_set_class, build_set_style,
 };
@@ -307,7 +307,12 @@ pub fn visit_regular_element(
                 let init_before = context.state.init.len();
                 let after_update_before = context.state.after_update.len();
 
-                bind_directive(bind_dir, context, parent_ref);
+                bind_directive_with_ignored(
+                    bind_dir,
+                    context,
+                    parent_ref,
+                    &node.metadata.ignored_codes,
+                );
 
                 element_state_init.extend(context.state.init.drain(init_before..));
                 element_state_after_update

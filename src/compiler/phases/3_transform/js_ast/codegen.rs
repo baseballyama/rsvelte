@@ -740,6 +740,7 @@ impl JsCodegen {
                 | JsExpr::Assignment(_)
                 | JsExpr::Sequence(_)
                 | JsExpr::Logical(_)
+                | JsExpr::Await(_)
         );
         if needs_parens {
             self.output.push('(');

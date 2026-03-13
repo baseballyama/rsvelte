@@ -107,6 +107,13 @@ pub fn build_component(
         ComponentNode::SvelteSelf(elem) => (&elem.fragment, &elem.attributes),
     };
 
+    // Get ignored_codes from component node metadata (for suppressing dev warnings)
+    let ignored_codes: Vec<String> = match &node {
+        ComponentNode::Component(comp) => comp.metadata.ignored_codes.clone(),
+        ComponentNode::SvelteComponent(comp) => comp.ignored_codes.clone(),
+        _ => Vec::new(),
+    };
+
     // Check if component has a slot property (named slot within another component)
     let slot_scope_applies_to_itself = determine_slot_from_attributes(attributes);
 
@@ -189,6 +196,7 @@ pub fn build_component(
                     is_component_dynamic,
                     &intermediate_name,
                     &component_name,
+                    &ignored_codes,
                 );
             }
 
@@ -1155,13 +1163,27 @@ fn process_bind_directive(
     is_component_dynamic: bool,
     intermediate_name: &str,
     component_name: &str,
+    ignored_codes: &[String],
 ) {
     // Convert the expression without transforms first
+    let saved_in_bind = context.state.in_bind_directive;
+    context.state.in_bind_directive = true;
     let raw_expression = convert_expression(&bind.expression, context);
+    context.state.in_bind_directive = saved_in_bind;
 
     // Apply transforms to get the proper getter expression (e.g., $store.value -> $store().value)
     let transformed_expression =
         super::utils::apply_transforms_to_expression(&raw_expression, context);
+
+    // In dev mode with runes, validate binding to non-reactive properties.
+    // Reference: component.js lines 247-254
+    if context.state.dev
+        && context.state.analysis.runes
+        && bind.expression.is_member_expression()
+        && !ignored_codes.contains(&"binding_property_non_reactive".to_string())
+    {
+        super::super::bind_directive::emit_validate_binding(bind, &transformed_expression, context);
+    }
 
     // Handle bind:this specially
     if bind.name.as_str() == "this" {
@@ -1510,7 +1532,14 @@ fn process_bind_directive(
             .and_then(|t| t.as_str())
             == Some("SequenceExpression")
     };
-    if context.state.dev && bind.name.as_str() != "this" && !is_sequence_expression {
+    let binding_ignored = ignored_codes
+        .iter()
+        .any(|c| c == "ownership_invalid_binding");
+    if context.state.dev
+        && bind.name.as_str() != "this"
+        && !is_sequence_expression
+        && !binding_ignored
+    {
         // Get the root identifier of the binding expression
         let root_name = get_binding_root_name(&bind.expression);
         if let Some(ref root) = root_name {

@@ -1978,11 +1978,23 @@ fn transform_rune_call(
         }
 
         "$state.snapshot" => {
-            // $state.snapshot(value) -> $.snapshot(value)
-            let converted_args: Vec<JsExpr> = arguments
+            // $state.snapshot(value) -> $.snapshot(value) or $.snapshot(value, true) if ignored
+            let mut converted_args: Vec<JsExpr> = arguments
                 .iter()
                 .map(|arg| convert_json_value(arg, context))
                 .collect();
+
+            // In dev mode, if svelte-ignore state_snapshot_uncloneable is present,
+            // pass `true` as second argument to suppress the runtime warning
+            if context.state.dev
+                && is_svelte_ignored_with_source(
+                    obj,
+                    "state_snapshot_uncloneable",
+                    &context.state.analysis.source,
+                )
+            {
+                converted_args.push(JsExpr::Literal(JsLiteral::Boolean(true)));
+            }
 
             JsExpr::Call(JsCallExpression {
                 callee: Box::new(JsExpr::Member(JsMemberExpression {
@@ -3429,7 +3441,12 @@ fn convert_assignment_expression(
     // We need to check the ORIGINAL JSON left-hand side because transforms may have
     // already altered the LHS (e.g., `object.count` -> `object().count`).
     // Reference: validate_mutation in utils.js
-    let ownership_info = if context.state.dev {
+    let ownership_info = if context.state.dev
+        && !is_svelte_ignored_with_source(
+            obj,
+            "ownership_invalid_mutation",
+            &context.state.analysis.source,
+        ) {
         check_ownership_validation(obj.get("left"), context)
     } else {
         None
@@ -3446,6 +3463,10 @@ fn convert_assignment_expression(
         context,
     ) {
         transformed
+    } else if let Some(coercive) =
+        try_coercive_assignment_transform(operator_str, obj, &left, &right, context)
+    {
+        coercive
     } else {
         JsExpr::Assignment(JsAssignmentExpression {
             operator,
@@ -3466,6 +3487,92 @@ fn convert_assignment_expression(
         b::call(b::member_path("$$ownership_validator.mutation"), args)
     } else {
         result
+    }
+}
+
+/// Check if a JSON AST node has a `svelte-ignore` leading comment with the given code.
+/// This checks the `leadingComments` array for comments containing `svelte-ignore <code>`.
+fn is_svelte_ignored(obj: &serde_json::Map<String, Value>, code: &str) -> bool {
+    if let Some(Value::Array(comments)) = obj.get("leadingComments") {
+        for comment in comments {
+            if let Some(value) = comment
+                .as_object()
+                .and_then(|c| c.get("value"))
+                .and_then(|v| v.as_str())
+                && comment_has_svelte_ignore(value, code)
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Check if a JSON AST node has a `svelte-ignore` leading comment with the given code,
+/// also checking the source code directly for comments not attached in the JSON AST.
+fn is_svelte_ignored_with_source(
+    obj: &serde_json::Map<String, Value>,
+    code: &str,
+    source: &str,
+) -> bool {
+    // First check leadingComments in the JSON AST
+    if is_svelte_ignored(obj, code) {
+        return true;
+    }
+
+    // Also check the source code directly before the node's start position
+    // This handles comments inside template expressions (arrow bodies) that
+    // aren't attached as leadingComments by our parser
+    if let Some(start) = obj.get("start").and_then(|s| s.as_u64()) {
+        let start = start as usize;
+        if start > 0 && start <= source.len() {
+            // Look backwards from the start position, searching within a reasonable window
+            // We look at up to 500 chars before the node to find preceding comments
+            let search_start = start.saturating_sub(500);
+            let before = &source[search_start..start];
+
+            // Check for JS-style svelte-ignore comments: // svelte-ignore <code>
+            // Find the last line comment before this node
+            for line in before.lines().rev() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                // Check for // svelte-ignore
+                if let Some(comment_start) = trimmed.rfind("//") {
+                    let comment_text = &trimmed[comment_start + 2..];
+                    if comment_has_svelte_ignore(comment_text, code) {
+                        return true;
+                    }
+                }
+                // Only check the immediately preceding non-empty content
+                break;
+            }
+
+            // Check for HTML-style svelte-ignore comments: <!-- svelte-ignore <code> -->
+            if let Some(comment_end) = before.rfind("-->")
+                && let Some(comment_start) = before[..comment_end].rfind("<!--")
+            {
+                let comment_text = &before[comment_start + 4..comment_end];
+                if comment_has_svelte_ignore(comment_text, code) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Check if a comment text contains `svelte-ignore <code>`.
+fn comment_has_svelte_ignore(text: &str, code: &str) -> bool {
+    let trimmed = text.trim();
+    if let Some(rest) = trimmed.strip_prefix("svelte-ignore") {
+        let rest = rest.trim();
+        rest == code
+            || rest.starts_with(&format!("{} ", code))
+            || rest.starts_with(&format!("{},", code))
+    } else {
+        false
     }
 }
 
@@ -3726,6 +3833,146 @@ fn try_transform_assignment(
     }
 
     None
+}
+
+/// Get the appropriate $.assign* function name for an operator.
+fn get_coercive_assign_callee(operator: &str) -> &'static str {
+    match operator {
+        "=" => "$.assign",
+        "&&=" => "$.assign_and",
+        "||=" => "$.assign_or",
+        "??=" => "$.assign_nullish",
+        _ => "$.assign",
+    }
+}
+
+/// Check if a JSON AST expression evaluates to a known primitive value.
+/// This corresponds to `context.state.scope.evaluate(right).is_primitive` in the official compiler.
+fn is_known_primitive_json(value: Option<&Value>) -> bool {
+    let value = match value {
+        Some(v) => v,
+        None => return false, // Unknown, assume not primitive
+    };
+
+    let node_type = match unwrap_ts_expression_type(value) {
+        Some(t) => t,
+        None => return false,
+    };
+
+    match node_type {
+        // Literal values (numbers, strings, booleans, null) are primitive
+        "Literal" => true,
+        // Unary expressions result in primitives (typeof, !, -, +, ~, void)
+        "UnaryExpression" => true,
+        // Binary expressions result in primitives
+        "BinaryExpression" => true,
+        // Template literals are strings (primitive)
+        "TemplateLiteral" => true,
+        // `undefined` identifier is primitive
+        "Identifier" => {
+            let name = get_identifier_name_from_json(value);
+            name == Some("undefined")
+        }
+        // Everything else is not known to be primitive
+        _ => false,
+    }
+}
+
+/// Try to transform a coercive assignment (e.g., `object.items ??= []`) into
+/// `$.assign_nullish(object, 'items', [], location)` for dev mode proxy warnings.
+///
+/// Reference: AssignmentExpression.js lines 179-243 in the official Svelte compiler.
+fn try_coercive_assignment_transform(
+    operator: &str,
+    obj: &serde_json::Map<String, Value>,
+    left: &JsExpr,
+    right: &JsExpr,
+    context: &mut ComponentContext,
+) -> Option<JsExpr> {
+    use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+    // Only in dev mode
+    if !context.state.dev {
+        return None;
+    }
+
+    // Only for non-coercive operators (=, ||=, &&=, ??=)
+    if !is_non_coercive_operator(operator) {
+        return None;
+    }
+
+    // Right side must not be a known primitive
+    if is_known_primitive_json(obj.get("right")) {
+        return None;
+    }
+
+    // Skip inside bind directive / component binding contexts
+    // Reference: AssignmentExpression.js lines 211-225
+    if context.state.in_bind_directive {
+        return None;
+    }
+
+    // Left side must be a MemberExpression
+    let left_json = obj.get("left")?.as_object()?;
+    let left_type = left_json.get("type")?.as_str()?;
+    if left_type != "MemberExpression" {
+        return None;
+    }
+
+    // Special case: ignore assignments inside BindDirective or Component contexts
+    // In the converter, we don't have an explicit path, but these would typically
+    // not appear in template event handlers.
+
+    // Get the callee function name
+    let callee = get_coercive_assign_callee(operator);
+
+    // Get the object expression (already converted with transforms applied)
+    let obj_expr = match left {
+        JsExpr::Member(m) => (*m.object).clone(),
+        _ => return None,
+    };
+
+    // Get the property expression
+    let computed = left_json
+        .get("computed")
+        .and_then(|c| c.as_bool())
+        .unwrap_or(false);
+
+    let property_expr = if computed {
+        // Computed property: use the converted expression
+        match left {
+            JsExpr::Member(m) => match &m.property {
+                JsMemberProperty::Expression(expr) => (**expr).clone(),
+                JsMemberProperty::Identifier(name) => b::id(name.as_str()),
+                JsMemberProperty::PrivateIdentifier(name) => b::string(name.clone()),
+            },
+            _ => return None,
+        }
+    } else {
+        // Non-computed: property name as string literal
+        let prop_name = left_json
+            .get("property")
+            .and_then(|p| p.as_object())
+            .and_then(|p| p.get("name"))
+            .and_then(|n| n.as_str())
+            .unwrap_or("");
+        b::string(prop_name)
+    };
+
+    // Compute the location string: "filename:line:column"
+    let start = left_json.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+    let source = &context.state.analysis.source;
+    let filename = &context.state.analysis.filename;
+    let (line, col) =
+        crate::compiler::phases::phase3_transform::client::visitors::attribute::locate_in_source(
+            source, start,
+        );
+    let location = format!("{}:{line}:{col}", filename.replace('/', "/\u{200b}"));
+
+    Some(b::call(
+        b::member_path(callee),
+        vec![obj_expr, property_expr, right.clone(), b::string(&location)],
+    ))
 }
 
 // ============================================================================
@@ -4379,7 +4626,12 @@ fn convert_update_expression(
     context.state.in_direct_assignment_lhs = saved_flag;
 
     // Check if this update expression needs ownership mutation validation (dev mode only).
-    let ownership_info = if context.state.dev {
+    let ownership_info = if context.state.dev
+        && !is_svelte_ignored_with_source(
+            obj,
+            "ownership_invalid_mutation",
+            &context.state.analysis.source,
+        ) {
         check_ownership_validation(argument_value, context)
     } else {
         None

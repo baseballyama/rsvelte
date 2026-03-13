@@ -189,6 +189,63 @@ pub fn compute_blocker_map(raw_script: &str) -> std::collections::HashMap<String
     blocker_map
 }
 
+/// Enrich the blocker_map with transitive function dependencies.
+///
+/// After `transform_async_body` produces a blocker_map mapping variable names to
+/// thunk indices, this function scans function/const declarations in the transformed
+/// script for references to blocked variables. If a function body references a blocked
+/// variable (directly or transitively through other functions), the function name is
+/// added to the blocker_map with the same thunk index.
+///
+/// This is needed because template expressions may call functions that transitively
+/// access blocked state. For example:
+/// ```js
+/// const checkedFactory = () => { return () => $.get(checked); }
+/// ```
+/// If `checked` is in the blocker_map, `checkedFactory` should be too.
+///
+/// Similarly, for indirect chains:
+/// ```js
+/// function x() { return $.get(value); }
+/// function getValue() { return x(); }
+/// ```
+/// If `value` is blocked, then `x` is blocked, and transitively `getValue` is too.
+pub fn enrich_blocker_map_with_transitive_deps(
+    transformed_script: &str,
+    blocker_map: &mut std::collections::HashMap<String, usize>,
+) {
+    if blocker_map.is_empty() {
+        return;
+    }
+
+    // Split the transformed script into top-level statements and collect function bodies
+    let statements = split_top_level_statements(transformed_script.trim());
+    let function_bodies = collect_function_bodies(&statements);
+
+    if function_bodies.is_empty() {
+        return;
+    }
+
+    // Iteratively resolve transitive dependencies until no more changes
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for (func_name, func_body) in &function_bodies {
+            if blocker_map.contains_key(func_name) {
+                continue;
+            }
+            let body_ids = extract_all_identifiers_from_statement(func_body);
+            for body_id in &body_ids {
+                if let Some(&idx) = blocker_map.get(body_id) {
+                    blocker_map.insert(func_name.clone(), idx);
+                    changed = true;
+                    break;
+                }
+            }
+        }
+    }
+}
+
 /// Transform the instance script body for async components.
 ///
 /// Takes the already-transformed script text (after rune transforms, etc.)
@@ -226,8 +283,28 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
             continue;
         }
 
-        // Skip single-line comments (// ...) - they should not become thunks
-        if trimmed_stmt.starts_with("//") {
+        // Strip leading single-line comment lines from the statement.
+        // The statement splitter may combine a `// comment` line with the following
+        // code line into one statement. We need to process the code, not skip it.
+        let trimmed_stmt = {
+            let mut s = trimmed_stmt;
+            loop {
+                if s.starts_with("//") {
+                    // Skip to end of this comment line
+                    if let Some(nl) = s.find('\n') {
+                        s = s[nl + 1..].trim();
+                    } else {
+                        // Entire statement is a comment — skip
+                        s = "";
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+            s
+        };
+        if trimmed_stmt.is_empty() {
             continue;
         }
 
@@ -299,17 +376,37 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
             if is_variable_declaration(trimmed_stmt) {
                 // Extract variable names and init expressions
                 let decls = extract_var_declarations(trimmed_stmt);
-                for decl in decls {
+
+                // Hoist all variable names
+                for decl in &decls {
                     hoisted_vars.push(decl.name.clone());
-                    if decl.hoist_only {
-                        // This variable is only for hoisting; don't create a thunk
-                        continue;
-                    }
+                }
+
+                // Separate non-hoist-only decls for thunk generation
+                let active_decls: Vec<VarDecl> =
+                    decls.into_iter().filter(|d| !d.hoist_only).collect();
+
+                if active_decls.len() == 1 {
+                    // Single declarator: use VarDecl as before
+                    let decl = active_decls.into_iter().next().unwrap();
                     let has_await_in_init =
                         decl.init.as_ref().is_some_and(|i| has_await_in_expr(i));
                     async_stmts.push(AsyncStmt {
                         kind: AsyncStmtKind::VarDecl(decl),
                         has_await: has_await_in_init,
+                    });
+                } else if active_decls.len() > 1 {
+                    // Multiple declarators from same statement: group into a block thunk.
+                    // This handles patterns like:
+                    //   let $$d = await ..., squared = ..., cubed = ...;
+                    // which become:
+                    //   async () => { var $$d = await ...; squared = ...; cubed = ...; }
+                    let has_await = active_decls
+                        .iter()
+                        .any(|d| d.init.as_ref().is_some_and(|i| has_await_in_expr(i)));
+                    async_stmts.push(AsyncStmt {
+                        kind: AsyncStmtKind::VarDeclGroup(active_decls),
+                        has_await,
                     });
                 }
             } else if is_expression_statement(trimmed_stmt) {
@@ -434,6 +531,29 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
                     }
                 }
             }
+            AsyncStmtKind::VarDeclGroup(decls) => {
+                // All variables in the group get the same blocker index
+                for decl in decls {
+                    if decl.hoist_only {
+                        continue;
+                    }
+                    blocker_map.insert(decl.name.clone(), idx);
+                    if let Some(init) = &decl.init {
+                        let referenced_ids = extract_all_identifiers_from_statement(init);
+                        for ref_id in &referenced_ids {
+                            if all_declared_vars.contains(ref_id) {
+                                let should_update = match blocker_map.get(ref_id) {
+                                    None => true,
+                                    Some(&existing) => idx > existing,
+                                };
+                                if should_update {
+                                    blocker_map.insert(ref_id.clone(), idx);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             AsyncStmtKind::Noop | AsyncStmtKind::VoidNoop => {
                 // Noop statements don't contribute to blocker_map
             }
@@ -502,6 +622,11 @@ struct VarDecl {
 enum AsyncStmtKind {
     /// Variable declaration: `let x = expr;` -> `() => x = expr`
     VarDecl(VarDecl),
+    /// Group of variable declarations from a multi-declarator statement.
+    /// E.g., `let $$d = await ..., squared = ..., cubed = ...;`
+    /// Generates a block thunk: `async () => { var $$d = await ...; squared = ...; cubed = ...; }`
+    /// Variables starting with `$$` get `var` declarations, others get assignments.
+    VarDeclGroup(Vec<VarDecl>),
     /// Expression statement that was `await expr` -> `() => expr` (await stripped, simplified)
     ExprSimple(String),
     /// Expression statement that was `await expr` with nested await -> `async () => await expr`
@@ -525,14 +650,10 @@ fn build_thunk(stmt: &AsyncStmt) -> String {
     match &stmt.kind {
         AsyncStmtKind::VarDecl(decl) => {
             if decl.hoist_only {
-                // This variable is only for hoisting; skip thunk generation
-                // (This shouldn't be called for hoist_only, but handle gracefully)
                 return String::new();
             }
             let init = decl.init.as_deref().unwrap_or("void 0");
             let assignment = if decl.is_destructure_assignment {
-                // For destructuring, init is the full assignment expression
-                // e.g., `({ a, b } = expr)`
                 init.to_string()
             } else {
                 format!("{} = {}", decl.name, init)
@@ -541,6 +662,33 @@ fn build_thunk(stmt: &AsyncStmt) -> String {
                 format!("async () => {}", assignment)
             } else {
                 format!("() => {}", assignment)
+            }
+        }
+        AsyncStmtKind::VarDeclGroup(decls) => {
+            // Build a block with each declarator as a statement.
+            // Names starting with `$$` get `var` declarations (they are intermediate),
+            // others get assignments (they were hoisted).
+            let mut body_lines: Vec<String> = Vec::new();
+            for decl in decls {
+                if decl.hoist_only {
+                    continue;
+                }
+                let init = decl.init.as_deref().unwrap_or("void 0");
+                if decl.is_destructure_assignment {
+                    body_lines.push(format!("{};", init));
+                } else if decl.name.starts_with("$$") {
+                    // Intermediate variable: use var declaration
+                    body_lines.push(format!("var {} = {};", decl.name, init));
+                } else {
+                    // Hoisted variable: use assignment
+                    body_lines.push(format!("{} = {};", decl.name, init));
+                }
+            }
+            let body = body_lines.join("\n\t\t");
+            if stmt.has_await {
+                format!("async () => {{\n\t\t{}\n\t}}", body)
+            } else {
+                format!("() => {{\n\t\t{}\n\t}}", body)
             }
         }
         AsyncStmtKind::ExprSimple(expr) => {
@@ -737,13 +885,11 @@ fn has_await_at_depth(s: &str, skip_functions: bool) -> bool {
             }
         }
 
-        // Check for `await` keyword at top level (not inside nested functions)
-        if function_depth == 0
-            && brace_depth == 0
-            && ch == b'a'
-            && i + 5 <= len
-            && &s[i..i + 5] == "await"
-        {
+        // Check for `await` keyword at top level (not inside nested functions).
+        // Note: we only check function_depth, NOT brace_depth, because `await` inside
+        // an object literal (e.g., `let d = { value: await promise }`) is still at the
+        // statement's top level and requires async handling.
+        if function_depth == 0 && ch == b'a' && i + 5 <= len && &s[i..i + 5] == "await" {
             // Make sure it's a word boundary
             let before_ok = i == 0 || !is_ident_char(bytes[i - 1]);
             let after = if i + 5 < len { bytes[i + 5] } else { 0 };
@@ -1256,60 +1402,125 @@ fn extract_var_declarations(stmt: &str) -> Vec<VarDecl> {
     // Strip trailing semicolon
     let rest = rest.strip_suffix(';').unwrap_or(rest).trim();
 
-    // Find the assignment `=` at the top level
-    if let Some(eq_pos) = find_assignment_in_str(rest) {
-        let lhs = rest[..eq_pos].trim();
-        let rhs = rest[eq_pos + 1..].trim();
+    // Split into individual declarators at top-level commas
+    let declarators = split_declarators(rest);
 
-        // Handle destructuring patterns
-        if lhs.starts_with('{') || lhs.starts_with('[') {
-            // Destructuring - extract all identifiers from the pattern
-            let names = extract_identifiers_from_pattern(lhs);
-            // For destructuring, we need a single thunk that does the full assignment
-            // Return the full pattern as a single "declaration" with the names combined
-            if names.is_empty() {
-                return vec![];
-            }
-            // Create a combined declaration that will produce:
-            // var a, b; ... () => ({ a, b } = expr) or () => ([a, b] = expr)
-            // Actually, we need separate var declarations but a single thunk
-            // Let's return the individual names for hoisting and a special VarDecl for the thunk
-            let mut result = Vec::new();
-            // First name gets the full destructuring assignment as the thunk
-            result.push(VarDecl {
-                name: names[0].clone(),
-                init: Some(format!("({} = {})", lhs, rhs)),
-                is_destructure_assignment: true,
-                hoist_only: false,
-            });
-            // Remaining names are just for hoisting
-            for name in &names[1..] {
-                result.push(VarDecl {
-                    name: name.clone(),
-                    init: None,
-                    is_destructure_assignment: false,
-                    hoist_only: true,
-                });
-            }
-            return result;
+    let mut result = Vec::new();
+    for decl_str in &declarators {
+        let decl_str = decl_str.trim();
+        if decl_str.is_empty() {
+            continue;
         }
 
-        // Simple identifier
-        vec![VarDecl {
-            name: lhs.to_string(),
-            init: Some(rhs.to_string()),
-            is_destructure_assignment: false,
-            hoist_only: false,
-        }]
-    } else {
-        // No init: `let x;`
-        vec![VarDecl {
-            name: rest.to_string(),
-            init: None,
-            is_destructure_assignment: false,
-            hoist_only: false,
-        }]
+        // Find the assignment `=` at the top level
+        if let Some(eq_pos) = find_assignment_in_str(decl_str) {
+            let lhs = decl_str[..eq_pos].trim();
+            let rhs = decl_str[eq_pos + 1..].trim();
+
+            // Handle destructuring patterns
+            if lhs.starts_with('{') || lhs.starts_with('[') {
+                let names = extract_identifiers_from_pattern(lhs);
+                if names.is_empty() {
+                    continue;
+                }
+                // First name gets the full destructuring assignment as the thunk
+                result.push(VarDecl {
+                    name: names[0].clone(),
+                    init: Some(format!("({} = {})", lhs, rhs)),
+                    is_destructure_assignment: true,
+                    hoist_only: false,
+                });
+                // Remaining names are just for hoisting
+                for name in &names[1..] {
+                    result.push(VarDecl {
+                        name: name.clone(),
+                        init: None,
+                        is_destructure_assignment: false,
+                        hoist_only: true,
+                    });
+                }
+            } else {
+                // Simple identifier
+                result.push(VarDecl {
+                    name: lhs.to_string(),
+                    init: Some(rhs.to_string()),
+                    is_destructure_assignment: false,
+                    hoist_only: false,
+                });
+            }
+        } else {
+            // No init: `x` (part of `let x, y;`)
+            result.push(VarDecl {
+                name: decl_str.to_string(),
+                init: None,
+                is_destructure_assignment: false,
+                hoist_only: false,
+            });
+        }
     }
+
+    result
+}
+
+/// Split comma-separated declarators at the top level (outside parens, braces, brackets, strings).
+/// E.g., `$$d = await foo(), squared = bar()` -> [`$$d = await foo()`, `squared = bar()`]
+fn split_declarators(s: &str) -> Vec<String> {
+    let bytes = s.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+    let mut depth: i32 = 0; // combined nesting depth for {}, (), []
+    let mut parts = Vec::new();
+    let mut start = 0;
+
+    while i < len {
+        let ch = bytes[i];
+
+        // Skip string literals
+        if ch == b'\'' || ch == b'"' || ch == b'`' {
+            i = skip_string(bytes, i);
+            continue;
+        }
+
+        // Skip comments
+        if ch == b'/' && i + 1 < len {
+            if bytes[i + 1] == b'/' {
+                while i < len && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            if bytes[i + 1] == b'*' {
+                i += 2;
+                while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i += 2;
+                continue;
+            }
+        }
+
+        match ch {
+            b'(' | b'{' | b'[' => depth += 1,
+            b')' | b'}' | b']' => depth -= 1,
+            b',' if depth == 0 => {
+                parts.push(s[start..i].to_string());
+                start = i + 1;
+                i += 1;
+                continue;
+            }
+            _ => {}
+        }
+
+        i += 1;
+    }
+
+    // Push the last part
+    let last = s[start..].to_string();
+    if !last.trim().is_empty() {
+        parts.push(last);
+    }
+
+    parts
 }
 
 /// Find the position of the first `=` that is an assignment (not `==`, `=>`, etc.)

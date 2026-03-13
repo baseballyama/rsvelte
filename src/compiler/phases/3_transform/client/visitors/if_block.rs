@@ -131,7 +131,10 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
 
     for (index, branch) in branches.iter().enumerate() {
         // Visit the consequent fragment
+        let prev_in_control_flow = context.state.in_control_flow_block;
+        context.state.in_control_flow_block = true;
         let consequent_block = visit_fragment(&branch.consequent, context, false);
+        context.state.in_control_flow_block = prev_in_control_flow;
         let consequent_id_name = context.state.memoizer.generate_id("consequent");
         let consequent_id = b::id(&consequent_id_name);
 
@@ -186,7 +189,10 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
     // Handle the final else branch (if the last branch has a non-elseif alternate)
     let last_branch = branches.last().expect("at least one branch");
     let final_alt_stmt = if let Some(alt_fragment) = &last_branch.alternate {
+        let prev_in_control_flow = context.state.in_control_flow_block;
+        context.state.in_control_flow_block = true;
         let alternate_block = visit_fragment(alt_fragment, context, false);
+        context.state.in_control_flow_block = prev_in_control_flow;
         let alternate_id_name = context.state.memoizer.generate_id("alternate");
         let alternate_id = b::id(&alternate_id_name);
 
@@ -234,7 +240,21 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
     }
 
     let if_call = b::call(b::member_path("$.if"), args);
-    let if_statement = add_svelte_meta(if_call);
+    let if_statement = if context.state.dev {
+        use crate::compiler::phases::phase3_transform::client::visitors::attribute::locate_in_source;
+        let (line, col) = locate_in_source(&context.state.analysis.source, node.start as usize);
+        super::shared::utils::add_svelte_meta_dev(
+            if_call,
+            "if",
+            &context.state.analysis.name,
+            line,
+            col,
+            None,
+            true,
+        )
+    } else {
+        add_svelte_meta(if_call)
+    };
     statements.push(if_statement);
 
     // If async (has_await or has_blockers), wrap in $.async()

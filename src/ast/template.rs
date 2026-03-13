@@ -481,6 +481,10 @@ pub struct SvelteComponentElement {
     pub attributes: Vec<Attribute>,
     pub fragment: Fragment,
     pub expression: Expression,
+    /// Warning codes ignored via `<!-- svelte-ignore ... -->` comments preceding this element.
+    /// Set during Phase 2 analysis from preceding svelte-ignore comments.
+    #[serde(skip)]
+    pub ignored_codes: Vec<String>,
 }
 
 /// A svelte:element (dynamic element).
@@ -1283,4 +1287,7 @@ pub struct ComponentNodeMetadata {
     pub snippets: FxHashSet<usize>,
     /// Expression metadata for component name resolution
     pub expression: ExpressionMetadata,
+    /// Warning codes ignored via `<!-- svelte-ignore ... -->` comments preceding this component.
+    /// Set during Phase 2 analysis from preceding svelte-ignore comments.
+    pub ignored_codes: Vec<String>,
 }

@@ -18,6 +18,25 @@ use crate::compiler::phases::phase3_transform::utils::{
     is_svelte_whitespace_only, svelte_trim, svelte_trim_end, svelte_trim_start,
 };
 
+/// Compute 1-based line number and 0-based column for a byte offset in source.
+fn locate_in_source(source: &str, offset: usize) -> (usize, usize) {
+    let offset = offset.min(source.len());
+    let mut line = 1usize;
+    let mut col = 0usize;
+    for (i, ch) in source.char_indices() {
+        if i >= offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            col = 0;
+        } else {
+            col += 1;
+        }
+    }
+    (line, col)
+}
+
 /// Descendant type for customizable select element checking.
 enum SelectDescendant {
     RegularElement(String),
@@ -267,6 +286,17 @@ impl<'a> ServerCodeGenerator<'a> {
                     excluded_blocker_vars: shorthand_style_vars.clone(),
                 });
             }
+            // In dev mode, add $.push_element()/$.pop_element() for void elements
+            if self.dev {
+                let (line, col) = locate_in_source(&self.source, element.start as usize);
+                self.output_parts.push(OutputPart::Flush);
+                self.output_parts.push(OutputPart::RawStatement(format!(
+                    "$.push_element($$renderer, '{}', {}, {});",
+                    name, line, col
+                )));
+                self.output_parts
+                    .push(OutputPart::RawStatement("$.pop_element();".to_string()));
+            }
         } else {
             tag.push('>');
             if shorthand_style_vars.is_empty() {
@@ -276,6 +306,15 @@ impl<'a> ServerCodeGenerator<'a> {
                     html: tag,
                     excluded_blocker_vars: shorthand_style_vars,
                 });
+            }
+            // In dev mode, add $.push_element() after opening tag
+            if self.dev {
+                let (line, col) = locate_in_source(&self.source, element.start as usize);
+                self.output_parts.push(OutputPart::Flush);
+                self.output_parts.push(OutputPart::RawStatement(format!(
+                    "$.push_element($$renderer, '{}', {}, {});",
+                    name, line, col
+                )));
             }
 
             // If we have a content-editable binding, generate children into a sub-generator
@@ -290,6 +329,10 @@ impl<'a> ServerCodeGenerator<'a> {
                 });
                 self.output_parts
                     .push(OutputPart::Html(format!("</{}>", name)));
+                if self.dev {
+                    self.output_parts
+                        .push(OutputPart::RawStatement("$.pop_element();".to_string()));
+                }
                 return Ok(());
             }
 
@@ -306,6 +349,10 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 self.output_parts
                     .push(OutputPart::Html(format!("</{}>", name)));
+                if self.dev {
+                    self.output_parts
+                        .push(OutputPart::RawStatement("$.pop_element();".to_string()));
+                }
                 // Flush after closing tag to ensure subsequent content starts a new push call
                 self.output_parts.push(OutputPart::Flush);
                 return Ok(());
@@ -333,6 +380,10 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.preserve_whitespace = saved_preserve;
                 self.output_parts
                     .push(OutputPart::Html(format!("</{}>", name)));
+                if self.dev {
+                    self.output_parts
+                        .push(OutputPart::RawStatement("$.pop_element();".to_string()));
+                }
                 return Ok(());
             }
 
@@ -503,6 +554,12 @@ impl<'a> ServerCodeGenerator<'a> {
             // End tag
             self.output_parts
                 .push(OutputPart::Html(format!("</{}>", name)));
+
+            // In dev mode, add $.pop_element() after closing tag
+            if self.dev {
+                self.output_parts
+                    .push(OutputPart::RawStatement("$.pop_element();".to_string()));
+            }
         }
 
         Ok(())
@@ -886,6 +943,10 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.preserve_whitespace = saved_preserve;
                 self.output_parts
                     .push(OutputPart::Html(format!("</{}>", name)));
+                if self.dev {
+                    self.output_parts
+                        .push(OutputPart::RawStatement("$.pop_element();".to_string()));
+                }
                 return Ok(());
             }
 
@@ -999,6 +1060,11 @@ impl<'a> ServerCodeGenerator<'a> {
             // End tag
             self.output_parts
                 .push(OutputPart::Html(format!("</{}>", name)));
+            // In dev mode, add $.pop_element() after closing tag
+            if self.dev {
+                self.output_parts
+                    .push(OutputPart::RawStatement("$.pop_element();".to_string()));
+            }
         }
 
         Ok(())

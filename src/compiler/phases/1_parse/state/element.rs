@@ -478,6 +478,7 @@ impl Parser<'_> {
                     attributes: filtered_attrs,
                     fragment,
                     expression,
+                    ignored_codes: Vec::new(),
                 })
             }
             ElementType::SvelteElement => {

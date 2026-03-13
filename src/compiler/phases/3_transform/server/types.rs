@@ -295,6 +295,8 @@ pub(crate) enum OutputPart {
         attrs_expr: Option<String>,
         /// Body content (children)
         body: Vec<OutputPart>,
+        /// Whether dev mode is enabled (for $.validate_dynamic_element_tag)
+        dev: bool,
     },
     /// Select element with value - produces $$renderer.select() call
     SelectElement {

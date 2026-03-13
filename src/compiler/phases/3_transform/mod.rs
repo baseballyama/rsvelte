@@ -143,6 +143,31 @@ pub fn transform_component(
     })
 }
 
+/// Transform a module (.svelte.js/.svelte.ts) analysis into JavaScript code.
+///
+/// Unlike `transform_component`, this does NOT generate a component function wrapper.
+/// It only transforms the module script body (rune replacements) and prepends the
+/// necessary imports. This matches the official Svelte compiler's `transform_module` /
+/// `client_module` / `server_module` behavior.
+pub fn transform_module(
+    analysis: &ComponentAnalysis,
+    source: &str,
+    options: &CompileOptions,
+) -> Result<TransformResult, TransformError> {
+    let js = match options.generate {
+        GenerateMode::Client => client::transform_client_module(analysis, source, options)?,
+        GenerateMode::Server => server::transform_server_module(analysis, source, options)?,
+        GenerateMode::None => String::new(),
+    };
+
+    Ok(TransformResult {
+        js,
+        js_map: None,
+        css: None,
+        warnings: Vec::new(),
+    })
+}
+
 /// Error type for transform failures.
 #[derive(Debug)]
 pub enum TransformError {

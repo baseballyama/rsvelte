@@ -110,7 +110,10 @@ pub fn await_block(node: &AwaitBlock, context: &mut ComponentContext) {
 
     // Build pending block
     let pending_block = if let Some(ref pending_fragment) = node.pending {
+        let prev_in_control_flow = context.state.in_control_flow_block;
+        context.state.in_control_flow_block = true;
         let body_statements = visit_fragment(pending_fragment, context);
+        context.state.in_control_flow_block = prev_in_control_flow;
         b::arrow_block(vec![b::id_pattern("$$anchor")], body_statements)
     } else {
         b::null()
@@ -130,7 +133,21 @@ pub fn await_block(node: &AwaitBlock, context: &mut ComponentContext) {
     let await_call = b::call(b::member_path("$.await"), await_args);
 
     // Add svelte metadata
-    let stmt = add_svelte_meta(await_call);
+    let stmt = if context.state.dev {
+        use crate::compiler::phases::phase3_transform::client::visitors::attribute::locate_in_source;
+        let (line, col) = locate_in_source(&context.state.analysis.source, node.start as usize);
+        super::shared::utils::add_svelte_meta_dev(
+            await_call,
+            "await",
+            &context.state.analysis.name,
+            line,
+            col,
+            None,
+            true,
+        )
+    } else {
+        add_svelte_meta(await_call)
+    };
 
     if has_blockers {
         // Wrap in $.async()
@@ -185,7 +202,10 @@ fn build_block_with_argument(
 
     // Visit the fragment to get body statements
     let mut body_statements = declarations;
+    let prev_in_control_flow = context.state.in_control_flow_block;
+    context.state.in_control_flow_block = true;
     let fragment_statements = visit_fragment(fragment, context);
+    context.state.in_control_flow_block = prev_in_control_flow;
     body_statements.extend(fragment_statements);
 
     // Restore the transform state
