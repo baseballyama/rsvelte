@@ -42,6 +42,9 @@ pub fn napi_compile(source: String, options: Value) -> napi::Result<Value> {
                         "code": w.code,
                         "message": w.message,
                     });
+                    if let Some(ref filename) = w.filename {
+                        obj["filename"] = Value::String(filename.clone());
+                    }
                     if let Some(ref start) = w.start {
                         obj["start"] = serde_json::json!({
                             "line": start.line,
@@ -55,6 +58,12 @@ pub fn napi_compile(source: String, options: Value) -> napi::Result<Value> {
                             "column": end.column,
                             "character": end.character,
                         });
+                    }
+                    if let (Some(start), Some(end)) = (&w.start, &w.end) {
+                        obj["position"] = serde_json::json!([start.character, end.character,]);
+                    }
+                    if let Some(ref frame) = w.frame {
+                        obj["frame"] = Value::String(frame.clone());
                     }
                     obj
                 })

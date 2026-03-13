@@ -46,8 +46,63 @@ impl JsCodegen {
     }
 
     fn emit_program(&mut self, program: &JsProgram) {
-        for stmt in program.body.iter() {
+        self.emit_body(&program.body);
+    }
+
+    /// Emit a sequence of statements with esrap-style blank line separation.
+    /// A blank line is inserted between consecutive statements when:
+    /// - The statement types differ, OR
+    /// - Either the previous or current statement is multiline
+    fn emit_body(&mut self, stmts: &[JsStatement]) {
+        let mut prev_type: Option<&str> = None;
+        let mut prev_multiline = false;
+
+        for stmt in stmts {
+            let current_type = stmt_type_name(stmt);
+
+            // Add blank line separator if needed (between statements, not before first).
+            // Comments don't trigger blank lines - they're "transparent" and take
+            // the type of whatever follows (matching esrap's behavior where comments
+            // are attached to nodes, not separate statements).
+            if let Some(pt) = prev_type
+                && current_type != "Comment"
+                && pt != "Comment"
+            {
+                let is_multiline = self.is_stmt_multiline(stmt);
+                if is_multiline || prev_multiline || current_type != pt {
+                    self.newline(); // extra blank line
+                }
+            }
+
+            // Capture position AFTER any blank line, to measure only the statement
+            let start_pos = self.output.len();
             self.emit_statement(stmt);
+
+            // Check if the rendered statement was multiline.
+            // For Raw statements that contain multiple sub-statements (e.g., user code),
+            // we check multiline status of only the LAST logical line, since that's what
+            // will be adjacent to the next statement.
+            let rendered = &self.output[start_pos..];
+            if matches!(stmt, JsStatement::Raw(_)) {
+                // For Raw blocks, check if the last logical statement is multiline.
+                // Find the last non-empty line (excluding trailing newline).
+                let trimmed_end = rendered.trim_end_matches('\n');
+                if let Some(last_newline) = trimmed_end.rfind('\n') {
+                    let last_line = &trimmed_end[last_newline + 1..];
+                    let last_trimmed = last_line.trim();
+                    // If the last line is a closing brace, the preceding statement
+                    // was multiline (it opened a block that spans multiple lines).
+                    prev_multiline = last_trimmed.starts_with('}');
+                    prev_type = Some(raw_stmt_type_name(last_line));
+                } else {
+                    prev_multiline = rendered.bytes().filter(|&b| b == b'\n').count() > 1;
+                    prev_type = Some(current_type);
+                }
+            } else {
+                // A statement is multiline if it contains a newline before the final newline
+                prev_multiline = rendered.bytes().filter(|&b| b == b'\n').count() > 1;
+                prev_type = Some(current_type);
+            }
         }
     }
 
@@ -262,14 +317,31 @@ impl JsCodegen {
         self.output.push_str("if (");
         self.emit_expression(&if_stmt.test);
         self.output.push_str(") ");
-        self.emit_statement_as_block(&if_stmt.consequent);
+        self.emit_if_branch(&if_stmt.consequent);
 
         if let Some(ref alt) = if_stmt.alternate {
-            self.output.push_str(" else ");
-            if matches!(alt.as_ref(), JsStatement::If(_)) {
-                self.emit_statement_inner(alt);
-            } else {
-                self.emit_statement_as_block(alt);
+            self.output.push(' ');
+            self.output.push_str("else ");
+            self.emit_if_branch(alt);
+        }
+    }
+
+    /// Emit an if branch (consequent or alternate).
+    /// Like esrap, we just visit the node directly:
+    /// - BlockStatement -> `{ ... }`
+    /// - IfStatement -> `if (...) ...` (for else-if chains)
+    /// - Other -> inline statement (e.g. `expr;`)
+    fn emit_if_branch(&mut self, stmt: &JsStatement) {
+        match stmt {
+            JsStatement::Block(block) => self.emit_block_inline(block),
+            JsStatement::If(nested_if) => self.emit_if_statement(nested_if),
+            _ => {
+                // Single statement without braces (like esrap)
+                self.emit_statement_inner(stmt);
+                if self.needs_semicolon {
+                    self.output.push(';');
+                    self.needs_semicolon = false;
+                }
             }
         }
     }
@@ -351,9 +423,7 @@ impl JsCodegen {
         self.output.push('{');
         self.newline();
         self.indent_level += 1;
-        for stmt in &block.body {
-            self.emit_statement(stmt);
-        }
+        self.emit_body(&block.body);
         self.indent_level -= 1;
         self.indent();
         self.output.push('}');
@@ -364,9 +434,7 @@ impl JsCodegen {
         if !block.body.is_empty() {
             self.newline();
             self.indent_level += 1;
-            for stmt in &block.body {
-                self.emit_statement(stmt);
-            }
+            self.emit_body(&block.body);
             self.indent_level -= 1;
             self.indent();
         }
@@ -506,31 +574,59 @@ impl JsCodegen {
 
     fn emit_array_expression(&mut self, arr: &JsArrayExpression) {
         self.output.push('[');
-        for (i, elem) in arr.elements.iter().enumerate() {
-            if i > 0 {
-                self.output.push_str(", ");
-            }
-            if let Some(e) = elem {
-                self.emit_expression(e);
-            }
-        }
+        let items: Vec<Option<&JsExpr>> = arr.elements.iter().map(|e| e.as_ref()).collect();
+        self.emit_sequence_exprs(&items, false);
         self.output.push(']');
     }
 
     fn emit_object_expression(&mut self, obj: &JsObjectExpression) {
+        self.output.push('{');
         if obj.properties.is_empty() {
-            self.output.push_str("{}");
+            self.output.push('}');
             return;
         }
 
-        self.output.push_str("{ ");
-        for (i, member) in obj.properties.iter().enumerate() {
-            if i > 0 {
-                self.output.push_str(", ");
+        // Pre-render all properties to measure total length
+        let rendered: Vec<String> = obj
+            .properties
+            .iter()
+            .map(|m| self.pre_render_object_member(m))
+            .collect();
+
+        let total_len: usize = rendered.iter().map(|r| r.len()).sum::<usize>()
+            + if rendered.len() > 1 {
+                (rendered.len() - 1) * 2
+            } else {
+                0
+            };
+
+        let any_multiline = rendered.iter().any(|r| r.contains('\n'));
+        let multiline = any_multiline || total_len > 60;
+
+        if multiline {
+            self.indent_level += 1;
+            self.newline();
+            for (i, member) in obj.properties.iter().enumerate() {
+                self.indent();
+                self.emit_object_member(member);
+                if i < obj.properties.len() - 1 {
+                    self.output.push(',');
+                }
+                self.newline();
             }
-            self.emit_object_member(member);
+            self.indent_level -= 1;
+            self.indent();
+        } else {
+            self.output.push(' ');
+            for (i, member) in obj.properties.iter().enumerate() {
+                if i > 0 {
+                    self.output.push_str(", ");
+                }
+                self.emit_object_member(member);
+            }
+            self.output.push(' ');
         }
-        self.output.push_str(" }");
+        self.output.push('}');
     }
 
     fn emit_object_member(&mut self, member: &JsObjectMember) {
@@ -696,12 +792,7 @@ impl JsCodegen {
             self.output.push_str("?.");
         }
         self.output.push('(');
-        for (i, arg) in call.arguments.iter().enumerate() {
-            if i > 0 {
-                self.output.push_str(", ");
-            }
-            self.emit_expression(arg);
-        }
+        self.emit_call_args(&call.arguments);
         self.output.push(')');
     }
 
@@ -717,12 +808,7 @@ impl JsCodegen {
             self.output.push(')');
         }
         self.output.push('(');
-        for (i, arg) in new_expr.arguments.iter().enumerate() {
-            if i > 0 {
-                self.output.push_str(", ");
-            }
-            self.emit_expression(arg);
-        }
+        self.emit_call_args(&new_expr.arguments);
         self.output.push(')');
     }
 
@@ -1042,6 +1128,247 @@ impl JsCodegen {
                 self.emit_expression(&assign.right);
             }
         }
+    }
+
+    /// Check if a statement will render as multiline without actually
+    /// modifying the output. Renders to a temporary buffer.
+    fn is_stmt_multiline(&self, stmt: &JsStatement) -> bool {
+        let mut tmp = JsCodegen {
+            output: String::with_capacity(256),
+            indent_level: self.indent_level,
+            needs_semicolon: false,
+        };
+        tmp.emit_statement_inner(stmt);
+        if tmp.needs_semicolon {
+            tmp.output.push(';');
+        }
+        tmp.output.contains('\n')
+    }
+
+    /// Pre-render an expression to a string without modifying the output.
+    fn pre_render_expr(&self, expr: &JsExpr) -> String {
+        let mut tmp = JsCodegen {
+            output: String::with_capacity(256),
+            indent_level: self.indent_level,
+            needs_semicolon: false,
+        };
+        tmp.emit_expression(expr);
+        tmp.output
+    }
+
+    /// Pre-render an object member to a string without modifying the output.
+    fn pre_render_object_member(&self, member: &JsObjectMember) -> String {
+        let mut tmp = JsCodegen {
+            output: String::with_capacity(256),
+            indent_level: self.indent_level,
+            needs_semicolon: false,
+        };
+        tmp.emit_object_member(member);
+        tmp.output
+    }
+
+    /// Emit a comma-separated sequence of expressions with esrap-style wrapping.
+    /// When total length exceeds 60 or any element is multiline, switches to multi-line mode.
+    /// `pad` controls whether spaces are added around the content in single-line mode
+    /// (true for objects: `{ a: 1 }`, false for arrays/calls: `[1, 2]`).
+    fn emit_sequence_exprs(&mut self, items: &[Option<&JsExpr>], pad: bool) {
+        if items.is_empty() {
+            return;
+        }
+
+        // Pre-render all items to measure total length and detect multiline
+        let rendered: Vec<String> = items
+            .iter()
+            .map(|item| {
+                if let Some(expr) = item {
+                    self.pre_render_expr(expr)
+                } else {
+                    String::new()
+                }
+            })
+            .collect();
+
+        // Calculate total length: sum of rendered items + separators (", ")
+        let total_len: usize = rendered.iter().map(|r| r.len()).sum::<usize>()
+            + if rendered.len() > 1 {
+                (rendered.len() - 1) * 2 // ", " between items
+            } else {
+                0
+            };
+
+        let any_multiline = rendered.iter().any(|r| r.contains('\n'));
+        let multiline = any_multiline || total_len > 60;
+
+        if multiline {
+            self.indent_level += 1;
+            self.newline();
+
+            for (i, (item, rendered_str)) in items.iter().zip(rendered.iter()).enumerate() {
+                self.indent();
+                if let Some(expr) = item {
+                    self.emit_expression(expr);
+                }
+                if i < items.len() - 1 {
+                    self.output.push(',');
+                }
+
+                // Insert blank line (margin) between consecutive multiline items
+                // that don't have object/array values (matching esrap behavior)
+                if i < items.len() - 1 {
+                    let next_rendered = &rendered[i + 1];
+                    if rendered_str.contains('\n')
+                        && next_rendered.contains('\n')
+                        && !has_object_or_array_value(item)
+                        && !has_object_or_array_value(&items[i + 1])
+                    {
+                        self.newline(); // margin
+                    }
+                }
+
+                self.newline();
+            }
+
+            self.indent_level -= 1;
+            self.indent();
+        } else {
+            if pad && total_len > 0 {
+                self.output.push(' ');
+            }
+            for (i, item) in items.iter().enumerate() {
+                if i > 0 {
+                    self.output.push_str(", ");
+                }
+                if let Some(expr) = item {
+                    self.emit_expression(expr);
+                }
+            }
+            if pad && total_len > 0 {
+                self.output.push(' ');
+            }
+        }
+    }
+
+    /// Emit call/new expression arguments with esrap-style wrapping.
+    /// In esrap, only non-final arguments' multiline status triggers wrapping.
+    fn emit_call_args(&mut self, arguments: &[JsExpr]) {
+        if arguments.is_empty() {
+            return;
+        }
+
+        // Pre-render all arguments
+        let rendered: Vec<String> = arguments
+            .iter()
+            .map(|arg| self.pre_render_expr(arg))
+            .collect();
+
+        // Check if any non-final argument is multiline
+        let non_final_multiline = rendered
+            .iter()
+            .take(rendered.len().saturating_sub(1))
+            .any(|r| r.contains('\n'));
+
+        if non_final_multiline {
+            self.indent_level += 1;
+            self.newline();
+
+            for (i, arg) in arguments.iter().enumerate() {
+                self.indent();
+                self.emit_expression(arg);
+                if i < arguments.len() - 1 {
+                    self.output.push(',');
+                }
+                self.newline();
+            }
+
+            self.indent_level -= 1;
+            self.indent();
+        } else {
+            for (i, arg) in arguments.iter().enumerate() {
+                if i > 0 {
+                    self.output.push_str(", ");
+                }
+                self.emit_expression(arg);
+            }
+        }
+    }
+}
+
+/// Check if an expression is an object or array value (used for margin logic in sequence).
+/// In esrap, consecutive multiline properties with object/array values don't get extra margins.
+fn has_object_or_array_value(item: &Option<&JsExpr>) -> bool {
+    if let Some(expr) = item {
+        matches!(expr, JsExpr::Object(_) | JsExpr::Array(_))
+    } else {
+        false
+    }
+}
+
+/// Get the ESTree-style type name for a statement, used for blank line logic.
+/// Consecutive statements of the same type don't get blank lines between them
+/// (unless either is multiline).
+fn stmt_type_name(stmt: &JsStatement) -> &'static str {
+    match stmt {
+        JsStatement::Import(_) => "ImportDeclaration",
+        JsStatement::ExportDefault(_) => "ExportDefaultDeclaration",
+        JsStatement::ExportNamed(_) => "ExportNamedDeclaration",
+        JsStatement::VariableDeclaration(_) => "VariableDeclaration",
+        JsStatement::FunctionDeclaration(_) => "FunctionDeclaration",
+        JsStatement::Expression(_) => "ExpressionStatement",
+        JsStatement::Return(_) => "ReturnStatement",
+        JsStatement::If(_) => "IfStatement",
+        JsStatement::For(_) => "ForStatement",
+        JsStatement::ForOf(_) => "ForOfStatement",
+        JsStatement::While(_) => "WhileStatement",
+        JsStatement::DoWhile(_) => "DoWhileStatement",
+        JsStatement::Block(_) => "BlockStatement",
+        JsStatement::Empty => "EmptyStatement",
+        JsStatement::Debugger => "DebuggerStatement",
+        JsStatement::Labeled(_) => "LabeledStatement",
+        JsStatement::Break(_) => "BreakStatement",
+        JsStatement::Continue(_) => "ContinueStatement",
+        JsStatement::Throw(_) => "ThrowStatement",
+        JsStatement::Try(_) => "TryStatement",
+        JsStatement::Raw(code) => raw_stmt_type_name(code),
+    }
+}
+
+/// Infer the ESTree-like type name for a Raw statement based on its content.
+/// This allows Raw statements to participate correctly in blank-line logic.
+fn raw_stmt_type_name(code: &str) -> &'static str {
+    let trimmed = code.trim_start();
+    if trimmed.starts_with("/*") || trimmed.starts_with("//") {
+        // Comments are typically part of the preceding/following statement group.
+        // Treat them as a unique type to get blank lines around them.
+        "Comment"
+    } else if trimmed.starts_with("import ") || trimmed.starts_with("import\t") {
+        "ImportDeclaration"
+    } else if trimmed.starts_with("export default ") {
+        "ExportDefaultDeclaration"
+    } else if trimmed.starts_with("export ") {
+        "ExportNamedDeclaration"
+    } else if trimmed.starts_with("var ")
+        || trimmed.starts_with("let ")
+        || trimmed.starts_with("const ")
+    {
+        "VariableDeclaration"
+    } else if trimmed.starts_with("function ") || trimmed.starts_with("async function ") {
+        "FunctionDeclaration"
+    } else if trimmed.starts_with("return ")
+        || trimmed.starts_with("return;")
+        || trimmed == "return"
+    {
+        "ReturnStatement"
+    } else if trimmed.starts_with("if ") || trimmed.starts_with("if(") {
+        "IfStatement"
+    } else if trimmed.starts_with("for ") || trimmed.starts_with("for(") {
+        "ForStatement"
+    } else if trimmed.starts_with("while ") || trimmed.starts_with("while(") {
+        "WhileStatement"
+    } else if trimmed.starts_with("class ") {
+        "ClassDeclaration"
+    } else {
+        // Default: treat as expression statement (most common case for raw code)
+        "ExpressionStatement"
     }
 }
 

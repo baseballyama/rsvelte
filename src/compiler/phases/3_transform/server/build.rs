@@ -3895,18 +3895,25 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Generate $$renderer.option() call
                     let attrs_str = attr_entries.join(", ");
 
+                    // Format the attributes object - use `{}` for empty, `{ ... }` for non-empty
+                    let attrs_obj = if attrs_str.is_empty() {
+                        "{}".to_string()
+                    } else {
+                        format!("{{ {} }}", attrs_str)
+                    };
+
                     // If we have a direct value (from synthetic_value_node), pass it directly
                     if let Some(value_expr) = direct_value {
                         body_code.push_str(&format!(
-                            "{}$$renderer.option({{ {} }}, {});\n",
-                            indent, attrs_str, value_expr
+                            "{}$$renderer.option({}, {});\n",
+                            indent, attrs_obj, value_expr
                         ));
                     } else if *is_rich {
                         // Build the $$renderer.option() call
                         // If is_rich, we need to pass 7 arguments: attrs, body, void 0, void 0, void 0, void 0, true
                         body_code.push_str(&format!(
-                            "{}$$renderer.option(\n{}\t{{ {} }},\n{}\t($$renderer) => {{\n",
-                            indent, indent, attrs_str, indent
+                            "{}$$renderer.option(\n{}\t{},\n{}\t($$renderer) => {{\n",
+                            indent, indent, attrs_obj, indent
                         ));
 
                         // Body
@@ -3926,8 +3933,8 @@ export default function {component_name}($$renderer{props_param}) {{
                     } else if let Some(hash) = css_hash {
                         // Has CSS hash - pass as 3rd argument
                         body_code.push_str(&format!(
-                            "{}$$renderer.option(\n{}\t{{ {} }},\n{}\t($$renderer) => {{\n",
-                            indent, indent, attrs_str, indent
+                            "{}$$renderer.option(\n{}\t{},\n{}\t($$renderer) => {{\n",
+                            indent, indent, attrs_obj, indent
                         ));
 
                         // Body
@@ -3946,8 +3953,8 @@ export default function {component_name}($$renderer{props_param}) {{
                         ));
                     } else {
                         body_code.push_str(&format!(
-                            "{}$$renderer.option({{ {} }}, ($$renderer) => {{\n",
-                            indent, attrs_str
+                            "{}$$renderer.option({}, ($$renderer) => {{\n",
+                            indent, attrs_obj
                         ));
 
                         // Body
