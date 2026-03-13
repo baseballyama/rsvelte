@@ -12,6 +12,10 @@ pub struct AnalysisWarning {
     pub code: String,
     /// The warning message
     pub message: String,
+    /// Start byte offset in source (if available)
+    pub start: Option<u32>,
+    /// End byte offset in source (if available)
+    pub end: Option<u32>,
 }
 
 impl AnalysisWarning {
@@ -20,6 +24,8 @@ impl AnalysisWarning {
         Self {
             code: code.into(),
             message: message.into(),
+            start: None,
+            end: None,
         }
     }
 }

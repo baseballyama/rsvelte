@@ -2208,46 +2208,111 @@ impl<'a> SelectorParser<'a> {
         let start = self.offset + self.index;
         self.advance(); // consume '['
 
-        // Read until ']', respecting quoted strings and escape sequences
-        let content_start = self.index;
-        let mut in_string = false;
-        let mut string_char = '\0';
-
-        while !self.is_eof() {
-            let c = self.current_char();
-
-            if c == '\\' && in_string {
-                // Escape sequence inside string - skip the backslash and next char
-                self.advance();
-                if !self.is_eof() {
-                    self.advance();
-                }
-                continue;
-            }
-
-            if (c == '"' || c == '\'') && !in_string {
-                in_string = true;
-                string_char = c;
-                self.advance();
-                continue;
-            }
-
-            if in_string && c == string_char {
-                in_string = false;
-                string_char = '\0';
-                self.advance();
-                continue;
-            }
-
-            if c == ']' && !in_string {
-                break;
-            }
-
+        // Skip whitespace
+        while !self.is_eof() && self.current_char().is_whitespace() {
             self.advance();
         }
 
-        let name = self.source[content_start..self.index].to_string();
-        self.advance(); // consume ']'
+        // Read attribute name (identifier)
+        let name = self.read_identifier();
+
+        // Skip whitespace
+        while !self.is_eof() && self.current_char().is_whitespace() {
+            self.advance();
+        }
+
+        // Try to read matcher operator (~=, |=, ^=, $=, *=, =)
+        let mut matcher: Option<String> = None;
+        let mut value: Option<String> = None;
+        let mut flags: Option<String> = None;
+
+        let c = self.current_char();
+        if c == '~' || c == '|' || c == '^' || c == '$' || c == '*' {
+            let op_char = c;
+            self.advance();
+            if self.current_char() == '=' {
+                self.advance();
+                matcher = Some(format!("{}=", op_char));
+            }
+        } else if c == '=' {
+            self.advance();
+            matcher = Some("=".to_string());
+        }
+
+        if matcher.is_some() {
+            // Skip whitespace
+            while !self.is_eof() && self.current_char().is_whitespace() {
+                self.advance();
+            }
+
+            // Read value (quoted string or unquoted identifier)
+            let c = self.current_char();
+            if c == '"' || c == '\'' {
+                let quote = c;
+                let val_start = self.index;
+                self.advance(); // consume opening quote
+                while !self.is_eof() {
+                    let ch = self.current_char();
+                    if ch == '\\' {
+                        self.advance();
+                        if !self.is_eof() {
+                            self.advance();
+                        }
+                        continue;
+                    }
+                    if ch == quote {
+                        break;
+                    }
+                    self.advance();
+                }
+                self.advance(); // consume closing quote
+                // Include quotes in value to preserve original quote style
+                value = Some(self.source[val_start..self.index].to_string());
+            } else {
+                // Unquoted value
+                let val_start = self.index;
+                while !self.is_eof() {
+                    let ch = self.current_char();
+                    if ch == ']' || ch.is_whitespace() {
+                        break;
+                    }
+                    self.advance();
+                }
+                if self.index > val_start {
+                    value = Some(self.source[val_start..self.index].to_string());
+                }
+            }
+
+            // Skip whitespace
+            while !self.is_eof() && self.current_char().is_whitespace() {
+                self.advance();
+            }
+
+            // Read flags (e.g., 'i' or 's')
+            let c = self.current_char();
+            if c != ']' && c.is_alphabetic() {
+                let flags_start = self.index;
+                while !self.is_eof() && self.current_char().is_alphabetic() {
+                    self.advance();
+                }
+                flags = Some(self.source[flags_start..self.index].to_string());
+
+                // Skip whitespace
+                while !self.is_eof() && self.current_char().is_whitespace() {
+                    self.advance();
+                }
+            }
+        } else {
+            // No matcher - skip to ']'
+            while !self.is_eof() && self.current_char() != ']' {
+                self.advance();
+            }
+        }
+
+        // consume ']'
+        if !self.is_eof() && self.current_char() == ']' {
+            self.advance();
+        }
         let end = self.offset + self.index;
 
         let mut obj = Map::new();
@@ -2256,6 +2321,21 @@ impl<'a> SelectorParser<'a> {
             Value::String("AttributeSelector".to_string()),
         );
         obj.insert("name".to_string(), Value::String(name));
+        if let Some(m) = matcher {
+            obj.insert("matcher".to_string(), Value::String(m));
+        } else {
+            obj.insert("matcher".to_string(), Value::Null);
+        }
+        if let Some(v) = value {
+            obj.insert("value".to_string(), Value::String(v));
+        } else {
+            obj.insert("value".to_string(), Value::Null);
+        }
+        if let Some(f) = flags {
+            obj.insert("flags".to_string(), Value::String(f));
+        } else {
+            obj.insert("flags".to_string(), Value::Null);
+        }
         obj.insert("start".to_string(), Value::Number((start as i64).into()));
         obj.insert("end".to_string(), Value::Number((end as i64).into()));
 

@@ -393,7 +393,13 @@ pub fn visit(
 
     // Check accessibility
     let a11y_warnings = a11y_check(element, &context.element_ancestors);
-    for warning in a11y_warnings {
+    for mut warning in a11y_warnings {
+        if warning.start.is_none() {
+            warning.start = Some(element.start);
+        }
+        if warning.end.is_none() {
+            warning.end = Some(element.end);
+        }
         context.emit_warning(warning);
     }
 

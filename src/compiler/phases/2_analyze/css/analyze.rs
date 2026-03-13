@@ -125,11 +125,44 @@ fn analyze_rule(
     analysis: &mut ComponentAnalysis,
     state: &CssAnalysisState,
 ) -> Result<(), AnalysisError> {
-    // Check if this rule has global selectors
-    if let Some(prelude) = node.get("prelude")
-        && has_global_selector(prelude)
-    {
-        analysis.css.has_global = true;
+    // Check if this rule should set has_global on the analysis.
+    // This mirrors the official Svelte's Rule visitor logic:
+    //   analysis.css.has_global ||=
+    //     has_global_selectors &&
+    //     block has declarations &&
+    //     is_unscoped(path) (all ancestor Rules also have global selectors)
+    if let Some(prelude) = node.get("prelude") {
+        let all_selectors_global = is_prelude_fully_global(prelude);
+        if all_selectors_global {
+            // Check if block has at least one Declaration
+            let has_declarations = node
+                .get("block")
+                .and_then(|b| b.get("children"))
+                .and_then(|c| c.as_array())
+                .map(|children| {
+                    children
+                        .iter()
+                        .any(|c| c.get("type").and_then(|t| t.as_str()) == Some("Declaration"))
+                })
+                .unwrap_or(false);
+
+            // Check if the path is unscoped (all parent Rules also have global selectors).
+            // If there's no parent rule, the path is trivially unscoped.
+            // If there is a parent rule, we need its prelude to also be fully global.
+            let parent_is_unscoped = state
+                .parent_rule
+                .map(|parent| {
+                    parent
+                        .get("prelude")
+                        .map(is_prelude_fully_global)
+                        .unwrap_or(false)
+                })
+                .unwrap_or(true);
+
+            if has_declarations && parent_is_unscoped {
+                analysis.css.has_global = true;
+            }
+        }
     }
 
     // Track whether this rule is a :global block
@@ -694,6 +727,194 @@ fn validate_global_block_in_pseudo_args(args: &serde_json::Value) -> Result<(), 
         }
     }
     Ok(())
+}
+
+/// Check if a prelude (SelectorList) has all its complex selectors fully global.
+/// This mirrors checking `node.metadata.has_global_selectors` in the official compiler,
+/// which is true when ALL complex selectors have `is_global`.
+fn is_prelude_fully_global(prelude: &serde_json::Value) -> bool {
+    if let Some(children) = prelude.get("children").and_then(|c| c.as_array()) {
+        !children.is_empty() && children.iter().all(is_complex_selector_global)
+    } else {
+        false
+    }
+}
+
+/// Check if a ComplexSelector is fully global.
+/// A ComplexSelector is global when ALL its children (RelativeSelectors) are global or global-like.
+fn is_complex_selector_global(complex_selector: &serde_json::Value) -> bool {
+    if let Some(children) = complex_selector.get("children").and_then(|c| c.as_array()) {
+        !children.is_empty()
+            && children.iter().all(|rel| {
+                is_relative_selector_global_strict(rel) || is_relative_selector_global_like(rel)
+            })
+    } else {
+        false
+    }
+}
+
+/// Check if a RelativeSelector is "global" in the strict sense used for has_global computation.
+/// Mirrors the official `is_global()` from css/utils.js:
+///   - First selector is :global
+///   - AND either has no args (bare :global) OR all selectors in the RelativeSelector
+///     are unscoped pseudo-classes or pseudo-elements
+fn is_relative_selector_global_strict(relative_selector: &serde_json::Value) -> bool {
+    let selectors = match relative_selector
+        .get("selectors")
+        .and_then(|s| s.as_array())
+    {
+        Some(s) if !s.is_empty() => s,
+        _ => return false,
+    };
+    let first = &selectors[0];
+    if first.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector")
+        || first.get("name").and_then(|n| n.as_str()) != Some("global")
+    {
+        return false;
+    }
+    // If no args (bare :global), it's global
+    if !first
+        .as_object()
+        .is_some_and(|obj| obj.contains_key("args"))
+        || first
+            .get("args")
+            .and_then(|a| if a.is_null() { None } else { Some(a) })
+            .is_none()
+    {
+        return true;
+    }
+    // Has args: all selectors in this RelativeSelector must be unscoped pseudo-classes or pseudo-elements
+    selectors.iter().all(|sel| {
+        let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        if sel_type == "PseudoElementSelector" {
+            return true;
+        }
+        if sel_type == "PseudoClassSelector" {
+            return is_unscoped_pseudo_class_selector(sel);
+        }
+        false
+    })
+}
+
+/// Check if a RelativeSelector is "global-like" (e.g., :host, :root, ::view-transition-*).
+fn is_relative_selector_global_like(relative_selector: &serde_json::Value) -> bool {
+    let selectors = match relative_selector
+        .get("selectors")
+        .and_then(|s| s.as_array())
+    {
+        Some(s) if !s.is_empty() => s,
+        _ => return false,
+    };
+
+    let first = &selectors[0];
+    let first_type = first.get("type").and_then(|t| t.as_str()).unwrap_or("");
+    let first_name = first.get("name").and_then(|n| n.as_str()).unwrap_or("");
+
+    // :host
+    if first_type == "PseudoClassSelector" && first_name == "host" {
+        return true;
+    }
+
+    // ::view-transition-*
+    if first_type == "PseudoElementSelector"
+        && matches!(
+            first_name,
+            "view-transition"
+                | "view-transition-group"
+                | "view-transition-old"
+                | "view-transition-new"
+                | "view-transition-image-pair"
+        )
+    {
+        return true;
+    }
+
+    // :root (but not if it also has :has)
+    let has_root = selectors.iter().any(|s| {
+        s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+            && s.get("name").and_then(|n| n.as_str()) == Some("root")
+    });
+    let has_has = selectors.iter().any(|s| {
+        s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+            && s.get("name").and_then(|n| n.as_str()) == Some("has")
+    });
+    if has_root && !has_has {
+        return true;
+    }
+
+    false
+}
+
+/// Check if a PseudoClassSelector is "unscoped" - meaning it doesn't scope its contents.
+/// Mirrors the official `is_unscoped_pseudo_class` from css/utils.js.
+fn is_unscoped_pseudo_class_selector(selector: &serde_json::Value) -> bool {
+    if selector.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector") {
+        return false;
+    }
+    let name = selector.get("name").and_then(|n| n.as_str()).unwrap_or("");
+
+    // These pseudo-classes scope their contents: :has, :is, :where, :not (with complex args)
+    if name == "has" || name == "is" || name == "where" {
+        // They can still be unscoped if args is null or all children are global
+        let args = selector.get("args").filter(|a| !a.is_null());
+        return match args {
+            None => true,
+            Some(args) => {
+                // All children of args must be global
+                args.get("children")
+                    .and_then(|c| c.as_array())
+                    .map(|children| {
+                        children.iter().all(|complex| {
+                            complex
+                                .get("children")
+                                .and_then(|c| c.as_array())
+                                .map(|rels| rels.iter().all(is_relative_selector_global_strict))
+                                .unwrap_or(false)
+                        })
+                    })
+                    .unwrap_or(false)
+            }
+        };
+    }
+    if name == "not" {
+        let args = selector.get("args").filter(|a| !a.is_null());
+        return match args {
+            None => true,
+            Some(args) => {
+                let all_simple = args
+                    .get("children")
+                    .and_then(|c| c.as_array())
+                    .map(|children| {
+                        children.iter().all(|c| {
+                            c.get("children")
+                                .and_then(|cc| cc.as_array())
+                                .map(|rels| rels.len() == 1)
+                                .unwrap_or(false)
+                        })
+                    })
+                    .unwrap_or(false);
+                if all_simple {
+                    return true;
+                }
+                // Check if all children are global
+                args.get("children")
+                    .and_then(|c| c.as_array())
+                    .map(|children| {
+                        children.iter().all(|complex| {
+                            complex
+                                .get("children")
+                                .and_then(|c| c.as_array())
+                                .map(|rels| rels.iter().all(is_relative_selector_global_strict))
+                                .unwrap_or(false)
+                        })
+                    })
+                    .unwrap_or(false)
+            }
+        };
+    }
+
+    // All other pseudo-classes are unscoped
+    true
 }
 
 /// Check if a RelativeSelector is :global (or :global(...)).

@@ -1,13 +1,25 @@
 //! CSS selector-to-element matching for scoped hash application.
 //!
 //! This module implements proper CSS selector matching against template elements,
-//! similar to the official compiler's css-prune.js. It considers combinators
+//! mirroring the official compiler's css-prune.js. It considers combinators
 //! (>, space, +, ~) when determining which elements should be scoped.
 
 use crate::ast::template::{self, Fragment, TemplateNode};
 
+/// Represents the value of an attribute for CSS matching purposes.
+#[derive(Debug, Clone)]
+pub enum AttrValue {
+    /// Boolean attribute (e.g., `<div hidden>`)
+    Boolean,
+    /// Static text value (e.g., `<div class="foo">`)
+    Static(String),
+    /// Dynamic/expression value that can't be statically determined
+    Dynamic,
+}
+
 /// Info about a template element for CSS matching.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ElementInfo {
     pub tag_name: String,
     pub has_spread: bool,
@@ -16,6 +28,14 @@ pub struct ElementInfo {
     pub has_dynamic_class: bool,
     /// Whether this is a dynamic element (<svelte:element>), which matches any type selector
     pub is_dynamic: bool,
+    /// All attributes on the element (name, value pairs)
+    pub attributes: Vec<(String, AttrValue)>,
+    /// Whether there's a bind:xxx directive (attribute name -> true)
+    pub bind_names: Vec<String>,
+    /// Whether there's a style directive
+    pub has_style_directive: bool,
+    /// Whether the element has a class directive
+    pub class_directive_names: Vec<String>,
 }
 
 impl ElementInfo {
@@ -24,7 +44,6 @@ impl ElementInfo {
     }
 
     pub fn from_svelte_element(el: &template::SvelteDynamicElement) -> Self {
-        // Use empty tag name - the is_dynamic flag will make type selectors always match
         Self::from_attributes("", &el.attributes, true)
     }
 
@@ -39,43 +58,77 @@ impl ElementInfo {
         let mut ids = Vec::new();
         let mut has_spread = false;
         let mut has_dynamic_class = false;
+        let mut attr_pairs: Vec<(String, AttrValue)> = Vec::new();
+        let mut bind_names = Vec::new();
+        let mut has_style_directive = false;
+        let mut class_directive_names = Vec::new();
 
         for attr in attributes {
             match attr {
                 Attribute::Attribute(a) => {
-                    if a.name == "class" {
-                        match &a.value {
-                            template::AttributeValue::Sequence(parts) => {
-                                for part in parts {
-                                    if let template::AttributeValuePart::Text(text) = part {
-                                        for class in text.data.split_whitespace() {
-                                            classes.push(class.to_string());
-                                        }
-                                    } else {
-                                        has_dynamic_class = true;
-                                    }
+                    let attr_name = a.name.to_string();
+                    match &a.value {
+                        template::AttributeValue::True(_) => {
+                            // Boolean attribute
+                            attr_pairs.push((attr_name.clone(), AttrValue::Boolean));
+                        }
+                        template::AttributeValue::Sequence(parts) => {
+                            let mut static_parts = Vec::new();
+                            let mut is_all_text = true;
+                            for part in parts {
+                                if let template::AttributeValuePart::Text(text) = part {
+                                    static_parts.push(text.data.to_string());
+                                } else {
+                                    is_all_text = false;
                                 }
                             }
-                            template::AttributeValue::Expression(_) => {
-                                has_dynamic_class = true;
+                            if is_all_text && !static_parts.is_empty() {
+                                let full_value = static_parts.join("");
+                                attr_pairs.push((
+                                    attr_name.clone(),
+                                    AttrValue::Static(full_value.clone()),
+                                ));
+                                if attr_name == "class" {
+                                    for class in full_value.split_whitespace() {
+                                        classes.push(class.to_string());
+                                    }
+                                } else if attr_name == "id" {
+                                    ids.push(full_value);
+                                }
+                            } else {
+                                attr_pairs.push((attr_name.clone(), AttrValue::Dynamic));
+                                if attr_name == "class" {
+                                    for part in parts {
+                                        if let template::AttributeValuePart::Text(text) = part {
+                                            for class in text.data.split_whitespace() {
+                                                classes.push(class.to_string());
+                                            }
+                                        }
+                                    }
+                                    has_dynamic_class = true;
+                                }
                             }
-                            _ => {}
                         }
-                    } else if a.name == "id"
-                        && let template::AttributeValue::Sequence(parts) = &a.value
-                    {
-                        for part in parts {
-                            if let template::AttributeValuePart::Text(text) = part {
-                                ids.push(text.data.to_string());
+                        template::AttributeValue::Expression(_) => {
+                            attr_pairs.push((attr_name.clone(), AttrValue::Dynamic));
+                            if attr_name == "class" {
+                                has_dynamic_class = true;
                             }
                         }
                     }
                 }
                 Attribute::ClassDirective(cd) => {
                     classes.push(cd.name.to_string());
+                    class_directive_names.push(cd.name.to_string());
                 }
                 Attribute::SpreadAttribute(_) => {
                     has_spread = true;
+                }
+                Attribute::BindDirective(bd) => {
+                    bind_names.push(bd.name.to_string());
+                }
+                Attribute::StyleDirective(_) => {
+                    has_style_directive = true;
                 }
                 _ => {}
             }
@@ -88,6 +141,10 @@ impl ElementInfo {
             ids,
             has_dynamic_class,
             is_dynamic,
+            attributes: attr_pairs,
+            bind_names,
+            has_style_directive,
+            class_directive_names,
         }
     }
 }
@@ -98,7 +155,13 @@ pub enum CssSimpleSelector {
     Type(String),
     Class(String),
     Id(String),
-    Attribute,
+    /// Attribute selector with optional name, matcher, value, flags
+    Attribute {
+        name: String,
+        matcher: Option<String>,
+        value: Option<String>,
+        flags: Option<String>,
+    },
     PseudoClass(String, Option<Vec<CssComplexSelector>>),
     PseudoElement,
     Nesting,
@@ -250,13 +313,37 @@ fn parse_simple_selector(sel: &serde_json::Value) -> Option<CssSimpleSelector> {
         }
         "ClassSelector" => {
             let name = sel.get("name")?.as_str()?.to_string();
-            Some(CssSimpleSelector::Class(name))
+            Some(CssSimpleSelector::Class(decode_css_escape(&name)))
         }
         "IdSelector" => {
             let name = sel.get("name")?.as_str()?.to_string();
-            Some(CssSimpleSelector::Id(name))
+            Some(CssSimpleSelector::Id(decode_css_escape(&name)))
         }
-        "AttributeSelector" => Some(CssSimpleSelector::Attribute),
+        "AttributeSelector" => {
+            let name = sel
+                .get("name")
+                .and_then(|n| n.as_str())
+                .unwrap_or("")
+                .to_string();
+            let matcher = sel
+                .get("matcher")
+                .and_then(|m| if m.is_null() { None } else { m.as_str() })
+                .map(|s| s.to_string());
+            let value = sel
+                .get("value")
+                .and_then(|v| if v.is_null() { None } else { v.as_str() })
+                .map(|s| s.to_string());
+            let flags = sel
+                .get("flags")
+                .and_then(|f| if f.is_null() { None } else { f.as_str() })
+                .map(|s| s.to_string());
+            Some(CssSimpleSelector::Attribute {
+                name,
+                matcher,
+                value,
+                flags,
+            })
+        }
         "PseudoClassSelector" => {
             let name = sel.get("name")?.as_str()?.to_string();
             let args = sel.get("args").and_then(|args| {
@@ -280,18 +367,197 @@ fn parse_simple_selector(sel: &serde_json::Value) -> Option<CssSimpleSelector> {
     }
 }
 
+/// HTML attributes whose enumerated values are case-insensitive per the HTML spec.
+const CASE_INSENSITIVE_ATTRIBUTES: &[&str] = &[
+    "accept-charset",
+    "autocapitalize",
+    "autocomplete",
+    "behavior",
+    "charset",
+    "crossorigin",
+    "decoding",
+    "dir",
+    "direction",
+    "draggable",
+    "enctype",
+    "enterkeyhint",
+    "fetchpriority",
+    "formenctype",
+    "formmethod",
+    "formtarget",
+    "hidden",
+    "http-equiv",
+    "inputmode",
+    "kind",
+    "loading",
+    "method",
+    "preload",
+    "referrerpolicy",
+    "rel",
+    "rev",
+    "role",
+    "rules",
+    "scope",
+    "shape",
+    "spellcheck",
+    "target",
+    "translate",
+    "type",
+    "valign",
+    "wrap",
+];
+
+/// Whitelisted attributes for specific elements that should be considered as matching.
+fn whitelist_attribute_selector(tag_name: &str) -> &'static [&'static str] {
+    match tag_name.to_lowercase().as_str() {
+        "details" => &["open"],
+        "dialog" => &["open"],
+        _ => &[],
+    }
+}
+
+/// Unquote a CSS string value (remove surrounding quotes if present).
+fn unquote(s: &str) -> &str {
+    if s.len() >= 2 {
+        let first = s.as_bytes()[0];
+        let last = s.as_bytes()[s.len() - 1];
+        if (first == b'"' || first == b'\'') && first == last {
+            return &s[1..s.len() - 1];
+        }
+    }
+    s
+}
+
+/// Test an attribute value against a CSS attribute selector operator.
+fn test_attribute(operator: &str, expected: &str, case_insensitive: bool, value: &str) -> bool {
+    let (expected, value) = if case_insensitive {
+        (expected.to_lowercase(), value.to_lowercase())
+    } else {
+        (expected.to_string(), value.to_string())
+    };
+    match operator {
+        "=" => value == expected,
+        "~=" => value.split_whitespace().any(|w| w == expected),
+        "|=" => format!("{}-", value).starts_with(&format!("{}-", expected)),
+        "^=" => value.starts_with(&expected),
+        "$=" => value.ends_with(&expected),
+        "*=" => value.contains(&expected),
+        _ => false,
+    }
+}
+
+/// Check if an element's attributes match a CSS attribute selector.
+fn attribute_matches(
+    element: &ElementInfo,
+    attr_name: &str,
+    expected_value: Option<&str>,
+    operator: Option<&str>,
+    case_insensitive: bool,
+) -> bool {
+    // SpreadAttribute makes any attribute potentially present
+    if element.has_spread {
+        return true;
+    }
+
+    let attr_name_lower = attr_name.to_lowercase();
+
+    // Check bind directives
+    for bind_name in &element.bind_names {
+        if bind_name == attr_name {
+            return true;
+        }
+    }
+
+    // Check style directive
+    if attr_name_lower == "style" && element.has_style_directive {
+        return true;
+    }
+
+    // Check class directive
+    if attr_name_lower == "class" {
+        for cd_name in &element.class_directive_names {
+            if let Some(op) = operator {
+                if op == "~=" {
+                    if let Some(expected) = expected_value
+                        && cd_name == expected
+                    {
+                        return true;
+                    }
+                } else {
+                    return true;
+                }
+            } else {
+                return true;
+            }
+        }
+    }
+
+    // Check regular attributes
+    for (name, value) in &element.attributes {
+        if name.to_lowercase() != attr_name_lower {
+            continue;
+        }
+
+        match value {
+            AttrValue::Boolean => {
+                // Boolean attribute: matches [attr] but not [attr="value"]
+                return operator.is_none();
+            }
+            AttrValue::Dynamic => {
+                // Dynamic attribute: can't determine the value, so assume it could match
+                return true;
+            }
+            AttrValue::Static(attr_val) => {
+                // Static attribute: check against the value
+                if expected_value.is_none() {
+                    return true;
+                }
+                if let (Some(op), Some(expected)) = (operator, expected_value) {
+                    let matches = test_attribute(op, expected, case_insensitive, attr_val);
+                    // continue if we still may match against a class/style directive
+                    if !matches && (attr_name_lower == "class" || attr_name_lower == "style") {
+                        continue;
+                    }
+                    return matches;
+                }
+            }
+        }
+    }
+
+    false
+}
+
 /// Check if a relative selector is global or global-like.
 fn is_relative_selector_global(rel: &CssRelativeSelector) -> bool {
     if rel.is_global || rel.is_global_like {
         return true;
     }
+
+    // Check if it's a :global selector (with or without args) as the only simple selector
     if rel.selectors.len() == 1
-        && let CssSimpleSelector::PseudoClass(name, None) = &rel.selectors[0]
+        && let CssSimpleSelector::PseudoClass(name, _) = &rel.selectors[0]
         && name == "global"
     {
         return true;
     }
+
+    // Check for global-like pseudo-classes
+    if rel.selectors.len() == 1
+        && let CssSimpleSelector::PseudoClass(name, args) = &rel.selectors[0]
+        && is_unscoped_pseudo_class(name, args.is_some())
+    {
+        return true;
+    }
+
     false
+}
+
+/// Check if a pseudo-class is unscoped.
+fn is_unscoped_pseudo_class(name: &str, has_args: bool) -> bool {
+    match name {
+        "host" | "root" => !has_args,
+        _ => false,
+    }
 }
 
 /// Check if an element matches a set of simple selectors (one RelativeSelector).
@@ -302,7 +568,6 @@ fn element_matches_simple_selectors(
     for selector in selectors {
         match selector {
             CssSimpleSelector::Type(name) => {
-                // SvelteElement (dynamic tag) matches any type selector, just like the official compiler
                 if name != "*"
                     && !element.is_dynamic
                     && !name.eq_ignore_ascii_case(&element.tag_name)
@@ -311,20 +576,38 @@ fn element_matches_simple_selectors(
                 }
             }
             CssSimpleSelector::Class(name) => {
-                if !element.classes.iter().any(|c| c == name)
-                    && !element.has_spread
-                    && !element.has_dynamic_class
-                {
+                if !attribute_matches(element, "class", Some(name), Some("~="), false) {
                     return false;
                 }
             }
             CssSimpleSelector::Id(name) => {
-                if !element.ids.iter().any(|id| id == name) && !element.has_spread {
+                if !attribute_matches(element, "id", Some(name), Some("="), false) {
                     return false;
                 }
             }
-            CssSimpleSelector::Attribute => {
-                // Conservative: always match
+            CssSimpleSelector::Attribute {
+                name,
+                matcher,
+                value,
+                flags,
+            } => {
+                // Check whitelisted attributes
+                let whitelisted = whitelist_attribute_selector(&element.tag_name);
+                if whitelisted.iter().any(|w| w.eq_ignore_ascii_case(name)) {
+                    continue;
+                }
+
+                let expected_value = value.as_deref().map(unquote);
+
+                let ci = flags.as_deref().map(|f| f.contains('i')).unwrap_or(false)
+                    || (!flags.as_deref().map(|f| f.contains('s')).unwrap_or(false)
+                        && CASE_INSENSITIVE_ATTRIBUTES
+                            .iter()
+                            .any(|a| a.eq_ignore_ascii_case(name)));
+
+                if !attribute_matches(element, name, expected_value, matcher.as_deref(), ci) {
+                    return false;
+                }
             }
             CssSimpleSelector::PseudoClass(name, args) => {
                 if name == "host" || name == "root" {
@@ -332,6 +615,16 @@ fn element_matches_simple_selectors(
                 }
                 if name == "global" && args.is_none() {
                     return true;
+                }
+                if name == "global" && args.is_some() {
+                    let args = args.as_ref().unwrap();
+                    if !args.is_empty() && selectors.len() == 1 {
+                        let cs = &args[0];
+                        if let Some(last) = cs.children.last() {
+                            return element_matches_simple_selectors(element, &last.selectors);
+                        }
+                    }
+                    continue;
                 }
                 if (name == "is" || name == "where") && args.is_some() {
                     let args = args.as_ref().unwrap();
@@ -354,8 +647,1007 @@ fn element_matches_simple_selectors(
     true
 }
 
+/// Truncate trailing global selectors from a complex selector's children.
+fn truncate_globals(children: &[CssRelativeSelector]) -> &[CssRelativeSelector] {
+    let last_non_global = children
+        .iter()
+        .rposition(|rel| !is_relative_selector_global(rel));
+    match last_non_global {
+        Some(idx) => &children[..=idx],
+        None => &[],
+    }
+}
+
+/// Check if a complex selector has a sibling combinator (+ or ~).
+fn has_sibling_combinator(selector: &CssComplexSelector) -> bool {
+    let effective = truncate_globals(&selector.children);
+    effective.iter().any(|rel| {
+        rel.combinator
+            .as_deref()
+            .is_some_and(|c| c == "+" || c == "~")
+    })
+}
+
+/// Mark RegularElement nodes in the fragment as scoped based on CSS selector matching.
+pub fn mark_elements_scoped(fragment: &mut Fragment, css_selectors: &[CssComplexSelector]) {
+    let mut ancestors: Vec<ElementInfo> = Vec::new();
+    mark_elements_in_fragment(fragment, css_selectors, &mut ancestors);
+}
+
+/// Walk a fragment and mark elements as scoped.
+fn mark_elements_in_fragment(
+    fragment: &mut Fragment,
+    css_selectors: &[CssComplexSelector],
+    ancestors: &mut Vec<ElementInfo>,
+) {
+    // First pass: mark elements that match CSS selectors directly (type/class/id/ancestor matching)
+    for node in &mut fragment.nodes {
+        process_node_scoping(node, css_selectors, ancestors);
+    }
+
+    // Second pass: handle sibling combinators
+    // This needs to find all elements that could be siblings (including across block boundaries)
+    // and mark matching ones as scoped.
+    process_sibling_selectors(fragment, css_selectors, ancestors);
+
+    // Third pass: propagate scoping to ancestor elements
+    propagate_ancestor_scoping(fragment, css_selectors, ancestors);
+}
+
+/// Process a single node for direct CSS selector matching.
+fn process_node_scoping(
+    node: &mut TemplateNode,
+    css_selectors: &[CssComplexSelector],
+    ancestors: &mut Vec<ElementInfo>,
+) {
+    match node {
+        TemplateNode::RegularElement(el) => {
+            let element_info = ElementInfo::from_element(el);
+            el.metadata.scoped = css_selectors.iter().any(|selector| {
+                complex_selector_matches_element(selector, &element_info, ancestors)
+            });
+            ancestors.push(element_info);
+            for child in &mut el.fragment.nodes {
+                process_node_scoping(child, css_selectors, ancestors);
+            }
+            ancestors.pop();
+        }
+        TemplateNode::SvelteElement(el) => {
+            let element_info = ElementInfo::from_svelte_element(el);
+            el.metadata.scoped = css_selectors.iter().any(|selector| {
+                complex_selector_matches_element(selector, &element_info, ancestors)
+            });
+            ancestors.push(element_info);
+            for child in &mut el.fragment.nodes {
+                process_node_scoping(child, css_selectors, ancestors);
+            }
+            ancestors.pop();
+        }
+        TemplateNode::Component(comp) => {
+            for child in &mut comp.fragment.nodes {
+                process_node_scoping(child, css_selectors, ancestors);
+            }
+        }
+        TemplateNode::IfBlock(if_block) => {
+            for child in &mut if_block.consequent.nodes {
+                process_node_scoping(child, css_selectors, ancestors);
+            }
+            if let Some(ref mut alt) = if_block.alternate {
+                for child in &mut alt.nodes {
+                    process_node_scoping(child, css_selectors, ancestors);
+                }
+            }
+        }
+        TemplateNode::EachBlock(each) => {
+            for child in &mut each.body.nodes {
+                process_node_scoping(child, css_selectors, ancestors);
+            }
+            if let Some(ref mut fallback) = each.fallback {
+                for child in &mut fallback.nodes {
+                    process_node_scoping(child, css_selectors, ancestors);
+                }
+            }
+        }
+        TemplateNode::AwaitBlock(await_block) => {
+            if let Some(ref mut pending) = await_block.pending {
+                for child in &mut pending.nodes {
+                    process_node_scoping(child, css_selectors, ancestors);
+                }
+            }
+            if let Some(ref mut then) = await_block.then {
+                for child in &mut then.nodes {
+                    process_node_scoping(child, css_selectors, ancestors);
+                }
+            }
+            if let Some(ref mut catch) = await_block.catch {
+                for child in &mut catch.nodes {
+                    process_node_scoping(child, css_selectors, ancestors);
+                }
+            }
+        }
+        TemplateNode::KeyBlock(key) => {
+            for child in &mut key.fragment.nodes {
+                process_node_scoping(child, css_selectors, ancestors);
+            }
+        }
+        TemplateNode::SnippetBlock(snippet) => {
+            for child in &mut snippet.body.nodes {
+                process_node_scoping(child, css_selectors, ancestors);
+            }
+        }
+        TemplateNode::SvelteHead(head) => {
+            for child in &mut head.fragment.nodes {
+                process_node_scoping(child, css_selectors, ancestors);
+            }
+        }
+        TemplateNode::SlotElement(slot) => {
+            for child in &mut slot.fragment.nodes {
+                process_node_scoping(child, css_selectors, ancestors);
+            }
+        }
+        TemplateNode::TitleElement(title) => {
+            for child in &mut title.fragment.nodes {
+                process_node_scoping(child, css_selectors, ancestors);
+            }
+        }
+        _ => {}
+    }
+}
+
+use std::collections::HashSet;
+
+/// An element with its start/end position for identification in the marking pass.
+#[derive(Debug, Clone)]
+struct SiblingElementInfo {
+    info: ElementInfo,
+    start: u32,
+    end: u32,
+}
+
+/// A path segment describing where a node sits: a fragment and position within it.
+/// We use the fragment's raw pointer as identity since we only hold immutable refs.
+#[derive(Debug, Clone)]
+struct PathSegment<'a> {
+    fragment: &'a Fragment,
+    node_index: usize,
+}
+
+/// Process sibling selectors for a fragment.
+/// Uses a path-based approach that mirrors the official compiler's get_possible_element_siblings.
+/// Phase 1: Walk the tree immutably, collecting which elements need to be scoped (as start/end positions).
+/// Phase 2: Walk the tree mutably and mark the collected elements.
+fn process_sibling_selectors(
+    fragment: &mut Fragment,
+    css_selectors: &[CssComplexSelector],
+    ancestors: &[ElementInfo],
+) {
+    let sibling_selectors: Vec<&CssComplexSelector> = css_selectors
+        .iter()
+        .filter(|s| has_sibling_combinator(s))
+        .collect();
+
+    if !sibling_selectors.is_empty() {
+        // Phase 1: Collect elements to scope (immutable)
+        let mut elements_to_scope: HashSet<(u32, u32)> = HashSet::new();
+        collect_sibling_scoping(
+            fragment,
+            &sibling_selectors,
+            ancestors,
+            &[],
+            &mut elements_to_scope,
+        );
+
+        // Phase 2: Mark collected elements as scoped (mutable)
+        if !elements_to_scope.is_empty() {
+            apply_scoping_marks(fragment, &elements_to_scope);
+        }
+    }
+
+    // Recurse into child elements for their own sibling handling
+    recurse_sibling_processing(fragment, css_selectors, ancestors);
+}
+
+/// Walk the tree immutably, finding all sibling relationships and recording which
+/// elements need to be scoped. The `path` tracks the nesting context so we can
+/// walk up through block boundaries to find siblings (like the official compiler).
+fn collect_sibling_scoping<'a>(
+    fragment: &'a Fragment,
+    sibling_selectors: &[&CssComplexSelector],
+    ancestors: &[ElementInfo],
+    path: &[PathSegment<'a>],
+    elements_to_scope: &mut HashSet<(u32, u32)>,
+) {
+    for (i, node) in fragment.nodes.iter().enumerate() {
+        let current_path_segment = PathSegment {
+            fragment,
+            node_index: i,
+        };
+
+        match node {
+            TemplateNode::RegularElement(el) => {
+                let elem_info = SiblingElementInfo {
+                    info: ElementInfo::from_element(el),
+                    start: el.start,
+                    end: el.end,
+                };
+                check_element_as_subject(
+                    &elem_info,
+                    fragment,
+                    i,
+                    path,
+                    sibling_selectors,
+                    ancestors,
+                    elements_to_scope,
+                );
+            }
+            TemplateNode::SvelteElement(el) => {
+                let elem_info = SiblingElementInfo {
+                    info: ElementInfo::from_svelte_element(el),
+                    start: el.start,
+                    end: el.end,
+                };
+                check_element_as_subject(
+                    &elem_info,
+                    fragment,
+                    i,
+                    path,
+                    sibling_selectors,
+                    ancestors,
+                    elements_to_scope,
+                );
+            }
+            TemplateNode::IfBlock(_)
+            | TemplateNode::EachBlock(_)
+            | TemplateNode::AwaitBlock(_)
+            | TemplateNode::KeyBlock(_) => {
+                // Recurse into block fragments with updated path
+                let mut new_path = path.to_vec();
+                new_path.push(current_path_segment);
+
+                let block_frags = get_block_fragments_ref(node);
+                for bf in block_frags {
+                    collect_sibling_scoping(
+                        bf,
+                        sibling_selectors,
+                        ancestors,
+                        &new_path,
+                        elements_to_scope,
+                    );
+                }
+
+                // Each block wrap-around: last elements can be siblings of first elements
+                if let TemplateNode::EachBlock(each) = node {
+                    check_each_wrap_around(
+                        &each.body,
+                        sibling_selectors,
+                        ancestors,
+                        elements_to_scope,
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Check if an element is a subject of any sibling selector and if so,
+/// find matching siblings by walking up through the path.
+fn check_element_as_subject(
+    elem: &SiblingElementInfo,
+    fragment: &Fragment,
+    node_index: usize,
+    path: &[PathSegment],
+    sibling_selectors: &[&CssComplexSelector],
+    ancestors: &[ElementInfo],
+    elements_to_scope: &mut HashSet<(u32, u32)>,
+) {
+    for selector in sibling_selectors {
+        let effective = truncate_globals(&selector.children);
+        if effective.len() < 2 {
+            continue;
+        }
+
+        let last = &effective[effective.len() - 1];
+        if !element_matches_simple_selectors(&elem.info, &last.selectors) {
+            continue;
+        }
+
+        let combinator = last.combinator.as_deref().unwrap_or(" ");
+        if combinator != "+" && combinator != "~" {
+            continue;
+        }
+
+        let adjacent_only = combinator == "+";
+        let prev_sel = &effective[effective.len() - 2];
+
+        // Get all possible previous siblings, walking up through block boundaries
+        let siblings =
+            get_possible_previous_siblings_via_path(fragment, node_index, adjacent_only, path);
+
+        for sibling in &siblings {
+            if element_matches_simple_selectors(&sibling.info, &prev_sel.selectors) {
+                // Check ancestor chain if needed
+                if effective.len() > 2 {
+                    let ancestor_part = &effective[..effective.len() - 2];
+                    let prev_combinator = prev_sel.combinator.as_deref().unwrap_or(" ");
+                    if (prev_combinator == " " || prev_combinator == ">")
+                        && !check_ancestor_chain(ancestor_part, prev_sel, ancestors)
+                    {
+                        continue;
+                    }
+                }
+                // Mark both the subject and the sibling
+                elements_to_scope.insert((elem.start, elem.end));
+                elements_to_scope.insert((sibling.start, sibling.end));
+            }
+        }
+    }
+}
+
+/// Get all possible previous siblings for an element at (fragment, node_index),
+/// walking up through block boundaries via the path.
+/// This mirrors the official compiler's get_possible_element_siblings.
+fn get_possible_previous_siblings_via_path(
+    fragment: &Fragment,
+    node_index: usize,
+    adjacent_only: bool,
+    path: &[PathSegment],
+) -> Vec<SiblingElementInfo> {
+    let mut result = Vec::new();
+
+    // First, look backward in the current fragment
+    let mut found_definite =
+        collect_previous_siblings_in_fragment(fragment, node_index, adjacent_only, &mut result);
+
+    if adjacent_only && found_definite {
+        return result;
+    }
+
+    // Walk up through the path (block boundaries)
+    for segment in path.iter().rev() {
+        let parent_fragment = segment.fragment;
+        let block_index = segment.node_index;
+        let block_node = &parent_fragment.nodes[block_index];
+
+        // Check if this is an each block - if so, add wrap-around siblings.
+        // Important: wrap-around siblings never cause early termination (matching official compiler).
+        if let TemplateNode::EachBlock(_) = block_node {
+            let mut _ignored = false;
+            collect_last_elements_from_block_recursive(
+                block_node,
+                adjacent_only,
+                &mut result,
+                &mut _ignored,
+            );
+        }
+
+        // Look backward from the block's position in the parent fragment
+        found_definite |= collect_previous_siblings_in_fragment(
+            parent_fragment,
+            block_index,
+            adjacent_only,
+            &mut result,
+        );
+
+        if adjacent_only && found_definite {
+            return result;
+        }
+
+        // Check if the parent node is a block or component - if not, stop walking up
+        if block_index < parent_fragment.nodes.len() {
+            let parent_node = &parent_fragment.nodes[block_index];
+            if !is_block_node(parent_node) {
+                break;
+            }
+        }
+    }
+
+    result
+}
+
+/// Collect previous siblings by looking backward in a fragment from a given position.
+/// Returns true if a definite (RegularElement) sibling was found.
+fn collect_previous_siblings_in_fragment(
+    fragment: &Fragment,
+    node_index: usize,
+    adjacent_only: bool,
+    result: &mut Vec<SiblingElementInfo>,
+) -> bool {
+    let mut i = node_index;
+    let mut found_definite = false;
+
+    while i > 0 {
+        i -= 1;
+        let node = &fragment.nodes[i];
+        match node {
+            TemplateNode::RegularElement(el) => {
+                let has_slot_attr = el.attributes.iter().any(|attr| {
+                    if let template::Attribute::Attribute(a) = attr {
+                        a.name.as_str().eq_ignore_ascii_case("slot")
+                    } else {
+                        false
+                    }
+                });
+                if !has_slot_attr {
+                    result.push(SiblingElementInfo {
+                        info: ElementInfo::from_element(el),
+                        start: el.start,
+                        end: el.end,
+                    });
+                    found_definite = true;
+                    if adjacent_only {
+                        return true;
+                    }
+                }
+            }
+            TemplateNode::SvelteElement(el) => {
+                result.push(SiblingElementInfo {
+                    info: ElementInfo::from_svelte_element(el),
+                    start: el.start,
+                    end: el.end,
+                });
+                // Don't set found_definite - svelte:element might resolve to nothing
+            }
+            TemplateNode::IfBlock(_)
+            | TemplateNode::EachBlock(_)
+            | TemplateNode::AwaitBlock(_)
+            | TemplateNode::KeyBlock(_) => {
+                // Elements inside blocks are "probable" not "definite" because the block
+                // might not render (each with 0 items, if with false condition, etc.).
+                // We need to check if the block is exhaustive (all branches have elements)
+                // to determine if the block provides a definite barrier.
+                let block_definite = block_has_definite_elements(node);
+                let mut _ignored = false;
+                collect_last_elements_from_block_recursive(
+                    node,
+                    adjacent_only,
+                    result,
+                    &mut _ignored,
+                );
+                if block_definite {
+                    found_definite = true;
+                }
+                if adjacent_only && found_definite {
+                    return true;
+                }
+            }
+            TemplateNode::Component(_) | TemplateNode::SlotElement(_) => {
+                let mut _ignored = false;
+                collect_last_elements_from_block_recursive(
+                    node,
+                    adjacent_only,
+                    result,
+                    &mut _ignored,
+                );
+            }
+            _ => {}
+        }
+    }
+
+    found_definite
+}
+
+/// Recursively collect the last (backward direction) elements from inside a block node.
+/// Mirrors the official compiler's get_possible_nested_siblings + loop_child.
+///
+/// The key insight: elements from non-exhaustive blocks are "probable" (not "definite"),
+/// which means they should NOT stop the adjacent-only search in the parent.
+fn collect_last_elements_from_block_recursive(
+    node: &TemplateNode,
+    adjacent_only: bool,
+    result: &mut Vec<SiblingElementInfo>,
+    found_definite: &mut bool,
+) {
+    let fragments = get_block_fragments_ref(node);
+    let is_slot_or_snippet = matches!(
+        node,
+        TemplateNode::SlotElement(_) | TemplateNode::SnippetBlock(_)
+    );
+
+    let mut exhaustive = !is_slot_or_snippet;
+    let mut all_fragment_results: Vec<(Vec<SiblingElementInfo>, bool)> = Vec::new();
+
+    for fragment in &fragments {
+        let (frag_results, frag_has_definite) = loop_child_backward(&fragment.nodes, adjacent_only);
+        exhaustive = exhaustive && frag_has_definite;
+        all_fragment_results.push((frag_results, frag_has_definite));
+    }
+
+    // If any fragment is missing (e.g., no else branch, no fallback), not exhaustive
+    match node {
+        TemplateNode::IfBlock(if_block) => {
+            if if_block.alternate.is_none() {
+                exhaustive = false;
+            }
+        }
+        TemplateNode::EachBlock(each) => {
+            if each.fallback.is_none() {
+                exhaustive = false;
+            }
+        }
+        TemplateNode::AwaitBlock(ab) => {
+            if ab.pending.is_none() || ab.then.is_none() || ab.catch.is_none() {
+                exhaustive = false;
+            }
+        }
+        _ => {}
+    }
+
+    // Add all results
+    for (frag_results, _) in all_fragment_results {
+        result.extend(frag_results);
+    }
+
+    // Only set found_definite if the block is exhaustive
+    if exhaustive {
+        *found_definite = true;
+    }
+}
+
+/// Walk backward through a fragment's nodes collecting elements (like loop_child in the official compiler).
+/// Returns the elements found and whether any definite elements were found.
+fn loop_child_backward(
+    nodes: &[TemplateNode],
+    adjacent_only: bool,
+) -> (Vec<SiblingElementInfo>, bool) {
+    let mut result = Vec::new();
+    let mut found_definite = false;
+
+    let mut i = nodes.len();
+    while i > 0 {
+        i -= 1;
+        match &nodes[i] {
+            TemplateNode::RegularElement(el) => {
+                result.push(SiblingElementInfo {
+                    info: ElementInfo::from_element(el),
+                    start: el.start,
+                    end: el.end,
+                });
+                found_definite = true;
+                if adjacent_only {
+                    break;
+                }
+            }
+            TemplateNode::SvelteElement(el) => {
+                result.push(SiblingElementInfo {
+                    info: ElementInfo::from_svelte_element(el),
+                    start: el.start,
+                    end: el.end,
+                });
+                // SvelteElement is PROBABLY - don't set found_definite, don't break
+            }
+            TemplateNode::IfBlock(_)
+            | TemplateNode::EachBlock(_)
+            | TemplateNode::AwaitBlock(_)
+            | TemplateNode::KeyBlock(_) => {
+                let mut child_definite = false;
+                collect_last_elements_from_block_recursive(
+                    &nodes[i],
+                    adjacent_only,
+                    &mut result,
+                    &mut child_definite,
+                );
+                // Only break on adjacent_only if the child block provides definite elements
+                if child_definite {
+                    found_definite = true;
+                    if adjacent_only {
+                        break;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    (result, found_definite)
+}
+
+/// Collect first elements from a block fragment (forward direction).
+fn collect_first_elements_with_pos(fragment: &Fragment) -> Vec<SiblingElementInfo> {
+    let mut result = Vec::new();
+    for node in &fragment.nodes {
+        match node {
+            TemplateNode::RegularElement(el) => {
+                result.push(SiblingElementInfo {
+                    info: ElementInfo::from_element(el),
+                    start: el.start,
+                    end: el.end,
+                });
+                return result;
+            }
+            TemplateNode::SvelteElement(el) => {
+                result.push(SiblingElementInfo {
+                    info: ElementInfo::from_svelte_element(el),
+                    start: el.start,
+                    end: el.end,
+                });
+            }
+            TemplateNode::IfBlock(_)
+            | TemplateNode::EachBlock(_)
+            | TemplateNode::AwaitBlock(_)
+            | TemplateNode::KeyBlock(_) => {
+                let block_frags = get_block_fragments_ref(node);
+                for bf in block_frags {
+                    result.extend(collect_first_elements_with_pos(bf));
+                }
+                if !result.is_empty() {
+                    return result;
+                }
+            }
+            _ => {}
+        }
+    }
+    result
+}
+
+/// Collect last elements from a block fragment with position info.
+fn collect_last_elements_with_pos(fragment: &Fragment) -> Vec<SiblingElementInfo> {
+    let mut result = Vec::new();
+    let mut found = false;
+    collect_last_elements_from_fragment(fragment, false, &mut result, &mut found);
+    result
+}
+
+fn collect_last_elements_from_fragment(
+    fragment: &Fragment,
+    adjacent_only: bool,
+    result: &mut Vec<SiblingElementInfo>,
+    found_definite: &mut bool,
+) {
+    let nodes = &fragment.nodes;
+    let mut i = nodes.len();
+    while i > 0 {
+        i -= 1;
+        match &nodes[i] {
+            TemplateNode::RegularElement(el) => {
+                result.push(SiblingElementInfo {
+                    info: ElementInfo::from_element(el),
+                    start: el.start,
+                    end: el.end,
+                });
+                *found_definite = true;
+                if adjacent_only {
+                    return;
+                }
+            }
+            TemplateNode::SvelteElement(el) => {
+                result.push(SiblingElementInfo {
+                    info: ElementInfo::from_svelte_element(el),
+                    start: el.start,
+                    end: el.end,
+                });
+            }
+            TemplateNode::IfBlock(_)
+            | TemplateNode::EachBlock(_)
+            | TemplateNode::AwaitBlock(_)
+            | TemplateNode::KeyBlock(_) => {
+                collect_last_elements_from_block_recursive(
+                    &nodes[i],
+                    adjacent_only,
+                    result,
+                    found_definite,
+                );
+                if adjacent_only && *found_definite {
+                    return;
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Check each-block wrap-around: last elements in body can be siblings of first elements.
+fn check_each_wrap_around(
+    body: &Fragment,
+    sibling_selectors: &[&CssComplexSelector],
+    ancestors: &[ElementInfo],
+    elements_to_scope: &mut HashSet<(u32, u32)>,
+) {
+    let last_elements = collect_last_elements_with_pos(body);
+    let first_elements = collect_first_elements_with_pos(body);
+
+    for first_elem in &first_elements {
+        for selector in sibling_selectors {
+            let effective = truncate_globals(&selector.children);
+            if effective.len() < 2 {
+                continue;
+            }
+
+            let last_sel = &effective[effective.len() - 1];
+            if !element_matches_simple_selectors(&first_elem.info, &last_sel.selectors) {
+                continue;
+            }
+
+            let combinator = last_sel.combinator.as_deref().unwrap_or(" ");
+            if combinator != "+" && combinator != "~" {
+                continue;
+            }
+
+            let prev_sel = &effective[effective.len() - 2];
+
+            for sibling in &last_elements {
+                if element_matches_simple_selectors(&sibling.info, &prev_sel.selectors) {
+                    if effective.len() > 2 {
+                        let ancestor_part = &effective[..effective.len() - 2];
+                        let prev_combinator = prev_sel.combinator.as_deref().unwrap_or(" ");
+                        if (prev_combinator == " " || prev_combinator == ">")
+                            && !check_ancestor_chain(ancestor_part, prev_sel, ancestors)
+                        {
+                            continue;
+                        }
+                    }
+                    elements_to_scope.insert((first_elem.start, first_elem.end));
+                    elements_to_scope.insert((sibling.start, sibling.end));
+                }
+            }
+        }
+    }
+}
+
+/// Check if a node is a block node (if/each/await/key).
+fn is_block_node(node: &TemplateNode) -> bool {
+    matches!(
+        node,
+        TemplateNode::IfBlock(_)
+            | TemplateNode::EachBlock(_)
+            | TemplateNode::AwaitBlock(_)
+            | TemplateNode::KeyBlock(_)
+    )
+}
+
+/// Check if a block node has definite elements in ALL its branches.
+/// A block is exhaustive (provides a definite barrier) only if every possible
+/// branch produces at least one definite element.
+fn block_has_definite_elements(node: &TemplateNode) -> bool {
+    match node {
+        TemplateNode::IfBlock(if_block) => {
+            // Both consequent and alternate must have definite elements.
+            // If there's no alternate, the block is NOT exhaustive.
+            let consequent_definite = fragment_has_definite_element(&if_block.consequent);
+            let alternate_definite = if_block
+                .alternate
+                .as_ref()
+                .is_some_and(fragment_has_definite_element);
+            consequent_definite && alternate_definite
+        }
+        TemplateNode::EachBlock(each) => {
+            // Body AND fallback must both have definite elements.
+            // If there's no fallback, the each could produce 0 items -> not exhaustive.
+            let body_definite = fragment_has_definite_element(&each.body);
+            let fallback_definite = each
+                .fallback
+                .as_ref()
+                .is_some_and(fragment_has_definite_element);
+            body_definite && fallback_definite
+        }
+        TemplateNode::AwaitBlock(await_block) => {
+            // All present branches must have definite elements, and at least
+            // pending+then+catch must all be present.
+            let pending_ok = await_block
+                .pending
+                .as_ref()
+                .is_some_and(fragment_has_definite_element);
+            let then_ok = await_block
+                .then
+                .as_ref()
+                .is_some_and(fragment_has_definite_element);
+            let catch_ok = await_block
+                .catch
+                .as_ref()
+                .is_some_and(fragment_has_definite_element);
+            pending_ok && then_ok && catch_ok
+        }
+        TemplateNode::KeyBlock(key) => fragment_has_definite_element(&key.fragment),
+        _ => false,
+    }
+}
+
+/// Check if a fragment contains at least one definite element (RegularElement).
+fn fragment_has_definite_element(fragment: &Fragment) -> bool {
+    for node in &fragment.nodes {
+        match node {
+            TemplateNode::RegularElement(el) => {
+                let has_slot_attr = el.attributes.iter().any(|attr| {
+                    if let template::Attribute::Attribute(a) = attr {
+                        a.name.as_str().eq_ignore_ascii_case("slot")
+                    } else {
+                        false
+                    }
+                });
+                if !has_slot_attr {
+                    return true;
+                }
+            }
+            TemplateNode::IfBlock(_)
+            | TemplateNode::EachBlock(_)
+            | TemplateNode::AwaitBlock(_)
+            | TemplateNode::KeyBlock(_) => {
+                if block_has_definite_elements(node) {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+/// Apply scoping marks to elements whose (start, end) positions are in the set.
+fn apply_scoping_marks(fragment: &mut Fragment, elements_to_scope: &HashSet<(u32, u32)>) {
+    for node in &mut fragment.nodes {
+        match node {
+            TemplateNode::RegularElement(el) => {
+                if elements_to_scope.contains(&(el.start, el.end)) {
+                    el.metadata.scoped = true;
+                }
+                apply_scoping_marks(&mut el.fragment, elements_to_scope);
+            }
+            TemplateNode::SvelteElement(el) => {
+                if elements_to_scope.contains(&(el.start, el.end)) {
+                    el.metadata.scoped = true;
+                }
+                apply_scoping_marks(&mut el.fragment, elements_to_scope);
+            }
+            TemplateNode::Component(comp) => {
+                apply_scoping_marks(&mut comp.fragment, elements_to_scope);
+            }
+            TemplateNode::IfBlock(if_block) => {
+                apply_scoping_marks(&mut if_block.consequent, elements_to_scope);
+                if let Some(ref mut alt) = if_block.alternate {
+                    apply_scoping_marks(alt, elements_to_scope);
+                }
+            }
+            TemplateNode::EachBlock(each) => {
+                apply_scoping_marks(&mut each.body, elements_to_scope);
+                if let Some(ref mut fallback) = each.fallback {
+                    apply_scoping_marks(fallback, elements_to_scope);
+                }
+            }
+            TemplateNode::AwaitBlock(await_block) => {
+                if let Some(ref mut pending) = await_block.pending {
+                    apply_scoping_marks(pending, elements_to_scope);
+                }
+                if let Some(ref mut then) = await_block.then {
+                    apply_scoping_marks(then, elements_to_scope);
+                }
+                if let Some(ref mut catch) = await_block.catch {
+                    apply_scoping_marks(catch, elements_to_scope);
+                }
+            }
+            TemplateNode::KeyBlock(key) => {
+                apply_scoping_marks(&mut key.fragment, elements_to_scope);
+            }
+            TemplateNode::SnippetBlock(snippet) => {
+                apply_scoping_marks(&mut snippet.body, elements_to_scope);
+            }
+            TemplateNode::SvelteHead(head) => {
+                apply_scoping_marks(&mut head.fragment, elements_to_scope);
+            }
+            TemplateNode::SlotElement(slot) => {
+                apply_scoping_marks(&mut slot.fragment, elements_to_scope);
+            }
+            TemplateNode::TitleElement(title) => {
+                apply_scoping_marks(&mut title.fragment, elements_to_scope);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Recurse into child elements for sibling processing.
+fn recurse_sibling_processing(
+    fragment: &mut Fragment,
+    css_selectors: &[CssComplexSelector],
+    ancestors: &[ElementInfo],
+) {
+    for node in &mut fragment.nodes {
+        match node {
+            TemplateNode::RegularElement(el) => {
+                let ei = ElementInfo::from_element(el);
+                let mut new_ancestors = ancestors.to_vec();
+                new_ancestors.push(ei);
+                process_sibling_selectors(&mut el.fragment, css_selectors, &new_ancestors);
+            }
+            TemplateNode::SvelteElement(el) => {
+                let ei = ElementInfo::from_svelte_element(el);
+                let mut new_ancestors = ancestors.to_vec();
+                new_ancestors.push(ei);
+                process_sibling_selectors(&mut el.fragment, css_selectors, &new_ancestors);
+            }
+            TemplateNode::Component(comp) => {
+                process_sibling_selectors(&mut comp.fragment, css_selectors, ancestors);
+            }
+            TemplateNode::IfBlock(if_block) => {
+                process_sibling_selectors(&mut if_block.consequent, css_selectors, ancestors);
+                if let Some(ref mut alt) = if_block.alternate {
+                    process_sibling_selectors(alt, css_selectors, ancestors);
+                }
+            }
+            TemplateNode::EachBlock(each) => {
+                process_sibling_selectors(&mut each.body, css_selectors, ancestors);
+                if let Some(ref mut fallback) = each.fallback {
+                    process_sibling_selectors(fallback, css_selectors, ancestors);
+                }
+            }
+            TemplateNode::AwaitBlock(await_block) => {
+                if let Some(ref mut pending) = await_block.pending {
+                    process_sibling_selectors(pending, css_selectors, ancestors);
+                }
+                if let Some(ref mut then) = await_block.then {
+                    process_sibling_selectors(then, css_selectors, ancestors);
+                }
+                if let Some(ref mut catch) = await_block.catch {
+                    process_sibling_selectors(catch, css_selectors, ancestors);
+                }
+            }
+            TemplateNode::KeyBlock(key) => {
+                process_sibling_selectors(&mut key.fragment, css_selectors, ancestors);
+            }
+            TemplateNode::SnippetBlock(snippet) => {
+                process_sibling_selectors(&mut snippet.body, css_selectors, ancestors);
+            }
+            TemplateNode::SvelteHead(head) => {
+                process_sibling_selectors(&mut head.fragment, css_selectors, ancestors);
+            }
+            TemplateNode::SlotElement(slot) => {
+                process_sibling_selectors(&mut slot.fragment, css_selectors, ancestors);
+            }
+            TemplateNode::TitleElement(title) => {
+                process_sibling_selectors(&mut title.fragment, css_selectors, ancestors);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Get block fragment references (immutable).
+fn get_block_fragments_ref(node: &TemplateNode) -> Vec<&Fragment> {
+    match node {
+        TemplateNode::IfBlock(if_block) => {
+            let mut frags = vec![&if_block.consequent];
+            if let Some(ref alt) = if_block.alternate {
+                frags.push(alt);
+            }
+            frags
+        }
+        TemplateNode::EachBlock(each) => {
+            let mut frags = vec![&each.body];
+            if let Some(ref fallback) = each.fallback {
+                frags.push(fallback);
+            }
+            frags
+        }
+        TemplateNode::AwaitBlock(await_block) => {
+            let mut frags = Vec::new();
+            if let Some(ref pending) = await_block.pending {
+                frags.push(pending);
+            }
+            if let Some(ref then) = await_block.then {
+                frags.push(then);
+            }
+            if let Some(ref catch) = await_block.catch {
+                frags.push(catch);
+            }
+            frags
+        }
+        TemplateNode::KeyBlock(key) => vec![&key.fragment],
+        TemplateNode::SnippetBlock(snippet) => vec![&snippet.body],
+        TemplateNode::SlotElement(slot) => vec![&slot.fragment],
+        TemplateNode::Component(comp) => vec![&comp.fragment],
+        _ => vec![],
+    }
+}
+
+/// Check ancestor chain for a sibling selector.
+fn check_ancestor_chain(
+    remaining: &[CssRelativeSelector],
+    current_rel: &CssRelativeSelector,
+    ancestors: &[ElementInfo],
+) -> bool {
+    apply_combinator_chain(remaining, current_rel, ancestors, ancestors.len())
+}
+
 /// Check if a complex selector matches an element, considering combinators.
-/// Note: ancestors are stored in reverse order (closest parent at the END).
 fn complex_selector_matches_element(
     selector: &CssComplexSelector,
     element: &ElementInfo,
@@ -366,15 +1658,7 @@ fn complex_selector_matches_element(
         return false;
     }
 
-    // Truncate trailing :global selectors
-    let last_non_global = children
-        .iter()
-        .rposition(|rel| !is_relative_selector_global(rel));
-    let effective_children = match last_non_global {
-        Some(idx) => &children[..=idx],
-        None => return false,
-    };
-
+    let effective_children = truncate_globals(children);
     if effective_children.is_empty() {
         return false;
     }
@@ -396,9 +1680,59 @@ fn complex_selector_matches_element(
     )
 }
 
+/// Check if a relative selector is a "bare" global (matches anything).
+/// Returns false for `:global(specific_element)` which must still be matched.
+fn is_bare_global(rel: &CssRelativeSelector) -> bool {
+    if rel.is_global_like {
+        return true;
+    }
+    // Bare :global (no args) is a wildcard
+    if rel.selectors.len() == 1
+        && let CssSimpleSelector::PseudoClass(name, args) = &rel.selectors[0]
+    {
+        if name == "global" && args.is_none() {
+            return true;
+        }
+        if is_unscoped_pseudo_class(name, args.is_some()) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Try to match an ancestor element against a global-with-args selector like `:global(b)`.
+/// Extracts the inner selectors and checks if the element matches them.
+fn global_selector_matches_element(rel: &CssRelativeSelector, element: &ElementInfo) -> bool {
+    if rel.selectors.len() == 1
+        && let CssSimpleSelector::PseudoClass(name, Some(args)) = &rel.selectors[0]
+        && name == "global"
+    {
+        // Check if any complex selector in the args matches the element
+        for cs in args {
+            if let Some(last) = cs.children.last()
+                && element_matches_simple_selectors(element, &last.selectors)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+    false
+}
+
+/// Check if a relative selector can match a given element.
+/// Handles both regular selectors and :global(x) selectors.
+fn selector_matches_element(rel: &CssRelativeSelector, element: &ElementInfo) -> bool {
+    if is_bare_global(rel) {
+        return true;
+    }
+    if global_selector_matches_element(rel, element) {
+        return true;
+    }
+    element_matches_simple_selectors(element, &rel.selectors)
+}
+
 /// Apply combinator chain backward through ancestors.
-/// `ancestors` is stored in reverse order (closest parent at end).
-/// `cursor` tracks the current position (starts at ancestors.len()).
 fn apply_combinator_chain(
     remaining: &[CssRelativeSelector],
     current_rel: &CssRelativeSelector,
@@ -413,12 +1747,16 @@ fn apply_combinator_chain(
 
     match combinator {
         ">" => {
+            let next_sel = &remaining[remaining.len() - 1];
+
             if cursor == 0 {
+                // No more ancestors known - if remaining are all global (bare or typed),
+                // they could match elements outside the component
                 return remaining.iter().all(is_relative_selector_global);
             }
+
             let parent = &ancestors[cursor - 1];
-            let next_sel = &remaining[remaining.len() - 1];
-            if element_matches_simple_selectors(parent, &next_sel.selectors) {
+            if selector_matches_element(next_sel, parent) {
                 if remaining.len() == 1 {
                     return true;
                 }
@@ -429,12 +1767,32 @@ fn apply_combinator_chain(
                     cursor - 1,
                 );
             }
-            remaining.iter().all(is_relative_selector_global)
+            // Parent didn't match. For `>` combinator with a known parent,
+            // the global fallback only applies when there are no parents (cursor == 0).
+            false
         }
         " " => {
             let next_sel = &remaining[remaining.len() - 1];
+
+            if is_bare_global(next_sel) {
+                if remaining.len() == 1 {
+                    return true;
+                }
+                for i in (0..cursor).rev() {
+                    if apply_combinator_chain(
+                        &remaining[..remaining.len() - 1],
+                        next_sel,
+                        ancestors,
+                        i + 1,
+                    ) {
+                        return true;
+                    }
+                }
+                return remaining.iter().all(is_relative_selector_global);
+            }
+
             for i in (0..cursor).rev() {
-                if element_matches_simple_selectors(&ancestors[i], &next_sel.selectors) {
+                if selector_matches_element(next_sel, &ancestors[i]) {
                     if remaining.len() == 1 {
                         return true;
                     }
@@ -448,106 +1806,19 @@ fn apply_combinator_chain(
                     }
                 }
             }
+            // No ancestor matched - fall back to global check
             remaining.iter().all(is_relative_selector_global)
         }
         "+" | "~" => {
-            // Sibling combinators - be conservative and mark as scoped
-            true
+            // Sibling combinators are handled by process_sibling_selectors
+            // Return false here - the sibling processing pass will handle actual matching
+            false
         }
         _ => true,
     }
 }
 
-/// Mark RegularElement nodes in the fragment as scoped based on CSS selector matching.
-pub fn mark_elements_scoped(fragment: &mut Fragment, css_selectors: &[CssComplexSelector]) {
-    let mut ancestors = Vec::new();
-    mark_elements_scoped_with_ancestors(fragment, css_selectors, &mut ancestors);
-
-    // Second pass: propagate scoping to ancestor elements in combinator chains.
-    // When a child element is scoped via a selector like `.parent > .child`,
-    // the parent element also needs to be scoped (it needs the CSS hash class).
-    let mut ancestors2 = Vec::new();
-    propagate_scoping_to_ancestors(fragment, css_selectors, &mut ancestors2);
-}
-
-fn mark_elements_scoped_with_ancestors(
-    fragment: &mut Fragment,
-    css_selectors: &[CssComplexSelector],
-    ancestors: &mut Vec<ElementInfo>,
-) {
-    for node in &mut fragment.nodes {
-        match node {
-            TemplateNode::RegularElement(el) => {
-                let element_info = ElementInfo::from_element(el);
-                el.metadata.scoped = css_selectors.iter().any(|selector| {
-                    complex_selector_matches_element(selector, &element_info, ancestors)
-                });
-                ancestors.push(element_info);
-                mark_elements_scoped_with_ancestors(&mut el.fragment, css_selectors, ancestors);
-                ancestors.pop();
-            }
-            TemplateNode::Component(comp) => {
-                mark_elements_scoped_with_ancestors(&mut comp.fragment, css_selectors, ancestors);
-            }
-            TemplateNode::IfBlock(if_block) => {
-                mark_elements_scoped_with_ancestors(
-                    &mut if_block.consequent,
-                    css_selectors,
-                    ancestors,
-                );
-                if let Some(ref mut alt) = if_block.alternate {
-                    mark_elements_scoped_with_ancestors(alt, css_selectors, ancestors);
-                }
-            }
-            TemplateNode::EachBlock(each) => {
-                mark_elements_scoped_with_ancestors(&mut each.body, css_selectors, ancestors);
-                if let Some(ref mut fallback) = each.fallback {
-                    mark_elements_scoped_with_ancestors(fallback, css_selectors, ancestors);
-                }
-            }
-            TemplateNode::AwaitBlock(await_block) => {
-                if let Some(ref mut pending) = await_block.pending {
-                    mark_elements_scoped_with_ancestors(pending, css_selectors, ancestors);
-                }
-                if let Some(ref mut then) = await_block.then {
-                    mark_elements_scoped_with_ancestors(then, css_selectors, ancestors);
-                }
-                if let Some(ref mut catch) = await_block.catch {
-                    mark_elements_scoped_with_ancestors(catch, css_selectors, ancestors);
-                }
-            }
-            TemplateNode::KeyBlock(key) => {
-                mark_elements_scoped_with_ancestors(&mut key.fragment, css_selectors, ancestors);
-            }
-            TemplateNode::SnippetBlock(snippet) => {
-                mark_elements_scoped_with_ancestors(&mut snippet.body, css_selectors, ancestors);
-            }
-            TemplateNode::SvelteHead(head) => {
-                mark_elements_scoped_with_ancestors(&mut head.fragment, css_selectors, ancestors);
-            }
-            TemplateNode::SvelteElement(el) => {
-                let element_info = ElementInfo::from_svelte_element(el);
-                el.metadata.scoped = css_selectors.iter().any(|selector| {
-                    complex_selector_matches_element(selector, &element_info, ancestors)
-                });
-                ancestors.push(element_info);
-                mark_elements_scoped_with_ancestors(&mut el.fragment, css_selectors, ancestors);
-                ancestors.pop();
-            }
-            TemplateNode::SlotElement(slot) => {
-                mark_elements_scoped_with_ancestors(&mut slot.fragment, css_selectors, ancestors);
-            }
-            TemplateNode::TitleElement(title) => {
-                mark_elements_scoped_with_ancestors(&mut title.fragment, css_selectors, ancestors);
-            }
-            _ => {}
-        }
-    }
-}
-
-/// Check if an element matches a non-subject (ancestor) part of a selector that has
-/// a matching descendant. This is used to mark parent elements as scoped when they
-/// appear in combinator chains like `.parent > .child`.
+/// Check if an element matches a non-subject (ancestor) part of a selector.
 fn element_is_ancestor_in_matching_selector(
     element: &ElementInfo,
     selector: &CssComplexSelector,
@@ -557,36 +1828,32 @@ fn element_is_ancestor_in_matching_selector(
         return false;
     }
 
-    // Truncate trailing :global selectors
-    let last_non_global = children
-        .iter()
-        .rposition(|rel| !is_relative_selector_global(rel));
-    let effective_children = match last_non_global {
-        Some(idx) => &children[..=idx],
-        None => return false,
-    };
-
+    let effective_children = truncate_globals(children);
     if effective_children.len() < 2 {
         return false;
     }
 
-    // Check if the element matches any NON-LAST relative selector in the chain
-    for child in &effective_children[..effective_children.len() - 1] {
+    for (idx, child) in effective_children[..effective_children.len() - 1]
+        .iter()
+        .enumerate()
+    {
         if element_matches_simple_selectors(element, &child.selectors) {
-            return true;
+            let next = &effective_children[idx + 1];
+            let comb = next.combinator.as_deref().unwrap_or(" ");
+            if comb == " " || comb == ">" {
+                return true;
+            }
         }
     }
 
     false
 }
 
-/// Second pass: propagate scoping to ancestor elements.
-/// When an element is scoped and it was matched via a selector with combinators,
-/// mark the matching ancestor elements as scoped too.
-fn propagate_scoping_to_ancestors(
+/// Propagate scoping to ancestor elements.
+fn propagate_ancestor_scoping(
     fragment: &mut Fragment,
     css_selectors: &[CssComplexSelector],
-    ancestors: &mut Vec<ElementInfo>,
+    ancestors: &[ElementInfo],
 ) {
     for node in &mut fragment.nodes {
         match node {
@@ -599,49 +1866,50 @@ fn propagate_scoping_to_ancestors(
                             && subtree_has_matching_subject(
                                 &el.fragment,
                                 selector,
-                                std::slice::from_ref(&element_info),
+                                &element_info,
+                                ancestors,
                             )
                     });
                 }
 
-                ancestors.push(element_info);
-                propagate_scoping_to_ancestors(&mut el.fragment, css_selectors, ancestors);
-                ancestors.pop();
+                let mut new_ancestors = ancestors.to_vec();
+                new_ancestors.push(element_info);
+                propagate_ancestor_scoping(&mut el.fragment, css_selectors, &new_ancestors);
             }
             TemplateNode::Component(comp) => {
-                propagate_scoping_to_ancestors(&mut comp.fragment, css_selectors, ancestors);
+                propagate_ancestor_scoping(&mut comp.fragment, css_selectors, ancestors);
             }
             TemplateNode::IfBlock(if_block) => {
-                propagate_scoping_to_ancestors(&mut if_block.consequent, css_selectors, ancestors);
+                propagate_ancestor_scoping(&mut if_block.consequent, css_selectors, ancestors);
                 if let Some(ref mut alt) = if_block.alternate {
-                    propagate_scoping_to_ancestors(alt, css_selectors, ancestors);
+                    propagate_ancestor_scoping(alt, css_selectors, ancestors);
                 }
             }
             TemplateNode::EachBlock(each) => {
-                propagate_scoping_to_ancestors(&mut each.body, css_selectors, ancestors);
+                propagate_ancestor_scoping(&mut each.body, css_selectors, ancestors);
                 if let Some(ref mut fallback) = each.fallback {
-                    propagate_scoping_to_ancestors(fallback, css_selectors, ancestors);
+                    propagate_ancestor_scoping(fallback, css_selectors, ancestors);
                 }
             }
             TemplateNode::AwaitBlock(await_block) => {
                 if let Some(ref mut pending) = await_block.pending {
-                    propagate_scoping_to_ancestors(pending, css_selectors, ancestors);
+                    propagate_ancestor_scoping(pending, css_selectors, ancestors);
                 }
                 if let Some(ref mut then) = await_block.then {
-                    propagate_scoping_to_ancestors(then, css_selectors, ancestors);
+                    propagate_ancestor_scoping(then, css_selectors, ancestors);
                 }
                 if let Some(ref mut catch) = await_block.catch {
-                    propagate_scoping_to_ancestors(catch, css_selectors, ancestors);
+                    propagate_ancestor_scoping(catch, css_selectors, ancestors);
                 }
             }
             TemplateNode::KeyBlock(key) => {
-                propagate_scoping_to_ancestors(&mut key.fragment, css_selectors, ancestors);
+                propagate_ancestor_scoping(&mut key.fragment, css_selectors, ancestors);
             }
             TemplateNode::SnippetBlock(snippet) => {
-                propagate_scoping_to_ancestors(&mut snippet.body, css_selectors, ancestors);
+                propagate_ancestor_scoping(&mut snippet.body, css_selectors, ancestors);
             }
             TemplateNode::SvelteHead(head) => {
-                propagate_scoping_to_ancestors(&mut head.fragment, css_selectors, ancestors);
+                propagate_ancestor_scoping(&mut head.fragment, css_selectors, ancestors);
             }
             TemplateNode::SvelteElement(el) => {
                 let element_info = ElementInfo::from_svelte_element(el);
@@ -652,33 +1920,47 @@ fn propagate_scoping_to_ancestors(
                             && subtree_has_matching_subject(
                                 &el.fragment,
                                 selector,
-                                std::slice::from_ref(&element_info),
+                                &element_info,
+                                ancestors,
                             )
                     });
                 }
 
-                ancestors.push(element_info);
-                propagate_scoping_to_ancestors(&mut el.fragment, css_selectors, ancestors);
-                ancestors.pop();
+                let mut new_ancestors = ancestors.to_vec();
+                new_ancestors.push(element_info);
+                propagate_ancestor_scoping(&mut el.fragment, css_selectors, &new_ancestors);
             }
             TemplateNode::SlotElement(slot) => {
-                propagate_scoping_to_ancestors(&mut slot.fragment, css_selectors, ancestors);
+                propagate_ancestor_scoping(&mut slot.fragment, css_selectors, ancestors);
             }
             TemplateNode::TitleElement(title) => {
-                propagate_scoping_to_ancestors(&mut title.fragment, css_selectors, ancestors);
+                propagate_ancestor_scoping(&mut title.fragment, css_selectors, ancestors);
             }
             _ => {}
         }
     }
 }
 
-/// Check if any element in the subtree matches the subject of a selector,
-/// with the given ancestors in the combinator chain.
+/// Check if any element in the subtree matches the subject of a selector.
 fn subtree_has_matching_subject(
+    fragment: &Fragment,
+    selector: &CssComplexSelector,
+    ancestor_element: &ElementInfo,
+    outer_ancestors: &[ElementInfo],
+) -> bool {
+    let mut ancestors = outer_ancestors.to_vec();
+    ancestors.push(ancestor_element.clone());
+    subtree_has_matching_subject_inner(fragment, selector, &ancestors)
+}
+
+fn subtree_has_matching_subject_inner(
     fragment: &Fragment,
     selector: &CssComplexSelector,
     ancestors: &[ElementInfo],
 ) -> bool {
+    let effective = truncate_globals(&selector.children);
+    let subject_sel = effective.last();
+
     for node in &fragment.nodes {
         match node {
             TemplateNode::RegularElement(el) => {
@@ -686,34 +1968,91 @@ fn subtree_has_matching_subject(
                 if complex_selector_matches_element(selector, &element_info, ancestors) {
                     return true;
                 }
-                let mut new_ancestors = vec![element_info];
-                new_ancestors.extend_from_slice(ancestors);
-                if subtree_has_matching_subject(&el.fragment, selector, &new_ancestors) {
+                // For selectors with sibling combinators, the sibling pass may have already
+                // scoped this element. Check if it's scoped and matches the subject selector.
+                if el.metadata.scoped
+                    && let Some(subj) = subject_sel
+                    && element_matches_simple_selectors(&element_info, &subj.selectors)
+                {
+                    return true;
+                }
+                let mut new_ancestors = ancestors.to_vec();
+                new_ancestors.push(element_info);
+                if subtree_has_matching_subject_inner(&el.fragment, selector, &new_ancestors) {
+                    return true;
+                }
+            }
+            TemplateNode::SvelteElement(el) => {
+                let element_info = ElementInfo::from_svelte_element(el);
+                if complex_selector_matches_element(selector, &element_info, ancestors) {
+                    return true;
+                }
+                if el.metadata.scoped
+                    && let Some(subj) = subject_sel
+                    && element_matches_simple_selectors(&element_info, &subj.selectors)
+                {
+                    return true;
+                }
+                let mut new_ancestors = ancestors.to_vec();
+                new_ancestors.push(element_info);
+                if subtree_has_matching_subject_inner(&el.fragment, selector, &new_ancestors) {
                     return true;
                 }
             }
             TemplateNode::Component(comp) => {
-                if subtree_has_matching_subject(&comp.fragment, selector, ancestors) {
+                if subtree_has_matching_subject_inner(&comp.fragment, selector, ancestors) {
                     return true;
                 }
             }
             TemplateNode::IfBlock(if_block) => {
-                if subtree_has_matching_subject(&if_block.consequent, selector, ancestors) {
+                if subtree_has_matching_subject_inner(&if_block.consequent, selector, ancestors) {
                     return true;
                 }
                 if let Some(ref alt) = if_block.alternate
-                    && subtree_has_matching_subject(alt, selector, ancestors)
+                    && subtree_has_matching_subject_inner(alt, selector, ancestors)
                 {
                     return true;
                 }
             }
             TemplateNode::EachBlock(each) => {
-                if subtree_has_matching_subject(&each.body, selector, ancestors) {
+                if subtree_has_matching_subject_inner(&each.body, selector, ancestors) {
                     return true;
                 }
                 if let Some(ref fallback) = each.fallback
-                    && subtree_has_matching_subject(fallback, selector, ancestors)
+                    && subtree_has_matching_subject_inner(fallback, selector, ancestors)
                 {
+                    return true;
+                }
+            }
+            TemplateNode::AwaitBlock(await_block) => {
+                if let Some(ref pending) = await_block.pending
+                    && subtree_has_matching_subject_inner(pending, selector, ancestors)
+                {
+                    return true;
+                }
+                if let Some(ref then) = await_block.then
+                    && subtree_has_matching_subject_inner(then, selector, ancestors)
+                {
+                    return true;
+                }
+                if let Some(ref catch) = await_block.catch
+                    && subtree_has_matching_subject_inner(catch, selector, ancestors)
+                {
+                    return true;
+                }
+            }
+            TemplateNode::KeyBlock(key) => {
+                if subtree_has_matching_subject_inner(&key.fragment, selector, ancestors) {
+                    return true;
+                }
+            }
+            TemplateNode::SnippetBlock(snippet) => {
+                if subtree_has_matching_subject_inner(&snippet.body, selector, ancestors) {
+                    return true;
+                }
+            }
+            TemplateNode::SlotElement(slot) => {
+                if subtree_has_matching_subject_inner(&slot.fragment, selector, ancestors) {
                     return true;
                 }
             }
@@ -721,4 +2060,57 @@ fn subtree_has_matching_subject(
         }
     }
     false
+}
+
+/// Decode CSS escape sequences in a selector name.
+/// E.g., `foo\:bar` → `foo:bar`, `\31 23` → `123`
+fn decode_css_escape(name: &str) -> String {
+    if !name.contains('\\') {
+        return name.to_string();
+    }
+
+    let mut result = String::new();
+    let mut chars = name.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            if let Some(&next) = chars.peek() {
+                if next.is_ascii_hexdigit() {
+                    // Read up to 6 hex digits
+                    let mut hex_str = String::new();
+                    while hex_str.len() < 6 {
+                        if let Some(&h) = chars.peek() {
+                            if h.is_ascii_hexdigit() {
+                                hex_str.push(chars.next().unwrap());
+                            } else {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                    // Parse hex and convert to char
+                    if let Ok(code) = u32::from_str_radix(&hex_str, 16)
+                        && let Some(decoded) = char::from_u32(code)
+                    {
+                        result.push(decoded);
+                    }
+                    // Consume optional single whitespace after hex escape
+                    if let Some(&ws) = chars.peek()
+                        && (ws == ' ' || ws == '\t' || ws == '\n')
+                    {
+                        chars.next();
+                    }
+                } else if next == '\n' {
+                    chars.next();
+                } else {
+                    result.push(chars.next().unwrap());
+                }
+            }
+        } else {
+            result.push(c);
+        }
+    }
+
+    result
 }

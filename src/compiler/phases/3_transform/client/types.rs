@@ -527,6 +527,22 @@ impl<'a> ComponentContext<'a> {
 
             // Restore node
             self.state.node = saved_node;
+        } else {
+            // No attributes, class directives, or style directives.
+            // If the element is scoped, we still need to inject the CSS hash class.
+            // The official compiler emits: $.set_class($$element, 0, 'svelte-xyz')
+            let css_hash = self.state.analysis.css.hash.clone();
+            if elem.metadata.scoped && !css_hash.is_empty() {
+                let set_class_call = b::call(
+                    b::member_path("$.set_class"),
+                    vec![
+                        b::id(&element_id_name),
+                        b::number(0.0), // is_html=false for svelte:element
+                        b::string(css_hash),
+                    ],
+                );
+                inner_init.push(b::stmt(set_class_call));
+            }
         }
 
         // Build the callback body from inner_init, inner_update, inner_after_update

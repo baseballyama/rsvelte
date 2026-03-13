@@ -92,9 +92,8 @@ fn visit_attribute_selector(context: &mut Context, node: &Value) {
         if let Some(matcher) = node.get("matcher").and_then(|m| m.as_str()) {
             context.write(matcher);
             if let Some(value) = node.get("value").and_then(|v| v.as_str()) {
-                context.write("\"");
+                // Value includes quotes if originally quoted
                 context.write(value);
-                context.write("\"");
 
                 if let Some(flags) = node.get("flags").and_then(|f| f.as_str()) {
                     context.write(" ");
@@ -488,7 +487,7 @@ mod tests {
             "type": "AttributeSelector",
             "name": "type",
             "matcher": "=",
-            "value": "text",
+            "value": "\"text\"",
             "flags": null
         });
         visit_attribute_selector(&mut ctx, &node);
@@ -503,7 +502,7 @@ mod tests {
             "type": "AttributeSelector",
             "name": "class",
             "matcher": "~=",
-            "value": "btn",
+            "value": "\"btn\"",
             "flags": "i"
         });
         visit_attribute_selector(&mut ctx, &node);

@@ -391,6 +391,37 @@ pub struct Position {
     pub character: usize,
 }
 
+/// Convert a byte offset in source to a `Position` with line, column, and character.
+///
+/// - `line` is 1-indexed
+/// - `column` is 0-indexed (in UTF-16 code units for compatibility with JavaScript)
+/// - `character` is the UTF-16 code unit offset (matching JavaScript's string indexing)
+fn byte_offset_to_position(source: &str, offset: usize) -> Position {
+    let offset = offset.min(source.len());
+    let before = &source[..offset];
+    let line = before.bytes().filter(|&b| b == b'\n').count() + 1;
+
+    // Calculate UTF-16 code unit offset for the `character` field.
+    // In JavaScript, string indices are UTF-16 code units, so characters
+    // outside the BMP (like emoji) count as 2 units (surrogate pair).
+    let character = before.chars().map(|c| c.len_utf16()).sum::<usize>();
+
+    // Calculate column in UTF-16 code units from last newline
+    let column = match before.rfind('\n') {
+        Some(last_newline) => before[last_newline + 1..]
+            .chars()
+            .map(|c| c.len_utf16())
+            .sum::<usize>(),
+        None => character,
+    };
+
+    Position {
+        line,
+        column,
+        character,
+    }
+}
+
 /// Compile a Svelte component.
 ///
 /// This function takes Svelte source code and compiles it into JavaScript.
@@ -453,7 +484,7 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
         css: transform_result.css.map(|c| CssOutput {
             code: c.code,
             map: c.map,
-            has_global: false, // TODO: Track global CSS usage
+            has_global: analysis.css.has_global,
         }),
         warnings: transform_result
             .warnings
@@ -461,8 +492,12 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
             .map(|w| Warning {
                 code: w.code,
                 message: w.message,
-                start: None,
-                end: None,
+                start: w
+                    .start
+                    .map(|offset| byte_offset_to_position(source, offset as usize)),
+                end: w
+                    .end
+                    .map(|offset| byte_offset_to_position(source, offset as usize)),
             })
             .collect(),
         metadata: CompileMetadata { runes: runes_mode },
@@ -649,8 +684,12 @@ pub fn compile_module(
             .map(|w| Warning {
                 code: w.code.clone(),
                 message: w.message.clone(),
-                start: None,
-                end: None,
+                start: w
+                    .start
+                    .map(|offset| byte_offset_to_position(source, offset as usize)),
+                end: w
+                    .end
+                    .map(|offset| byte_offset_to_position(source, offset as usize)),
             })
             .collect(),
         metadata: CompileMetadata { runes: true },

@@ -39,6 +39,8 @@ struct CssContext<'a> {
     /// Used to determine unused status of compound selectors containing &.
     /// Uses RefCell for interior mutability so we can push/pop while passing &CssContext.
     parent_preludes: std::cell::RefCell<Vec<&'a Value>>,
+    /// Whether we're in dev mode (affects empty rule handling)
+    dev: bool,
 }
 
 /// A CSS unused selector warning.
@@ -78,14 +80,91 @@ pub fn collect_css_unused_warnings(
         has_opaque_sibling_boundaries: analysis.css.has_opaque_elements,
         dom_structure: &analysis.css.dom_structure,
         parent_preludes: std::cell::RefCell::new(Vec::new()),
+        dev: false,
     };
 
     if let Some((css_content, css_start)) = extract_css_content(source) {
         let children = parse_css(&css_content, css_start);
-        collect_unused_warnings_from_nodes(&children, &css_content, css_start, &ctx, &mut warnings);
+        collect_unused_warnings_from_nodes(
+            &children,
+            &css_content,
+            css_start,
+            &ctx,
+            &mut warnings,
+            false,
+        );
     }
 
     warnings
+}
+
+/// Walk into :is() / :where() pseudo-classes in a complex selector and report
+/// individual unused alternatives.
+///
+/// For example, `x :is(y, .unused)` - if the overall selector is used but `.unused`
+/// inside :is() doesn't match any DOM element, report it.
+fn collect_is_where_unused_warnings(
+    complex_selector: &Value,
+    css_source: &str,
+    css_start: usize,
+    ctx: &CssContext,
+    warnings: &mut Vec<CssUnusedWarning>,
+) {
+    let rel_selectors = match complex_selector.get("children").and_then(|c| c.as_array()) {
+        Some(rs) => rs,
+        None => return,
+    };
+
+    for rel in rel_selectors {
+        let selectors = match rel.get("selectors").and_then(|s| s.as_array()) {
+            Some(s) => s,
+            None => continue,
+        };
+
+        for sel in selectors {
+            let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            let sel_name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+
+            if sel_type == "PseudoClassSelector"
+                && (sel_name == "is" || sel_name == "where")
+                && let Some(args) = sel.get("args")
+                && !args.is_null()
+                && let Some(children) = args.get("children").and_then(|c| c.as_array())
+            {
+                for inner_complex in children {
+                    // Skip multi-part selectors (with combinators like `html *`).
+                    // These could reference elements outside the component and
+                    // the official compiler assumes they match (can't determine
+                    // unused for cross-component selectors).
+                    let inner_parts = inner_complex
+                        .get("children")
+                        .and_then(|c| c.as_array())
+                        .map(|a| a.len())
+                        .unwrap_or(0);
+                    if inner_parts > 1 {
+                        continue;
+                    }
+
+                    if is_complex_selector_unused(inner_complex, ctx) {
+                        let start = inner_complex
+                            .get("start")
+                            .and_then(|s| s.as_u64())
+                            .unwrap_or(0) as u32;
+                        let end = inner_complex
+                            .get("end")
+                            .and_then(|e| e.as_u64())
+                            .unwrap_or(0) as u32;
+                        let text = get_complex_selector_text(inner_complex, css_source, css_start);
+                        warnings.push(CssUnusedWarning {
+                            selector_text: text,
+                            start,
+                            end,
+                        });
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Recursively collect unused selector warnings from CSS AST nodes.
@@ -95,21 +174,32 @@ fn collect_unused_warnings_from_nodes<'a>(
     css_start: usize,
     ctx: &CssContext<'a>,
     warnings: &mut Vec<CssUnusedWarning>,
+    in_global_block: bool,
 ) {
     for node in nodes {
         if let Some(node_type) = node.get("type").and_then(|t| t.as_str()) {
             match node_type {
                 "Rule" => {
-                    // Check the selector list (prelude) for unused complex selectors
-                    if let Some(prelude) = node.get("prelude")
+                    // Check if this rule creates a :global block context for its children
+                    let this_creates_global_block = selector_contains_global_block(node);
+                    let children_in_global_block = in_global_block || this_creates_global_block;
+
+                    // Check the selector list (prelude) for unused complex selectors.
+                    // Skip if we're inside a parent's :global block (selectors there are always used).
+                    // But still check the current rule's own selector even if it contains :global
+                    // (e.g., `.unused :global { ... }` should warn about `.unused :global`).
+                    if !in_global_block
+                        && let Some(prelude) = node.get("prelude")
                         && let Some(complex_selectors) =
                             prelude.get("children").and_then(|c| c.as_array())
                     {
-                        // Push parent prelude for nesting context
-                        ctx.parent_preludes.borrow_mut().push(prelude);
-
+                        // Do NOT push the current rule's prelude before checking its own
+                        // selectors. parent_preludes should only contain ancestor preludes.
+                        // The NestingSelector (&) in the current selector refers to the
+                        // parent rule, not the current rule.
                         for complex_selector in complex_selectors {
-                            if is_complex_selector_unused(complex_selector, ctx) {
+                            let is_unused = is_complex_selector_unused(complex_selector, ctx);
+                            if is_unused {
                                 let start = complex_selector
                                     .get("start")
                                     .and_then(|s| s.as_u64())
@@ -119,7 +209,7 @@ fn collect_unused_warnings_from_nodes<'a>(
                                     .get("end")
                                     .and_then(|e| e.as_u64())
                                     .unwrap_or(0) as u32;
-                                let text = strip_bare_global_from_text(
+                                let text = get_complex_selector_text(
                                     complex_selector,
                                     css_source,
                                     css_start,
@@ -130,9 +220,20 @@ fn collect_unused_warnings_from_nodes<'a>(
                                     end,
                                 });
                             }
-                        }
 
-                        ctx.parent_preludes.borrow_mut().pop();
+                            // Walk into :is() / :where() pseudo-classes and check
+                            // individual complex selectors inside them.
+                            // Only if the parent complex selector is USED (not already reported).
+                            if !is_unused {
+                                collect_is_where_unused_warnings(
+                                    complex_selector,
+                                    css_source,
+                                    css_start,
+                                    ctx,
+                                    warnings,
+                                );
+                            }
+                        }
                     }
 
                     // Recursively check nested rules
@@ -144,7 +245,12 @@ fn collect_unused_warnings_from_nodes<'a>(
                             ctx.parent_preludes.borrow_mut().push(prelude);
                         }
                         collect_unused_warnings_from_nodes(
-                            children, css_source, css_start, ctx, warnings,
+                            children,
+                            css_source,
+                            css_start,
+                            ctx,
+                            warnings,
+                            children_in_global_block,
                         );
                         if node.get("prelude").is_some() {
                             ctx.parent_preludes.borrow_mut().pop();
@@ -155,9 +261,25 @@ fn collect_unused_warnings_from_nodes<'a>(
                     if let Some(block) = node.get("block")
                         && let Some(children) = block.get("children").and_then(|c| c.as_array())
                     {
-                        collect_unused_warnings_from_nodes(
-                            children, css_source, css_start, ctx, warnings,
-                        );
+                        // Check if this is @keyframes or @page - selectors inside these are not checked
+                        // @page contains declarations and margin at-rules, not selectors
+                        let name = node.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                        let skip_children = name == "keyframes"
+                            || name == "-webkit-keyframes"
+                            || name == "-moz-keyframes"
+                            || name == "-o-keyframes"
+                            || name == "page";
+
+                        if !skip_children {
+                            collect_unused_warnings_from_nodes(
+                                children,
+                                css_source,
+                                css_start,
+                                ctx,
+                                warnings,
+                                in_global_block,
+                            );
+                        }
                     }
                 }
                 _ => {}
@@ -189,7 +311,7 @@ pub fn render_stylesheet_minified(
 fn render_stylesheet_internal(
     analysis: &ComponentAnalysis,
     source: &str,
-    _options: &CompileOptions,
+    options: &CompileOptions,
     minify: bool,
 ) -> Result<CssOutput, TransformError> {
     if !analysis.css.has_css || analysis.css.hash.is_empty() {
@@ -213,6 +335,7 @@ fn render_stylesheet_internal(
         has_opaque_sibling_boundaries: analysis.css.has_opaque_elements,
         dom_structure: &analysis.css.dom_structure,
         parent_preludes: std::cell::RefCell::new(Vec::new()),
+        dev: options.dev,
     };
 
     // Extract CSS content and its start position
@@ -1006,6 +1129,14 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
             return true;
         }
 
+        // Check if any parent prelude in the nesting chain is itself unused.
+        // If a parent rule doesn't match any DOM element, all children are unused too.
+        // For example, `.a { .unused { .c { ... } } }` - if `.unused` doesn't match,
+        // then `.c` inside it is also unused regardless of whether `.c` exists.
+        if is_parent_chain_unused(ctx) {
+            return true;
+        }
+
         // NestingSelector (&) compound check: When a relative selector contains & combined
         // with other simple selectors (e.g., &.b inside .a {}), the compound meaning is that
         // the element must satisfy BOTH the parent rule's constraints AND the current ones.
@@ -1112,6 +1243,113 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
 }
 
 /// Check if a :host > element selector is unused
+/// Check if any parent prelude in the nesting chain is unused.
+///
+/// When we're inside nested CSS rules, each parent prelude adds constraints.
+/// If any parent's subject selector doesn't match any DOM element, then all
+/// children are also unused. For example, `.unused { .c { ... } }` - if no
+/// element has class `.unused`, then `.c` inside it is unused regardless.
+///
+/// For preludes with multiple complex selectors (comma-separated, e.g., `.b, .unused`),
+/// each alternative is checked independently. The parent is unused only if
+/// NONE of the alternatives match any DOM element.
+fn is_parent_chain_unused(ctx: &CssContext) -> bool {
+    let parent_preludes = ctx.parent_preludes.borrow();
+    if parent_preludes.is_empty() {
+        return false;
+    }
+
+    // Check each parent prelude's subject selector against DOM elements
+    for pp in parent_preludes.iter() {
+        let complex_selectors = match pp.get("children").and_then(|c| c.as_array()) {
+            Some(cs) => cs,
+            None => continue,
+        };
+
+        // For each complex selector in the prelude (alternatives),
+        // check if ANY of them matches a DOM element
+        let any_alternative_matches = complex_selectors.iter().any(|complex| {
+            let mut classes: Vec<String> = Vec::new();
+            let mut ids: Vec<String> = Vec::new();
+            let mut elements: Vec<String> = Vec::new();
+
+            if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array())
+                && let Some(last_rel) = rel_selectors.last()
+                && let Some(selectors) = last_rel.get("selectors").and_then(|s| s.as_array())
+            {
+                for sel in selectors {
+                    let sel_type = sel.get("type").and_then(|t| t.as_str());
+                    match sel_type {
+                        Some("ClassSelector") => {
+                            if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                                classes.push(decode_css_escape(name));
+                            }
+                        }
+                        Some("IdSelector") => {
+                            if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                                ids.push(decode_css_escape(name));
+                            }
+                        }
+                        Some("TypeSelector") => {
+                            if let Some(name) = sel.get("name").and_then(|n| n.as_str())
+                                && name != "*"
+                            {
+                                elements.push(decode_css_escape(name));
+                            }
+                        }
+                        Some("PseudoClassSelector") => {
+                            let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                            // :global(...) always matches
+                            if name == "global" {
+                                return true;
+                            }
+                            // Other pseudo-classes like :hover, :focus don't constrain matching
+                        }
+                        Some("NestingSelector") => {
+                            // & - matches whatever the parent matches, can't determine unused
+                            return true;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            // If no constraints were extracted, can't determine unused - assume matches
+            if classes.is_empty() && ids.is_empty() && elements.is_empty() {
+                return true;
+            }
+
+            // Skip check if dynamic values could match
+            if ctx.has_dynamic_classes && !classes.is_empty() {
+                return true;
+            }
+            if ctx.has_dynamic_elements && !elements.is_empty() {
+                return true;
+            }
+
+            // Check if any DOM element matches this alternative's constraints
+            ctx.dom_structure.elements.iter().any(|elem| {
+                let classes_match = classes.iter().all(|c| elem.classes.contains(c.as_str()));
+                let ids_match = ids.iter().all(|id| elem.id.as_deref() == Some(id.as_str()));
+                let elements_match = elements.iter().all(|tag| {
+                    if elem.is_dynamic_tag {
+                        true
+                    } else {
+                        elem.tag_name.eq_ignore_ascii_case(tag)
+                    }
+                });
+                classes_match && ids_match && elements_match
+            })
+        });
+
+        if !any_alternative_matches {
+            return true;
+        }
+    }
+
+    false
+}
+
 /// Check if a nested rule's selector with NestingSelector (&) compound is unused.
 ///
 /// When a relative selector contains NestingSelector (&) combined with other simple selectors
@@ -3038,10 +3276,30 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
             return false;
         }
         Some("AttributeSelector") => {
-            if let Some(raw) = sel.get("name").and_then(|n| n.as_str()) {
-                return is_attribute_selector_unused(raw, ctx);
+            // Try new format (separate name, matcher, value, flags fields)
+            let attr_name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            let matcher = sel
+                .get("matcher")
+                .and_then(|m| if m.is_null() { None } else { m.as_str() });
+            let value = sel
+                .get("value")
+                .and_then(|v| if v.is_null() { None } else { v.as_str() });
+            let flags = sel
+                .get("flags")
+                .and_then(|f| if f.is_null() { None } else { f.as_str() });
+
+            if matcher.is_some() || attr_name.contains('=') || attr_name.contains('[') {
+                // Use new format if matcher is present, or fall back to old raw parsing
+                if matcher.is_some() {
+                    return is_attribute_selector_unused_parsed(
+                        attr_name, matcher, value, flags, ctx,
+                    );
+                }
+                // Old format: raw content between [ and ]
+                return is_attribute_selector_unused(attr_name, ctx);
             }
-            return false;
+            // Just [attr] with no operator - use parsed format
+            return is_attribute_selector_unused_parsed(attr_name, None, None, None, ctx);
         }
         _ => {}
     }
@@ -3101,6 +3359,88 @@ fn is_html_case_insensitive_attribute(attr_name: &str) -> bool {
             | "valign"
             | "wrap"
     )
+}
+
+/// Check if a CSS attribute selector is unused using parsed fields.
+fn is_attribute_selector_unused_parsed(
+    attr_name: &str,
+    matcher: Option<&str>,
+    value: Option<&str>,
+    flags: Option<&str>,
+    ctx: &CssContext,
+) -> bool {
+    if attr_name.is_empty() {
+        return false;
+    }
+
+    if ctx.has_dynamic_elements {
+        return false;
+    }
+
+    let operator = matcher.unwrap_or("");
+    let expected_value = value.map(unquote_css_value);
+
+    // Determine case sensitivity
+    let has_explicit_case_flag: i8 = match flags {
+        Some(f) if f.contains('i') || f.contains('I') => 1,
+        Some(f) if f.contains('s') || f.contains('S') => -1,
+        _ => 0,
+    };
+
+    for element in &ctx.dom_structure.elements {
+        if element.has_spread {
+            return false;
+        }
+        if element.is_dynamic_tag {
+            return false;
+        }
+        if is_whitelisted_attribute(&element.tag_name, attr_name) {
+            return false;
+        }
+        if element
+            .dynamic_attribute_names
+            .iter()
+            .any(|n| n.eq_ignore_ascii_case(attr_name))
+        {
+            return false;
+        }
+        if attr_name.eq_ignore_ascii_case("class") && element.has_class_directive {
+            return false;
+        }
+        if attr_name.eq_ignore_ascii_case("style") && element.has_style_directive {
+            return false;
+        }
+
+        for (name, attr_val) in &element.static_attributes {
+            if name.eq_ignore_ascii_case(attr_name) {
+                if operator.is_empty() {
+                    return false; // Just [attr] - attribute exists
+                }
+
+                let case_insensitive = if has_explicit_case_flag != 0 {
+                    has_explicit_case_flag == 1
+                } else {
+                    is_html_case_insensitive_attribute(attr_name)
+                };
+
+                if let Some(attr_value) = attr_val {
+                    if let Some(ref expected) = expected_value {
+                        if test_attribute_value(operator, expected, attr_value, case_insensitive) {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                } else if let Some(ref expected) = expected_value
+                    && test_attribute_value(operator, expected, "", case_insensitive)
+                {
+                    return false;
+                }
+            }
+        }
+    }
+
+    !ctx.dom_structure.elements.is_empty()
 }
 
 /// Check if a CSS attribute selector is unused by checking elements' static attributes.
@@ -3393,7 +3733,8 @@ fn transform_rule_preserving<'a>(
     }
 
     // Check if the rule is empty (no declarations, or all nested rules are unused/empty)
-    if is_rule_empty(node, ctx, is_in_global_block) {
+    // In dev mode, keep empty rules (convenient to add styles via devtools)
+    if !ctx.dev && is_rule_empty(node, ctx, is_in_global_block) {
         // Comment out empty rules
         output.push_str("/* (empty) ");
 
@@ -3771,7 +4112,7 @@ fn transform_atrule_preserving<'a>(
     if let Some(block) = block {
         let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
 
-        output.push_str(" {\n");
+        output.push_str(" {");
 
         if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
             let mut inner_last_end = block_start + 1; // after '{'
@@ -3800,9 +4141,9 @@ fn transform_atrule_preserving<'a>(
             }
         }
 
-        output.push_str("}\n");
+        output.push('}');
     } else {
-        output.push_str(";\n");
+        output.push(';');
     }
 
     *last_end = node_end;
@@ -3846,6 +4187,8 @@ fn transform_selector_list(
         let mut has_output = false;
         // Track the end position of the last processed selector for source preservation
         let mut last_selector_end: Option<usize> = None;
+        // Track end position of last unused selector for proper whitespace preservation
+        let mut last_unused_end: Option<usize> = None;
 
         for complex_selector in children.iter() {
             let sel_start = complex_selector
@@ -3874,6 +4217,7 @@ fn transform_selector_list(
                     unused_buffer.push_str(", ");
                 }
                 unused_buffer.push_str(&selector_text);
+                last_unused_end = Some(sel_end);
             } else {
                 // This selector is used
                 // First, flush any buffered unused selectors
@@ -3883,7 +4227,19 @@ fn transform_selector_list(
                         result.push_str(" /* (unused) ");
                         result.push_str(&unused_buffer);
                         result.push_str("*/");
-                        result.push_str(separator);
+                        // Preserve original whitespace after the unused selector
+                        if let Some(unused_end) = last_unused_end {
+                            let between_start = unused_end.saturating_sub(css_start);
+                            let between_end = sel_start.saturating_sub(css_start);
+                            if between_end <= css_source.len() && between_start < between_end {
+                                let between = &css_source[between_start..between_end];
+                                result.push_str(between);
+                            } else {
+                                result.push_str(separator);
+                            }
+                        } else {
+                            result.push_str(separator);
+                        }
                     } else {
                         // Before first used selector: /* (unused) <selectors>,*/ <used>
                         result.push_str("/* (unused) ");
@@ -3891,6 +4247,7 @@ fn transform_selector_list(
                         result.push_str(",*/ ");
                     }
                     unused_buffer.clear();
+                    last_unused_end = None;
                 }
                 // Output separator if not first (only when no unused prefix was flushed)
                 else if has_output {
@@ -5180,6 +5537,7 @@ mod tests {
                 has_opaque_sibling_boundaries: false,
                 dom_structure: &dom_structure,
                 parent_preludes: std::cell::RefCell::new(Vec::new()),
+                dev: false,
             };
             let output = transform_css(&children, selector, hash, &css_content, css_start, &ctx);
             println!("CSS Output:\n{}", output);
@@ -5220,6 +5578,7 @@ mod tests {
                 has_opaque_sibling_boundaries: false,
                 dom_structure: &dom_structure,
                 parent_preludes: std::cell::RefCell::new(Vec::new()),
+                dev: false,
             };
             let output = transform_css(&children, selector, hash, &css_content, css_start, &ctx);
             println!("CSS Output:\n{}", output);

@@ -57,6 +57,10 @@ pub struct TransformWarning {
     pub code: String,
     /// Warning message
     pub message: String,
+    /// Start byte offset in source (if available)
+    pub start: Option<u32>,
+    /// End byte offset in source (if available)
+    pub end: Option<u32>,
 }
 
 /// Transform a component analysis into JavaScript code.
@@ -101,6 +105,8 @@ pub fn transform_component(
         .map(|w| TransformWarning {
             code: w.code.clone(),
             message: w.message.clone(),
+            start: w.start,
+            end: w.end,
         })
         .collect();
 
@@ -130,6 +136,8 @@ pub fn transform_component(
                         "Unused CSS selector \"{}\"\nhttps://svelte.dev/e/css_unused_selector",
                         w.selector_text
                     ),
+                    start: Some(w.start),
+                    end: Some(w.end),
                 });
             }
         }
