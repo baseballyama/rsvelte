@@ -235,6 +235,9 @@ pub(crate) enum OutputPart {
         let_directives: Vec<String>,
         /// CSS custom properties (e.g., --color="red") to wrap in $.css_props()
         css_custom_props: Vec<(String, String)>,
+        /// Whether CSS custom props should use HTML wrapper (`true`) or SVG `<g>` wrapper (`false`).
+        /// Corresponds to `context.state.namespace !== 'svg'` in the official compiler.
+        css_props_is_html: bool,
         /// Whether this component is inside an async block wrapper.
         /// When true, the closing <!----> marker is suppressed
         /// (mirrors `!optimiser.is_async()` in the official compiler).
@@ -260,6 +263,9 @@ pub(crate) enum OutputPart {
         /// CSS custom properties (e.g., --color="red") to wrap in $.css_props()
         #[allow(dead_code)]
         css_custom_props: Vec<(String, String)>,
+        /// Whether CSS custom props should use HTML wrapper or SVG wrapper
+        #[allow(dead_code)]
+        css_props_is_html: bool,
         /// Whether SequenceExpression bind_get/bind_set declarations have been
         /// hoisted out (e.g., when wrapped in an AsyncBlock). When true, the
         /// build_parts code skips emitting the var declarations.
@@ -339,6 +345,17 @@ pub(crate) enum OutputPart {
         /// True if this is rendering the pending state (use <!--[!-->) marker)
         /// False if rendering main content (use <!--[--> marker)
         is_pending: bool,
+    },
+    /// svelte:boundary with a pending attribute expression
+    /// When the pending expression is non-null, renders the pending function call;
+    /// otherwise renders the main content body.
+    SvelteBoundaryWithPending {
+        /// The pending expression (e.g., variable name like "pending")
+        pending_expr: String,
+        /// Body to render when pending is truthy (pending function call)
+        pending_body: Vec<OutputPart>,
+        /// Body to render when pending is falsy (main content)
+        main_body: Vec<OutputPart>,
     },
     /// svelte:head - document head manipulation
     SvelteHead {

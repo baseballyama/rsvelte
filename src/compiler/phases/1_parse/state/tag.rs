@@ -355,8 +355,32 @@ impl Parser<'_> {
                 self.advance();
             }
 
+            // Push block to stack so {:else} is recognized
+            self.stack.push(StackEntry::EachBlock {
+                start: start as u32,
+            });
+
             // Parse body fragment
             let body = self.parse_fragment()?;
+
+            // Check for {:else}
+            let mut fallback = None;
+            if self.match_str("{:") {
+                let continuation_start = self.index;
+                self.advance_by(2);
+                self.skip_whitespace();
+                if self.eat_optional("else") {
+                    self.skip_whitespace();
+                    self.eat_optional("}");
+                    fallback = Some(self.parse_fragment()?);
+                } else {
+                    return Err(crate::error::ParseError::svelte(
+                        "expected_token",
+                        "Expected token {:else}",
+                        (continuation_start, continuation_start),
+                    ));
+                }
+            }
 
             // Handle {/each}
             if self.match_str("{/each}") {
@@ -368,6 +392,11 @@ impl Parser<'_> {
                 self.eat_optional("}");
             }
 
+            // Pop from stack
+            if !self.stack.is_empty() {
+                self.stack.pop();
+            }
+
             return Ok(Some(TemplateNode::EachBlock(EachBlock {
                 start: start as u32,
                 end: self.index as u32,
@@ -376,7 +405,7 @@ impl Parser<'_> {
                 index: index_name,
                 key: None,
                 body,
-                fallback: None,
+                fallback,
                 metadata: Default::default(),
             })));
         }

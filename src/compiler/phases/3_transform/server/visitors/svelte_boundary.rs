@@ -35,10 +35,80 @@ impl<'a> ServerCodeGenerator<'a> {
             // Generate body from the pending snippet - this is the pending state
             // When in pending state, the `failed` snippet is NOT included
             (self.generate_fragment_body_parts(&snippet.body)?, true)
-        } else if pending_attribute.is_some() {
-            // For pending attribute, we would need to call the attribute value as a function
-            // For now, just generate empty body (the attribute case is less common)
-            (Vec::new(), true)
+        } else if let Some(Attribute::Attribute(pending_attr)) = pending_attribute {
+            // For pending attribute, extract the expression and generate a conditional:
+            // if (pending_expr) { pending_expr($$renderer) } else { main_content }
+            // Reference: SvelteBoundary.js in official Svelte compiler
+            let pending_expr = match &pending_attr.value {
+                crate::ast::template::AttributeValue::Sequence(parts) => {
+                    if parts.len() == 1 {
+                        if let crate::ast::template::AttributeValuePart::ExpressionTag(expr_tag) =
+                            &parts[0]
+                        {
+                            let start = expr_tag.expression.start().unwrap_or(0) as usize;
+                            let end = expr_tag.expression.end().unwrap_or(0) as usize;
+                            if end > start && end <= self.source.len() {
+                                Some(self.source[start..end].trim().to_string())
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                crate::ast::template::AttributeValue::Expression(expr_tag) => {
+                    let start = expr_tag.expression.start().unwrap_or(0) as usize;
+                    let end = expr_tag.expression.end().unwrap_or(0) as usize;
+                    if end > start && end <= self.source.len() {
+                        Some(self.source[start..end].trim().to_string())
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
+
+            if let Some(expr) = pending_expr {
+                // Generate pending body: pending_expr($$renderer)
+                let pending_body =
+                    vec![OutputPart::RawStatement(format!("{}($$renderer);\n", expr))];
+
+                // Generate main body (the else branch)
+                let filtered_nodes: Vec<TemplateNode> = boundary
+                    .fragment
+                    .nodes
+                    .iter()
+                    .filter(|node| {
+                        if let TemplateNode::SnippetBlock(snippet) = node {
+                            let name = snippet.expression.identifier_name().unwrap_or("");
+                            name != "failed" && name != "pending"
+                        } else {
+                            true
+                        }
+                    })
+                    .cloned()
+                    .collect();
+
+                let filtered_fragment = Fragment {
+                    nodes: filtered_nodes,
+                    ..boundary.fragment.clone()
+                };
+
+                let main_body = self.generate_fragment_body_parts(&filtered_fragment)?;
+
+                self.output_parts
+                    .push(OutputPart::SvelteBoundaryWithPending {
+                        pending_expr: expr,
+                        pending_body,
+                        main_body,
+                    });
+                return Ok(());
+            } else {
+                (Vec::new(), true)
+            }
         } else {
             // No pending - generate the main fragment content excluding named snippets
             // Create a filtered fragment that excludes pending/failed snippets

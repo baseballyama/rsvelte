@@ -3,8 +3,9 @@
 use super::super::ServerCodeGenerator;
 use super::super::helpers::quote_prop_name;
 use super::super::types::{ComponentBinding, ComponentPropItem, OutputPart};
-use crate::ast::template::{Attribute, SvelteComponentElement, SvelteElement};
+use crate::ast::template::{Attribute, AttributeValue, SvelteComponentElement, SvelteElement};
 use crate::compiler::phases::phase3_transform::TransformError;
+use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 
 fn push_component_prop(items: &mut Vec<ComponentPropItem>, prop: String) {
     if let Some(ComponentPropItem::Props(props)) = items.last_mut() {
@@ -38,11 +39,18 @@ impl<'a> ServerCodeGenerator<'a> {
         // Build interleaved props/spreads and bindings from attributes
         let mut props_and_spreads: Vec<ComponentPropItem> = Vec::new();
         let mut bindings: Vec<ComponentBinding> = Vec::new();
+        let mut css_custom_props: Vec<(String, String)> = Vec::new();
         for attr in &elem.attributes {
             match attr {
                 Attribute::Attribute(node) => {
                     let attr_name = node.name.as_str();
                     if attr_name.starts_with("on") {
+                        continue;
+                    }
+                    // CSS custom properties (e.g., --color="red") are handled separately
+                    if attr_name.starts_with("--") {
+                        let value = self.extract_css_custom_prop_value(&node.value)?;
+                        css_custom_props.push((format!("'{}'", attr_name), value));
                         continue;
                     }
                     let value = self.extract_attribute_value_as_string(node)?;
@@ -100,6 +108,8 @@ impl<'a> ServerCodeGenerator<'a> {
         let (children, snippets, slot_names) = self
             .generate_component_children_with_snippets(&elem.fragment, &component_let_directives)?;
 
+        let css_props_is_html = self.namespace != "svg";
+
         // Use ComponentWithBindings if there are any bind directives
         if bindings.is_empty() {
             self.output_parts.push(OutputPart::Component {
@@ -111,7 +121,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 slot_names,
                 dynamic: true,
                 let_directives: component_let_directives,
-                css_custom_props: Vec::new(),
+                css_custom_props,
+                css_props_is_html,
                 in_async_block: false,
                 attach_expressions: Vec::new(),
             });
@@ -123,7 +134,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 has_prior_content: true,
                 children,
                 dynamic: true,
-                css_custom_props: Vec::new(),
+                css_custom_props,
+                css_props_is_html,
                 seq_bindings_hoisted: false,
             });
         }
@@ -141,11 +153,18 @@ impl<'a> ServerCodeGenerator<'a> {
         // Build interleaved props/spreads and bindings from attributes
         let mut props_and_spreads: Vec<ComponentPropItem> = Vec::new();
         let mut bindings: Vec<ComponentBinding> = Vec::new();
+        let mut css_custom_props: Vec<(String, String)> = Vec::new();
         for attr in &elem.attributes {
             match attr {
                 Attribute::Attribute(node) => {
                     let attr_name = node.name.as_str();
                     if attr_name.starts_with("on") {
+                        continue;
+                    }
+                    // CSS custom properties (e.g., --color="red") are handled separately
+                    if attr_name.starts_with("--") {
+                        let value = self.extract_css_custom_prop_value(&node.value)?;
+                        css_custom_props.push((format!("'{}'", attr_name), value));
                         continue;
                     }
                     let value = self.extract_attribute_value_as_string(node)?;
@@ -202,6 +221,8 @@ impl<'a> ServerCodeGenerator<'a> {
         let (children, snippets, slot_names) = self
             .generate_component_children_with_snippets(&elem.fragment, &component_let_directives)?;
 
+        let css_props_is_html = self.namespace != "svg";
+
         // svelte:self is NOT dynamic (it always refers to the current component)
         if bindings.is_empty() {
             self.output_parts.push(OutputPart::Component {
@@ -213,7 +234,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 slot_names,
                 dynamic: false,
                 let_directives: component_let_directives,
-                css_custom_props: Vec::new(),
+                css_custom_props,
+                css_props_is_html,
                 in_async_block: false,
                 attach_expressions: Vec::new(),
             });
@@ -225,11 +247,58 @@ impl<'a> ServerCodeGenerator<'a> {
                 has_prior_content: true,
                 children,
                 dynamic: false,
-                css_custom_props: Vec::new(),
+                css_custom_props,
+                css_props_is_html,
                 seq_bindings_hoisted: false,
             });
         }
 
         Ok(())
+    }
+
+    /// Extract CSS custom property value from an attribute value.
+    /// This mirrors the logic in generate_component_usage for CSS custom props.
+    fn extract_css_custom_prop_value(
+        &self,
+        value: &AttributeValue,
+    ) -> Result<String, TransformError> {
+        match value {
+            AttributeValue::Expression(expr_tag) => {
+                let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                if expr_end > expr_start && expr_end <= self.source.len() {
+                    Ok(self.source[expr_start..expr_end].trim().to_string())
+                } else {
+                    Ok("''".to_string())
+                }
+            }
+            AttributeValue::Sequence(parts) => {
+                let mut value_str = String::new();
+                let mut has_expression = false;
+                for part in parts {
+                    match part {
+                        crate::ast::template::AttributeValuePart::Text(text) => {
+                            value_str.push_str(&text.data);
+                        }
+                        crate::ast::template::AttributeValuePart::ExpressionTag(expr_tag) => {
+                            has_expression = true;
+                            let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                            let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                            if expr_end > expr_start && expr_end <= self.source.len() {
+                                value_str.push_str("${$.stringify(");
+                                value_str.push_str(self.source[expr_start..expr_end].trim());
+                                value_str.push_str(")}");
+                            }
+                        }
+                    }
+                }
+                if has_expression {
+                    Ok(format!("`{}`", value_str))
+                } else {
+                    Ok(format!("'{}'", escape_js_string(&value_str)))
+                }
+            }
+            AttributeValue::True(_) => Ok("true".to_string()),
+        }
     }
 }

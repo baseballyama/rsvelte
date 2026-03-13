@@ -740,12 +740,22 @@ impl Parser<'_> {
             "dt" => matches!(next_tag.as_str(), "dt" | "dd"),
             // <dd> is implicitly closed by <dt> or <dd>
             "dd" => matches!(next_tag.as_str(), "dt" | "dd"),
-            // <td> is implicitly closed by <td> or <th>
-            "td" => matches!(next_tag.as_str(), "td" | "th"),
-            // <th> is implicitly closed by <td> or <th>
-            "th" => matches!(next_tag.as_str(), "td" | "th"),
-            // <tr> is implicitly closed by <tr>
-            "tr" => next_tag == "tr",
+            // <rt> is implicitly closed by <rt> or <rp>
+            "rt" => matches!(next_tag.as_str(), "rt" | "rp"),
+            // <rp> is implicitly closed by <rt> or <rp>
+            "rp" => matches!(next_tag.as_str(), "rt" | "rp"),
+            // <td> is implicitly closed by <td>, <th>, or <tr>
+            "td" => matches!(next_tag.as_str(), "td" | "th" | "tr"),
+            // <th> is implicitly closed by <td>, <th>, or <tr>
+            "th" => matches!(next_tag.as_str(), "td" | "th" | "tr"),
+            // <tr> is implicitly closed by <tr> or <tbody>
+            "tr" => matches!(next_tag.as_str(), "tr" | "tbody"),
+            // <thead> is implicitly closed by <tbody> or <tfoot>
+            "thead" => matches!(next_tag.as_str(), "tbody" | "tfoot"),
+            // <tbody> is implicitly closed by <tbody> or <tfoot>
+            "tbody" => matches!(next_tag.as_str(), "tbody" | "tfoot"),
+            // <tfoot> is implicitly closed by <tbody>
+            "tfoot" => next_tag == "tbody",
             // <option> is implicitly closed by <option> or <optgroup>
             "option" => matches!(next_tag.as_str(), "option" | "optgroup"),
             // <optgroup> is implicitly closed by <optgroup>

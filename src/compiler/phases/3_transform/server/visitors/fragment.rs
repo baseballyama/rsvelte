@@ -342,6 +342,15 @@ impl<'a> ServerCodeGenerator<'a> {
             );
         }
 
+        // Apply const-tag-level async wrapping to fragment body parts
+        let const_blocker_map = body_generator.const_blocker_map.borrow();
+        let parts = if !const_blocker_map.is_empty() {
+            Self::apply_const_async_wrapping(&parts, &const_blocker_map)
+        } else {
+            parts
+        };
+        drop(const_blocker_map);
+
         Ok(parts)
     }
 
@@ -573,16 +582,26 @@ impl<'a> ServerCodeGenerator<'a> {
 
                 frag_generator.flush_async_consts();
 
-                if has_const_tags && !frag_generator.output_parts.is_empty() {
-                    // Wrap in a BlockScope for proper { } scoping
-                    body_generator.output_parts.push(OutputPart::BlockScope {
-                        body: frag_generator.output_parts,
-                    });
+                // Apply const-tag-level async wrapping to fragment body parts
+                let frag_const_blocker_map = frag_generator.const_blocker_map.borrow();
+                let frag_parts = if !frag_const_blocker_map.is_empty() {
+                    Self::apply_const_async_wrapping(
+                        &frag_generator.output_parts,
+                        &frag_const_blocker_map,
+                    )
                 } else {
-                    // No const tags - inline directly as before
+                    frag_generator.output_parts
+                };
+                drop(frag_const_blocker_map);
+
+                if has_const_tags && !frag_parts.is_empty() {
+                    // Wrap in a BlockScope for proper { } scoping
                     body_generator
                         .output_parts
-                        .extend(frag_generator.output_parts);
+                        .push(OutputPart::BlockScope { body: frag_parts });
+                } else {
+                    // No const tags - inline directly as before
+                    body_generator.output_parts.extend(frag_parts);
                 }
                 continue;
             }
@@ -621,6 +640,15 @@ impl<'a> ServerCodeGenerator<'a> {
         // Flush accumulated async const tags
         body_generator.flush_async_consts();
 
-        Ok(Some(body_generator.output_parts))
+        // Apply const-tag-level async wrapping to children body parts
+        let const_blocker_map = body_generator.const_blocker_map.borrow();
+        let body_parts = if !const_blocker_map.is_empty() {
+            Self::apply_const_async_wrapping(&body_generator.output_parts, &const_blocker_map)
+        } else {
+            body_generator.output_parts
+        };
+        drop(const_blocker_map);
+
+        Ok(Some(body_parts))
     }
 }

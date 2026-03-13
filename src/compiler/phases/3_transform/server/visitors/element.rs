@@ -58,7 +58,14 @@ impl<'a> ServerCodeGenerator<'a> {
         &mut self,
         element: &RegularElement,
     ) -> Result<(), TransformError> {
-        let name = element.name.as_str();
+        // Lowercase element names in HTML namespace for XHTML compatibility
+        // Reference: RegularElement.js L18: `const name = context.state.namespace === 'html' ? node.name.toLowerCase() : node.name;`
+        let name_owned: String = if !element.metadata.svg && !element.metadata.mathml {
+            element.name.to_lowercase().to_string()
+        } else {
+            element.name.to_string()
+        };
+        let name = name_owned.as_str();
 
         // Handle <option> element specially
         if name == "option" {
@@ -570,7 +577,13 @@ impl<'a> ServerCodeGenerator<'a> {
         &mut self,
         element: &RegularElement,
     ) -> Result<(), TransformError> {
-        let name = element.name.as_str();
+        // Lowercase element names in HTML namespace for XHTML compatibility
+        let name_owned: String = if !element.metadata.svg && !element.metadata.mathml {
+            element.name.to_lowercase().to_string()
+        } else {
+            element.name.to_string()
+        };
+        let name = name_owned.as_str();
         let is_textarea = name == "textarea";
         let is_select = name == "select";
 
@@ -812,10 +825,15 @@ impl<'a> ServerCodeGenerator<'a> {
                         }
                     };
                     // Use shorthand syntax when key == value (e.g. { color } instead of { color: color })
+                    // Quote property names with special characters like hyphens (e.g. 'background-color')
                     if value == style_name {
                         style_directive_parts.push(style_name.to_string());
                     } else {
-                        style_directive_parts.push(format!("{}: {}", style_name, value));
+                        style_directive_parts.push(format!(
+                            "{}: {}",
+                            quote_prop_name(style_name),
+                            value
+                        ));
                     }
                 }
                 Attribute::OnDirective(_) => {}
@@ -1652,13 +1670,9 @@ impl<'a> ServerCodeGenerator<'a> {
 
         match &node.value {
             AttributeValue::True(_) => {
-                // Boolean attributes like `disabled`, `checked` render without a value: ` disabled`
-                // Non-boolean attributes render with empty string value: ` data-potato=""`
-                if is_boolean_attribute(name) {
-                    Ok(Some(format!(" {}", name)))
-                } else {
-                    Ok(Some(format!(" {}=\"\"", name)))
-                }
+                // Both boolean and non-boolean attributes render with empty value for XHTML compatibility: ` disabled=""`
+                // Reference: official Svelte compiler uses `name="${literal_value === true ? '' : String(literal_value)}"`
+                Ok(Some(format!(" {}=\"\"", name)))
             }
             AttributeValue::Sequence(parts) => {
                 // Check if it's a single expression (like x='{x}')

@@ -41,6 +41,8 @@ struct CssContext<'a> {
     parent_preludes: std::cell::RefCell<Vec<&'a Value>>,
     /// Whether we're in dev mode (affects empty rule handling)
     dev: bool,
+    /// Whether to minify the output (for injected CSS in SSR)
+    minify: bool,
 }
 
 /// A CSS unused selector warning.
@@ -81,6 +83,7 @@ pub fn collect_css_unused_warnings(
         dom_structure: &analysis.css.dom_structure,
         parent_preludes: std::cell::RefCell::new(Vec::new()),
         dev: false,
+        minify: false,
     };
 
     if let Some((css_content, css_start)) = extract_css_content(source) {
@@ -336,6 +339,7 @@ fn render_stylesheet_internal(
         dom_structure: &analysis.css.dom_structure,
         parent_preludes: std::cell::RefCell::new(Vec::new()),
         dev: options.dev,
+        minify,
     };
 
     // Extract CSS content and its start position
@@ -354,10 +358,7 @@ fn render_stylesheet_internal(
             code = replace_animation_keyframes(&code, hash, &keyframes);
         }
 
-        // Minify if requested (for injected CSS in SSR)
-        if minify {
-            code = minify_css(&code);
-        }
+        // When minify is handled inline during transform, no post-processing needed
 
         Ok(CssOutput { code, map: None })
     } else {
@@ -370,6 +371,7 @@ fn render_stylesheet_internal(
 
 /// Minify CSS by removing unnecessary whitespace and comments.
 /// This is a simple minification for injected CSS in SSR.
+#[allow(dead_code)]
 fn minify_css(css: &str) -> String {
     let mut result = String::with_capacity(css.len());
     let chars: Vec<char> = css.chars().collect();
@@ -686,8 +688,8 @@ fn transform_css<'a>(
         );
     }
 
-    // Add any trailing content
-    if last_end > css_start {
+    // Add any trailing content (skip when minifying)
+    if !ctx.minify && last_end > css_start {
         let trailing_start = last_end - css_start;
         if trailing_start < css_source.len() {
             output.push_str(&css_source[trailing_start..]);
@@ -3679,8 +3681,8 @@ fn transform_rule_preserving<'a>(
     let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
-    // Copy leading whitespace from source
-    if node_start > *last_end {
+    // Copy leading whitespace from source (skip when minifying)
+    if !ctx.minify && node_start > *last_end {
         let ws_start = (*last_end).saturating_sub(css_start);
         let ws_end = node_start.saturating_sub(css_start);
         if ws_end <= css_source.len() && ws_start < ws_end {
@@ -3712,6 +3714,11 @@ fn transform_rule_preserving<'a>(
     if !is_in_bare_global_block && let Some(prelude) = node.get("prelude") {
         let unused_status = check_selector_unused(prelude, ctx);
         if unused_status != UnusedStatus::Used {
+            if ctx.minify {
+                // In minify mode, just skip the rule entirely
+                *last_end = node_end;
+                return;
+            }
             // Both Unused and NoMatch use the same comment format: /* (unused) ... */
             output.push_str("/* (unused) ");
 
@@ -3735,6 +3742,11 @@ fn transform_rule_preserving<'a>(
     // Check if the rule is empty (no declarations, or all nested rules are unused/empty)
     // In dev mode, keep empty rules (convenient to add styles via devtools)
     if !ctx.dev && is_rule_empty(node, ctx, is_in_global_block) {
+        if ctx.minify {
+            // In minify mode, just skip the rule entirely
+            *last_end = node_end;
+            return;
+        }
         // Comment out empty rules
         output.push_str("/* (empty) ");
 
@@ -3776,11 +3788,16 @@ fn transform_rule_preserving<'a>(
             let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
             let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
-            // Preserve original whitespace between selector and block brace
-            let ws_start = prelude_end.saturating_sub(css_start);
-            let ws_end = block_start.saturating_sub(css_start);
-            if ws_end <= css_source.len() && ws_start < ws_end {
-                output.push_str(&css_source[ws_start..ws_end]);
+            if ctx.minify {
+                // In minify mode, use " {" (single space before brace)
+                output.push_str(" {");
+            } else {
+                // Preserve original whitespace between selector and block brace
+                let ws_start = prelude_end.saturating_sub(css_start);
+                let ws_end = block_start.saturating_sub(css_start);
+                if ws_end <= css_source.len() && ws_start < ws_end {
+                    output.push_str(&css_source[ws_start..ws_end]);
+                }
             }
 
             // Check if block contains nested rules that need special handling
@@ -3825,6 +3842,43 @@ fn transform_rule_preserving<'a>(
 
                 // Pop the prelude after processing
                 ctx.parent_preludes.borrow_mut().pop();
+            } else if ctx.minify {
+                // Minified block: output declarations without extra whitespace
+                if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
+                    for child in children {
+                        if child.get("type").and_then(|t| t.as_str()) == Some("Declaration") {
+                            let prop = child.get("property").and_then(|p| p.as_str()).unwrap_or("");
+                            let child_start =
+                                child.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+                            let child_end =
+                                child.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+
+                            // Get the declaration text from source
+                            let decl_start = child_start.saturating_sub(css_start);
+                            let decl_end = child_end.saturating_sub(css_start);
+                            if decl_end <= css_source.len() && decl_start < decl_end {
+                                let decl_text = &css_source[decl_start..decl_end];
+                                // Minify: remove whitespace after colon (unless custom property)
+                                if !prop.starts_with("--") {
+                                    if let Some(colon_pos) = decl_text.find(':') {
+                                        let before_colon = &decl_text[..=colon_pos];
+                                        let after_colon = decl_text[colon_pos + 1..].trim_start();
+                                        output.push_str(before_colon);
+                                        output.push_str(after_colon);
+                                    } else {
+                                        output.push_str(decl_text);
+                                    }
+                                } else {
+                                    output.push_str(decl_text);
+                                }
+                                // Declaration end position is before the semicolon in our AST,
+                                // so we need to add it back
+                                output.push(';');
+                            }
+                        }
+                    }
+                }
+                output.push('}');
             } else {
                 // Copy the entire block from source (including braces and content)
                 let blk_start = block_start.saturating_sub(css_start);
@@ -3868,8 +3922,8 @@ fn transform_block_with_nested_rules<'a>(
             let child_start = child.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
             let child_end = child.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
-            // Copy whitespace before this child
-            if child_start > last_end {
+            // Copy whitespace before this child (skip when minifying)
+            if !ctx.minify && child_start > last_end {
                 let ws_start = last_end.saturating_sub(css_start);
                 let ws_end = child_start.saturating_sub(css_start);
                 if ws_end <= css_source.len() && ws_start < ws_end {
@@ -3912,11 +3966,45 @@ fn transform_block_with_nested_rules<'a>(
                     }
                 }
                 Some("Declaration") | Some("Atrule") => {
-                    // Copy the declaration/atrule from source
-                    let decl_start = child_start.saturating_sub(css_start);
-                    let decl_end = child_end.saturating_sub(css_start);
-                    if decl_end <= css_source.len() && decl_start < decl_end {
-                        output.push_str(&css_source[decl_start..decl_end]);
+                    if ctx.minify {
+                        // Minified: output declaration without leading whitespace
+                        // and remove whitespace after colon
+                        if child_type == Some("Declaration") {
+                            let prop = child.get("property").and_then(|p| p.as_str()).unwrap_or("");
+                            let decl_start = child_start.saturating_sub(css_start);
+                            let decl_end = child_end.saturating_sub(css_start);
+                            if decl_end <= css_source.len() && decl_start < decl_end {
+                                let decl_text = &css_source[decl_start..decl_end];
+                                if !prop.starts_with("--") {
+                                    if let Some(colon_pos) = decl_text.find(':') {
+                                        let before_colon = &decl_text[..=colon_pos];
+                                        let after_colon = decl_text[colon_pos + 1..].trim_start();
+                                        output.push_str(before_colon);
+                                        output.push_str(after_colon);
+                                    } else {
+                                        output.push_str(decl_text);
+                                    }
+                                } else {
+                                    output.push_str(decl_text);
+                                }
+                                // Declaration end position is before the semicolon in our AST
+                                output.push(';');
+                            }
+                        } else {
+                            // Atrule inside nested block
+                            let decl_start = child_start.saturating_sub(css_start);
+                            let decl_end = child_end.saturating_sub(css_start);
+                            if decl_end <= css_source.len() && decl_start < decl_end {
+                                output.push_str(&css_source[decl_start..decl_end]);
+                            }
+                        }
+                    } else {
+                        // Copy the declaration/atrule from source
+                        let decl_start = child_start.saturating_sub(css_start);
+                        let decl_end = child_end.saturating_sub(css_start);
+                        if decl_end <= css_source.len() && decl_start < decl_end {
+                            output.push_str(&css_source[decl_start..decl_end]);
+                        }
                     }
                 }
                 _ => {}
@@ -3926,8 +4014,8 @@ fn transform_block_with_nested_rules<'a>(
         }
     }
 
-    // Copy whitespace/content before closing brace
-    if block_end > last_end {
+    // Copy whitespace/content before closing brace (skip when minifying)
+    if !ctx.minify && block_end > last_end {
         let ws_start = last_end.saturating_sub(css_start);
         let ws_end = (block_end - 1).saturating_sub(css_start); // -1 to exclude the '}'
         if ws_end <= css_source.len() && ws_start < ws_end {
@@ -3959,14 +4047,17 @@ fn transform_global_block(
         let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
         let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
-        // Comment out `:global {`
-        output.push_str("/* ");
-        let selector_start = prelude_start.saturating_sub(css_start);
-        let open_brace_end = (block_start + 1).saturating_sub(css_start); // Include the '{'
-        if open_brace_end <= css_source.len() && selector_start < open_brace_end {
-            output.push_str(&css_source[selector_start..open_brace_end]);
+        if !_ctx.minify {
+            // Comment out `:global {`
+            output.push_str("/* ");
+            let selector_start = prelude_start.saturating_sub(css_start);
+            let open_brace_end = (block_start + 1).saturating_sub(css_start); // Include the '{'
+            if open_brace_end <= css_source.len() && selector_start < open_brace_end {
+                output.push_str(&css_source[selector_start..open_brace_end]);
+            }
+            output.push_str("*/");
         }
-        output.push_str("*/");
+        // In minify mode, just skip the :global { wrapper entirely
 
         // Process inner content
         if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
@@ -3976,8 +4067,8 @@ fn transform_global_block(
                 let child_start = child.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
                 let child_end = child.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
-                // Copy whitespace before child
-                if child_start > last_end {
+                // Copy whitespace before child (skip when minifying)
+                if !_ctx.minify && child_start > last_end {
                     let ws_start = last_end.saturating_sub(css_start);
                     let ws_end = child_start.saturating_sub(css_start);
                     if ws_end <= css_source.len() && ws_start < ws_end {
@@ -3995,8 +4086,8 @@ fn transform_global_block(
                 last_end = child_end;
             }
 
-            // Copy whitespace before closing brace
-            if block_end > last_end {
+            // Copy whitespace before closing brace (skip when minifying)
+            if !_ctx.minify && block_end > last_end {
                 let ws_start = last_end.saturating_sub(css_start);
                 let ws_end = (block_end - 1).saturating_sub(css_start);
                 if ws_end <= css_source.len() && ws_start < ws_end {
@@ -4005,8 +4096,11 @@ fn transform_global_block(
             }
         }
 
-        // Comment out `}`
-        output.push_str("/*}*/");
+        if !_ctx.minify {
+            // Comment out `}`
+            output.push_str("/*}*/");
+        }
+        // In minify mode, skip the closing } wrapper
     }
 }
 
@@ -4026,8 +4120,8 @@ fn transform_atrule_preserving<'a>(
     let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
-    // Copy leading whitespace from source
-    if node_start > *last_end {
+    // Copy leading whitespace from source (skip when minifying)
+    if !ctx.minify && node_start > *last_end {
         let ws_start = (*last_end).saturating_sub(css_start);
         let ws_end = node_start.saturating_sub(css_start);
         if ws_end <= css_source.len() && ws_start < ws_end {
@@ -4130,13 +4224,15 @@ fn transform_atrule_preserving<'a>(
                     false, // rules inside at-rules are not nested (they start fresh)
                 );
             }
-            // Copy trailing content in block
-            let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
-            if inner_last_end < block_end {
-                let trail_start = inner_last_end.saturating_sub(css_start);
-                let trail_end = (block_end - 1).saturating_sub(css_start); // -1 to exclude closing brace
-                if trail_end <= css_source.len() && trail_start < trail_end {
-                    output.push_str(&css_source[trail_start..trail_end]);
+            // Copy trailing content in block (skip when minifying)
+            if !ctx.minify {
+                let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+                if inner_last_end < block_end {
+                    let trail_start = inner_last_end.saturating_sub(css_start);
+                    let trail_end = (block_end - 1).saturating_sub(css_start); // -1 to exclude closing brace
+                    if trail_end <= css_source.len() && trail_start < trail_end {
+                        output.push_str(&css_source[trail_start..trail_end]);
+                    }
                 }
             }
         }
@@ -4167,6 +4263,21 @@ fn transform_selector_list(
     let mut result = String::new();
 
     if let Some(children) = prelude.get("children").and_then(|c| c.as_array()) {
+        // Minified mode: delegate to specialized function
+        if ctx.minify {
+            return transform_selector_list_minified(
+                children,
+                selector,
+                specificity_bumped,
+                css_source,
+                css_start,
+                ctx,
+                parent_has_local_selectors,
+                is_in_global_block,
+                is_in_bare_global_block,
+            );
+        }
+
         // Determine the separator style based on the original source
         // If the prelude spans multiple lines, use newline-based separators
         let prelude_start = prelude.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
@@ -4314,6 +4425,152 @@ fn transform_selector_list(
     } else {
         // Fallback: just get the raw selector text
         result = get_selector_text(prelude);
+    }
+
+    result
+}
+
+/// Minified version of selector list transformation.
+/// Removes unused selectors entirely (no comments), matching the official Svelte
+/// MagicString-based pruning algorithm.
+#[allow(clippy::too_many_arguments)]
+fn transform_selector_list_minified(
+    children: &[Value],
+    selector: &str,
+    specificity_bumped: &mut bool,
+    css_source: &str,
+    css_start: usize,
+    ctx: &CssContext,
+    parent_has_local_selectors: bool,
+    is_in_global_block: bool,
+    is_in_bare_global_block: bool,
+) -> String {
+    // Collect which selectors are used
+    let used: Vec<bool> = children
+        .iter()
+        .map(|cs| is_in_bare_global_block || !is_complex_selector_unused(cs, ctx))
+        .collect();
+
+    // Replicate the official Svelte pruning algorithm.
+    let mut removals: Vec<(usize, usize)> = Vec::new();
+    let first_start = children[0]
+        .get("start")
+        .and_then(|s| s.as_u64())
+        .unwrap_or(0) as usize;
+
+    let mut pruning = false;
+    let mut prune_start = first_start;
+    let mut last = first_start;
+    let mut has_previous_used = false;
+
+    for (i, cs) in children.iter().enumerate() {
+        let sel_start = cs.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+        let sel_end = cs.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+
+        if used[i] == pruning {
+            if pruning {
+                // Find the comma before this selector in the original source
+                let src_offset = sel_start.saturating_sub(css_start);
+                let mut j = src_offset;
+                while j > 0 && css_source.as_bytes().get(j - 1) != Some(&b',') {
+                    j -= 1;
+                }
+                let comma_pos = j + css_start - 1;
+
+                if has_previous_used {
+                    removals.push((prune_start, comma_pos));
+                } else {
+                    removals.push((prune_start, comma_pos + 1));
+                }
+            } else {
+                prune_start = if i == 0 { sel_start } else { last };
+            }
+            pruning = !pruning;
+        }
+
+        if !pruning && used[i] {
+            has_previous_used = true;
+        }
+        last = sel_end;
+    }
+
+    if pruning {
+        removals.push((prune_start, last));
+    }
+
+    // Collect transformed used selectors with their original positions
+    let mut used_selectors: Vec<(String, usize, usize)> = Vec::new();
+    for (i, cs) in children.iter().enumerate() {
+        if used[i] {
+            let transformed = transform_complex_selector(
+                cs,
+                selector,
+                specificity_bumped,
+                css_source,
+                css_start,
+                parent_has_local_selectors,
+                is_in_global_block,
+                is_in_bare_global_block,
+                Some(ctx),
+            );
+            let sel_start = cs.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+            let sel_end = cs.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+            used_selectors.push((transformed, sel_start, sel_end));
+        }
+    }
+
+    if used_selectors.is_empty() {
+        return String::new();
+    }
+
+    let mut result = String::new();
+
+    // Handle text before the first used selector (if leading unused selectors were removed)
+    if !used[0] {
+        let first_used_start = used_selectors[0].1;
+        let mut removal_end = first_start;
+        for &(_, re) in &removals {
+            if re <= first_used_start {
+                removal_end = re;
+            }
+        }
+        let between_start = removal_end.saturating_sub(css_start);
+        let between_end = first_used_start.saturating_sub(css_start);
+        if between_end <= css_source.len() && between_start < between_end {
+            result.push_str(&css_source[between_start..between_end]);
+        }
+    }
+
+    result.push_str(&used_selectors[0].0);
+
+    // Handle subsequent used selectors
+    for w in used_selectors.windows(2) {
+        let prev_end = w[0].2;
+        let curr_start = w[1].1;
+
+        let mut kept_text = String::new();
+        let mut pos = prev_end;
+        for &(rs, re) in &removals {
+            if rs >= prev_end && rs <= curr_start {
+                if rs > pos {
+                    let s = pos.saturating_sub(css_start);
+                    let e = rs.saturating_sub(css_start);
+                    if e <= css_source.len() && s < e {
+                        kept_text.push_str(&css_source[s..e]);
+                    }
+                }
+                pos = re.max(pos);
+            }
+        }
+        if pos < curr_start {
+            let s = pos.saturating_sub(css_start);
+            let e = curr_start.saturating_sub(css_start);
+            if e <= css_source.len() && s < e {
+                kept_text.push_str(&css_source[s..e]);
+            }
+        }
+        result.push_str(&kept_text);
+        result.push_str(&w[1].0);
     }
 
     result
@@ -5538,6 +5795,7 @@ mod tests {
                 dom_structure: &dom_structure,
                 parent_preludes: std::cell::RefCell::new(Vec::new()),
                 dev: false,
+                minify: false,
             };
             let output = transform_css(&children, selector, hash, &css_content, css_start, &ctx);
             println!("CSS Output:\n{}", output);
@@ -5579,6 +5837,7 @@ mod tests {
                 dom_structure: &dom_structure,
                 parent_preludes: std::cell::RefCell::new(Vec::new()),
                 dev: false,
+                minify: false,
             };
             let output = transform_css(&children, selector, hash, &css_content, css_start, &ctx);
             println!("CSS Output:\n{}", output);

@@ -1039,6 +1039,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     dynamic,
                     let_directives,
                     css_custom_props,
+                    css_props_is_html,
                     attach_expressions,
                     ..
                 } => {
@@ -1104,6 +1105,7 @@ export default function {component_name}($$renderer{props_param}) {{
                                 dynamic: *dynamic,
                                 let_directives: let_directives.clone(),
                                 css_custom_props: css_custom_props.clone(),
+                                css_props_is_html: *css_props_is_html,
                                 in_async_block: true,
                                 attach_expressions: attach_expressions.clone(),
                             }],
@@ -1120,6 +1122,7 @@ export default function {component_name}($$renderer{props_param}) {{
                             dynamic: *dynamic,
                             let_directives: let_directives.clone(),
                             css_custom_props: css_custom_props.clone(),
+                            css_props_is_html: *css_props_is_html,
                             in_async_block: false,
                             attach_expressions: attach_expressions.clone(),
                         });
@@ -1136,6 +1139,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     children,
                     dynamic,
                     css_custom_props,
+                    css_props_is_html,
                     ..
                 } => {
                     // Find blockers from component name, props, and bindings
@@ -1234,6 +1238,7 @@ export default function {component_name}($$renderer{props_param}) {{
                                 children: wrapped_children,
                                 dynamic: *dynamic,
                                 css_custom_props: css_custom_props.clone(),
+                                css_props_is_html: *css_props_is_html,
                                 seq_bindings_hoisted: has_seq,
                             }],
                         });
@@ -1246,6 +1251,7 @@ export default function {component_name}($$renderer{props_param}) {{
                             children: wrapped_children,
                             dynamic: *dynamic,
                             css_custom_props: css_custom_props.clone(),
+                            css_props_is_html: *css_props_is_html,
                             seq_bindings_hoisted: false,
                         });
                     } else {
@@ -1371,7 +1377,7 @@ export default function {component_name}($$renderer{props_param}) {{
     /// The blocker map is built incrementally from `ConstBlockerMetadata` parts
     /// found within the parts array. This handles scoping correctly - each scope
     /// level contributes its own blocker entries to the map.
-    fn apply_const_async_wrapping(
+    pub(crate) fn apply_const_async_wrapping(
         parts: &[OutputPart],
         parent_blocker_map: &std::collections::HashMap<String, String>,
     ) -> Vec<OutputPart> {
@@ -1470,6 +1476,20 @@ export default function {component_name}($$renderer{props_param}) {{
                     result.push(OutputPart::SvelteBoundary {
                         body: wrapped_body,
                         is_pending: *is_pending,
+                    });
+                }
+                OutputPart::SvelteBoundaryWithPending {
+                    pending_expr,
+                    pending_body,
+                    main_body,
+                } => {
+                    let wrapped_pending =
+                        Self::apply_const_async_wrapping(pending_body, &local_map);
+                    let wrapped_main = Self::apply_const_async_wrapping(main_body, &local_map);
+                    result.push(OutputPart::SvelteBoundaryWithPending {
+                        pending_expr: pending_expr.clone(),
+                        pending_body: wrapped_pending,
+                        main_body: wrapped_main,
                     });
                 }
                 OutputPart::BlockScope { body } => {
@@ -2456,6 +2476,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     children,
                     dynamic,
                     css_custom_props: _, // TODO: Handle CSS custom props for components with bindings
+                    css_props_is_html: _,
                     seq_bindings_hoisted,
                 } => {
                     // Component with bindings - just generate the component call with getter/setters.
@@ -2639,6 +2660,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     dynamic,
                     let_directives,
                     css_custom_props,
+                    css_props_is_html,
                     in_async_block,
                     attach_expressions: _,
                 } => {
@@ -3297,8 +3319,8 @@ export default function {component_name}($$renderer{props_param}) {{
                                 .join(", ");
                             let inner_indent = format!("{}\t", indent);
                             body_code.push_str(&format!(
-                                "\n{}$.css_props($$renderer, true, {{ {} }}, () => {{\n",
-                                indent, css_props_str
+                                "\n{}$.css_props($$renderer, {}, {{ {} }}, () => {{\n",
+                                indent, css_props_is_html, css_props_str
                             ));
                             if all_props.is_empty() {
                                 body_code.push_str(&format!(
@@ -3314,7 +3336,12 @@ export default function {component_name}($$renderer{props_param}) {{
                                     all_props.join(", ")
                                 ));
                             }
-                            body_code.push_str(&format!("{}}});\n", indent));
+                            // Dynamic components pass a 5th `true` argument to $.css_props()
+                            if *dynamic {
+                                body_code.push_str(&format!("{}}}, true);\n", indent));
+                            } else {
+                                body_code.push_str(&format!("{}}});\n", indent));
+                            }
                         } else if all_props.is_empty() {
                             body_code.push_str(&format!(
                                 "{}{}{}($$renderer, {{}});\n",
@@ -3433,6 +3460,7 @@ export default function {component_name}($$renderer{props_param}) {{
                                         | OutputPart::IfBlock { .. }
                                         | OutputPart::AwaitBlock { .. }
                                         | OutputPart::SvelteBoundary { .. }
+                                        | OutputPart::SvelteBoundaryWithPending { .. }
                                         | OutputPart::SvelteHead { .. }
                                         | OutputPart::TitleElement { .. }
                                         | OutputPart::RenderCall { .. }
@@ -4033,6 +4061,49 @@ export default function {component_name}($$renderer{props_param}) {{
 
                     // Add closing marker to current_html to combine with subsequent content
                     current_html.push_str("<!--]-->");
+                }
+                OutputPart::SvelteBoundaryWithPending {
+                    pending_expr,
+                    pending_body,
+                    main_body,
+                } => {
+                    // Flush current HTML before conditional
+                    if !current_html.is_empty() {
+                        body_code.push_str(&format!(
+                            "{}$$renderer.push(`{}`);\n\n",
+                            indent, current_html
+                        ));
+                        current_html.clear();
+                    }
+
+                    // Generate: if (pending_expr) { <!--[!--> pending_body <!--]--> }
+                    //           else { <!--[--> main_body <!--]--> }
+                    body_code.push_str(&format!("{}if ({}) {{\n", indent, pending_expr));
+                    let inner_indent = format!("{}\t", indent);
+                    body_code.push_str(&format!("{}$$renderer.push(`<!--[!-->`);\n", inner_indent));
+                    if !pending_body.is_empty() {
+                        let pending_code = Self::build_parts_with_store_subs(
+                            pending_body,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
+                        body_code.push_str(&pending_code);
+                    }
+                    body_code.push_str(&format!("{}$$renderer.push(`<!--]-->`);\n", inner_indent));
+                    body_code.push_str(&format!("{}}} else {{\n", indent));
+                    body_code.push_str(&format!("{}$$renderer.push(`<!--[-->`);\n", inner_indent));
+                    if !main_body.is_empty() {
+                        let main_code = Self::build_parts_with_store_subs(
+                            main_body,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
+                        body_code.push_str(&main_code);
+                    }
+                    body_code.push_str(&format!("{}$$renderer.push(`<!--]-->`);\n", inner_indent));
+                    body_code.push_str(&format!("{}}}\n", indent));
                 }
                 OutputPart::SvelteHead { hash, body } => {
                     // Flush current HTML before head call

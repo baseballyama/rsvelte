@@ -47,6 +47,51 @@ fn has_top_level_semicolon(s: &str) -> bool {
     false
 }
 
+/// Truncate a declaration string at the first top-level semicolon and trim the result.
+/// For example: `bg = "gre"; // comment` -> `bg = "gre"`.
+/// If there is no top-level semicolon the string is returned trimmed as-is.
+fn strip_at_top_level_semicolon(s: &str) -> String {
+    let chars: Vec<char> = s.chars().collect();
+    let mut i = 0;
+    let mut paren_depth: i32 = 0;
+    let mut bracket_depth: i32 = 0;
+    let mut brace_depth: i32 = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    while i < chars.len() {
+        let c = chars[i];
+        if in_string {
+            if c == '\\' {
+                i += 2;
+                continue;
+            } else if c == string_char {
+                in_string = false;
+            }
+        } else if c == '"' || c == '\'' || c == '`' {
+            in_string = true;
+            string_char = c;
+        } else {
+            match c {
+                '(' => paren_depth += 1,
+                ')' => paren_depth -= 1,
+                '[' => bracket_depth += 1,
+                ']' => bracket_depth -= 1,
+                '{' => brace_depth += 1,
+                '}' => brace_depth -= 1,
+                ';' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => {
+                    // Truncate at this semicolon
+                    return s[..i].trim().to_string();
+                }
+                _ => {}
+            }
+        }
+        i += 1;
+    }
+    // No top-level semicolon found - return as-is, stripping trailing semicolons
+    s.trim_end_matches(';').trim().to_string()
+}
+
 /// Check if an export let declaration value appears to be syntactically complete.
 /// Returns true if the expression doesn't need a continuation line.
 fn export_let_declaration_seems_complete(decl: &str) -> bool {
@@ -160,9 +205,12 @@ pub(crate) fn transform_export_let_declarations(script: &str) -> String {
                 }
             }
 
-            let declaration = full_declaration.trim_end_matches(';').trim();
+            // Truncate at the first top-level semicolon to strip trailing
+            // comments like `"gre"; // dynamic value`.  This prevents inline
+            // comments from leaking into generated $.fallback() calls.
+            let declaration = strip_at_top_level_semicolon(&full_declaration);
 
-            let transformed = transform_single_export_let(declaration);
+            let transformed = transform_single_export_let(&declaration);
             result.push_str(&transformed);
             result.push('\n');
         } else {

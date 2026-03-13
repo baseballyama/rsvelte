@@ -158,6 +158,15 @@ impl<'a> ServerCodeGenerator<'a> {
         // Final flush for any remaining async consts
         body_generator.flush_async_consts();
 
+        // Apply const-tag-level async wrapping to snippet body parts
+        let const_blocker_map = body_generator.const_blocker_map.borrow();
+        let body_parts = if !const_blocker_map.is_empty() {
+            Self::apply_const_async_wrapping(&body_generator.output_parts, &const_blocker_map)
+        } else {
+            body_generator.output_parts
+        };
+        drop(const_blocker_map);
+
         // Determine if the snippet can be hoisted to module level
         // Use metadata.can_hoist from the analyze phase
         let can_hoist = block.metadata.can_hoist;
@@ -166,7 +175,7 @@ impl<'a> ServerCodeGenerator<'a> {
         self.snippets.push(SnippetDef {
             name,
             params,
-            body_parts: body_generator.output_parts,
+            body_parts,
             can_hoist,
         });
 
@@ -263,10 +272,29 @@ impl<'a> ServerCodeGenerator<'a> {
                     continue;
                 }
             }
+            // Flush accumulated async consts before processing non-const content
+            if !matches!(node, TemplateNode::ConstTag(_))
+                && !matches!(node, TemplateNode::SnippetBlock(_))
+            {
+                body_generator.flush_async_consts();
+            }
+
             body_generator.generate_node(node, false)?;
         }
 
-        Ok(body_generator.output_parts)
+        // Final flush for any remaining async consts
+        body_generator.flush_async_consts();
+
+        // Apply const-tag-level async wrapping
+        let const_blocker_map = body_generator.const_blocker_map.borrow();
+        let body_parts = if !const_blocker_map.is_empty() {
+            Self::apply_const_async_wrapping(&body_generator.output_parts, &const_blocker_map)
+        } else {
+            body_generator.output_parts
+        };
+        drop(const_blocker_map);
+
+        Ok(body_parts)
     }
 
     /// Extract a snippet parameter string from an Expression, stripping TypeScript

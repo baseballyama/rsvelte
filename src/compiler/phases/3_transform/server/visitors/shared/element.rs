@@ -357,9 +357,9 @@ where
                 }
 
                 if name != "class" || !literal_value.is_empty() {
-                    let attr_str = if is_boolean_attribute(&name) && literal_value == "true" {
-                        format!(" {}", attr.name)
-                    } else if literal_value == "true" {
+                    let attr_str = if literal_value == "true" {
+                        // Boolean attributes and attributes with literal value "true"
+                        // both render as name="" for XHTML compatibility
                         format!(" {}=\"\"", attr.name)
                     } else {
                         format!(" {}=\"{}\"", attr.name, literal_value)

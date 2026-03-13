@@ -237,6 +237,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.use_async,
             );
             fallback_generator.constant_vars = self.constant_vars.clone();
+            fallback_generator.const_promises_counter = self.const_promises_counter.clone();
+            fallback_generator.const_blocker_map = self.const_blocker_map.clone();
             // Trim leading/trailing whitespace from fallback fragment nodes
             let mut fallback_nodes: Vec<TemplateNode> = fallback_fragment.nodes.to_vec();
             // Skip leading whitespace-only text nodes
@@ -278,20 +280,64 @@ impl<'a> ServerCodeGenerator<'a> {
                     _ => {}
                 }
             }
+            // Track prev_was_const for fallback nodes too
+            let mut fb_prev_was_const = false;
             for node in &fallback_nodes {
+                // Skip whitespace-only text after ConstTag
+                if !self.preserve_whitespace
+                    && fb_prev_was_const
+                    && let TemplateNode::Text(text) = node
+                    && is_svelte_whitespace_only(&text.data)
+                {
+                    fb_prev_was_const = false;
+                    continue;
+                }
+                fb_prev_was_const = matches!(node, TemplateNode::ConstTag(_));
+
+                // Flush accumulated async consts before processing non-const content
+                if !matches!(node, TemplateNode::ConstTag(_))
+                    && !matches!(node, TemplateNode::SnippetBlock(_))
+                {
+                    fallback_generator.flush_async_consts();
+                }
+
                 fallback_generator.generate_node(node, false)?;
             }
-            Some(fallback_generator.output_parts)
+            // Flush remaining async consts
+            fallback_generator.flush_async_consts();
+
+            // Apply const-tag-level async wrapping
+            let fb_const_blocker_map = fallback_generator.const_blocker_map.borrow();
+            let fb_parts = if !fb_const_blocker_map.is_empty() {
+                Self::apply_const_async_wrapping(
+                    &fallback_generator.output_parts,
+                    &fb_const_blocker_map,
+                )
+            } else {
+                fallback_generator.output_parts
+            };
+            drop(fb_const_blocker_map);
+
+            Some(fb_parts)
         } else {
             None
         };
+
+        // Apply const-tag-level async wrapping to body parts
+        let body_const_blocker_map = body_generator.const_blocker_map.borrow();
+        let body_parts = if !body_const_blocker_map.is_empty() {
+            Self::apply_const_async_wrapping(&body_generator.output_parts, &body_const_blocker_map)
+        } else {
+            body_generator.output_parts
+        };
+        drop(body_const_blocker_map);
 
         self.output_parts.push(OutputPart::EachBlock {
             iterable,
             context_name,
             index_name,
             index_alias,
-            body: body_generator.output_parts,
+            body: body_parts,
             fallback,
         });
 

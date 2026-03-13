@@ -102,9 +102,11 @@ fn parse_options(options: &Value) -> napi::Result<CompileOptions> {
             opts.filename = Some(v.to_string());
         }
 
-        // rootDir
+        // rootDir - defaults to process.cwd() equivalent, matching the official Svelte compiler
         if let Some(v) = obj.get("rootDir").and_then(|v| v.as_str()) {
             opts.root_dir = Some(v.to_string());
+        } else if let Ok(cwd) = std::env::current_dir() {
+            opts.root_dir = Some(cwd.to_string_lossy().to_string());
         }
 
         // name

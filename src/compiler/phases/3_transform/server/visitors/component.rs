@@ -39,6 +39,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 || matches!(part, OutputPart::EachBlock { .. })
                 || matches!(part, OutputPart::AwaitBlock { .. })
                 || matches!(part, OutputPart::SvelteBoundary { .. })
+                || matches!(part, OutputPart::SvelteBoundaryWithPending { .. })
                 || matches!(part, OutputPart::RenderCall { .. })
         });
 
@@ -345,6 +346,8 @@ impl<'a> ServerCodeGenerator<'a> {
         // A component is dynamic if it's marked as such in metadata
         let is_dynamic = component.metadata.dynamic;
 
+        let css_props_is_html = self.namespace != "svg";
+
         // Use ComponentWithBindings if there are any bind directives
         if bindings.is_empty() {
             self.output_parts.push(OutputPart::Component {
@@ -357,6 +360,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 dynamic: is_dynamic,
                 let_directives: component_let_directives,
                 css_custom_props,
+                css_props_is_html,
                 in_async_block: false,
                 attach_expressions,
             });
@@ -369,6 +373,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 children,
                 dynamic: is_dynamic,
                 css_custom_props,
+                css_props_is_html,
                 seq_bindings_hoisted: false,
             });
         }
