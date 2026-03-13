@@ -34,7 +34,7 @@ fn main() {
     use svelte_compiler_rust::compiler::phases::phase3_transform::client;
     let result = client::transform_client(&analysis, &ast, source, &options).unwrap();
     println!("=== NORMALIZED (with OXC) ===");
-    println!("{}", result);
+    println!("{}", result.code);
 
     // To see raw, we need to temporarily switch generate to generate_fast
     // Let's just compare timings

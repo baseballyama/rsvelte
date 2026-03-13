@@ -5,11 +5,60 @@
 use super::nodes::*;
 use std::fmt::Write;
 
+/// A raw source span recorded during codegen: (output_byte_offset, source_start, source_end).
+/// output_byte_offset is the position in the generated output string.
+/// source_start/source_end are byte offsets in the original source.
+#[derive(Debug, Clone)]
+pub struct RawSpan {
+    pub output_offset: usize,
+    pub source_start: u32,
+    pub source_end: u32,
+}
+
+/// A single source mapping entry (generated -> original).
+#[derive(Debug, Clone)]
+pub struct SourceMapping {
+    /// Generated line (0-indexed)
+    pub gen_line: u32,
+    /// Generated column (0-indexed)
+    pub gen_col: u32,
+    /// Source index (always 0 for single-source)
+    pub source: u32,
+    /// Original line (0-indexed)
+    pub orig_line: u32,
+    /// Original column (0-indexed)
+    pub orig_col: u32,
+}
+
+/// Result of code generation with source map.
+pub struct CodegenResult {
+    /// The generated JavaScript code
+    pub code: String,
+    /// Source mappings collected during codegen
+    pub mappings: Vec<SourceMapping>,
+}
+
 /// Generate JavaScript source code from a program AST.
 pub fn generate(program: &JsProgram) -> Result<String, String> {
     let mut codegen = JsCodegen::new();
     codegen.emit_program(program);
     Ok(codegen.output)
+}
+
+/// Generate JavaScript source code from a program AST, with source map data.
+pub fn generate_with_sourcemap(program: &JsProgram, source: &str) -> Result<CodegenResult, String> {
+    let mut codegen = JsCodegen::new();
+    codegen.track_mappings = true;
+    codegen.source_code = Some(source);
+    codegen.emit_program(program);
+
+    // Convert raw spans to source mappings
+    let mappings = codegen.compute_mappings();
+
+    Ok(CodegenResult {
+        code: codegen.output,
+        mappings,
+    })
 }
 
 /// Generate JavaScript source code for a single expression.
@@ -20,19 +69,77 @@ pub fn generate_expr(expr: &super::nodes::JsExpr) -> String {
 }
 
 /// JavaScript code generator.
-struct JsCodegen {
+struct JsCodegen<'a> {
     output: String,
     indent_level: usize,
     needs_semicolon: bool,
+    /// Whether to track source mappings
+    track_mappings: bool,
+    /// Raw spans collected during codegen
+    raw_spans: Vec<RawSpan>,
+    /// Original source code (needed for byte offset -> line/col conversion)
+    source_code: Option<&'a str>,
 }
 
-impl JsCodegen {
+impl<'a> JsCodegen<'a> {
     fn new() -> Self {
         Self {
             output: String::with_capacity(32768),
             indent_level: 0,
             needs_semicolon: false,
+            track_mappings: false,
+            raw_spans: Vec::new(),
+            source_code: None,
         }
+    }
+
+    /// Record the start of a spanned expression in the output.
+    fn record_span_start(&mut self, source_start: u32, source_end: u32) {
+        if self.track_mappings {
+            self.raw_spans.push(RawSpan {
+                output_offset: self.output.len(),
+                source_start,
+                source_end,
+            });
+        }
+    }
+
+    /// Convert raw spans to line/column-based source mappings.
+    fn compute_mappings(&self) -> Vec<SourceMapping> {
+        let source_code = match self.source_code {
+            Some(s) => s,
+            None => return Vec::new(),
+        };
+        if self.raw_spans.is_empty() {
+            return Vec::new();
+        }
+
+        let output_line_starts = build_line_starts(&self.output);
+        let source_line_starts = build_line_starts(source_code);
+
+        let mut mappings = Vec::with_capacity(self.raw_spans.len());
+
+        for span in &self.raw_spans {
+            let (gen_line, gen_col) = offset_to_line_col(&output_line_starts, span.output_offset);
+            let (orig_line, orig_col) =
+                offset_to_line_col(&source_line_starts, span.source_start as usize);
+
+            mappings.push(SourceMapping {
+                gen_line: gen_line as u32,
+                gen_col: gen_col as u32,
+                source: 0,
+                orig_line: orig_line as u32,
+                orig_col: orig_col as u32,
+            });
+        }
+
+        // Sort by generated position
+        mappings.sort_by(|a, b| a.gen_line.cmp(&b.gen_line).then(a.gen_col.cmp(&b.gen_col)));
+
+        // Deduplicate: keep only the first mapping at each gen_line/gen_col
+        mappings.dedup_by(|a, b| a.gen_line == b.gen_line && a.gen_col == b.gen_col);
+
+        mappings
     }
 
     fn indent(&mut self) {
@@ -525,6 +632,10 @@ impl JsCodegen {
             JsExpr::Raw(code) => {
                 // Emit raw JavaScript code as-is
                 self.output.push_str(code);
+            }
+            JsExpr::Spanned(inner, start, end) => {
+                self.record_span_start(*start, *end);
+                self.emit_expression(inner);
             }
         }
     }
@@ -1137,6 +1248,9 @@ impl JsCodegen {
             output: String::with_capacity(256),
             indent_level: self.indent_level,
             needs_semicolon: false,
+            track_mappings: false,
+            raw_spans: Vec::new(),
+            source_code: None,
         };
         tmp.emit_statement_inner(stmt);
         if tmp.needs_semicolon {
@@ -1151,6 +1265,9 @@ impl JsCodegen {
             output: String::with_capacity(256),
             indent_level: self.indent_level,
             needs_semicolon: false,
+            track_mappings: false,
+            raw_spans: Vec::new(),
+            source_code: None,
         };
         tmp.emit_expression(expr);
         tmp.output
@@ -1162,6 +1279,9 @@ impl JsCodegen {
             output: String::with_capacity(256),
             indent_level: self.indent_level,
             needs_semicolon: false,
+            track_mappings: false,
+            raw_spans: Vec::new(),
+            source_code: None,
         };
         tmp.emit_object_member(member);
         tmp.output
@@ -1417,6 +1537,203 @@ fn escape_string_single(s: &str) -> std::borrow::Cow<'_, str> {
         }
     }
     std::borrow::Cow::Owned(result)
+}
+
+// ============================================================================
+// Source map helper functions
+// ============================================================================
+
+/// Build a list of byte offsets where each line starts.
+pub fn build_line_starts(s: &str) -> Vec<usize> {
+    let mut starts = vec![0usize];
+    for (i, c) in s.char_indices() {
+        if c == '\n' {
+            starts.push(i + 1);
+        }
+    }
+    starts
+}
+
+/// Convert a byte offset to (line, column), both 0-indexed.
+pub fn offset_to_line_col(line_starts: &[usize], offset: usize) -> (usize, usize) {
+    match line_starts.binary_search(&offset) {
+        Ok(line) => (line, 0),
+        Err(line) => {
+            let line = line.saturating_sub(1);
+            let col = offset.saturating_sub(line_starts[line]);
+            (line, col)
+        }
+    }
+}
+
+/// Encode a list of source mappings into a VLQ-encoded mappings string.
+pub fn encode_vlq_mappings(mappings: &[SourceMapping]) -> String {
+    if mappings.is_empty() {
+        return String::new();
+    }
+
+    let mut result = String::with_capacity(mappings.len() * 8);
+    let mut prev_gen_line: u32 = 0;
+    let mut prev_gen_col: i64 = 0;
+    let mut prev_source: i64 = 0;
+    let mut prev_orig_line: i64 = 0;
+    let mut prev_orig_col: i64 = 0;
+    let mut first_on_line = true;
+
+    for m in mappings {
+        // Add semicolons for line gaps
+        while prev_gen_line < m.gen_line {
+            result.push(';');
+            prev_gen_line += 1;
+            prev_gen_col = 0;
+            first_on_line = true;
+        }
+
+        if !first_on_line {
+            result.push(',');
+        }
+
+        // Field 1: generated column (relative)
+        vlq_encode(&mut result, m.gen_col as i64 - prev_gen_col);
+        // Field 2: source index (relative)
+        vlq_encode(&mut result, m.source as i64 - prev_source);
+        // Field 3: original line (relative)
+        vlq_encode(&mut result, m.orig_line as i64 - prev_orig_line);
+        // Field 4: original column (relative)
+        vlq_encode(&mut result, m.orig_col as i64 - prev_orig_col);
+
+        prev_gen_col = m.gen_col as i64;
+        prev_source = m.source as i64;
+        prev_orig_line = m.orig_line as i64;
+        prev_orig_col = m.orig_col as i64;
+        first_on_line = false;
+    }
+
+    result
+}
+
+/// Encode a single integer as a VLQ value appended to the output string.
+fn vlq_encode(out: &mut String, value: i64) {
+    const B64: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut v = if value < 0 {
+        ((-value) << 1) | 1
+    } else {
+        value << 1
+    } as u64;
+
+    loop {
+        let mut digit = (v & 0x1F) as u8;
+        v >>= 5;
+        if v > 0 {
+            digit |= 0x20; // continuation bit
+        }
+        out.push(B64[digit as usize] as char);
+        if v == 0 {
+            break;
+        }
+    }
+}
+
+/// Compute the source name (relative path from output to input), matching
+/// the official Svelte compiler's `get_source_name` behavior.
+pub fn get_source_name(
+    filename: Option<&str>,
+    output_filename: Option<&str>,
+    default_name: &str,
+) -> String {
+    let source = filename.unwrap_or(default_name);
+    match output_filename {
+        Some(output) => get_relative_path(output, source),
+        None => get_basename(source).to_string(),
+    }
+}
+
+/// Get relative path from `from` to `to`, matching Svelte's `get_relative_path`.
+fn get_relative_path(from: &str, to: &str) -> String {
+    let from_parts: Vec<&str> = from.split('/').collect();
+    let to_parts: Vec<&str> = to.split('/').collect();
+
+    // Remove filename part from `from`
+    let from_dir = &from_parts[..from_parts.len().saturating_sub(1)];
+
+    let mut common = 0;
+    for (a, b) in from_dir.iter().zip(to_parts.iter()) {
+        if a == b {
+            common += 1;
+        } else {
+            break;
+        }
+    }
+
+    let ups = from_dir.len() - common;
+    let mut parts: Vec<&str> = vec![".."; ups];
+    for p in &to_parts[common..] {
+        parts.push(p);
+    }
+
+    let result = parts.join("/");
+    if result.starts_with("../") || result.starts_with("./") {
+        result
+    } else {
+        format!("./{}", result)
+    }
+}
+
+/// Get basename of a path (last component).
+fn get_basename(path: &str) -> &str {
+    path.rsplit('/').next().unwrap_or(path)
+}
+
+/// Generate a complete source map JSON string (v3 format).
+pub fn generate_sourcemap_json(
+    file: &str,
+    source_name: &str,
+    source_content: &str,
+    mappings: &str,
+    names: &[&str],
+) -> String {
+    let mut json = String::with_capacity(256 + source_content.len() + mappings.len());
+    json.push_str("{\"version\":3");
+    json.push_str(",\"file\":\"");
+    json_escape_str(&mut json, file);
+    json.push('"');
+    json.push_str(",\"sources\":[\"");
+    json_escape_str(&mut json, source_name);
+    json.push_str("\"]");
+    json.push_str(",\"sourcesContent\":[\"");
+    json_escape_str(&mut json, source_content);
+    json.push_str("\"]");
+    json.push_str(",\"names\":[");
+    for (i, name) in names.iter().enumerate() {
+        if i > 0 {
+            json.push(',');
+        }
+        json.push('"');
+        json_escape_str(&mut json, name);
+        json.push('"');
+    }
+    json.push(']');
+    json.push_str(",\"mappings\":\"");
+    json.push_str(mappings);
+    json.push_str("\"}");
+    json
+}
+
+/// Escape a string for use in JSON.
+fn json_escape_str(out: &mut String, s: &str) {
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => {
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
+            c => out.push(c),
+        }
+    }
 }
 
 #[cfg(test)]

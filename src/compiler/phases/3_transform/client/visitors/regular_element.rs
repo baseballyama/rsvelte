@@ -948,9 +948,19 @@ pub fn visit_regular_element(
 
         // Add template_effect if there are update statements
         if !child_update.is_empty() {
+            // Use expression body for single expression statements, block body otherwise
+            let effect_fn = if child_update.len() == 1 {
+                if let JsStatement::Expression(expr_stmt) = &child_update[0] {
+                    b::arrow(vec![], (*expr_stmt.expression).clone())
+                } else {
+                    b::arrow_block(vec![], child_update)
+                }
+            } else {
+                b::arrow_block(vec![], child_update)
+            };
             body_stmts.push(b::stmt(b::call(
                 b::member_path("$.template_effect"),
-                vec![b::arrow_block(vec![], child_update)],
+                vec![effect_fn],
             )));
         }
 

@@ -588,6 +588,7 @@ impl serde::Serialize for AttributeNode {
 /// The value of an attribute.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 pub enum AttributeValue {
     /// Boolean attribute (no value).
     True(bool),

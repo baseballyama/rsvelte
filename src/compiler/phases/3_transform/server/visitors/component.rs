@@ -348,22 +348,94 @@ impl<'a> ServerCodeGenerator<'a> {
 
         let css_props_is_html = self.namespace != "svg";
 
+        // Check if any props contain `await` (async mode)
+        let props_have_await = self.use_async
+            && props_and_spreads.iter().any(|item| match item {
+                ComponentPropItem::Props(props) => props
+                    .iter()
+                    .any(|p| super::super::helpers::expr_contains_await(p)),
+                ComponentPropItem::Spread(s) => super::super::helpers::expr_contains_await(s),
+            });
+
         // Use ComponentWithBindings if there are any bind directives
         if bindings.is_empty() {
-            self.output_parts.push(OutputPart::Component {
-                name: comp_name,
-                props_and_spreads,
-                has_prior_content,
-                children,
-                snippets,
-                slot_names,
-                dynamic: is_dynamic,
-                let_directives: component_let_directives,
-                css_custom_props,
-                css_props_is_html,
-                in_async_block: false,
-                attach_expressions,
-            });
+            if props_have_await {
+                // Hoist await expressions from props into async child block
+                let mut declarations = Vec::new();
+                let mut temp_counter = 0;
+                let mut new_props_and_spreads = Vec::with_capacity(props_and_spreads.len());
+
+                for item in &props_and_spreads {
+                    match item {
+                        ComponentPropItem::Props(props) => {
+                            let mut new_props = Vec::with_capacity(props.len());
+                            for prop in props {
+                                if super::super::helpers::expr_contains_await(prop) {
+                                    // Extract the prop name and value
+                                    if let Some(colon_pos) = prop.find(": ") {
+                                        let prop_name = &prop[..colon_pos];
+                                        let prop_value = &prop[colon_pos + 2..];
+                                        if super::super::helpers::expr_contains_await(prop_value) {
+                                            let temp_name = format!("$${}", temp_counter);
+                                            let await_expr =
+                                                Self::extract_await_with_save(prop_value);
+                                            declarations.push(format!(
+                                                "const {} = {};",
+                                                temp_name, await_expr
+                                            ));
+                                            new_props.push(format!("{}: {}", prop_name, temp_name));
+                                            temp_counter += 1;
+                                        } else {
+                                            new_props.push(prop.clone());
+                                        }
+                                    } else {
+                                        new_props.push(prop.clone());
+                                    }
+                                } else {
+                                    new_props.push(prop.clone());
+                                }
+                            }
+                            new_props_and_spreads.push(ComponentPropItem::Props(new_props));
+                        }
+                        ComponentPropItem::Spread(s) => {
+                            new_props_and_spreads.push(ComponentPropItem::Spread(s.clone()));
+                        }
+                    }
+                }
+
+                self.output_parts.push(OutputPart::AsyncChildBlock {
+                    declarations,
+                    inner: vec![OutputPart::Component {
+                        name: comp_name,
+                        props_and_spreads: new_props_and_spreads,
+                        has_prior_content,
+                        children,
+                        snippets,
+                        slot_names,
+                        dynamic: is_dynamic,
+                        let_directives: component_let_directives,
+                        css_custom_props,
+                        css_props_is_html,
+                        in_async_block: true,
+                        attach_expressions,
+                    }],
+                });
+            } else {
+                self.output_parts.push(OutputPart::Component {
+                    name: comp_name,
+                    props_and_spreads,
+                    has_prior_content,
+                    children,
+                    snippets,
+                    slot_names,
+                    dynamic: is_dynamic,
+                    let_directives: component_let_directives,
+                    css_custom_props,
+                    css_props_is_html,
+                    in_async_block: false,
+                    attach_expressions,
+                });
+            }
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
                 name: comp_name,

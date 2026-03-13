@@ -237,11 +237,13 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
         )
     });
 
-    if delegated || is_special_element {
-        // Delegated events and special elements go to init (run parent-first)
+    if is_special_element {
+        // Special elements (svelte:window, svelte:document, svelte:body) are above
+        // the component tree, and their events should run parent-first
         context.state.init.push(statement);
     } else {
-        // Non-delegated regular element events: run after update
+        // All other events (both delegated and non-delegated) go to after_update
+        // Reference: events.js lines 46-51 in the official compiler
         context.state.after_update.push(statement);
     }
 }

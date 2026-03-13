@@ -198,13 +198,13 @@ impl<'a> ServerCodeGenerator<'a> {
         // Generate only the meaningful nodes
         // Track when we've just output a TitleElement to trim leading whitespace from next text
         let mut just_had_title = false;
-        // Track when the previous node was a ConstTag or SnippetBlock - whitespace-only text
-        // after these should be skipped since they don't produce inline HTML output.
-        // SnippetBlock is hoisted, so whitespace between it and the next content is removed.
-        let mut prev_was_const_tag = false;
         // Track whether the previous visible text ended with whitespace, for collapsing
         // whitespace across hoisted nodes (matching clean_nodes behavior in the official compiler)
         let mut prev_text_ends_with_ws = false;
+        // Track whether we've seen any non-hoisted, non-whitespace content.
+        // Before the first real content, whitespace-only text after hoisted nodes
+        // should be suppressed (matching the leading trim in clean_nodes after hoisting).
+        let mut seen_real_content = false;
         let meaningful_nodes_raw = &nodes[start_idx..end_idx];
         // Sort ConstTag nodes topologically (matching official compiler's sort_const_tags)
         let sorted_meaningful_nodes = body_generator.sort_const_tags_in_nodes(meaningful_nodes_raw);
@@ -213,13 +213,16 @@ impl<'a> ServerCodeGenerator<'a> {
         for (i, node) in meaningful_nodes.iter().enumerate() {
             let is_last = i == meaningful_nodes.len() - 1;
 
-            // Skip whitespace-only text nodes after ConstTag/SnippetBlock (unless preserving whitespace)
+            // Whitespace-only text before any real content (after hoisted/transparent nodes):
+            // In the official compiler, hoisted nodes are removed before leading whitespace
+            // trimming, so whitespace between hoisted nodes at the start is removed.
+            // After the first real content, whitespace is handled normally via
+            // prev_text_ends_with_ws collapsing.
             if !self.preserve_whitespace
-                && prev_was_const_tag
+                && !seen_real_content
                 && let TemplateNode::Text(text) = node
                 && is_svelte_whitespace_only(&text.data)
             {
-                prev_was_const_tag = false;
                 continue;
             }
 
@@ -248,17 +251,25 @@ impl<'a> ServerCodeGenerator<'a> {
                 prev_text_ends_with_ws = modified_text.data.ends_with([' ', '\t', '\r', '\n']);
                 body_generator.generate_node(&TemplateNode::Text(modified_text), false)?;
                 just_had_title = false;
-                prev_was_const_tag = false;
+                seen_real_content = true;
                 continue;
             }
             just_had_title = matches!(node, TemplateNode::TitleElement(_));
             let is_const_tag = matches!(node, TemplateNode::ConstTag(_));
+            // Comment nodes without preserveComments are transparent (like SnippetBlock):
+            // they don't produce output, don't reset whitespace tracking, and don't
+            // trigger async const flushing. This matches the official compiler's
+            // clean_nodes behavior which strips comments from the AST.
+            let is_transparent_comment =
+                matches!(node, TemplateNode::Comment(_)) && !self.preserve_comments;
+            let is_hoisted = is_const_tag
+                || matches!(node, TemplateNode::SnippetBlock(_))
+                || is_transparent_comment;
             // Flush accumulated async consts before processing non-const content.
-            // Also skip SnippetBlock since those are hoisted and processed separately.
-            if !is_const_tag && !matches!(node, TemplateNode::SnippetBlock(_)) {
+            // Also skip SnippetBlock and transparent comments since those are hoisted/stripped.
+            if !is_hoisted {
                 body_generator.flush_async_consts();
             }
-            prev_was_const_tag = is_const_tag || matches!(node, TemplateNode::SnippetBlock(_));
 
             // Handle text nodes: apply whitespace collapsing matching clean_nodes behavior
             if let TemplateNode::Text(text) = node {
@@ -286,13 +297,15 @@ impl<'a> ServerCodeGenerator<'a> {
                     let mut modified_text = text.clone();
                     modified_text.data = data.into();
                     body_generator.generate_node(&TemplateNode::Text(modified_text), false)?;
+                    seen_real_content = true;
                 }
                 continue;
             }
 
-            // Non-text node: reset prev_text_ends_with_ws if it's not hoisted
-            if !is_const_tag && !matches!(node, TemplateNode::SnippetBlock(_)) {
+            // Non-text node: reset prev_text_ends_with_ws if it's not hoisted/transparent
+            if !is_hoisted {
                 prev_text_ends_with_ws = false;
+                seen_real_content = true;
             }
 
             body_generator.generate_node(node, false)?;

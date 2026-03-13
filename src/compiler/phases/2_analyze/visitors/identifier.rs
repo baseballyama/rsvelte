@@ -265,20 +265,35 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         let binding = &context.analysis.root.bindings[binding_idx];
         let instance_scope = context.analysis.root.instance_scope_index;
 
-        // Determine the function_depth of the binding's scope
-        // Module scope (0) = function_depth 0, instance scope = function_depth 1
-        let binding_function_depth = if binding.scope_index == 0 {
-            0
+        // In the official Svelte compiler, function_depth uses absolute numbering:
+        //   module scope = 0, instance scope = 1, template scope = 2
+        // The check is: context.state.function_depth === binding.scope.function_depth
+        //
+        // In our implementation, function_depth is relative to the current AST section:
+        //   - In module script: starts at 0
+        //   - In instance script: starts at 1
+        //   - In template: starts at 0 (but should be 2 in absolute terms)
+        //
+        // To match the official behavior, we compute absolute function depths:
+        let absolute_context_depth = match context.ast_type {
+            super::AstType::Module => context.function_depth, // module base = 0
+            super::AstType::Instance => context.function_depth, // instance base = 1 (already correct)
+            super::AstType::Template => context.function_depth + 2, // template base = 2
+        };
+
+        // Binding's absolute function depth
+        let binding_absolute_depth = if binding.scope_index == 0 {
+            0 // module scope
         } else if binding.scope_index == instance_scope {
-            1
+            1 // instance scope
         } else {
             // For other scopes, we can't easily determine the function depth.
             // Skip the warning for non-top-level bindings.
             usize::MAX
         };
 
-        // Check if the current function_depth matches the binding's scope function_depth
-        if context.function_depth == binding_function_depth {
+        // Check if the absolute function depths match
+        if absolute_context_depth == binding_absolute_depth {
             // Check binding kind eligibility
             let is_eligible_kind = match binding.kind {
                 // State: warn if reassigned, or if the initial value is a primitive
@@ -379,10 +394,17 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
                         }
                     }
 
+                    let node_start = node.get("start").and_then(|s| s.as_u64()).map(|s| s as u32);
+                    let node_end = node.get("end").and_then(|e| e.as_u64()).map(|e| e as u32);
                     context
                         .analysis
                         .warnings
-                        .push(warnings::state_referenced_locally(name, warning_type));
+                        .push(warnings::state_referenced_locally(
+                            name,
+                            warning_type,
+                            node_start,
+                            node_end,
+                        ));
                 }
             }
         }

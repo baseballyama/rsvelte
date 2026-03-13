@@ -341,6 +341,10 @@ pub enum JsExpr {
     Void(Box<JsExpr>),
     /// Raw JavaScript code (as a string)
     Raw(CompactString),
+    /// Expression with source span (start, end byte offsets in original source).
+    /// Used for source map generation. The codegen emits the inner expression
+    /// and records start/end mappings.
+    Spanned(Box<JsExpr>, u32, u32),
 }
 
 /// Literal value.

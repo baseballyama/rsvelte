@@ -1593,6 +1593,11 @@ pub struct TransformOptions {
     /// When true, Svelte 5 async features are enabled and legacy reactivity
     /// patterns should not be used even for non-runes components.
     pub experimental_async: bool,
+
+    /// Whether HMR (Hot Module Replacement) is enabled.
+    /// When true, components need fragment wrappers even in standalone mode
+    /// because $.hmr() uses block/branch effects that need stable anchor nodes.
+    pub hmr: bool,
 }
 
 impl Default for TransformOptions {
@@ -1603,6 +1608,7 @@ impl Default for TransformOptions {
             preserve_whitespace: false,
             preserve_comments: false,
             experimental_async: false,
+            hmr: false,
         }
     }
 }

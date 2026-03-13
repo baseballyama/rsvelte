@@ -164,6 +164,17 @@ fn add_esrap_blank_lines(code: &str) -> String {
     let mut prev_multiline_at_indent: std::collections::HashMap<usize, bool> =
         std::collections::HashMap::new();
 
+    // Track whether each indent level is a "statement context" (function body, if-block, etc.)
+    // or a "property context" (object literal properties). esrap only adds blank lines between
+    // statements, not between object properties.
+    // true = statement context (add blank lines), false = property context (no blank lines)
+    let mut is_statement_context: std::collections::HashMap<usize, bool> =
+        std::collections::HashMap::new();
+    // The top level and any function body are statement contexts
+    is_statement_context.insert(0, true);
+    // Track indent levels that have a pending leading comment for the next statement
+    let mut comment_at_indent: std::collections::HashSet<usize> = std::collections::HashSet::new();
+
     // Track whether we're inside a template literal (backtick string).
     // Lines inside template literals must not be modified.
     let mut in_template_literal = false;
@@ -194,13 +205,23 @@ fn add_esrap_blank_lines(code: &str) -> String {
             in_template_literal = true;
         }
 
-        // Skip empty lines (we'll add them ourselves)
+        // Handle blank lines based on context:
+        // In statement contexts: strip blank lines and reconstruct based on esrap rules
+        // In property contexts (object literals): preserve blank lines from source
         if line.trim().is_empty() {
-            // Preserve blank lines that are part of the original structure (e.g., between
-            // top-level sections), but skip duplicate blank lines
-            if !result.is_empty() && result.last() != Some(&"") {
-                result.push("");
+            // Look at the next non-empty line to determine which context this blank line belongs to
+            let next_indent = lines[(i + 1)..]
+                .iter()
+                .find(|l| !l.trim().is_empty())
+                .map(|l| l.bytes().take_while(|&b| b == b'\t').count());
+            let in_prop_context = next_indent
+                .and_then(|indent| is_statement_context.get(&indent))
+                .map(|&is_stmt| !is_stmt)
+                .unwrap_or(false);
+            if in_prop_context {
+                result.push(line);
             }
+            // In statement context: skip the blank line (we'll add our own)
             i += 1;
             continue;
         }
@@ -227,28 +248,66 @@ fn add_esrap_blank_lines(code: &str) -> String {
             continue;
         }
 
-        // If a line opens a new block (ends with `{`), reset tracking for inner level
+        // When a line opens a block with `{`, determine if the inner content is
+        // statement context or property context.
         if trimmed.ends_with('{') {
             prev_type_at_indent.remove(&(indent_level + 1));
             prev_multiline_at_indent.remove(&(indent_level + 1));
+
+            // Detect if this opens an object literal (property context) or a statement block.
+            // Object literals are opened by patterns like:
+            //   `Foo(args, {`  or  `identifier({`  or  `= {`  or  `return {`
+            // Statement blocks are opened by:
+            //   `function ...() {`  `if (...) {`  `for (...) {`  `=> {`  `else {`
+            let opens_object = is_object_literal_opening(trimmed);
+            is_statement_context.insert(indent_level + 1, !opens_object);
         }
+
+        // When a line ends with `(`, the arguments inside are NOT in a statement context.
+        // e.g., `$$renderer.option(` followed by args at indent_level+1
+        if trimmed.ends_with('(') {
+            prev_type_at_indent.remove(&(indent_level + 1));
+            prev_multiline_at_indent.remove(&(indent_level + 1));
+            is_statement_context.insert(indent_level + 1, false);
+        }
+
+        // Check if this indent level is in a statement context
+        let in_stmt_context = is_statement_context
+            .get(&indent_level)
+            .copied()
+            .unwrap_or(true);
 
         // Determine the statement type
         let stmt_type = classify_server_line(trimmed);
 
-        // Check if this statement is multiline (spans multiple lines)
-        let is_multiline = is_server_stmt_multiline(&lines, i, indent_level);
+        // Comments are "transparent" - they attach to the following node (as leading
+        // comments in esrap). They don't trigger blank lines or update type tracking.
+        // However, they make the following statement multiline.
+        if stmt_type == "Comment" {
+            comment_at_indent.insert(indent_level);
+            result.push(line);
+            i += 1;
+            continue;
+        }
 
-        // Check if we need a blank line before this statement
-        if let Some(prev_type) = prev_type_at_indent.get(&indent_level) {
-            let prev_ml = prev_multiline_at_indent
-                .get(&indent_level)
-                .copied()
-                .unwrap_or(false);
-            if stmt_type != *prev_type || is_multiline || prev_ml {
-                // Add blank line if the last line in result isn't already blank
-                if !result.is_empty() && result.last() != Some(&"") {
-                    result.push("");
+        // Check if this statement is multiline (spans multiple lines)
+        // A leading comment makes the statement multiline
+        let has_leading_comment = comment_at_indent.remove(&indent_level);
+        let is_multiline = has_leading_comment || is_server_stmt_multiline(&lines, i, indent_level);
+
+        // Only add blank lines in statement contexts (not inside object literals)
+        if in_stmt_context {
+            // Check if we need a blank line before this statement
+            if let Some(prev_type) = prev_type_at_indent.get(&indent_level) {
+                let prev_ml = prev_multiline_at_indent
+                    .get(&indent_level)
+                    .copied()
+                    .unwrap_or(false);
+                if stmt_type != *prev_type || is_multiline || prev_ml {
+                    // Add blank line if the last line in result isn't already blank
+                    if !result.is_empty() && result.last() != Some(&"") {
+                        result.push("");
+                    }
                 }
             }
         }
@@ -267,6 +326,71 @@ fn add_esrap_blank_lines(code: &str) -> String {
     let mut output = result.join("\n");
     output.push('\n'); // ensure trailing newline
     output
+}
+
+/// Determine if a line ending with `{` opens an object literal (property context)
+/// rather than a statement block.
+fn is_object_literal_opening(trimmed: &str) -> bool {
+    // Lines ending with `=> {` open a function body (arrow function)
+    if trimmed.ends_with("=> {") {
+        return false;
+    }
+
+    // Lines starting with block keywords open statement blocks
+    if trimmed.starts_with("function ")
+        || trimmed.starts_with("async function ")
+        || trimmed.starts_with("if ")
+        || trimmed.starts_with("if(")
+        || trimmed.starts_with("} else if ")
+        || trimmed.starts_with("} else {")
+        || trimmed.starts_with("else {")
+        || trimmed.starts_with("for ")
+        || trimmed.starts_with("for(")
+        || trimmed.starts_with("while ")
+        || trimmed.starts_with("while(")
+        || trimmed.starts_with("do {")
+        || trimmed.starts_with("do{")
+        || trimmed.starts_with("try {")
+        || trimmed.starts_with("} catch")
+        || trimmed.starts_with("} finally")
+        || trimmed.starts_with("class ")
+        || trimmed.starts_with("switch ")
+        || trimmed.starts_with("switch(")
+        || trimmed.starts_with("export default function")
+        || trimmed.starts_with("export function")
+    {
+        return false;
+    }
+
+    // If line ends with `) {` after a function-like pattern, it's a statement block
+    // e.g., `constructor(...) {`, `get name() {`, `set name(val) {`
+    if trimmed.ends_with(") {") {
+        // Check for method/constructor patterns
+        if trimmed.starts_with("constructor(")
+            || trimmed.starts_with("constructor (")
+            || trimmed.starts_with("get ")
+            || trimmed.starts_with("set ")
+            || trimmed.starts_with("async ")
+        {
+            return false;
+        }
+        // Generic function call followed by `{` - e.g., named methods
+        // If it has `(` and `) {` it's likely a function/method definition
+        if let Some(paren_pos) = trimmed.find('(') {
+            let before_paren = &trimmed[..paren_pos];
+            // If the part before `(` is a simple identifier, it's a method definition
+            if before_paren
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+            {
+                return false;
+            }
+        }
+    }
+
+    // Otherwise, `{` at the end typically opens an object literal
+    // e.g., `Foo(args, {`, `return {`, `const x = {`, `key: {`
+    true
 }
 
 /// Classify a line of server-generated code by its statement type.
@@ -299,7 +423,7 @@ fn classify_server_line(trimmed: &str) -> &'static str {
         "ClassDeclaration"
     } else if trimmed.starts_with("do ") || trimmed.starts_with("do{") {
         "DoWhileStatement"
-    } else if trimmed.starts_with("/*") {
+    } else if trimmed.starts_with("/*") || trimmed.starts_with("//") {
         "Comment"
     } else {
         "ExpressionStatement"
@@ -357,6 +481,9 @@ fn split_concatenated_braces(code: &str) -> String {
                 && !rest.starts_with(',')
                 && !rest.starts_with(';')
                 && !rest.starts_with("else")
+                && !rest.starts_with("while")
+                && !rest.starts_with("catch")
+                && !rest.starts_with("finally")
                 && rest != "}"
             {
                 // Determine indentation of the original line
@@ -365,14 +492,9 @@ fn split_concatenated_braces(code: &str) -> String {
                 result.push_str(&indent);
                 result.push('}');
                 result.push('\n');
-                // The following statement gets one less level of indentation
-                // since it was inside the block that just closed
-                let new_indent = if indent.ends_with('\t') {
-                    &indent[..indent.len() - 1]
-                } else {
-                    &indent
-                };
-                result.push_str(new_indent);
+                // The following statement is at the same level as the closing brace
+                // (it's a sibling statement after the block)
+                result.push_str(&indent);
                 result.push_str(rest);
                 result.push('\n');
                 continue;
@@ -1388,14 +1510,25 @@ impl<'a> ServerCodeGenerator<'a> {
                 // When snippets are between content nodes, we need to preserve one space
                 // (matching clean_nodes which merges text around hoisted nodes).
                 //
-                // Check if previous node is a snippet
+                // Check if previous node is a snippet at the leading edge.
+                // Only skip whitespace after snippet when there's no real content
+                // before the snippet (i.e., snippet is at the start of the fragment).
+                // When the snippet is between content nodes, the whitespace should be
+                // handled by prev_text_ends_with_ws collapsing, not skipped entirely.
                 if i > 0
                     && let TemplateNode::SnippetBlock(_) = nodes[i - 1]
                 {
-                    // Skip whitespace after snippet UNLESS there's meaningful content
-                    // after this whitespace (i.e., the snippet was between content nodes)
-                    // In that case the whitespace BEFORE the snippet already produced the space.
-                    continue;
+                    let has_content_before_snippet = nodes[..i - 1].iter().any(|n| {
+                        !matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data))
+                            && (!matches!(n, TemplateNode::Comment(_)) || self.preserve_comments)
+                            && !matches!(n, TemplateNode::SnippetBlock(_))
+                            && !matches!(n, TemplateNode::ConstTag(_))
+                    });
+                    if !has_content_before_snippet {
+                        continue;
+                    }
+                    // When there IS content before, let the whitespace go through
+                    // normal processing with prev_text_ends_with_ws collapsing
                 }
                 // Check if next node is a snippet
                 if i + 1 < len
@@ -1450,17 +1583,12 @@ impl<'a> ServerCodeGenerator<'a> {
                 if i + 1 < len && matches!(nodes[i + 1], TemplateNode::DebugTag(_)) {
                     continue;
                 }
-                // Comments are skipped during rendering (unless preserveComments is set).
-                // Whitespace around them should collapse to a single space (matching
-                // clean_nodes behavior which strips comments first, then collapses
-                // adjacent whitespace). Skip whitespace BEFORE a comment; keep whitespace
-                // AFTER to produce one space total.
-                if !self.preserve_comments
-                    && i + 1 < len
-                    && matches!(nodes[i + 1], TemplateNode::Comment(_))
-                {
-                    continue;
-                }
+                // Comments are transparent during rendering (stripped in clean_nodes).
+                // Whitespace before/after comments is handled naturally by the
+                // prev_text_ends_with_ws collapsing mechanism, which also handles
+                // whitespace around SnippetBlocks and ConstTags.
+                // Whitespace AFTER a comment doesn't need special handling because
+                // the Comment node doesn't reset prev_text_ends_with_ws.
             }
             // Handle text node modifications:
             // 1. Trim leading whitespace from the first text after anchor comment
@@ -1525,10 +1653,13 @@ impl<'a> ServerCodeGenerator<'a> {
                 {
                     trim_leading_ws = false;
                 }
-                // Reset prev_text_ends_with_ws for non-hoisted nodes
-                if !matches!(node, TemplateNode::SnippetBlock(_))
-                    && !matches!(node, TemplateNode::ConstTag(_))
-                {
+                // Reset prev_text_ends_with_ws for non-hoisted/non-transparent nodes.
+                // SnippetBlock, ConstTag, and Comment (when !preserveComments) are
+                // transparent: they don't affect whitespace collapsing between text nodes.
+                let is_transparent = matches!(node, TemplateNode::SnippetBlock(_))
+                    || matches!(node, TemplateNode::ConstTag(_))
+                    || (matches!(node, TemplateNode::Comment(_)) && !self.preserve_comments);
+                if !is_transparent {
                     prev_text_ends_with_ws = false;
                 }
             }

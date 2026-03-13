@@ -152,13 +152,70 @@ impl<'a> ServerCodeGenerator<'a> {
             None
         };
 
-        // Push SelectElement OutputPart
-        self.output_parts.push(OutputPart::SelectElement {
-            attrs_obj,
-            body: body_generator.output_parts,
+        // Check if any attribute values contain `await` and async mode is enabled
+        let any_attr_has_await = self.use_async
+            && attrs
+                .iter()
+                .any(|(_, v)| super::super::helpers::expr_contains_await(v));
+
+        // Also check if body parts contain await (e.g., option with await expr)
+        let body_has_await =
+            self.use_async && Self::output_parts_contain_await(&body_generator.output_parts);
+
+        let select_part = OutputPart::SelectElement {
+            attrs_obj: if any_attr_has_await {
+                // Replace await expressions in attrs with temp variables
+                let mut new_attrs_parts = Vec::new();
+                let mut declarations = Vec::new();
+                let mut temp_counter = 0;
+
+                for (name, value) in &attrs {
+                    if name == "__spread__" {
+                        new_attrs_parts.push(value.clone());
+                    } else if super::super::helpers::expr_contains_await(value) {
+                        let temp_name = format!("$${}", temp_counter);
+                        // Use $.save for select value attrs (they precede children that depend on them)
+                        let await_expr = Self::extract_await_with_save(value);
+                        declarations.push(format!("const {} = {};", temp_name, await_expr));
+                        new_attrs_parts.push(format!("{}: {}", quote_prop_name(name), temp_name));
+                        temp_counter += 1;
+                    } else {
+                        new_attrs_parts.push(format!("{}: {}", quote_prop_name(name), value));
+                    }
+                }
+
+                let new_attrs_obj = if new_attrs_parts.is_empty() {
+                    "{}".to_string()
+                } else {
+                    format!("{{ {} }}", new_attrs_parts.join(", "))
+                };
+
+                // Wrap everything in AsyncChild
+                self.output_parts.push(OutputPart::AsyncChild {
+                    declarations,
+                    inner: vec![OutputPart::SelectElement {
+                        attrs_obj: new_attrs_obj,
+                        body: body_generator.output_parts,
+                        is_rich,
+                        css_hash,
+                    }],
+                });
+
+                return Ok(());
+            } else {
+                attrs_obj
+            },
+            body: if body_has_await && !any_attr_has_await {
+                // Body has await but attrs don't - body children will handle their own wrapping
+                body_generator.output_parts
+            } else {
+                body_generator.output_parts
+            },
             is_rich,
             css_hash,
-        });
+        };
+
+        self.output_parts.push(select_part);
 
         Ok(())
     }
@@ -366,13 +423,30 @@ impl<'a> ServerCodeGenerator<'a> {
             // Check if this option has rich content
             let is_rich = Self::is_rich_option_content(&element.fragment.nodes);
 
-            self.output_parts.push(OutputPart::OptionElement {
-                attr_entries,
-                body: Vec::new(),
-                is_rich,
-                direct_value: Some(expr_source),
-                css_hash: css_hash.clone(),
-            });
+            // If the expression contains `await`, wrap in AsyncChild
+            if self.use_async && super::super::helpers::expr_contains_await(&expr_source) {
+                let temp_name = "$$0";
+                // For option direct_value, use plain await (no $.save)
+                let declarations = vec![format!("const {} = {};", temp_name, expr_source)];
+                self.output_parts.push(OutputPart::AsyncChild {
+                    declarations,
+                    inner: vec![OutputPart::OptionElement {
+                        attr_entries,
+                        body: Vec::new(),
+                        is_rich,
+                        direct_value: Some(temp_name.to_string()),
+                        css_hash: css_hash.clone(),
+                    }],
+                });
+            } else {
+                self.output_parts.push(OutputPart::OptionElement {
+                    attr_entries,
+                    body: Vec::new(),
+                    is_rich,
+                    direct_value: Some(expr_source),
+                    css_hash: css_hash.clone(),
+                });
+            }
 
             return Ok(());
         }
@@ -498,5 +572,71 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
         false
+    }
+
+    /// Check if any output parts contain `await` expressions.
+    pub(crate) fn output_parts_contain_await(parts: &[OutputPart]) -> bool {
+        for part in parts {
+            match part {
+                OutputPart::Html(html) | OutputPart::HtmlWithExclusions { html, .. } => {
+                    if super::super::helpers::expr_contains_await(html) {
+                        return true;
+                    }
+                }
+                OutputPart::Expression(expr) => {
+                    if super::super::helpers::expr_contains_await(expr) {
+                        return true;
+                    }
+                }
+                OutputPart::AsyncExpression { .. } => return true,
+                OutputPart::OptionElement {
+                    direct_value,
+                    body,
+                    attr_entries,
+                    ..
+                } => {
+                    if let Some(v) = direct_value
+                        && super::super::helpers::expr_contains_await(v)
+                    {
+                        return true;
+                    }
+                    for entry in attr_entries {
+                        if super::super::helpers::expr_contains_await(entry) {
+                            return true;
+                        }
+                    }
+                    if Self::output_parts_contain_await(body) {
+                        return true;
+                    }
+                }
+                OutputPart::SelectElement {
+                    attrs_obj, body, ..
+                } => {
+                    if super::super::helpers::expr_contains_await(attrs_obj) {
+                        return true;
+                    }
+                    if Self::output_parts_contain_await(body) {
+                        return true;
+                    }
+                }
+                OutputPart::Component { .. } => {
+                    // Components handle their own async
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+
+    /// Extract an await expression and wrap with `$.save()` for select value attributes.
+    /// Transforms `await Promise.resolve('dog')` into `(await $.save(Promise.resolve('dog')))()`
+    pub(crate) fn extract_await_with_save(expr: &str) -> String {
+        let trimmed = expr.trim();
+        if let Some(argument) = trimmed.strip_prefix("await ") {
+            format!("(await $.save({}))()", argument.trim())
+        } else {
+            // Not an await expression, return as-is
+            trimmed.to_string()
+        }
     }
 }

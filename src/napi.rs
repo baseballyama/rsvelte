@@ -38,34 +38,38 @@ pub fn napi_compile(source: String, options: Value) -> napi::Result<Value> {
                 .warnings
                 .iter()
                 .map(|w| {
-                    let mut obj = serde_json::json!({
-                        "code": w.code,
-                        "message": w.message,
-                    });
+                    // Build warning object with keys in the same order as official Svelte:
+                    // code, message, filename, start, end, position, frame
+                    let mut map = serde_json::Map::new();
+                    map.insert("code".to_string(), Value::String(w.code.clone()));
+                    map.insert("message".to_string(), Value::String(w.message.clone()));
                     if let Some(ref filename) = w.filename {
-                        obj["filename"] = Value::String(filename.clone());
+                        map.insert("filename".to_string(), Value::String(filename.clone()));
                     }
                     if let Some(ref start) = w.start {
-                        obj["start"] = serde_json::json!({
-                            "line": start.line,
-                            "column": start.column,
-                            "character": start.character,
-                        });
+                        let mut s = serde_json::Map::new();
+                        s.insert("line".to_string(), serde_json::json!(start.line));
+                        s.insert("column".to_string(), serde_json::json!(start.column));
+                        s.insert("character".to_string(), serde_json::json!(start.character));
+                        map.insert("start".to_string(), Value::Object(s));
                     }
                     if let Some(ref end) = w.end {
-                        obj["end"] = serde_json::json!({
-                            "line": end.line,
-                            "column": end.column,
-                            "character": end.character,
-                        });
+                        let mut e = serde_json::Map::new();
+                        e.insert("line".to_string(), serde_json::json!(end.line));
+                        e.insert("column".to_string(), serde_json::json!(end.column));
+                        e.insert("character".to_string(), serde_json::json!(end.character));
+                        map.insert("end".to_string(), Value::Object(e));
                     }
                     if let (Some(start), Some(end)) = (&w.start, &w.end) {
-                        obj["position"] = serde_json::json!([start.character, end.character,]);
+                        map.insert(
+                            "position".to_string(),
+                            serde_json::json!([start.character, end.character]),
+                        );
                     }
                     if let Some(ref frame) = w.frame {
-                        obj["frame"] = Value::String(frame.clone());
+                        map.insert("frame".to_string(), Value::String(frame.clone()));
                     }
-                    obj
+                    Value::Object(map)
                 })
                 .collect();
 
@@ -225,6 +229,14 @@ fn parse_options(options: &Value) -> napi::Result<CompileOptions> {
             opts.css_hash = Some(std::sync::Arc::new(
                 move |_: &crate::compiler::CssHashInput| hash_override.clone(),
             ));
+        }
+
+        // fragments
+        if let Some(v) = obj.get("fragments").and_then(|v| v.as_str()) {
+            opts.fragments = match v {
+                "tree" => crate::compiler::FragmentMode::Tree,
+                _ => crate::compiler::FragmentMode::Html,
+            };
         }
 
         // warningFilter - skip (JS function, use default)

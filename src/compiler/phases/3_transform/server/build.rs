@@ -497,7 +497,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
 		$$renderer.subsume($$inner_renderer);
 "#,
-                        body_code = inner_body.replace("\t\t", "\t\t\t") // Increase indentation by 1 tab
+                        body_code = inner_body.clone()
                     )
                 } else {
                     inner_body
@@ -597,7 +597,20 @@ export default function {component_name}($$renderer{props_param}) {{
 
 	$$renderer.subsume($$inner_renderer);
 "#,
-                        body_code = body_code.replace("\t", "\t\t") // Increase indentation
+                        body_code = {
+                            // Add one tab of indentation to each non-empty line
+                            let mut result = String::new();
+                            for line in body_code.lines() {
+                                if line.trim().is_empty() {
+                                    result.push('\n');
+                                } else {
+                                    result.push('\t');
+                                    result.push_str(line);
+                                    result.push('\n');
+                                }
+                            }
+                            result
+                        }
                     )
                 } else {
                     body_code.clone()
@@ -1358,6 +1371,20 @@ export default function {component_name}($$renderer{props_param}) {{
                         result.push(part.clone());
                     }
                 }
+                OutputPart::AsyncExpression { expr, has_save } => {
+                    let blockers = super::helpers::find_expression_blockers(expr, blocker_map);
+                    if !blockers.is_empty() {
+                        result.push(OutputPart::AsyncWrappedExpression {
+                            blocker_indices: blockers,
+                            expr: expr.clone(),
+                        });
+                    } else {
+                        result.push(OutputPart::AsyncExpression {
+                            expr: expr.clone(),
+                            has_save: *has_save,
+                        });
+                    }
+                }
                 _ => {
                     result.push(part.clone());
                 }
@@ -2019,19 +2046,16 @@ export default function {component_name}($$renderer{props_param}) {{
                         continue;
                     }
 
-                    // Collapse consecutive spaces: if current_html ends with space and html is just a space
-                    if !(current_html.ends_with(' ') && html == " ") {
-                        // Guard against accidental `${` sequences formed by concatenation
-                        // of separate Html parts (e.g., text "$" + expression-folded "{").
-                        // This would create a template literal expression in the output.
-                        // Insert `\` before the `$` to produce `\${` which is the standard
-                        // template literal escape for a literal `${`.
-                        if current_html.ends_with('$') && html.starts_with('{') {
-                            let len = current_html.len();
-                            current_html.insert(len - 1, '\\');
-                        }
-                        current_html.push_str(html);
+                    // Guard against accidental `${` sequences formed by concatenation
+                    // of separate Html parts (e.g., text "$" + expression-folded "{").
+                    // This would create a template literal expression in the output.
+                    // Insert `\` before the `$` to produce `\${` which is the standard
+                    // template literal escape for a literal `${`.
+                    if current_html.ends_with('$') && html.starts_with('{') {
+                        let len = current_html.len();
+                        current_html.insert(len - 1, '\\');
                     }
+                    current_html.push_str(html);
                 }
                 OutputPart::Expression(expr) => {
                     current_html.push_str(&format!("${{$.escape({})}}", expr));
@@ -2282,9 +2306,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     expr,
                 } => {
                     // Async-wrapped expression: flush current HTML, then emit
-                    // $$renderer.async([$$promises[N], ...], ($$renderer) => {
-                    //     $$renderer.push(() => $.escape(expr));
-                    // })
+                    // $$renderer.async([$$promises[N], ...], ($$renderer) => $$renderer.push(async () => $.escape(expr)))
                     if !current_html.is_empty() {
                         body_code
                             .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
@@ -2297,10 +2319,17 @@ export default function {component_name}($$renderer{props_param}) {{
                         .collect::<Vec<_>>()
                         .join(", ");
 
-                    // Use concise arrow body: ($$renderer) => $$renderer.push(...)
+                    // Transform the expression with $.save() if it contains await
+                    let transformed_expr = if super::helpers::expr_contains_await(expr) {
+                        super::helpers::transform_await_to_save(expr)
+                    } else {
+                        expr.clone()
+                    };
+
+                    // Use concise arrow body with async: ($$renderer) => $$renderer.push(async () => $.escape(...))
                     body_code.push_str(&format!(
-                        "{}$$renderer.async([{}], ($$renderer) => $$renderer.push(() => $.escape({})));\n",
-                        indent, blockers_str, expr
+                        "{}$$renderer.async([{}], ($$renderer) => $$renderer.push(async () => $.escape({})));\n",
+                        indent, blockers_str, transformed_expr
                     ));
                 }
                 OutputPart::AsyncWrappedExpressionCustom { blockers, expr } => {
@@ -2589,7 +2618,7 @@ export default function {component_name}($$renderer{props_param}) {{
 
                         // Regular props first
                         for prop in &all_props {
-                            body_code.push_str(&format!("{}\t\t{},\n", indent, prop));
+                            body_code.push_str(&format!("{}\t{},\n", indent, prop));
                         }
 
                         // Generate getter/setter for each binding
@@ -2600,25 +2629,21 @@ export default function {component_name}($$renderer{props_param}) {{
                                 resolve_binding_exprs(binding, store_subs);
                             let is_seq =
                                 matches!(binding, ComponentBinding::SequenceExpression { .. });
-                            body_code.push_str(&format!("{}\t\tget {}() {{\n", indent, prop_name));
+                            body_code.push_str(&format!("{}\tget {}() {{\n", indent, prop_name));
+                            body_code.push_str(&format!("{}\t\treturn {};\n", indent, getter_expr));
+                            body_code.push_str(&format!("{}\t}},\n\n", indent));
                             body_code
-                                .push_str(&format!("{}\t\t\treturn {};\n", indent, getter_expr));
-                            body_code.push_str(&format!("{}\t\t}},\n\n", indent));
-                            body_code.push_str(&format!(
-                                "{}\t\tset {}($$value) {{\n",
-                                indent, prop_name
-                            ));
-                            body_code.push_str(&format!("{}\t\t\t{};\n", indent, setter_expr));
+                                .push_str(&format!("{}\tset {}($$value) {{\n", indent, prop_name));
+                            body_code.push_str(&format!("{}\t\t{};\n", indent, setter_expr));
                             if !is_seq {
-                                body_code
-                                    .push_str(&format!("{}\t\t\t$$settled = false;\n", indent));
+                                body_code.push_str(&format!("{}\t\t$$settled = false;\n", indent));
                             }
                             if idx < binding_count - 1 || has_children {
                                 // Trailing comma + blank line between binding pairs
-                                body_code.push_str(&format!("{}\t\t}},\n\n", indent));
+                                body_code.push_str(&format!("{}\t}},\n\n", indent));
                             } else {
                                 // Last binding with no children - no trailing comma
-                                body_code.push_str(&format!("{}\t\t}}\n", indent));
+                                body_code.push_str(&format!("{}\t}}\n", indent));
                             }
                         }
 
@@ -2626,19 +2651,19 @@ export default function {component_name}($$renderer{props_param}) {{
                         if let Some(children_parts) = children {
                             let children_code = Self::build_parts_with_store_subs(
                                 children_parts,
-                                indent_level + 3,
+                                indent_level + 2,
                                 each_counter,
                                 store_subs,
                             );
                             body_code
-                                .push_str(&format!("{}\t\tchildren: ($$renderer) => {{\n", indent));
+                                .push_str(&format!("{}\tchildren: ($$renderer) => {{\n", indent));
                             body_code.push_str(&children_code);
-                            body_code.push_str(&format!("{}\t\t}},\n", indent));
+                            body_code.push_str(&format!("{}\t}},\n", indent));
                             body_code
-                                .push_str(&format!("{}\t\t$$slots: {{ default: true }}\n", indent));
+                                .push_str(&format!("{}\t$$slots: {{ default: true }}\n", indent));
                         }
 
-                        body_code.push_str(&format!("{}\t}});\n", indent));
+                        body_code.push_str(&format!("{}}});\n", indent));
                     }
 
                     // Add <!---->  marker for hydration boundary after binding component
@@ -3438,12 +3463,12 @@ export default function {component_name}($$renderer{props_param}) {{
                     // ($.css_props handles its own boundaries).
                     // When child_block wrapping is used, skip the marker (child_block
                     // acts as its own boundary).
-                    if !has_css_props && !used_child_block {
-                        if *dynamic && !*in_async_block {
+                    if !has_css_props && !used_child_block && !*in_async_block {
+                        if *dynamic {
                             // Dynamic components always need the closing marker
                             // (they are never "standalone" per clean_nodes)
                             current_html.push_str("<!---->");
-                        } else if !*dynamic {
+                        } else {
                             let has_content_after = parts[i + 1..].iter().any(|p| {
                                 matches!(
                                     p,
@@ -3742,6 +3767,7 @@ export default function {component_name}($$renderer{props_param}) {{
                             indent
                         ));
                         body_code.push_str(&if_code);
+                        body_code.push('\n');
                         body_code.push_str(&format!("{}}});\n\n", indent));
                     } else {
                         // Generate the if block with proper markers (no async wrapping)
@@ -3988,50 +4014,71 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Generate $.await call with proper callbacks
                     // The official Svelte compiler only passes 4 args: $$renderer, promise, pending, then
                     // The catch callback is NOT included in server-side output
-                    body_code.push_str(&format!("{}$.await(\n", indent));
-                    body_code.push_str(&format!("{}\t$$renderer,\n", indent));
-                    body_code.push_str(&format!("{}\t{},\n", indent, promise));
 
-                    // Pending callback
-                    if pending_body.is_empty() {
-                        body_code.push_str(&format!("{}\t() => {{}},\n", indent));
-                    } else {
-                        body_code.push_str(&format!("{}\t() => {{\n", indent));
-                        let pending_code = Self::build_parts_with_store_subs(
-                            pending_body,
-                            indent_level + 2,
-                            each_counter,
-                            store_subs,
-                        );
-                        body_code.push_str(&pending_code);
-                        body_code.push_str(&format!("{}\t}},\n", indent));
-                    }
+                    // Check if both callbacks are empty - use single-line format
+                    let pending_is_empty = pending_body.is_empty();
+                    let then_is_empty = then_body.is_empty();
 
-                    // Then callback (last argument - no catch callback on server)
-                    if then_body.is_empty() {
-                        if then_param.is_empty() {
-                            body_code.push_str(&format!("{}\t() => {{}}", indent));
+                    if pending_is_empty && then_is_empty {
+                        // Single-line format: $.await($$renderer, promise, () => {}, (param) => {});
+                        let then_fn = if then_param.is_empty() {
+                            "() => {}".to_string()
                         } else {
-                            body_code.push_str(&format!("{}\t({}) => {{}}", indent, then_param));
-                        }
+                            format!("({}) => {{}}", then_param)
+                        };
+                        body_code.push_str(&format!(
+                            "{}$.await($$renderer, {}, () => {{}}, {});\n",
+                            indent, promise, then_fn
+                        ));
                     } else {
-                        if then_param.is_empty() {
+                        // Multi-line format
+                        body_code.push_str(&format!("{}$.await(\n", indent));
+                        body_code.push_str(&format!("{}\t$$renderer,\n", indent));
+                        body_code.push_str(&format!("{}\t{},\n", indent, promise));
+
+                        // Pending callback
+                        if pending_is_empty {
+                            body_code.push_str(&format!("{}\t() => {{}},\n", indent));
+                        } else {
                             body_code.push_str(&format!("{}\t() => {{\n", indent));
-                        } else {
-                            body_code.push_str(&format!("{}\t({}) => {{\n", indent, then_param));
+                            let pending_code = Self::build_parts_with_store_subs(
+                                pending_body,
+                                indent_level + 2,
+                                each_counter,
+                                store_subs,
+                            );
+                            body_code.push_str(&pending_code);
+                            body_code.push_str(&format!("{}\t}},\n", indent));
                         }
-                        let then_code = Self::build_parts_with_store_subs(
-                            then_body,
-                            indent_level + 2,
-                            each_counter,
-                            store_subs,
-                        );
-                        body_code.push_str(&then_code);
-                        body_code.push_str(&format!("{}\t}}", indent));
-                    }
 
-                    body_code.push('\n');
-                    body_code.push_str(&format!("{});\n", indent));
+                        // Then callback (last argument - no catch callback on server)
+                        if then_is_empty {
+                            if then_param.is_empty() {
+                                body_code.push_str(&format!("{}\t() => {{}}", indent));
+                            } else {
+                                body_code
+                                    .push_str(&format!("{}\t({}) => {{}}", indent, then_param));
+                            }
+                        } else {
+                            if then_param.is_empty() {
+                                body_code.push_str(&format!("{}\t() => {{\n", indent));
+                            } else {
+                                body_code
+                                    .push_str(&format!("{}\t({}) => {{\n", indent, then_param));
+                            }
+                            let then_code = Self::build_parts_with_store_subs(
+                                then_body,
+                                indent_level + 2,
+                                each_counter,
+                                store_subs,
+                            );
+                            body_code.push_str(&then_code);
+                            body_code.push_str(&format!("{}\t}}", indent));
+                        }
+
+                        body_code.push('\n');
+                        body_code.push_str(&format!("{});\n", indent));
+                    }
 
                     // Add closing marker to the next push
                     current_html.push_str("<!--]-->");
@@ -4413,6 +4460,55 @@ export default function {component_name}($$renderer{props_param}) {{
 
                     // Add closing marker
                     current_html.push_str("<!--]-->");
+                }
+                OutputPart::AsyncChild {
+                    declarations,
+                    inner,
+                }
+                | OutputPart::AsyncChildBlock {
+                    declarations,
+                    inner,
+                } => {
+                    let is_child_block = matches!(part, OutputPart::AsyncChildBlock { .. });
+
+                    // Flush current HTML before async child
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    let method = if is_child_block {
+                        "child_block"
+                    } else {
+                        "child"
+                    };
+                    body_code.push_str(&format!(
+                        "{}$$renderer.{}(async ($$renderer) => {{\n",
+                        indent, method
+                    ));
+
+                    let inner_indent = format!("{}\t", indent);
+
+                    // Emit hoisted declarations
+                    for decl in declarations {
+                        body_code.push_str(&format!("{}{}\n", inner_indent, decl));
+                    }
+
+                    if !declarations.is_empty() {
+                        body_code.push('\n');
+                    }
+
+                    // Render inner content
+                    let inner_code = Self::build_parts_with_store_subs(
+                        inner,
+                        indent_level + 1,
+                        each_counter,
+                        store_subs,
+                    );
+                    body_code.push_str(&inner_code);
+
+                    body_code.push_str(&format!("{}}});\n", indent));
                 }
                 OutputPart::RawStatement(stmt) => {
                     // Flush current HTML before raw statement

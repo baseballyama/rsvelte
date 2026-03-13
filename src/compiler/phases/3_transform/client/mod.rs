@@ -24,7 +24,7 @@ use regex::Regex;
 use super::TransformError;
 use super::js_ast::{
     builders::{self as b},
-    generate,
+    codegen::{CodegenResult, generate_with_sourcemap},
     nodes::{
         JsBlockStatement, JsExportDefault, JsExportDefaultDeclaration, JsExpr,
         JsFunctionDeclaration, JsImportDeclaration, JsImportSpecifier, JsObjectMember, JsPattern,
@@ -106,7 +106,7 @@ pub fn transform_client(
     ast: &Root,
     source: &str,
     options: &CompileOptions,
-) -> Result<String, TransformError> {
+) -> Result<CodegenResult, TransformError> {
     transform_client_with_visitors(analysis, ast, source, options)
 }
 
@@ -164,6 +164,24 @@ pub fn transform_client_module(
     // Transform the module source (rune replacements, class fields, etc.)
     let class_transformed = transform_class_fields_client(source);
     let transformed = transform_module_script_runes(&class_transformed, analysis);
+
+    // Transform destructured assignments where LHS contains state variables (client only).
+    // e.g., `[a, b] = array;` where `a` and `b` are $state() variables becomes:
+    //   ((array) => { var $$array = $.to_array(array, 2); $.set(a, $$array[0], true); $.set(b, $$array[1], true); })(array);
+    let reactive_state_vars: Vec<String> = analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|b| {
+            matches!(
+                b.kind,
+                super::super::phase2_analyze::BindingKind::State
+                    | super::super::phase2_analyze::BindingKind::RawState
+            ) && b.reassigned
+        })
+        .map(|b| b.name.clone())
+        .collect();
+    let transformed = transform_destructured_state_assignments(&transformed, &reactive_state_vars);
 
     // The transformed source includes everything (imports + body).
     // We need to split imports from body to avoid duplicate svelte import.
@@ -236,7 +254,7 @@ fn transform_client_with_visitors(
     ast: &Root,
     source: &str,
     options: &CompileOptions,
-) -> Result<String, TransformError> {
+) -> Result<CodegenResult, TransformError> {
     use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment;
 
     // Create initial node (anchor) for the transformation
@@ -245,10 +263,14 @@ fn transform_client_with_visitors(
     // Create transform options as Rc for efficient sharing
     let transform_options = Rc::new(TransformOptions {
         dev: options.dev,
+        fragments: match options.fragments {
+            crate::compiler::FragmentMode::Html => types::FragmentsMode::Html,
+            crate::compiler::FragmentMode::Tree => types::FragmentsMode::Tree,
+        },
         preserve_whitespace: options.preserve_whitespace,
         preserve_comments: options.preserve_comments,
         experimental_async: options.experimental.r#async,
-        ..Default::default()
+        hmr: options.hmr,
     });
 
     // Create the component client transform state
@@ -847,7 +869,12 @@ fn transform_client_with_visitors(
         }
 
         // Only add if there's actual content (not just whitespace)
-        // Instance script content available from analysis
+        // Instance script content goes inside the component function body,
+        // which is at indent level 1 (one tab). The codegen's emit_statement
+        // adds indent to the first line, but subsequent lines of Raw content
+        // need explicit indentation. We always use 1 because instance script
+        // content is always emitted at the function body level.
+        let script_indent = 1usize;
         let trimmed = transformed_script.trim();
         if !trimmed.is_empty() {
             // Apply async body transformation if experimental.async is enabled
@@ -857,7 +884,8 @@ fn transform_client_with_visitors(
                     super::shared::async_body::transform_async_body(trimmed, "$.run")
                 {
                     let cleaned_output = strip_async_noop_placeholders(async_result.output.trim());
-                    component_body.push(JsStatement::Raw(cleaned_output.trim().into()));
+                    let normalized = normalize_js_with_oxc(cleaned_output.trim(), script_indent);
+                    component_body.push(JsStatement::Raw(normalized.into()));
                     // Store the blocker_map for use during template generation
                     if !async_result.blocker_map.is_empty() {
                         *context.state.blocker_map.borrow_mut() = async_result.blocker_map;
@@ -866,12 +894,16 @@ fn transform_client_with_visitors(
                     // No top-level await: strip any async noop placeholders
                     let cleaned = strip_async_noop_placeholders(trimmed);
                     if !cleaned.trim().is_empty() {
-                        component_body.push(JsStatement::Raw(cleaned.trim().into()));
+                        let normalized = normalize_js_with_oxc(cleaned.trim(), script_indent);
+                        component_body.push(JsStatement::Raw(normalized.into()));
                     }
                 }
             } else {
-                // Parse transformed script as raw JavaScript statement
-                component_body.push(JsStatement::Raw(trimmed.into()));
+                // Normalize raw JavaScript formatting using OXC to match
+                // the official Svelte compiler's esrap output (consistent spacing,
+                // semicolons, etc.)
+                let normalized = normalize_js_with_oxc(trimmed, script_indent);
+                component_body.push(JsStatement::Raw(normalized.into()));
             }
         }
     }
@@ -896,7 +928,7 @@ fn transform_client_with_visitors(
     //   - state/raw_state: getter/setter pair
     // For accessors mode, bindable props also get getter/setter.
     let component_returned_object_len = analysis.exports.len() + bindable_prop_count;
-    let needs_exports = component_returned_object_len > 0 || is_legacy_component_api;
+    let needs_exports = component_returned_object_len > 0 || is_legacy_component_api || options.dev;
     if needs_exports {
         let mut exports_members: Vec<JsObjectMember> = Vec::new();
 
@@ -1422,10 +1454,34 @@ fn transform_client_with_visitors(
         ));
     }
 
-    // Export default component function
-    body.push(JsStatement::ExportDefault(JsExportDefault {
-        declaration: JsExportDefaultDeclaration::Function(component_fn),
-    }));
+    // Export default component function (with optional HMR wrapping)
+    if options.hmr {
+        // HMR mode: emit `function Component(...)` (not exported)
+        body.push(JsStatement::FunctionDeclaration(component_fn));
+
+        // Add HMR wrapping:
+        //   if (import.meta.hot) {
+        //     Component = $.hmr(Component);
+        //     import.meta.hot.accept((module) => {
+        //       Component[$.HMR].update(module.default);
+        //     });
+        //   }
+        body.push(JsStatement::Raw(
+            format!(
+                "if (import.meta.hot) {{\n\t{} = $.hmr({});\n\n\timport.meta.hot.accept((module) => {{\n\t\t{}[$.HMR].update(module.default);\n\t}});\n}}",
+                analysis.name, analysis.name, analysis.name
+            ).into(),
+        ));
+
+        // export default Component;
+        body.push(JsStatement::Raw(
+            format!("export default {};", analysis.name).into(),
+        ));
+    } else {
+        body.push(JsStatement::ExportDefault(JsExportDefault {
+            declaration: JsExportDefaultDeclaration::Function(component_fn),
+        }));
+    }
 
     // Add event delegation if there are delegated events
     if !events.is_empty() {
@@ -1490,8 +1546,8 @@ fn transform_client_with_visitors(
     // Create the program
     let program = JsProgram { body };
 
-    // Generate JavaScript code from the program
-    generate(&program).map_err(TransformError::CodeGen)
+    // Generate JavaScript code from the program with source map data
+    generate_with_sourcemap(&program, source).map_err(TransformError::CodeGen)
 }
 
 // ============================================================================
@@ -2180,6 +2236,106 @@ pub(crate) fn transform_module_script_runes(script: &str, analysis: &ComponentAn
     result
 }
 
+/// Transform destructured array assignments where the LHS contains state variables.
+///
+/// Converts `[a, b] = expr;` where `a` or `b` are reactive state variables into:
+/// ```js
+/// ((array) => {
+///     var $$array = $.to_array(array, 2);
+///     $.set(a, $$array[0], true);
+///     $.set(b, $$array[1], true);
+/// })(expr);
+/// ```
+///
+/// Non-state variables in the pattern are assigned normally: `c = $$array[N];`
+fn transform_destructured_state_assignments(
+    script: &str,
+    reactive_state_vars: &[String],
+) -> String {
+    if reactive_state_vars.is_empty() {
+        return script.to_string();
+    }
+
+    let mut result = String::new();
+    for line in script.lines() {
+        let trimmed = line.trim();
+        // Look for lines like `[a, b] = expr;` or `[a, b] = expr`
+        if trimmed.starts_with('[') {
+            // Find the matching `]`
+            let mut depth = 0;
+            let mut bracket_end = None;
+            for (i, c) in trimmed.char_indices() {
+                match c {
+                    '[' => depth += 1,
+                    ']' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            bracket_end = Some(i);
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            if let Some(bracket_end) = bracket_end {
+                let pattern = &trimmed[..bracket_end + 1]; // e.g., "[a, b]"
+                let after_pattern = trimmed[bracket_end + 1..].trim();
+                // Must be followed by `= expr` or `= expr;`
+                if let Some(rhs) = after_pattern.strip_prefix('=') {
+                    let rhs = rhs.trim().trim_end_matches(';').trim();
+                    let inner = &pattern[1..pattern.len() - 1]; // strip [ ]
+                    let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
+                    // Check if any parts are reactive state vars
+                    let has_state_var = parts
+                        .iter()
+                        .any(|p| reactive_state_vars.iter().any(|v| v == p));
+                    if has_state_var {
+                        // Build the IIFE
+                        let indent: String =
+                            line.chars().take_while(|c| c.is_whitespace()).collect();
+                        let inner_indent = format!("{}\t", indent);
+                        let n = parts.len();
+                        let mut body_lines = Vec::new();
+                        body_lines.push(format!(
+                            "{}var $$array = $.to_array(array, {});",
+                            inner_indent, n
+                        ));
+                        body_lines.push(String::new()); // blank line after var
+                        for (idx, part) in parts.iter().enumerate() {
+                            if reactive_state_vars.iter().any(|v| v == *part) {
+                                body_lines.push(format!(
+                                    "{}$.set({}, $$array[{}], true);",
+                                    inner_indent, part, idx
+                                ));
+                            } else {
+                                body_lines
+                                    .push(format!("{}{} = $$array[{}];", inner_indent, part, idx));
+                            }
+                        }
+                        result.push_str(&format!(
+                            "{}((array) => {{\n{}\n{}}})({});\n",
+                            indent,
+                            body_lines.join("\n"),
+                            indent,
+                            rhs
+                        ));
+                        // Add blank line after the IIFE
+                        result.push('\n');
+                        continue;
+                    }
+                }
+            }
+        }
+        result.push_str(line);
+        result.push('\n');
+    }
+    // Remove trailing newline to match original
+    if result.ends_with('\n') && !script.ends_with('\n') {
+        result.pop();
+    }
+    result
+}
+
 /// Transform instance script content for the visitor-based code generation.
 /// Handles $state, $derived, $effect, $props transformations.
 fn transform_instance_script_for_visitors(
@@ -2201,12 +2357,17 @@ fn transform_instance_script_for_visitors(
     // Reset the destructure assignment array counter
     DESTRUCTURE_ARRAY_COUNTER.with(|c| c.set(0));
 
-    // Strip single-line comments from the script before applying text-based transforms.
-    // The official compiler uses an AST-based approach (acorn/esrap) so comments don't
-    // appear in the output. Our text-based transforms can break when comments containing
-    // braces/parens appear inside multi-line expressions (e.g., `$value = { ... } // { ... }`
-    // becomes invalid after wrapping in `$.store_set(...)`).
-    let script = strip_js_single_line_comments(script);
+    // The official Svelte compiler (via esrap) preserves comments in output.
+    // However, our text-based store transforms can break when comments contain
+    // braces/parens (e.g., `$value = { ... } // { ... }`). So we only strip
+    // comments in legacy mode (non-runes) where store transforms are applied.
+    // In runes mode, comments are safe to preserve since rune transforms don't
+    // match across comment boundaries.
+    let script = if analysis.runes {
+        script.to_string()
+    } else {
+        strip_js_single_line_comments(script)
+    };
 
     // First, transform class fields with $state and $derived
     let script = transform_class_fields_client(&script);
@@ -20077,9 +20238,495 @@ fn extract_destructured_prop_names(statement: &str) -> Vec<String> {
     names
 }
 
+/// Normalize raw JavaScript formatting using OXC parser and codegen.
+///
+/// Parses the input as JavaScript, then reprints it with OXC's codegen to normalize:
+/// - Spacing around operators (e.g., `let x=0` → `let x = 0`)
+/// - Spacing before braces (e.g., `function f(){` → `function f() {`)
+/// - Consistent semicolons and whitespace
+///
+/// If parsing fails, returns the original input unchanged.
+/// The output uses single quotes, tab indentation, and strips comments
+/// (matching esrap/Svelte compiler behavior).
+fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
+    use oxc_allocator::Allocator;
+    use oxc_codegen::{Codegen, CodegenOptions, CommentOptions, LegalComment};
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    let allocator = Allocator::default();
+    let source_type = SourceType::mjs();
+    let parsed = Parser::new(&allocator, js, source_type).parse();
+
+    if !parsed.errors.is_empty() {
+        return js.to_string();
+    }
+
+    let options = CodegenOptions {
+        single_quote: true,
+        // Preserve comments - esrap/Svelte keeps them in the output
+        comments: CommentOptions {
+            normal: true,
+            jsdoc: true,
+            annotation: true,
+            legal: LegalComment::Inline,
+        },
+        ..CodegenOptions::default()
+    };
+
+    let result = Codegen::new().with_options(options).build(&parsed.program);
+
+    // OXC adds a trailing newline; trim to match esrap behavior.
+    let code = result.code.trim_end();
+
+    // OXC breaks arrays with >2 elements into multiple lines. Join them back to
+    // single lines to match esrap behavior (esrap keeps short arrays inline).
+    let code_joined = join_oxc_multiline_arrays(code);
+
+    // Add blank lines between different statement types to match esrap behavior.
+    let code = add_esrap_blank_lines(&code_joined);
+
+    // Remove blank lines before closing braces that OXC adds (e.g., after return statements).
+    // Esrap doesn't add these extra blank lines inside function bodies.
+    let code = remove_blank_lines_before_closing_braces(&code);
+
+    if indent_level == 0 {
+        return code;
+    }
+
+    // The raw statement goes inside a function body. The codegen's emit_statement
+    // adds self.indent() before the FIRST line only. Subsequent lines in the Raw block
+    // don't get automatic indentation. We need to re-add the original source-level
+    // indentation to non-first lines so the output matches the expected format.
+    let mut result_lines = Vec::new();
+    let indent_str: String = "\t".repeat(indent_level);
+    for (i, line) in code.lines().enumerate() {
+        if i == 0 {
+            // First line gets indent from emit_statement's self.indent()
+            result_lines.push(line.to_string());
+        } else if line.is_empty() {
+            result_lines.push(String::new());
+        } else {
+            // Subsequent lines need the source-level indentation prefix
+            result_lines.push(format!("{}{}", indent_str, line));
+        }
+    }
+    result_lines.join("\n")
+}
+
+/// Join multi-line arrays that OXC broke into multiple lines back to single lines.
+///
+/// OXC's codegen breaks arrays with more than 2 elements into multiple lines,
+/// but esrap keeps short arrays (like `['a', 'b', 'c']`) on a single line.
+/// This function only joins arrays whose elements are simple (no nested brackets/braces).
+fn join_oxc_multiline_arrays(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len());
+    let mut i = 0;
+
+    while i < lines.len() {
+        let line = lines[i];
+
+        // Check if a line ends with `[` (start of multi-line array)
+        // but NOT lines that are just `[` (those are intentional block arrays)
+        if line.trim_end().ends_with('[') && line.trim() != "[" {
+            // Collect all lines until we find the closing `]`
+            let mut array_lines: Vec<&str> = vec![line];
+            let mut j = i + 1;
+            let mut found_close = false;
+            let mut has_nested = false;
+
+            while j < lines.len() {
+                let next = lines[j];
+                let trimmed = next.trim();
+                array_lines.push(next);
+
+                // Check if this line starts with `]` (closing the array)
+                if trimmed.starts_with(']') {
+                    found_close = true;
+                    j += 1;
+                    break;
+                }
+
+                // Check for nested brackets/braces/parens that make joining unsafe
+                if trimmed.contains('{')
+                    || trimmed.contains('}')
+                    || trimmed.contains('[')
+                    || trimmed.contains(']')
+                    || trimmed.contains('(')
+                    || trimmed.contains(')')
+                {
+                    has_nested = true;
+                    break;
+                }
+
+                j += 1;
+            }
+
+            if found_close && !has_nested && array_lines.len() <= 10 {
+                // All elements are simple (no nested brackets/braces)
+                let prefix_end = line.rfind('[').unwrap();
+                let prefix = &line[..=prefix_end];
+
+                // Collect simple element values from intermediate lines
+                let mut elements: Vec<String> = Vec::new();
+                let last_idx = array_lines.len() - 1;
+                for array_line in &array_lines[1..last_idx] {
+                    let elem = array_line.trim();
+                    let elem = elem.strip_suffix(',').unwrap_or(elem).trim();
+                    if !elem.is_empty() {
+                        elements.push(elem.to_string());
+                    }
+                }
+
+                // Get the suffix after `]` from the last array line
+                let last_line = array_lines[last_idx].trim();
+                let suffix = last_line.strip_prefix(']').unwrap_or("");
+
+                let joined = format!("{}{}]{}", prefix, elements.join(", "), suffix);
+
+                // Only join if the result is reasonably short
+                if joined.len() <= 120 {
+                    result.push(joined);
+                    i = j;
+                    continue;
+                }
+            }
+        }
+
+        result.push(line.to_string());
+        i += 1;
+    }
+
+    result.join("\n")
+}
+
+/// Add blank lines between different statement types in OXC output to match esrap behavior.
+///
+/// Esrap inserts a blank line between consecutive statements/members when:
+/// - The statement types differ (e.g., VariableDeclaration followed by FunctionDeclaration)
+/// - Either statement is multiline
+///
+/// This applies at every nesting level (top-level, inside functions, inside classes).
+fn add_esrap_blank_lines(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    if lines.is_empty() {
+        return code.to_string();
+    }
+
+    // Track the previous statement type and multiline status at each indent level.
+    let mut prev_type_at_indent: std::collections::HashMap<usize, &str> =
+        std::collections::HashMap::new();
+    let mut prev_multiline_at_indent: std::collections::HashMap<usize, bool> =
+        std::collections::HashMap::new();
+    // Track indent levels that have a pending leading comment for the next statement
+    let mut comment_at_indent: std::collections::HashSet<usize> = std::collections::HashSet::new();
+
+    let mut result: Vec<&str> = Vec::with_capacity(lines.len() + 20);
+
+    // Track template literal state
+    let mut in_template_literal = false;
+    // Track bracket depth to avoid inserting blank lines inside arrays
+    let mut bracket_depth: i32 = 0;
+
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i];
+
+        // Track template literal state
+        if in_template_literal {
+            result.push(line);
+            let backtick_count = line.chars().filter(|&c| c == '`').count();
+            if backtick_count % 2 == 1 {
+                in_template_literal = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        let backtick_count = line.chars().filter(|&c| c == '`').count();
+        if backtick_count % 2 == 1 {
+            in_template_literal = true;
+        }
+
+        // Skip ALL existing blank lines - we add them ourselves based on esrap rules.
+        // The source may have blank lines that don't match esrap's behavior.
+        if line.trim().is_empty() {
+            i += 1;
+            continue;
+        }
+
+        // Save bracket depth before processing this line for blank line decisions
+        let bracket_depth_before = bracket_depth;
+
+        let indent_level = line.bytes().take_while(|&b| b == b'\t').count();
+        let trimmed = line.trim_start_matches('\t');
+
+        // Lines that are just closing braces/brackets end a multiline statement
+        if trimmed.starts_with('}') || trimmed.starts_with(']') || trimmed.starts_with(')') {
+            prev_multiline_at_indent.insert(indent_level, true);
+            // Reset inner indent state when entering a new block (e.g. `} else {`)
+            if trimmed.ends_with('{') {
+                prev_type_at_indent.remove(&(indent_level + 1));
+                prev_multiline_at_indent.remove(&(indent_level + 1));
+            }
+            // Update bracket depth for closing brackets
+            if !in_template_literal {
+                for ch in trimmed.chars() {
+                    match ch {
+                        '[' => bracket_depth += 1,
+                        ']' => bracket_depth -= 1,
+                        _ => {}
+                    }
+                }
+            }
+            result.push(line);
+            i += 1;
+            continue;
+        }
+
+        // Reset inner indent state when opening a new block
+        if trimmed.ends_with('{') {
+            prev_type_at_indent.remove(&(indent_level + 1));
+            prev_multiline_at_indent.remove(&(indent_level + 1));
+        }
+
+        let stmt_type = classify_js_statement(trimmed);
+
+        // Comments are "transparent" - they attach to the following node (as leading
+        // comments in esrap). They don't trigger blank lines or update type tracking.
+        // However, they make the following statement multiline (since comment + statement
+        // spans multiple lines).
+        if stmt_type == "Comment" {
+            // Mark that the next statement at this indent level has a leading comment
+            comment_at_indent.insert(indent_level);
+            result.push(line);
+            i += 1;
+            continue;
+        }
+
+        // Check if this statement is multiline
+        // A leading comment makes the statement multiline
+        let has_leading_comment = comment_at_indent.remove(&indent_level);
+        let is_multiline =
+            has_leading_comment || is_stmt_multiline_at_indent(&lines, i, indent_level);
+
+        // Add blank line if needed (only for statement context, not inside arrays)
+        // Inside arrays (bracket_depth > 0), blank line rules are different:
+        // esrap only adds blank lines between two multiline items (both must be multiline).
+        if bracket_depth_before > 0 {
+            // Array context: only add blank line when both previous and current are multiline
+            if prev_type_at_indent.contains_key(&indent_level) {
+                let prev_ml = prev_multiline_at_indent
+                    .get(&indent_level)
+                    .copied()
+                    .unwrap_or(false);
+                if is_multiline
+                    && prev_ml
+                    && !result.is_empty()
+                    && !result.last().is_some_and(|l| l.trim().is_empty())
+                {
+                    result.push("");
+                }
+            }
+        } else if let Some(prev_type) = prev_type_at_indent.get(&indent_level) {
+            let prev_ml = prev_multiline_at_indent
+                .get(&indent_level)
+                .copied()
+                .unwrap_or(false);
+            if (stmt_type != *prev_type || is_multiline || prev_ml)
+                && !result.is_empty()
+                && !result.last().is_some_and(|l| l.trim().is_empty())
+            {
+                result.push("");
+            }
+        }
+
+        prev_type_at_indent.insert(indent_level, stmt_type);
+        prev_multiline_at_indent.insert(indent_level, is_multiline);
+        result.push(line);
+
+        // Track bracket depth AFTER processing blank line logic.
+        // This ensures the line that opens/closes a bracket is evaluated
+        // in the correct context (before entering/leaving the array).
+        if !in_template_literal {
+            for ch in line.trim().chars() {
+                match ch {
+                    '[' => bracket_depth += 1,
+                    ']' => bracket_depth -= 1,
+                    _ => {}
+                }
+            }
+        }
+
+        i += 1;
+    }
+
+    // Remove trailing empty lines
+    while result.last().is_some_and(|l| l.trim().is_empty()) {
+        result.pop();
+    }
+
+    result.join("\n")
+}
+
+/// Check if a statement starting at `start` spans multiple lines at the given indent level.
+fn is_stmt_multiline_at_indent(lines: &[&str], start: usize, indent_level: usize) -> bool {
+    if start + 1 >= lines.len() {
+        return false;
+    }
+
+    let trimmed = lines[start].trim_start_matches('\t');
+    // Opening a block is always multiline
+    if trimmed.ends_with('{') || trimmed.ends_with("=> {") {
+        return true;
+    }
+
+    // Check if next non-empty line is at deeper indent (continuation)
+    for next in &lines[(start + 1)..] {
+        let next = *next;
+        if next.trim().is_empty() {
+            continue;
+        }
+        let next_indent = next.bytes().take_while(|&b| b == b'\t').count();
+        if next_indent > indent_level {
+            return true;
+        }
+        break;
+    }
+
+    false
+}
+
+/// Classify a JavaScript statement or class member for blank line logic (matching esrap's behavior).
+fn classify_js_statement(line: &str) -> &'static str {
+    if line.starts_with("var ") || line.starts_with("let ") || line.starts_with("const ") {
+        "VariableDeclaration"
+    } else if line.starts_with("function ") || line.starts_with("async function ") {
+        "FunctionDeclaration"
+    } else if line.starts_with("class ") {
+        "ClassDeclaration"
+    } else if line.starts_with("if ") || line.starts_with("if(") {
+        "IfStatement"
+    } else if line.starts_with("for ") || line.starts_with("for(") {
+        "ForStatement"
+    } else if line.starts_with("while ") || line.starts_with("while(") {
+        "WhileStatement"
+    } else if line.starts_with("return ") || line.starts_with("return;") || line == "return" {
+        "ReturnStatement"
+    } else if line.starts_with("export ") {
+        "ExportDeclaration"
+    } else if line.starts_with("import ") {
+        "ImportDeclaration"
+    } else if line.starts_with("get ") {
+        "MethodDefinition_get"
+    } else if line.starts_with("set ") {
+        "MethodDefinition_set"
+    } else if line.starts_with("constructor(") || line.starts_with("constructor (") {
+        "MethodDefinition_constructor"
+    } else if line.starts_with('#') {
+        "PropertyDefinition"
+    } else if line.starts_with("//") || line.starts_with("/*") {
+        "Comment"
+    } else {
+        "ExpressionStatement"
+    }
+}
+
+/// Detect the common indentation level (in tabs) of the first non-empty line
+/// in the original script content.
+#[allow(dead_code)]
+fn detect_indent_level(js: &str) -> usize {
+    for line in js.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        // Count leading tabs
+        let tabs = line.chars().take_while(|c| *c == '\t').count();
+        return tabs;
+    }
+    0
+}
+
+/// Remove blank lines that appear immediately before a closing brace `}`.
+///
+/// OXC sometimes inserts blank lines before `}` in function bodies
+/// (e.g., after return statements), but esrap does not.
+fn remove_blank_lines_before_closing_braces(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<&str> = Vec::with_capacity(lines.len());
+
+    for (i, line) in lines.iter().enumerate() {
+        // Skip blank lines that are immediately followed by a line containing only `}`
+        if line.trim().is_empty() {
+            // Look ahead to find next non-empty line
+            let next_non_empty = lines[(i + 1)..].iter().find(|l| !l.trim().is_empty());
+            if let Some(next) = next_non_empty
+                && next.trim() == "}"
+            {
+                continue; // Skip this blank line
+            }
+        }
+        result.push(line);
+    }
+
+    result.join("\n")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_normalize_js_with_oxc() {
+        let input = "let count1=0;\nlet count2=0;\n\nfunction text1(){\n\treturn count1;\n}\n\nfunction text2(){\n\treturn count2;\n}";
+        let result = normalize_js_with_oxc(input, 1);
+        println!("OXC output:\n{}", result);
+        // Check basic formatting
+        assert!(
+            result.contains("let count1 = 0;"),
+            "Should have spaces around = : {}",
+            result
+        );
+        assert!(
+            result.contains("function text1() {"),
+            "Should have space before brace: {}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_normalize_js_array_on_one_line() {
+        let input = "let props = $.rest_props($$props, ['$$slots', '$$events', '$$legacy']);";
+        let result = normalize_js_with_oxc(input, 1);
+        println!("OXC array output:\n{}", result);
+        assert!(
+            result.contains("['$$slots', '$$events', '$$legacy']"),
+            "Array should stay on one line: {}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_normalize_js_arrow_expression_body() {
+        let input = "$.template_effect(() => $.set_text(text_3, $.get(item)));";
+        let result = normalize_js_with_oxc(input, 1);
+        println!("OXC arrow output:\n{}", result);
+        assert!(
+            result.contains("() => $.set_text(text_3, $.get(item))"),
+            "Arrow expression body should be preserved: {}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_detect_indent_level() {
+        assert_eq!(detect_indent_level("\n\tlet x = 1;"), 1);
+        assert_eq!(detect_indent_level("\tlet x = 1;"), 1);
+        assert_eq!(detect_indent_level("let x = 1;"), 0);
+        assert_eq!(detect_indent_level("\n\n\t\tlet x = 1;"), 2);
+    }
 
     #[test]
     fn test_find_matching_paren() {

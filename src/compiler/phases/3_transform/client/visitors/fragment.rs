@@ -308,8 +308,11 @@ pub fn fragment(
                 b::member_path("$.append"),
                 vec![b::id("$$anchor"), text_id],
             )));
-        } else if cleaned.is_standalone {
+        } else if cleaned.is_standalone && !context.state.options.hmr {
             // No need to create a template, we can just use the existing block's anchor.
+            // When HMR is enabled, we always need a fragment wrapper because $.hmr()
+            // uses block/branch effects that need a stable anchor node.
+            // Reference: utils.js line 288 checks `!state.options.hmr`
             // Set is_standalone on state so component/render-tag visitors know
             // they need to emit $.next() after $.async() wrapping.
             context.state.is_standalone = true;

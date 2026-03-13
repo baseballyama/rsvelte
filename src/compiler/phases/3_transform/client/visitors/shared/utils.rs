@@ -1312,6 +1312,13 @@ pub fn apply_transforms_to_expression_with_shadowed(
         | JsExpr::Class(_)
         | JsExpr::Chain(_)
         | JsExpr::Void(_) => expr.clone(),
+
+        // Spanned expressions: transform the inner expression, preserving the span
+        JsExpr::Spanned(inner, start, end) => {
+            let transformed =
+                apply_transforms_to_expression_with_shadowed(inner, context, local_scope);
+            JsExpr::Spanned(Box::new(transformed), *start, *end)
+        }
     }
 }
 
@@ -1848,6 +1855,9 @@ fn collect_state_getters(expr: &JsExpr, getters: &mut Vec<JsExpr>) {
         | JsExpr::TaggedTemplate(_)
         | JsExpr::Chain(_)
         | JsExpr::Void(_) => {}
+        JsExpr::Spanned(inner, _, _) => {
+            collect_state_getters(inner, getters);
+        }
     }
 }
 
@@ -2279,6 +2289,9 @@ fn collect_reactive_references_inner(
         | JsExpr::TaggedTemplate(_)
         | JsExpr::Chain(_)
         | JsExpr::Void(_) => {}
+        JsExpr::Spanned(inner, _, _) => {
+            collect_reactive_references_inner(inner, context, getters, seen);
+        }
     }
 }
 

@@ -1432,7 +1432,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         }
 
         if in_block {
-            block_lines.push(trimmed.to_string());
+            block_lines.push(line.to_string());
             for c in trimmed.chars() {
                 match c {
                     '{' => block_depth += 1,
@@ -1463,7 +1463,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             block_is_arrow_fn = false;
             block_depth = 0;
             block_lines.clear();
-            block_lines.push(trimmed.to_string());
+            block_lines.push(line.to_string());
             for c in trimmed.chars() {
                 match c {
                     '{' => block_depth += 1,
@@ -1492,7 +1492,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             block_is_arrow_fn = true;
             block_depth = 0;
             block_lines.clear();
-            block_lines.push(trimmed.to_string());
+            block_lines.push(line.to_string());
             for c in trimmed.chars() {
                 match c {
                     '{' => block_depth += 1,
@@ -1520,7 +1520,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             block_is_arrow_fn = false;
             block_depth = 0;
             block_lines.clear();
-            block_lines.push(trimmed.to_string());
+            block_lines.push(line.to_string());
             for c in trimmed.chars() {
                 match c {
                     '{' => block_depth += 1,
@@ -1646,6 +1646,9 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             let mut new_lines: Vec<String> = Vec::new();
             for line in lines.iter() {
                 let trimmed = line.trim();
+                // Preserve original indentation prefix
+                let indent_prefix: String =
+                    line.chars().take_while(|c| c.is_whitespace()).collect();
 
                 if trimmed.starts_with("this.")
                     && (trimmed.contains("= $derived(")
@@ -1686,7 +1689,8 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                                 format!("$.derived(() => {})", wrapped_value)
                             };
 
-                            new_lines.push(format!("this.{} = {};", private_ref, rhs));
+                            new_lines
+                                .push(format!("{}this.{} = {};", indent_prefix, private_ref, rhs));
 
                             derived_fields.push(DerivedField {
                                 name,
@@ -1713,7 +1717,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                     } else if let Some(pos) = trimmed.find("$state(") {
                         ("$state(", pos)
                     } else {
-                        new_lines.push(trimmed.to_string());
+                        new_lines.push(line.to_string());
                         continue;
                     };
 
@@ -1725,15 +1729,15 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                         has_state_fields = true;
 
                         if value.is_empty() {
-                            new_lines.push(format!("this.{} = void 0;", lhs));
+                            new_lines.push(format!("{}this.{} = void 0;", indent_prefix, lhs));
                         } else {
-                            new_lines.push(format!("this.{} = {};", lhs, value));
+                            new_lines.push(format!("{}this.{} = {};", indent_prefix, lhs, value));
                         }
                         continue;
                     }
                 }
 
-                new_lines.push(trimmed.to_string());
+                new_lines.push(line.to_string());
             }
             *lines = new_lines;
         }
@@ -1797,7 +1801,13 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                 // Transform private derived accesses in field values
                 // (e.g., this.#derived inside a $.derived() body should become this.#derived())
                 let line = transform_private_derived_accesses_server(line, &derived_private_names);
-                new_class_body.push_str(&format!("\t\t{}\n", line));
+                // Add semicolon if not already present (class fields need semicolons)
+                let line_with_semi = if line.ends_with(';') || line.ends_with('}') {
+                    line.to_string()
+                } else {
+                    format!("{};", line)
+                };
+                new_class_body.push_str(&format!("\t\t{}\n", line_with_semi));
                 for field in derived_fields
                     .iter()
                     .filter(|f| !f.constructor_declared && !f.is_private)
@@ -1830,11 +1840,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                     .first()
                     .is_some_and(|l| l.trim().contains("constructor("));
 
-                let method_text = lines
-                    .iter()
-                    .map(|l| format!("\t\t{}", l))
-                    .collect::<Vec<_>>()
-                    .join("\n");
+                let method_text = lines.join("\n");
                 let mut transformed =
                     transform_private_derived_accesses_server(&method_text, &derived_private_names);
 
@@ -1899,7 +1905,8 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             ClassMember::ArrowFn(lines) => {
                 new_class_body.push('\n');
                 for line in lines {
-                    new_class_body.push_str(&format!("\t\t{}\n", line));
+                    new_class_body.push_str(line);
+                    new_class_body.push('\n');
                 }
             }
         }

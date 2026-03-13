@@ -239,6 +239,8 @@ impl<'a> ServerCodeGenerator<'a> {
             fallback_generator.constant_vars = self.constant_vars.clone();
             fallback_generator.const_promises_counter = self.const_promises_counter.clone();
             fallback_generator.const_blocker_map = self.const_blocker_map.clone();
+            // Fallback is also inside the child_block(async ...) so it should not use $.save()
+            fallback_generator.in_block_body = true;
             // Trim leading/trailing whitespace from fallback fragment nodes
             let mut fallback_nodes: Vec<TemplateNode> = fallback_fragment.nodes.to_vec();
             // Skip leading whitespace-only text nodes

@@ -444,6 +444,24 @@ pub(crate) enum OutputPart {
         /// The expression to render
         expr: String,
     },
+    /// Async child wrapper: `$$renderer.child(async ($$renderer) => { ...declarations... ...inner... })`
+    /// Used when template content contains `await` expressions that need to be hoisted
+    /// into an async arrow function body. The declarations hoist the await expressions
+    /// into `const $$N = ...` declarations.
+    AsyncChild {
+        /// Hoisted declarations (e.g., "const $$0 = await Promise.resolve(42)")
+        declarations: Vec<String>,
+        /// The inner parts to render inside the async callback
+        inner: Vec<OutputPart>,
+    },
+    /// Async child block wrapper: `$$renderer.child_block(async ($$renderer) => { ...declarations... ...inner... })`
+    /// Similar to AsyncChild but uses child_block instead of child.
+    AsyncChildBlock {
+        /// Hoisted declarations
+        declarations: Vec<String>,
+        /// The inner parts to render inside the async callback
+        inner: Vec<OutputPart>,
+    },
     /// Raw JavaScript statement(s) to emit directly
     RawStatement(String),
     /// Metadata-only part that carries const-tag blocker mappings for a scope.

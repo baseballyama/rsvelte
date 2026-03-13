@@ -213,7 +213,13 @@ pub(crate) fn transform_await_to_save(expr: &str) -> String {
                 let arg_start = i;
                 let arg_end = find_await_arg_end(bytes, i, len);
                 let arg = &expr[arg_start..arg_end];
-                result.push_str(&format!("(await $.save({}))()", arg));
+                // Recursively transform any nested await expressions within the argument
+                let transformed_arg = if expr_contains_await(arg) {
+                    transform_await_to_save(arg)
+                } else {
+                    arg.to_string()
+                };
+                result.push_str(&format!("(await $.save({}))()", transformed_arg));
                 i = arg_end;
                 continue;
             }
@@ -1174,8 +1180,13 @@ pub(crate) fn transform_props_spread(script: &str) -> String {
             continue;
         }
 
-        if !trimmed.is_empty() {
-            result.push_str(&format!("\t\t{}\n", trimmed));
+        if trimmed.is_empty() {
+            result.push('\n');
+        } else {
+            // Preserve relative indentation: detect leading tabs and add 1 extra tab
+            let leading_tabs = line.chars().take_while(|c| *c == '\t').count();
+            let indent = "\t".repeat(leading_tabs + 1);
+            result.push_str(&format!("{}{}\n", indent, trimmed));
         }
     }
 

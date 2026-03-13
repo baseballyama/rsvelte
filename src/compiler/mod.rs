@@ -429,40 +429,71 @@ fn byte_offset_to_position(source: &str, offset: usize) -> Position {
 /// Generate a source code frame snippet for a warning/error.
 /// Shows 2 lines of context before and after, with a caret pointing to the column.
 /// Matches the official Svelte compiler's `locate_with_frame` output.
-fn generate_frame(source: &str, start_pos: &Position) -> String {
-    let lines: Vec<&str> = source.lines().collect();
+fn generate_frame(source: &str, start_pos: &Position, end_pos: Option<&Position>) -> String {
+    // Match the official compiler's get_code_frame behavior:
+    // - Uses start.line - 1 (0-indexed) for the target line
+    // - Uses end.column for the caret position
+    // - Converts tabs to 2 spaces
+    // Use split('\n') to match JS behavior (includes trailing empty string after final newline)
+    let lines: Vec<&str> = source.split('\n').collect();
     let line_idx = start_pos.line.saturating_sub(1);
-    let start_context = line_idx.saturating_sub(2);
-    let end_context = (line_idx + 2).min(lines.len().saturating_sub(1));
+    let frame_start = line_idx.saturating_sub(2);
+    // Match JS: Math.min(line + 3, lines.length) — exclusive upper bound
+    let frame_end = (line_idx + 3).min(lines.len());
 
-    let mut frame_parts = Vec::new();
-    let needs_padding = end_context + 1 >= 10;
+    // Determine the column for the caret (official compiler uses end.column)
+    let caret_column = end_pos.map_or(start_pos.column, |ep| ep.column);
 
-    for i in start_context..=end_context {
-        if i >= lines.len() {
-            break;
-        }
-        let line_num = i + 1;
-        let line_str = if needs_padding {
-            format!("{:>2}: {}", line_num, lines[i])
-        } else {
-            format!("{}: {}", line_num, lines[i])
-        };
-        frame_parts.push(line_str);
+    let digits = format!("{}", frame_end + 1).len();
 
-        if i == line_idx {
-            // Add caret line
-            let prefix_len = if needs_padding {
-                format!("{:>2}: ", line_num).len()
+    lines[frame_start..frame_end]
+        .iter()
+        .enumerate()
+        .map(|(i, &line)| {
+            let actual_line = frame_start + i;
+            let line_num = actual_line + 1;
+            let line_content = tabs_to_spaces(line);
+            if actual_line == line_idx {
+                let indicator = format!(
+                    "{}^",
+                    " ".repeat(digits + 2 + tabs_to_spaces_column(line, caret_column))
+                );
+                format!(
+                    "{:>width$}: {}\n{}",
+                    line_num,
+                    line_content,
+                    indicator,
+                    width = digits
+                )
             } else {
-                format!("{}: ", line_num).len()
-            };
-            let padding = " ".repeat(prefix_len + start_pos.column);
-            frame_parts.push(format!("{}^", padding));
-        }
-    }
+                format!("{:>width$}: {}", line_num, line_content, width = digits)
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
 
-    frame_parts.join("\n")
+/// Convert tabs to 2-space indentation (matching Svelte's tabs_to_spaces in compile_diagnostic.js)
+fn tabs_to_spaces(s: &str) -> String {
+    // Only replace leading tabs
+    let leading_tabs = s.bytes().take_while(|&b| b == b'\t').count();
+    if leading_tabs == 0 {
+        return s.to_string();
+    }
+    format!("{}{}", "  ".repeat(leading_tabs), &s[leading_tabs..])
+}
+
+/// Convert a column position (in the original source) to the column position after
+/// tabs-to-spaces conversion. Only leading tabs are converted.
+fn tabs_to_spaces_column(line: &str, column: usize) -> usize {
+    let leading_tabs = line.bytes().take_while(|&b| b == b'\t').count();
+    if column <= leading_tabs {
+        // Column is within the leading tabs region: each tab becomes 2 spaces
+        column * 2
+    } else {
+        // Column is past the leading tabs: add the extra space per tab
+        leading_tabs + column
+    }
 }
 
 /// Compile a Svelte component.
@@ -539,11 +570,25 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
                 let end_pos = w
                     .end
                     .map(|offset| byte_offset_to_position(source, offset as usize));
-                let frame = start_pos.as_ref().map(|sp| generate_frame(source, sp));
+                let frame = start_pos
+                    .as_ref()
+                    .map(|sp| generate_frame(source, sp, end_pos.as_ref()));
+                // Make filename relative to rootDir, matching the official compiler behavior
+                // (svelte/packages/svelte/src/compiler/state.js L137-139)
+                let warning_filename = options.filename.as_ref().map(|f| {
+                    let f = f.replace('\\', "/");
+                    if let Some(ref root) = options.root_dir {
+                        let root = root.replace('\\', "/");
+                        if f.starts_with(&root) {
+                            return f[root.len()..].trim_start_matches('/').to_string();
+                        }
+                    }
+                    f
+                });
                 Warning {
                     code: w.code,
                     message: w.message,
-                    filename: options.filename.clone(),
+                    filename: warning_filename,
                     start: start_pos,
                     end: end_pos,
                     frame,
@@ -743,7 +788,9 @@ pub fn compile_module(
                 let end_pos = w
                     .end
                     .map(|offset| byte_offset_to_position(source, offset as usize));
-                let frame = start_pos.as_ref().map(|sp| generate_frame(source, sp));
+                let frame = start_pos
+                    .as_ref()
+                    .map(|sp| generate_frame(source, sp, end_pos.as_ref()));
                 Warning {
                     code: w.code.clone(),
                     message: w.message.clone(),

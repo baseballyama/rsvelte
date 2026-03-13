@@ -47,14 +47,22 @@ pub fn legacy_component_creation() -> AnalysisWarning {
 }
 
 /// State referenced locally - may not be reactive
-pub fn state_referenced_locally(name: &str, context_type: &str) -> AnalysisWarning {
-    warning(
+pub fn state_referenced_locally(
+    name: &str,
+    context_type: &str,
+    node_start: Option<u32>,
+    node_end: Option<u32>,
+) -> AnalysisWarning {
+    let mut w = warning(
         "state_referenced_locally",
         format!(
             "This reference only captures the initial value of `{}`. Did you mean to reference it inside a {} instead?\nhttps://svelte.dev/e/state_referenced_locally",
             name, context_type
         ),
-    )
+    );
+    w.start = node_start;
+    w.end = node_end;
+    w
 }
 
 /// Reactive declaration references module script dependency

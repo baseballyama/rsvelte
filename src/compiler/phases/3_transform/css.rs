@@ -358,15 +358,103 @@ fn render_stylesheet_internal(
             code = replace_animation_keyframes(&code, hash, &keyframes);
         }
 
-        // When minify is handled inline during transform, no post-processing needed
+        // Generate CSS source map
+        let map = generate_css_sourcemap(source, &code, css_start, options);
 
-        Ok(CssOutput { code, map: None })
+        Ok(CssOutput { code, map })
     } else {
         Ok(CssOutput {
             code: String::new(),
             map: None,
         })
     }
+}
+
+/// Generate a source map for CSS output.
+///
+/// Creates line-level mappings from the generated CSS back to the original source,
+/// offset by the CSS content start position in the original file.
+fn generate_css_sourcemap(
+    source: &str,
+    css_code: &str,
+    css_start: usize,
+    options: &CompileOptions,
+) -> Option<String> {
+    use super::js_ast::codegen::{
+        SourceMapping, encode_vlq_mappings, generate_sourcemap_json, get_source_name,
+    };
+
+    let css_output_filename = options.css_output_filename.as_deref();
+    let filename = options.filename.as_deref();
+
+    // Compute source name relative to output
+    let source_name = if let (Some(css_out), Some(input)) = (css_output_filename, filename) {
+        get_source_name(Some(input), Some(css_out), "input.svelte")
+    } else if let Some(input) = filename {
+        get_source_name(Some(input), None, "input.svelte")
+    } else {
+        "input.svelte".to_string()
+    };
+
+    // Determine file name for the "file" field
+    let file_name = css_output_filename
+        .map(|f| {
+            f.split(['/', '\\'])
+                .next_back()
+                .unwrap_or("input.svelte.css")
+                .to_string()
+        })
+        .unwrap_or_else(|| "input.svelte.css".to_string());
+
+    // Build source line starts
+    let source_line_starts = build_css_line_starts(source);
+    let css_line_starts = build_css_line_starts(css_code);
+
+    // Find the line/col of css_start in the original source
+    let css_start_line = source_line_starts
+        .binary_search(&css_start)
+        .unwrap_or_else(|i| i.saturating_sub(1));
+
+    // Create mappings for each line of CSS output
+    // Each CSS output line maps back to the corresponding line in the original source
+    // (offset by the CSS content start position)
+    let mut mappings = Vec::new();
+
+    // Map each generated CSS line to the corresponding source line
+    // The CSS content starts at css_start_line in the source
+    for (i, _) in css_line_starts.iter().enumerate() {
+        // Map generated line i to source line (css_start_line + i)
+        let orig_line = css_start_line + i;
+        if orig_line < source_line_starts.len() {
+            mappings.push(SourceMapping {
+                gen_line: i as u32,
+                gen_col: 0,
+                source: 0,
+                orig_line: orig_line as u32,
+                orig_col: 0,
+            });
+        }
+    }
+
+    let mappings_str = encode_vlq_mappings(&mappings);
+    Some(generate_sourcemap_json(
+        &file_name,
+        &source_name,
+        source,
+        &mappings_str,
+        &[],
+    ))
+}
+
+/// Build line start offsets for CSS source map generation.
+fn build_css_line_starts(s: &str) -> Vec<usize> {
+    let mut starts = vec![0usize];
+    for (i, b) in s.bytes().enumerate() {
+        if b == b'\n' {
+            starts.push(i + 1);
+        }
+    }
+    starts
 }
 
 /// Minify CSS by removing unnecessary whitespace and comments.
