@@ -453,11 +453,12 @@ pub fn visit_regular_element(
             false
         };
 
-        let ignore_hydration = node
-            .metadata
-            .ignored_codes
-            .iter()
-            .any(|c| c == "hydration_attribute_changed");
+        let ignore_hydration = context.state.options.dev
+            && node
+                .metadata
+                .ignored_codes
+                .iter()
+                .any(|c| c == "hydration_attribute_changed");
         build_attribute_effect(
             &attributes,
             &class_directives,
@@ -648,6 +649,7 @@ pub fn visit_regular_element(
                         &name,
                         memoized_value,
                         &attributes,
+                        context.state.options.dev,
                     );
 
                     // Route to update (template_effect) when the expression has state
@@ -1475,6 +1477,7 @@ fn build_element_attribute_update(
     name: &str,
     value: JsExpr,
     attributes: &[&Attribute],
+    dev: bool,
 ) -> JsExpr {
     // Special case: muted (Firefox needs property assignment)
     if name == "muted" {
@@ -1548,11 +1551,12 @@ fn build_element_attribute_update(
     };
 
     let mut args = vec![b::id(node_id), b::string(name), value];
-    if element
-        .metadata
-        .ignored_codes
-        .iter()
-        .any(|c| c == "hydration_attribute_changed")
+    if dev
+        && element
+            .metadata
+            .ignored_codes
+            .iter()
+            .any(|c| c == "hydration_attribute_changed")
     {
         args.push(b::boolean(true));
     }
