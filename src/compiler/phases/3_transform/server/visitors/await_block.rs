@@ -61,6 +61,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.use_async,
             );
             pending_generator.constant_vars = self.constant_vars.clone();
+            pending_generator.is_typescript = self.is_typescript;
             for node in &pending.nodes {
                 pending_generator.generate_node(node, false)?;
             }
@@ -82,6 +83,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.use_async,
             );
             then_generator.constant_vars = self.constant_vars.clone();
+            then_generator.is_typescript = self.is_typescript;
             for node in &then.nodes {
                 then_generator.generate_node(node, false)?;
             }
@@ -102,6 +104,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.use_async,
             );
             catch_generator.constant_vars = self.constant_vars.clone();
+            catch_generator.is_typescript = self.is_typescript;
             for node in &catch.nodes {
                 catch_generator.generate_node(node, false)?;
             }
@@ -138,6 +141,7 @@ impl<'a> ServerCodeGenerator<'a> {
             self.use_async,
         );
         body_generator.constant_vars = self.constant_vars.clone();
+        body_generator.is_typescript = self.is_typescript;
 
         // Determine range of nodes, trimming leading/trailing whitespace-only text nodes
         // but preserving interior whitespace (e.g., between expression tags and elements)

@@ -232,13 +232,13 @@ pub fn prop_method(
 }
 
 /// Create a getter property.
-/// If the name is not a valid identifier (e.g., contains hyphens), uses computed property syntax.
+/// If the name is not a valid identifier (e.g., contains hyphens), uses a string literal key.
 pub fn getter(name: impl Into<CompactString>, body: Vec<JsStatement>) -> JsObjectMember {
     let name_str: CompactString = name.into();
-    let (key, computed) = if is_valid_identifier(&name_str) {
-        (JsPropertyKey::Identifier(name_str), false)
+    let key = if is_valid_identifier(&name_str) {
+        JsPropertyKey::Identifier(name_str)
     } else {
-        (JsPropertyKey::Literal(JsLiteral::String(name_str)), true)
+        JsPropertyKey::Literal(JsLiteral::String(name_str))
     };
     JsObjectMember::Property(JsProperty {
         key,
@@ -250,24 +250,24 @@ pub fn getter(name: impl Into<CompactString>, body: Vec<JsStatement>) -> JsObjec
             is_generator: false,
         })),
         kind: JsPropertyKind::Get,
-        computed,
+        computed: false,
         shorthand: false,
         method: false,
     })
 }
 
 /// Create a setter property.
-/// If the name is not a valid identifier (e.g., contains hyphens), uses computed property syntax.
+/// If the name is not a valid identifier (e.g., contains hyphens), uses a string literal key.
 pub fn setter(
     name: impl Into<CompactString>,
     param: impl Into<CompactString>,
     body: Vec<JsStatement>,
 ) -> JsObjectMember {
     let name_str: CompactString = name.into();
-    let (key, computed) = if is_valid_identifier(&name_str) {
-        (JsPropertyKey::Identifier(name_str), false)
+    let key = if is_valid_identifier(&name_str) {
+        JsPropertyKey::Identifier(name_str)
     } else {
-        (JsPropertyKey::Literal(JsLiteral::String(name_str)), true)
+        JsPropertyKey::Literal(JsLiteral::String(name_str))
     };
     JsObjectMember::Property(JsProperty {
         key,
@@ -279,7 +279,7 @@ pub fn setter(
             is_generator: false,
         })),
         kind: JsPropertyKind::Set,
-        computed,
+        computed: false,
         shorthand: false,
         method: false,
     })
@@ -375,6 +375,12 @@ pub fn unthunk(expr: JsExpr) -> JsExpr {
     let JsExpr::Call(call) = body_expr.as_ref() else {
         return expr;
     };
+
+    // Don't optimize optional calls: () => func?.() cannot become func
+    // because func might be undefined, and calling undefined() would crash
+    if call.optional {
+        return expr;
+    }
 
     // Callee must be an identifier, or a member expression on the `$` namespace.
     // In the official Svelte compiler, dotted paths like '$.effect_tracking' are

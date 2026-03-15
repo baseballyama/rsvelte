@@ -43,8 +43,11 @@ use types::{ComponentClientTransformState, ComponentContext, TransformOptions, T
 static REGEX_DOLLAR_PROPS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\$\$props\b").unwrap());
 
 // Cached regular expressions for performance
+// Matches: let/const/var name [: TypeAnnotation] = $state/$derived[.by][<GenericParams>](
+// The optional type annotation handles TypeScript patterns like `const x: string = $derived.by(...)`
+// The optional generic params handle patterns like `let x = $state<SomeType>(...)`
 static REGEX_STATE_DERIVED_VAR: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(let|const|var)\s+(\w+)\s*=\s*\$(?:state|derived)(?:\.by)?\s*\(").unwrap()
+    Regex::new(r"(let|const|var)\s+(\w+)(?:\s*:[^=\n]*)?\s*=\s*\$(?:state|derived)(?:\.by)?(?:<[^(]*>)?\s*\(").unwrap()
 });
 
 // Regex for sanitizing identifier names - replaces invalid identifier characters
@@ -876,6 +879,7 @@ fn transform_client_with_visitors(
         // content is always emitted at the function body level.
         let script_indent = 1usize;
         let trimmed = transformed_script.trim();
+        let script_source_offset = content.start;
         if !trimmed.is_empty() {
             // Apply async body transformation if experimental.async is enabled
             // This splits the instance script at the first top-level `await`
@@ -885,7 +889,10 @@ fn transform_client_with_visitors(
                 {
                     let cleaned_output = strip_async_noop_placeholders(async_result.output.trim());
                     let normalized = normalize_js_with_oxc(cleaned_output.trim(), script_indent);
-                    component_body.push(JsStatement::Raw(normalized.into()));
+                    component_body.push(JsStatement::RawMapped {
+                        code: normalized.into(),
+                        source_offset: script_source_offset,
+                    });
                     // Store the blocker_map for use during template generation
                     if !async_result.blocker_map.is_empty() {
                         *context.state.blocker_map.borrow_mut() = async_result.blocker_map;
@@ -895,7 +902,10 @@ fn transform_client_with_visitors(
                     let cleaned = strip_async_noop_placeholders(trimmed);
                     if !cleaned.trim().is_empty() {
                         let normalized = normalize_js_with_oxc(cleaned.trim(), script_indent);
-                        component_body.push(JsStatement::Raw(normalized.into()));
+                        component_body.push(JsStatement::RawMapped {
+                            code: normalized.into(),
+                            source_offset: script_source_offset,
+                        });
                     }
                 }
             } else {
@@ -903,7 +913,10 @@ fn transform_client_with_visitors(
                 // the official Svelte compiler's esrap output (consistent spacing,
                 // semicolons, etc.)
                 let normalized = normalize_js_with_oxc(trimmed, script_indent);
-                component_body.push(JsStatement::Raw(normalized.into()));
+                component_body.push(JsStatement::RawMapped {
+                    code: normalized.into(),
+                    source_offset: script_source_offset,
+                });
             }
         }
     }
@@ -1427,9 +1440,28 @@ fn transform_client_with_visitors(
     if analysis.css.has_css && analysis.inject_styles {
         let hash = b::string(analysis.css.hash.clone());
         // Render the actual scoped CSS code
-        let css_code = super::css::render_stylesheet(analysis, source, options)
-            .map(|output| output.code)
-            .unwrap_or_default();
+        let mut css_code = String::new();
+        if let Ok(css_output) = super::css::render_stylesheet(analysis, source, options) {
+            css_code = css_output.code;
+            // In dev mode, embed the CSS source map as a data URI in the CSS code.
+            // This matches the official Svelte compiler behavior (css/index.js):
+            //   css.code += `\n/*# sourceMappingURL=${css.map.toUrl()} */`;
+            if options.dev
+                && !css_code.is_empty()
+                && let Some(mut css_map_json) = css_output.map
+            {
+                // Remap through preprocessor map if present
+                if let Some(ref pp_map) = options.sourcemap {
+                    css_map_json = super::remap_css_sourcemap(&css_map_json, pp_map, options);
+                }
+                // Encode as base64 data URI
+                let b64 = super::base64_encode(css_map_json.as_bytes());
+                css_code.push_str(&format!(
+                    "\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,{} */",
+                    b64
+                ));
+            }
+        }
         let code = b::string(css_code);
         body.push(b::const_decl(
             "$$css",
@@ -1873,9 +1905,14 @@ fn extract_proxy_vars(script: &str) -> Vec<String> {
 pub(crate) fn transform_module_script_runes(script: &str, analysis: &ComponentAnalysis) -> String {
     let mut result = script.to_string();
 
+    // Strip TypeScript generic parameters from $state<...>() and $derived<...>() calls.
+    // These are type-only annotations that have no runtime meaning.
+    // e.g., $state<ReturnType<typeof autoUpdate>>() → $state()
+    result = strip_rune_generic_params(&result);
+
     // Extract local reactive variable names from the module script
     // These are variables declared with $state() or $derived() inside functions
-    let module_state_vars_with_const = extract_local_reactive_vars(script);
+    let module_state_vars_with_const = extract_local_reactive_vars(&result);
     let module_state_vars: Vec<String> = module_state_vars_with_const
         .iter()
         .map(|(name, _, _)| name.clone())
@@ -1943,36 +1980,7 @@ pub(crate) fn transform_module_script_runes(script: &str, analysis: &ComponentAn
                 let trimmed_content = content.trim();
 
                 // Extract variable name
-                let var_name = {
-                    let before = &result[..pos];
-                    let mut name = String::new();
-                    if before.contains("let ")
-                        || before.contains("const ")
-                        || before.contains("var ")
-                    {
-                        let decl_pattern = if before.contains("let ") {
-                            "let "
-                        } else if before.contains("const ") {
-                            "const "
-                        } else {
-                            "var "
-                        };
-                        if let Some(decl_pos) = before.rfind(decl_pattern) {
-                            let after_keyword = &before[decl_pos + decl_pattern.len()..];
-                            let before_eq = if let Some(eq_pos) = after_keyword.find('=') {
-                                &after_keyword[..eq_pos]
-                            } else {
-                                after_keyword
-                            };
-                            name = before_eq
-                                .trim()
-                                .chars()
-                                .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '$')
-                                .collect::<String>();
-                        }
-                    }
-                    name
-                };
+                let var_name = extract_var_name_before_rune(&result[..pos]);
 
                 let is_non_reactive = module_non_reactive_vars.contains(&var_name);
                 let value = if trimmed_content.is_empty() {
@@ -2012,37 +2020,7 @@ pub(crate) fn transform_module_script_runes(script: &str, analysis: &ComponentAn
             break;
         }
 
-        // Extract variable name for this declaration
-        let var_name = {
-            let before_state = &result[..pos];
-            let mut name = String::new();
-            if before_state.contains("let ")
-                || before_state.contains("const ")
-                || before_state.contains("var ")
-            {
-                let decl_pattern = if before_state.contains("let ") {
-                    "let "
-                } else if before_state.contains("const ") {
-                    "const "
-                } else {
-                    "var "
-                };
-                if let Some(decl_pos) = before_state.rfind(decl_pattern) {
-                    let after_keyword = &before_state[decl_pos + decl_pattern.len()..];
-                    let before_eq = if let Some(eq_pos) = after_keyword.find('=') {
-                        &after_keyword[..eq_pos]
-                    } else {
-                        after_keyword
-                    };
-                    name = before_eq
-                        .trim()
-                        .chars()
-                        .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '$')
-                        .collect::<String>();
-                }
-            }
-            name
-        };
+        let var_name = extract_var_name_before_rune(&result[..pos]);
 
         let is_non_reactive = module_non_reactive_vars.contains(&var_name);
 
@@ -2127,6 +2105,11 @@ pub(crate) fn transform_module_script_runes(script: &str, analysis: &ComponentAn
         let derived_start = pos + 9; // after "$derived("
         if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
             let content = &result[derived_start..derived_start + content_end];
+            // Strip trailing comma from $derived(expr,) - valid in function call but not in () => (expr,)
+            let content = content
+                .trim_end()
+                .strip_suffix(',')
+                .map_or(content, |stripped| stripped);
             // Wrap state variables inside the expression with $.get()
             let wrapped_content = wrap_state_vars_in_expr(
                 content,
@@ -2371,6 +2354,11 @@ fn transform_instance_script_for_visitors(
 
     // First, transform class fields with $state and $derived
     let script = transform_class_fields_client(&script);
+
+    // Split comma-separated variable declarations into individual statements.
+    // This matches the official Svelte compiler's behavior where each declarator
+    // in a multi-declarator statement becomes its own statement.
+    let script = crate::compiler::phases::phase3_transform::server::transform_script::split_comma_separated_declarations(&script);
 
     // Extract imports from script (they will be hoisted separately)
     let (_script_imports, script_rest) = extract_imports(&script);
@@ -3976,6 +3964,12 @@ fn transform_client_runes_with_skip_and_state(
             let derived_start = pos + 9; // after "$derived("
             if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
                 let content = &result[derived_start..derived_start + content_end];
+                // Strip trailing comma from $derived(expr,) - the trailing comma is valid
+                // in function call syntax but NOT in arrow function body grouping: () => (expr,) is a SyntaxError
+                let content = content
+                    .trim_end()
+                    .strip_suffix(',')
+                    .map_or(content, |stripped| stripped);
                 // Wrap in arrow function if not already a function
                 let trimmed_content = content.trim();
                 if !trimmed_content.starts_with("()") && !trimmed_content.starts_with("function") {
@@ -4326,10 +4320,13 @@ fn transform_client_runes_with_skip_and_state(
                 let before = result[..pos].trim();
                 let after = result[pos + total_end..].trim();
 
-                // If the line is just the $inspect call, output empty statements (;;)
-                // This matches the official Svelte compiler behavior in non-dev mode
+                // If the line is just the $inspect call, output a hole marker.
+                // In non-dev mode, $inspect becomes a null entry in the async
+                // thunk array (an array hole), matching the official compiler.
+                // Include the args content so the blocker_map can track references.
                 if before.is_empty() && (after.is_empty() || after == ";") {
-                    return ";;".to_string();
+                    let args = &result[inspect_start..inspect_start + content_end];
+                    return format!("/* $$async_hole:{} */", args);
                 } else {
                     // Remove just the $inspect(...) part but keep other code on the line
                     result = format!("{}{}", &result[..pos], &result[pos + total_end..]);
@@ -4670,7 +4667,7 @@ fn transform_derived_destructuring(
     if declarations.is_empty() {
         return None;
     }
-    Some(format!("let {};", declarations.join(",\n\t")))
+    Some(format!("{} {};", decl_keyword, declarations.join(",\n\t")))
 }
 
 /// Transform `$derived.by()` with destructuring patterns.
@@ -4719,7 +4716,7 @@ fn transform_derived_by_destructuring(
     if declarations.is_empty() {
         return None;
     }
-    Some(format!("let {};", declarations.join(",\n\t")))
+    Some(format!("{} {};", decl_keyword, declarations.join(",\n\t")))
 }
 
 /// Transform `$state()` or `$state.raw()` with destructuring patterns.
@@ -5037,7 +5034,8 @@ fn process_derived_object_pattern(
             let value_pattern = prop[colon_pos + 1..].trim();
             let prop_access = format!("{}.{}", base_expr, key);
             if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
-                collect_array_helpers_only(value_pattern, &prop_access, declarations)?;
+                let (nested_pattern, _default_val) = split_nested_pattern_default(value_pattern);
+                collect_array_helpers_only(nested_pattern, &prop_access, declarations)?;
             }
         }
     }
@@ -5054,7 +5052,13 @@ fn process_derived_object_pattern(
             let key = if let Some(colon_pos) = find_derived_property_colon(prop) {
                 prop[..colon_pos].trim()
             } else {
-                prop.trim()
+                // Strip default value: `animated = false` → `animated`
+                let key = prop.trim();
+                if let Some(eq_pos) = find_default_equals(key) {
+                    key[..eq_pos].trim()
+                } else {
+                    key
+                }
             };
             // Handle computed keys and quoted keys
             if key.starts_with('[') {
@@ -5085,24 +5089,54 @@ fn process_derived_object_pattern(
             let value_pattern = prop[colon_pos + 1..].trim();
             let prop_access = format!("{}.{}", base_expr, key);
             if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
+                // Handle nested destructuring patterns, possibly with default values
+                // e.g., `measured: { width: w, height: h } = { width: 0, height: 0 }`
+                let (nested_pattern, default_val) = split_nested_pattern_default(value_pattern);
+                let effective_access = if let Some(dv) = default_val {
+                    format!("({} ?? {})", prop_access, dv)
+                } else {
+                    prop_access
+                };
                 // Process nested pattern elements (not the $$array helpers, already added)
                 process_nested_pattern_elements(
-                    value_pattern,
-                    &prop_access,
+                    nested_pattern,
+                    &effective_access,
                     declarations,
                     array_counter,
                 )?;
             } else {
-                declarations.push(format!(
-                    "{} = $.derived(() => {})",
-                    value_pattern, prop_access
-                ));
+                // Handle renamed properties with default values
+                // e.g., `selectable: _selectable = true` → value_pattern="_selectable = true"
+                if let Some(eq_pos) = find_default_equals(value_pattern) {
+                    let name = value_pattern[..eq_pos].trim();
+                    let default_val = value_pattern[eq_pos + 1..].trim();
+                    declarations.push(format!(
+                        "{} = $.derived(() => {} ?? {})",
+                        name, prop_access, default_val
+                    ));
+                } else {
+                    declarations.push(format!(
+                        "{} = $.derived(() => {})",
+                        value_pattern, prop_access
+                    ));
+                }
             }
         } else {
-            declarations.push(format!(
-                "{} = $.derived(() => {}.{})",
-                prop, base_expr, prop
-            ));
+            // Handle shorthand properties, possibly with default values
+            // e.g., `animated = false` → name="animated", default="false"
+            if let Some(eq_pos) = find_default_equals(prop) {
+                let name = prop[..eq_pos].trim();
+                let default_val = prop[eq_pos + 1..].trim();
+                declarations.push(format!(
+                    "{} = $.derived(() => {}.{} ?? {})",
+                    name, base_expr, name, default_val
+                ));
+            } else {
+                declarations.push(format!(
+                    "{} = $.derived(() => {}.{})",
+                    prop, base_expr, prop
+                ));
+            }
         }
     }
     Some(())
@@ -5260,17 +5294,33 @@ fn process_nested_pattern_elements(
                 let value_pattern = prop[colon_pos + 1..].trim();
                 let prop_access = format!("{}.{}", base_expr, key);
                 if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
+                    let (nested_pattern, default_val) = split_nested_pattern_default(value_pattern);
+                    let effective_access = if let Some(dv) = default_val {
+                        format!("({} ?? {})", prop_access, dv)
+                    } else {
+                        prop_access
+                    };
                     process_nested_pattern_elements(
-                        value_pattern,
-                        &prop_access,
+                        nested_pattern,
+                        &effective_access,
                         declarations,
                         _array_counter,
                     )?;
                 } else {
-                    declarations.push(format!(
-                        "{} = $.derived(() => {})",
-                        value_pattern, prop_access
-                    ));
+                    // Handle default values for renamed properties
+                    if let Some(eq_pos) = find_default_equals(value_pattern) {
+                        let name = value_pattern[..eq_pos].trim();
+                        let default_val = value_pattern[eq_pos + 1..].trim();
+                        declarations.push(format!(
+                            "{} = $.derived(() => {} ?? {})",
+                            name, prop_access, default_val
+                        ));
+                    } else {
+                        declarations.push(format!(
+                            "{} = $.derived(() => {})",
+                            value_pattern, prop_access
+                        ));
+                    }
                 }
             } else {
                 declarations.push(format!(
@@ -5281,6 +5331,43 @@ fn process_nested_pattern_elements(
         }
     }
     Some(())
+}
+
+/// Split a nested destructuring pattern from its default value.
+///
+/// For example: `{ width: measuredWidth, height: measuredHeight } = { width: 0, height: 0 }`
+/// Returns: `("{ width: measuredWidth, height: measuredHeight }", Some("{ width: 0, height: 0 }"))`.
+///
+/// If there's no default value, returns `(pattern, None)`.
+fn split_nested_pattern_default(pattern: &str) -> (&str, Option<&str>) {
+    let pattern = pattern.trim();
+    let open = pattern.as_bytes()[0];
+    let close = match open {
+        b'{' => b'}',
+        b'[' => b']',
+        _ => return (pattern, None),
+    };
+    // Find the matching closing delimiter
+    let mut depth = 0i32;
+    let bytes = pattern.as_bytes();
+    for i in 0..bytes.len() {
+        match bytes[i] {
+            c if c == open => depth += 1,
+            c if c == close => {
+                depth -= 1;
+                if depth == 0 {
+                    // Found the matching close
+                    let after = pattern[i + 1..].trim();
+                    if let Some(rest) = after.strip_prefix('=') {
+                        return (&pattern[..=i], Some(rest.trim()));
+                    }
+                    return (pattern, None);
+                }
+            }
+            _ => {}
+        }
+    }
+    (pattern, None)
 }
 
 /// Helper to determine which $$array variable corresponds to a given base expression.
@@ -5424,6 +5511,32 @@ fn find_derived_property_colon(prop: &str) -> Option<usize> {
             ':' if depth == 0 => return Some(i),
             _ => {}
         }
+    }
+    None
+}
+
+/// Find the position of `=` in a shorthand destructuring property with a default value.
+/// e.g., `animated = false` → Some(9), `animated` → None
+/// Respects nesting so `data = { x: 1 }` finds the top-level `=`.
+fn find_default_equals(prop: &str) -> Option<usize> {
+    let mut depth = 0;
+    let bytes = prop.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'{' | b'[' | b'(' => depth += 1,
+            b'}' | b']' | b')' => depth -= 1,
+            b'=' if depth == 0 => {
+                // Make sure it's not `==` or `=>`
+                if i + 1 < bytes.len() && (bytes[i + 1] == b'=' || bytes[i + 1] == b'>') {
+                    i += 2;
+                    continue;
+                }
+                return Some(i);
+            }
+            _ => {}
+        }
+        i += 1;
     }
     None
 }
@@ -8244,10 +8357,25 @@ fn wrap_prop_source_reads(expr: &str, prop_vars: &[String]) -> String {
                             let has_colon_after = k < chars.len() && chars[k] == ':';
                             if has_colon_after {
                                 // Check if this is in an object literal context by looking
-                                // at what precedes the identifier (skip whitespace).
+                                // at what precedes the identifier (skip whitespace AND comments).
                                 let mut j = i;
-                                while j > 0 && chars[j - 1].is_whitespace() {
-                                    j -= 1;
+                                loop {
+                                    while j > 0 && chars[j - 1].is_whitespace() {
+                                        j -= 1;
+                                    }
+                                    // Skip block comments: if we see `*/`, walk back to `/*`
+                                    if j >= 2 && chars[j - 2] == '*' && chars[j - 1] == '/' {
+                                        j -= 2;
+                                        while j >= 2 {
+                                            if chars[j - 2] == '/' && chars[j - 1] == '*' {
+                                                j -= 2;
+                                                break;
+                                            }
+                                            j -= 1;
+                                        }
+                                        continue;
+                                    }
+                                    break;
                                 }
                                 let prev_char = if j > 0 { Some(chars[j - 1]) } else { None };
                                 // Property keys follow `{`, `,`, or `\n` (for multi-line objects)
@@ -10063,6 +10191,24 @@ fn transform_read_only_props(line: &str, read_only_props: &[(String, String)]) -
                 continue;
             }
 
+            // Check if this is a getter/setter property name (skip if so)
+            // e.g., `get initialViewId()` - the name is a property definition, not a reference
+            {
+                let before_trimmed = result[..mat.start()].trim_end();
+                if before_trimmed.ends_with("get") || before_trimmed.ends_with("set") {
+                    let keyword_len = 3; // "get" or "set"
+                    let before_keyword =
+                        before_trimmed[..before_trimmed.len() - keyword_len].trim_end();
+                    let prev = before_keyword.chars().last();
+                    // `get`/`set` is a getter/setter keyword if preceded by `{`, `,`, or start of context
+                    if matches!(prev, None | Some('{') | Some(',') | Some('(') | Some(';')) {
+                        new_result.push_str(&result[last_end..mat.end()]);
+                        last_end = mat.end();
+                        continue;
+                    }
+                }
+            }
+
             // Check if this is a declaration (skip if so)
             let before = &result[..mat.start()];
             let trimmed_before = before.trim_end();
@@ -10128,9 +10274,26 @@ fn transform_read_only_props(line: &str, read_only_props: &[(String, String)]) -
                 continue;
             }
 
+            // Check if this identifier is a non-shorthand object property key
+            // e.g., `{ children: queryChildren }` - `children` is just a key, don't replace
+            // Also handles cases where comments appear between `,` and the key
+            {
+                let after_trimmed = result[mat.end()..].trim_start();
+                let next_after = after_trimmed.chars().next();
+                if next_after == Some(':') && after_trimmed.chars().nth(1) != Some(':') {
+                    // Use delimiter tracking to check if we're inside an object literal
+                    if find_nearest_unmatched_open_delimiter(&result, mat.start()) == Some('{') {
+                        new_result.push_str(&result[last_end..mat.end()]);
+                        last_end = mat.end();
+                        continue;
+                    }
+                }
+            }
+
             // Check if this is a shorthand property in an object literal
             // e.g., `{ environment }` should become `{ environment: $$props.environment }`
             // not `{ $$props.environment }` (which would be invalid)
+            // Must be inside `{ }` (object literal), NOT `( )` (function call) or `[ ]` (array)
             let is_shorthand = {
                 let before = result[..mat.start()].trim_end();
                 let after = result[mat.end()..].trim_start();
@@ -10145,6 +10308,7 @@ fn transform_read_only_props(line: &str, read_only_props: &[(String, String)]) -
                 matches!(prev_char, Some('{') | Some(','))
                     && matches!(next_char, Some('}') | Some(','))
                     && !is_template_literal
+                    && find_nearest_unmatched_open_delimiter(&result, mat.start()) == Some('{')
             };
 
             // Replace with $$props.propName or $$props['propName']
@@ -10181,6 +10345,48 @@ fn transform_read_only_props(line: &str, read_only_props: &[(String, String)]) -
 /// Check if text before a comma represents a variable declaration list.
 /// Returns true for patterns like `let a` (from `let a, b`) but false for
 /// function call arguments like `foo('str'` (from `foo('str', arg)`).
+/// Find the nearest unmatched opening delimiter (`{`, `(`, or `[`) scanning backward from `pos`.
+/// This helps distinguish object literal context (`{`) from function call (`(`) or array (`[`).
+fn find_nearest_unmatched_open_delimiter(code: &str, pos: usize) -> Option<char> {
+    let bytes = code.as_bytes();
+    let mut depth_paren: i32 = 0;
+    let mut depth_bracket: i32 = 0;
+    let mut depth_brace: i32 = 0;
+
+    let mut i = pos;
+    while i > 0 {
+        i -= 1;
+        match bytes[i] {
+            b')' => depth_paren += 1,
+            b'(' => {
+                if depth_paren > 0 {
+                    depth_paren -= 1;
+                } else {
+                    return Some('(');
+                }
+            }
+            b']' => depth_bracket += 1,
+            b'[' => {
+                if depth_bracket > 0 {
+                    depth_bracket -= 1;
+                } else {
+                    return Some('[');
+                }
+            }
+            b'}' => depth_brace += 1,
+            b'{' => {
+                if depth_brace > 0 {
+                    depth_brace -= 1;
+                } else {
+                    return Some('{');
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 fn is_in_variable_declaration_list(before_comma: &str) -> bool {
     // Simple heuristic: scan backwards past identifiers, assignments, and values
     // to find if there's a let/const/var keyword at the top level (not inside parens/brackets).
@@ -12882,6 +13088,146 @@ fn find_expression_end(s: &str) -> usize {
 }
 
 /// Collapse a multi-line expression to a single line, matching esrap's behavior.
+/// Strip TypeScript generic type parameters from rune calls.
+/// Converts `$state<SomeType>(...)` → `$state(...)` and `$derived<T>(...)` → `$derived(...)`.
+/// Handles nested angle brackets like `$state<ReturnType<typeof autoUpdate>>()`.
+/// Extract the variable name from text preceding a rune call like `$state(` or `$state.raw(`.
+/// Given `"let foo = "` or `"const bar: SomeType = "`, returns the variable name.
+/// Works by scanning backwards from the end to find `varname =` pattern,
+/// skipping optional TypeScript type annotations.
+fn extract_var_name_before_rune(before_rune: &str) -> String {
+    let trimmed = before_rune.trim_end();
+    if !trimmed.ends_with('=') {
+        return String::new();
+    }
+
+    // Check it's not `==` or `=>`
+    let eq_pos = trimmed.len() - 1;
+    if eq_pos > 0 {
+        let prev = trimmed.as_bytes()[eq_pos - 1];
+        if prev == b'=' || prev == b'!' || prev == b'<' || prev == b'>' {
+            return String::new();
+        }
+    }
+
+    let before_eq = trimmed[..eq_pos].trim_end();
+    // Skip optional TypeScript type annotation (: Type)
+    // Only look for `:` on the same line as the `=`, to avoid matching `:` inside
+    // object literals from previously transformed code.
+    let current_line_start = before_eq.rfind('\n').map_or(0, |p| p + 1);
+    let current_line = &before_eq[current_line_start..];
+    let before_type = if let Some(colon_offset) = current_line.rfind(':') {
+        let colon_pos = current_line_start + colon_offset;
+        let candidate = before_eq[..colon_pos].trim_end();
+        if candidate
+            .chars()
+            .last()
+            .is_some_and(|c| c.is_alphanumeric() || c == '_' || c == '$')
+        {
+            candidate
+        } else {
+            before_eq
+        }
+    } else {
+        before_eq
+    };
+
+    // Extract identifier (variable name) from the end
+    let chars: Vec<char> = before_type.chars().collect();
+    let mut end = chars.len();
+    while end > 0 && chars[end - 1].is_whitespace() {
+        end -= 1;
+    }
+    let mut start = end;
+    while start > 0
+        && (chars[start - 1].is_alphanumeric()
+            || chars[start - 1] == '_'
+            || chars[start - 1] == '$')
+    {
+        start -= 1;
+    }
+    if start < end {
+        chars[start..end].iter().collect()
+    } else {
+        String::new()
+    }
+}
+
+fn strip_rune_generic_params(input: &str) -> String {
+    let chars: Vec<char> = input.chars().collect();
+    let len = chars.len();
+    let mut result = String::with_capacity(input.len());
+    let mut i = 0;
+
+    while i < len {
+        // Look for $state< or $derived< patterns
+        let remaining: String = chars[i..].iter().collect();
+        let is_state = remaining.starts_with("$state<");
+        let is_derived = remaining.starts_with("$derived<");
+
+        if is_state || is_derived {
+            let rune_name_len = if is_state { 6 } else { 8 }; // "$state" or "$derived"
+            // Make sure it's not preceded by an identifier char (e.g., not part of "$.state<")
+            let preceded_by_id =
+                i > 0 && (chars[i - 1].is_ascii_alphanumeric() || chars[i - 1] == '_');
+            // Also check it's not preceded by `$.` (already transformed)
+            let preceded_by_dollar_dot = i >= 2 && chars[i - 2] == '$' && chars[i - 1] == '.';
+            if !preceded_by_id && !preceded_by_dollar_dot {
+                // Found a rune with generic params. Track angle bracket depth to find the
+                // closing `>`, then check if `(` follows.
+                let angle_start = i + rune_name_len; // position of `<`
+                let mut j = angle_start + 1;
+                let mut angle_depth = 1i32;
+                let mut in_str: Option<char> = None;
+                while j < len && angle_depth > 0 {
+                    let c = chars[j];
+                    if let Some(q) = in_str {
+                        if c == q
+                            && (j == 0 || chars[j - 1] != '\\' || (j >= 2 && chars[j - 2] == '\\'))
+                        {
+                            in_str = None;
+                        }
+                    } else {
+                        match c {
+                            '\'' | '"' | '`' => in_str = Some(c),
+                            '<' => angle_depth += 1,
+                            '>' => {
+                                // Skip `=>` (arrow operator) — it's not a closing angle bracket
+                                if j > 0 && chars[j - 1] == '=' {
+                                    // This is `=>`, not a closing `>`
+                                } else {
+                                    angle_depth -= 1;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    j += 1;
+                }
+                if angle_depth == 0 {
+                    // `j` is now past the closing `>`. Check if `(` follows (possibly
+                    // with whitespace).
+                    let mut k = j;
+                    while k < len && chars[k].is_whitespace() {
+                        k += 1;
+                    }
+                    if k < len && chars[k] == '(' {
+                        // Strip the generic params AND any whitespace between > and (
+                        let rune_name: String = chars[i..i + rune_name_len].iter().collect();
+                        result.push_str(&rune_name);
+                        i = k; // skip past the `>` and whitespace; next iteration picks up `(`
+                        continue;
+                    }
+                }
+            }
+        }
+        result.push(chars[i]);
+        i += 1;
+    }
+
+    result
+}
+
 ///
 /// For object/array literals that span multiple lines but would fit on one line
 /// (with padding spaces for objects), this collapses them. Respects the 60-char
@@ -14030,7 +14376,76 @@ fn is_shadowed_by_local_var_decl(chars: &[char], var_start: usize, var_name: &st
                                                     let after_ok = vp + var_len >= chars.len()
                                                         || !is_identifier_char(chars[vp + var_len]);
                                                     if after_ok {
-                                                        found_decl = true;
+                                                        // Check if this declaration initializes a
+                                                        // reactive signal ($.state/$.derived/$.proxy).
+                                                        // Those are NOT local shadowing — they are
+                                                        // reactive vars that still need $.get().
+                                                        let mut eq_pos = vp + var_len;
+                                                        while eq_pos < chars.len()
+                                                            && chars[eq_pos].is_whitespace()
+                                                        {
+                                                            eq_pos += 1;
+                                                        }
+                                                        // Skip TypeScript type annotation (: Type)
+                                                        if eq_pos < chars.len()
+                                                            && chars[eq_pos] == ':'
+                                                        {
+                                                            // Skip past the type annotation to `=`
+                                                            eq_pos += 1;
+                                                            // Simple heuristic: scan forward to next
+                                                            // `=` that's not part of `=>` or `==`
+                                                            let mut angle_depth = 0i32;
+                                                            while eq_pos < chars.len() {
+                                                                match chars[eq_pos] {
+                                                                    '<' => angle_depth += 1,
+                                                                    '>' => {
+                                                                        if angle_depth > 0 {
+                                                                            angle_depth -= 1;
+                                                                        }
+                                                                    }
+                                                                    '=' if angle_depth == 0 => {
+                                                                        // Make sure it's not => or ==
+                                                                        if eq_pos + 1 < chars.len()
+                                                                            && (chars[eq_pos + 1]
+                                                                                == '>'
+                                                                                || chars
+                                                                                    [eq_pos + 1]
+                                                                                    == '=')
+                                                                        {
+                                                                            eq_pos += 2;
+                                                                            continue;
+                                                                        }
+                                                                        break;
+                                                                    }
+                                                                    _ => {}
+                                                                }
+                                                                eq_pos += 1;
+                                                            }
+                                                        }
+                                                        let is_reactive_decl = if eq_pos
+                                                            < chars.len()
+                                                            && chars[eq_pos] == '='
+                                                            && (eq_pos + 1 >= chars.len()
+                                                                || chars[eq_pos + 1] != '=')
+                                                        {
+                                                            let mut rp = eq_pos + 1;
+                                                            while rp < chars.len()
+                                                                && chars[rp].is_whitespace()
+                                                            {
+                                                                rp += 1;
+                                                            }
+                                                            let rest: String =
+                                                                chars[rp..].iter().collect();
+                                                            rest.starts_with("$.state(")
+                                                                || rest.starts_with("$.derived(")
+                                                                || rest
+                                                                    .starts_with("$.state($.proxy(")
+                                                        } else {
+                                                            false
+                                                        };
+                                                        if !is_reactive_decl {
+                                                            found_decl = true;
+                                                        }
                                                     }
                                                 }
                                             }
@@ -14137,6 +14552,14 @@ fn is_shadowed_by_function_param(chars: &[char], var_start: usize, var_name: &st
                     if k2 >= 2 && chars[k2 - 1] == '>' && chars[k2 - 2] == '=' {
                         // Found `=> (` - treat this as an arrow body in parens
                         found_arrow_at = Some(k2 - 1);
+                        break;
+                    }
+                    // If this ( is a function call (preceded by an identifier or closing paren),
+                    // skip it and continue scanning to look for an enclosing arrow function.
+                    // e.g., in `(value) => JSON.stringify(value)`, the `(` of `stringify(`
+                    // should be skipped so we can find `=>` further back.
+                    if k2 > 0 && (is_identifier_char(chars[k2 - 1]) || chars[k2 - 1] == ')') {
+                        continue;
                     }
                     break;
                 }
@@ -15336,20 +15759,17 @@ fn is_on_left_side_of_assignment(chars: &[char], var_start: usize, var_len: usiz
         return true;
     }
 
-    // Check for %= ||= &&= ??=
-    if k + 1 < chars.len()
-        && chars[k + 1] == '='
-        && (next_char == '%' || next_char == '|' || next_char == '&' || next_char == '?')
+    // Check for ||= &&= ??= (three-char compound assignments)
+    if k + 2 < chars.len()
+        && (next_char == '|' || next_char == '&' || next_char == '?')
+        && chars[k] == chars[k + 1]
+        && chars[k + 2] == '='
     {
-        // Check for ||= &&= ??= (two char operators)
-        if (next_char == '|' || next_char == '&' || next_char == '?')
-            && k + 2 < chars.len()
-            && chars[k + 2] == '='
-        {
-            // It's ||= or &&= or ??=
-            return chars[k] == chars[k + 1]; // e.g., || or && or ??
-        }
-        // It's %= or similar
+        return true;
+    }
+
+    // Check for %= (two-char compound assignment)
+    if k + 1 < chars.len() && next_char == '%' && chars[k + 1] == '=' {
         return true;
     }
 
@@ -15775,9 +16195,11 @@ fn expression_needs_proxy(expr: &str) -> bool {
         return true;
     }
 
-    // Logical expressions with || or ?? could produce proxyable values
-    // e.g., `expr || { default: true }` or `expr ?? { fallback: 1 }`
-    if contains_top_level_logical_with_proxyable(trimmed) {
+    // Logical expressions with || or ?? always need proxy.
+    // In the official Svelte compiler, LogicalExpression is not in the
+    // should_proxy whitelist, so it always returns true regardless of operands.
+    // e.g., `pData ?? defaultValue`, `expr || fallback`
+    if contains_top_level_logical(trimmed) {
         return true;
     }
 
@@ -15963,7 +16385,7 @@ fn contains_top_level_ternary(expr: &str) -> bool {
 /// Check if an expression contains a top-level logical operator (|| or ??)
 /// followed by a proxyable value (object literal, array literal, etc.).
 /// For example: `expr || { default: true }` or `expr ?? [1, 2, 3]`.
-fn contains_top_level_logical_with_proxyable(expr: &str) -> bool {
+fn contains_top_level_logical(expr: &str) -> bool {
     let mut depth = 0;
     let bytes = expr.as_bytes();
     let mut in_string = false;
@@ -15992,23 +16414,13 @@ fn contains_top_level_logical_with_proxyable(expr: &str) -> bool {
                     depth -= 1;
                 }
             }
+            // Any top-level || or ?? means the expression is a LogicalExpression,
+            // which always needs proxy in the official Svelte compiler.
             b'|' if depth == 0 && i + 1 < bytes.len() && bytes[i + 1] == b'|' => {
-                // Found ||, check if the right side is proxyable
-                let rest = expr[i + 2..].trim();
-                if rest.starts_with('{') || rest.starts_with('[') || rest.starts_with("new ") {
-                    return true;
-                }
-                i += 2;
-                continue;
+                return true;
             }
             b'?' if depth == 0 && i + 1 < bytes.len() && bytes[i + 1] == b'?' => {
-                // Found ??, check if right side is proxyable
-                let rest = expr[i + 2..].trim();
-                if rest.starts_with('{') || rest.starts_with('[') || rest.starts_with("new ") {
-                    return true;
-                }
-                i += 2;
-                continue;
+                return true;
             }
             _ => {}
         }
@@ -18246,6 +18658,17 @@ fn find_and_transform_one_destructure(
     let chars: Vec<char> = statement.chars().collect();
     let len = chars.len();
 
+    // Build char-index → byte-index mapping for safe string slicing with multi-byte chars
+    let byte_offsets: Vec<usize> = statement.char_indices().map(|(b, _)| b).collect();
+    let byte_len = statement.len();
+    let b = |char_idx: usize| -> usize {
+        if char_idx >= byte_offsets.len() {
+            byte_len
+        } else {
+            byte_offsets[char_idx]
+        }
+    };
+
     // Scan for `] =` or `} =` patterns that indicate destructure assignments.
     // We need to be careful to avoid:
     // - Already-transformed IIFE patterns ($.to_array, $.set, etc.)
@@ -18295,7 +18718,7 @@ fn find_and_transform_one_destructure(
                     find_matching_open_bracket(statement, i, open_bracket, close_bracket)
                 {
                     // Check if this is a destructure we should transform
-                    let pattern_str = &statement[pattern_start..=i];
+                    let pattern_str = &statement[b(pattern_start)..b(i + 1)];
                     let rhs_start = j + 1; // after the `=`
 
                     // For array patterns `[...]`, check if the `[` is a member access rather than a
@@ -18316,7 +18739,7 @@ fn find_and_transform_one_destructure(
 
                     // Skip if the pattern starts after a `let`, `const`, `var` keyword
                     // (those are declaration destructures, not assignment destructures)
-                    let before_pattern = statement[..pattern_start].trim_end();
+                    let before_pattern = statement[..b(pattern_start)].trim_end();
                     if before_pattern.ends_with("let")
                         || before_pattern.ends_with("const")
                         || before_pattern.ends_with("var")
@@ -18346,7 +18769,7 @@ fn find_and_transform_one_destructure(
 
                     // Find the end of the RHS expression
                     let rhs_end = find_destructure_rhs_end(statement, rhs_start);
-                    let rhs_str = statement[rhs_start..rhs_end].trim();
+                    let rhs_str = statement[b(rhs_start)..b(rhs_end)].trim();
 
                     if rhs_str.is_empty() {
                         i = j + 1;
@@ -18355,17 +18778,18 @@ fn find_and_transform_one_destructure(
 
                     // Check for surrounding parentheses: `(pattern = rhs)` or `(pattern = rhs);`
                     // We need to handle the wrapping parens from `({x} = obj)` syntax
-                    let mut actual_start = pattern_start;
-                    let mut actual_end = rhs_end;
+                    // Use byte indices for actual_start/actual_end since they're used for slicing
+                    let mut actual_start = b(pattern_start);
+                    let mut actual_end = b(rhs_end);
 
-                    let before = statement[..pattern_start].trim_end();
+                    let before = statement[..b(pattern_start)].trim_end();
                     if before.ends_with('(') {
-                        let paren_pos = statement[..pattern_start].rfind('(').unwrap();
+                        let paren_pos = statement[..b(pattern_start)].rfind('(').unwrap();
                         // Check if there's a matching `)` after the RHS
-                        let after_rhs = &statement[rhs_end..];
+                        let after_rhs = &statement[b(rhs_end)..];
                         if let Some(close_paren_offset) = after_rhs.find(')') {
                             actual_start = paren_pos;
-                            actual_end = rhs_end + close_paren_offset + 1;
+                            actual_end = b(rhs_end) + close_paren_offset + 1;
                         }
                     }
 
@@ -20172,6 +20596,17 @@ fn strip_js_single_line_comments(source: &str) -> String {
 fn strip_async_noop_placeholders(s: &str) -> String {
     s.lines()
         .filter(|line| !line.trim().contains("$$async_noop"))
+        .map(|line| {
+            let trimmed = line.trim();
+            // When there's no top-level await, $$async_hole markers (from $inspect()
+            // removed in non-dev mode) should become two empty statements (;;) to match
+            // the official compiler behavior. Each $inspect() call produces `;;`.
+            if trimmed.contains("$$async_hole") {
+                ";;"
+            } else {
+                line
+            }
+        })
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -20289,6 +20724,9 @@ fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
     // Remove blank lines before closing braces that OXC adds (e.g., after return statements).
     // Esrap doesn't add these extra blank lines inside function bodies.
     let code = remove_blank_lines_before_closing_braces(&code);
+
+    // Fix array holes: OXC normalizes `[a,,]` to `[a, ,]`. Convert back to match esrap output.
+    let code = fix_array_holes(&code);
 
     if indent_level == 0 {
         return code;
@@ -20653,6 +21091,24 @@ fn detect_indent_level(js: &str) -> usize {
 ///
 /// OXC sometimes inserts blank lines before `}` in function bodies
 /// (e.g., after return statements), but esrap does not.
+/// Fix array holes: OXC normalizes `[a,,]` to `[a, ,]`.
+/// Convert `, ,]` patterns back to `,,]` to match esrap output.
+fn fix_array_holes(code: &str) -> String {
+    if !code.contains(", ,]") {
+        return code.to_string();
+    }
+    // Replace patterns like `, ,]` with `,,]`
+    // Handle multiple consecutive holes: `, , ,]` -> `,,,]`
+    let mut result = code.to_string();
+    while result.contains(", ,") {
+        result = result.replace(", ,", ",,");
+    }
+    result
+}
+
+/// Split multi-declarator variable declarations into separate statements.
+/// Esrap outputs `let a;\nlet b;` while OXC keeps `let a, b;`.
+/// Only splits simple declarations without initializers (to avoid splitting complex patterns).
 fn remove_blank_lines_before_closing_braces(code: &str) -> String {
     let lines: Vec<&str> = code.lines().collect();
     let mut result: Vec<&str> = Vec::with_capacity(lines.len());
@@ -20677,6 +21133,229 @@ fn remove_blank_lines_before_closing_braces(code: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Tests for comma-separated variable declarations on client side.
+    // These verify that destructured patterns ($state, $derived, $props) produce
+    // comma-separated declarators in a single let/const/var statement, matching
+    // the official Svelte compiler output.
+
+    #[test]
+    fn test_client_comma_separated_state_destructuring() {
+        let input = r#"<script>
+  import { setup } from './utils.js';
+
+  let { num } = $state(setup());
+  let { num: num_frozen } = $state(setup());
+</script>
+
+<button on:click={() => { num++; num_frozen++; }}>{num} / {num_frozen}</button>
+"#;
+        let options = crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("test/index.svelte".to_string()),
+            ..Default::default()
+        };
+        let result = crate::compiler::compile(input, options).unwrap();
+        println!("=== AMBIGUOUS SOURCE CLIENT OUTPUT ===");
+        println!("{}", result.js.code);
+        // The destructured $state should produce comma-separated declarations:
+        // let tmp = setup(), num = $.state($.proxy(tmp.num));
+        // NOT:
+        // let tmp = setup();
+        // let num = $.state($.proxy(tmp.num));
+        assert!(
+            result
+                .js
+                .code
+                .contains("let tmp = setup(), num = $.state($.proxy(tmp.num));"),
+            "Should have comma-separated declarations for destructured $state"
+        );
+    }
+
+    #[test]
+    fn test_comma_separated_let_declarations() {
+        let input = r#"<script>
+	let x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31;
+</script>
+<A>foo</A>
+"#;
+        let options = crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("test/index.svelte".to_string()),
+            ..Default::default()
+        };
+        let result = crate::compiler::compile(input, options).unwrap();
+        println!("=== COMMA-SEP LET OUTPUT ===");
+        println!("{}", result.js.code);
+        // Should have a single comma-separated let declaration
+        assert!(
+            result.js.code.contains("let x1, x2, x3"),
+            "Should have comma-separated let declarations, not split: {}",
+            result.js.code,
+        );
+    }
+
+    #[test]
+    fn test_bitmask_overflow_2_export_lets() {
+        // 32 separate `export let` declarations - these produce separate $.prop() calls
+        let input = r#"<script>
+	export let x1;
+	export let x2;
+	export let x3;
+</script>
+<p>{x1 + x2 + x3}</p>
+"#;
+        let options = crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("test/index.svelte".to_string()),
+            ..Default::default()
+        };
+        let result = crate::compiler::compile(input, options).unwrap();
+        println!("=== BITMASK OVERFLOW 2 OUTPUT ===");
+        println!("{}", result.js.code);
+    }
+
+    #[test]
+    fn test_props_destructuring_comma_separated() {
+        let input = r#"<script>
+let { foo = false, bar = true } = $props();
+</script>
+<p>{foo} {bar}</p>
+"#;
+        let options = crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("test/index.svelte".to_string()),
+            ..Default::default()
+        };
+        let result = crate::compiler::compile(input, options).unwrap();
+        println!("=== PROPS DESTRUCTURING OUTPUT ===");
+        println!("{}", result.js.code);
+        // Should have comma-separated declarations:
+        // let foo = $.prop($$props, 'foo', ...), bar = $.prop($$props, 'bar', ...);
+        assert!(
+            result.js.code.contains("foo = $.prop($$props, 'foo'")
+                && result.js.code.contains(", bar = $.prop($$props, 'bar'"),
+            "Should have comma-separated prop declarations: {}",
+            result.js.code,
+        );
+    }
+
+    #[test]
+    fn test_assign_prop_to_prop() {
+        let input = r#"<script>
+	let z = 8;
+	let { a, b = a, c = b * b, d = z * b + c } = $props();
+</script>
+
+<p>{a}</p>
+<p>{b}</p>
+<p>{c}</p>
+<p>{d}</p>"#;
+        let options = crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("Test/index.svelte".to_string()),
+            ..Default::default()
+        };
+        let result = crate::compiler::compile(input, options).unwrap();
+        println!("=== ASSIGN PROP TO PROP OUTPUT ===");
+        println!("{}", result.js.code);
+        // Expected: let b = $.prop($$props, 'b', 19, () => $$props.a), c = $.prop($$props, 'c', 19, () => b() * b()), d = $.prop($$props, 'd', 19, () => z * b() + c());
+        assert!(
+            !result.js.code.contains("let b = $.prop") || result.js.code.contains(", c = $.prop"),
+            "Should have comma-separated prop declarations: {}",
+            result.js.code,
+        );
+    }
+
+    #[test]
+    fn test_derived_destructured_iterator() {
+        let input = r#"<script>
+	let offset = $state(1);
+
+	function* count(offset) {
+		let i = offset;
+		while (true) yield i++;
+	}
+
+	let [a, b, c] = $derived(count(offset));
+</script>
+
+<button onclick={() => offset += 1}>increment</button>
+
+<p>a: {a}</p>
+<p>b: {b}</p>
+<p>c: {c}</p>
+"#;
+        let options = crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("main/index.svelte".to_string()),
+            ..Default::default()
+        };
+        let result = crate::compiler::compile(input, options).unwrap();
+        println!("=== DERIVED DESTRUCTURED ITERATOR OUTPUT ===");
+        println!("{}", result.js.code);
+        // Expected: single let with comma-separated declarators
+        // let $$d = $.derived(...), $$array = $.derived(...), a = $.derived(...), b = $.derived(...), c = $.derived(...);
+        assert!(
+            result.js.code.contains("$$d = $.derived(")
+                && result.js.code.contains(", $$array = $.derived("),
+            "Should have comma-separated derived destructuring declarations: {}",
+            result.js.code,
+        );
+    }
+
+    #[test]
+    fn test_bind_and_spread_precedence() {
+        let input = r#"<script>
+	let { value = $bindable(), ...properties } = $props();
+</script>
+
+<input bind:value {...properties} />
+"#;
+        let options = crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("input/index.svelte".to_string()),
+            ..Default::default()
+        };
+        let result = crate::compiler::compile(input, options).unwrap();
+        println!("=== BIND AND SPREAD OUTPUT ===");
+        println!("{}", result.js.code);
+        // Expected: single let with comma-separated:
+        // let value = $.prop($$props, 'value', 15), properties = $.rest_props($$props, [...]);
+        assert!(
+            result.js.code.contains("value = $.prop(")
+                && result.js.code.contains(", properties = $.rest_props("),
+            "Should have comma-separated prop + rest_props declarations: {}",
+            result.js.code,
+        );
+    }
+
+    #[test]
+    fn test_destructure_state_from_props() {
+        let input = r#"<script>
+	let { data } = $props();
+	let { foo } = $state(data);
+</script>
+
+{foo}"#;
+        let options = crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("Child/index.svelte".to_string()),
+            ..Default::default()
+        };
+        let result = crate::compiler::compile(input, options).unwrap();
+        println!("=== DESTRUCTURE STATE FROM PROPS OUTPUT ===");
+        println!("{}", result.js.code);
+        // Expected: let tmp = $$props.data, foo = $.proxy(tmp.foo);
+        assert!(
+            result
+                .js
+                .code
+                .contains("let tmp = $$props.data, foo = $.proxy(tmp.foo)"),
+            "Should have comma-separated let tmp/foo declarations: {}",
+            result.js.code,
+        );
+    }
 
     #[test]
     fn test_normalize_js_with_oxc() {
@@ -20800,6 +21479,32 @@ mod tests {
             "Should transform 'c * c' to 'c() * c()'"
         );
     }
+
+    #[test]
+    fn test_normalize_js_comma_separated_declarations() {
+        let input = "let tmp = setup(), num = $.state($.proxy(tmp.num));";
+        let result = normalize_js_with_oxc(input, 0);
+        println!("Comma-sep input:  {}", input);
+        println!("Comma-sep output: {}", result);
+        assert!(
+            result.contains("let tmp = setup(), num = $.state($.proxy(tmp.num));"),
+            "Comma-separated declarations should remain comma-separated: {}",
+            result,
+        );
+    }
+
+    #[test]
+    fn test_normalize_js_multi_let_declarations() {
+        let input = "let x1, x2, x3, x4, x5;";
+        let result = normalize_js_with_oxc(input, 0);
+        println!("Multi-let input:  {}", input);
+        println!("Multi-let output: {}", result);
+        assert!(
+            result.contains("let x1, x2, x3, x4, x5;"),
+            "Multi-variable let should remain comma-separated: {}",
+            result,
+        );
+    }
 }
 
 #[test]
@@ -20891,5 +21596,663 @@ fn test_mutation_wrap_state_vars_in_context() {
         result.contains("$.set(pending, $.get(pending).filter"),
         "Second pending in filter should be wrapped with $.get(): {}",
         result
+    );
+}
+
+// ===== Regression tests for bugs found during real-world build (2026-03-14) =====
+
+#[test]
+fn test_wrap_prop_source_reads_block_comment_before_property_key() {
+    // Bug: block comment `/* ... */` between `,` and property key `value` caused
+    // is_property_key check to fail, wrapping `value` as `value()` in object literal.
+    let prop_vars = vec!["value".to_string()];
+    let input = r#"{ key: 1, /* comment */ value: 2 }"#;
+    let result = wrap_prop_source_reads(input, &prop_vars);
+    assert!(
+        result.contains("value: 2"),
+        "value after block comment should NOT be wrapped as value(): {}",
+        result
+    );
+    assert!(
+        !result.contains("value(): 2"),
+        "value as property key should not be transformed: {}",
+        result
+    );
+}
+
+#[test]
+fn test_wrap_prop_source_reads_block_comment_multiline() {
+    let prop_vars = vec!["value".to_string()];
+    let input = "{ key: 1,\n\t/* multi\n\t   line\n\t   comment */\n\tvalue: 2 }";
+    let result = wrap_prop_source_reads(input, &prop_vars);
+    assert!(
+        result.contains("value: 2"),
+        "value after multiline block comment should NOT be wrapped: {}",
+        result
+    );
+}
+
+#[test]
+fn test_wrap_prop_source_reads_value_in_expression() {
+    // When `value` is used as an expression (not a property key), it SHOULD be wrapped
+    let prop_vars = vec!["value".to_string()];
+    let input = "let x = value + 1;";
+    let result = wrap_prop_source_reads(input, &prop_vars);
+    assert!(
+        result.contains("value() + 1"),
+        "value in expression should be wrapped as value(): {}",
+        result
+    );
+}
+
+#[test]
+fn test_wrap_prop_source_reads_skips_nullish_assign() {
+    // Bug: `value ??= 100` was incorrectly transforming `value` because
+    // is_on_left_side_of_assignment didn't detect ??=
+    let prop_vars = vec!["value".to_string()];
+    let input = "value ??= 100;";
+    let result = wrap_prop_source_reads(input, &prop_vars);
+    assert!(
+        !result.contains("value() ??= 100"),
+        "value on LHS of ??= should NOT be wrapped: {}",
+        result
+    );
+}
+
+#[test]
+fn test_is_on_left_side_of_assignment_nullish_assign() {
+    let chars: Vec<char> = "value ??= 100".chars().collect();
+    assert!(
+        is_on_left_side_of_assignment(&chars, 0, 5),
+        "value ??= should be detected as assignment"
+    );
+}
+
+#[test]
+fn test_is_on_left_side_of_assignment_logical_and_assign() {
+    let chars: Vec<char> = "value &&= true".chars().collect();
+    assert!(
+        is_on_left_side_of_assignment(&chars, 0, 5),
+        "value &&= should be detected as assignment"
+    );
+}
+
+#[test]
+fn test_is_on_left_side_of_assignment_logical_or_assign() {
+    let chars: Vec<char> = "value ||= false".chars().collect();
+    assert!(
+        is_on_left_side_of_assignment(&chars, 0, 5),
+        "value ||= should be detected as assignment"
+    );
+}
+
+#[test]
+fn test_is_on_left_side_of_assignment_modulo_assign() {
+    let chars: Vec<char> = "value %= 3".chars().collect();
+    assert!(
+        is_on_left_side_of_assignment(&chars, 0, 5),
+        "value %= should be detected as assignment"
+    );
+}
+
+#[test]
+fn test_is_on_left_side_of_assignment_simple_equals() {
+    let chars: Vec<char> = "value = 1".chars().collect();
+    assert!(
+        is_on_left_side_of_assignment(&chars, 0, 5),
+        "value = should be detected as assignment"
+    );
+}
+
+#[test]
+fn test_is_on_left_side_of_assignment_equality_not_assignment() {
+    let chars: Vec<char> = "value == 1".chars().collect();
+    assert!(
+        !is_on_left_side_of_assignment(&chars, 0, 5),
+        "value == should NOT be detected as assignment"
+    );
+}
+
+#[test]
+fn test_is_on_left_side_of_assignment_strict_equality_not_assignment() {
+    let chars: Vec<char> = "value === 1".chars().collect();
+    assert!(
+        !is_on_left_side_of_assignment(&chars, 0, 5),
+        "value === should NOT be detected as assignment"
+    );
+}
+
+#[test]
+fn test_split_nested_pattern_default_with_default() {
+    // Bug: `{ width: measuredWidth, height: measuredHeight } = { width: 0, height: 0 }`
+    // was passed entirely to process_nested_pattern_elements instead of splitting
+    let input = "{ width: measuredWidth, height: measuredHeight } = { width: 0, height: 0 }";
+    let (pattern, default_val) = split_nested_pattern_default(input);
+    assert_eq!(
+        pattern, "{ width: measuredWidth, height: measuredHeight }",
+        "Should extract just the pattern"
+    );
+    assert_eq!(
+        default_val,
+        Some("{ width: 0, height: 0 }"),
+        "Should extract the default value"
+    );
+}
+
+#[test]
+fn test_split_nested_pattern_default_no_default() {
+    let input = "{ width: measuredWidth, height: measuredHeight }";
+    let (pattern, default_val) = split_nested_pattern_default(input);
+    assert_eq!(pattern, input, "Should return the entire input as pattern");
+    assert_eq!(default_val, None, "Should have no default");
+}
+
+#[test]
+fn test_split_nested_pattern_default_array() {
+    let input = "[a, b] = [1, 2]";
+    let (pattern, default_val) = split_nested_pattern_default(input);
+    assert_eq!(pattern, "[a, b]", "Should extract array pattern");
+    assert_eq!(default_val, Some("[1, 2]"), "Should extract array default");
+}
+
+#[test]
+fn test_split_nested_pattern_default_nested_braces() {
+    // Nested braces inside the pattern should not confuse the splitting
+    let input = "{ a: { b: c } } = { a: { b: 1 } }";
+    let (pattern, default_val) = split_nested_pattern_default(input);
+    assert_eq!(pattern, "{ a: { b: c } }", "Should handle nested braces");
+    assert_eq!(default_val, Some("{ a: { b: 1 } }"));
+}
+
+#[test]
+fn test_split_nested_pattern_default_simple_identifier() {
+    // Non-pattern input (no { or [) should return as-is with no default
+    let input = "value";
+    let (pattern, default_val) = split_nested_pattern_default(input);
+    assert_eq!(pattern, "value");
+    assert_eq!(default_val, None);
+}
+
+#[test]
+fn test_transform_read_only_props_block_comment_before_key() {
+    // Similar to wrap_prop_source_reads: block comment before property key should be skipped
+    let read_only_props = vec![("value".to_string(), "value".to_string())];
+    let input = r#"{ key: 1, /* comment */ value: 2 }"#;
+    let result = transform_read_only_props(input, &read_only_props);
+    assert!(
+        result.contains("value: 2"),
+        "value as property key after block comment should NOT be transformed: {}",
+        result
+    );
+    assert!(
+        !result.contains("$$props.value: 2"),
+        "Property key should not become $$props.value: {}",
+        result
+    );
+}
+
+#[test]
+fn test_transform_read_only_props_getter_setter() {
+    // getter/setter names should not be transformed
+    let read_only_props = vec![("value".to_string(), "value".to_string())];
+    let input = "{ get value() { return 1; } }";
+    let result = transform_read_only_props(input, &read_only_props);
+    assert!(
+        result.contains("get value()"),
+        "getter name should not be transformed: {}",
+        result
+    );
+}
+
+#[test]
+fn test_transform_read_only_props_in_expression() {
+    // When used as an expression, should be transformed to $$props.propName
+    let read_only_props = vec![("value".to_string(), "value".to_string())];
+    let input = "let x = value + 1;";
+    let result = transform_read_only_props(input, &read_only_props);
+    assert!(
+        result.contains("$$props.value"),
+        "value in expression should be transformed to $$props.value: {}",
+        result
+    );
+}
+
+#[test]
+fn test_derived_trailing_comma_no_syntax_error() {
+    // $derived(expr,) with trailing comma should produce valid JS
+    // The trailing comma is valid in function call syntax but NOT in () => (expr,)
+    let source = r#"<script>
+  const justifyClass = $derived(
+    {
+      center: 'justify-center',
+      left: 'justify-start',
+      right: 'justify-end',
+    }[position] ?? 'justify-center',
+  );
+</script>
+<p>{justifyClass}</p>"#;
+
+    let options = crate::compiler::CompileOptions {
+        dev: true,
+        generate: crate::compiler::GenerateMode::Client,
+        ..Default::default()
+    };
+    let result = crate::compiler::compile(source, options).expect("compile should succeed");
+    let code = &result.js.code;
+
+    // The output should NOT contain a trailing comma inside grouping parens () => (expr,)
+    // Check that $.derived(() => (...,)) pattern does NOT exist
+    assert!(
+        !code.contains("',\n  ))"),
+        "Should not have trailing comma in grouping expression: {}",
+        code
+    );
+    // Should contain a valid $.derived call
+    assert!(
+        code.contains("$.derived("),
+        "Should contain $.derived call: {}",
+        code
+    );
+}
+
+#[test]
+fn test_compile_with_multibyte_utf8_no_panic() {
+    // Source with Japanese characters that could cause byte index boundary issues
+    // when is_svelte_ignored_with_source slices source with saturating_sub(500)
+    let mut source = String::from("<script>\n");
+    // Add enough content with multi-byte characters to push past 500 bytes
+    for _ in 0..100 {
+        source.push_str("  // コメント: データタイプ\n");
+    }
+    source.push_str("  const x = $state(0);\n");
+    source.push_str("</script>\n<p>{x}</p>");
+
+    let options = crate::compiler::CompileOptions {
+        dev: true,
+        generate: crate::compiler::GenerateMode::Client,
+        ..Default::default()
+    };
+    // Should not panic with "byte index is not a char boundary"
+    let result = crate::compiler::compile(&source, options);
+    assert!(
+        result.is_ok(),
+        "compile should not panic on multi-byte UTF-8 source"
+    );
+}
+
+#[test]
+fn test_bindable_prop_setter_uses_function_call() {
+    // Bug: bind:value on a component with $bindable() props generated
+    // `set value($$value) { value = $$value; }` (plain assignment)
+    // instead of `set value($$value) { value($$value); }` (function call).
+    // This caused "TypeError: value is not a function" at runtime because
+    // $.prop() returns a getter/setter function, and the assignment overwrites it.
+    let source = r#"<script>
+  import Child from './Child.svelte';
+  let { value = $bindable() } = $props();
+</script>
+<Child bind:value />"#;
+
+    let options = crate::compiler::CompileOptions {
+        generate: crate::compiler::GenerateMode::Client,
+        ..Default::default()
+    };
+    let result = crate::compiler::compile(source, options).unwrap();
+    let code = &result.js.code;
+
+    // The setter should use function call syntax: value($$value)
+    assert!(
+        code.contains("value($$value)"),
+        "Setter for bindable prop should use function call value($$value), not assignment: {}",
+        code
+    );
+    // The setter should NOT use plain assignment: value = $$value
+    assert!(
+        !code.contains("value = $$value"),
+        "Setter should not use plain assignment for prop source: {}",
+        code
+    );
+}
+
+#[test]
+fn test_module_arrow_param_not_wrapped_when_shadowing_state() {
+    // Bug: In compileModule, when a function parameter has the same name as a
+    // $state() variable declared in a different function, the parameter references
+    // inside the arrow body were incorrectly wrapped with $.get().
+    // e.g., `(value) => JSON.stringify(value)` became
+    //        `(value) => JSON.stringify($.get(value))` — WRONG
+    // because `value` here is the arrow parameter, not the state variable.
+    let source = r#"
+export const defaultSerializer = () => ({
+  serialize: (value) => JSON.stringify(value),
+  deserialize: (value) => JSON.parse(value),
+});
+
+export function useStore() {
+  let value = $state('');
+  $effect(() => { console.log(value); });
+  return { get value() { return value; }, set value(v) { value = v; } };
+}
+"#;
+
+    let result = crate::compiler::compile_module(
+        source,
+        crate::compiler::ModuleCompileOptions {
+            dev: true,
+            filename: Some("test.svelte.ts".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let code = &result.js.code;
+
+    // The arrow parameter `value` should NOT be wrapped with $.get()
+    assert!(
+        code.contains("(value) => JSON.stringify(value)"),
+        "Arrow param should not be wrapped with $.get(): {}",
+        code
+    );
+    assert!(
+        !code.contains("JSON.stringify($.get(value))"),
+        "Arrow body should not wrap shadowed param with $.get(): {}",
+        code
+    );
+    // But the state variable reads SHOULD be wrapped
+    assert!(
+        code.contains("$.get(value)"),
+        "State variable reads should still use $.get(): {}",
+        code
+    );
+    assert!(
+        code.contains("$.set(value,"),
+        "State variable writes should still use $.set(): {}",
+        code
+    );
+}
+
+#[test]
+fn test_module_nested_fn_call_in_arrow_body_shadow() {
+    // Verify that nested function calls inside arrow bodies don't break
+    // the shadowing detection: (x) => foo(bar(x))
+    let source = r#"
+export function useStore() {
+  let x = $state(0);
+  const transform = (x) => Math.abs(Math.floor(x));
+  return { get x() { return x; }, set x(v) { x = v; } };
+}
+"#;
+
+    let result = crate::compiler::compile_module(
+        source,
+        crate::compiler::ModuleCompileOptions {
+            dev: true,
+            filename: Some("test.svelte.ts".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let code = &result.js.code;
+
+    // The arrow param `x` should NOT be wrapped
+    assert!(
+        code.contains("(x) => Math.abs(Math.floor(x))"),
+        "Nested fn calls in arrow body: param should not be wrapped: {}",
+        code
+    );
+    // But state reads should be wrapped
+    assert!(
+        code.contains("return $.get(x)"),
+        "State reads should be wrapped: {}",
+        code
+    );
+}
+
+#[test]
+fn test_module_state_with_nullish_coalescing_gets_proxy() {
+    // Bug: `$state(pData ?? defaultValue)` was not wrapped with $.proxy()
+    // because contains_top_level_logical only checked if the right side
+    // started with `{`, `[`, or `new`. The official compiler proxies ALL
+    // LogicalExpression initializers.
+    let source = r#"
+export function useStore(pData) {
+  let data = $state(pData ?? { name: '' });
+  return { get data() { return data; }, set data(v) { data = v; } };
+}
+"#;
+
+    let result = crate::compiler::compile_module(
+        source,
+        crate::compiler::ModuleCompileOptions {
+            dev: true,
+            filename: Some("test.svelte.ts".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let code = &result.js.code;
+
+    // The initializer should be wrapped with $.proxy()
+    assert!(
+        code.contains("$.proxy(pData ?? { name: '' })")
+            || code.contains("$.proxy(pData ?? {name: ''})"),
+        "$state(x ?? obj) should be wrapped with $.proxy(): {}",
+        code
+    );
+}
+
+#[test]
+fn test_module_state_with_logical_or_gets_proxy() {
+    // Same as above but with || instead of ??
+    let source = r#"
+export function useStore(pData) {
+  let data = $state(pData || []);
+  return { get data() { return data; }, set data(v) { data = v; } };
+}
+"#;
+
+    let result = crate::compiler::compile_module(
+        source,
+        crate::compiler::ModuleCompileOptions {
+            dev: true,
+            filename: Some("test.svelte.ts".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let code = &result.js.code;
+
+    // The initializer should be wrapped with $.proxy()
+    assert!(
+        code.contains("$.proxy(pData || [])"),
+        "$state(x || arr) should be wrapped with $.proxy(): {}",
+        code
+    );
+}
+
+#[test]
+fn test_module_state_literal_no_proxy() {
+    // Ensure that simple literals are NOT wrapped with $.proxy()
+    let source = r#"
+export function useStore() {
+  let count = $state(0);
+  let name = $state('hello');
+  return {
+    get count() { return count; },
+    set count(v) { count = v; },
+    get name() { return name; },
+    set name(v) { name = v; },
+  };
+}
+"#;
+
+    let result = crate::compiler::compile_module(
+        source,
+        crate::compiler::ModuleCompileOptions {
+            dev: true,
+            filename: Some("test.svelte.ts".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let code = &result.js.code;
+
+    // Literals should NOT be proxied
+    assert!(
+        !code.contains("$.proxy(0)"),
+        "Numeric literal should not be proxied: {}",
+        code
+    );
+    assert!(
+        !code.contains("$.proxy('hello')") && !code.contains("$.proxy(\"hello\")"),
+        "String literal should not be proxied: {}",
+        code
+    );
+}
+
+#[test]
+fn test_module_derived_var_gets_get_in_arrow_return() {
+    // Bug: $derived variables declared with `const` inside a function were
+    // incorrectly treated as "shadowed by local var decl", which prevented
+    // $.get() wrapping when the variable was referenced in arrow functions.
+    let source = r#"
+export function useStore() {
+  let x = $state(0);
+  const y = $derived(x * 2);
+  return {
+    getValue: () => y,
+  };
+}
+"#;
+
+    let result = crate::compiler::compile_module(
+        source,
+        crate::compiler::ModuleCompileOptions {
+            dev: true,
+            filename: Some("test.svelte.ts".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let code = &result.js.code;
+
+    assert!(
+        code.contains("() => $.get(y)"),
+        "$derived variable in arrow return should be wrapped with $.get(): {}",
+        code
+    );
+}
+
+#[test]
+fn test_module_derived_with_ts_annotation_gets_get() {
+    // Bug: TypeScript type annotations on $derived declarations (e.g.,
+    // `const contentStyle: string = $derived.by(...)`) prevented the
+    // variable from being detected as reactive, so $.get() was missing.
+    let source = r#"
+export const useStore = () => {
+  let position = $state({ x: 0, y: 0 });
+
+  const contentStyle: string = $derived.by(() => {
+    return `transform: translate(${position.x}px, ${position.y}px);`;
+  });
+
+  return {
+    contentStyle: () => contentStyle,
+  };
+};
+"#;
+
+    let result = crate::compiler::compile_module(
+        source,
+        crate::compiler::ModuleCompileOptions {
+            dev: true,
+            filename: Some("test.svelte.ts".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let code = &result.js.code;
+
+    assert!(
+        code.contains("() => $.get(contentStyle)"),
+        "TypeScript-annotated $derived var should be wrapped with $.get(): {}",
+        code
+    );
+}
+
+#[test]
+fn test_module_state_with_ts_generic_gets_tracked() {
+    // Ensure $state<GenericType>() patterns are properly detected as reactive vars.
+    let source = r#"
+export function useStore() {
+  let cleanup = $state<() => void>();
+  $effect(() => { cleanup?.(); });
+  return {
+    setCleanup: (fn) => { cleanup = fn; },
+  };
+}
+"#;
+
+    let result = crate::compiler::compile_module(
+        source,
+        crate::compiler::ModuleCompileOptions {
+            dev: true,
+            filename: Some("test.svelte.ts".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let code = &result.js.code;
+
+    // The cleanup variable should be wrapped with $.get() inside $effect
+    assert!(
+        code.contains("$.get(cleanup)"),
+        "$state<GenericType>() variable should be wrapped with $.get(): {}",
+        code
+    );
+}
+
+#[test]
+fn test_module_const_state_after_obj_gets_proxy_only() {
+    // Bug: `const` $state variables after a `const $state({ obj })` declaration
+    // were incorrectly getting $.state() wrapping. The extract_var_name_before_rune
+    // function was finding a `:` inside the object literal of the previous declaration
+    // and treating it as a TypeScript type annotation.
+    let source = r#"
+export const fn = () => {
+  return (node) => {
+    const d = $state({ x: 1 });
+    const clearTooltipListeners = $state([]);
+    return clearTooltipListeners;
+  };
+};
+"#;
+
+    let result = crate::compiler::compile_module(
+        source,
+        crate::compiler::ModuleCompileOptions {
+            dev: true,
+            filename: Some("test.svelte.ts".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let code = &result.js.code;
+
+    // const $state variables should only get $.proxy(), NOT $.state()
+    assert!(
+        code.contains("const clearTooltipListeners = $.proxy([])"),
+        "const $state([]) should be $.proxy([]) not $.state(): {}",
+        code
+    );
+    assert!(
+        code.contains("const d = $.proxy({ x: 1 })") || code.contains("const d = $.proxy({x: 1})"),
+        "const $state(obj) should be $.proxy(obj): {}",
+        code
+    );
+    // Should NOT have $.get() wrapping
+    assert!(
+        !code.contains("$.get(clearTooltipListeners)"),
+        "const $state var should not need $.get(): {}",
+        code
     );
 }

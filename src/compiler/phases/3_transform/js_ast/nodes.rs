@@ -78,6 +78,13 @@ pub enum JsStatement {
     Try(JsTryStatement),
     /// Raw JavaScript code (as a statement, output verbatim)
     Raw(CompactString),
+    /// Raw JavaScript code with source mapping info.
+    /// `source_offset` is the byte offset in the original source where this code starts.
+    /// The codegen uses this to generate per-line source mappings.
+    RawMapped {
+        code: CompactString,
+        source_offset: u32,
+    },
 }
 
 /// Import declaration.

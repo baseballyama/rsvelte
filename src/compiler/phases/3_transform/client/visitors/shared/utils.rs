@@ -3030,10 +3030,18 @@ pub fn build_template_chunk(
                     // index `i`), we check the original expression which has binding context
                     // (knows EachIndex is always a number). For everything else, we check
                     // the built JsExpr.
-                    let is_defined = if let JsExpr::Identifier(_) = &value {
-                        // Value is still a plain identifier (no $.get() wrapping).
-                        // Use the original expression check which has binding context.
-                        is_expression_defined(&expr_tag.expression, context)
+                    let is_defined = if let JsExpr::Identifier(name) = &value {
+                        // Check if this is a memoized parameter ($0, $1, etc.)
+                        // Memoized parameters are unknown identifiers, so they're not defined.
+                        // The official compiler evaluates the memoized expression through
+                        // scope.evaluate() which returns is_defined=false for unknown identifiers.
+                        if name.starts_with('$') && name[1..].chars().all(|c| c.is_ascii_digit()) {
+                            false
+                        } else {
+                            // Value is still a plain identifier (no $.get() wrapping).
+                            // Use the original expression check which has binding context.
+                            is_expression_defined(&expr_tag.expression, context)
+                        }
                     } else {
                         // Value was transformed. Check the built expression.
                         is_js_expr_defined(&value)
@@ -3466,7 +3474,7 @@ pub(crate) fn get_literal_value(
 /// the official Svelte compiler's `scope.evaluate(value).is_defined` behavior.
 /// Function calls (like `$.get(index)`) are NOT considered defined because they
 /// could theoretically return undefined.
-fn is_js_expr_defined(expr: &JsExpr) -> bool {
+pub(crate) fn is_js_expr_defined(expr: &JsExpr) -> bool {
     match expr {
         JsExpr::Literal(lit) => match lit {
             JsLiteral::Null | JsLiteral::Undefined => false,
@@ -3483,6 +3491,20 @@ fn is_js_expr_defined(expr: &JsExpr) -> bool {
         }
         JsExpr::Conditional(cond) => {
             is_js_expr_defined(&cond.consequent) && is_js_expr_defined(&cond.alternate)
+        }
+        JsExpr::Raw(s) => {
+            // Raw expressions that are string/number literals are defined.
+            // e.g., Raw("\"show\""), Raw("42"), Raw("true"), Raw("false")
+            let trimmed = s.trim();
+            (trimmed.starts_with('"') && trimmed.ends_with('"'))
+                || (trimmed.starts_with('\'') && trimmed.ends_with('\''))
+                || trimmed == "true"
+                || trimmed == "false"
+                || trimmed.parse::<f64>().is_ok()
+        }
+        JsExpr::Sequence(seq) => {
+            // A sequence expression evaluates to its last element
+            seq.expressions.last().is_some_and(is_js_expr_defined)
         }
         _ => false,
     }
@@ -4601,6 +4623,12 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
         "SpreadElement" => {
             if let Some(argument) = obj.get("argument") {
                 return has_call_json(argument, context);
+            }
+            false
+        }
+        "ChainExpression" => {
+            if let Some(expression) = obj.get("expression") {
+                return has_call_json(expression, context);
             }
             false
         }

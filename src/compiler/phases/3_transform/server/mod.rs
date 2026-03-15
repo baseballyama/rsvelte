@@ -263,9 +263,10 @@ fn add_esrap_blank_lines(code: &str) -> String {
             is_statement_context.insert(indent_level + 1, !opens_object);
         }
 
-        // When a line ends with `(`, the arguments inside are NOT in a statement context.
+        // When a line ends with `(` or `[`, the elements inside are NOT in a statement context.
         // e.g., `$$renderer.option(` followed by args at indent_level+1
-        if trimmed.ends_with('(') {
+        //        `$$renderer.run([` followed by thunks at indent_level+1
+        if trimmed.ends_with('(') || trimmed.ends_with('[') {
             prev_type_at_indent.remove(&(indent_level + 1));
             prev_multiline_at_indent.remove(&(indent_level + 1));
             is_statement_context.insert(indent_level + 1, false);
@@ -1165,6 +1166,25 @@ impl<'a> ServerCodeGenerator<'a> {
         }
     }
 
+    /// Strip TypeScript from a component prop string (e.g., `key: (arg: Type) => expr`).
+    pub(crate) fn strip_ts_from_prop(&self, prop: &str) -> String {
+        if !self.is_typescript {
+            return prop.to_string();
+        }
+        use crate::compiler::phases::phase2_analyze::types::strip_typescript;
+        let wrapper = format!("var _ = {{ {} }};", prop);
+        let stripped = strip_typescript(&wrapper);
+        // Extract back: "var _ = { PROP };"
+        if let Some(rest) = stripped.strip_prefix("var _ = {") {
+            let rest = rest.trim();
+            if let Some(inner) = rest.strip_suffix("};") {
+                let result = inner.trim();
+                return result.to_string();
+            }
+        }
+        prop.to_string()
+    }
+
     /// Transform store subscriptions in script content.
     /// This is used for the instance script where store references like `$page`
     /// need to be transformed to `$.store_get($$store_subs ??= {}, '$page', page)`.
@@ -1638,6 +1658,54 @@ impl<'a> ServerCodeGenerator<'a> {
 
                 // Track whether this text ends with whitespace (for collapsing across hoisted nodes)
                 prev_text_ends_with_ws = modified_data.ends_with([' ', '\t', '\r', '\n']);
+
+                // For whitespace-only text between ExpressionTags, preserve the
+                // whitespace as-is instead of collapsing to a single space.
+                // The official compiler's clean_nodes skips whitespace collapsing
+                // when the neighbor is an ExpressionTag (they form one text node).
+                if is_svelte_whitespace_only(&modified_data) {
+                    let prev_is_expression = {
+                        let mut pi = i;
+                        loop {
+                            if pi == 0 {
+                                break false;
+                            }
+                            pi -= 1;
+                            let pn = &nodes[pi];
+                            let pn_hoisted = matches!(pn, TemplateNode::ConstTag(_))
+                                || matches!(pn, TemplateNode::SnippetBlock(_))
+                                || (matches!(pn, TemplateNode::Comment(_))
+                                    && !self.preserve_comments);
+                            if !pn_hoisted {
+                                break matches!(pn, TemplateNode::ExpressionTag(_));
+                            }
+                        }
+                    };
+                    let next_is_expression = {
+                        let mut ni = i + 1;
+                        loop {
+                            if ni >= nodes.len() {
+                                break false;
+                            }
+                            let nn = &nodes[ni];
+                            let nn_hoisted = matches!(nn, TemplateNode::ConstTag(_))
+                                || matches!(nn, TemplateNode::SnippetBlock(_))
+                                || (matches!(nn, TemplateNode::Comment(_))
+                                    && !self.preserve_comments);
+                            if !nn_hoisted {
+                                break matches!(nn, TemplateNode::ExpressionTag(_));
+                            }
+                            ni += 1;
+                        }
+                    };
+                    if prev_is_expression && next_is_expression {
+                        // Output whitespace as-is (preserve newlines/tabs)
+                        use crate::compiler::phases::phase3_transform::shared::sanitize_template_string;
+                        self.output_parts
+                            .push(OutputPart::Html(sanitize_template_string(&modified_data)));
+                        continue;
+                    }
+                }
 
                 if needs_modification {
                     let mut modified_text = text.clone();

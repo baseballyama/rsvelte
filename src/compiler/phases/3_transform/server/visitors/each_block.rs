@@ -4,7 +4,6 @@ use super::super::ServerCodeGenerator;
 use super::super::types::OutputPart;
 use crate::ast::template::{EachBlock, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
-use crate::compiler::phases::phase3_transform::shared::{escape_html, sanitize_template_string};
 use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -35,20 +34,26 @@ impl<'a> ServerCodeGenerator<'a> {
         };
 
         // Get optional index name from the parser.
-        // When contains_group_binding is true, use the metadata.index ($$index_N) as the loop
-        // counter, and add a `let original_index = $$index_N` inside the loop body.
         // This mirrors the official compiler's EachBlock.js (server):
         //   const index = each_node_meta.contains_group_binding || !node.index ? each_node_meta.index : b.id(node.index);
         //   if (index.name !== node.index && node.index != null) { each.push(b.let(node.index, index)); }
-        let (index_name, index_alias) = if block.metadata.contains_group_binding {
-            // Use the unique $$index_N name for the loop variable
-            let meta_index = block.metadata.index.clone();
-            // The original user-defined index name becomes an alias inside the loop body
-            let alias = block.index.as_ref().map(|idx| idx.to_string());
-            (meta_index, alias)
-        } else {
-            (block.index.as_ref().map(|idx| idx.to_string()), None)
-        };
+        //
+        // When contains_group_binding is true OR no user-provided index:
+        //   Use metadata.index ($$index / $$index_1 / etc.) assigned during phase 2 scope creation.
+        //   Phase 2 assigns these in post-order (children first), matching the official compiler's
+        //   scope.root.unique('$$index') call order.
+        // When the user provides an explicit index (e.g., `{#each items as item, i}`)
+        //   AND there's no group binding: use the user's index name directly.
+        let (index_name, index_alias) =
+            if block.metadata.contains_group_binding || block.index.is_none() {
+                // Use the unique $$index_N name for the loop variable
+                let meta_index = block.metadata.index.clone();
+                // The original user-defined index name becomes an alias inside the loop body
+                let alias = block.index.as_ref().map(|idx| idx.to_string());
+                (meta_index, alias)
+            } else {
+                (block.index.as_ref().map(|idx| idx.to_string()), None)
+            };
 
         // Filter body nodes - skip leading/trailing whitespace
         let body_nodes: Vec<_> = block.body.nodes.iter().collect();
@@ -197,7 +202,10 @@ impl<'a> ServerCodeGenerator<'a> {
             }
 
             // Special handling for first/last text nodes to trim whitespace
-            // Skip when preserveWhitespace is set
+            // For middle text nodes, delegate to generate_text which handles
+            // whitespace collapsing (whitespace-only → single space, internal
+            // whitespace sequences collapsed).
+            // Skip when preserveWhitespace is set.
             if let TemplateNode::Text(text) = node {
                 let mut data = text.data.to_string();
                 if !self.preserve_whitespace {
@@ -210,13 +218,11 @@ impl<'a> ServerCodeGenerator<'a> {
                         data = data.trim_end().to_string();
                     }
                 }
-                // Output the trimmed text
+                // Output the text through generate_text for proper whitespace handling
                 if !data.is_empty() {
-                    body_generator
-                        .output_parts
-                        .push(OutputPart::Html(escape_html(&sanitize_template_string(
-                            &data,
-                        ))));
+                    let mut modified_text = text.clone();
+                    modified_text.data = data.into();
+                    body_generator.generate_node(&TemplateNode::Text(modified_text), false)?;
                 }
             } else {
                 body_generator.generate_node(node, false)?;
@@ -239,6 +245,7 @@ impl<'a> ServerCodeGenerator<'a> {
             fallback_generator.constant_vars = self.constant_vars.clone();
             fallback_generator.const_promises_counter = self.const_promises_counter.clone();
             fallback_generator.const_blocker_map = self.const_blocker_map.clone();
+            fallback_generator.is_typescript = self.is_typescript;
             // Fallback is also inside the child_block(async ...) so it should not use $.save()
             fallback_generator.in_block_body = true;
             // Trim leading/trailing whitespace from fallback fragment nodes

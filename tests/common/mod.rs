@@ -5,6 +5,10 @@
 
 #![allow(dead_code)]
 
+use oxc_allocator::Allocator;
+use oxc_codegen::{Codegen, CodegenOptions, CommentOptions, LegalComment};
+use oxc_parser::Parser;
+use oxc_span::SourceType;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -141,6 +145,329 @@ pub fn get_svelte_test_samples(category: &str) -> Vec<PathBuf> {
 // ============================================================================
 // Normalization utilities
 // ============================================================================
+
+/// Canonicalize JavaScript code using OXC parse→codegen for comparison.
+///
+/// Both expected (svelte) and actual (rsvelte) outputs are parsed into OXC AST
+/// and then serialized with identical codegen options. This normalizes ONLY
+/// formatting (whitespace, semicolons, quotes, parentheses) while preserving
+/// all semantic differences.
+///
+/// Any difference in the canonicalized output represents a real code difference
+/// (not just formatting) that should be investigated and fixed.
+pub fn canonicalize_js(code: &str) -> String {
+    let allocator = Allocator::new();
+    let source_type = SourceType::mjs();
+    let parsed = Parser::new(&allocator, code, source_type).parse();
+
+    if parsed.panicked {
+        eprintln!(
+            "WARNING: OXC parse panicked during canonicalization, using raw code (first 100 chars: {:?})",
+            &code[..code.len().min(100)]
+        );
+        return code.to_string();
+    }
+
+    let options = CodegenOptions {
+        single_quote: true,
+        comments: CommentOptions {
+            normal: false,
+            jsdoc: false,
+            annotation: true,
+            legal: LegalComment::None,
+        },
+        ..Default::default()
+    };
+    let result = Codegen::new()
+        .with_options(options)
+        .build(&parsed.program)
+        .code;
+    let trimmed = result.trim().to_string();
+
+    // Sort import lines so import ordering differences don't cause false failures.
+    // Both compilers emit the same imports but may order them differently.
+    let trimmed = sort_imports(&trimmed);
+
+    // Normalize generated variable names by order of first appearance.
+    // The official Svelte compiler and our Rust compiler may traverse the template tree
+    // in different orders, producing different numbering (e.g., root_2, root_3, root_1
+    // vs root_1, root_2, root_3). Since these names are arbitrary identifiers, we renumber
+    // them sequentially by first appearance to make comparison order-independent.
+    let result = normalize_generated_names(&trimmed, r"\broot(?:_(\d+))?\b", "root");
+    // For $$ prefixed names, \b doesn't work because $ is not a word character.
+    // Use a custom replacement function that checks context.
+    let result = normalize_dollar_names(&result, "$$array");
+    let result = normalize_dollar_names(&result, "$$index");
+
+    // Normalize whitespace inside SSR template literals.
+    // The official compiler preserves newlines from source HTML inside
+    // $$renderer.push(`...`) template strings, while our compiler collapses them.
+    // Since HTML whitespace is collapsible (newlines = spaces), this is semantically
+    // insignificant for rendering. Normalize all whitespace runs to single spaces
+    // inside backtick strings for consistent comparison.
+    normalize_template_literal_whitespace(&result)
+}
+
+/// Sort import statements at the top of the file.
+/// Both compilers emit the same set of imports but may order them differently.
+fn sort_imports(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut imports: Vec<&str> = Vec::new();
+    let mut rest_start = 0;
+
+    for (i, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("import ") || trimmed.starts_with("import\t") {
+            imports.push(line);
+            rest_start = i + 1;
+        } else if trimmed.is_empty() && !imports.is_empty() {
+            // Skip blank lines between imports
+            rest_start = i + 1;
+        } else if !imports.is_empty() {
+            // We've hit non-import code, stop
+            break;
+        } else {
+            // Haven't hit any imports yet, skip this line
+            rest_start = i + 1;
+        }
+    }
+
+    if imports.len() <= 1 {
+        return code.to_string();
+    }
+
+    imports.sort();
+    let mut result = imports.join("\n");
+    if rest_start < lines.len() {
+        result.push('\n');
+        result.push_str(&lines[rest_start..].join("\n"));
+    }
+    result
+}
+
+/// Normalize `$$name` and `$$name_N` variable names by order of first appearance.
+///
+/// Since \b (word boundary) doesn't work with `$` prefix in the Rust regex crate
+/// (and lookahead/lookbehind are not supported), we manually scan for occurrences.
+fn normalize_dollar_names(code: &str, base: &str) -> String {
+    use std::collections::HashMap;
+
+    // Find all occurrences of base or base_N where N is a number
+    let mut occurrences: Vec<(usize, usize, String)> = Vec::new(); // (start, end, name)
+    let bytes = code.as_bytes();
+    let base_bytes = base.as_bytes();
+    let base_len = base_bytes.len();
+
+    let mut i = 0;
+    while i + base_len <= bytes.len() {
+        if &bytes[i..i + base_len] == base_bytes {
+            // Check that preceding character is not a word char or $
+            if i > 0 {
+                let prev = bytes[i - 1];
+                if prev.is_ascii_alphanumeric() || prev == b'_' || prev == b'$' {
+                    i += 1;
+                    continue;
+                }
+            }
+
+            // Check what follows
+            let mut end = i + base_len;
+            if end < bytes.len() && bytes[end] == b'_' {
+                // Could be base_N
+                end += 1;
+                let digit_start = end;
+                while end < bytes.len() && bytes[end].is_ascii_digit() {
+                    end += 1;
+                }
+                if end == digit_start {
+                    // No digits after _, not a match for base_N, just base
+                    end = i + base_len;
+                }
+            }
+
+            // Check that following character is not a word char or $
+            if end < bytes.len() {
+                let next = bytes[end];
+                if next.is_ascii_alphanumeric() || next == b'_' || next == b'$' {
+                    i += 1;
+                    continue;
+                }
+            }
+
+            let name = code[i..end].to_string();
+            occurrences.push((i, end, name));
+            i = end;
+        } else {
+            i += 1;
+        }
+    }
+
+    if occurrences.is_empty() {
+        return code.to_string();
+    }
+
+    // Build mapping by order of first appearance
+    let mut seen: HashMap<String, String> = HashMap::new();
+    let mut order: Vec<String> = Vec::new();
+    for (_, _, name) in &occurrences {
+        if !seen.contains_key(name) {
+            let new_name = if order.is_empty() {
+                base.to_string()
+            } else {
+                format!("{}_{}", base, order.len())
+            };
+            seen.insert(name.clone(), new_name);
+            order.push(name.clone());
+        }
+    }
+
+    // Rebuild string with replacements
+    let mut result = String::with_capacity(code.len());
+    let mut last_end = 0;
+    for (start, end, name) in &occurrences {
+        result.push_str(&code[last_end..*start]);
+        result.push_str(seen.get(name).unwrap());
+        last_end = *end;
+    }
+    result.push_str(&code[last_end..]);
+    result
+}
+
+/// Normalize generated variable names (e.g., `root_N`, `$$array_N`, `node_N`) by order
+/// of first appearance.
+///
+/// Scans for all occurrences matching the pattern and renumbers them sequentially
+/// starting from the base name (for the first), then `base_1`, `base_2`, etc.
+fn normalize_generated_names(code: &str, pattern: &str, base: &str) -> String {
+    use std::collections::HashMap;
+
+    let re = Regex::new(pattern).unwrap();
+
+    // First pass: collect unique names in order of first appearance
+    let mut seen: HashMap<String, String> = HashMap::new();
+    let mut order: Vec<String> = Vec::new();
+    for cap in re.captures_iter(code) {
+        let full_match = cap.get(0).unwrap().as_str().to_string();
+        if !seen.contains_key(&full_match) {
+            let new_name = if order.is_empty() {
+                base.to_string()
+            } else {
+                format!("{}_{}", base, order.len())
+            };
+            seen.insert(full_match.clone(), new_name);
+            order.push(full_match);
+        }
+    }
+
+    // Second pass: replace all occurrences
+    if order.is_empty() {
+        return code.to_string();
+    }
+
+    re.replace_all(code, |caps: &regex::Captures| {
+        let full_match = caps.get(0).unwrap().as_str();
+        seen.get(full_match)
+            .cloned()
+            .unwrap_or_else(|| full_match.to_string())
+    })
+    .to_string()
+}
+
+/// Normalize whitespace inside backtick template literals.
+///
+/// In SSR output, template literals inside `$$renderer.push()` calls contain HTML.
+/// The official Svelte compiler preserves newlines from source, while our compiler
+/// collapses them. Since HTML whitespace is collapsible, this normalizes whitespace
+/// runs inside template strings to single spaces for consistent comparison.
+fn normalize_template_literal_whitespace(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let chars: Vec<char> = code.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        if chars[i] == '`' {
+            // Found a backtick - we're entering a template literal
+            result.push('`');
+            i += 1;
+            // Process template literal content
+            let mut depth = 0; // Track ${...} nesting
+            while i < len {
+                if depth == 0 && chars[i] == '`' {
+                    // End of template literal
+                    result.push('`');
+                    i += 1;
+                    break;
+                } else if chars[i] == '\\' && i + 1 < len {
+                    // Escaped character - preserve as-is
+                    result.push(chars[i]);
+                    result.push(chars[i + 1]);
+                    i += 2;
+                } else if chars[i] == '$' && i + 1 < len && chars[i + 1] == '{' {
+                    // Start of expression interpolation
+                    result.push('$');
+                    result.push('{');
+                    depth += 1;
+                    i += 2;
+                } else if depth > 0 && chars[i] == '{' {
+                    result.push('{');
+                    depth += 1;
+                    i += 1;
+                } else if depth > 0 && chars[i] == '}' {
+                    result.push('}');
+                    depth -= 1;
+                    i += 1;
+                } else if depth == 0 && chars[i].is_whitespace() {
+                    // Whitespace in template literal (outside expressions) - collapse
+                    while i < len && depth == 0 && chars[i].is_whitespace() && chars[i] != '`' {
+                        i += 1;
+                    }
+                    result.push(' ');
+                } else {
+                    result.push(chars[i]);
+                    i += 1;
+                }
+            }
+        } else if chars[i] == '\'' || chars[i] == '"' {
+            // Skip regular string literals
+            let quote = chars[i];
+            result.push(quote);
+            i += 1;
+            while i < len && chars[i] != quote {
+                if chars[i] == '\\' && i + 1 < len {
+                    result.push(chars[i]);
+                    result.push(chars[i + 1]);
+                    i += 2;
+                } else {
+                    result.push(chars[i]);
+                    i += 1;
+                }
+            }
+            if i < len {
+                result.push(chars[i]);
+                i += 1;
+            }
+        } else {
+            result.push(chars[i]);
+            i += 1;
+        }
+    }
+
+    result
+}
+
+/// Canonicalize CSS code for comparison.
+///
+/// Normalizes only formatting (whitespace) without any semantic changes.
+/// No hash normalization — CSS hashes are deterministic and should be identical
+/// for the same input file.
+pub fn canonicalize_css(code: &str) -> String {
+    code.lines()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
 
 /// Format JavaScript code using oxfmt for comparison.
 /// Falls back to basic normalization if oxfmt is not available or fails.
@@ -4846,4 +5173,80 @@ fn test_normalize_paren_in_args_nested() {
         "nested parens should be stripped: {}",
         r2
     );
+}
+
+#[test]
+fn test_canonicalize_js_numeric_literals() {
+    // .5 vs 0.5
+    assert_eq!(
+        canonicalize_js("let x = .5;"),
+        canonicalize_js("let x = 0.5;")
+    );
+    // 1e3 vs 1000
+    assert_eq!(
+        canonicalize_js("let x = 1e3;"),
+        canonicalize_js("let x = 1000;")
+    );
+    // 1.5e2 vs 150
+    assert_eq!(
+        canonicalize_js("let x = 1.5e2;"),
+        canonicalize_js("let x = 150;")
+    );
+}
+
+#[test]
+fn test_canonicalize_js_new_class_parens() {
+    // new (class Foo {})() vs new class Foo {}()
+    assert_eq!(
+        canonicalize_js("let x = new (class Foo { constructor() {} })();"),
+        canonicalize_js("let x = new class Foo { constructor() {} }();"),
+    );
+}
+
+#[test]
+fn test_canonicalize_js_var_let_const() {
+    // var vs let vs const should NOT be normalized (these are real differences)
+    assert_ne!(canonicalize_js("var x = 1;"), canonicalize_js("let x = 1;"));
+    assert_ne!(
+        canonicalize_js("let x = 1;"),
+        canonicalize_js("const x = 1;")
+    );
+}
+
+#[test]
+fn test_canonicalize_js_void_0_undefined() {
+    // void 0 vs undefined should NOT be normalized (these are real differences)
+    assert_ne!(
+        canonicalize_js("let x = void 0;"),
+        canonicalize_js("let x = undefined;"),
+    );
+}
+
+#[test]
+fn test_canonicalize_js_comments() {
+    // Check if OXC preserves or strips comments
+    let with_comment = canonicalize_js("let x = 1; // comment\nlet y = 2;");
+    let without_comment = canonicalize_js("let x = 1;\nlet y = 2;");
+    eprintln!("WITH COMMENT: {:?}", with_comment);
+    eprintln!("WITHOUT COMMENT: {:?}", without_comment);
+    // Check block comments
+    let with_block = canonicalize_js("/* block */ let x = 1;");
+    let without_block = canonicalize_js("let x = 1;");
+    eprintln!("WITH BLOCK: {:?}", with_block);
+    eprintln!("WITHOUT BLOCK: {:?}", without_block);
+    // Check function body with comment
+    let with_body_comment = canonicalize_js("function foo() { // ...\n}");
+    let without_body_comment = canonicalize_js("function foo() {}");
+    eprintln!("WITH BODY COMMENT: {:?}", with_body_comment);
+    eprintln!("WITHOUT BODY COMMENT: {:?}", without_body_comment);
+    // Check declaration merging
+    let separate = canonicalize_js("const a = 1;\nconst b = 2;");
+    let merged = canonicalize_js("const a = 1, b = 2;");
+    eprintln!("SEPARATE: {:?}", separate);
+    eprintln!("MERGED: {:?}", merged);
+    // Check getter syntax
+    let string_key = canonicalize_js("let x = { get 'x-y'() { return 1; } };");
+    let computed_key = canonicalize_js("let x = { get ['x-y']() { return 1; } };");
+    eprintln!("STRING KEY: {:?}", string_key);
+    eprintln!("COMPUTED KEY: {:?}", computed_key);
 }

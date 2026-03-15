@@ -3685,7 +3685,15 @@ fn convert_binding_pattern_for_decl(
 
             Value::Object(obj)
         }
-        _ => Value::Null, // Simplified for now
+        oxc_ast::ast::BindingPattern::ObjectPattern(obj_pat) => {
+            convert_object_pattern(obj_pat, offset - 1, line_offsets)
+        }
+        oxc_ast::ast::BindingPattern::ArrayPattern(arr_pat) => {
+            convert_array_pattern(arr_pat, offset - 1, line_offsets)
+        }
+        oxc_ast::ast::BindingPattern::AssignmentPattern(assign_pat) => {
+            convert_assignment_pattern(assign_pat, offset - 1, line_offsets)
+        }
     }
 }
 

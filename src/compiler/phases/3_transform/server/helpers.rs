@@ -212,7 +212,7 @@ pub(crate) fn transform_await_to_save(expr: &str) -> String {
                 // respecting parentheses and operator precedence)
                 let arg_start = i;
                 let arg_end = find_await_arg_end(bytes, i, len);
-                let arg = &expr[arg_start..arg_end];
+                let arg = expr[arg_start..arg_end].trim_end();
                 // Recursively transform any nested await expressions within the argument
                 let transformed_arg = if expr_contains_await(arg) {
                     transform_await_to_save(arg)
@@ -220,6 +220,16 @@ pub(crate) fn transform_await_to_save(expr: &str) -> String {
                     arg.to_string()
                 };
                 result.push_str(&format!("(await $.save({}))()", transformed_arg));
+                // If the next character is a binary operator (not whitespace/end),
+                // add a space to maintain readable formatting.
+                if arg_end < len
+                    && !matches!(
+                        bytes[arg_end],
+                        b' ' | b'\t' | b'\n' | b'\r' | b')' | b']' | b',' | b';'
+                    )
+                {
+                    result.push(' ');
+                }
                 i = arg_end;
                 continue;
             }
@@ -233,23 +243,43 @@ pub(crate) fn transform_await_to_save(expr: &str) -> String {
 }
 
 /// Find the end of an `await` argument expression.
-/// The argument includes everything up to the next operator at the same depth level,
-/// or the end of the expression.
+///
+/// `await` has unary-expression precedence, so it only binds to the
+/// immediate operand — **not** to binary/comparison operators beyond it.
+/// For example, `await foo > 10` is parsed as `(await foo) > 10`, so
+/// the argument to `await` is just `foo`.
+///
+/// This function scans forward from `start` collecting the operand of
+/// `await`.  It stops when it hits a binary operator (`>`, `+`, `&&`,
+/// `||`, `??`, etc.) at depth 0, a comma, or end-of-string.
 fn find_await_arg_end(bytes: &[u8], start: usize, len: usize) -> usize {
     let mut i = start;
     let mut paren_depth: i32 = 0; // tracks () and []
     let mut brace_depth: i32 = 0; // tracks {}
+    // Track whether we've seen a primary expression (identifier, call, etc.)
+    // to distinguish unary prefix `-`/`+` from binary `-`/`+`.
+    let mut seen_primary = false;
 
     while i < len {
         let ch = bytes[i];
 
+        // Skip whitespace - don't change seen_primary
+        if matches!(ch, b' ' | b'\t' | b'\n' | b'\r') {
+            i += 1;
+            continue;
+        }
+
         if matches!(ch, b'\'' | b'"' | b'`') {
             i = skip_string_literal(bytes, i);
+            seen_primary = true;
             continue;
         }
 
         match ch {
-            b'(' | b'[' => paren_depth += 1,
+            b'(' | b'[' => {
+                paren_depth += 1;
+                // If at depth 0, this starts a grouped expression or call
+            }
             b')' | b']' => {
                 if paren_depth == 0 && brace_depth == 0 {
                     return i;
@@ -257,23 +287,99 @@ fn find_await_arg_end(bytes: &[u8], start: usize, len: usize) -> usize {
                 if paren_depth > 0 {
                     paren_depth -= 1;
                 }
+                if paren_depth == 0 && brace_depth == 0 {
+                    seen_primary = true;
+                }
             }
             b'{' => brace_depth += 1,
             b'}' => {
                 if brace_depth > 0 {
                     brace_depth -= 1;
-                    // If brace_depth returns to 0 and paren_depth is also 0,
-                    // the closing } ends the await argument (e.g., `await { x: 1 }`)
                     if brace_depth == 0 && paren_depth == 0 {
                         return i + 1; // include the closing }
                     }
                 } else if paren_depth == 0 {
-                    // Unmatched } at top level - stop before it
                     return i;
                 }
             }
             b',' if paren_depth == 0 && brace_depth == 0 => return i,
-            _ => {}
+            // Binary/comparison operators at the top level end the await arg,
+            // but only if we've already seen a primary expression (to distinguish
+            // unary prefix operators from binary operators).
+            b'>' if paren_depth == 0 && brace_depth == 0 && seen_primary => {
+                // Don't treat `=>` as a binary operator
+                if i > 0 && bytes[i - 1] == b'=' {
+                    i += 1;
+                    continue;
+                }
+                return i;
+            }
+            b'<' if paren_depth == 0 && brace_depth == 0 && seen_primary => {
+                return i;
+            }
+            b'+' | b'-' if paren_depth == 0 && brace_depth == 0 && seen_primary => {
+                // Binary + or - (we've already seen a primary expression)
+                return i;
+            }
+            b'*' | b'/' | b'%' | b'^' | b'~'
+                if paren_depth == 0 && brace_depth == 0 && seen_primary =>
+            {
+                // `**` (exponentiation) or single `*`, `/`, `%`, etc.
+                return i;
+            }
+            b'&' if paren_depth == 0 && brace_depth == 0 && seen_primary => {
+                return i;
+            }
+            b'|' if paren_depth == 0 && brace_depth == 0 && seen_primary => {
+                return i;
+            }
+            b'?' if paren_depth == 0 && brace_depth == 0 && seen_primary => {
+                // Optional chaining `?.` should NOT end the arg
+                if i + 1 < len && bytes[i + 1] == b'.' {
+                    i += 2;
+                    continue;
+                }
+                return i;
+            }
+            b'=' if paren_depth == 0 && brace_depth == 0 && seen_primary => {
+                if i + 1 < len && bytes[i + 1] == b'=' {
+                    return i;
+                }
+                if i + 1 < len && bytes[i + 1] == b'>' {
+                    i += 2;
+                    continue;
+                }
+                return i;
+            }
+            b'!' if paren_depth == 0 && brace_depth == 0 => {
+                if i + 1 < len && bytes[i + 1] == b'=' && seen_primary {
+                    return i;
+                }
+                // Prefix `!` is fine
+            }
+            _ => {
+                // Identifiers, digits, dots, etc. are part of the primary expression
+                if paren_depth == 0 && brace_depth == 0 {
+                    // Mark as having seen primary when we see an identifier char
+                    // followed by something that's NOT an identifier char (end of token)
+                    // For simplicity, just mark after any non-whitespace, non-operator char
+                    if ch.is_ascii_alphanumeric() || ch == b'_' || ch == b'$' || ch == b'.' {
+                        // Part of identifier or member access
+                        // We'll set seen_primary after we finish the identifier
+                        // For now, advance through the whole identifier
+                        while i < len
+                            && (bytes[i].is_ascii_alphanumeric()
+                                || bytes[i] == b'_'
+                                || bytes[i] == b'$'
+                                || bytes[i] == b'.')
+                        {
+                            i += 1;
+                        }
+                        seen_primary = true;
+                        continue;
+                    }
+                }
+            }
         }
 
         i += 1;
@@ -436,8 +542,46 @@ pub(crate) fn strip_ts_type_annotation(param: &str) -> String {
     if let Some(ts) = type_start {
         let after_type = trimmed[ts..].trim();
         // Find the `=` that represents the default value.
-        // The `=` might be after a type expression like `number = 4`
-        if let Some(eq_pos) = after_type.find('=') {
+        // The `=` might be after a type expression like `number = 4`.
+        // We need to skip `=>` (arrow function types) and `==`/`===` operators.
+        // Also need to handle balanced parens/brackets in the type expression.
+        let mut paren_depth = 0i32;
+        let mut bracket_depth = 0i32;
+        let mut angle_depth = 0i32;
+        let bytes = after_type.as_bytes();
+        let mut i = 0;
+        let mut default_start = None;
+        while i < bytes.len() {
+            match bytes[i] {
+                b'(' => paren_depth += 1,
+                b')' => paren_depth -= 1,
+                b'[' => bracket_depth += 1,
+                b']' => bracket_depth -= 1,
+                b'<' => angle_depth += 1,
+                b'>' if angle_depth > 0 => angle_depth -= 1,
+                b'=' if paren_depth == 0 && bracket_depth == 0 && angle_depth == 0 => {
+                    // Check it's not `=>`, `==`, or `===`
+                    let next = if i + 1 < bytes.len() { bytes[i + 1] } else { 0 };
+                    if next != b'>' && next != b'=' {
+                        default_start = Some(i);
+                        break;
+                    }
+                }
+                b'\'' | b'"' | b'`' => {
+                    let quote = bytes[i];
+                    i += 1;
+                    while i < bytes.len() && bytes[i] != quote {
+                        if bytes[i] == b'\\' {
+                            i += 1;
+                        }
+                        i += 1;
+                    }
+                }
+                _ => {}
+            }
+            i += 1;
+        }
+        if let Some(eq_pos) = default_start {
             let default_val = after_type[eq_pos + 1..].trim();
             if !default_val.is_empty() {
                 return format!("{} = {}", ident, default_val);

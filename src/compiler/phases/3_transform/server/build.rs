@@ -262,6 +262,12 @@ impl<'a> ServerCodeGenerator<'a> {
             // $$props references, not the generated ones.
             let rest = self.transform_special_vars(&rest);
 
+            // Split comma-separated variable declarations into individual statements.
+            // This must run BEFORE transform_reassigned_destructures so that user-written
+            // comma-separated declarations are split, but the combined declarations
+            // produced by destructure flattening are preserved.
+            let rest = transform_script::split_comma_separated_declarations(&rest);
+
             // In legacy mode (non-runes), decompose object destructuring patterns
             // when any destructured variable is later reassigned. This matches the
             // official compiler's create_state_declarators behavior.
@@ -363,9 +369,27 @@ impl<'a> ServerCodeGenerator<'a> {
                     "$$renderer.run",
                 )
             {
-                async_result.output.trim().to_string()
+                // The async body transform produces unindented output (0-tab).
+                // Add 1-tab indentation to match the original script_code level,
+                // so transform_props_spread can add another tab for the component wrapper.
+                let trimmed = async_result.output.trim();
+                let mut indented = String::new();
+                for line in trimmed.lines() {
+                    if line.trim().is_empty() {
+                        indented.push('\n');
+                    } else {
+                        indented.push('\t');
+                        indented.push_str(line);
+                        indented.push('\n');
+                    }
+                }
+                if indented.ends_with('\n') {
+                    indented.pop();
+                }
+                indented
             } else {
-                script_code
+                // No top-level await: strip async placeholder markers
+                strip_async_placeholders(&script_code)
             }
         } else {
             script_code
@@ -1313,14 +1337,24 @@ export default function {component_name}($$renderer{props_param}) {{
                     }
                 }
                 OutputPart::RawStatement(stmt) => {
-                    let blockers = super::helpers::find_expression_blockers(stmt, blocker_map);
-                    if !blockers.is_empty() {
-                        result.push(OutputPart::AsyncBlock {
-                            blocker_indices: blockers,
-                            inner: vec![part.clone()],
-                        });
-                    } else {
+                    // Don't wrap `let` or `var` declarations in async blocks.
+                    // These are variable declarations (e.g., from async const tags)
+                    // that declare new variables rather than using blocked values.
+                    // Also skip `var ... = $$renderer.run(...)` statements which are
+                    // the async const group runner calls that are self-contained.
+                    let is_declaration = stmt.starts_with("let ") || stmt.starts_with("var ");
+                    if is_declaration {
                         result.push(part.clone());
+                    } else {
+                        let blockers = super::helpers::find_expression_blockers(stmt, blocker_map);
+                        if !blockers.is_empty() {
+                            result.push(OutputPart::AsyncBlock {
+                                blocker_indices: blockers,
+                                inner: vec![part.clone()],
+                            });
+                        } else {
+                            result.push(part.clone());
+                        }
                     }
                 }
                 OutputPart::Html(html) | OutputPart::HtmlWithExclusions { html, .. } => {
@@ -2073,9 +2107,14 @@ export default function {component_name}($$renderer{props_param}) {{
                     } else {
                         expr.clone()
                     };
+                    let async_kw = if super::helpers::expr_contains_await(&transformed_expr) {
+                        "async "
+                    } else {
+                        ""
+                    };
                     body_code.push_str(&format!(
-                        "{}$$renderer.push(async () => $.escape({}));\n",
-                        indent, transformed_expr
+                        "{}$$renderer.push({}() => $.escape({}));\n",
+                        indent, async_kw, transformed_expr
                     ));
                 }
                 OutputPart::AsyncBlock {
@@ -2200,6 +2239,7 @@ export default function {component_name}($$renderer{props_param}) {{
                         body_code.push_str(&inner_code);
                     }
 
+                    body_code.push('\n');
                     body_code.push_str(&format!("{}}});\n\n", indent));
 
                     // Only add <!--]--> outside the callback for block types (IfBlock, AwaitBlock, EachBlock)
@@ -2295,6 +2335,7 @@ export default function {component_name}($$renderer{props_param}) {{
                         body_code.push_str(&inner_code);
                     }
 
+                    body_code.push('\n');
                     body_code.push_str(&format!("{}}});\n\n", indent));
 
                     if inner_is_block {
@@ -2326,10 +2367,15 @@ export default function {component_name}($$renderer{props_param}) {{
                         expr.clone()
                     };
 
-                    // Use concise arrow body with async: ($$renderer) => $$renderer.push(async () => $.escape(...))
+                    // Use concise arrow body: ($$renderer) => $$renderer.push([async] () => $.escape(...))
+                    let async_kw = if super::helpers::expr_contains_await(&transformed_expr) {
+                        "async "
+                    } else {
+                        ""
+                    };
                     body_code.push_str(&format!(
-                        "{}$$renderer.async([{}], ($$renderer) => $$renderer.push(async () => $.escape({})));\n",
-                        indent, blockers_str, transformed_expr
+                        "{}$$renderer.async([{}], ($$renderer) => $$renderer.push({}() => $.escape({})));\n",
+                        indent, blockers_str, async_kw, transformed_expr
                     ));
                 }
                 OutputPart::AsyncWrappedExpressionCustom { blockers, expr } => {
@@ -2733,7 +2779,11 @@ export default function {component_name}($$renderer{props_param}) {{
 
                             // Generate snippet function declarations inside the block
                             for (snippet_name, params, body_parts, _) in &true_snippets {
-                                let params_str = format!("$$renderer, {}", params.join(", "));
+                                let params_str = if params.is_empty() {
+                                    "$$renderer".to_string()
+                                } else {
+                                    format!("$$renderer, {}", params.join(", "))
+                                };
                                 body_code.push_str(&format!(
                                     "{}\tfunction {}({}) {{\n",
                                     indent, snippet_name, params_str
@@ -4520,9 +4570,22 @@ export default function {component_name}($$renderer{props_param}) {{
 
                     // Emit the raw statement(s)
                     for line in stmt.lines() {
-                        body_code.push_str(&format!("{}{}\n", indent, line));
+                        if line.trim().is_empty() {
+                            body_code.push('\n');
+                        } else {
+                            body_code.push_str(&format!("{}{}\n", indent, line));
+                        }
                     }
-                    body_code.push('\n');
+                    // Only add a trailing blank line for multi-line or complex statements.
+                    // Simple single-line declarations (let x; / var x;) should not have
+                    // trailing blank lines, matching the official compiler's output.
+                    let is_simple_decl = !stmt.contains('\n')
+                        && (stmt.starts_with("let ") || stmt.starts_with("var "))
+                        && stmt.ends_with(';')
+                        && !stmt.contains('=');
+                    if !is_simple_decl {
+                        body_code.push('\n');
+                    }
                 }
                 OutputPart::SnippetFunction { name, params, body } => {
                     // Flush current HTML before function declaration
@@ -4618,6 +4681,9 @@ export default function {component_name}($$renderer{props_param}) {{
                 }
                 Some(alt_body) => {
                     // Check if this alternate is a single else-if IfBlock (is_elseif=true)
+                    // Don't flatten else-if blocks whose test contains `await` — they need
+                    // their own `child_block` wrapping, which happens when they fall through
+                    // to the regular else branch and are processed by `build_parts_with_store_subs`.
                     if alt_body.len() == 1
                         && let OutputPart::IfBlock {
                             test_expr: nested_test,
@@ -4625,6 +4691,7 @@ export default function {component_name}($$renderer{props_param}) {{
                             alternate_body: nested_alternate,
                             is_elseif: true,
                         } = &alt_body[0]
+                        && !super::helpers::expr_contains_await(nested_test)
                     {
                         // else-if case: emit `else if (test) { <!--[N--> ... }`
                         let marker = format!("<!--[{}-->", elseif_index);
@@ -5471,4 +5538,31 @@ fn extract_await_from_slot_props(props_expr: &str) -> (Vec<String>, String) {
     }
 
     (extracted, modified)
+}
+
+/// Strip async placeholder markers from script output.
+/// Used when `use_async` is true but `transform_async_body` returns None
+/// (no top-level await), so the markers were never consumed.
+///
+/// Removes lines containing:
+/// - `/* $$async_void_noop */` (placeholder for removed $effect statements)
+/// - `/* $$async_hole:` (placeholder for removed $inspect statements in async mode)
+fn strip_async_placeholders(s: &str) -> String {
+    s.lines()
+        .filter(|line| {
+            let trimmed = line.trim();
+            !trimmed.contains("/* $$async_void_noop */")
+        })
+        .map(|line| {
+            let trimmed = line.trim();
+            if trimmed.contains("/* $$async_hole:") {
+                // $inspect() calls should emit ;; (two empty statements) to match
+                // the official Svelte compiler's server-side output
+                ";;"
+            } else {
+                line
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }

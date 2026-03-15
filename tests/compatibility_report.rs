@@ -13,9 +13,8 @@ use std::fs;
 
 use common::{
     CategoryResult, CompatibilityReport, SampleDetails, SampleResult, TestCategory, TestStatus,
-    ensure_fixtures_exist, fixtures_path, get_fixture_samples, get_svelte_test_samples,
-    load_fixture_output, normalize_css, normalize_js as common_normalize_js, svelte_path,
-    write_actual_output,
+    canonicalize_css, canonicalize_js, ensure_fixtures_exist, fixtures_path, get_fixture_samples,
+    get_svelte_test_samples, load_fixture_output, svelte_path, write_actual_output,
 };
 use svelte_compiler_rust::{
     CompileOptions, ExperimentalOptions, GenerateMode, ModuleCompileOptions, ParseOptions, compile,
@@ -399,7 +398,7 @@ fn run_css_tests() -> CategoryResult {
                     let mut details = SampleDetails::default();
 
                     if let Some(expected) = &expected_css {
-                        let matches = normalize_css(&actual_css) == normalize_css(expected);
+                        let matches = canonicalize_css(&actual_css) == canonicalize_css(expected);
                         details.css_passed = Some(matches);
 
                         if matches {
@@ -1066,12 +1065,12 @@ fn run_not_implemented_tests(category: &str, reason: &str) -> CategoryResult {
 // Utility Functions
 // ============================================================================
 
-/// Compare two JavaScript outputs using lightweight normalization.
-/// This is much faster than using oxfmt and suitable for comparing essential code structure.
+/// Compare two JavaScript outputs using OXC parse→codegen canonicalization.
+/// This normalizes only formatting while preserving all semantic differences.
 fn compare_js(actual: &str, expected: &str) -> bool {
-    let normalized_actual = common_normalize_js(actual);
-    let normalized_expected = common_normalize_js(expected);
-    normalized_actual == normalized_expected
+    let canonical_actual = canonicalize_js(actual);
+    let canonical_expected = canonicalize_js(expected);
+    canonical_actual == canonical_expected
 }
 
 // Legacy normalization function (kept for reference, but no longer used)

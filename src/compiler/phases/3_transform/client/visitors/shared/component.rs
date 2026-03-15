@@ -1323,16 +1323,16 @@ fn process_bind_directive(
         false
     };
 
-    // Check if this is a prop binding in legacy mode that needs function call syntax
-    // In legacy mode, props are wrapped in $.prop() which returns a getter/setter function
+    // Check if this is a prop binding that needs function call syntax
+    // Props wrapped in $.prop() return a getter/setter function
     // So setting a prop should be `prop(value)` not `prop = value`
+    // This applies in both legacy mode and runes mode
     let is_prop_binding = if let JsExpr::Identifier(name) = &raw_expression {
         if let Some(binding) = context.state.get_binding(name) {
-            !context.state.analysis.runes
-                && crate::compiler::phases::phase3_transform::client::utils::is_prop_source(
-                    binding,
-                    context.state.analysis,
-                )
+            crate::compiler::phases::phase3_transform::client::utils::is_prop_source(
+                binding,
+                context.state.analysis,
+            )
         } else {
             false
         }
@@ -1407,7 +1407,7 @@ fn process_bind_directive(
             vec![b::id(&store_name), b::id("$$value")],
         ))]
     } else if is_prop_binding {
-        // For props in legacy mode, call the prop function with the value
+        // For prop source bindings, call the prop function with the value
         // prop($$value) instead of prop = $$value
         vec![b::stmt(b::call(
             raw_expression.clone(),

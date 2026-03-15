@@ -28,6 +28,8 @@ pub struct SourceMapping {
     pub orig_line: u32,
     /// Original column (0-indexed)
     pub orig_col: u32,
+    /// Optional name index (into the names array)
+    pub name: Option<u32>,
 }
 
 /// Result of code generation with source map.
@@ -130,6 +132,7 @@ impl<'a> JsCodegen<'a> {
                 source: 0,
                 orig_line: orig_line as u32,
                 orig_col: orig_col as u32,
+                name: None,
             });
         }
 
@@ -167,21 +170,16 @@ impl<'a> JsCodegen<'a> {
         for stmt in stmts {
             let current_type = stmt_type_name(stmt);
 
-            // Add blank line separator if needed (between statements, not before first).
-            // Comments don't trigger blank lines - they're "transparent" and take
-            // the type of whatever follows (matching esrap's behavior where comments
-            // are attached to nodes, not separate statements).
             if let Some(pt) = prev_type
                 && current_type != "Comment"
                 && pt != "Comment"
             {
                 let is_multiline = self.is_stmt_multiline(stmt);
                 if is_multiline || prev_multiline || current_type != pt {
-                    self.newline(); // extra blank line
+                    self.newline();
                 }
             }
 
-            // Capture position AFTER any blank line, to measure only the statement
             let start_pos = self.output.len();
             self.emit_statement(stmt);
 
@@ -190,7 +188,7 @@ impl<'a> JsCodegen<'a> {
             // we check multiline status of only the LAST logical line, since that's what
             // will be adjacent to the next statement.
             let rendered = &self.output[start_pos..];
-            if matches!(stmt, JsStatement::Raw(_)) {
+            if matches!(stmt, JsStatement::Raw(_) | JsStatement::RawMapped { .. }) {
                 // For Raw blocks, check if the last logical statement is multiline.
                 // Find the last non-empty line (excluding trailing newline).
                 let trimmed_end = rendered.trim_end_matches('\n');
@@ -285,6 +283,88 @@ impl<'a> JsCodegen<'a> {
                 self.output.push_str(code);
                 self.needs_semicolon = false; // Raw code handles its own semicolons
             }
+            JsStatement::RawMapped {
+                code,
+                source_offset,
+            } => {
+                // Output raw JavaScript code with per-line source mappings.
+                // Each line of the raw code maps to the corresponding position
+                // in the original source, offset by `source_offset`.
+                self.emit_raw_mapped(code, *source_offset);
+                self.needs_semicolon = false;
+            }
+        }
+    }
+
+    /// Emit raw JavaScript code with token-level source mappings.
+    ///
+    /// For script content, the `source_offset` is the byte offset in the original
+    /// `.svelte` source where the script content begins. We tokenize the output
+    /// and match each token to its position in the original source, creating
+    /// precise source map entries.
+    fn emit_raw_mapped(&mut self, code: &str, source_offset: u32) {
+        if !self.track_mappings {
+            self.output.push_str(code);
+            return;
+        }
+
+        let source_code = match self.source_code {
+            Some(s) => s,
+            None => {
+                self.output.push_str(code);
+                return;
+            }
+        };
+
+        // Extract tokens from the output code. A "token" is a contiguous sequence
+        // of identifier characters (a-zA-Z0-9_$) or a single non-whitespace
+        // punctuation character.
+        let tokens = extract_tokens(code);
+
+        // Match tokens to positions in the original source.
+        // Since the code was only reformatted (not semantically changed),
+        // tokens appear in the same order in both the output and the source.
+        let mut source_scan = source_offset as usize;
+        let mut token_mappings: Vec<(usize, u32, usize)> = Vec::new(); // (output_byte_offset, source_byte_offset, token_len)
+
+        for token in &tokens {
+            if source_scan >= source_code.len() {
+                break;
+            }
+
+            // Search for this token in the original source
+            let remaining = &source_code[source_scan..];
+            if let Some(pos) = remaining.find(token.text) {
+                // Only accept if within reasonable range
+                if pos < 5000 {
+                    let abs_pos = source_scan + pos;
+                    token_mappings.push((token.output_offset, abs_pos as u32, token.text.len()));
+                    source_scan = abs_pos + token.text.len();
+                }
+            }
+        }
+
+        // Now emit the code and record the mappings at the correct output positions.
+        // Since emit_raw_mapped is called from emit_statement_inner (which is called
+        // after indent()), the output already has the line's indent. We need to adjust
+        // the token offsets by the current output position.
+        let output_base = self.output.len();
+        self.output.push_str(code);
+
+        // Record the mappings
+        for (token_offset, source_pos, token_len) in token_mappings {
+            // Record start of token
+            self.raw_spans.push(RawSpan {
+                output_offset: output_base + token_offset,
+                source_start: source_pos,
+                source_end: source_pos + token_len as u32,
+            });
+            // Record end of token (needed for tests that check end position)
+            self.raw_spans.push(RawSpan {
+                output_offset: output_base + token_offset + token_len,
+                source_start: source_pos + token_len as u32,
+                source_end: source_pos + token_len as u32,
+            });
         }
     }
 
@@ -697,24 +777,16 @@ impl<'a> JsCodegen<'a> {
             return;
         }
 
-        // Pre-render all properties to measure total length
-        let rendered: Vec<String> = obj
-            .properties
-            .iter()
-            .map(|m| self.pre_render_object_member(m))
-            .collect();
+        // Use heuristic to detect likely-multiline objects without pre-rendering.
+        // This avoids exponential blowup from pre-rendering deeply nested structures.
+        let likely_multiline = obj.properties.len() > 3
+            || obj
+                .properties
+                .iter()
+                .any(|m| self.is_member_likely_multiline(m));
 
-        let total_len: usize = rendered.iter().map(|r| r.len()).sum::<usize>()
-            + if rendered.len() > 1 {
-                (rendered.len() - 1) * 2
-            } else {
-                0
-            };
-
-        let any_multiline = rendered.iter().any(|r| r.contains('\n'));
-        let multiline = any_multiline || total_len > 60;
-
-        if multiline {
+        if likely_multiline {
+            // Render directly in multiline mode without pre-rendering
             self.indent_level += 1;
             self.newline();
             for (i, member) in obj.properties.iter().enumerate() {
@@ -743,14 +815,61 @@ impl<'a> JsCodegen<'a> {
             self.indent_level -= 1;
             self.indent();
         } else {
-            self.output.push(' ');
-            for (i, member) in obj.properties.iter().enumerate() {
-                if i > 0 {
-                    self.output.push_str(", ");
+            // Small, simple objects: pre-render to measure length
+            let rendered: Vec<String> = obj
+                .properties
+                .iter()
+                .map(|m| self.pre_render_object_member(m))
+                .collect();
+
+            let total_len: usize = rendered.iter().map(|r| r.len()).sum::<usize>()
+                + if rendered.len() > 1 {
+                    (rendered.len() - 1) * 2
+                } else {
+                    0
+                };
+
+            let any_multiline = rendered.iter().any(|r| r.contains('\n'));
+            let multiline = any_multiline || total_len > 60;
+
+            if multiline {
+                // Pre-render determined multiline despite heuristic saying otherwise.
+                // Render directly in multiline mode.
+                self.indent_level += 1;
+                self.newline();
+                for (i, member) in obj.properties.iter().enumerate() {
+                    if i > 0 {
+                        let prev_is_gs = matches!(
+                            &obj.properties[i - 1],
+                            JsObjectMember::Property(p) if matches!(p.kind, JsPropertyKind::Get | JsPropertyKind::Set)
+                        );
+                        let curr_is_gs = matches!(
+                            member,
+                            JsObjectMember::Property(p) if matches!(p.kind, JsPropertyKind::Get | JsPropertyKind::Set)
+                        );
+                        if prev_is_gs || curr_is_gs {
+                            self.newline();
+                        }
+                    }
+                    self.indent();
+                    self.emit_object_member(member);
+                    if i < obj.properties.len() - 1 {
+                        self.output.push(',');
+                    }
+                    self.newline();
                 }
-                self.emit_object_member(member);
+                self.indent_level -= 1;
+                self.indent();
+            } else {
+                self.output.push(' ');
+                for (i, member) in obj.properties.iter().enumerate() {
+                    if i > 0 {
+                        self.output.push_str(", ");
+                    }
+                    self.emit_object_member(member);
+                }
+                self.output.push(' ');
             }
-            self.output.push(' ');
         }
         self.output.push('}');
     }
@@ -1056,6 +1175,9 @@ impl<'a> JsCodegen<'a> {
                     }
                 }
             }
+            // Logical expressions (&&, ||, ??) always have lower precedence than
+            // any binary operator, so they always need parens when used as operands
+            JsExpr::Logical(_) => true,
             // Unary expressions have higher precedence than most binary ops,
             // no parens needed
             _ => false,
@@ -1256,22 +1378,45 @@ impl<'a> JsCodegen<'a> {
         }
     }
 
-    /// Check if a statement will render as multiline without actually
-    /// modifying the output. Renders to a temporary buffer.
+    /// Check if a statement will render as multiline using a lightweight heuristic.
+    /// Avoids full rendering to prevent exponential complexity in nested blocks.
     fn is_stmt_multiline(&self, stmt: &JsStatement) -> bool {
-        let mut tmp = JsCodegen {
-            output: String::with_capacity(256),
-            indent_level: self.indent_level,
-            needs_semicolon: false,
-            track_mappings: false,
-            raw_spans: Vec::new(),
-            source_code: None,
-        };
-        tmp.emit_statement_inner(stmt);
-        if tmp.needs_semicolon {
-            tmp.output.push(';');
+        match stmt {
+            // These are always multiline
+            JsStatement::FunctionDeclaration(_)
+            | JsStatement::For(_)
+            | JsStatement::ForOf(_)
+            | JsStatement::While(_)
+            | JsStatement::DoWhile(_)
+            | JsStatement::Try(_)
+            | JsStatement::ExportDefault(_) => true,
+            // Block is multiline if it has any statements
+            JsStatement::Block(block) => !block.body.is_empty(),
+            // If statement is always multiline
+            JsStatement::If(_) => true,
+            // Labeled inherits from body
+            JsStatement::Labeled(labeled) => self.is_stmt_multiline(&labeled.body),
+            // Raw code: check if it contains newlines
+            JsStatement::Raw(code) => code.contains('\n'),
+            JsStatement::RawMapped { code, .. } => code.contains('\n'),
+            // Variable declarations: multiline if they have complex initializers
+            JsStatement::VariableDeclaration(decl) => {
+                decl.declarations.len() > 1
+                    || decl.declarations.iter().any(|d| {
+                        d.init.as_ref().is_some_and(|init| {
+                            matches!(
+                                init.as_ref(),
+                                JsExpr::Function(_)
+                                    | JsExpr::Arrow(_)
+                                    | JsExpr::Object(_)
+                                    | JsExpr::Array(_)
+                            )
+                        })
+                    })
+            }
+            // Simple statements are single-line
+            _ => false,
         }
-        tmp.output.contains('\n')
     }
 
     /// Pre-render an expression to a string without modifying the output.
@@ -1302,6 +1447,37 @@ impl<'a> JsCodegen<'a> {
         tmp.output
     }
 
+    /// Heuristic check if an expression is likely to render as multiline.
+    /// Used to avoid pre-rendering complex expressions (which causes exponential blowup).
+    fn is_expr_likely_multiline(&self, expr: &JsExpr) -> bool {
+        match expr {
+            JsExpr::Function(_) | JsExpr::Arrow(_) => true,
+            JsExpr::Object(obj) => !obj.properties.is_empty(),
+            JsExpr::Array(arr) => arr.elements.len() > 3,
+            JsExpr::Call(call) => call
+                .arguments
+                .iter()
+                .any(|a| self.is_expr_likely_multiline(a)),
+            JsExpr::Conditional(c) => {
+                self.is_expr_likely_multiline(&c.consequent)
+                    || self.is_expr_likely_multiline(&c.alternate)
+            }
+            JsExpr::Spanned(inner, _, _) => self.is_expr_likely_multiline(inner),
+            _ => false,
+        }
+    }
+
+    /// Heuristic check if an object member is likely to render as multiline.
+    fn is_member_likely_multiline(&self, member: &JsObjectMember) -> bool {
+        match member {
+            JsObjectMember::Property(p) => {
+                matches!(p.kind, JsPropertyKind::Get | JsPropertyKind::Set)
+                    || self.is_expr_likely_multiline(&p.value)
+            }
+            JsObjectMember::SpreadElement(expr) => self.is_expr_likely_multiline(expr),
+        }
+    }
+
     /// Emit a comma-separated sequence of expressions with esrap-style wrapping.
     /// When total length exceeds 60 or any element is multiline, switches to multi-line mode.
     /// `pad` controls whether spaces are added around the content in single-line mode
@@ -1311,34 +1487,39 @@ impl<'a> JsCodegen<'a> {
             return;
         }
 
-        // Pre-render all items to measure total length and detect multiline
-        let rendered: Vec<String> = items
-            .iter()
-            .map(|item| {
-                if let Some(expr) = item {
-                    self.pre_render_expr(expr)
-                } else {
-                    String::new()
-                }
-            })
-            .collect();
+        // Use heuristic to detect likely-multiline sequences without pre-rendering.
+        // This avoids exponential blowup from pre-rendering deeply nested structures.
+        let likely_multiline = items.len() > 3
+            || items
+                .iter()
+                .any(|item| item.is_some_and(|expr| self.is_expr_likely_multiline(expr)));
 
-        // Calculate total length: sum of rendered items + separators (", ")
-        let total_len: usize = rendered.iter().map(|r| r.len()).sum::<usize>()
-            + if rendered.len() > 1 {
-                (rendered.len() - 1) * 2 // ", " between items
-            } else {
-                0
-            };
-
-        let any_multiline = rendered.iter().any(|r| r.contains('\n'));
-        let multiline = any_multiline || total_len > 60;
-
-        if multiline {
+        if likely_multiline {
+            // Render directly in multiline mode without pre-rendering.
+            // We render each item and track its output to detect multiline for margin logic.
             self.indent_level += 1;
             self.newline();
 
-            for (i, (item, rendered_str)) in items.iter().zip(rendered.iter()).enumerate() {
+            let mut prev_was_multiline = false;
+            let mut prev_had_obj_array = false;
+
+            for (i, item) in items.iter().enumerate() {
+                // Check if this item has object/array value (for margin logic)
+                let has_obj_array = has_object_or_array_value(item);
+
+                // Insert blank line (margin) between consecutive multiline items
+                // that don't have object/array values (matching esrap behavior)
+                if i > 0 && prev_was_multiline && !prev_had_obj_array && !has_obj_array {
+                    // We need to check if current item is also multiline.
+                    // Use the heuristic to avoid pre-rendering.
+                    let curr_likely_multiline =
+                        item.is_some_and(|expr| self.is_expr_likely_multiline(expr));
+                    if curr_likely_multiline {
+                        self.newline(); // margin
+                    }
+                }
+
+                let start_pos = self.output.len();
                 self.indent();
                 if let Some(expr) = item {
                     self.emit_expression(expr);
@@ -1347,18 +1528,10 @@ impl<'a> JsCodegen<'a> {
                     self.output.push(',');
                 }
 
-                // Insert blank line (margin) between consecutive multiline items
-                // that don't have object/array values (matching esrap behavior)
-                if i < items.len() - 1 {
-                    let next_rendered = &rendered[i + 1];
-                    if rendered_str.contains('\n')
-                        && next_rendered.contains('\n')
-                        && !has_object_or_array_value(item)
-                        && !has_object_or_array_value(&items[i + 1])
-                    {
-                        self.newline(); // margin
-                    }
-                }
+                // Check if the rendered item was multiline
+                let rendered_part = &self.output[start_pos..];
+                prev_was_multiline = rendered_part.contains('\n');
+                prev_had_obj_array = has_obj_array;
 
                 self.newline();
             }
@@ -1366,19 +1539,74 @@ impl<'a> JsCodegen<'a> {
             self.indent_level -= 1;
             self.indent();
         } else {
-            if pad && total_len > 0 {
-                self.output.push(' ');
-            }
-            for (i, item) in items.iter().enumerate() {
-                if i > 0 {
-                    self.output.push_str(", ");
+            // Small, simple items: pre-render to measure total length
+            let rendered: Vec<String> = items
+                .iter()
+                .map(|item| {
+                    if let Some(expr) = item {
+                        self.pre_render_expr(expr)
+                    } else {
+                        String::new()
+                    }
+                })
+                .collect();
+
+            let total_len: usize = rendered.iter().map(|r| r.len()).sum::<usize>()
+                + if rendered.len() > 1 {
+                    (rendered.len() - 1) * 2
+                } else {
+                    0
+                };
+
+            let any_multiline = rendered.iter().any(|r| r.contains('\n'));
+            let multiline = any_multiline || total_len > 60;
+
+            if multiline {
+                // Pre-render determined multiline despite heuristic saying otherwise.
+                // Render directly in multiline mode.
+                self.indent_level += 1;
+                self.newline();
+
+                for (i, (item, rendered_str)) in items.iter().zip(rendered.iter()).enumerate() {
+                    self.indent();
+                    if let Some(expr) = item {
+                        self.emit_expression(expr);
+                    }
+                    if i < items.len() - 1 {
+                        self.output.push(',');
+                    }
+
+                    if i < items.len() - 1 {
+                        let next_rendered = &rendered[i + 1];
+                        if rendered_str.contains('\n')
+                            && next_rendered.contains('\n')
+                            && !has_object_or_array_value(item)
+                            && !has_object_or_array_value(&items[i + 1])
+                        {
+                            self.newline(); // margin
+                        }
+                    }
+
+                    self.newline();
                 }
-                if let Some(expr) = item {
-                    self.emit_expression(expr);
+
+                self.indent_level -= 1;
+                self.indent();
+            } else {
+                if pad && total_len > 0 {
+                    self.output.push(' ');
                 }
-            }
-            if pad && total_len > 0 {
-                self.output.push(' ');
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        self.output.push_str(", ");
+                    }
+                    if let Some(expr) = item {
+                        self.emit_expression(expr);
+                    }
+                }
+                if pad && total_len > 0 {
+                    self.output.push(' ');
+                }
             }
         }
     }
@@ -1390,19 +1618,15 @@ impl<'a> JsCodegen<'a> {
             return;
         }
 
-        // Pre-render all arguments
-        let rendered: Vec<String> = arguments
+        // Use heuristic to check if any non-final argument is likely multiline.
+        // This avoids exponential blowup from pre-rendering deeply nested structures.
+        let non_final_likely_multiline = arguments
             .iter()
-            .map(|arg| self.pre_render_expr(arg))
-            .collect();
+            .take(arguments.len().saturating_sub(1))
+            .any(|arg| self.is_expr_likely_multiline(arg));
 
-        // Check if any non-final argument is multiline
-        let non_final_multiline = rendered
-            .iter()
-            .take(rendered.len().saturating_sub(1))
-            .any(|r| r.contains('\n'));
-
-        if non_final_multiline {
+        if non_final_likely_multiline {
+            // Render directly in multiline mode without pre-rendering
             self.indent_level += 1;
             self.newline();
 
@@ -1418,11 +1642,38 @@ impl<'a> JsCodegen<'a> {
             self.indent_level -= 1;
             self.indent();
         } else {
-            for (i, arg) in arguments.iter().enumerate() {
-                if i > 0 {
-                    self.output.push_str(", ");
+            // No non-final arg is likely multiline. Pre-render to confirm.
+            // Since these are simple expressions, pre-rendering is cheap.
+            let rendered: Vec<String> = arguments
+                .iter()
+                .take(arguments.len().saturating_sub(1))
+                .map(|arg| self.pre_render_expr(arg))
+                .collect();
+
+            let non_final_multiline = rendered.iter().any(|r| r.contains('\n'));
+
+            if non_final_multiline {
+                self.indent_level += 1;
+                self.newline();
+
+                for (i, arg) in arguments.iter().enumerate() {
+                    self.indent();
+                    self.emit_expression(arg);
+                    if i < arguments.len() - 1 {
+                        self.output.push(',');
+                    }
+                    self.newline();
                 }
-                self.emit_expression(arg);
+
+                self.indent_level -= 1;
+                self.indent();
+            } else {
+                for (i, arg) in arguments.iter().enumerate() {
+                    if i > 0 {
+                        self.output.push_str(", ");
+                    }
+                    self.emit_expression(arg);
+                }
             }
         }
     }
@@ -1464,6 +1715,7 @@ fn stmt_type_name(stmt: &JsStatement) -> &'static str {
         JsStatement::Throw(_) => "ThrowStatement",
         JsStatement::Try(_) => "TryStatement",
         JsStatement::Raw(code) => raw_stmt_type_name(code),
+        JsStatement::RawMapped { code, .. } => raw_stmt_type_name(code),
     }
 }
 
@@ -1555,6 +1807,194 @@ fn escape_string_single(s: &str) -> std::borrow::Cow<'_, str> {
 }
 
 // ============================================================================
+// Token extraction for source map generation
+// ============================================================================
+
+/// A token found in JavaScript source code.
+struct Token<'a> {
+    /// The token text (e.g., identifier name, literal value, operator)
+    text: &'a str,
+    /// Byte offset in the code string where this token starts
+    output_offset: usize,
+}
+
+/// Extract tokens from JavaScript source code for source map matching.
+///
+/// Returns tokens in order of appearance. Each token is either:
+/// - An identifier-like sequence (a-zA-Z0-9_$)
+/// - A numeric literal (digits, possibly with dots/e/x)
+/// - A string literal (including quotes)
+/// - An operator or punctuation character
+///
+/// Whitespace is skipped.
+fn extract_tokens(code: &str) -> Vec<Token<'_>> {
+    let bytes = code.as_bytes();
+    let len = bytes.len();
+    let mut tokens = Vec::new();
+    let mut i = 0;
+
+    while i < len {
+        let b = bytes[i];
+
+        // Skip whitespace
+        if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
+            i += 1;
+            continue;
+        }
+
+        // Identifier or keyword: [a-zA-Z_$][a-zA-Z0-9_$]*
+        if b.is_ascii_alphabetic() || b == b'_' || b == b'$' {
+            let start = i;
+            i += 1;
+            while i < len
+                && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_' || bytes[i] == b'$')
+            {
+                i += 1;
+            }
+            tokens.push(Token {
+                text: &code[start..i],
+                output_offset: start,
+            });
+            continue;
+        }
+
+        // Numeric literal: [0-9][0-9a-zA-Z._]*
+        if b.is_ascii_digit() {
+            let start = i;
+            i += 1;
+            while i < len
+                && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'.' || bytes[i] == b'_')
+            {
+                i += 1;
+            }
+            // Handle BigInt suffix 'n'
+            if i < len && bytes[i] == b'n' {
+                i += 1;
+            }
+            tokens.push(Token {
+                text: &code[start..i],
+                output_offset: start,
+            });
+            continue;
+        }
+
+        // String literal: single or double quote
+        if b == b'\'' || b == b'"' {
+            let start = i;
+            let quote = b;
+            i += 1;
+            while i < len && bytes[i] != quote {
+                if bytes[i] == b'\\' && i + 1 < len {
+                    i += 2; // skip escaped char
+                } else {
+                    i += 1;
+                }
+            }
+            if i < len {
+                i += 1; // skip closing quote
+            }
+            tokens.push(Token {
+                text: &code[start..i],
+                output_offset: start,
+            });
+            continue;
+        }
+
+        // Template literal - skip static parts but process ${...} expressions
+        if b == b'`' {
+            i += 1;
+            while i < len {
+                if bytes[i] == b'`' {
+                    i += 1;
+                    break;
+                }
+                if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                    i += 2; // skip ${
+                    let mut brace_depth = 1u32;
+                    while i < len && brace_depth > 0 {
+                        let eb = bytes[i];
+                        if eb == b'{' {
+                            brace_depth += 1;
+                            i += 1;
+                        } else if eb == b'}' {
+                            brace_depth -= 1;
+                            if brace_depth == 0 {
+                                i += 1;
+                                break;
+                            }
+                            i += 1;
+                        } else if eb.is_ascii_alphabetic() || eb == b'_' || eb == b'$' {
+                            let start = i;
+                            i += 1;
+                            while i < len
+                                && (bytes[i].is_ascii_alphanumeric()
+                                    || bytes[i] == b'_'
+                                    || bytes[i] == b'$')
+                            {
+                                i += 1;
+                            }
+                            tokens.push(Token {
+                                text: &code[start..i],
+                                output_offset: start,
+                            });
+                        } else if eb.is_ascii_digit() {
+                            let start = i;
+                            i += 1;
+                            while i < len
+                                && (bytes[i].is_ascii_alphanumeric()
+                                    || bytes[i] == b'.'
+                                    || bytes[i] == b'_')
+                            {
+                                i += 1;
+                            }
+                            tokens.push(Token {
+                                text: &code[start..i],
+                                output_offset: start,
+                            });
+                        } else {
+                            i += 1;
+                        }
+                    }
+                    continue;
+                }
+                if bytes[i] == b'\\' && i + 1 < len {
+                    i += 2;
+                } else {
+                    i += 1;
+                }
+            }
+            continue;
+        }
+
+        // Line comment - skip
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+            while i < len && bytes[i] != b'\n' {
+                i += 1;
+            }
+            continue;
+        }
+
+        // Block comment - skip
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+            i += 2;
+            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            if i + 1 < len {
+                i += 2;
+            }
+            continue;
+        }
+
+        // Single punctuation character (operator, bracket, etc.)
+        // Don't create tokens for very common delimiters that would create noise
+        i += 1;
+    }
+
+    tokens
+}
+
+// ============================================================================
 // Source map helper functions
 // ============================================================================
 
@@ -1593,6 +2033,7 @@ pub fn encode_vlq_mappings(mappings: &[SourceMapping]) -> String {
     let mut prev_source: i64 = 0;
     let mut prev_orig_line: i64 = 0;
     let mut prev_orig_col: i64 = 0;
+    let mut prev_name: i64 = 0;
     let mut first_on_line = true;
 
     for m in mappings {
@@ -1616,6 +2057,11 @@ pub fn encode_vlq_mappings(mappings: &[SourceMapping]) -> String {
         vlq_encode(&mut result, m.orig_line as i64 - prev_orig_line);
         // Field 4: original column (relative)
         vlq_encode(&mut result, m.orig_col as i64 - prev_orig_col);
+        // Field 5: name index (relative, optional)
+        if let Some(name_idx) = m.name {
+            vlq_encode(&mut result, name_idx as i64 - prev_name);
+            prev_name = name_idx as i64;
+        }
 
         prev_gen_col = m.gen_col as i64;
         prev_source = m.source as i64;
@@ -1749,6 +2195,285 @@ fn json_escape_str(out: &mut String, s: &str) {
             c => out.push(c),
         }
     }
+}
+
+/// Decoded source map segment: [gen_col, source_index, orig_line, orig_col, name_index?]
+pub type DecodedSegment = Vec<i64>;
+
+/// Decoded source map: Vec of lines, each line is a Vec of segments
+pub type DecodedMappings = Vec<Vec<DecodedSegment>>;
+
+/// Decode VLQ-encoded source map mappings string into a 2D structure.
+pub fn decode_vlq_mappings(mappings: &str) -> DecodedMappings {
+    let mut result: DecodedMappings = Vec::new();
+    let mut current_line: Vec<DecodedSegment> = Vec::new();
+
+    // Running state (cumulative across lines except gen_col which resets per line)
+    let mut gen_col: i64 = 0;
+    let mut source: i64 = 0;
+    let mut orig_line: i64 = 0;
+    let mut orig_col: i64 = 0;
+    let mut name_idx: i64 = 0;
+
+    let bytes = mappings.as_bytes();
+    let mut i = 0;
+
+    while i < bytes.len() {
+        let b = bytes[i];
+
+        if b == b';' {
+            result.push(std::mem::take(&mut current_line));
+            gen_col = 0;
+            i += 1;
+            continue;
+        }
+
+        if b == b',' {
+            i += 1;
+            continue;
+        }
+
+        // Decode a segment
+        let mut segment = Vec::with_capacity(5);
+
+        // Field 1: gen_col (relative)
+        let (val, consumed) = vlq_decode(&bytes[i..]);
+        gen_col += val;
+        segment.push(gen_col);
+        i += consumed;
+
+        if i < bytes.len() && bytes[i] != b',' && bytes[i] != b';' {
+            // Field 2: source index (relative)
+            let (val, consumed) = vlq_decode(&bytes[i..]);
+            source += val;
+            segment.push(source);
+            i += consumed;
+
+            // Field 3: orig_line (relative)
+            let (val, consumed) = vlq_decode(&bytes[i..]);
+            orig_line += val;
+            segment.push(orig_line);
+            i += consumed;
+
+            // Field 4: orig_col (relative)
+            let (val, consumed) = vlq_decode(&bytes[i..]);
+            orig_col += val;
+            segment.push(orig_col);
+            i += consumed;
+
+            // Optional field 5: name index (relative)
+            if i < bytes.len() && bytes[i] != b',' && bytes[i] != b';' {
+                let (val, consumed) = vlq_decode(&bytes[i..]);
+                name_idx += val;
+                segment.push(name_idx);
+                i += consumed;
+            }
+        }
+
+        current_line.push(segment);
+    }
+
+    // Push last line
+    result.push(current_line);
+
+    result
+}
+
+/// Decode a single VLQ value from a byte slice.
+/// Returns (value, bytes_consumed).
+fn vlq_decode(bytes: &[u8]) -> (i64, usize) {
+    let mut value: u64 = 0;
+    let mut shift = 0u32;
+    let mut i = 0;
+
+    loop {
+        if i >= bytes.len() {
+            break;
+        }
+        let b = bytes[i];
+        let digit = match b {
+            b'A'..=b'Z' => b - b'A',
+            b'a'..=b'z' => b - b'a' + 26,
+            b'0'..=b'9' => b - b'0' + 52,
+            b'+' => 62,
+            b'/' => 63,
+            _ => break,
+        };
+        i += 1;
+        value |= ((digit & 0x1F) as u64) << shift;
+        shift += 5;
+        if digit & 0x20 == 0 {
+            break;
+        }
+    }
+
+    // Convert from unsigned to signed
+    let signed = if value & 1 == 1 {
+        -((value >> 1) as i64)
+    } else {
+        (value >> 1) as i64
+    };
+
+    (signed, i)
+}
+
+/// Remap source mappings through a preprocessor source map.
+///
+/// Given our compiler's mappings (generated -> preprocessed positions) and
+/// a preprocessor source map (preprocessed -> original positions),
+/// produce mappings from generated -> original positions.
+pub fn remap_through_sourcemap(mappings: &mut [SourceMapping], preprocessor_map_json: &str) {
+    // Parse the preprocessor source map
+    let map: serde_json::Value = match serde_json::from_str(preprocessor_map_json) {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+
+    let pp_mappings_str = match map.get("mappings").and_then(|v| v.as_str()) {
+        Some(s) => s,
+        None => return,
+    };
+
+    let decoded = decode_vlq_mappings(pp_mappings_str);
+
+    // Extract names array for handling named replacements
+    let names: Vec<String> = map
+        .get("names")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    // For each of our mappings, orig_line/orig_col point to the preprocessed code.
+    // We need to look up that position in the preprocessor's decoded mappings
+    // to find the original source position.
+
+    for mapping in mappings.iter_mut() {
+        let pp_line = mapping.orig_line as usize;
+        let pp_col = mapping.orig_col as usize;
+
+        if pp_line >= decoded.len() {
+            continue;
+        }
+
+        let segments = &decoded[pp_line];
+        if segments.is_empty() {
+            continue;
+        }
+
+        // Find the segment that best matches pp_col
+        // Each segment: [gen_col, source_index, orig_line, orig_col, name_index?]
+        // We want the last segment where gen_col <= pp_col
+        let mut best: Option<&DecodedSegment> = None;
+        let mut next_seg_col: Option<i64> = None;
+        for (i, seg) in segments.iter().enumerate() {
+            if seg.len() >= 4 && seg[0] as usize <= pp_col {
+                best = Some(seg);
+                // Track the next segment's column to know the extent of this segment
+                next_seg_col = segments
+                    .get(i + 1)
+                    .and_then(|s| if s.len() >= 4 { Some(s[0]) } else { None });
+            } else if seg[0] as usize > pp_col {
+                break;
+            }
+        }
+
+        if let Some(seg) = best {
+            let col_offset = pp_col as i64 - seg[0];
+
+            // Handle named replacements (segment has 5th field = name index).
+            // Named segments indicate text replacement (e.g., "--replace-me" -> "\n --done-replace").
+            // Positions within the replacement range should map to the start of the
+            // original name, NOT by linear col_offset interpolation, because the
+            // replacement text has no character-by-character correspondence with the original.
+            if seg.len() >= 5 {
+                let name_idx = seg[4] as usize;
+                if name_idx < names.len() {
+                    let original_name = &names[name_idx];
+                    let original_name_len = original_name.len() as i64;
+
+                    // Determine the generated (preprocessed) text length for this segment.
+                    // This is the distance to the next segment, or we assume a short replacement.
+                    let gen_len = next_seg_col
+                        .map(|nc| nc - seg[0])
+                        .unwrap_or(original_name_len); // fallback
+
+                    if col_offset >= gen_len && gen_len > 0 {
+                        // Position is at or past the end of the replaced text;
+                        // map to end of original name
+                        mapping.orig_line = seg[2] as u32;
+                        mapping.orig_col = (seg[3] + original_name_len) as u32;
+                        mapping.source = seg[1] as u32;
+                        continue;
+                    }
+
+                    // Position is within the replacement range;
+                    // map to the start of the original name and carry the name index
+                    mapping.orig_line = seg[2] as u32;
+                    mapping.orig_col = seg[3] as u32;
+                    mapping.source = seg[1] as u32;
+                    mapping.name = Some(name_idx as u32);
+                    continue;
+                }
+            }
+
+            mapping.orig_line = seg[2] as u32;
+            mapping.orig_col = (seg[3] + col_offset) as u32;
+            mapping.source = seg[1] as u32;
+        }
+    }
+}
+
+/// Generate a source map JSON with multiple sources support.
+pub fn generate_sourcemap_json_multi(
+    file: &str,
+    sources: &[&str],
+    sources_content: &[&str],
+    mappings: &str,
+    names: &[&str],
+) -> String {
+    let mut json = String::with_capacity(256 + mappings.len());
+    json.push_str("{\"version\":3");
+    json.push_str(",\"file\":\"");
+    json_escape_str(&mut json, file);
+    json.push('"');
+    json.push_str(",\"sources\":[");
+    for (i, src) in sources.iter().enumerate() {
+        if i > 0 {
+            json.push(',');
+        }
+        json.push('"');
+        json_escape_str(&mut json, src);
+        json.push('"');
+    }
+    json.push(']');
+    json.push_str(",\"sourcesContent\":[");
+    for (i, content) in sources_content.iter().enumerate() {
+        if i > 0 {
+            json.push(',');
+        }
+        json.push('"');
+        json_escape_str(&mut json, content);
+        json.push('"');
+    }
+    json.push(']');
+    json.push_str(",\"names\":[");
+    for (i, name) in names.iter().enumerate() {
+        if i > 0 {
+            json.push(',');
+        }
+        json.push('"');
+        json_escape_str(&mut json, name);
+        json.push('"');
+    }
+    json.push(']');
+    json.push_str(",\"mappings\":\"");
+    json.push_str(mappings);
+    json.push_str("\"}");
+    json
 }
 
 #[cfg(test)]
@@ -1911,6 +2636,53 @@ mod tests {
         assert!(
             code.contains("() => ({") || code.contains("()=>({"),
             "Object literal with getters in arrow function should be wrapped in parentheses: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_logical_inside_binary_needs_parens() {
+        // Bug: `(a ?? b) > 0` lost parentheses because binary_operand_needs_parens
+        // didn't handle JsExpr::Logical operands.
+        // This caused: "Nullish coalescing operator(??) requires parens when mixing
+        // with logical operators" at build time.
+        let logical = JsExpr::Logical(JsLogicalExpression {
+            operator: JsLogicalOp::NullishCoalescing,
+            left: Box::new(id("a")),
+            right: Box::new(number(0.0)),
+        });
+        let binary_expr = JsExpr::Binary(JsBinaryExpression {
+            operator: JsBinaryOp::Gt,
+            left: Box::new(logical),
+            right: Box::new(number(0.0)),
+        });
+        let prog = program(vec![const_decl("x", binary_expr)]);
+        let code = generate(&prog).unwrap();
+        println!("Generated code: {}", code);
+        assert!(
+            code.contains("(a ?? 0) > 0"),
+            "Logical expression inside binary should be wrapped in parens: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_logical_or_inside_binary_needs_parens() {
+        let logical = JsExpr::Logical(JsLogicalExpression {
+            operator: JsLogicalOp::Or,
+            left: Box::new(id("a")),
+            right: Box::new(id("b")),
+        });
+        let binary_expr = JsExpr::Binary(JsBinaryExpression {
+            operator: JsBinaryOp::Add,
+            left: Box::new(logical),
+            right: Box::new(number(1.0)),
+        });
+        let prog = program(vec![const_decl("x", binary_expr)]);
+        let code = generate(&prog).unwrap();
+        assert!(
+            code.contains("(a || b) + 1"),
+            "Logical OR inside binary should be wrapped in parens: {}",
             code
         );
     }

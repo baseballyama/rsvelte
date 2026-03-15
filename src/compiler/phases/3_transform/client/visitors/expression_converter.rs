@@ -3031,14 +3031,15 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                         .iter()
                         .filter_map(|decl| {
                             let decl_obj = decl.as_object()?;
-                            let id = decl_obj.get("id").and_then(|i| i.as_object())?;
-                            let name = id.get("name").and_then(|n| n.as_str())?;
+                            let id_val = decl_obj.get("id")?;
+                            let pattern = convert_param_pattern(id_val, context)?;
 
                             // Register the init expression's node type for should_proxy() lookups.
                             // This enables scope-aware identifier tracing for local variables.
                             if !context.state.local_var_init_types.is_empty()
                                 && let Some(init_json) = decl_obj.get("init")
                                 && let Some(t) = unwrap_ts_expression_type(init_json)
+                                && let JsPattern::Identifier(ref name) = pattern
                             {
                                 context
                                     .state
@@ -3051,10 +3052,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                                 .get("init")
                                 .filter(|i| !i.is_null())
                                 .map(|i| Box::new(convert_json_value(i, context)));
-                            Some(JsVariableDeclarator {
-                                id: JsPattern::Identifier(name.into()),
-                                init,
-                            })
+                            Some(JsVariableDeclarator { id: pattern, init })
                         })
                         .collect()
                 })
@@ -3182,13 +3180,13 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                                 .iter()
                                 .filter_map(|decl| {
                                     let decl_obj = decl.as_object()?;
-                                    let id = decl_obj.get("id").and_then(|id| id.as_object())?;
-                                    let name = id.get("name").and_then(|n| n.as_str())?;
+                                    let id_val = decl_obj.get("id")?;
+                                    let pattern = convert_param_pattern(id_val, context)?;
                                     let init_val = decl_obj
                                         .get("init")
                                         .map(|iv| Box::new(convert_json_value(iv, context)));
                                     Some(JsVariableDeclarator {
-                                        id: JsPattern::Identifier(name.into()),
+                                        id: pattern,
                                         init: init_val,
                                     })
                                 })
@@ -3528,7 +3526,24 @@ fn is_svelte_ignored_with_source(
         if start > 0 && start <= source.len() {
             // Look backwards from the start position, searching within a reasonable window
             // We look at up to 500 chars before the node to find preceding comments
-            let search_start = start.saturating_sub(500);
+            let search_start_byte = start.saturating_sub(500);
+            // Ensure we're at a valid char boundary
+            let search_start = if source.is_char_boundary(search_start_byte) {
+                search_start_byte
+            } else {
+                source[..search_start_byte]
+                    .char_indices()
+                    .next_back()
+                    .map_or(0, |(i, _)| i)
+            };
+            let start = if source.is_char_boundary(start) {
+                start
+            } else {
+                source[..start]
+                    .char_indices()
+                    .next_back()
+                    .map_or(0, |(i, _)| i)
+            };
             let before = &source[search_start..start];
 
             // Check for JS-style svelte-ignore comments: // svelte-ignore <code>

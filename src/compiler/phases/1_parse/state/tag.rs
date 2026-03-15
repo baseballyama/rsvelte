@@ -101,11 +101,11 @@ impl Parser<'_> {
     pub fn parse_if_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
         self.skip_whitespace();
 
-        // Read the test expression
+        // Read the test expression using find_matching_bracket to handle
+        // strings, comments, and regex inside the expression (e.g., /^\d{4}/)
         let expr_start = self.index;
-        while !self.is_eof() && self.current_char() != '}' {
-            self.advance();
-        }
+        let end = find_matching_bracket(self.source, expr_start, '{').unwrap_or(self.source.len());
+        self.index = end;
         let expr_content = &self.source[expr_start..self.index];
         self.advance(); // consume '}'
 
@@ -191,9 +191,9 @@ impl Parser<'_> {
             // {:else if ...}
             self.skip_whitespace();
             let alt_expr_start = self.index;
-            while !self.is_eof() && self.current_char() != '}' {
-                self.advance();
-            }
+            let end = find_matching_bracket(self.source, alt_expr_start, '{')
+                .unwrap_or(self.source.len());
+            self.index = end;
             let alt_expr_content = &self.source[alt_expr_start..self.index];
             self.advance(); // consume '}'
 
@@ -862,11 +862,11 @@ impl Parser<'_> {
     pub fn parse_key_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
         self.skip_whitespace();
 
-        // Read the key expression
+        // Read the key expression using find_matching_bracket to handle
+        // strings, comments, and regex inside the expression
         let expr_start = self.index;
-        while !self.is_eof() && self.current_char() != '}' {
-            self.advance();
-        }
+        let end = find_matching_bracket(self.source, expr_start, '{').unwrap_or(self.source.len());
+        self.index = end;
         let expr_content = &self.source[expr_start..self.index];
         self.advance(); // consume '}'
 

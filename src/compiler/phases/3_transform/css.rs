@@ -372,8 +372,9 @@ fn render_stylesheet_internal(
 
 /// Generate a source map for CSS output.
 ///
-/// Creates line-level mappings from the generated CSS back to the original source,
-/// offset by the CSS content start position in the original file.
+/// Creates token-level mappings from the generated CSS back to the original source.
+/// For each CSS token (identifiers, properties, values, etc.), we match between
+/// the generated CSS and the CSS content in the original source.
 fn generate_css_sourcemap(
     source: &str,
     css_code: &str,
@@ -381,7 +382,8 @@ fn generate_css_sourcemap(
     options: &CompileOptions,
 ) -> Option<String> {
     use super::js_ast::codegen::{
-        SourceMapping, encode_vlq_mappings, generate_sourcemap_json, get_source_name,
+        SourceMapping, build_line_starts, encode_vlq_mappings, generate_sourcemap_json,
+        get_source_name, offset_to_line_col,
     };
 
     let css_output_filename = options.css_output_filename.as_deref();
@@ -406,37 +408,112 @@ fn generate_css_sourcemap(
         })
         .unwrap_or_else(|| "input.svelte.css".to_string());
 
-    // Build source line starts
-    let source_line_starts = build_css_line_starts(source);
-    let css_line_starts = build_css_line_starts(css_code);
+    // Extract CSS tokens from both the generated CSS and the original source's CSS section
+    let gen_tokens = extract_css_tokens(css_code);
+    let css_source_section = &source[css_start..];
+    let src_tokens = extract_css_tokens(css_source_section);
 
-    // Find the line/col of css_start in the original source
-    let css_start_line = source_line_starts
-        .binary_search(&css_start)
-        .unwrap_or_else(|i| i.saturating_sub(1));
+    let gen_line_starts = build_line_starts(css_code);
+    let source_line_starts = build_line_starts(source);
 
-    // Create mappings for each line of CSS output
-    // Each CSS output line maps back to the corresponding line in the original source
-    // (offset by the CSS content start position)
     let mut mappings = Vec::new();
 
-    // Map each generated CSS line to the corresponding source line
-    // The CSS content starts at css_start_line in the source
-    for (i, _) in css_line_starts.iter().enumerate() {
-        // Map generated line i to source line (css_start_line + i)
-        let orig_line = css_start_line + i;
-        if orig_line < source_line_starts.len() {
-            mappings.push(SourceMapping {
-                gen_line: i as u32,
-                gen_col: 0,
-                source: 0,
-                orig_line: orig_line as u32,
-                orig_col: 0,
-            });
-        }
+    // Build per-token-name matching (same approach as JS token matching)
+    use std::collections::HashMap;
+    let mut src_positions: HashMap<&str, Vec<usize>> = HashMap::new();
+    for token in &src_tokens {
+        src_positions
+            .entry(token.text)
+            .or_default()
+            .push(token.offset + css_start); // Absolute position in source
     }
 
-    let mappings_str = encode_vlq_mappings(&mappings);
+    let mut src_consumed: HashMap<&str, usize> = HashMap::new();
+
+    // Track the last matched source position for handling .svelte-xxx scoping suffixes
+    let mut last_src_end: Option<usize> = None;
+
+    for gen_token in &gen_tokens {
+        // Handle .svelte-xxx scoping suffixes: these don't exist in the source,
+        // but the end of the scoped selector should map to the end of the original selector.
+        if gen_token.text.starts_with(".svelte-") {
+            if let Some(src_end) = last_src_end {
+                // End of scoped selector -> end of original selector
+                let gen_end = gen_token.offset + gen_token.text.len();
+                let (gen_line_end, gen_col_end) = offset_to_line_col(&gen_line_starts, gen_end);
+                let (orig_line_end, orig_col_end) =
+                    offset_to_line_col(&source_line_starts, src_end);
+                mappings.push(SourceMapping {
+                    gen_line: gen_line_end as u32,
+                    gen_col: gen_col_end as u32,
+                    source: 0,
+                    orig_line: orig_line_end as u32,
+                    orig_col: orig_col_end as u32,
+                    name: None,
+                });
+            }
+            continue;
+        }
+
+        let positions = match src_positions.get(gen_token.text) {
+            Some(p) => p,
+            None => {
+                last_src_end = None;
+                continue;
+            }
+        };
+
+        let consumed = src_consumed.entry(gen_token.text).or_insert(0);
+        if *consumed >= positions.len() {
+            last_src_end = None;
+            continue;
+        }
+
+        let src_pos = positions[*consumed];
+        *consumed += 1;
+
+        let (gen_line, gen_col) = offset_to_line_col(&gen_line_starts, gen_token.offset);
+        let (orig_line, orig_col) = offset_to_line_col(&source_line_starts, src_pos);
+
+        // Start of token
+        mappings.push(SourceMapping {
+            gen_line: gen_line as u32,
+            gen_col: gen_col as u32,
+            source: 0,
+            orig_line: orig_line as u32,
+            orig_col: orig_col as u32,
+            name: None,
+        });
+
+        // End of token
+        let gen_end = gen_token.offset + gen_token.text.len();
+        let src_end = src_pos + gen_token.text.len();
+        let (gen_line_end, gen_col_end) = offset_to_line_col(&gen_line_starts, gen_end);
+        let (orig_line_end, orig_col_end) = offset_to_line_col(&source_line_starts, src_end);
+        mappings.push(SourceMapping {
+            gen_line: gen_line_end as u32,
+            gen_col: gen_col_end as u32,
+            source: 0,
+            orig_line: orig_line_end as u32,
+            orig_col: orig_col_end as u32,
+            name: None,
+        });
+
+        last_src_end = Some(src_end);
+    }
+
+    // Sort and dedup
+    mappings.sort_by(|a, b| a.gen_line.cmp(&b.gen_line).then(a.gen_col.cmp(&b.gen_col)));
+    mappings.dedup_by(|a, b| a.gen_line == b.gen_line && a.gen_col == b.gen_col);
+
+    // Ensure mappings cover all output lines
+    let mut mappings_str = encode_vlq_mappings(&mappings);
+    let output_line_count = css_code.chars().filter(|&c| c == '\n').count();
+    let mapped_lines = mappings_str.chars().filter(|&c| c == ';').count();
+    for _ in mapped_lines..output_line_count {
+        mappings_str.push(';');
+    }
+
     Some(generate_sourcemap_json(
         &file_name,
         &source_name,
@@ -446,7 +523,132 @@ fn generate_css_sourcemap(
     ))
 }
 
+/// CSS token for source map matching.
+struct CssToken<'a> {
+    text: &'a str,
+    offset: usize,
+}
+
+/// Extract tokens from CSS code for source map matching.
+/// Extracts identifiers, class selectors (.foo), CSS properties, and values.
+fn extract_css_tokens(code: &str) -> Vec<CssToken<'_>> {
+    let bytes = code.as_bytes();
+    let len = bytes.len();
+    let mut tokens = Vec::new();
+    let mut i = 0;
+
+    while i < len {
+        let b = bytes[i];
+
+        // Skip whitespace
+        if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
+            i += 1;
+            continue;
+        }
+
+        // CSS selector with dot prefix (e.g., .foo)
+        if b == b'.'
+            && i + 1 < len
+            && (bytes[i + 1].is_ascii_alphabetic() || bytes[i + 1] == b'_' || bytes[i + 1] == b'-')
+        {
+            let start = i;
+            i += 1;
+            while i < len
+                && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_' || bytes[i] == b'-')
+            {
+                i += 1;
+            }
+            tokens.push(CssToken {
+                text: &code[start..i],
+                offset: start,
+            });
+            continue;
+        }
+
+        // CSS property/identifier with possible hyphens (e.g., color, background-color, --custom-prop)
+        if b.is_ascii_alphabetic() || b == b'_' || b == b'-' {
+            let start = i;
+            i += 1;
+            while i < len
+                && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_' || bytes[i] == b'-')
+            {
+                i += 1;
+            }
+            tokens.push(CssToken {
+                text: &code[start..i],
+                offset: start,
+            });
+            continue;
+        }
+
+        // Numeric values
+        if b.is_ascii_digit() {
+            let start = i;
+            i += 1;
+            while i < len
+                && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'.' || bytes[i] == b'%')
+            {
+                i += 1;
+            }
+            tokens.push(CssToken {
+                text: &code[start..i],
+                offset: start,
+            });
+            continue;
+        }
+
+        // String literal
+        if b == b'\'' || b == b'"' {
+            let start = i;
+            let quote = b;
+            i += 1;
+            while i < len && bytes[i] != quote {
+                if bytes[i] == b'\\' && i + 1 < len {
+                    i += 2;
+                } else {
+                    i += 1;
+                }
+            }
+            if i < len {
+                i += 1;
+            }
+            tokens.push(CssToken {
+                text: &code[start..i],
+                offset: start,
+            });
+            continue;
+        }
+
+        // Skip comments
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+            i += 2;
+            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            if i + 1 < len {
+                i += 2;
+            }
+            continue;
+        }
+
+        // CSS punctuation: capture single-character tokens for precise source map end positions
+        if matches!(b, b'(' | b')' | b'{' | b'}' | b':' | b';' | b',') {
+            tokens.push(CssToken {
+                text: &code[i..i + 1],
+                offset: i,
+            });
+            i += 1;
+            continue;
+        }
+
+        i += 1;
+    }
+
+    tokens
+}
+
 /// Build line start offsets for CSS source map generation.
+#[allow(dead_code)]
 fn build_css_line_starts(s: &str) -> Vec<usize> {
     let mut starts = vec![0usize];
     for (i, b) in s.bytes().enumerate() {

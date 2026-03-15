@@ -423,6 +423,11 @@ impl<'a> ServerCodeGenerator<'a> {
 
             let mut has_output_content = false;
             let mut is_first_content = true;
+            // Track whether the last output was a whitespace-only space.
+            // This prevents double spaces when comments are stripped between
+            // two whitespace-only text nodes (matching clean_nodes which strips
+            // comments before whitespace collapsing).
+            let mut last_output_was_space = false;
 
             for (i, child) in children.iter().enumerate() {
                 // Skip comments
@@ -459,15 +464,20 @@ impl<'a> ServerCodeGenerator<'a> {
                             continue;
                         }
                         // Whitespace-only text: add space only if between content elements
+                        // and a space hasn't already been output (avoids double spaces
+                        // when a comment was stripped between two whitespace-only text nodes)
                         if has_output_content
                             && last_content.is_some()
                             && i < last_content.unwrap()
                             && !data.is_empty()
+                            && !last_output_was_space
                         {
                             self.output_parts.push(OutputPart::Html(" ".to_string()));
+                            last_output_was_space = true;
                         }
                         continue;
                     }
+                    last_output_was_space = false;
 
                     // For text nodes, only collapse leading/trailing whitespace
                     // matching the official compiler's clean_nodes behavior:
@@ -540,6 +550,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 if !matches!(child, TemplateNode::SnippetBlock(_)) {
                     has_output_content = true;
                     is_first_content = false;
+                    last_output_was_space = false;
                 }
             }
 

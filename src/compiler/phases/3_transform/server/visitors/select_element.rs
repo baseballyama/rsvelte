@@ -77,6 +77,7 @@ impl<'a> ServerCodeGenerator<'a> {
             self.use_async,
         );
         body_generator.constant_vars = self.constant_vars.clone();
+        body_generator.is_typescript = self.is_typescript;
 
         // Process children
         let children: Vec<_> = element.fragment.nodes.iter().collect();
@@ -461,6 +462,7 @@ impl<'a> ServerCodeGenerator<'a> {
             self.use_async,
         );
         body_generator.constant_vars = self.constant_vars.clone();
+        body_generator.is_typescript = self.is_typescript;
 
         // Process children (skip leading/trailing whitespace)
         let children: Vec<_> = element.fragment.nodes.iter().collect();

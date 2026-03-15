@@ -14,7 +14,7 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    ensure_fixtures_exist, get_fixture_samples, load_fixture_output, normalize_js, svelte_path,
+    canonicalize_js, ensure_fixtures_exist, get_fixture_samples, load_fixture_output, svelte_path,
     write_actual_output,
 };
 use svelte_compiler_rust::{
@@ -143,26 +143,28 @@ impl TestResult {
     }
 }
 
-/// Compare two JavaScript outputs using lightweight normalization.
-/// This is much faster than using oxfmt and suitable for comparing essential code structure.
+/// Compare two JavaScript outputs using OXC parse→codegen canonicalization.
+/// This normalizes only formatting while preserving all semantic differences.
 fn compare_js_debug(actual: &str, expected: &str, test_name: &str) -> bool {
-    let normalized_actual = normalize_js(actual);
-    let normalized_expected = normalize_js(expected);
-    let passed = normalized_actual == normalized_expected;
+    let canonical_actual = canonicalize_js(actual);
+    let canonical_expected = canonicalize_js(expected);
+    let passed = canonical_actual == canonical_expected;
     if !passed
         && (std::env::var("DEBUG_TEST").ok().as_deref() == Some(test_name)
             || std::env::var("DEBUG_ALL").is_ok())
     {
-        eprintln!("NORM_EXP: {}", normalized_expected);
-        eprintln!("NORM_ACT: {}", normalized_actual);
+        eprintln!("CANONICAL_EXP: {}", canonical_expected);
+        eprintln!("CANONICAL_ACT: {}", canonical_actual);
     }
     if !passed && std::env::var("DEBUG_RAW").ok().as_deref() == Some(test_name) {
-        // Write raw outputs to temp files for inspection
+        // Write raw and canonical outputs to temp files for inspection
         let _ = std::fs::write("/tmp/debug_raw_exp.js", expected);
         let _ = std::fs::write("/tmp/debug_raw_act.js", actual);
-        let _ = std::fs::write("/tmp/debug_norm_exp.js", &normalized_expected);
-        let _ = std::fs::write("/tmp/debug_norm_act.js", &normalized_actual);
-        eprintln!("DEBUG: wrote raw/norm files to /tmp/debug_raw_*.js and /tmp/debug_norm_*.js");
+        let _ = std::fs::write("/tmp/debug_canonical_exp.js", &canonical_expected);
+        let _ = std::fs::write("/tmp/debug_canonical_act.js", &canonical_actual);
+        eprintln!(
+            "DEBUG: wrote raw/canonical files to /tmp/debug_raw_*.js and /tmp/debug_canonical_*.js"
+        );
     }
     passed
 }

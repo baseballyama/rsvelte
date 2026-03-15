@@ -781,6 +781,16 @@ pub(crate) fn transform_store_destructure_assignments(script: &str) -> String {
 fn transform_one_store_destructure(script: &str) -> String {
     let chars: Vec<char> = script.chars().collect();
     let len = chars.len();
+    // Build byte offset mapping: char index -> byte index
+    let byte_offsets: Vec<usize> = script.char_indices().map(|(b, _)| b).collect();
+    let byte_len = script.len();
+    let b = |char_idx: usize| -> usize {
+        if char_idx >= byte_offsets.len() {
+            byte_len
+        } else {
+            byte_offsets[char_idx]
+        }
+    };
     let mut i = 0;
     let mut in_string: Option<char> = None;
     let mut in_line_comment = false;
@@ -855,7 +865,7 @@ fn transform_one_store_destructure(script: &str) -> String {
                 if let Some(pattern_start) =
                     find_matching_open(script, i, open_bracket, close_bracket)
                 {
-                    let pattern_str = &script[pattern_start..=i];
+                    let pattern_str = &script[b(pattern_start)..b(i + 1)];
 
                     // For array patterns, check if `[` is actually member access
                     if open_bracket == '[' && pattern_start > 0 {
@@ -872,7 +882,7 @@ fn transform_one_store_destructure(script: &str) -> String {
                     }
 
                     // Skip declaration destructures (let/const/var)
-                    let before_pattern = script[..pattern_start].trim_end();
+                    let before_pattern = script[..b(pattern_start)].trim_end();
                     if before_pattern.ends_with("let")
                         || before_pattern.ends_with("const")
                         || before_pattern.ends_with("var")
@@ -890,7 +900,7 @@ fn transform_one_store_destructure(script: &str) -> String {
                     // Find RHS
                     let rhs_start = j + 1;
                     let rhs_end = find_expression_end(script, rhs_start);
-                    let rhs_str = script[rhs_start..rhs_end].trim();
+                    let rhs_str = script[b(rhs_start)..b(rhs_end)].trim();
 
                     if rhs_str.is_empty() {
                         i = j + 1;
@@ -898,15 +908,16 @@ fn transform_one_store_destructure(script: &str) -> String {
                     }
 
                     // Check for surrounding parens
-                    let mut actual_start = pattern_start;
-                    let mut actual_end = rhs_end;
-                    let before = script[..pattern_start].trim_end();
+                    // Note: actual_start/actual_end are now BYTE indices
+                    let mut actual_start_byte = b(pattern_start);
+                    let mut actual_end_byte = b(rhs_end);
+                    let before = script[..b(pattern_start)].trim_end();
                     if before.ends_with('(') {
-                        let paren_pos = script[..pattern_start].rfind('(').unwrap();
-                        let after_rhs = &script[rhs_end..];
+                        let paren_pos = script[..b(pattern_start)].rfind('(').unwrap();
+                        let after_rhs = &script[b(rhs_end)..];
                         if let Some(close_paren_offset) = after_rhs.find(')') {
-                            actual_start = paren_pos;
-                            actual_end = rhs_end + close_paren_offset + 1;
+                            actual_start_byte = paren_pos;
+                            actual_end_byte = b(rhs_end) + close_paren_offset + 1;
                         }
                     }
 
@@ -914,7 +925,7 @@ fn transform_one_store_destructure(script: &str) -> String {
                     // (i.e., it's in expression position, like inside $.store_set()).
                     // If it's a standalone expression statement, we don't need `return $$value;`.
                     let needs_return = {
-                        let before_context = script[..actual_start].trim_end();
+                        let before_context = script[..actual_start_byte].trim_end();
                         // It's in expression position if preceded by something that consumes the value:
                         // e.g., `= `, `(`, `,`, `? `, `: `, operator, etc.
                         // It's a statement if preceded by start of string, `;`, `{`, or newline boundary.
@@ -935,9 +946,9 @@ fn transform_one_store_destructure(script: &str) -> String {
                     };
 
                     let mut new_script = String::new();
-                    new_script.push_str(&script[..actual_start]);
+                    new_script.push_str(&script[..actual_start_byte]);
                     new_script.push_str(&expansion);
-                    new_script.push_str(&script[actual_end..]);
+                    new_script.push_str(&script[actual_end_byte..]);
                     return new_script;
                 }
             }

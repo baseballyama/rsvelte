@@ -179,9 +179,14 @@ fn parse_options(options: &Value) -> napi::Result<CompileOptions> {
             opts.disclose_version = v;
         }
 
-        // sourcemap
-        if let Some(v) = obj.get("sourcemap").and_then(|v| v.as_str()) {
-            opts.sourcemap = Some(v.to_string());
+        // sourcemap - can be a JSON string or an object
+        if let Some(v) = obj.get("sourcemap") {
+            if let Some(s) = v.as_str() {
+                opts.sourcemap = Some(s.to_string());
+            } else if v.is_object() || v.is_array() {
+                // Preprocessor passes source map as an object; serialize it
+                opts.sourcemap = Some(serde_json::to_string(v).unwrap_or_default());
+            }
         }
 
         // outputFilename

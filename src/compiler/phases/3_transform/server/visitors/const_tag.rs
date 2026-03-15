@@ -291,17 +291,54 @@ impl<'a> ServerCodeGenerator<'a> {
 
                 // Add the assignment thunk
                 let is_destructuring = lhs.starts_with('{') || lhs.starts_with('[');
+                // Re-indent multiline rhs so inner lines align properly with the thunk body.
+                // Source-level indentation may differ from the thunk's context indentation.
+                let normalize_rhs = |rhs: &str| -> String {
+                    if !rhs.contains('\n') {
+                        return rhs.to_string();
+                    }
+                    let lines: Vec<&str> = rhs.lines().collect();
+                    if lines.len() <= 1 {
+                        return rhs.to_string();
+                    }
+                    // Find minimum indentation of non-first, non-empty lines
+                    let min_indent = lines[1..]
+                        .iter()
+                        .filter(|l| !l.trim().is_empty())
+                        .map(|l| l.len() - l.trim_start().len())
+                        .min()
+                        .unwrap_or(0);
+                    // Rebuild: first line as-is, subsequent lines re-indented to 2 tabs
+                    let mut result = lines[0].to_string();
+                    for line in &lines[1..] {
+                        result.push('\n');
+                        if line.trim().is_empty() {
+                            continue;
+                        }
+                        let stripped = if min_indent <= line.len() {
+                            &line[min_indent..]
+                        } else {
+                            line.trim()
+                        };
+                        result.push_str("\t\t");
+                        result.push_str(stripped);
+                    }
+                    result
+                };
                 let thunk_code = if has_await {
                     let save_wrapped = super::super::helpers::transform_await_to_save(&rhs);
+                    let save_wrapped = normalize_rhs(&save_wrapped);
                     if is_destructuring {
                         format!("async () => {{\n\t\t({} = {});\n\t}}", lhs, save_wrapped)
                     } else {
                         format!("async () => {{\n\t\t{} = {};\n\t}}", lhs, save_wrapped)
                     }
                 } else if is_destructuring {
-                    format!("() => {{\n\t\t({} = {});\n\t}}", lhs, rhs)
+                    let normalized_rhs = normalize_rhs(&rhs);
+                    format!("() => {{\n\t\t({} = {});\n\t}}", lhs, normalized_rhs)
                 } else {
-                    format!("() => {{\n\t\t{} = {};\n\t}}", lhs, rhs)
+                    let normalized_rhs = normalize_rhs(&rhs);
+                    format!("() => {{\n\t\t{} = {};\n\t}}", lhs, normalized_rhs)
                 };
                 let thunk_index = group.thunks.len();
                 group.thunks.push((thunk_code, has_await));

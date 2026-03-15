@@ -11,7 +11,7 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    ensure_fixtures_exist, get_fixture_samples, load_fixture_output, normalize_css, svelte_path,
+    canonicalize_css, ensure_fixtures_exist, get_fixture_samples, load_fixture_output, svelte_path,
     write_actual_output,
 };
 use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
@@ -114,8 +114,8 @@ fn run_css_test(fixture: &CssFixture) -> TestResult {
 
                 // Compare CSS if expected is provided
                 if let Some(expected_css) = &fixture.expected_css {
-                    let actual_normalized = normalize_css(&actual_css);
-                    let expected_normalized = normalize_css(expected_css);
+                    let actual_normalized = canonicalize_css(&actual_css);
+                    let expected_normalized = canonicalize_css(expected_css);
 
                     if actual_normalized == expected_normalized {
                         TestResult {

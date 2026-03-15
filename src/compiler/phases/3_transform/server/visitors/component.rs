@@ -280,8 +280,10 @@ impl<'a> ServerCodeGenerator<'a> {
                             {
                                 let getter_expr =
                                     self.source[getter_start..getter_end].trim().to_string();
+                                let getter_expr = self.strip_ts_from_expr(&getter_expr);
                                 let setter_expr =
                                     self.source[setter_start..setter_end].trim().to_string();
+                                let setter_expr = self.strip_ts_from_expr(&setter_expr);
                                 bindings.push(ComponentBinding::SequenceExpression {
                                     prop_name: prop_name.to_string(),
                                     getter_expr,
@@ -341,6 +343,22 @@ impl<'a> ServerCodeGenerator<'a> {
             &component.fragment,
             &component_let_directives,
         )?;
+
+        // Strip TypeScript from prop expressions
+        if self.is_typescript {
+            for item in &mut props_and_spreads {
+                match item {
+                    ComponentPropItem::Props(props) => {
+                        for prop in props.iter_mut() {
+                            *prop = self.strip_ts_from_prop(prop);
+                        }
+                    }
+                    ComponentPropItem::Spread(s) => {
+                        *s = self.strip_ts_from_expr(s);
+                    }
+                }
+            }
+        }
 
         // Check if the component is dynamic (could be undefined/null)
         // A component is dynamic if it's marked as such in metadata

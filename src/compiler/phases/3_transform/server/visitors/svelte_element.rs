@@ -417,7 +417,13 @@ impl<'a> ServerCodeGenerator<'a> {
                 name = name.to_lowercase();
             }
 
-            let prop_str = format!("{}: {}", name, expr);
+            let prop_str = if name.contains('-') {
+                format!("'{}': {}", name, expr)
+            } else if name == expr {
+                name.clone()
+            } else {
+                format!("{}: {}", name, expr)
+            };
             if sd.modifiers.iter().any(|m| m.as_str() == "important") {
                 important_parts.push(prop_str);
             } else {

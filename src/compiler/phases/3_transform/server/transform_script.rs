@@ -62,17 +62,27 @@ fn transform_script_content_inner(
     let state_imported = imported_names.contains("state");
     let derived_imported = imported_names.contains("derived");
 
-    // Split comma-separated variable declarations into individual statements BEFORE
-    // rune transforms. This ensures that `const a = 1, b = 2, c = 3;` is split into
-    // individual statements, but rune-generated comma patterns (e.g., from
-    // destructure-state transforms) are not broken.
-    let script = split_comma_separated_declarations(script);
+    // NOTE: split_comma_separated_declarations has been moved to build.rs to run
+    // BEFORE transform_reassigned_destructures. This ensures user-written comma-separated
+    // declarations are split, but generated comma patterns (from destructure flattening)
+    // are preserved.
 
     let script = script.replace("$props()", "$$props");
     let script = transform_rune_call_multiline(&script, "$state.eager(");
     let script = script.replace("$effect.pending()", "0");
     let script = script.replace("$effect.tracking()", "false");
-    let script = script.replace("$props.id()", "$.props_id($$renderer)");
+    // Replace $props.id() with $.props_id($$renderer) and upgrade let to const
+    // (matches official compiler behavior)
+    let script = if script.contains("$props.id()") {
+        let s = script.replace("$props.id()", "$.props_id($$renderer)");
+        // Convert "let id = $.props_id($$renderer)" to "const id = ..."
+        s.replace(
+            "let id = $.props_id($$renderer)",
+            "const id = $.props_id($$renderer)",
+        )
+    } else {
+        script
+    };
     let script = transform_state_snapshot_server(&script);
     let script = if !state_imported {
         transform_object_destructure_state(&script)
@@ -2494,15 +2504,55 @@ fn find_simple_assignment(s: &str) -> Option<usize> {
 /// let y = 'y';
 /// let z = 'z';
 /// ```
-fn split_comma_separated_declarations(script: &str) -> String {
+pub(crate) fn split_comma_separated_declarations(script: &str) -> String {
     let mut result = String::new();
     let lines: Vec<&str> = script.lines().collect();
     let mut i = 0;
+    // Track brace nesting depth to only split top-level declarations.
+    // The official Svelte compiler only splits declarations at the top level of the
+    // instance script (via the VariableDeclaration visitor), not inside nested functions.
+    let mut brace_depth: i32 = 0;
 
     while i < lines.len() {
         let line = lines[i];
         let trimmed = line.trim();
         let indent = &line[..line.len() - line.trim_start().len()];
+
+        // Check if this line starts at top level (before counting this line's braces)
+        let is_top_level = brace_depth == 0;
+
+        // Update brace depth tracking using a simple char scan.
+        // This is approximate (doesn't handle braces inside strings/comments)
+        // but works well for typical Svelte instance script code.
+        let mut in_string = false;
+        let mut string_char = ' ';
+        let mut prev_char = ' ';
+        let mut in_template = false;
+        for ch in trimmed.chars() {
+            if in_string {
+                if ch == string_char && prev_char != '\\' {
+                    in_string = false;
+                }
+            } else if in_template {
+                if ch == '`' && prev_char != '\\' {
+                    in_template = false;
+                } else if ch == '{' {
+                    brace_depth += 1;
+                } else if ch == '}' {
+                    brace_depth -= 1;
+                }
+            } else if ch == '\'' || ch == '"' {
+                in_string = true;
+                string_char = ch;
+            } else if ch == '`' {
+                in_template = true;
+            } else if ch == '{' {
+                brace_depth += 1;
+            } else if ch == '}' {
+                brace_depth -= 1;
+            }
+            prev_char = ch;
+        }
 
         // Check if this is a const/let/var declaration
         let is_export = trimmed.starts_with("export ");
@@ -2522,7 +2572,9 @@ fn split_comma_separated_declarations(script: &str) -> String {
             None
         };
 
-        if let Some(kw) = keyword {
+        if let Some(kw) = keyword
+            && is_top_level
+        {
             // Accumulate multi-line declaration.
             // A declaration continues across lines if the line doesn't end with `;`
             // and we haven't reached a balanced state (all brackets closed + semicolon).
@@ -2866,11 +2918,12 @@ fn flatten_destructured_let_ssr(
         .trim();
 
     let mut declarations = Vec::new();
-    declarations.push(format!("let tmp = {};", rhs));
+    declarations.push(format!("tmp = {}", rhs));
 
     flatten_destructured_let_ssr_inner(pattern, "tmp", reexported_props, &mut declarations)?;
 
-    Some(declarations.join("\n"))
+    // Join as a single comma-separated let declaration to match the official compiler output
+    Some(format!("let {};", declarations.join(", ")))
 }
 
 fn flatten_destructured_let_ssr_inner(
@@ -2912,22 +2965,22 @@ fn flatten_destructured_let_ssr_inner(
                     if let Some((_, prop_name)) = is_reexported {
                         if let Some(default_val) = default_value {
                             declarations.push(format!(
-                                "let {} = $.fallback($$props['{}'], () => $.fallback({}, {}), true);",
+                                "{} = $.fallback($$props['{}'], () => $.fallback({}, {}), true)",
                                 binding_name, prop_name, new_path, default_val
                             ));
                         } else {
                             declarations.push(format!(
-                                "let {} = $.fallback($$props['{}'], () => {}, true);",
+                                "{} = $.fallback($$props['{}'], () => {}, true)",
                                 binding_name, prop_name, new_path
                             ));
                         }
                     } else if let Some(default_val) = default_value {
                         declarations.push(format!(
-                            "let {} = {} ?? {};",
+                            "{} = {} ?? {}",
                             binding_name, new_path, default_val
                         ));
                     } else {
-                        declarations.push(format!("let {} = {};", binding_name, new_path));
+                        declarations.push(format!("{} = {}", binding_name, new_path));
                     }
                 }
             } else {
@@ -2940,22 +2993,22 @@ fn flatten_destructured_let_ssr_inner(
                 if let Some((_, prop_name)) = is_reexported {
                     if let Some(default_val) = default_value {
                         declarations.push(format!(
-                            "let {} = $.fallback($$props['{}'], () => $.fallback({}, {}), true);",
+                            "{} = $.fallback($$props['{}'], () => $.fallback({}, {}), true)",
                             binding_name, prop_name, new_path, default_val
                         ));
                     } else {
                         declarations.push(format!(
-                            "let {} = $.fallback($$props['{}'], () => {}, true);",
+                            "{} = $.fallback($$props['{}'], () => {}, true)",
                             binding_name, prop_name, new_path
                         ));
                     }
                 } else if let Some(default_val) = default_value {
                     declarations.push(format!(
-                        "let {} = {} ?? {};",
+                        "{} = {} ?? {}",
                         binding_name, new_path, default_val
                     ));
                 } else {
-                    declarations.push(format!("let {} = {};", binding_name, new_path));
+                    declarations.push(format!("{} = {}", binding_name, new_path));
                 }
             }
         }

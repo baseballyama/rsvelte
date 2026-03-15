@@ -22,6 +22,7 @@ impl<'a> ServerCodeGenerator<'a> {
             self.use_async,
         );
         body_generator.constant_vars = self.constant_vars.clone();
+        body_generator.is_typescript = self.is_typescript;
 
         // Add <title> tag
         body_generator

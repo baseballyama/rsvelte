@@ -86,6 +86,9 @@ pub struct ComponentServerTransformState<'a> {
 
     /// The $: calls, which will be ordered in the end
     pub legacy_reactive_statements: FxHashMap<JsLabeledStatement, JsStatement>,
+
+    /// Whether the component uses TypeScript
+    pub is_typescript: bool,
 }
 
 impl<'a> ComponentServerTransformState<'a> {
@@ -107,6 +110,7 @@ impl<'a> ComponentServerTransformState<'a> {
             skip_hydration_boundaries: false,
             async_consts: None,
             legacy_reactive_statements: FxHashMap::default(),
+            is_typescript: false,
         }
     }
 }

@@ -9,6 +9,57 @@ use crate::compiler::phases::phase3_transform::utils::{
     is_svelte_whitespace_only, svelte_trim_end, svelte_trim_start,
 };
 
+/// Collapse only leading and trailing whitespace of a text node, preserving
+/// internal whitespace. This matches the official compiler's clean_nodes behavior:
+/// - Leading whitespace is replaced with a single space (unless prev is ExpressionTag)
+/// - Trailing whitespace is replaced with a single space (unless next is ExpressionTag)
+/// - Internal whitespace (between non-whitespace characters) is preserved as-is
+///
+/// This preserves whitespace for CSS `white-space: pre-line` and default slot
+/// content that might go into a `<pre>` tag (which the compiler can't see).
+fn collapse_leading_trailing_whitespace(
+    s: &str,
+    _is_first: bool,
+    _is_last: bool,
+    prev_is_expr: bool,
+    next_is_expr: bool,
+) -> String {
+    let mut result = s.to_string();
+
+    // Replace leading whitespace with single space (unless prev is ExpressionTag)
+    if !prev_is_expr {
+        let leading_len = result
+            .chars()
+            .take_while(|c| *c != '\u{00A0}' && c.is_whitespace())
+            .count();
+        if leading_len > 0 {
+            let byte_len: usize = result.chars().take(leading_len).map(|c| c.len_utf8()).sum();
+            result = format!(" {}", &result[byte_len..]);
+        }
+    }
+
+    // Replace trailing whitespace with single space (unless next is ExpressionTag)
+    if !next_is_expr {
+        let trailing_len = result
+            .chars()
+            .rev()
+            .take_while(|c| *c != '\u{00A0}' && c.is_whitespace())
+            .count();
+        if trailing_len > 0 {
+            let byte_len: usize = result
+                .chars()
+                .rev()
+                .take(trailing_len)
+                .map(|c| c.len_utf8())
+                .sum();
+            let content_end = result.len() - byte_len;
+            result = format!("{} ", &result[..content_end]);
+        }
+    }
+
+    result
+}
+
 /// Infer namespace from fragment children nodes.
 /// If all RegularElement children are SVG, returns "svg".
 /// If all are MathML, returns "mathml".
@@ -294,6 +345,55 @@ impl<'a> ServerCodeGenerator<'a> {
                 prev_text_ends_with_ws = data.ends_with([' ', '\t', '\r', '\n']);
 
                 if !data.is_empty() {
+                    // For whitespace-only text between ExpressionTags, preserve the
+                    // whitespace as-is instead of collapsing to a single space.
+                    // The official compiler's clean_nodes skips whitespace collapsing
+                    // when the neighbor is an ExpressionTag (they form one text node).
+                    if !self.preserve_whitespace && is_svelte_whitespace_only(&data) {
+                        let prev_is_expression = {
+                            let mut pi = i;
+                            loop {
+                                if pi == 0 {
+                                    break false;
+                                }
+                                pi -= 1;
+                                let pn = meaningful_nodes[pi];
+                                let pn_hoisted = matches!(pn, TemplateNode::ConstTag(_))
+                                    || matches!(pn, TemplateNode::SnippetBlock(_))
+                                    || (matches!(pn, TemplateNode::Comment(_))
+                                        && !self.preserve_comments);
+                                if !pn_hoisted {
+                                    break matches!(pn, TemplateNode::ExpressionTag(_));
+                                }
+                            }
+                        };
+                        let next_is_expression = {
+                            let mut ni = i + 1;
+                            loop {
+                                if ni >= meaningful_nodes.len() {
+                                    break false;
+                                }
+                                let nn = meaningful_nodes[ni];
+                                let nn_hoisted = matches!(nn, TemplateNode::ConstTag(_))
+                                    || matches!(nn, TemplateNode::SnippetBlock(_))
+                                    || (matches!(nn, TemplateNode::Comment(_))
+                                        && !self.preserve_comments);
+                                if !nn_hoisted {
+                                    break matches!(nn, TemplateNode::ExpressionTag(_));
+                                }
+                                ni += 1;
+                            }
+                        };
+                        if prev_is_expression && next_is_expression {
+                            // Output whitespace as-is (preserve newlines/tabs)
+                            body_generator
+                                .output_parts
+                                .push(OutputPart::Html(sanitize_template_string(&data)));
+                            seen_real_content = true;
+                            continue;
+                        }
+                    }
+
                     let mut modified_text = text.clone();
                     modified_text.data = data.into();
                     body_generator.generate_node(&TemplateNode::Text(modified_text), false)?;
@@ -544,12 +644,6 @@ impl<'a> ServerCodeGenerator<'a> {
                 let frag_to_process = &frag_children[frag_start..frag_end];
                 let frag_count = frag_to_process.len();
 
-                // Check if the fragment has any ConstTag children - if so, wrap in a BlockScope
-                // to match the official compiler's Fragment visitor which always returns a BlockStatement
-                let has_const_tags = frag_to_process
-                    .iter()
-                    .any(|n| matches!(n, TemplateNode::ConstTag(_)));
-
                 // Generate fragment children into a temporary generator
                 let mut frag_generator = ServerCodeGenerator::new(
                     body_generator.component_name.clone(),
@@ -582,10 +676,33 @@ impl<'a> ServerCodeGenerator<'a> {
                             raw
                         };
                         if !raw.is_empty() {
+                            // Collapse only leading/trailing whitespace, not internal
+                            // This matches clean_nodes which replaces leading/trailing
+                            // whitespace sequences with single spaces but preserves
+                            // internal whitespace (for CSS white-space: pre-line support).
+                            let collapsed = if !self.preserve_whitespace {
+                                collapse_leading_trailing_whitespace(
+                                    &raw,
+                                    is_f_first,
+                                    is_f_last,
+                                    fi > 0
+                                        && matches!(
+                                            frag_to_process.get(fi - 1),
+                                            Some(TemplateNode::ExpressionTag(_))
+                                        ),
+                                    fi + 1 < frag_count
+                                        && matches!(
+                                            frag_to_process.get(fi + 1),
+                                            Some(TemplateNode::ExpressionTag(_))
+                                        ),
+                                )
+                            } else {
+                                raw
+                            };
                             frag_generator
                                 .output_parts
                                 .push(OutputPart::Html(escape_html(&sanitize_template_string(
-                                    &raw,
+                                    &collapsed,
                                 ))));
                         }
                     } else {
@@ -607,14 +724,13 @@ impl<'a> ServerCodeGenerator<'a> {
                 };
                 drop(frag_const_blocker_map);
 
-                if has_const_tags && !frag_parts.is_empty() {
-                    // Wrap in a BlockScope for proper { } scoping
+                if !frag_parts.is_empty() {
+                    // Always wrap <svelte:fragment> content in a BlockScope { }
+                    // This matches the official compiler where Fragment visitor always
+                    // returns a BlockStatement and SvelteFragment pushes it as-is.
                     body_generator
                         .output_parts
                         .push(OutputPart::BlockScope { body: frag_parts });
-                } else {
-                    // No const tags - inline directly as before
-                    body_generator.output_parts.extend(frag_parts);
                 }
                 continue;
             }
@@ -639,10 +755,35 @@ impl<'a> ServerCodeGenerator<'a> {
                 };
 
                 if !raw.is_empty() {
+                    // Collapse only leading/trailing whitespace, not internal.
+                    // This matches clean_nodes which replaces leading/trailing
+                    // whitespace sequences with single spaces but preserves
+                    // internal whitespace (for CSS white-space: pre-line support).
+                    let prev_is_expr = i > 0
+                        && matches!(
+                            nodes_to_process.get(i - 1),
+                            Some(n) if matches!(***n, TemplateNode::ExpressionTag(_))
+                        );
+                    let next_is_expr = i + 1 < num_nodes
+                        && matches!(
+                            nodes_to_process.get(i + 1),
+                            Some(n) if matches!(***n, TemplateNode::ExpressionTag(_))
+                        );
+                    let collapsed = if !self.preserve_whitespace {
+                        collapse_leading_trailing_whitespace(
+                            &raw,
+                            is_first,
+                            is_last,
+                            prev_is_expr,
+                            next_is_expr,
+                        )
+                    } else {
+                        raw
+                    };
                     body_generator
                         .output_parts
                         .push(OutputPart::Html(escape_html(&sanitize_template_string(
-                            &raw,
+                            &collapsed,
                         ))));
                 }
                 continue;

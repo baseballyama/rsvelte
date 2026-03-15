@@ -413,9 +413,12 @@ fn process_destructured_pattern(
                 }
                 let to_array_call = b::call(b::member_path("$.to_array"), to_array_args);
 
-                declarations.push(b::const_decl(
+                declarations.push(b::var_decl(
                     &array_name,
-                    b::call(b::member_path("$.derived"), vec![b::thunk(to_array_call)]),
+                    Some(b::call(
+                        b::member_path("$.derived"),
+                        vec![b::thunk(to_array_call)],
+                    )),
                 ));
 
                 context

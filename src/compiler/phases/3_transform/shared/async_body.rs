@@ -339,6 +339,28 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
                 continue;
             }
 
+            // Handle async hole placeholder (from $inspect() removed in non-dev mode)
+            // Format: /* $$async_hole */ or /* $$async_hole:args */
+            // Produces an array hole (empty slot) in the thunk array.
+            if trimmed_stmt.contains("$$async_hole") {
+                // Extract args if present (for blocker_map tracking)
+                let args = if let Some(colon_pos) = trimmed_stmt.find("$$async_hole:") {
+                    let start = colon_pos + "$$async_hole:".len();
+                    if let Some(end) = trimmed_stmt[start..].find("*/") {
+                        trimmed_stmt[start..start + end].trim().to_string()
+                    } else {
+                        String::new()
+                    }
+                } else {
+                    String::new()
+                };
+                async_stmts.push(AsyncStmt {
+                    kind: AsyncStmtKind::Hole(args),
+                    has_await: false,
+                });
+                continue;
+            }
+
             // Handle async void noop placeholder (from $effect() removed on server)
             // Format: /* $$async_void_noop */
             if trimmed_stmt.contains("$$async_void_noop") {
@@ -557,6 +579,25 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
             AsyncStmtKind::Noop | AsyncStmtKind::VoidNoop => {
                 // Noop statements don't contribute to blocker_map
             }
+            AsyncStmtKind::Hole(args) => {
+                // Hole statements track references from the removed $inspect() call.
+                // The args contain the original $inspect arguments (e.g., "data, x, y").
+                // Referenced variables should have their blocker updated to this index.
+                if !args.is_empty() {
+                    let referenced_ids = extract_all_identifiers_from_statement(args);
+                    for ref_id in &referenced_ids {
+                        if all_declared_vars.contains(ref_id) {
+                            let should_update = match blocker_map.get(ref_id) {
+                                None => true,
+                                Some(&existing) => idx > existing,
+                            };
+                            if should_update {
+                                blocker_map.insert(ref_id.clone(), idx);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -567,7 +608,7 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
     for stmt in &sync_stmts {
         let trimmed = stmt.trim();
         if !trimmed.is_empty() {
-            output.push_str(trimmed);
+            output.push_str(&strip_base_indentation(trimmed));
             output.push('\n');
         }
     }
@@ -576,27 +617,64 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
     if !hoisted_vars.is_empty() {
         output.push_str("var ");
         output.push_str(&hoisted_vars.join(", "));
-        output.push_str(";\n");
+        output.push_str(";\n\n");
     }
 
-    // Build thunks
-    let mut thunks: Vec<String> = Vec::new();
+    // Build thunks - pair each with whether it's a hole
+    let mut thunk_entries: Vec<(String, bool)> = Vec::new();
     for stmt in &async_stmts {
+        let is_hole = matches!(stmt.kind, AsyncStmtKind::Hole(_));
         let thunk = build_thunk(stmt);
-        thunks.push(thunk);
+        thunk_entries.push((thunk, is_hole));
     }
+
+    // Count non-hole thunks to determine formatting
+    let non_hole_count = thunk_entries.iter().filter(|(_, is_hole)| !is_hole).count();
+    let _has_holes = thunk_entries.iter().any(|(_, is_hole)| *is_hole);
+    let has_multiline_thunk = thunk_entries
+        .iter()
+        .any(|(thunk, is_hole)| !is_hole && thunk.contains('\n'));
 
     // Build $$promises = runner([thunks])
-    if thunks.len() == 1 {
-        output.push_str(&format!("var $$promises = {}([{}]);\n", runner, thunks[0]));
+    // Use single-line format when there's only one real thunk (possibly with holes)
+    // and no multiline thunks.
+    if non_hole_count <= 1 && !has_multiline_thunk {
+        // Single-line format: var $$promises = runner([thunk,,]);
+        output.push_str(&format!("var $$promises = {}([", runner));
+        let total = thunk_entries.len();
+        for (i, (thunk, is_hole)) in thunk_entries.iter().enumerate() {
+            if *is_hole {
+                // Array hole: just a comma (creates elision)
+                output.push(',');
+            } else {
+                output.push_str(thunk);
+                // Add comma after thunk if there are more entries after this one
+                if i + 1 < total {
+                    output.push(',');
+                }
+            }
+        }
+        output.push_str("]);\n");
     } else {
         output.push_str(&format!("var $$promises = {}([\n", runner));
-        for (i, thunk) in thunks.iter().enumerate() {
-            output.push_str(&format!("\t{}", thunk));
-            if i < thunks.len() - 1 {
-                output.push(',');
+        for (i, (thunk, is_hole)) in thunk_entries.iter().enumerate() {
+            if *is_hole {
+                // Array hole in multi-line: output just a comma on its own
+                // Actually, the previous line's comma handles the elision,
+                // but we need an extra comma. Output an empty line with comma.
+                output.push_str("\t,\n");
+            } else {
+                output.push_str(&format!("\t{}", thunk));
+                if i < thunk_entries.len() - 1 {
+                    output.push(',');
+                }
+                output.push('\n');
+                // Add blank line after multiline thunks (those with block bodies)
+                // to match the official compiler's formatting.
+                if thunk.contains('\n') && i < thunk_entries.len() - 1 {
+                    output.push('\n');
+                }
             }
-            output.push('\n');
         }
         output.push_str("]);\n");
     }
@@ -639,6 +717,10 @@ enum AsyncStmtKind {
     Noop,
     /// Void noop placeholder (from $effect() removed on server) -> `() => void void 0`
     VoidNoop,
+    /// Array hole placeholder (from $inspect() removed in non-dev mode).
+    /// Produces an empty slot in the thunk array (no thunk, just a comma).
+    /// Contains the original args from the $inspect() call for blocker_map tracking.
+    Hole(String),
 }
 
 struct AsyncStmt {
@@ -716,6 +798,7 @@ fn build_thunk(stmt: &AsyncStmt) -> String {
         }
         AsyncStmtKind::Noop => "() => {}".to_string(),
         AsyncStmtKind::VoidNoop => "() => void void 0".to_string(),
+        AsyncStmtKind::Hole(_) => String::new(),
     }
 }
 
@@ -1275,8 +1358,52 @@ fn is_function_var_declaration(s: &str) -> bool {
         let after_eq = s[eq_pos + 1..].trim();
         after_eq.starts_with("function ")
             || after_eq.starts_with("function(")
-            || after_eq.starts_with("(")  // potential arrow function
             || after_eq.starts_with("async function")
+            // Parenthesized expression: could be arrow function params `(x, y) => ...`
+            // or an IIFE like `(async () => { ... })()`.
+            // Only treat as function declaration if the closing paren is followed by `=>`
+            // (arrow function), not by `(` (IIFE call) or other things.
+            || (after_eq.starts_with("(") && {
+                // Find the matching closing paren
+                let mut depth = 0;
+                let mut pos = 0;
+                let bytes = after_eq.as_bytes();
+                let mut in_string = false;
+                let mut string_char = b' ';
+                while pos < bytes.len() {
+                    let c = bytes[pos];
+                    if (c == b'"' || c == b'\'' || c == b'`')
+                        && (pos == 0 || bytes[pos - 1] != b'\\')
+                    {
+                        if !in_string {
+                            in_string = true;
+                            string_char = c;
+                        } else if c == string_char {
+                            in_string = false;
+                        }
+                    }
+                    if !in_string {
+                        if c == b'(' {
+                            depth += 1;
+                        } else if c == b')' {
+                            depth -= 1;
+                            if depth == 0 {
+                                // Found matching close paren - check what follows
+                                let _rest = after_eq[pos + 1..].trim_start();
+                                break;
+                            }
+                        }
+                    }
+                    pos += 1;
+                }
+                // Check what follows the closing paren
+                if depth == 0 && pos < bytes.len() {
+                    let rest = after_eq[pos + 1..].trim_start();
+                    rest.starts_with("=>")
+                } else {
+                    false
+                }
+            })
             // Simple arrow: `x =>`  - check if it's an identifier followed by =>
             || {
                 let bytes = after_eq.as_bytes();
@@ -1380,6 +1507,64 @@ fn strip_await_prefix(s: &str) -> &str {
 fn strip_trailing_semicolon(s: &str) -> &str {
     let s = s.trim();
     s.strip_suffix(';').unwrap_or(s).trim()
+}
+
+/// Strip common base indentation from a multiline statement.
+///
+/// When a multiline statement (e.g., function declaration) is extracted from
+/// an indented script, internal lines may have a common leading tab that was
+/// the script's base indentation. This function finds the minimum number of
+/// leading tabs across all non-empty, non-first lines and strips that many
+/// tabs from every line. The first line is assumed to already be trimmed.
+fn strip_base_indentation(s: &str) -> String {
+    if !s.contains('\n') {
+        return s.to_string();
+    }
+
+    let lines: Vec<&str> = s.lines().collect();
+    if lines.len() <= 1 {
+        return s.to_string();
+    }
+
+    // Find minimum tab indentation among non-empty internal lines
+    let mut min_tabs: Option<usize> = None;
+    for line in &lines[1..] {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let leading_tabs = line.len() - line.trim_start_matches('\t').len();
+        min_tabs = Some(match min_tabs {
+            Some(m) => m.min(leading_tabs),
+            None => leading_tabs,
+        });
+    }
+
+    let strip = min_tabs.unwrap_or(0);
+    if strip == 0 {
+        return s.to_string();
+    }
+
+    let mut result = String::with_capacity(s.len());
+    for (i, line) in lines.iter().enumerate() {
+        if i > 0 {
+            result.push('\n');
+        }
+        if i == 0 {
+            result.push_str(line);
+        } else if line.trim().is_empty() {
+            // Keep empty lines empty
+        } else {
+            // Strip `strip` tabs from the beginning
+            let stripped = if line.len() >= strip && line[..strip].chars().all(|c| c == '\t') {
+                &line[strip..]
+            } else {
+                line
+            };
+            result.push_str(stripped);
+        }
+    }
+
+    result
 }
 
 /// Extract variable declarations from a declaration statement.

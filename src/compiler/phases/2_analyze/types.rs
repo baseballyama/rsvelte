@@ -384,8 +384,19 @@ fn collect_ts_removals_from_function(
         removals.push((this_param.span.start, end));
     }
 
-    // Recurse into params for type annotations
+    // Recurse into params for type annotations and optional markers
     for param in &func.params.items {
+        // Remove optional `?` marker (e.g., `key?: Type` → `key`)
+        if param.optional {
+            use oxc_span::GetSpan;
+            // The `?` sits right after the binding pattern's span end
+            let pattern_end = param.pattern.span().end;
+            if (pattern_end as usize) < source.len()
+                && source.as_bytes()[pattern_end as usize] == b'?'
+            {
+                removals.push((pattern_end, pattern_end + 1));
+            }
+        }
         if let Some(ref type_ann) = param.type_annotation {
             removals.push((type_ann.span.start, type_ann.span.end));
         }
@@ -613,6 +624,7 @@ fn collect_ts_removals_from_expression(
             }
         }
         E::AssignmentExpression(assign) => {
+            collect_ts_removals_from_assignment_target(&assign.left, source, removals);
             collect_ts_removals_from_expression(&assign.right, source, removals);
         }
         E::BinaryExpression(bin) => {
@@ -667,6 +679,14 @@ fn collect_ts_removals_from_expression(
                 removals.push((return_type.span.start, return_type.span.end));
             }
             for param in &arrow.params.items {
+                if param.optional {
+                    let pattern_end = param.pattern.span().end;
+                    if (pattern_end as usize) < source.len()
+                        && source.as_bytes()[pattern_end as usize] == b'?'
+                    {
+                        removals.push((pattern_end, pattern_end + 1));
+                    }
+                }
                 if let Some(ref type_ann) = param.type_annotation {
                     removals.push((type_ann.span.start, type_ann.span.end));
                 }
@@ -721,12 +741,64 @@ fn collect_ts_removals_from_expression(
                     }
                 }
             }
+            oxc_ast::ast::ChainElement::StaticMemberExpression(static_member) => {
+                collect_ts_removals_from_expression(&static_member.object, source, removals);
+            }
+            oxc_ast::ast::ChainElement::ComputedMemberExpression(computed) => {
+                collect_ts_removals_from_expression(&computed.object, source, removals);
+                collect_ts_removals_from_expression(&computed.expression, source, removals);
+            }
+            oxc_ast::ast::ChainElement::PrivateFieldExpression(pfe) => {
+                collect_ts_removals_from_expression(&pfe.object, source, removals);
+            }
             oxc_ast::ast::ChainElement::TSNonNullExpression(ts_nn) => {
                 removals.push((ts_nn.expression.span().end, ts_nn.span.end));
                 collect_ts_removals_from_expression(&ts_nn.expression, source, removals);
             }
-            _ => {}
         },
+        _ => {}
+    }
+}
+
+/// Collect TS removals from an assignment target (left side of assignments).
+fn collect_ts_removals_from_assignment_target(
+    target: &oxc_ast::ast::AssignmentTarget,
+    source: &str,
+    removals: &mut Vec<(u32, u32)>,
+) {
+    use oxc_ast::ast::AssignmentTarget as AT;
+    use oxc_span::GetSpan;
+
+    match target {
+        AT::TSAsExpression(ts_as) => {
+            removals.push((ts_as.expression.span().end, ts_as.span.end));
+            collect_ts_removals_from_expression(&ts_as.expression, source, removals);
+        }
+        AT::TSSatisfiesExpression(ts_sat) => {
+            removals.push((ts_sat.expression.span().end, ts_sat.span.end));
+            collect_ts_removals_from_expression(&ts_sat.expression, source, removals);
+        }
+        AT::TSNonNullExpression(ts_nn) => {
+            removals.push((ts_nn.expression.span().end, ts_nn.span.end));
+            collect_ts_removals_from_expression(&ts_nn.expression, source, removals);
+        }
+        AT::TSTypeAssertion(ts_assertion) => {
+            removals.push((
+                ts_assertion.span.start,
+                ts_assertion.expression.span().start,
+            ));
+            collect_ts_removals_from_expression(&ts_assertion.expression, source, removals);
+        }
+        AT::ComputedMemberExpression(computed) => {
+            collect_ts_removals_from_expression(&computed.object, source, removals);
+            collect_ts_removals_from_expression(&computed.expression, source, removals);
+        }
+        AT::StaticMemberExpression(static_member) => {
+            collect_ts_removals_from_expression(&static_member.object, source, removals);
+        }
+        AT::PrivateFieldExpression(pfe) => {
+            collect_ts_removals_from_expression(&pfe.object, source, removals);
+        }
         _ => {}
     }
 }
@@ -802,6 +874,43 @@ fn collect_ts_removals_from_statement(
             collect_ts_removals_from_expression(&while_stmt.test, source, removals);
             collect_ts_removals_from_statement(&while_stmt.body, source, removals);
         }
+        Statement::DoWhileStatement(do_while) => {
+            collect_ts_removals_from_statement(&do_while.body, source, removals);
+            collect_ts_removals_from_expression(&do_while.test, source, removals);
+        }
+        Statement::ForOfStatement(for_of) => {
+            if let ForStatementLeft::VariableDeclaration(vd) = &for_of.left {
+                for decl in &vd.declarations {
+                    if let Some(ref type_ann) = decl.type_annotation {
+                        removals.push((type_ann.span.start, type_ann.span.end));
+                    }
+                    collect_ts_removals_from_binding_pattern(&decl.id, source, removals);
+                    if let Some(ref init) = decl.init {
+                        collect_ts_removals_from_expression(init, source, removals);
+                    }
+                }
+            }
+            collect_ts_removals_from_expression(&for_of.right, source, removals);
+            collect_ts_removals_from_statement(&for_of.body, source, removals);
+        }
+        Statement::ForInStatement(for_in) => {
+            if let ForStatementLeft::VariableDeclaration(vd) = &for_in.left {
+                for decl in &vd.declarations {
+                    if let Some(ref type_ann) = decl.type_annotation {
+                        removals.push((type_ann.span.start, type_ann.span.end));
+                    }
+                    collect_ts_removals_from_binding_pattern(&decl.id, source, removals);
+                    if let Some(ref init) = decl.init {
+                        collect_ts_removals_from_expression(init, source, removals);
+                    }
+                }
+            }
+            collect_ts_removals_from_expression(&for_in.right, source, removals);
+            collect_ts_removals_from_statement(&for_in.body, source, removals);
+        }
+        Statement::LabeledStatement(labeled) => {
+            collect_ts_removals_from_statement(&labeled.body, source, removals);
+        }
         Statement::FunctionDeclaration(func) => {
             if func.r#type == FunctionType::TSDeclareFunction || func.declare || func.body.is_none()
             {
@@ -825,6 +934,13 @@ fn collect_ts_removals_from_statement(
                 collect_ts_removals_from_statement(s, source, removals);
             }
             if let Some(ref handler) = try_stmt.handler {
+                // Remove type annotation from catch clause parameter: catch (err: unknown)
+                if let Some(ref param) = handler.param {
+                    if let Some(ref type_ann) = param.type_annotation {
+                        removals.push((type_ann.span.start, type_ann.span.end));
+                    }
+                    collect_ts_removals_from_binding_pattern(&param.pattern, source, removals);
+                }
                 for s in &handler.body.body {
                     collect_ts_removals_from_statement(s, source, removals);
                 }

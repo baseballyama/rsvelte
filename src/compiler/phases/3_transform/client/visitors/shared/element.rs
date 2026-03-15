@@ -216,8 +216,14 @@ where
                 let memoized = memoize(built, &metadata);
 
                 // Add ?? '' where necessary (only if not guaranteed to be defined)
-                // This matches the text template chunk behavior in utils.rs
-                let is_defined = super::utils::is_expression_defined(&expr_tag.expression, context);
+                // Check both the original expression and the built expression.
+                // The built expression may be wrapped in a sequence (e.g., for deep_read_state),
+                // which changes the definedness of the result.
+                let is_defined = if let JsExpr::Identifier(_) = &memoized {
+                    super::utils::is_expression_defined(&expr_tag.expression, context)
+                } else {
+                    super::utils::is_js_expr_defined(&memoized)
+                };
                 let final_value = if is_defined {
                     memoized
                 } else {

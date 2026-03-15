@@ -114,7 +114,7 @@ fn ends_with_whitespace(s: &str) -> bool {
 
 /// Replace leading whitespace with a replacement string
 #[inline]
-fn replace_leading_whitespace(s: &str, replacement: &str) -> String {
+pub(crate) fn replace_leading_whitespace(s: &str, replacement: &str) -> String {
     let trimmed = trim_leading_whitespace(s);
     if trimmed.len() == s.len() {
         return s.to_string();
@@ -127,7 +127,7 @@ fn replace_leading_whitespace(s: &str, replacement: &str) -> String {
 
 /// Replace trailing whitespace with a replacement string
 #[inline]
-fn replace_trailing_whitespace(s: &str, replacement: &str) -> String {
+pub(crate) fn replace_trailing_whitespace(s: &str, replacement: &str) -> String {
     let trimmed = trim_trailing_whitespace(s);
     if trimmed.len() == s.len() {
         return s.to_string();

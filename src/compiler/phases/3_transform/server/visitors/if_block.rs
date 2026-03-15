@@ -182,12 +182,27 @@ impl<'a> ServerCodeGenerator<'a> {
         body_generator.in_block_body = true;
         body_generator.in_if_body = true;
 
+        let mut seen_real_content = false;
         for node in &trimmed_nodes {
-            // Flush accumulated async consts before processing non-const content
-            if !matches!(node, TemplateNode::ConstTag(_))
-                && !matches!(node, TemplateNode::SnippetBlock(_))
+            // Skip whitespace-only text nodes before any real content.
+            // This prevents whitespace between const tags from triggering a
+            // flush_async_consts, which would split consecutive const tags
+            // into separate $$renderer.run() groups.
+            if !seen_real_content
+                && let TemplateNode::Text(text) = node
+                && is_svelte_whitespace_only(&text.data)
             {
+                continue;
+            }
+
+            let is_hoisted = matches!(node, TemplateNode::ConstTag(_))
+                || matches!(node, TemplateNode::SnippetBlock(_));
+            // Flush accumulated async consts before processing non-const content
+            if !is_hoisted {
                 body_generator.flush_async_consts();
+            }
+            if !is_hoisted {
+                seen_real_content = true;
             }
             body_generator.generate_node(node, false)?;
         }

@@ -12,6 +12,18 @@ use crate::compiler::phases::phase3_transform::server::types::{
 use crate::compiler::phases::phase3_transform::shared::{escape_html, sanitize_template_string};
 use compact_str::CompactString;
 
+/// Strip TypeScript annotations from an expression string.
+fn strip_ts_from_expr_simple(expr: &str) -> String {
+    use crate::compiler::phases::phase2_analyze::types::strip_typescript;
+    let wrapper = format!("var _ = {};", expr);
+    let stripped = strip_typescript(&wrapper);
+    if let Some(rest) = stripped.strip_prefix("var _ = ") {
+        rest.trim_end_matches(';').trim().to_string()
+    } else {
+        expr.to_string()
+    }
+}
+
 /// Opens an if/each block for hydration boundaries.
 ///
 /// This marker allows us to remove nodes in case of a mismatch during hydration.
@@ -331,12 +343,28 @@ pub fn build_attribute_value<F>(
 where
     F: Fn(JsExpr) -> JsExpr,
 {
+    build_attribute_value_ts(value, transform, trim_whitespace, is_component, false)
+}
+
+pub fn build_attribute_value_ts<F>(
+    value: &crate::ast::template::AttributeValue,
+    transform: F,
+    trim_whitespace: bool,
+    is_component: bool,
+    is_typescript: bool,
+) -> JsExpr
+where
+    F: Fn(JsExpr) -> JsExpr,
+{
     use crate::ast::template::AttributeValue;
 
     match value {
         AttributeValue::True(_) => JsExpr::Literal(JsLiteral::Boolean(true)),
         AttributeValue::Expression(expr_tag) => {
-            let expr_str = extract_expression_string(&expr_tag.expression.clone());
+            let mut expr_str = extract_expression_string(&expr_tag.expression.clone());
+            if is_typescript {
+                expr_str = strip_ts_from_expr_simple(&expr_str);
+            }
             transform(JsExpr::Identifier(expr_str.into()))
         }
         AttributeValue::Sequence(parts) => {
