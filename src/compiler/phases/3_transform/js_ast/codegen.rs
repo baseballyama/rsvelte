@@ -987,10 +987,13 @@ impl<'a> JsCodegen<'a> {
 
         match &arrow.body {
             JsArrowBody::Expression(expr) => {
-                // Wrap object literals in parentheses to avoid being parsed as block
-                // statements. Also wrap assignment expressions to avoid ambiguity when
-                // the LHS starts with `{` (object destructuring pattern).
+                // Wrap in parentheses when the arrow body expression could be
+                // ambiguous without them:
+                // - Object literals: `() => ({})` vs `() => {}` (block)
+                // - Sequence expressions: `() => (a, b)` vs `() => a, b` (extra arg)
+                // - Assignments with `{` LHS: `() => ({a} = b)` vs `() => {a} = b` (block)
                 let needs_parens = matches!(expr.as_ref(), JsExpr::Object(_))
+                    || matches!(expr.as_ref(), JsExpr::Sequence(_))
                     || matches!(expr.as_ref(), JsExpr::Assignment(a)
                         if matches!(a.left.as_ref(), JsExpr::Raw(s) if s.starts_with('{')));
                 if needs_parens {
