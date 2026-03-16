@@ -261,6 +261,19 @@ impl<'a> ServerCodeGenerator<'a> {
         let sorted_meaningful_nodes = body_generator.sort_const_tags_in_nodes(meaningful_nodes_raw);
 
         let meaningful_nodes = sorted_meaningful_nodes.as_slice();
+        let is_first_text = |idx: usize| -> bool {
+            // Check if this is the first text node (ignoring hoisted/transparent nodes)
+            for n in meaningful_nodes.iter().take(idx) {
+                let n_hoisted = matches!(n, TemplateNode::ConstTag(_))
+                    || matches!(n, TemplateNode::SnippetBlock(_))
+                    || matches!(n, TemplateNode::DebugTag(_))
+                    || (matches!(n, TemplateNode::Comment(_)) && !self.preserve_comments);
+                if !n_hoisted {
+                    return false;
+                }
+            }
+            true
+        };
         for (i, node) in meaningful_nodes.iter().enumerate() {
             let is_last = i == meaningful_nodes.len() - 1;
 
@@ -325,6 +338,13 @@ impl<'a> ServerCodeGenerator<'a> {
             // Handle text nodes: apply whitespace collapsing matching clean_nodes behavior
             if let TemplateNode::Text(text) = node {
                 let mut data = text.data.to_string();
+
+                // Trim leading whitespace from the first text node in the fragment.
+                // This matches the official compiler's clean_nodes which trims the
+                // first and last text nodes' whitespace entirely.
+                if !self.preserve_whitespace && is_first_text(i) {
+                    data = svelte_trim_start(&data).to_string();
+                }
 
                 // Collapse leading whitespace when previous visible text ended with whitespace
                 // This handles the case where a hoisted node (SnippetBlock) was between
@@ -593,10 +613,21 @@ impl<'a> ServerCodeGenerator<'a> {
             .take(end_idx - start_idx)
             .collect();
         let num_nodes = nodes_to_process.len();
+        let mut prev_was_debug = false;
 
         for (i, node) in nodes_to_process.iter().enumerate() {
             let is_first = i == 0;
             let is_last = i == num_nodes - 1;
+
+            // Skip whitespace-only text after DebugTag (treated as transparent like hoisted nodes)
+            if prev_was_debug
+                && let TemplateNode::Text(text) = node
+                && is_svelte_whitespace_only(&text.data)
+            {
+                prev_was_debug = false;
+                continue;
+            }
+            prev_was_debug = matches!(node, TemplateNode::DebugTag(_));
 
             // Flush accumulated async consts before processing non-const content
             if !matches!(node, TemplateNode::ConstTag(_))

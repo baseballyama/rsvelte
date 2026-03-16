@@ -552,9 +552,20 @@ impl<'a> ComponentContext<'a> {
 
         // Add template_effect if there are update statements from attributes/directives
         if !inner_update.is_empty() {
+            // Use expression body form when there's exactly one expression statement
+            // (matches official compiler's `() => expr` vs `() => { stmts }`)
+            let callback = if inner_update.len() == 1 {
+                if let JsStatement::Expression(ref expr_stmt) = inner_update[0] {
+                    b::arrow(vec![], *expr_stmt.expression.clone())
+                } else {
+                    b::arrow_block(vec![], inner_update)
+                }
+            } else {
+                b::arrow_block(vec![], inner_update)
+            };
             callback_body.push(b::stmt(b::call(
                 b::member_path("$.template_effect"),
-                vec![b::arrow_block(vec![], inner_update)],
+                vec![callback],
             )));
         }
 
@@ -1787,9 +1798,11 @@ pub struct ComponentClientTransformState<'a> {
     /// Uses a Vec stack of HashMaps to support nested scopes.
     pub local_var_init_types: Vec<FxHashMap<String, String>>,
 
-    /// Counter for generating unique `$$array` variable names in destructure assignment IIFEs.
-    /// Corresponds to `context.state.scope.generate('$$array')` in the official compiler.
-    pub destructure_array_counter: usize,
+    /// Counter for generating unique `$$array` variable names across the entire component.
+    /// Shared via `Rc<Cell<usize>>` so all child states use the same counter, matching the
+    /// official compiler's `scope.root.conflicts` set where all `$$array` name generators
+    /// share a single pool.
+    pub destructure_array_counter: Rc<Cell<usize>>,
 
     /// Flag set during client transform when an `on:` directive without an expression
     /// (event forwarding/bubbling) is encountered. This mirrors the official compiler's
@@ -1966,7 +1979,7 @@ impl<'a> ComponentClientTransformState<'a> {
             each_item_names: Vec::new(),
             each_binding_context: Vec::new(),
             local_var_init_types: Vec::new(),
-            destructure_array_counter: 0,
+            destructure_array_counter: Rc::new(Cell::new(0)),
             needs_props_from_events: Rc::new(Cell::new(false)),
             needs_mutation_validation: Rc::new(Cell::new(false)),
             hidden_let_bindings: FxHashSet::default(),
@@ -1978,15 +1991,16 @@ impl<'a> ComponentClientTransformState<'a> {
         }
     }
 
-    /// Generate a unique `$$array` name for destructure assignment IIFEs.
+    /// Generate a unique `$$array` name. All callers share the same `Rc<Cell<usize>>` counter.
     /// First call returns `$$array`, subsequent calls return `$$array_1`, `$$array_2`, etc.
     pub fn generate_array_name(&mut self) -> String {
-        let name = if self.destructure_array_counter == 0 {
+        let current = self.destructure_array_counter.get();
+        let name = if current == 0 {
             "$$array".to_string()
         } else {
-            format!("$$array_{}", self.destructure_array_counter)
+            format!("$$array_{}", current)
         };
-        self.destructure_array_counter += 1;
+        self.destructure_array_counter.set(current + 1);
         name
     }
 

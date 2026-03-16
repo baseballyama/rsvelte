@@ -546,8 +546,11 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
 
                 self.generate_node(child, false)?;
-                // Snippet blocks are hoisted and don't produce inline output
-                if !matches!(child, TemplateNode::SnippetBlock(_)) {
+                // Snippet blocks and debug tags are hoisted/transparent and don't produce inline output
+                if !matches!(
+                    child,
+                    TemplateNode::SnippetBlock(_) | TemplateNode::DebugTag(_)
+                ) {
                     has_output_content = true;
                     is_first_content = false;
                     last_output_was_space = false;

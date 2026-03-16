@@ -61,9 +61,9 @@ static REGEX_INVALID_IDENTIFIER_CHARS: LazyLock<Regex> =
 // $derived destructuring patterns in the same component.
 // This is reset at the start of each component transformation.
 thread_local! {
-    static DERIVED_ARRAY_COUNTER: Cell<usize> = const { Cell::new(0) };
+    static SCRIPT_ARRAY_COUNTER: Cell<usize> = const { Cell::new(0) };
     // Counter for looking up which $$array variable to use when processing nested patterns
-    // This must stay in sync with DERIVED_ARRAY_COUNTER
+    // This must stay in sync with SCRIPT_ARRAY_COUNTER
     static ARRAY_LOOKUP_COUNTER: Cell<usize> = const { Cell::new(0) };
     // Counter for generating unique tmp variable names for $state/$state.raw destructuring.
     // Generates tmp, tmp_1, tmp_2, etc.
@@ -318,60 +318,60 @@ fn transform_client_with_visitors(
         }
     }
 
+    // Pre-transform the script to determine how many $$array names it consumes.
+    // This must happen BEFORE template generation so that the template's $$array counter
+    // starts at the correct value, matching the official compiler where script declarations
+    // are visited before template nodes and share the same scope.root.conflicts set.
+    // Pre-transform the script to determine how many $$array names it consumes.
+    // This must happen BEFORE template generation so that the template's $$array counter
+    // starts at the correct value, matching the official compiler where script declarations
+    // are visited before template nodes and share the same scope.root.conflicts set.
+    // Note: we pass empty reactive_imports here because they don't affect $$array naming,
+    // and the real reactive_import_names haven't been computed yet. The pre-transformed
+    // result is used for blocker_map computation but NOT for the final output (which
+    // needs reactive_import_names for store invalidation wrappers).
+    let pre_transformed_script = if analysis.instance_script_content.is_some() {
+        let raw = &analysis.instance_script_content.as_ref().unwrap().raw;
+        let transformed = transform_instance_script_for_visitors(
+            raw,
+            analysis,
+            options.dev,
+            &[], // empty: only used for $$array counter sync and blocker_map
+        );
+        // Transfer the script's $$array counter to the context state so that the template
+        // visitor continues numbering from where the script left off.
+        let script_array_count = SCRIPT_ARRAY_COUNTER.with(|c| c.get());
+        context
+            .state
+            .destructure_array_counter
+            .set(script_array_count);
+        Some(transformed)
+    } else {
+        None
+    };
+
     // Pre-compute blocker map for async components.
-    // This must happen BEFORE template generation so that template visitors
-    // (if_block, each_block, etc.) can determine which expressions need $.async() wrapping.
-    //
-    // We compute it from the TRANSFORMED script (after rune transforms like $derived -> $.async_derived)
-    // because the raw script may have `await` inside `$derived({...})` braces, which the
-    // text-based blocker_map scanner would miss (it only looks at top-level awaits).
-    //
-    // Note: reactive_import_names is always empty for async components (async requires runes mode),
-    // so we can safely pass an empty slice here before reactive_import_names is computed.
-    let pre_transformed_script =
-        if options.experimental.r#async && analysis.instance_script_content.is_some() {
-            let raw = &analysis.instance_script_content.as_ref().unwrap().raw;
-            let transformed = transform_instance_script_for_visitors(
-                raw,
-                analysis,
-                options.dev,
-                &[], // empty: async requires runes mode, so no reactive imports
+    if options.experimental.r#async
+        && let Some(ref transformed) = pre_transformed_script
+    {
+        if let Some(async_result) =
+            super::shared::async_body::transform_async_body(transformed.trim(), "$.run")
+        {
+            let mut blocker_map = async_result.blocker_map.clone();
+            super::shared::async_body::enrich_blocker_map_with_transitive_deps(
+                transformed,
+                &mut blocker_map,
             );
-            // Use transform_async_body to get the correct thunk-level blocker_map,
-            // then enrich it with transitive function dependency resolution.
-            //
-            // transform_async_body gives correct thunk indices but only maps variables
-            // that are directly assigned in async thunks. We also need to map function
-            // names (and other identifiers) that transitively reference blocked variables
-            // through their function bodies.
-            if let Some(async_result) =
-                super::shared::async_body::transform_async_body(transformed.trim(), "$.run")
-            {
-                let mut blocker_map = async_result.blocker_map.clone();
-
-                // Enrich with transitive function dependencies:
-                // Scan function/const declarations for references to blocked variables.
-                // If a function body references a blocked variable, add the function name
-                // to the blocker_map with the same thunk index.
-                super::shared::async_body::enrich_blocker_map_with_transitive_deps(
-                    &transformed,
-                    &mut blocker_map,
-                );
-
-                if !blocker_map.is_empty() {
-                    *context.state.blocker_map.borrow_mut() = blocker_map;
-                }
-            } else {
-                // Fallback: use compute_blocker_map if transform_async_body returns None
-                let pre_blocker_map = super::shared::async_body::compute_blocker_map(&transformed);
-                if !pre_blocker_map.is_empty() {
-                    *context.state.blocker_map.borrow_mut() = pre_blocker_map;
-                }
+            if !blocker_map.is_empty() {
+                *context.state.blocker_map.borrow_mut() = blocker_map;
             }
-            Some(transformed)
         } else {
-            None
-        };
+            let pre_blocker_map = super::shared::async_body::compute_blocker_map(transformed);
+            if !pre_blocker_map.is_empty() {
+                *context.state.blocker_map.borrow_mut() = pre_blocker_map;
+            }
+        }
+    }
 
     // Call the fragment visitor to transform the template
     // This is the root fragment of the component, so is_root_fragment=true
@@ -820,18 +820,16 @@ fn transform_client_with_visitors(
     // Add instance script content (transformed runes)
     // This includes $state, $derived, $effect, $props transformations
     if let Some(ref content) = analysis.instance_script_content {
-        // Reuse the pre-computed transformed script if available (from async blocker_map computation),
-        // otherwise compute it now.
-        let mut transformed_script = if let Some(pre) = pre_transformed_script {
-            pre
-        } else {
-            transform_instance_script_for_visitors(
-                &content.raw,
-                analysis,
-                options.dev,
-                &reactive_import_names,
-            )
-        };
+        // Always re-transform with the real reactive_import_names.
+        // The pre_transformed_script was generated with empty reactive_imports
+        // (only for $$array counter sync and blocker_map), so it lacks store
+        // invalidation wrappers like $$_import_foo(assignment).
+        let mut transformed_script = transform_instance_script_for_visitors(
+            &content.raw,
+            analysis,
+            options.dev,
+            &reactive_import_names,
+        );
 
         // Post-process reactive imports: replace $.get(X)/$.mutate(X,...) with $$_import_X()
         for name in &reactive_import_names {
@@ -2333,12 +2331,10 @@ fn transform_instance_script_for_visitors(
 
     // Reset the $$array counters for this component
     // This ensures unique names across multiple $derived destructuring patterns
-    DERIVED_ARRAY_COUNTER.with(|c| c.set(0));
+    SCRIPT_ARRAY_COUNTER.with(|c| c.set(0));
     ARRAY_LOOKUP_COUNTER.with(|c| c.set(0));
     // Reset the tmp counter for $state destructuring
     STATE_TMP_COUNTER.with(|c| c.set(0));
-    // Reset the destructure assignment array counter
-    DESTRUCTURE_ARRAY_COUNTER.with(|c| c.set(0));
 
     // The official Svelte compiler (via esrap) preserves comments in output.
     // However, our text-based store transforms can break when comments contain
@@ -4926,7 +4922,7 @@ fn process_state_array_pattern(
     let has_rest = elements.iter().any(|e| e.trim().starts_with("..."));
     let element_count = elements.len();
 
-    let global_counter = DERIVED_ARRAY_COUNTER.with(|c| {
+    let global_counter = SCRIPT_ARRAY_COUNTER.with(|c| {
         let current = c.get();
         c.set(current + 1);
         current
@@ -5157,7 +5153,7 @@ fn collect_array_helpers_only(
         let element_count = elements.len();
 
         // Generate the $$array helper
-        let global_counter = DERIVED_ARRAY_COUNTER.with(|c| {
+        let global_counter = SCRIPT_ARRAY_COUNTER.with(|c| {
             let current = c.get();
             c.set(current + 1);
             current
@@ -5377,7 +5373,7 @@ fn get_current_array_var_for_base(_base_expr: &str) -> String {
     // The $$array variables are generated in order during collect_array_helpers_only.
     // We use the module-level ARRAY_LOOKUP_COUNTER to track which $$array we're on.
     // This counter is reset at the start of each component transformation along with
-    // DERIVED_ARRAY_COUNTER to ensure they stay in sync.
+    // SCRIPT_ARRAY_COUNTER to ensure they stay in sync.
     let counter = ARRAY_LOOKUP_COUNTER.with(|c| {
         let current = c.get();
         c.set(current + 1);
@@ -5402,7 +5398,7 @@ fn process_derived_array_pattern(
 
     // Use the global counter to generate a unique $$array variable name
     // This ensures unique names across multiple $derived destructuring patterns
-    let global_counter = DERIVED_ARRAY_COUNTER.with(|c| {
+    let global_counter = SCRIPT_ARRAY_COUNTER.with(|c| {
         let current = c.get();
         c.set(current + 1);
         current
@@ -11976,7 +11972,7 @@ fn transform_legacy_destructure_declarations(
         let has_rest = elements.iter().any(|e| e.trim().starts_with("..."));
         let element_count = elements.len();
 
-        let global_counter = DERIVED_ARRAY_COUNTER.with(|c| {
+        let global_counter = SCRIPT_ARRAY_COUNTER.with(|c| {
             let current = c.get();
             c.set(current + 1);
             current
@@ -12108,8 +12104,12 @@ fn transform_legacy_state_declarations(
     }
 
     // Handle multi-declarator statements like `let a = 1, b = 2, c = 3;`
-    // Split into individual declarations first to handle each one separately
-    if let Some(split_lines) = split_multi_declarator(line) {
+    // Split into individual declarations first to handle each one separately.
+    // BUT skip declarations produced by transform_legacy_destructure_declarations
+    // (which chain `tmp = expr, foo = $.mutable_source(tmp.foo), ...` and must stay chained).
+    let is_destructure_expansion =
+        line.contains("$.mutable_source(tmp") || line.contains("$.mutable_source(tmp_");
+    if !is_destructure_expansion && let Some(split_lines) = split_multi_declarator(line) {
         let transformed_lines: Vec<String> = split_lines
             .iter()
             .map(|l| transform_legacy_state_declarations(l, legacy_state_vars, immutable))
@@ -18640,11 +18640,8 @@ fn transform_destructure_assignments_with_props(
     result
 }
 
-// Counter for generating unique $$array names in the string-based pipeline.
-// Uses thread-local storage since the transform functions are called in sequence.
-thread_local! {
-    static DESTRUCTURE_ARRAY_COUNTER: Cell<usize> = const { Cell::new(0) };
-}
+// Note: SCRIPT_ARRAY_COUNTER (declared at the top of this file) is used for all
+// $$array name generation in the script processing pipeline.
 
 /// Find and transform one destructure assignment in the statement.
 /// Returns `Some(transformed)` if a destructure was found and transformed,
@@ -19640,7 +19637,7 @@ fn generate_destructure_iife(
 
     if pattern_type == ']' {
         // Array destructure
-        let array_name = DESTRUCTURE_ARRAY_COUNTER.with(|c| {
+        let array_name = SCRIPT_ARRAY_COUNTER.with(|c| {
             let count = c.get();
             let name = if count == 0 {
                 "$$array".to_string()
@@ -19926,7 +19923,7 @@ fn generate_destructure_iife(
                     // Nested array pattern: key: [a, b, c]
                     // Inline the array destructuring instead of creating a nested IIFE
                     let inner_parts = split_on_commas(&target[1..target.len() - 1]);
-                    let array_name = DESTRUCTURE_ARRAY_COUNTER.with(|c| {
+                    let array_name = SCRIPT_ARRAY_COUNTER.with(|c| {
                         let count = c.get();
                         let name = if count == 0 {
                             "$$array".to_string()
@@ -20728,6 +20725,12 @@ fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
     // Fix array holes: OXC normalizes `[a,,]` to `[a, ,]`. Convert back to match esrap output.
     let code = fix_array_holes(&code);
 
+    // Re-join split tmp-based destructure declarations that OXC split into separate statements.
+    // `transform_legacy_destructure_declarations` produces chained declarations like:
+    //   `let tmp = expr, foo = $.mutable_source(tmp.foo), bar = tmp.bar;`
+    // but OXC splits them into separate `let` statements. Re-join them.
+    let code = rejoin_tmp_destructure_declarations(&code);
+
     if indent_level == 0 {
         return code;
     }
@@ -20750,6 +20753,144 @@ fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
         }
     }
     result_lines.join("\n")
+}
+
+/// Re-join tmp-based destructure declarations that OXC split into separate statements.
+///
+/// `transform_legacy_destructure_declarations` produces chained declarations like:
+///   `let tmp = expr, foo = $.mutable_source(tmp.foo), bar = tmp.bar;`
+/// OXC splits these into separate `let` statements. This function detects the pattern
+/// and re-joins them into a single chained declaration.
+fn rejoin_tmp_destructure_declarations(code: &str) -> String {
+    // Find lines that start a tmp declaration (possibly multi-line)
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len());
+    let mut i = 0;
+
+    while i < lines.len() {
+        let line = lines[i];
+        let trimmed = line.trim();
+
+        // Check if this line starts a `let tmp = ...` or `let tmp_N = ...` declaration
+        let is_tmp_start = trimmed.starts_with("let tmp = ") || trimmed.starts_with("let tmp_");
+
+        if is_tmp_start {
+            // Extract the tmp variable name
+            let tmp_name = if let Some(eq_pos) = trimmed.find(" = ") {
+                trimmed[4..eq_pos].to_string() // "let ".len() = 4
+            } else {
+                result.push(line.to_string());
+                i += 1;
+                continue;
+            };
+
+            // Accumulate the full tmp declaration (may span multiple lines for IIFEs)
+            let mut tmp_decl_lines = vec![line.to_string()];
+            let mut j = i + 1;
+            let mut depth: i32 = 0;
+            let mut decl_complete = trimmed.ends_with(';');
+
+            // Count braces/parens in first line
+            for c in trimmed.chars() {
+                match c {
+                    '{' | '(' | '[' => depth += 1,
+                    '}' | ')' | ']' => depth -= 1,
+                    _ => {}
+                }
+            }
+
+            // If the declaration is not complete (multi-line), accumulate more lines
+            if !decl_complete {
+                while j < lines.len() {
+                    let next_line = lines[j];
+                    let next_trimmed = next_line.trim();
+                    tmp_decl_lines.push(next_line.to_string());
+
+                    for c in next_trimmed.chars() {
+                        match c {
+                            '{' | '(' | '[' => depth += 1,
+                            '}' | ')' | ']' => depth -= 1,
+                            _ => {}
+                        }
+                    }
+
+                    j += 1;
+
+                    if depth <= 0 && next_trimmed.ends_with(';') {
+                        decl_complete = true;
+                        break;
+                    }
+                }
+            } else {
+                j = i + 1;
+            }
+
+            if !decl_complete {
+                // Incomplete declaration, just push as-is
+                for l in &tmp_decl_lines {
+                    result.push(l.clone());
+                }
+                i = j;
+                continue;
+            }
+
+            // Now look ahead for following lines that reference this tmp variable
+            // Skip blank lines between tmp declaration and follow-up declarations
+            let mut chain_declarators: Vec<String> = Vec::new();
+            let mut k = j;
+
+            // Skip blank lines
+            while k < lines.len() && lines[k].trim().is_empty() {
+                k += 1;
+            }
+
+            let chain_start = k;
+            while k < lines.len() {
+                let next_trimmed = lines[k].trim();
+                if next_trimmed.is_empty() {
+                    k += 1;
+                    continue;
+                }
+                // Check if this line is `let xxx = ...tmp_name...;` where xxx references tmp
+                if next_trimmed.starts_with("let ")
+                    && next_trimmed.contains(&format!("{}.", tmp_name))
+                    && next_trimmed.ends_with(';')
+                {
+                    // Extract the declarator part (after "let ", before ";")
+                    let declarator = &next_trimmed[4..next_trimmed.len() - 1];
+                    chain_declarators.push(declarator.to_string());
+                    k += 1;
+                } else {
+                    break;
+                }
+            }
+            let _ = chain_start;
+
+            if !chain_declarators.is_empty() {
+                // Re-join: remove the trailing ";" from the tmp decl and append chained declarators
+                let last_idx = tmp_decl_lines.len() - 1;
+                let last_line = tmp_decl_lines[last_idx].trim_end();
+                let last_line = last_line.trim_end_matches(';');
+                tmp_decl_lines[last_idx] =
+                    format!("{}, {};", last_line, chain_declarators.join(", "));
+
+                for l in &tmp_decl_lines {
+                    result.push(l.clone());
+                }
+                i = k;
+            } else {
+                for l in &tmp_decl_lines {
+                    result.push(l.clone());
+                }
+                i = j;
+            }
+        } else {
+            result.push(line.to_string());
+            i += 1;
+        }
+    }
+
+    result.join("\n")
 }
 
 /// Join multi-line arrays that OXC broke into multiple lines back to single lines.

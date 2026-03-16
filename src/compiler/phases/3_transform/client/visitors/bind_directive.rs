@@ -634,26 +634,25 @@ fn build_special_binding_call(
 
             if is_select {
                 let mut args = vec![node_expr.clone(), get.clone()];
+                let store_name_sel = get_store_to_invalidate_from_context(context);
                 if let Some(s) = set {
-                    args.push(s.clone());
-                }
-                // Add $.invalidate_store for store bindings in each blocks
-                if let Some(store_name) = get_store_to_invalidate_from_context(context) {
-                    args.push(JsExpr::Raw(
-                        format!("$.invalidate_store($$stores, '{}')", store_name).into(),
-                    ));
+                    if let Some(ref sn) = store_name_sel {
+                        args.push(merge_store_invalidation_into_setter(s, sn));
+                    } else {
+                        args.push(s.clone());
+                    }
                 }
                 b::call(b::member_path("$.bind_select_value"), args)
             } else {
                 let mut args = vec![node_expr.clone(), get.clone()];
+                let store_name = get_store_to_invalidate_from_context(context);
                 if let Some(s) = set {
-                    args.push(s.clone());
-                }
-                // Add $.invalidate_store for store bindings in each blocks
-                if let Some(store_name) = get_store_to_invalidate_from_context(context) {
-                    args.push(JsExpr::Raw(
-                        format!("$.invalidate_store($$stores, '{}')", store_name).into(),
-                    ));
+                    if let Some(ref sn) = store_name {
+                        // Merge $.invalidate_store into the setter as a comma expression
+                        args.push(merge_store_invalidation_into_setter(s, sn));
+                    } else {
+                        args.push(s.clone());
+                    }
                 }
                 b::call(b::member_path("$.bind_value"), args)
             }
@@ -2200,6 +2199,51 @@ fn build_invalidation_expr(
         None
     } else {
         Some(parts.join(", "))
+    }
+}
+
+/// Merge `$.invalidate_store($$stores, '$storeName')` into a setter expression.
+///
+/// For arrow setters like `($$value) => assignment`, this produces:
+/// `($$value) => (assignment, $.invalidate_store($$stores, '$storeName'))`
+///
+/// This matches the official Svelte compiler's behavior where store invalidation
+/// is part of the setter's comma expression, not a separate argument.
+fn merge_store_invalidation_into_setter(setter: &JsExpr, store_name: &str) -> JsExpr {
+    let invalidation = format!("$.invalidate_store($$stores, '{}')", store_name);
+    match setter {
+        JsExpr::Arrow(arrow) => {
+            match &arrow.body {
+                JsArrowBody::Expression(body_expr) => {
+                    // Wrap in a sequence expression: (body_expr, $.invalidate_store(...))
+                    let seq = JsExpr::Sequence(JsSequenceExpression {
+                        expressions: vec![(**body_expr).clone(), JsExpr::Raw(invalidation.into())],
+                    });
+                    JsExpr::Arrow(JsArrowFunction {
+                        params: arrow.params.clone(),
+                        body: JsArrowBody::Expression(Box::new(seq)),
+                        is_async: arrow.is_async,
+                    })
+                }
+                JsArrowBody::Block(_) => {
+                    // Block body arrows are rare for setters; just return original
+                    setter.clone()
+                }
+            }
+        }
+        JsExpr::Raw(raw) => {
+            // For raw expressions like `($$value) => expr`, insert the invalidation
+            let raw_str = raw.to_string();
+            if let Some(arrow_pos) = raw_str.find("=>") {
+                let after_arrow = raw_str[arrow_pos + 2..].trim();
+                let before_arrow = &raw_str[..arrow_pos + 2];
+                JsExpr::Raw(format!("{} ({}, {})", before_arrow, after_arrow, invalidation).into())
+            } else {
+                // Fallback: just use as-is
+                setter.clone()
+            }
+        }
+        _ => setter.clone(),
     }
 }
 
