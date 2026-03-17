@@ -438,15 +438,37 @@ impl<'a> ServerCodeGenerator<'a> {
                 // For text nodes, check if it should become a space
                 if let TemplateNode::Text(text) = child {
                     let data = &text.data;
+
+                    // Determine whether prev/next non-comment sibling is an ExpressionTag.
+                    // The official compiler's clean_nodes skips whitespace collapsing
+                    // when the neighbor is an ExpressionTag (they form one text node).
+                    let prev_is_expr = {
+                        let mut found = false;
+                        let mut pi = i;
+                        while pi > 0 {
+                            pi -= 1;
+                            if !matches!(children[pi], TemplateNode::Comment(_)) {
+                                found = matches!(children[pi], TemplateNode::ExpressionTag(_));
+                                break;
+                            }
+                        }
+                        found
+                    };
+                    let next_is_expr = {
+                        let mut found = false;
+                        let mut ni = i + 1;
+                        while ni < children.len() {
+                            if !matches!(children[ni], TemplateNode::Comment(_)) {
+                                found = matches!(children[ni], TemplateNode::ExpressionTag(_));
+                                break;
+                            }
+                            ni += 1;
+                        }
+                        found
+                    };
+
                     if is_svelte_whitespace_only(data) {
                         // For certain elements, skip all whitespace-only text nodes entirely
-                        // This matches the clean_nodes behavior in the official compiler:
-                        // - SVG elements (except <text>) strip internal whitespace
-                        // - Table-related elements strip internal whitespace
-                        // - select/optgroup strip internal whitespace
-                        // In SVG namespace, whitespace can be removed entirely
-                        // except inside <text> elements (matching official compiler's
-                        // can_remove_entirely in clean_nodes)
                         let is_svg_parent = element.metadata.svg && name != "text";
                         let can_remove_whitespace = is_svg_parent
                             || matches!(
@@ -463,9 +485,15 @@ impl<'a> ServerCodeGenerator<'a> {
                         if can_remove_whitespace {
                             continue;
                         }
+                        // Whitespace-only text between ExpressionTags: preserve as-is
+                        if prev_is_expr && next_is_expr {
+                            self.output_parts
+                                .push(OutputPart::Html(sanitize_template_string(data)));
+                            last_output_was_space = false;
+                            has_output_content = true;
+                            continue;
+                        }
                         // Whitespace-only text: add space only if between content elements
-                        // and a space hasn't already been output (avoids double spaces
-                        // when a comment was stripped between two whitespace-only text nodes)
                         if has_output_content
                             && last_content.is_some()
                             && i < last_content.unwrap()
@@ -481,15 +509,17 @@ impl<'a> ServerCodeGenerator<'a> {
 
                     // For text nodes, only collapse leading/trailing whitespace
                     // matching the official compiler's clean_nodes behavior:
-                    // - Leading whitespace → trimmed (first) or collapsed to ' ' (others)
-                    // - Trailing whitespace → trimmed (last) or collapsed to ' ' (others)
+                    // - Leading whitespace: trimmed (first) or collapsed to ' ' (others)
+                    //   unless prev is ExpressionTag (preserve whitespace)
+                    // - Trailing whitespace: trimmed (last) or collapsed to ' ' (others)
+                    //   unless next is ExpressionTag (preserve whitespace)
                     // - Internal whitespace is preserved as-is
                     let is_last = last_content.is_some() && i == last_content.unwrap();
                     if is_first_content {
                         let mut result = svelte_trim_start(data).to_string();
                         if is_last {
                             result = svelte_trim_end(&result).to_string();
-                        } else {
+                        } else if !next_is_expr {
                             // Collapse trailing whitespace to single space
                             let rtrimmed = result.trim_end();
                             if rtrimmed.len() < result.len() && !rtrimmed.is_empty() {
@@ -497,6 +527,8 @@ impl<'a> ServerCodeGenerator<'a> {
                             }
                         }
                         if !result.is_empty() {
+                            // Track if this text ends with whitespace to prevent double spaces
+                            last_output_was_space = result.ends_with([' ', '\t', '\r', '\n']);
                             self.output_parts.push(OutputPart::Html(escape_html(
                                 &sanitize_template_string(&result),
                             )));
@@ -507,14 +539,18 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
 
                     if is_last {
-                        // Collapse leading whitespace to space, trim trailing
-                        let ltrimmed = data.trim_start();
-                        let mut result = if ltrimmed.len() < data.len() && !ltrimmed.is_empty() {
-                            format!(" {}", ltrimmed)
+                        // Collapse leading whitespace unless prev is ExpressionTag
+                        let result = if !prev_is_expr {
+                            let ltrimmed = data.trim_start();
+                            if ltrimmed.len() < data.len() && !ltrimmed.is_empty() {
+                                format!(" {}", ltrimmed)
+                            } else {
+                                data.to_string()
+                            }
                         } else {
                             data.to_string()
                         };
-                        result = svelte_trim_end(&result).to_string();
+                        let result = svelte_trim_end(&result).to_string();
                         if !result.is_empty() {
                             self.output_parts.push(OutputPart::Html(escape_html(
                                 &sanitize_template_string(&result),
@@ -524,18 +560,31 @@ impl<'a> ServerCodeGenerator<'a> {
                         continue;
                     }
 
-                    // Middle text: collapse leading and trailing whitespace to spaces
-                    let ltrimmed = data.trim_start();
-                    let mut result = if ltrimmed.len() < data.len() && !ltrimmed.is_empty() {
-                        format!(" {}", ltrimmed)
+                    // Middle text: collapse leading/trailing whitespace unless adjacent
+                    // to ExpressionTag
+                    let result = if !prev_is_expr {
+                        let ltrimmed = data.trim_start();
+                        if ltrimmed.len() < data.len() && !ltrimmed.is_empty() {
+                            format!(" {}", ltrimmed)
+                        } else {
+                            data.to_string()
+                        }
                     } else {
                         data.to_string()
                     };
-                    let rtrimmed = result.trim_end();
-                    if rtrimmed.len() < result.len() && !rtrimmed.is_empty() {
-                        result = format!("{} ", rtrimmed);
-                    }
+                    let result = if !next_is_expr {
+                        let rtrimmed = result.trim_end();
+                        if rtrimmed.len() < result.len() && !rtrimmed.is_empty() {
+                            format!("{} ", rtrimmed)
+                        } else {
+                            result
+                        }
+                    } else {
+                        result
+                    };
                     if !result.is_empty() {
+                        // Track if this text ends with whitespace to prevent double spaces
+                        last_output_was_space = result.ends_with([' ', '\t', '\r', '\n']);
                         self.output_parts.push(OutputPart::Html(escape_html(
                             &sanitize_template_string(&result),
                         )));

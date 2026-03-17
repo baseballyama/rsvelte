@@ -1352,12 +1352,6 @@ fn transform_client_with_visitors(
         }));
     }
 
-    // Add svelte/internal/client import (namespace import as $)
-    body.push(JsStatement::Import(JsImportDeclaration {
-        specifiers: vec![JsImportSpecifier::Namespace("$".into())],
-        source: "svelte/internal/client".into(),
-    }));
-
     // In dev mode, add ComponentName[$.FILENAME] = 'filename.svelte'
     // Reference: transform-client.js line 544-551
     if options.dev
@@ -1390,7 +1384,7 @@ fn transform_client_with_visitors(
         let raw =
             crate::compiler::phases::phase2_analyze::types::strip_typescript(&module_content.raw);
         let (module_imports, rest) = extract_imports(&raw);
-        // Add module script imports first
+        // Add module script imports first (from module.body in official compiler)
         for import_line in module_imports {
             body.push(JsStatement::Raw(import_line.trim().into()));
         }
@@ -1404,8 +1398,17 @@ fn transform_client_with_visitors(
         None
     };
 
+    // Add svelte/internal/client import (namespace import as $)
+    // In the official compiler (transform-client.js line 154, 506), this is the first
+    // item in state.hoisted, which is iterated after module.body. So the order is:
+    // module imports, import * as $, instance imports.
+    body.push(JsStatement::Import(JsImportDeclaration {
+        specifiers: vec![JsImportSpecifier::Namespace("$".into())],
+        source: "svelte/internal/client".into(),
+    }));
+
     // Extract and add imports from instance script
-    // These are hoisted to module level (after svelte imports)
+    // These are in state.hoisted after import * as $ (from analysis.instance_body.hoisted)
     if let Some(ref instance_content) = analysis.instance_script_content {
         let (script_imports, _) = extract_imports(&instance_content.raw);
         for import_line in script_imports {

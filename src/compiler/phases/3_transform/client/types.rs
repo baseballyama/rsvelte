@@ -15,7 +15,7 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use im::{HashMap as ImHashMap, HashSet as ImHashSet};
 use indexmap::IndexSet;
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 /// Component transformation context.
@@ -1991,17 +1991,10 @@ impl<'a> ComponentClientTransformState<'a> {
         }
     }
 
-    /// Generate a unique `$$array` name. All callers share the same `Rc<Cell<usize>>` counter.
-    /// First call returns `$$array`, subsequent calls return `$$array_1`, `$$array_2`, etc.
+    /// Generate a unique `$$array` name using the shared memoizer conflicts set.
+    /// This matches the official Svelte compiler which uses `scope.root.unique('$$array')`.
     pub fn generate_array_name(&mut self) -> String {
-        let current = self.destructure_array_counter.get();
-        let name = if current == 0 {
-            "$$array".to_string()
-        } else {
-            format!("$$array_{}", current)
-        };
-        self.destructure_array_counter.set(current + 1);
-        name
+        self.memoizer.generate_id("$$array")
     }
 
     /// Get a binding by name from the current scope or parent scopes.
@@ -2406,11 +2399,14 @@ pub struct Memoizer {
     /// Map from expression hash to memoized variable name
     memos: FxHashMap<String, String>,
 
-    /// Set of conflicting names to avoid collisions in nested blocks
-    conflicts: FxHashSet<String>,
+    /// Shared set of conflicting names to avoid collisions across all scopes.
+    /// Uses Rc<RefCell<...>> so that parent and child memoizers share the SAME
+    /// conflicts set, matching the official Svelte compiler's single shared
+    /// `ScopeRoot.conflicts` set.
+    conflicts: Rc<RefCell<FxHashSet<String>>>,
 
-    /// Track last used suffix for each base name to avoid O(n) scanning
-    next_suffix: FxHashMap<String, u32>,
+    /// Shared suffix tracker to avoid O(n) scanning. Shared with parent.
+    next_suffix: Rc<RefCell<FxHashMap<String, u32>>>,
 
     /// Synchronous memoized expressions
     sync: Vec<MemoEntry>,
@@ -2425,8 +2421,8 @@ impl Memoizer {
         Self {
             counter: 0,
             memos: FxHashMap::default(),
-            conflicts: FxHashSet::default(),
-            next_suffix: FxHashMap::default(),
+            conflicts: Rc::new(RefCell::new(FxHashSet::default())),
+            next_suffix: Rc::new(RefCell::new(FxHashMap::default())),
             sync: Vec::new(),
             async_entries: Vec::new(),
         }
@@ -2465,31 +2461,23 @@ impl Memoizer {
         Self {
             counter: 0,
             memos: FxHashMap::default(),
-            conflicts,
+            conflicts: Rc::new(RefCell::new(conflicts)),
             sync: Vec::new(),
             async_entries: Vec::new(),
-            next_suffix: FxHashMap::default(),
+            next_suffix: Rc::new(RefCell::new(FxHashMap::default())),
         }
     }
 
-    /// Create a new memoizer that inherits conflicts from a parent.
+    /// Create a new memoizer that SHARES the conflicts set with a parent.
     ///
-    /// This is used when creating nested blocks (like nested IfBlocks) to ensure
-    /// that variable names don't collide between outer and inner scopes.
-    ///
-    /// # Arguments
-    ///
-    /// * `parent` - The parent memoizer to inherit conflicts from
-    ///
-    /// # Returns
-    ///
-    /// A new memoizer with a copy of the parent's conflicts set.
+    /// This matches the official Svelte compiler where `scope.root.unique()` uses
+    /// a single shared `ScopeRoot.conflicts` set across all scopes.
     pub fn with_parent_conflicts(parent: &Memoizer) -> Self {
         Self {
             counter: 0,
             memos: FxHashMap::default(),
-            conflicts: parent.conflicts.clone(),
-            next_suffix: parent.next_suffix.clone(),
+            conflicts: Rc::clone(&parent.conflicts),
+            next_suffix: Rc::clone(&parent.next_suffix),
             sync: Vec::new(),
             async_entries: Vec::new(),
         }
@@ -2763,64 +2751,57 @@ impl Memoizer {
     ///
     /// A unique identifier like "text", "text_2", "text_3", etc.
     pub fn generate_id(&mut self, base: &str) -> String {
-        // Fast path: check if base is already a valid identifier (most common case)
         let sanitized = if is_valid_identifier(base) {
             base
         } else {
-            // Slow path: sanitize the identifier
-            // Use a static-like approach to avoid allocation for common cases
             return self.generate_id_slow(base);
         };
 
-        // Try the base name first
-        if !self.conflicts.contains(sanitized) {
+        let mut conflicts = self.conflicts.borrow_mut();
+        let mut next_suffix = self.next_suffix.borrow_mut();
+
+        if !conflicts.contains(sanitized) {
             let owned = sanitized.to_string();
-            self.conflicts.insert(owned.clone());
+            conflicts.insert(owned.clone());
             return owned;
         }
 
-        // Use suffix tracker to skip already-used suffixes
-        let start_n = self.next_suffix.get(sanitized).copied().unwrap_or(1);
-
-        // Add suffix until there's no conflict
-        // Pre-allocate string with estimated capacity
+        let start_n = next_suffix.get(sanitized).copied().unwrap_or(1);
         let mut name = String::with_capacity(sanitized.len() + 4);
         let mut n = start_n;
         loop {
             name.clear();
             name.push_str(sanitized);
             name.push('_');
-            // Inline integer formatting for small numbers (most common)
             if n < 10 {
                 name.push((b'0' + n as u8) as char);
             } else {
                 use std::fmt::Write;
                 let _ = write!(name, "{}", n);
             }
-            if !self.conflicts.contains(name.as_str()) {
+            if !conflicts.contains(name.as_str()) {
                 break;
             }
             n += 1;
         }
 
-        self.conflicts.insert(name.clone());
-        self.next_suffix.insert(sanitized.to_string(), n + 1);
+        conflicts.insert(name.clone());
+        next_suffix.insert(sanitized.to_string(), n + 1);
         name
     }
 
     fn generate_id_slow(&mut self, base: &str) -> String {
         let sanitized = sanitize_identifier(base);
 
-        if !self.conflicts.contains(sanitized.as_str()) {
-            self.conflicts.insert(sanitized.clone());
+        let mut conflicts = self.conflicts.borrow_mut();
+        let mut next_suffix = self.next_suffix.borrow_mut();
+
+        if !conflicts.contains(sanitized.as_str()) {
+            conflicts.insert(sanitized.clone());
             return sanitized;
         }
 
-        let start_n = self
-            .next_suffix
-            .get(sanitized.as_str())
-            .copied()
-            .unwrap_or(1);
+        let start_n = next_suffix.get(sanitized.as_str()).copied().unwrap_or(1);
         let mut n = start_n;
         let mut name = String::with_capacity(sanitized.len() + 4);
         loop {
@@ -2833,14 +2814,14 @@ impl Memoizer {
                 use std::fmt::Write;
                 let _ = write!(name, "{}", n);
             }
-            if !self.conflicts.contains(name.as_str()) {
+            if !conflicts.contains(name.as_str()) {
                 break;
             }
             n += 1;
         }
 
-        self.conflicts.insert(name.clone());
-        self.next_suffix.insert(sanitized, n + 1);
+        conflicts.insert(name.clone());
+        next_suffix.insert(sanitized, n + 1);
         name
     }
 
@@ -2848,29 +2829,16 @@ impl Memoizer {
     pub fn reset(&mut self) {
         self.counter = 0;
         self.memos.clear();
-        self.conflicts.clear();
-        self.next_suffix.clear();
+        self.conflicts.borrow_mut().clear();
+        self.next_suffix.borrow_mut().clear();
         self.sync.clear();
         self.async_entries.clear();
     }
 
     /// Merge conflicts from another memoizer.
-    ///
-    /// This is used to propagate conflicts from a child scope back to the parent,
-    /// ensuring that sibling scopes also avoid collisions.
-    ///
-    /// # Arguments
-    ///
-    /// * `other` - The memoizer to merge conflicts from
-    pub fn merge_conflicts(&mut self, other: &Memoizer) {
-        self.conflicts.extend(other.conflicts.iter().cloned());
-        // Merge suffix counters (take the max)
-        for (key, &val) in &other.next_suffix {
-            let entry = self.next_suffix.entry(key.clone()).or_insert(0);
-            if val > *entry {
-                *entry = val;
-            }
-        }
+    /// With shared Rc<RefCell<...>> conflicts, this is a no-op.
+    pub fn merge_conflicts(&mut self, _other: &Memoizer) {
+        // No-op: conflicts are shared via Rc<RefCell<...>>
     }
 }
 
@@ -3217,19 +3185,16 @@ mod tests {
     }
 
     #[test]
-    fn test_memoizer_merge_conflicts() {
+    fn test_memoizer_shared_conflicts() {
         // Create parent and generate an id
         let mut parent = Memoizer::new();
         let _ = parent.generate_id("fragment");
 
-        // Create child inheriting parent's conflicts
+        // Create child sharing parent's conflicts (shared Rc)
         let mut child = Memoizer::with_parent_conflicts(&parent);
         let _ = child.generate_id("alternate");
 
-        // Merge child's conflicts back to parent
-        parent.merge_conflicts(&child);
-
-        // Parent should now avoid conflicts from child
+        // Parent automatically sees child's conflicts (shared Rc)
         let id = parent.generate_id("alternate");
         assert_eq!(id, "alternate_1");
     }

@@ -182,30 +182,7 @@ pub fn canonicalize_js(code: &str) -> String {
         .with_options(options)
         .build(&parsed.program)
         .code;
-    let trimmed = result.trim().to_string();
-
-    // Sort import lines so import ordering differences don't cause false failures.
-    // Both compilers emit the same imports but may order them differently.
-    let trimmed = sort_imports(&trimmed);
-
-    // Normalize generated variable names by order of first appearance.
-    // The official Svelte compiler and our Rust compiler may traverse the template tree
-    // in different orders, producing different numbering (e.g., root_2, root_3, root_1
-    // vs root_1, root_2, root_3). Since these names are arbitrary identifiers, we renumber
-    // them sequentially by first appearance to make comparison order-independent.
-    let result = normalize_generated_names(&trimmed, r"\broot(?:_(\d+))?\b", "root");
-    // For $$ prefixed names, \b doesn't work because $ is not a word character.
-    // Use a custom replacement function that checks context.
-    let result = normalize_dollar_names(&result, "$$array");
-    let result = normalize_dollar_names(&result, "$$index");
-
-    // Normalize whitespace inside SSR template literals.
-    // The official compiler preserves newlines from source HTML inside
-    // $$renderer.push(`...`) template strings, while our compiler collapses them.
-    // Since HTML whitespace is collapsible (newlines = spaces), this is semantically
-    // insignificant for rendering. Normalize all whitespace runs to single spaces
-    // inside backtick strings for consistent comparison.
-    normalize_template_literal_whitespace(&result)
+    result.trim().to_string()
 }
 
 /// Sort import statements at the top of the file.

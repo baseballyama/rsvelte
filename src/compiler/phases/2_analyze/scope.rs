@@ -268,6 +268,13 @@ pub struct Binding {
     pub import_source: Option<String>,
     /// Whether this binding is a default import (as opposed to named import).
     pub is_default_import: bool,
+    /// For rest_prop bindings, the list of property names that are destructured
+    /// alongside the rest element (i.e., the props that should NOT be accessed
+    /// through $$props when used on this rest variable). For example, in
+    /// `let { foo, ...others } = $props()`, the `others` binding will have
+    /// `exclude_props = ["foo"]`, meaning `others.foo` should NOT become `$$props.foo`
+    /// but `others.bar` should become `$$props.bar`.
+    pub exclude_props: Vec<String>,
 }
 
 /// A blocker expression representing `$$promises[n]`.
@@ -326,6 +333,7 @@ impl Binding {
             inside_rest: false,
             import_source: None,
             is_default_import: false,
+            exclude_props: Vec::new(),
         }
     }
 
@@ -359,6 +367,7 @@ impl Binding {
             inside_rest: false,
             import_source: None,
             is_default_import: false,
+            exclude_props: Vec::new(),
         }
     }
 

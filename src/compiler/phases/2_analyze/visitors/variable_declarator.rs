@@ -254,9 +254,8 @@ fn update_binding_kinds(
                 }
 
                 // Store exclude_props in binding metadata
-                // TODO: Add metadata field to Binding struct
-                // binding.metadata = Some(BindingMetadata { exclude_props });
-                let _ = exclude_props; // suppress unused warning for now
+                let binding = &mut context.analysis.root.bindings[binding_idx];
+                binding.exclude_props = exclude_props;
             }
         }
     }

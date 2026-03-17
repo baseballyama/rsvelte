@@ -182,7 +182,7 @@ pub fn fragment(
         each_item_names: context.state.each_item_names.clone(),
         each_binding_context: context.state.each_binding_context.clone(),
         local_var_init_types: Vec::new(),
-        destructure_array_counter: context.state.destructure_array_counter,
+        destructure_array_counter: context.state.destructure_array_counter.clone(),
         needs_props_from_events: context.state.needs_props_from_events.clone(),
         hidden_let_bindings: context.state.hidden_let_bindings.clone(),
         shadowed_prop_names: context.state.shadowed_prop_names.clone(),

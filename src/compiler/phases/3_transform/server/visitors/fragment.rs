@@ -365,58 +365,61 @@ impl<'a> ServerCodeGenerator<'a> {
                 prev_text_ends_with_ws = data.ends_with([' ', '\t', '\r', '\n']);
 
                 if !data.is_empty() {
-                    // For whitespace-only text between ExpressionTags, preserve the
-                    // whitespace as-is instead of collapsing to a single space.
-                    // The official compiler's clean_nodes skips whitespace collapsing
-                    // when the neighbor is an ExpressionTag (they form one text node).
-                    if !self.preserve_whitespace && is_svelte_whitespace_only(&data) {
-                        let prev_is_expression = {
-                            let mut pi = i;
-                            loop {
-                                if pi == 0 {
-                                    break false;
-                                }
-                                pi -= 1;
-                                let pn = meaningful_nodes[pi];
-                                let pn_hoisted = matches!(pn, TemplateNode::ConstTag(_))
-                                    || matches!(pn, TemplateNode::SnippetBlock(_))
-                                    || (matches!(pn, TemplateNode::Comment(_))
-                                        && !self.preserve_comments);
-                                if !pn_hoisted {
-                                    break matches!(pn, TemplateNode::ExpressionTag(_));
-                                }
+                    // Determine whether prev/next non-hoisted sibling is an ExpressionTag.
+                    let prev_is_expression = {
+                        let mut pi = i;
+                        loop {
+                            if pi == 0 {
+                                break false;
                             }
-                        };
-                        let next_is_expression = {
-                            let mut ni = i + 1;
-                            loop {
-                                if ni >= meaningful_nodes.len() {
-                                    break false;
-                                }
-                                let nn = meaningful_nodes[ni];
-                                let nn_hoisted = matches!(nn, TemplateNode::ConstTag(_))
-                                    || matches!(nn, TemplateNode::SnippetBlock(_))
-                                    || (matches!(nn, TemplateNode::Comment(_))
-                                        && !self.preserve_comments);
-                                if !nn_hoisted {
-                                    break matches!(nn, TemplateNode::ExpressionTag(_));
-                                }
-                                ni += 1;
+                            pi -= 1;
+                            let pn = meaningful_nodes[pi];
+                            let pn_hoisted = matches!(pn, TemplateNode::ConstTag(_))
+                                || matches!(pn, TemplateNode::SnippetBlock(_))
+                                || (matches!(pn, TemplateNode::Comment(_))
+                                    && !self.preserve_comments);
+                            if !pn_hoisted {
+                                break matches!(pn, TemplateNode::ExpressionTag(_));
                             }
-                        };
-                        if prev_is_expression && next_is_expression {
-                            // Output whitespace as-is (preserve newlines/tabs)
-                            body_generator
-                                .output_parts
-                                .push(OutputPart::Html(sanitize_template_string(&data)));
-                            seen_real_content = true;
-                            continue;
                         }
-                    }
+                    };
+                    let next_is_expression = {
+                        let mut ni = i + 1;
+                        loop {
+                            if ni >= meaningful_nodes.len() {
+                                break false;
+                            }
+                            let nn = meaningful_nodes[ni];
+                            let nn_hoisted = matches!(nn, TemplateNode::ConstTag(_))
+                                || matches!(nn, TemplateNode::SnippetBlock(_))
+                                || (matches!(nn, TemplateNode::Comment(_))
+                                    && !self.preserve_comments);
+                            if !nn_hoisted {
+                                break matches!(nn, TemplateNode::ExpressionTag(_));
+                            }
+                            ni += 1;
+                        }
+                    };
 
-                    let mut modified_text = text.clone();
-                    modified_text.data = data.into();
-                    body_generator.generate_node(&TemplateNode::Text(modified_text), false)?;
+                    if !self.preserve_whitespace {
+                        // Apply expression-tag-aware whitespace collapsing.
+                        let collapsed = collapse_leading_trailing_whitespace(
+                            &data,
+                            is_first_text(i),
+                            is_last,
+                            prev_is_expression,
+                            next_is_expression,
+                        );
+                        let sanitized = sanitize_template_string(&collapsed);
+                        body_generator
+                            .output_parts
+                            .push(OutputPart::Html(escape_html(&sanitized)));
+                    } else {
+                        let sanitized = sanitize_template_string(&data);
+                        body_generator
+                            .output_parts
+                            .push(OutputPart::Html(escape_html(&sanitized)));
+                    }
                     seen_real_content = true;
                 }
                 continue;

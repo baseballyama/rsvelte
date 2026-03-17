@@ -414,7 +414,26 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let computed = *computed;
             let optional = *optional;
 
-            // Use helper functions defined at module level
+            // Optimize rest_prop access: When accessing a property on a rest_prop binding
+            // (e.g., `others.bar` where `let { foo, ...others } = $props()`), replace the
+            // object with `$$props` for read access. Mirrors official Svelte Identifier.js.
+            if context.state.analysis.runes
+                && !computed
+                && !context.state.in_direct_assignment_lhs
+                && let Some(obj_name) = get_jsnode_identifier_name(object)
+                && !context.state.shadowed_prop_names.contains(&obj_name)
+                && let Some(binding) = context.state.get_binding(&obj_name)
+                && binding.kind == BindingKind::RestProp
+                && let Some(prop_name) = get_jsnode_identifier_name(property)
+                && !binding.exclude_props.iter().any(|ep| ep == &prop_name)
+            {
+                return JsExpr::Member(JsMemberExpression {
+                    object: Box::new(JsExpr::Identifier("$$props".into())),
+                    property: JsMemberProperty::Identifier(prop_name.into()),
+                    computed: false,
+                    optional,
+                });
+            }
 
             // Handle private state field access: this.#foo -> this.#foo.v or $.get(this.#foo)
             if !computed && let Some(prop_name) = get_jsnode_private_identifier_name(property) {
@@ -1678,6 +1697,42 @@ fn convert_member_expression(
                 });
             }
         }
+    }
+
+    // Optimize rest_prop access: When accessing a property on a rest_prop binding
+    // (e.g., `others.bar` where `let { foo, ...others } = $props()`), replace the
+    // object with `$$props` for read access. This matches the official Svelte compiler's
+    // Identifier.js visitor behavior.
+    //
+    // Conditions (mirroring official compiler):
+    // 1. Must be in runes mode
+    // 2. Object must be an Identifier referencing a rest_prop binding
+    // 3. Must NOT be computed (i.e., `others.bar`, not `others[bar]`)
+    // 4. Must NOT be a direct assignment LHS (e.g., `others.bar = x` stays as-is)
+    // 5. Property name must NOT be in the binding's exclude_props list
+    if context.state.analysis.runes
+        && !computed
+        && !context.state.in_direct_assignment_lhs
+        && let Some(object_obj) = obj.get("object").and_then(|o| o.as_object())
+        && let Some("Identifier") = object_obj.get("type").and_then(|t| t.as_str())
+        && let Some(obj_name) = object_obj.get("name").and_then(|n| n.as_str())
+        && !context.state.shadowed_prop_names.contains(obj_name)
+        && let Some(binding) = context.state.get_binding(obj_name)
+        && binding.kind == BindingKind::RestProp
+        && let Some(prop_name) = obj
+            .get("property")
+            .and_then(|p| p.as_object())
+            .and_then(|p| p.get("name"))
+            .and_then(|n| n.as_str())
+        && !binding.exclude_props.iter().any(|ep| ep == prop_name)
+    {
+        // Replace object with $$props
+        return JsExpr::Member(JsMemberExpression {
+            object: Box::new(JsExpr::Identifier("$$props".into())),
+            property: JsMemberProperty::Identifier(prop_name.into()),
+            computed: false,
+            optional,
+        });
     }
 
     let object = {

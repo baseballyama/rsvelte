@@ -174,8 +174,8 @@ impl<'a> JsCodegen<'a> {
                 && current_type != "Comment"
                 && pt != "Comment"
             {
-                let is_multiline = self.is_stmt_multiline(stmt);
-                if is_multiline || prev_multiline || current_type != pt {
+                let current_multiline = self.pre_render_stmt_is_multiline(stmt);
+                if current_multiline || prev_multiline || current_type != pt {
                     self.newline();
                 }
             }
@@ -1406,20 +1406,41 @@ impl<'a> JsCodegen<'a> {
             JsStatement::VariableDeclaration(decl) => {
                 decl.declarations.len() > 1
                     || decl.declarations.iter().any(|d| {
-                        d.init.as_ref().is_some_and(|init| {
-                            matches!(
-                                init.as_ref(),
-                                JsExpr::Function(_)
-                                    | JsExpr::Arrow(_)
-                                    | JsExpr::Object(_)
-                                    | JsExpr::Array(_)
-                            )
-                        })
+                        d.init
+                            .as_ref()
+                            .is_some_and(|init| self.is_expr_likely_multiline(init))
                     })
+            }
+            // Expression statements: check if the expression is likely multiline
+            JsStatement::Expression(expr_stmt) => {
+                self.is_expr_likely_multiline(&expr_stmt.expression)
             }
             // Simple statements are single-line
             _ => false,
         }
+    }
+
+    /// Pre-render a statement and check if it's multiline.
+    /// Used by emit_body to accurately detect multiline status for blank line logic.
+    fn pre_render_stmt_is_multiline(&self, stmt: &JsStatement) -> bool {
+        // Use heuristic first as a fast-path for obviously multiline statements
+        if self.is_stmt_multiline(stmt) {
+            return true;
+        }
+        // For statements that might be multiline but the heuristic misses,
+        // pre-render to check. This handles cases like expression statements
+        // or variable declarations with complex initializers (e.g. calls with
+        // arrays whose total length exceeds 60 chars).
+        let mut tmp = JsCodegen {
+            output: String::with_capacity(256),
+            indent_level: self.indent_level,
+            needs_semicolon: false,
+            track_mappings: false,
+            raw_spans: Vec::new(),
+            source_code: None,
+        };
+        tmp.emit_statement(stmt);
+        tmp.output.bytes().filter(|&b| b == b'\n').count() > 1
     }
 
     /// Pre-render an expression to a string without modifying the output.
@@ -1454,9 +1475,26 @@ impl<'a> JsCodegen<'a> {
     /// Used to avoid pre-rendering complex expressions (which causes exponential blowup).
     fn is_expr_likely_multiline(&self, expr: &JsExpr) -> bool {
         match expr {
-            JsExpr::Function(_) | JsExpr::Arrow(_) => true,
-            JsExpr::Object(obj) => !obj.properties.is_empty(),
-            JsExpr::Array(arr) => arr.elements.len() > 3,
+            JsExpr::Function(_) => true,
+            // Arrow functions are only multiline if they have a block body.
+            // Expression-body arrows like `() => x` or `(a) => a + 1` are single-line.
+            JsExpr::Arrow(arrow) => matches!(arrow.body, JsArrowBody::Block(_)),
+            // Objects are multiline if they have multiple properties or
+            // any property value that is itself likely multiline.
+            JsExpr::Object(obj) => {
+                obj.properties.len() > 1
+                    || obj
+                        .properties
+                        .iter()
+                        .any(|m| self.is_member_likely_multiline(m))
+            }
+            JsExpr::Array(arr) => {
+                arr.elements.len() > 3
+                    || arr.elements.iter().any(|e| {
+                        e.as_ref()
+                            .is_some_and(|ex| self.is_expr_likely_multiline(ex))
+                    })
+            }
             JsExpr::Call(call) => call
                 .arguments
                 .iter()
@@ -1510,20 +1548,11 @@ impl<'a> JsCodegen<'a> {
                 // Check if this item has object/array value (for margin logic)
                 let has_obj_array = has_object_or_array_value(item);
 
-                // Insert blank line (margin) between consecutive multiline items
-                // that don't have object/array values (matching esrap behavior)
-                if i > 0 && prev_was_multiline && !prev_had_obj_array && !has_obj_array {
-                    // We need to check if current item is also multiline.
-                    // Use the heuristic to avoid pre-rendering.
-                    let curr_likely_multiline =
-                        item.is_some_and(|expr| self.is_expr_likely_multiline(expr));
-                    if curr_likely_multiline {
-                        self.newline(); // margin
-                    }
-                }
+                // Record position before indentation for possible margin insertion
+                let margin_insert_pos = self.output.len();
 
-                let start_pos = self.output.len();
                 self.indent();
+                let start_pos = self.output.len();
                 if let Some(expr) = item {
                     self.emit_expression(expr);
                 }
@@ -1533,7 +1562,21 @@ impl<'a> JsCodegen<'a> {
 
                 // Check if the rendered item was multiline
                 let rendered_part = &self.output[start_pos..];
-                prev_was_multiline = rendered_part.contains('\n');
+                let curr_is_multiline = rendered_part.contains('\n');
+
+                // Insert blank line (margin) between consecutive multiline items
+                // that don't have object/array values (matching esrap behavior).
+                // We do this retroactively after rendering to accurately detect multiline.
+                if i > 0
+                    && prev_was_multiline
+                    && curr_is_multiline
+                    && !prev_had_obj_array
+                    && !has_obj_array
+                {
+                    self.output.insert(margin_insert_pos, '\n');
+                }
+
+                prev_was_multiline = curr_is_multiline;
                 prev_had_obj_array = has_obj_array;
 
                 self.newline();
@@ -1616,20 +1659,25 @@ impl<'a> JsCodegen<'a> {
 
     /// Emit call/new expression arguments with esrap-style wrapping.
     /// In esrap, only non-final arguments' multiline status triggers wrapping.
+    /// We always pre-render non-final args to accurately detect multiline status,
+    /// matching esrap's behavior of rendering into separate contexts.
     fn emit_call_args(&mut self, arguments: &[JsExpr]) {
         if arguments.is_empty() {
             return;
         }
 
-        // Use heuristic to check if any non-final argument is likely multiline.
-        // This avoids exponential blowup from pre-rendering deeply nested structures.
-        let non_final_likely_multiline = arguments
+        // Pre-render non-final arguments to check if any are multiline.
+        // This matches esrap's approach of rendering into a child_context
+        // and checking its multiline property.
+        let rendered: Vec<String> = arguments
             .iter()
             .take(arguments.len().saturating_sub(1))
-            .any(|arg| self.is_expr_likely_multiline(arg));
+            .map(|arg| self.pre_render_expr(arg))
+            .collect();
 
-        if non_final_likely_multiline {
-            // Render directly in multiline mode without pre-rendering
+        let non_final_multiline = rendered.iter().any(|r| r.contains('\n'));
+
+        if non_final_multiline {
             self.indent_level += 1;
             self.newline();
 
@@ -1645,38 +1693,11 @@ impl<'a> JsCodegen<'a> {
             self.indent_level -= 1;
             self.indent();
         } else {
-            // No non-final arg is likely multiline. Pre-render to confirm.
-            // Since these are simple expressions, pre-rendering is cheap.
-            let rendered: Vec<String> = arguments
-                .iter()
-                .take(arguments.len().saturating_sub(1))
-                .map(|arg| self.pre_render_expr(arg))
-                .collect();
-
-            let non_final_multiline = rendered.iter().any(|r| r.contains('\n'));
-
-            if non_final_multiline {
-                self.indent_level += 1;
-                self.newline();
-
-                for (i, arg) in arguments.iter().enumerate() {
-                    self.indent();
-                    self.emit_expression(arg);
-                    if i < arguments.len() - 1 {
-                        self.output.push(',');
-                    }
-                    self.newline();
+            for (i, arg) in arguments.iter().enumerate() {
+                if i > 0 {
+                    self.output.push_str(", ");
                 }
-
-                self.indent_level -= 1;
-                self.indent();
-            } else {
-                for (i, arg) in arguments.iter().enumerate() {
-                    if i > 0 {
-                        self.output.push_str(", ");
-                    }
-                    self.emit_expression(arg);
-                }
+                self.emit_expression(arg);
             }
         }
     }

@@ -419,8 +419,12 @@ impl<'a> ServerCodeGenerator<'a> {
 
         let props_param = if should_inject_props { ", $$props" } else { "" };
 
-        // Combine module imports and instance imports (module imports first)
-        let all_imports: Vec<String> = module_imports.into_iter().chain(hoisted_imports).collect();
+        // Combine instance imports and module imports (instance imports first)
+        // This matches the official compiler's server transform where state.hoisted
+        // (containing instance imports) comes before module.body (containing module imports)
+        // in the body construction: `const body = [...state.hoisted, ...module.body]`
+        // (transform-server.js line 301)
+        let all_imports: Vec<String> = hoisted_imports.into_iter().chain(module_imports).collect();
 
         // Build hoisted imports section
         let imports_section = if all_imports.is_empty() {

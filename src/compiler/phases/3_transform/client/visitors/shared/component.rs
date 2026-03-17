@@ -1942,6 +1942,12 @@ fn visit_slot_children(
     // per Fragment.js order: init -> update -> after_update -> close
     let mut close_statement: Option<JsStatement> = None;
 
+    // Reserve a template name BEFORE processing children, matching the official
+    // compiler's Fragment.js line 55: `const template_name = context.state.scope.root.unique('root')`
+    // This ensures the numbering is consistent even when the template isn't used
+    // (e.g., text-only slots still consume a root_N name).
+    let template_name = context.state.memoizer.generate_id("root");
+
     // Check if single element (mirrors Fragment.js line 47)
     let is_single_element = cleaned.trimmed.len() == 1
         && matches!(*cleaned.trimmed[0], TemplateNode::RegularElement(_));
@@ -1959,7 +1965,7 @@ fn visit_slot_children(
 
             // Transform template using the state's template
             // This creates the hoisted template expression like: var root_1 = $.from_html(`<input slot="slot1"/>`);
-            let template_name = context.state.memoizer.generate_id("root");
+            // Uses the template_name that was reserved at the start of this function.
             // Determine namespace from the element itself, not the parent context.
             // For example, a <line> element inside a component slot is SVG even if
             // the parent context is HTML.
@@ -2129,6 +2135,9 @@ fn visit_slot_children(
             )));
         } else {
             // Standard case: use fragment with $.first_child pattern
+            //
+            // Uses the template_name that was reserved at the start of this function.
+            // This ensures outer templates get lower numbers than inner templates.
             let fragment_id_for_closure = fragment_id.clone();
             process_children(
                 &cleaned.trimmed,
@@ -2168,8 +2177,7 @@ fn visit_slot_children(
                     ),
                 );
             } else {
-                // Standard template case
-                let template_name = context.state.memoizer.generate_id("root");
+                // Standard template case (template_name was reserved at the start of this function)
 
                 // Infer namespace from the slot children themselves.
                 // For example, if all children are SVG elements, use "svg".

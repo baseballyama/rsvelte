@@ -1659,58 +1659,68 @@ impl<'a> ServerCodeGenerator<'a> {
                 // Track whether this text ends with whitespace (for collapsing across hoisted nodes)
                 prev_text_ends_with_ws = modified_data.ends_with([' ', '\t', '\r', '\n']);
 
-                // For whitespace-only text between ExpressionTags, preserve the
-                // whitespace as-is instead of collapsing to a single space.
-                // The official compiler's clean_nodes skips whitespace collapsing
-                // when the neighbor is an ExpressionTag (they form one text node).
-                if is_svelte_whitespace_only(&modified_data) {
-                    let prev_is_expression = {
-                        let mut pi = i;
-                        loop {
-                            if pi == 0 {
-                                break false;
-                            }
-                            pi -= 1;
-                            let pn = &nodes[pi];
-                            let pn_hoisted = matches!(pn, TemplateNode::ConstTag(_))
-                                || matches!(pn, TemplateNode::SnippetBlock(_))
-                                || (matches!(pn, TemplateNode::Comment(_))
-                                    && !self.preserve_comments);
-                            if !pn_hoisted {
-                                break matches!(pn, TemplateNode::ExpressionTag(_));
-                            }
+                // Determine whether prev/next non-hoisted sibling is an ExpressionTag.
+                let prev_is_expression = {
+                    let mut pi = i;
+                    loop {
+                        if pi == 0 {
+                            break false;
                         }
-                    };
-                    let next_is_expression = {
-                        let mut ni = i + 1;
-                        loop {
-                            if ni >= nodes.len() {
-                                break false;
-                            }
-                            let nn = &nodes[ni];
-                            let nn_hoisted = matches!(nn, TemplateNode::ConstTag(_))
-                                || matches!(nn, TemplateNode::SnippetBlock(_))
-                                || (matches!(nn, TemplateNode::Comment(_))
-                                    && !self.preserve_comments);
-                            if !nn_hoisted {
-                                break matches!(nn, TemplateNode::ExpressionTag(_));
-                            }
-                            ni += 1;
+                        pi -= 1;
+                        let pn = &nodes[pi];
+                        let pn_hoisted = matches!(pn, TemplateNode::ConstTag(_))
+                            || matches!(pn, TemplateNode::SnippetBlock(_))
+                            || (matches!(pn, TemplateNode::Comment(_)) && !self.preserve_comments);
+                        if !pn_hoisted {
+                            break matches!(pn, TemplateNode::ExpressionTag(_));
                         }
-                    };
-                    if prev_is_expression && next_is_expression {
-                        // Output whitespace as-is (preserve newlines/tabs)
-                        use crate::compiler::phases::phase3_transform::shared::sanitize_template_string;
-                        self.output_parts
-                            .push(OutputPart::Html(sanitize_template_string(&modified_data)));
-                        continue;
                     }
+                };
+                let next_is_expression = {
+                    let mut ni = i + 1;
+                    loop {
+                        if ni >= nodes.len() {
+                            break false;
+                        }
+                        let nn = &nodes[ni];
+                        let nn_hoisted = matches!(nn, TemplateNode::ConstTag(_))
+                            || matches!(nn, TemplateNode::SnippetBlock(_))
+                            || (matches!(nn, TemplateNode::Comment(_)) && !self.preserve_comments);
+                        if !nn_hoisted {
+                            break matches!(nn, TemplateNode::ExpressionTag(_));
+                        }
+                        ni += 1;
+                    }
+                };
+
+                // For whitespace-only text between ExpressionTags, preserve as-is
+                if is_svelte_whitespace_only(&modified_data)
+                    && prev_is_expression
+                    && next_is_expression
+                {
+                    use crate::compiler::phases::phase3_transform::shared::sanitize_template_string;
+                    self.output_parts
+                        .push(OutputPart::Html(sanitize_template_string(&modified_data)));
+                    continue;
                 }
 
+                // Use generate_text_with_expr_context for proper ExpressionTag-adjacent
+                // whitespace preservation
                 if needs_modification {
                     let mut modified_text = text.clone();
                     modified_text.data = modified_data.into();
-                    self.generate_node(&TemplateNode::Text(modified_text), true)?;
+                    self.generate_text_with_expr_context(
+                        &modified_text,
+                        prev_is_expression,
+                        next_is_expression,
+                    )?;
+                    continue;
+                } else {
+                    self.generate_text_with_expr_context(
+                        text,
+                        prev_is_expression,
+                        next_is_expression,
+                    )?;
                     continue;
                 }
             } else {

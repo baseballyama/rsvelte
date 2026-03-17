@@ -12,6 +12,18 @@ impl<'a> ServerCodeGenerator<'a> {
         text: &Text,
         _is_root: bool,
     ) -> Result<(), TransformError> {
+        self.generate_text_with_expr_context(text, false, false)
+    }
+
+    /// Generate text with knowledge of whether the previous and next siblings
+    /// are ExpressionTag nodes. When adjacent to an ExpressionTag, whitespace
+    /// is preserved (not collapsed) matching the official compiler's clean_nodes behavior.
+    pub(crate) fn generate_text_with_expr_context(
+        &mut self,
+        text: &Text,
+        prev_is_expr: bool,
+        next_is_expr: bool,
+    ) -> Result<(), TransformError> {
         let data = &text.data;
 
         // When preserveWhitespace is set, output text as-is without collapsing
@@ -27,6 +39,14 @@ impl<'a> ServerCodeGenerator<'a> {
         // Non-breaking space (U+00A0) is NOT collapsible whitespace - treat as content
         let is_whitespace_only = data.chars().all(|c| c != '\u{00A0}' && c.is_whitespace());
         if is_whitespace_only {
+            // Whitespace-only text between ExpressionTags: preserve as-is
+            if prev_is_expr && next_is_expr {
+                if !data.is_empty() {
+                    self.output_parts
+                        .push(OutputPart::Html(sanitize_template_string(data)));
+                }
+                return Ok(());
+            }
             // Whitespace-only text becomes a single space if not empty,
             // but in SVG/MathML namespace or certain HTML elements (select, tr, table, etc.),
             // whitespace-only text nodes are entirely removed.
@@ -36,17 +56,10 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.output_parts.push(OutputPart::Html(" ".to_string()));
             }
         } else {
-            // Collapse only leading and trailing whitespace sequences to single spaces.
+            // Collapse only leading and trailing whitespace sequences to single spaces,
+            // unless adjacent to an ExpressionTag (in which case preserve whitespace).
             // Internal whitespace is preserved as-is.
-            // This matches the official compiler's clean_nodes behavior:
-            // - replace leading whitespace with single space
-            // - replace trailing whitespace with single space
-            // - preserve internal whitespace (for CSS white-space: pre-line support
-            //   and default slot content that might go into a <pre> tag)
-            let collapsed = collapse_leading_trailing_ws(data);
-            // First sanitize for template literal context (escape backslashes, backticks, ${),
-            // then escape HTML special characters (& and <).
-            // Order matters: sanitize first so that HTML entities (&amp;) aren't double-escaped.
+            let collapsed = collapse_leading_trailing_ws(data, prev_is_expr, next_is_expr);
             let sanitized = sanitize_template_string(&collapsed);
             self.output_parts
                 .push(OutputPart::Html(escape_html(&sanitized)));
@@ -55,10 +68,11 @@ impl<'a> ServerCodeGenerator<'a> {
     }
 }
 
-/// Collapse only leading and trailing whitespace of a text string to single spaces.
+/// Collapse only leading and trailing whitespace of a text string to single spaces,
+/// unless adjacent to an ExpressionTag (in which case preserve whitespace).
 /// Internal whitespace (between non-whitespace characters) is preserved.
 /// This matches the official compiler's clean_nodes behavior.
-fn collapse_leading_trailing_ws(s: &str) -> String {
+fn collapse_leading_trailing_ws(s: &str, prev_is_expr: bool, next_is_expr: bool) -> String {
     fn is_collapsible(c: char) -> bool {
         c != '\u{00A0}' && c.is_whitespace()
     }
@@ -83,13 +97,23 @@ fn collapse_leading_trailing_ws(s: &str) -> String {
 
     let mut result = String::with_capacity(s.len());
     if leading_len > 0 {
-        result.push(' ');
+        if prev_is_expr {
+            // Preserve leading whitespace when previous sibling is ExpressionTag
+            result.push_str(&s[..content_start]);
+        } else {
+            result.push(' ');
+        }
     }
     if content_start < content_end {
         result.push_str(&s[content_start..content_end]);
     }
     if trailing_len > 0 {
-        result.push(' ');
+        if next_is_expr {
+            // Preserve trailing whitespace when next sibling is ExpressionTag
+            result.push_str(&s[content_end..]);
+        } else {
+            result.push(' ');
+        }
     }
     result
 }

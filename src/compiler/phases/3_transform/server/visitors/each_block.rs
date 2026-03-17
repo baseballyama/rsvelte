@@ -65,15 +65,15 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut end_idx = len;
 
         if !self.preserve_whitespace {
-            // Skip leading whitespace
+            // Skip leading whitespace and hoisted nodes (ConstTag, SnippetBlock, Comment)
+            // Hoisted nodes are transparent for whitespace trimming, matching clean_nodes behavior.
             while start_idx < len {
-                if let TemplateNode::Text(text) = body_nodes[start_idx]
-                    && is_svelte_whitespace_only(&text.data)
-                {
-                    start_idx += 1;
-                    continue;
+                match body_nodes[start_idx] {
+                    TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                        start_idx += 1;
+                    }
+                    _ => break,
                 }
-                break;
             }
 
             // Skip trailing whitespace
@@ -175,14 +175,32 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Track if previous node was a ConstTag to skip whitespace after it
         let mut prev_was_const = false;
-        let nodes_to_process: Vec<_> = body_nodes
+        let nodes_to_process_ref: Vec<_> = body_nodes
             .iter()
             .skip(start_idx)
             .take(end_idx - start_idx)
             .collect();
-        let num_nodes = nodes_to_process.len();
+        let num_nodes = nodes_to_process_ref.len();
 
-        for (i, node) in nodes_to_process.into_iter().enumerate() {
+        // Compute last meaningful content index (ignoring hoisted nodes and ws-only text)
+        // This is used to properly trim trailing whitespace from the last non-hoisted text/element.
+        let last_meaningful_idx = {
+            let mut idx = None;
+            for (j, n) in nodes_to_process_ref.iter().enumerate() {
+                let is_hoisted = matches!(n, TemplateNode::ConstTag(_))
+                    || matches!(n, TemplateNode::SnippetBlock(_))
+                    || (matches!(n, TemplateNode::Comment(_)) && !self.preserve_comments);
+                let is_ws_only =
+                    matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data));
+                if !is_hoisted && !is_ws_only {
+                    idx = Some(j);
+                }
+            }
+            idx
+        };
+
+        for (i, node) in nodes_to_process_ref.iter().enumerate() {
+            let node = *node;
             // Skip whitespace-only text after ConstTag (unless preserving whitespace)
             if !self.preserve_whitespace
                 && prev_was_const
@@ -201,28 +219,65 @@ impl<'a> ServerCodeGenerator<'a> {
                 body_generator.flush_async_consts();
             }
 
-            // Special handling for first/last text nodes to trim whitespace
-            // For middle text nodes, delegate to generate_text which handles
-            // whitespace collapsing (whitespace-only → single space, internal
-            // whitespace sequences collapsed).
-            // Skip when preserveWhitespace is set.
+            // Apply clean_nodes-style whitespace handling with expression tag context.
+            // This matches the official compiler where clean_nodes collapses leading/trailing
+            // whitespace but preserves internal whitespace and whitespace adjacent to ExpressionTags.
             if let TemplateNode::Text(text) = node {
                 let mut data = text.data.to_string();
+
+                // Determine whether prev/next non-hoisted sibling is an ExpressionTag.
+                let prev_is_expr = {
+                    let mut pi = i;
+                    loop {
+                        if pi == 0 {
+                            break false;
+                        }
+                        pi -= 1;
+                        let pn = nodes_to_process_ref[pi];
+                        let pn_hoisted = matches!(pn, TemplateNode::ConstTag(_))
+                            || matches!(pn, TemplateNode::SnippetBlock(_));
+                        if !pn_hoisted {
+                            break matches!(pn, TemplateNode::ExpressionTag(_));
+                        }
+                    }
+                };
+                let next_is_expr = {
+                    let mut ni = i + 1;
+                    loop {
+                        if ni >= num_nodes {
+                            break false;
+                        }
+                        let nn = nodes_to_process_ref[ni];
+                        let nn_hoisted = matches!(nn, TemplateNode::ConstTag(_))
+                            || matches!(nn, TemplateNode::SnippetBlock(_));
+                        if !nn_hoisted {
+                            break matches!(nn, TemplateNode::ExpressionTag(_));
+                        }
+                        ni += 1;
+                    }
+                };
+
                 if !self.preserve_whitespace {
                     // Trim leading whitespace from first text node
                     if i == 0 {
                         data = data.trim_start().to_string();
                     }
-                    // Trim trailing whitespace from last text node
-                    if i == num_nodes - 1 {
+                    // Trim trailing whitespace from last meaningful text node
+                    // Use last_meaningful_idx to account for hoisted nodes at the end
+                    let is_last = last_meaningful_idx.map_or(i == num_nodes - 1, |li| i >= li);
+                    if is_last {
                         data = data.trim_end().to_string();
                     }
                 }
-                // Output the text through generate_text for proper whitespace handling
+                // Output the text with expression context for proper whitespace handling
                 if !data.is_empty() {
                     let mut modified_text = text.clone();
                     modified_text.data = data.into();
-                    body_generator.generate_node(&TemplateNode::Text(modified_text), false)?;
+                    body_generator.generate_text_with_expr_context(
+                        &modified_text,
+                        prev_is_expr,
+                        next_is_expr,
+                    )?;
                 }
             } else {
                 body_generator.generate_node(node, false)?;
