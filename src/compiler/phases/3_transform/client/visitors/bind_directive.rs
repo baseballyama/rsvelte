@@ -485,7 +485,9 @@ fn bind_directive_inner(
     {
         let ast_names = collect_ast_identifiers(&node.expression);
         let name_refs: Vec<&str> = ast_names.iter().map(|s| s.as_str()).collect();
-        let blocker_exprs = context.state.get_blockers_for_names(&name_refs);
+        let blocker_exprs = context
+            .state
+            .get_blockers_for_names_with_duplicates(&name_refs);
 
         if !blocker_exprs.is_empty() {
             let blockers_array = b::array(blocker_exprs);

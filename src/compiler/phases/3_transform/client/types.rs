@@ -2068,10 +2068,29 @@ impl<'a> ComponentClientTransformState<'a> {
         let map = self.blocker_map.borrow();
         let mut indices: Vec<usize> = Vec::new();
         for name in names {
+            if let Some(&idx) = map.get(*name)
+                && !indices.contains(&idx)
+            {
+                indices.push(idx);
+            }
+        }
+        indices.sort();
+        indices
+            .into_iter()
+            .map(|idx| b::member_computed(b::id("$$promises"), b::number(idx as f64)))
+            .collect()
+    }
+
+    /// Get blocker expressions without deduplication.
+    /// Each variable reference contributes its own blocker entry even if multiple
+    /// variables map to the same promise index. This matches the official Svelte
+    /// compiler's behavior for `run_after_blockers` arrays.
+    pub fn get_blockers_for_names_with_duplicates(&self, names: &[&str]) -> Vec<JsExpr> {
+        use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+        let map = self.blocker_map.borrow();
+        let mut indices: Vec<usize> = Vec::new();
+        for name in names {
             if let Some(&idx) = map.get(*name) {
-                // Don't deduplicate - each reference contributes its own blocker entry.
-                // This matches the official Svelte compiler which does not deduplicate
-                // blocker entries in run_after_blockers arrays.
                 indices.push(idx);
             }
         }
