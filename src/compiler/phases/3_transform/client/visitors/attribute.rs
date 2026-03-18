@@ -375,7 +375,7 @@ pub fn build_event_handler(
         let remove_parens = expression_is_removable_call(&expr_tag.expression);
 
         let mut apply_args = vec![
-            b::arrow(vec![], js_expr),
+            b::thunk(js_expr),
             b::this(),
             b::id("$$args"),
             b::id(&context.state.analysis.name),
