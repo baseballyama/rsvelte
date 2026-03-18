@@ -131,9 +131,9 @@ pub fn validate_element(
                     validate_slot_attribute(context, attr)?;
                 }
 
-                // Warn about 'is' attribute (would be a warning in full implementation)
+                // Warn about 'is' attribute
                 if attr.name == "is" {
-                    // w.attribute_avoid_is(attribute);
+                    context.emit_warning(warnings::attribute_avoid_is());
                 }
 
                 // Check for React-style attributes

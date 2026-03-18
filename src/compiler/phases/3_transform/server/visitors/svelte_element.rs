@@ -1,7 +1,7 @@
 //! Server-side svelte:element (dynamic element) visitor.
 
 use super::super::ServerCodeGenerator;
-use super::super::helpers::{needs_clsx, quote_prop_name};
+use super::super::helpers::{needs_clsx, prop_string};
 use super::super::types::OutputPart;
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SvelteDynamicElement};
 use crate::compiler::phases::phase3_transform::TransformError;
@@ -312,8 +312,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 Attribute::Attribute(node) => {
                     let name = node.name.as_str();
                     let value = self.extract_attribute_value_as_string(node)?;
-                    let quoted_name = quote_prop_name(name);
-                    object_parts.push(format!("{}: {}", quoted_name, value));
+                    object_parts.push(prop_string(name, &value));
                 }
                 Attribute::BindDirective(bind) => {
                     let name = bind.name.as_str();
@@ -321,8 +320,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     let expr_end = bind.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
-                        let quoted_name = quote_prop_name(name);
-                        object_parts.push(format!("{}: {}", quoted_name, expr));
+                        object_parts.push(prop_string(name, &expr));
                     }
                 }
                 _ => {}

@@ -1,7 +1,7 @@
 //! Server-side svelte:component and svelte:self visitor.
 
 use super::super::ServerCodeGenerator;
-use super::super::helpers::quote_prop_name;
+use super::super::helpers::prop_string;
 use super::super::types::{ComponentBinding, ComponentPropItem, OutputPart};
 use crate::ast::template::{Attribute, AttributeValue, SvelteComponentElement, SvelteElement};
 use crate::compiler::phases::phase3_transform::TransformError;
@@ -54,10 +54,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         continue;
                     }
                     let value = self.extract_attribute_value_as_string(node)?;
-                    push_component_prop(
-                        &mut props_and_spreads,
-                        format!("{}: {}", quote_prop_name(attr_name), value),
-                    );
+                    push_component_prop(&mut props_and_spreads, prop_string(attr_name, &value));
                 }
                 Attribute::SpreadAttribute(spread) => {
                     let expr_start = spread.expression.start().unwrap_or(0) as usize;
@@ -125,6 +122,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 css_props_is_html,
                 in_async_block: false,
                 attach_expressions: Vec::new(),
+                dev: self.dev,
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
@@ -137,6 +135,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 css_custom_props,
                 css_props_is_html,
                 seq_bindings_hoisted: false,
+                dev: self.dev,
             });
         }
 
@@ -168,10 +167,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         continue;
                     }
                     let value = self.extract_attribute_value_as_string(node)?;
-                    push_component_prop(
-                        &mut props_and_spreads,
-                        format!("{}: {}", quote_prop_name(attr_name), value),
-                    );
+                    push_component_prop(&mut props_and_spreads, prop_string(attr_name, &value));
                 }
                 Attribute::SpreadAttribute(spread) => {
                     let expr_start = spread.expression.start().unwrap_or(0) as usize;
@@ -238,6 +234,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 css_props_is_html,
                 in_async_block: false,
                 attach_expressions: Vec::new(),
+                dev: self.dev,
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
@@ -250,6 +247,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 css_custom_props,
                 css_props_is_html,
                 seq_bindings_hoisted: false,
+                dev: self.dev,
             });
         }
 

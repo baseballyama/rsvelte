@@ -1348,14 +1348,25 @@ impl ComponentAnalysis {
 
         // Compute filename hash for svelte:head hydration validation
         // This is always based on the filename (or "main.svelte" if not specified)
+        // Make filename relative to rootDir before hashing (matching Svelte's adjust() in state.js)
         let filename_hash_source = options
             .filename
             .as_ref()
             .filter(|f| *f != "(unknown)")
-            .map(|f| f.as_str())
-            .unwrap_or("main.svelte");
-        let filename_hash =
-            crate::compiler::phases::phase3_transform::css::generate_raw_hash(filename_hash_source);
+            .map(|f| {
+                let mut fname = f.replace('\\', "/");
+                if let Some(ref root_dir) = options.root_dir {
+                    let rd = root_dir.replace('\\', "/");
+                    if fname.starts_with(&rd) {
+                        fname = fname[rd.len()..].trim_start_matches('/').to_string();
+                    }
+                }
+                fname
+            })
+            .unwrap_or_else(|| "main.svelte".to_string());
+        let filename_hash = crate::compiler::phases::phase3_transform::css::generate_raw_hash(
+            &filename_hash_source,
+        );
 
         Self {
             root: ScopeRoot::new(),

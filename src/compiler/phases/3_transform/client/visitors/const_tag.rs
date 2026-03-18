@@ -80,8 +80,17 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
         // Create derived expression
         // In legacy mode: $.derived_safe_equal(() => expr)
         // In runes mode: $.derived(() => expr)
-        let derived_expr =
+        let mut derived_expr =
             create_derived(context, built_expr, node.metadata.expression.has_await());
+
+        // In dev mode, wrap with $.tag(expression, name)
+        // Reference: ConstTag.js lines 24-26
+        if context.state.options.dev {
+            derived_expr = b::call(
+                b::member(b::id("$"), "tag"),
+                vec![derived_expr, b::string(&id_name)],
+            );
+        }
 
         // Register a transform for this identifier so reads become $.get(id)
         context.state.transform.insert(
@@ -209,7 +218,7 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
         };
 
         // Create derived expression wrapping the block thunk
-        let derived_expr = if is_async {
+        let mut derived_expr = if is_async {
             // Wrap with save(): (await $.save($.async_derived(thunk)))()
             b::save(b::svelte_call("async_derived", vec![block_thunk]))
         } else if context.state.analysis.runes {
@@ -217,6 +226,15 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
         } else {
             b::svelte_call("derived_safe_equal", vec![block_thunk])
         };
+
+        // In dev mode, wrap with $.tag(expression, '[@const]')
+        // Reference: ConstTag.js lines 69-71
+        if context.state.options.dev {
+            derived_expr = b::call(
+                b::member(b::id("$"), "tag"),
+                vec![derived_expr, b::string("[@const]")],
+            );
+        }
 
         // Extract referenced variable names from init expression for blocker detection
         let init_refs = extract_refs_from_json_expr(&parsed.init_expr);
@@ -589,6 +607,16 @@ fn add_const_declaration(
             .state
             .consts
             .push(b::const_decl(id_name, expression));
+
+        // In dev mode, add an eager $.get(id) call after the const declaration.
+        // This ensures "Cannot access x before initialization" errors are hit immediately.
+        // Reference: ConstTag.js line 99
+        if context.state.options.dev {
+            context
+                .state
+                .consts
+                .push(b::stmt(b::svelte_call("get", vec![b::id(id_name)])));
+        }
     }
 }
 

@@ -77,14 +77,14 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
         html_args.push(if is_svg {
             b::boolean(true)
         } else {
-            b::boolean(false)
+            b::undefined()
         });
     }
     if is_mathml || ignore_hydration {
         html_args.push(if is_mathml {
             b::boolean(true)
         } else {
-            b::boolean(false)
+            b::undefined()
         });
     }
     if ignore_hydration {

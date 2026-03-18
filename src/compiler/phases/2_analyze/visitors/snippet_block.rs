@@ -9,6 +9,7 @@ use rustc_hash::FxHashSet;
 use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::snippets::validate_snippet;
+use super::shared::utils::validate_block_not_empty;
 use crate::ast::js::Expression;
 use crate::ast::template::{SnippetBlock, TemplateNode};
 use crate::compiler::phases::phase2_analyze::AnalysisError;
@@ -22,6 +23,12 @@ pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(
 
     // Validate and register the snippet
     validate_snippet(block, context)?;
+
+    // Validate block is not empty (warn if only whitespace)
+    // Reference: SnippetBlock.js L14 - validate_block_not_empty(node.body, context)
+    if let Some(warning) = validate_block_not_empty(Some(&block.body))? {
+        context.emit_warning(warning);
+    }
 
     // Note: snippet_shadowing_prop validation is done in component.rs since the path
     // is not properly maintained during visitor traversal.

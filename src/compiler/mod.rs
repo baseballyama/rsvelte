@@ -546,8 +546,22 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
     let runes_mode = options.runes.unwrap_or(analysis.runes);
 
     // Phase 3: Transform (pass AST to avoid re-parsing)
-    let transform_result =
+    let mut transform_result =
         phases::phase3_transform::transform_component(&analysis, &ast, source, &options)?;
+
+    // Emit options_deprecated_accessors warning when accessors option is used in runes mode.
+    // Reference: svelte/packages/svelte/src/compiler/validate-options.js line 52
+    if options.accessors && runes_mode {
+        transform_result.warnings.insert(
+            0,
+            phases::phase3_transform::TransformWarning {
+                code: "options_deprecated_accessors".to_string(),
+                message: "The `accessors` option has been deprecated. It will have no effect in runes mode\nhttps://svelte.dev/e/options_deprecated_accessors".to_string(),
+                start: None,
+                end: None,
+            },
+        );
+    }
 
     // Convert to CompileResult
     Ok(CompileResult {
@@ -585,9 +599,15 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
                     }
                     f
                 });
+                let url_suffix = format!("\nhttps://svelte.dev/e/{}", w.code);
+                let message_with_url = if w.message.contains(&url_suffix) {
+                    w.message
+                } else {
+                    format!("{}{}", w.message, url_suffix)
+                };
                 Warning {
                     code: w.code,
-                    message: w.message,
+                    message: message_with_url,
                     filename: warning_filename,
                     start: start_pos,
                     end: end_pos,
@@ -791,9 +811,15 @@ pub fn compile_module(
                 let frame = start_pos
                     .as_ref()
                     .map(|sp| generate_frame(source, sp, end_pos.as_ref()));
+                let url_suffix = format!("\nhttps://svelte.dev/e/{}", w.code);
+                let message_with_url = if w.message.contains(&url_suffix) {
+                    w.message.clone()
+                } else {
+                    format!("{}{}", w.message, url_suffix)
+                };
                 Warning {
                     code: w.code.clone(),
-                    message: w.message.clone(),
+                    message: message_with_url,
                     filename: options.filename.clone(),
                     start: start_pos,
                     end: end_pos,

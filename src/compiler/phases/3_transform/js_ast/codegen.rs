@@ -44,7 +44,9 @@ pub struct CodegenResult {
 pub fn generate(program: &JsProgram) -> Result<String, String> {
     let mut codegen = JsCodegen::new();
     codegen.emit_program(program);
-    Ok(codegen.output)
+    // Trim trailing newline to match esrap behavior (Svelte's codegen)
+    let output = codegen.output.trim_end_matches('\n').to_string();
+    Ok(output)
 }
 
 /// Generate JavaScript source code from a program AST, with source map data.
@@ -57,10 +59,10 @@ pub fn generate_with_sourcemap(program: &JsProgram, source: &str) -> Result<Code
     // Convert raw spans to source mappings
     let mappings = codegen.compute_mappings();
 
-    Ok(CodegenResult {
-        code: codegen.output,
-        mappings,
-    })
+    // Trim trailing newline to match esrap behavior (Svelte's codegen)
+    let code = codegen.output.trim_end_matches('\n').to_string();
+
+    Ok(CodegenResult { code, mappings })
 }
 
 /// Generate JavaScript source code for a single expression.
@@ -990,10 +992,12 @@ impl<'a> JsCodegen<'a> {
                 // Wrap in parentheses when the arrow body expression could be
                 // ambiguous without them:
                 // - Object literals: `() => ({})` vs `() => {}` (block)
-                // - Sequence expressions: `() => (a, b)` vs `() => a, b` (extra arg)
                 // - Assignments with `{` LHS: `() => ({a} = b)` vs `() => {a} = b` (block)
+                // NOTE: Sequence expressions are NOT wrapped here because
+                // emit_sequence_expression already adds its own parentheses.
+                // This matches esrap behavior where `() => (a, b)` has parens
+                // from the SequenceExpression handler, not from the arrow handler.
                 let needs_parens = matches!(expr.as_ref(), JsExpr::Object(_))
-                    || matches!(expr.as_ref(), JsExpr::Sequence(_))
                     || matches!(expr.as_ref(), JsExpr::Assignment(a)
                         if matches!(a.left.as_ref(), JsExpr::Raw(s) if s.starts_with('{')));
                 if needs_parens {
@@ -1489,11 +1493,12 @@ impl<'a> JsCodegen<'a> {
                         .any(|m| self.is_member_likely_multiline(m))
             }
             JsExpr::Array(arr) => {
-                arr.elements.len() > 3
-                    || arr.elements.iter().any(|e| {
-                        e.as_ref()
-                            .is_some_and(|ex| self.is_expr_likely_multiline(ex))
-                    })
+                // Arrays are multiline only if they contain complex sub-expressions.
+                // Simple arrays of numbers/literals/small sub-arrays should be inline.
+                arr.elements.iter().any(|e| {
+                    e.as_ref()
+                        .is_some_and(|ex| self.is_expr_likely_multiline(ex))
+                })
             }
             JsExpr::Call(call) => call
                 .arguments
@@ -1530,10 +1535,14 @@ impl<'a> JsCodegen<'a> {
 
         // Use heuristic to detect likely-multiline sequences without pre-rendering.
         // This avoids exponential blowup from pre-rendering deeply nested structures.
-        let likely_multiline = items.len() > 3
-            || items
-                .iter()
-                .any(|item| item.is_some_and(|expr| self.is_expr_likely_multiline(expr)));
+        // The heuristic: only skip pre-rendering when BOTH the item count is large
+        // AND items contain complex expressions (functions, block arrows, etc.).
+        // Simple arrays of literals/small sub-arrays should always be pre-rendered
+        // to check actual width, matching esrap behavior.
+        let has_complex_items = items
+            .iter()
+            .any(|item| item.is_some_and(|expr| self.is_expr_likely_multiline(expr)));
+        let likely_multiline = items.len() > 3 && has_complex_items;
 
         if likely_multiline {
             // Render directly in multiline mode without pre-rendering.

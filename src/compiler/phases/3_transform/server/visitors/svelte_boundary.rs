@@ -184,6 +184,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         name: "failed".to_string(),
                         params,
                         body: body_parts,
+                        dev: self.dev,
                     },
                 );
             }

@@ -223,6 +223,35 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             right,
             ..
         } => {
+            // In dev mode, transform equality operators to $.strict_equals / $.equals
+            // Reference: BinaryExpression.js in the official Svelte compiler
+            if context.state.options.dev
+                && (operator == "===" || operator == "!==" || operator == "==" || operator == "!=")
+            {
+                let left_expr = convert_js_node(left, context);
+                let right_expr = convert_js_node(right, context);
+
+                let is_strict = operator == "===" || operator == "!==";
+                let is_negated = operator == "!==" || operator == "!=";
+                let fn_name = if is_strict { "strict_equals" } else { "equals" };
+
+                let mut args = vec![left_expr, right_expr];
+                if is_negated {
+                    args.push(JsExpr::Literal(JsLiteral::Boolean(false)));
+                }
+
+                return JsExpr::Call(JsCallExpression {
+                    callee: Box::new(JsExpr::Member(JsMemberExpression {
+                        object: Box::new(JsExpr::Identifier("$".into())),
+                        property: JsMemberProperty::Identifier(fn_name.into()),
+                        computed: false,
+                        optional: false,
+                    })),
+                    arguments: args,
+                    optional: false,
+                });
+            }
+
             let op = match operator.as_str() {
                 "+" => JsBinaryOp::Add,
                 "-" => JsBinaryOp::Sub,
@@ -330,8 +359,48 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             JsExpr::Spread(Box::new(convert_js_node(argument, context)))
         }
 
-        JsNode::AwaitExpression { argument, .. } => {
-            JsExpr::Await(Box::new(convert_js_node(argument, context)))
+        JsNode::AwaitExpression {
+            start, argument, ..
+        } => {
+            let converted_arg = convert_js_node(argument, context);
+
+            // Check if this await is in the pickled_awaits set (needs $.save() wrapping)
+            if context.state.analysis.pickled_awaits.contains(start) {
+                // Pickled await: (await $.save(arg))()
+                JsExpr::Call(JsCallExpression {
+                    callee: Box::new(JsExpr::Await(Box::new(JsExpr::Call(JsCallExpression {
+                        callee: Box::new(JsExpr::Member(JsMemberExpression {
+                            object: Box::new(JsExpr::Identifier("$".into())),
+                            property: JsMemberProperty::Identifier("save".into()),
+                            computed: false,
+                            optional: false,
+                        })),
+                        arguments: vec![converted_arg],
+                        optional: false,
+                    })))),
+                    arguments: vec![],
+                    optional: false,
+                })
+            } else if context.state.options.dev {
+                // In dev mode, wrap with track_reactivity_loss for non-pickled awaits
+                // (await $.track_reactivity_loss(arg))()
+                JsExpr::Call(JsCallExpression {
+                    callee: Box::new(JsExpr::Await(Box::new(JsExpr::Call(JsCallExpression {
+                        callee: Box::new(JsExpr::Member(JsMemberExpression {
+                            object: Box::new(JsExpr::Identifier("$".into())),
+                            property: JsMemberProperty::Identifier("track_reactivity_loss".into()),
+                            computed: false,
+                            optional: false,
+                        })),
+                        arguments: vec![converted_arg],
+                        optional: false,
+                    })))),
+                    arguments: vec![],
+                    optional: false,
+                })
+            } else {
+                JsExpr::Await(Box::new(converted_arg))
+            }
         }
 
         JsNode::YieldExpression {
@@ -586,6 +655,24 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
             context.state.push_local_scope();
 
+            // Check if the body is an assignment expression for event handler detection.
+            // When inside an event attribute handler and the body IS an AssignmentExpression,
+            // set the arrow body level to skip coercive assignment transforms.
+            // Reference: AssignmentExpression.js lines 189-209
+            let body_is_assignment = match body.as_ref() {
+                JsNode::Raw(v) => {
+                    v.as_object()
+                        .and_then(|o| o.get("type"))
+                        .and_then(|t| t.as_str())
+                        == Some("AssignmentExpression")
+                }
+                _ => body.node_type() == Some("AssignmentExpression"),
+            };
+            let saved_arrow_level = context.state.event_handler_arrow_body_level;
+            if context.state.in_event_attribute_handler && body_is_assignment {
+                context.state.event_handler_arrow_body_level = 1;
+            }
+
             let conv_body = match body.as_ref() {
                 JsNode::BlockStatement { .. } => {
                     let body_value = body.to_value();
@@ -608,6 +695,8 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 }
                 _ => JsArrowBody::Expression(Box::new(convert_js_node(body, context))),
             };
+
+            context.state.event_handler_arrow_body_level = saved_arrow_level;
 
             context.state.pop_local_scope();
             context.state.transform = saved_transform;
@@ -1785,6 +1874,72 @@ fn convert_call_expression(
         return transform_rune_call(&rune, obj, context);
     }
 
+    // In dev mode, transform console.METHOD() calls to wrap args with $.log_if_contains_state()
+    // Reference: CallExpression.js lines 91-115 in the official Svelte compiler
+    if context.state.options.dev
+        && let Some(console_method) = get_console_method_name(obj)
+    {
+        const CONSOLE_METHODS: &[&str] = &[
+            "debug",
+            "dir",
+            "error",
+            "group",
+            "groupCollapsed",
+            "info",
+            "log",
+            "trace",
+            "warn",
+        ];
+        if CONSOLE_METHODS.contains(&console_method.as_str()) {
+            let raw_args = obj.get("arguments").and_then(|a| a.as_array());
+            // Check if any argument could contain reactive state (has_unknown)
+            // We use a heuristic: if any arg is not a simple literal, wrap it
+            let has_unknown_arg = raw_args
+                .map(|args| {
+                    args.iter().any(|arg| {
+                        let arg_type = arg
+                            .as_object()
+                            .and_then(|o| o.get("type"))
+                            .and_then(|t| t.as_str())
+                            .unwrap_or("");
+                        arg_type == "SpreadElement" || arg_type != "Literal"
+                    })
+                })
+                .unwrap_or(false);
+
+            if has_unknown_arg {
+                let callee = obj
+                    .get("callee")
+                    .map(|c| Box::new(convert_json_value(c, context)))
+                    .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".into())));
+
+                let mut log_args: Vec<JsExpr> =
+                    vec![JsExpr::Literal(JsLiteral::String(console_method.into()))];
+                if let Some(args) = raw_args {
+                    for arg in args {
+                        log_args.push(convert_json_value(arg, context));
+                    }
+                }
+
+                // console.METHOD(...$.log_if_contains_state('METHOD', args...))
+                return JsExpr::Call(JsCallExpression {
+                    callee,
+                    arguments: vec![JsExpr::Spread(Box::new(JsExpr::Call(JsCallExpression {
+                        callee: Box::new(JsExpr::Member(JsMemberExpression {
+                            object: Box::new(JsExpr::Identifier("$".into())),
+                            property: JsMemberProperty::Identifier("log_if_contains_state".into()),
+                            computed: false,
+                            optional: false,
+                        })),
+                        arguments: log_args,
+                        optional: false,
+                    })))],
+                    optional: false,
+                });
+            }
+        }
+    }
+
     let callee = obj
         .get("callee")
         .map(|c| Box::new(convert_json_value(c, context)))
@@ -1810,6 +1965,24 @@ fn convert_call_expression(
         arguments,
         optional,
     })
+}
+
+/// Extract console method name from a CallExpression JSON node.
+/// Returns Some("log") for `console.log(...)`, etc.
+fn get_console_method_name(obj: &serde_json::Map<String, Value>) -> Option<String> {
+    let callee = obj.get("callee")?.as_object()?;
+    if callee.get("type")?.as_str()? != "MemberExpression" {
+        return None;
+    }
+    let object = callee.get("object")?.as_object()?;
+    if object.get("type")?.as_str()? != "Identifier" || object.get("name")?.as_str()? != "console" {
+        return None;
+    }
+    let property = callee.get("property")?.as_object()?;
+    if property.get("type")?.as_str()? != "Identifier" {
+        return None;
+    }
+    Some(property.get("name")?.as_str()?.to_string())
 }
 
 /// List of all Svelte runes.
@@ -2360,6 +2533,47 @@ fn convert_binary_expression(
 ) -> JsExpr {
     let operator_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("+");
 
+    // In dev mode, transform equality operators:
+    // === / !== -> $.strict_equals()
+    // == / != -> $.equals()
+    // Reference: BinaryExpression.js in the official Svelte compiler
+    if context.state.options.dev
+        && (operator_str == "==="
+            || operator_str == "!=="
+            || operator_str == "=="
+            || operator_str == "!=")
+    {
+        let left = obj
+            .get("left")
+            .map(|l| convert_json_value(l, context))
+            .unwrap_or(JsExpr::Literal(JsLiteral::Null));
+
+        let right = obj
+            .get("right")
+            .map(|r| convert_json_value(r, context))
+            .unwrap_or(JsExpr::Literal(JsLiteral::Null));
+
+        let is_strict = operator_str == "===" || operator_str == "!==";
+        let is_negated = operator_str == "!==" || operator_str == "!=";
+        let fn_name = if is_strict { "strict_equals" } else { "equals" };
+
+        let mut args = vec![left, right];
+        if is_negated {
+            args.push(JsExpr::Literal(JsLiteral::Boolean(false)));
+        }
+
+        return JsExpr::Call(JsCallExpression {
+            callee: Box::new(JsExpr::Member(JsMemberExpression {
+                object: Box::new(JsExpr::Identifier("$".into())),
+                property: JsMemberProperty::Identifier(fn_name.into()),
+                computed: false,
+                optional: false,
+            })),
+            arguments: args,
+            optional: false,
+        });
+    }
+
     let operator = match operator_str {
         "+" => JsBinaryOp::Add,
         "-" => JsBinaryOp::Sub,
@@ -2715,10 +2929,24 @@ fn convert_arrow_function(
         if body_obj.get("type").and_then(|t| t.as_str()) == Some("BlockStatement") {
             JsArrowBody::Block(convert_block_statement(body_obj, context))
         } else {
-            JsArrowBody::Expression(Box::new(convert_json_value(
+            // When inside an event attribute handler and the body IS an
+            // AssignmentExpression, set the arrow body level to skip the
+            // coercive assignment transform for this direct body expression only.
+            // This matches Svelte's path-based check: path.at(-1) === 'ArrowFunctionExpression'
+            let body_is_assignment = matches!(
+                body_obj.get("type").and_then(|t| t.as_str()),
+                Some("AssignmentExpression")
+            );
+            let saved_level = context.state.event_handler_arrow_body_level;
+            if context.state.in_event_attribute_handler && body_is_assignment {
+                context.state.event_handler_arrow_body_level = 1;
+            }
+            let result = JsArrowBody::Expression(Box::new(convert_json_value(
                 &Value::Object(body_obj.clone()),
                 context,
-            )))
+            )));
+            context.state.event_handler_arrow_body_level = saved_level;
+            result
         }
     } else {
         JsArrowBody::Block(JsBlockStatement::new())
@@ -3982,6 +4210,16 @@ fn try_coercive_assignment_transform(
         return None;
     }
 
+    // Skip when this assignment IS the direct body expression of an event handler
+    // arrow function. This matches Svelte's path-based check:
+    // path.at(-1) === 'ArrowFunctionExpression' && path.at(-2) is RegularElement/SvelteElement.
+    // The event_handler_arrow_body_level flag is set to 1 only when the arrow body
+    // IS an AssignmentExpression and we're in an event attribute handler.
+    // Reference: AssignmentExpression.js lines 189-209
+    if context.state.event_handler_arrow_body_level > 0 {
+        return None;
+    }
+
     // Left side must be a MemberExpression
     let left_json = obj.get("left")?.as_object()?;
     let left_type = left_json.get("type")?.as_str()?;
@@ -4907,10 +5145,51 @@ fn convert_await_expression(
 ) -> JsExpr {
     let argument = obj
         .get("argument")
-        .map(|a| Box::new(convert_json_value(a, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+        .map(|a| convert_json_value(a, context))
+        .unwrap_or(JsExpr::Literal(JsLiteral::Null));
 
-    JsExpr::Await(argument)
+    // Check if this await is in the pickled_awaits set (needs $.save() wrapping)
+    let start = obj.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
+    if context.state.analysis.pickled_awaits.contains(&start) {
+        // Pickled await: wrap argument with $.save()
+        // save(argument) returns (await $.save(argument))()
+        return JsExpr::Call(JsCallExpression {
+            callee: Box::new(JsExpr::Await(Box::new(JsExpr::Call(JsCallExpression {
+                callee: Box::new(JsExpr::Member(JsMemberExpression {
+                    object: Box::new(JsExpr::Identifier("$".into())),
+                    property: JsMemberProperty::Identifier("save".into()),
+                    computed: false,
+                    optional: false,
+                })),
+                arguments: vec![argument],
+                optional: false,
+            })))),
+            arguments: vec![],
+            optional: false,
+        });
+    }
+
+    // In dev mode, wrap with track_reactivity_loss for non-pickled awaits
+    // Reference: AwaitExpression.js in the official Svelte compiler
+    if context.state.options.dev {
+        // (await $.track_reactivity_loss(argument))()
+        return JsExpr::Call(JsCallExpression {
+            callee: Box::new(JsExpr::Await(Box::new(JsExpr::Call(JsCallExpression {
+                callee: Box::new(JsExpr::Member(JsMemberExpression {
+                    object: Box::new(JsExpr::Identifier("$".into())),
+                    property: JsMemberProperty::Identifier("track_reactivity_loss".into()),
+                    computed: false,
+                    optional: false,
+                })),
+                arguments: vec![argument],
+                optional: false,
+            })))),
+            arguments: vec![],
+            optional: false,
+        });
+    }
+
+    JsExpr::Await(Box::new(argument))
 }
 
 /// Convert a YieldExpression node.

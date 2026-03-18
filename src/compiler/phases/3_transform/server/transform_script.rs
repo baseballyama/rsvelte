@@ -83,7 +83,7 @@ fn transform_script_content_inner(
     } else {
         script
     };
-    let script = transform_state_snapshot_server(&script);
+    let script = transform_state_snapshot_server(&script, true);
     let script = if !state_imported {
         transform_object_destructure_state(&script)
     } else {
@@ -799,7 +799,7 @@ fn find_matching_paren_for_state(s: &str) -> Option<usize> {
 }
 
 /// Transform $state.snapshot() in server script content.
-fn transform_state_snapshot_server(script: &str) -> String {
+fn transform_state_snapshot_server(script: &str, dev: bool) -> String {
     let prefix = "$state.snapshot(";
     let mut result = script.to_string();
     let mut search_from = 0;
@@ -819,12 +819,31 @@ fn transform_state_snapshot_server(script: &str) -> String {
                 result = format!("{}{}{}", &result[..abs_pos], content, &result[end..]);
                 search_from = abs_pos + content.len();
             } else {
-                result = format!(
-                    "{}$.snapshot({}",
-                    &result[..abs_pos],
-                    &result[after_prefix..]
-                );
-                search_from = abs_pos + "$.snapshot(".len();
+                // In dev mode, check if there's a svelte-ignore state_snapshot_uncloneable
+                // comment before this call. If so, add `true` as the second argument.
+                let has_ignore = dev
+                    && has_svelte_ignore_before(&result[..abs_pos], "state_snapshot_uncloneable");
+
+                if has_ignore {
+                    // Insert `, true` before the closing paren
+                    let call_end = after_prefix + content_end;
+                    let replacement = format!(
+                        "{}$.snapshot({}, true){}",
+                        &result[..abs_pos],
+                        content,
+                        &result[call_end + 1..]
+                    );
+                    let new_len = abs_pos + "$.snapshot(".len() + content.len() + ", true)".len();
+                    result = replacement;
+                    search_from = new_len;
+                } else {
+                    result = format!(
+                        "{}$.snapshot({}",
+                        &result[..abs_pos],
+                        &result[after_prefix..]
+                    );
+                    search_from = abs_pos + "$.snapshot(".len();
+                }
             }
         } else {
             search_from = abs_pos + prefix.len();
@@ -832,6 +851,32 @@ fn transform_state_snapshot_server(script: &str) -> String {
     }
 
     result
+}
+
+/// Check if there's a `svelte-ignore <code>` comment before a position in the source.
+/// Public alias for use in other modules.
+pub(crate) fn has_svelte_ignore_before_pub(before: &str, code: &str) -> bool {
+    has_svelte_ignore_before(before, code)
+}
+
+/// Check if there's a `svelte-ignore <code>` comment before a position in the source.
+fn has_svelte_ignore_before(before: &str, code: &str) -> bool {
+    // Look for the pattern in the lines above
+    let lines: Vec<&str> = before.lines().collect();
+    for line in lines.iter().rev().take(3) {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if trimmed.contains("svelte-ignore") && trimmed.contains(code) {
+            return true;
+        }
+        // Stop at the first non-empty, non-comment line
+        if !trimmed.starts_with("//") && !trimmed.starts_with("/*") {
+            break;
+        }
+    }
+    false
 }
 
 /// Simple rune call transformation for template expressions.
@@ -1297,11 +1342,37 @@ fn add_statement_semicolon(line: &str) -> String {
         return line.to_string();
     }
 
-    // Variable declarations ending with `)` or `]` need semicolons
-    if (trimmed.starts_with("const ") || trimmed.starts_with("let ") || trimmed.starts_with("var "))
-        && (trimmed.ends_with(')') || trimmed.ends_with(']'))
-    {
-        return format!("{};", line);
+    // Variable declarations need semicolons when they are complete statements.
+    // The server transform copies script content as raw text (after rune transformations),
+    // but the original source may lack semicolons. We need to add them to prevent ASI
+    // from "consuming" subsequent empty statements (e.g., `;;` from $inspect() removal).
+    if trimmed.starts_with("const ") || trimmed.starts_with("let ") || trimmed.starts_with("var ") {
+        // Check if the line ends with something that suggests a complete statement.
+        // Don't add semicolons to lines that end with continuation characters.
+        let last_char = trimmed.chars().last().unwrap_or(' ');
+        let is_continuation = matches!(
+            last_char,
+            '(' | '['
+                | '{'
+                | '+'
+                | '-'
+                | '*'
+                | '/'
+                | '?'
+                | ':'
+                | '='
+                | '&'
+                | '|'
+                | '>'
+                | '^'
+                | '~'
+                | '!'
+                | '%'
+                | ','
+        );
+        if !is_continuation {
+            return format!("{};", line);
+        }
     }
 
     line.to_string()
@@ -2017,7 +2088,8 @@ fn find_matching_paren_server(s: &str) -> Option<usize> {
 /// Remove $effect, $effect.pre, $effect.root, $inspect, and $inspect.trace blocks from script.
 /// When `use_async` is true, $effect/$effect.pre are replaced with `/* $$async_noop */`
 /// markers so the async body transform generates placeholder slots in the run array.
-pub(crate) fn remove_effect_blocks(script: &str, use_async: bool) -> String {
+/// When `dev` is true, $inspect() calls are transformed to console.log() instead of removed.
+pub(crate) fn remove_effect_blocks(script: &str, use_async: bool, dev: bool) -> String {
     // Check if `effect` is imported - if so, `$effect(` is a store subscription, not a rune
     let imported_names =
         crate::compiler::phases::phase2_analyze::types::extract_imported_names(script);
@@ -2044,7 +2116,144 @@ pub(crate) fn remove_effect_blocks(script: &str, use_async: bool) -> String {
     }
 
     for rune in inspect_runes {
-        result = remove_rune_statement(&result, rune);
+        if dev && rune == "$inspect(" {
+            // In dev mode, transform $inspect(args) to console.log('$inspect(', args, ')')
+            result = transform_inspect_to_console_log(&result);
+        } else {
+            result = remove_rune_statement(&result, rune);
+        }
+    }
+
+    result
+}
+
+/// Transform `$inspect(args)` calls to `console.log('$inspect(', args, ')')` in dev SSR mode.
+/// For `$inspect(args).with(fn)`, generates `(fn)('init', args)` (IIFE pattern).
+fn transform_inspect_to_console_log(script: &str) -> String {
+    let mut result = String::new();
+    let chars: Vec<char> = script.chars().collect();
+    let prefix = "$inspect(";
+    let prefix_chars: Vec<char> = prefix.chars().collect();
+    let prefix_len = prefix_chars.len();
+    let mut i = 0;
+
+    while i < chars.len() {
+        if i + prefix_len <= chars.len() {
+            let potential: String = chars[i..i + prefix_len].iter().collect();
+            if potential == prefix {
+                let is_statement = is_statement_start(&result);
+
+                if is_statement {
+                    // Extract arguments
+                    let start = i + prefix_len;
+                    let mut depth = 1;
+                    let mut end = start;
+                    let mut in_string = false;
+                    let mut string_char = ' ';
+
+                    while end < chars.len() && depth > 0 {
+                        let c = chars[end];
+                        if (c == '"' || c == '\'' || c == '`')
+                            && (end == 0 || chars[end - 1] != '\\')
+                        {
+                            if !in_string {
+                                in_string = true;
+                                string_char = c;
+                            } else if c == string_char {
+                                in_string = false;
+                            }
+                        }
+                        if !in_string {
+                            match c {
+                                '(' => depth += 1,
+                                ')' => depth -= 1,
+                                _ => {}
+                            }
+                        }
+                        if depth > 0 {
+                            end += 1;
+                        }
+                    }
+
+                    let args_str: String = chars[start..end].iter().collect();
+                    end += 1; // skip closing paren
+
+                    // Handle method chaining like $inspect(...).with(fn)
+                    let mut with_callback = None;
+                    if end + 5 <= chars.len() {
+                        let potential_with: String = chars[end..end + 5].iter().collect();
+                        if potential_with == ".with" {
+                            end += 5;
+                            while end < chars.len() && (chars[end] == ' ' || chars[end] == '\t') {
+                                end += 1;
+                            }
+                            if end < chars.len() && chars[end] == '(' {
+                                let with_start = end + 1;
+                                end += 1;
+                                let mut with_depth = 1;
+                                let mut with_in_string = false;
+                                let mut with_string_char = ' ';
+
+                                while end < chars.len() && with_depth > 0 {
+                                    let c = chars[end];
+                                    if (c == '"' || c == '\'' || c == '`')
+                                        && (end == 0 || chars[end - 1] != '\\')
+                                    {
+                                        if !with_in_string {
+                                            with_in_string = true;
+                                            with_string_char = c;
+                                        } else if c == with_string_char {
+                                            with_in_string = false;
+                                        }
+                                    }
+                                    if !with_in_string {
+                                        match c {
+                                            '(' => with_depth += 1,
+                                            ')' => with_depth -= 1,
+                                            _ => {}
+                                        }
+                                    }
+                                    if with_depth > 0 {
+                                        end += 1;
+                                    }
+                                }
+                                let cb: String = chars[with_start..end].iter().collect();
+                                with_callback = Some(cb);
+                                end += 1;
+                            }
+                        }
+                    }
+
+                    // Skip trailing semicolons and whitespace
+                    while end < chars.len() && (chars[end] == ';' || chars[end] == ' ') {
+                        end += 1;
+                    }
+                    if end < chars.len() && chars[end] == '\n' {
+                        end += 1;
+                    }
+
+                    if let Some(callback) = with_callback {
+                        // $inspect(args).with(fn) => (fn)('init', args)
+                        result.push_str(&format!(
+                            "({})('init', {});\n",
+                            callback.trim(),
+                            args_str.trim()
+                        ));
+                    } else {
+                        // $inspect(args) => console.log('$inspect(', args, ')')
+                        result.push_str(&format!(
+                            "console.log('$inspect(', {}, ')');\n",
+                            args_str.trim()
+                        ));
+                    }
+                    i = end;
+                    continue;
+                }
+            }
+        }
+
+        result.push(chars[i]);
+        i += 1;
     }
 
     result

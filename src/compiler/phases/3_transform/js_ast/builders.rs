@@ -806,16 +806,18 @@ pub fn thunk_block(statements: Vec<JsStatement>) -> JsExpr {
     arrow_block(vec![], statements)
 }
 
-/// Create an async thunk with `$.save()` wrapping.
+/// Create an async thunk.
 ///
-/// First applies `$.save()` wrapping to non-tail await expressions,
-/// then applies unthunk optimization: `async () => await x()` becomes `() => x()`.
+/// Wraps expression in `async () => expr` and applies unthunk optimization:
+/// `async () => await x()` becomes `() => x()` (when x has no nested awaits).
 ///
-/// Corresponds to Svelte's `thunk(expression, true)` combined with
-/// the `pickled_awaits` mechanism.
+/// Corresponds to Svelte's `thunk(expression, true)`.
+///
+/// Note: The `$.save()` or `$.track_reactivity_loss()` wrapping is applied
+/// at the expression level (in the AwaitExpression visitor / expression converter),
+/// NOT here. This matches the reference Svelte compiler behavior.
 pub fn async_thunk(expr: JsExpr) -> JsExpr {
-    let saved_expr = apply_save_wrapping(expr);
-    unthunk(async_arrow(vec![], saved_expr))
+    unthunk(async_arrow(vec![], expr))
 }
 
 /// Create a function expression.

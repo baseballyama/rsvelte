@@ -62,6 +62,11 @@ pub fn visit(tag: &mut ConstTag, context: &mut VisitorContext) -> Result<(), Ana
             // Visit the init expression if present
             if let Some(init) = declaration.get("init") {
                 walk_js_expression(init, context, &mut tag.metadata.expression)?;
+                // Detect pickled awaits in const tag init expressions.
+                super::await_block::collect_pickled_awaits(
+                    init,
+                    &mut context.analysis.pickled_awaits,
+                );
             }
         }
     }
@@ -71,6 +76,8 @@ pub fn visit(tag: &mut ConstTag, context: &mut VisitorContext) -> Result<(), Ana
         && let Some(right) = value.get("right")
     {
         walk_js_expression(right, context, &mut tag.metadata.expression)?;
+        // Detect pickled awaits in const tag expressions.
+        super::await_block::collect_pickled_awaits(right, &mut context.analysis.pickled_awaits);
     }
 
     context.in_const_tag = false;

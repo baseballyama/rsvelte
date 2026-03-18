@@ -43,6 +43,11 @@ pub fn visit(block: &mut KeyBlock, context: &mut VisitorContext) -> Result<(), A
     let value = block.expression.as_json();
     walk_js_expression(value, context, &mut block.metadata.expression)?;
 
+    // Detect pickled awaits in key block expressions.
+    // Template expressions are reactive contexts, so await expressions
+    // that aren't the last evaluated expression need $.save() wrapping.
+    super::await_block::collect_pickled_awaits(value, &mut context.analysis.pickled_awaits);
+
     // Clear is_direct_child_of_component since children of control flow blocks
     // are not direct children of a component
     let was_direct_child = context.is_direct_child_of_component;

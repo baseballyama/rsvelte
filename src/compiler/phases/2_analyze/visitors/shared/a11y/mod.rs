@@ -14,8 +14,9 @@ pub use constants::*;
 use crate::ast::template::{
     Attribute as AttributeNode, AttributeValue, Fragment, RegularElement, TemplateNode,
 };
+use indexmap::IndexSet;
 use regex::Regex;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use std::sync::LazyLock;
 
 // Regex patterns
@@ -44,7 +45,7 @@ use crate::compiler::phases::phase2_analyze::warnings as w;
 pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w::AnalysisWarning> {
     let mut warnings = Vec::new();
     let mut attribute_map: FxHashMap<String, &AttributeNode> = FxHashMap::default();
-    let mut handlers: FxHashSet<String> = FxHashSet::default();
+    let mut handlers: IndexSet<String> = IndexSet::new();
     let mut attributes: Vec<&AttributeNode> = Vec::new();
 
     let is_dynamic_element = false; // SvelteElement check would go here
@@ -972,7 +973,7 @@ fn warn_missing_attribute(
 ) {
     let name = context.unwrap_or(element_name);
     let article = if attributes.len() == 1 {
-        if REGEX_STARTS_WITH_VOWEL.is_match(attributes[0]) {
+        if attributes[0] == "href" || REGEX_STARTS_WITH_VOWEL.is_match(attributes[0]) {
             "an"
         } else {
             "a"

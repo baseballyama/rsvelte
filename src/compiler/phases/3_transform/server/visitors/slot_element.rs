@@ -4,6 +4,7 @@
 //! Corresponds to SlotElement.js in the official Svelte compiler.
 
 use super::super::ServerCodeGenerator;
+use super::super::helpers::prop_string;
 use super::super::types::OutputPart;
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SlotElement};
 use crate::compiler::phases::phase3_transform::TransformError;
@@ -45,7 +46,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     } else if attr_name != "slot" {
                         // Other attributes become props
                         let value_expr = self.build_attribute_value_expr(&a.value);
-                        extra_props.push(format!("{}: {}", attr_name, value_expr));
+                        extra_props.push(prop_string(attr_name, &value_expr));
                     }
                 }
                 Attribute::SpreadAttribute(spread) => {

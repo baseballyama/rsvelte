@@ -221,6 +221,9 @@ pub struct VisitorContext<'a> {
     /// Whether any event attributes (onclick, etc.) have been used.
     /// Used for mixed_event_handler_syntaxes validation.
     pub uses_event_attributes: bool,
+    /// Whether we're inside a template expression tag ({expression}).
+    /// Used to detect reactive context for pickled_awaits.
+    pub in_expression_tag: bool,
     /// Stack of ignored warning codes.
     /// Each entry is a set of warning codes that should be ignored at that nesting level.
     /// Corresponds to ignore_stack in Svelte's state.js.
@@ -353,6 +356,7 @@ impl<'a> VisitorContext<'a> {
             has_svelte_options: false,
             event_directive_node: None,
             uses_event_attributes: false,
+            in_expression_tag: false,
             ignore_stack: Vec::new(),
             element_ancestors: Vec::new(),
             block_depth_at_element: Vec::new(),

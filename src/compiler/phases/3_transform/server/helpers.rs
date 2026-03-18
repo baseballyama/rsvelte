@@ -641,6 +641,18 @@ pub(crate) fn quote_prop_name(name: &str) -> String {
     }
 }
 
+/// Build a property string with shorthand support.
+/// If key (after quoting) equals the value, emit just `key` (shorthand).
+/// Otherwise emit `key: value`.
+pub(crate) fn prop_string(key: &str, value: &str) -> String {
+    let quoted_key = quote_prop_name(key);
+    if quoted_key == value && is_valid_js_identifier(key) {
+        quoted_key
+    } else {
+        format!("{}: {}", quoted_key, value)
+    }
+}
+
 /// Extract slot name from a template node's attributes.
 ///
 /// If the node has a `slot="..."` attribute, returns that slot name.
@@ -1257,10 +1269,28 @@ fn collapse_multiline_destructuring(script: &str) -> String {
 }
 
 /// Transform script code to use proper destructuring for props spread pattern.
-pub(crate) fn transform_props_spread(script: &str) -> String {
+/// Transform props spread destructuring in script code.
+/// `extra_tabs` controls how many extra tabs to add:
+///   * 2 for inside $$renderer.component() wrapper (3 total from 1 base)
+///   * 0 for direct function body (1 total from 1 base)
+///
+/// `rename_slots` - if true, rename `$$slots` to `$$slots_` in destructuring
+/// (used when `$$slots` is already declared via `$.sanitize_slots`)
+pub(crate) fn transform_props_spread_ex(
+    script: &str,
+    extra_tabs: usize,
+    rename_slots: bool,
+) -> String {
     // First, collapse multi-line destructurings into single lines
     let script = collapse_multiline_destructuring(script);
     let mut result = String::new();
+    let mut in_template_literal = false;
+    let target_indent = "\t".repeat(1 + extra_tabs); // base 1 tab + extra
+    let slots_part = if rename_slots {
+        "$$slots: $$slots_"
+    } else {
+        "$$slots"
+    };
 
     for line in script.lines() {
         let trimmed = line.trim();
@@ -1272,19 +1302,19 @@ pub(crate) fn transform_props_spread(script: &str) -> String {
             && let Some(props_idx) = trimmed.find("= $$props")
         {
             let left = trimmed[..props_idx].trim();
-            let pattern = if let Some(stripped) = left.strip_prefix("let ") {
-                stripped.trim()
+            let (decl_keyword, pattern) = if let Some(stripped) = left.strip_prefix("let ") {
+                ("let", stripped.trim())
             } else if let Some(stripped) = left.strip_prefix("const ") {
-                stripped.trim()
+                ("const", stripped.trim())
             } else {
-                left
+                ("let", left)
             };
 
             // Case 1: Simple identifier (let props = $$props)
             if !pattern.starts_with('{') {
                 result.push_str(&format!(
-                    "\t\tlet {{ $$slots, $$events, ...{} }} = $$props;\n",
-                    pattern
+                    "{}{} {{ {}, $$events, ...{} }} = $$props;\n",
+                    target_indent, decl_keyword, slots_part, pattern
                 ));
                 continue;
             }
@@ -1298,21 +1328,15 @@ pub(crate) fn transform_props_spread(script: &str) -> String {
                     let rest_name = rest_part.trim_start_matches("...").trim();
                     let other_props = inner[..rest_idx].trim().trim_end_matches(',').trim();
 
-                    let decl_keyword = if trimmed.starts_with("const ") {
-                        "const"
-                    } else {
-                        "let"
-                    };
-
                     if other_props.is_empty() {
                         result.push_str(&format!(
-                            "\t\t{} {{ $$slots, $$events, ...{} }} = $$props;\n",
-                            decl_keyword, rest_name
+                            "{}{} {{ {}, $$events, ...{} }} = $$props;\n",
+                            target_indent, decl_keyword, slots_part, rest_name
                         ));
                     } else {
                         result.push_str(&format!(
-                            "\t\t{} {{ {}, $$slots, $$events, ...{} }} = $$props;\n",
-                            decl_keyword, other_props, rest_name
+                            "{}{} {{ {}, {}, $$events, ...{} }} = $$props;\n",
+                            target_indent, decl_keyword, other_props, slots_part, rest_name
                         ));
                     }
                     continue;
@@ -1320,16 +1344,24 @@ pub(crate) fn transform_props_spread(script: &str) -> String {
             }
 
             // Fallback: keep original line
-            result.push_str(&format!("\t\t{}\n", trimmed));
+            result.push_str(&format!("{}{}\n", target_indent, trimmed));
             continue;
         }
 
         if trimmed.is_empty() {
             result.push('\n');
+        } else if in_template_literal {
+            // Inside template literal - preserve content exactly
+            in_template_literal =
+                update_template_literal_state_for_indent(line, in_template_literal);
+            result.push_str(line);
+            result.push('\n');
         } else {
-            // Preserve relative indentation: detect leading tabs and add 1 extra tab
+            // Preserve relative indentation: detect leading tabs and add extra tabs
             let leading_tabs = line.chars().take_while(|c| *c == '\t').count();
-            let indent = "\t".repeat(leading_tabs + 1);
+            let indent = "\t".repeat(leading_tabs + extra_tabs);
+            in_template_literal =
+                update_template_literal_state_for_indent(line, in_template_literal);
             result.push_str(&format!("{}{}\n", indent, trimmed));
         }
     }
@@ -2506,4 +2538,55 @@ fn is_js_keyword_or_builtin(s: &str) -> bool {
             | "as"
             | "escape"
     )
+}
+
+/// Track whether we're inside a template literal by counting unescaped backticks on a line.
+///
+/// Used to avoid adding indentation to content inside template literals.
+pub fn update_template_literal_state_for_indent(line: &str, currently_in_template: bool) -> bool {
+    let mut in_template = currently_in_template;
+    let chars: Vec<char> = line.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if in_template {
+            if c == '\\' {
+                i += 2;
+                continue;
+            } else if c == '`' {
+                in_template = false;
+            } else if c == '$' && i + 1 < chars.len() && chars[i + 1] == '{' {
+                i += 2;
+                let mut brace_depth = 1;
+                while i < chars.len() && brace_depth > 0 {
+                    if chars[i] == '{' {
+                        brace_depth += 1;
+                    } else if chars[i] == '}' {
+                        brace_depth -= 1;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+        } else if c == '\'' || c == '"' {
+            let quote = c;
+            i += 1;
+            while i < chars.len() {
+                if chars[i] == '\\' {
+                    i += 2;
+                    continue;
+                }
+                if chars[i] == quote {
+                    break;
+                }
+                i += 1;
+            }
+        } else if c == '/' && i + 1 < chars.len() && chars[i + 1] == '/' {
+            break;
+        } else if c == '`' {
+            in_template = true;
+        }
+        i += 1;
+    }
+    in_template
 }

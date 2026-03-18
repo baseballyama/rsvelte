@@ -42,7 +42,7 @@ fn warning(code: &str, message: impl Into<String>) -> AnalysisWarning {
 pub fn legacy_component_creation() -> AnalysisWarning {
     warning(
         "legacy_component_creation",
-        "Creating a component with `new ComponentName({ target: ... })` is deprecated. Use `mount(ComponentName, { target: ... })` instead",
+        "Svelte 5 components are no longer classes. Instantiate them using `mount` or `hydrate` (imported from 'svelte') instead.\nhttps://svelte.dev/e/legacy_component_creation",
     )
 }
 
@@ -153,7 +153,7 @@ pub fn bidirectional_control_characters() -> AnalysisWarning {
 pub fn slot_element_deprecated() -> AnalysisWarning {
     warning(
         "slot_element_deprecated",
-        "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead",
+        "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
     )
 }
 
@@ -172,7 +172,7 @@ pub fn svelte_self_deprecated(name: &str, basename: &str) -> AnalysisWarning {
 pub fn svelte_component_deprecated() -> AnalysisWarning {
     warning(
         "svelte_component_deprecated",
-        "`<svelte:component>` is deprecated in runes mode — components are dynamic by default",
+        "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
     )
 }
 
@@ -714,6 +714,22 @@ pub fn block_empty() -> AnalysisWarning {
 
 // Additional warnings for validator tests
 
+/// The `accessors` option has been deprecated. It will have no effect in runes mode
+pub fn options_deprecated_accessors() -> AnalysisWarning {
+    warning(
+        "options_deprecated_accessors",
+        "The `accessors` option has been deprecated. It will have no effect in runes mode\nhttps://svelte.dev/e/options_deprecated_accessors",
+    )
+}
+
+/// The `immutable` option has been deprecated. It will have no effect in runes mode
+pub fn options_deprecated_immutable() -> AnalysisWarning {
+    warning(
+        "options_deprecated_immutable",
+        "The `immutable` option has been deprecated. It will have no effect in runes mode\nhttps://svelte.dev/e/options_deprecated_immutable",
+    )
+}
+
 /// The customElement option is used when generating a custom element
 pub fn options_missing_custom_element() -> AnalysisWarning {
     warning(
@@ -819,5 +835,21 @@ pub fn event_directive_deprecated(name: &str) -> AnalysisWarning {
             "Using `on:{}` to listen to the {} event is deprecated. Use the event attribute `on{}` instead\nhttps://svelte.dev/e/event_directive_deprecated",
             name, name, name
         ),
+    )
+}
+
+/// The `is` attribute is not supported on elements. Use `{...spread}` instead.
+pub fn attribute_avoid_is() -> AnalysisWarning {
+    warning(
+        "attribute_avoid_is",
+        "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is",
+    )
+}
+
+/// `this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte
+pub fn svelte_element_invalid_this() -> AnalysisWarning {
+    warning(
+        "svelte_element_invalid_this",
+        "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this",
     )
 }

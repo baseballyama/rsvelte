@@ -263,37 +263,32 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
 
     if context.analysis.runes && !is_declaration_node {
         let binding = &context.analysis.root.bindings[binding_idx];
-        let instance_scope = context.analysis.root.instance_scope_index;
 
-        // In the official Svelte compiler, function_depth uses absolute numbering:
-        //   module scope = 0, instance scope = 1, template scope = 2
-        // The check is: context.state.function_depth === binding.scope.function_depth
+        // The official Svelte compiler checks:
+        //   context.state.function_depth === binding.scope.function_depth
         //
-        // In our implementation, function_depth is relative to the current AST section:
-        //   - In module script: starts at 0
-        //   - In instance script: starts at 1
-        //   - In template: starts at 0 (but should be 2 in absolute terms)
-        //
-        // To match the official behavior, we compute absolute function depths:
+        // We now store function_depth on each Scope, matching the official compiler's
+        // approach where function_depth = parent.function_depth + (porous ? 0 : 1).
+        // Look up the binding's scope's function_depth from the scope tree.
+        let binding_scope_depth = context
+            .analysis
+            .root
+            .all_scopes
+            .get(binding.scope_index)
+            .map(|s| s.function_depth)
+            .unwrap_or(0);
+
+        // Compute absolute context function_depth:
+        // - In module/instance scripts: function_depth already matches the scope tree's depth
+        // - In template: template level is function_depth 2 (instance scope 1 + 1 for template)
         let absolute_context_depth = match context.ast_type {
-            super::AstType::Module => context.function_depth, // module base = 0
-            super::AstType::Instance => context.function_depth, // instance base = 1 (already correct)
-            super::AstType::Template => context.function_depth + 2, // template base = 2
+            super::AstType::Module => context.function_depth,
+            super::AstType::Instance => context.function_depth,
+            super::AstType::Template => context.function_depth + 2,
         };
 
-        // Binding's absolute function depth
-        let binding_absolute_depth = if binding.scope_index == 0 {
-            0 // module scope
-        } else if binding.scope_index == instance_scope {
-            1 // instance scope
-        } else {
-            // For other scopes, we can't easily determine the function depth.
-            // Skip the warning for non-top-level bindings.
-            usize::MAX
-        };
-
-        // Check if the absolute function depths match
-        if absolute_context_depth == binding_absolute_depth {
+        // Check if the function depths match
+        if absolute_context_depth == binding_scope_depth {
             // Check binding kind eligibility
             let is_eligible_kind = match binding.kind {
                 // State: warn if reassigned, or if the initial value is a primitive
@@ -321,7 +316,19 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
                 _ => false,
             };
 
-            if is_eligible_kind {
+            // For var-hoisted bindings, skip warning if the reference appears before
+            // the declaration in source order. The official Svelte compiler sets binding
+            // kinds during the analysis walk (not during scope building), so references
+            // before the declaration don't see the rune kind yet. We emulate this by
+            // checking source positions.
+            let ref_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
+            let is_before_declaration = binding.declaration_kind
+                == crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Var
+                && binding
+                    .declaration_start
+                    .is_some_and(|decl_start| ref_start < decl_start);
+
+            if is_eligible_kind && !is_before_declaration {
                 // Check this is a read, not a write
                 // parent.type !== 'AssignmentExpression' || parent.left !== node
                 // parent.type !== 'UpdateExpression'
@@ -343,7 +350,7 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
                     false
                 };
 
-                if !is_write {
+                if !is_write && !context.is_ignored("state_referenced_locally") {
                     // Determine the warning type: "closure" or "derived"
                     // Walk up the js_path to find if we're inside a $state() or $state.raw() call
                     let mut warning_type = "closure";
@@ -370,8 +377,11 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
                             }
 
                             // Check if this is a CallExpression and the next path element
-                            // is in its arguments
-                            if ancestor_type == Some("CallExpression") {
+                            // is in its arguments (not the direct argument itself).
+                            // The official Svelte checks: parent.arguments.includes(context.path[i + 1])
+                            // which means the reference must be nested inside an argument,
+                            // not BE the direct argument.
+                            if ancestor_type == Some("CallExpression") && i + 1 < path_len - 1 {
                                 // Check if the callee is $state or $state.raw
                                 if let Some(callee) = ancestor.get("callee") {
                                     let is_state_rune = callee.get("name").and_then(|n| n.as_str())

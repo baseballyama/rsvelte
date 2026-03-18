@@ -109,6 +109,14 @@ fn analyze_test_expression(
         // Walk the JS AST to detect expression features
         let json_value = test.as_json();
         walk_js_expression(json_value, context, metadata)?;
+
+        // Detect pickled awaits in template test expressions.
+        // Template expressions are reactive contexts, so await expressions
+        // that aren't the last evaluated expression need $.save() wrapping.
+        super::await_block::collect_pickled_awaits(
+            json_value,
+            &mut context.analysis.pickled_awaits,
+        );
     }
 
     Ok(())

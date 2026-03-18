@@ -219,6 +219,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 name: snippet.name,
                 params: snippet.params,
                 body: snippet.body_parts,
+                dev: self.dev,
             });
         }
 

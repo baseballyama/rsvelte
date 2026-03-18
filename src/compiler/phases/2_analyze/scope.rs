@@ -2,7 +2,7 @@
 //!
 //! Tracks variable bindings, declarations, and references across scopes.
 
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 
 /// The root scope container for a component.
@@ -35,6 +35,10 @@ pub struct ScopeRoot {
     /// Key: start position of the template node
     /// Value: scope index in all_scopes
     pub template_scope_map: FxHashMap<u32, usize>,
+    /// All declaration names from all scopes, used for unique name generation.
+    /// Mirrors the `conflicts` set in the official Svelte compiler's ScopeRoot.
+    /// Every `declare()` call adds the name here.
+    pub conflicts: FxHashSet<String>,
 }
 
 impl ScopeRoot {
@@ -48,6 +52,7 @@ impl ScopeRoot {
             function_scope_map: FxHashMap::default(),
             each_block_collection_infos: Vec::new(),
             template_scope_map: FxHashMap::default(),
+            conflicts: FxHashSet::default(),
         }
     }
 
@@ -126,6 +131,10 @@ pub struct Scope {
     pub references: Vec<Reference>,
     /// Child scopes
     pub children: Vec<usize>,
+    /// The function nesting depth of this scope.
+    /// Matches the official Svelte compiler's `scope.function_depth`.
+    /// Root/module scope = 0, instance scope = 1, functions inside instance = 2, etc.
+    pub function_depth: usize,
 }
 
 impl Scope {
@@ -136,6 +145,18 @@ impl Scope {
             declarations: FxHashMap::default(),
             references: Vec::new(),
             children: Vec::new(),
+            function_depth: 0,
+        }
+    }
+
+    /// Create a new scope with a specific function depth.
+    pub fn new_with_depth(parent: Option<usize>, function_depth: usize) -> Self {
+        Self {
+            parent,
+            declarations: FxHashMap::default(),
+            references: Vec::new(),
+            children: Vec::new(),
+            function_depth,
         }
     }
 

@@ -482,6 +482,30 @@ impl Parser<'_> {
                 })
             }
             ElementType::SvelteElement => {
+                // Check if the "this" attribute is a string value (not an expression)
+                // and emit svelte_element_invalid_this warning if so.
+                // Corresponds to element.js L288-289: if (!is_expression_attribute(definition)) { w.svelte_element_invalid_this(definition); }
+                for attr in &attributes {
+                    if let crate::ast::Attribute::Attribute(node) = attr
+                        && node.name.as_str() == "this"
+                    {
+                        let is_expression_attribute = match &node.value {
+                            AttributeValue::Expression(_) => true,
+                            AttributeValue::Sequence(parts) => {
+                                parts.len() == 1
+                                    && matches!(&parts[0], AttributeValuePart::ExpressionTag(_))
+                            }
+                            _ => false,
+                        };
+                        if !is_expression_attribute {
+                            self.parse_warnings.push(crate::ast::template::ParseWarning {
+                                code: "svelte_element_invalid_this".to_string(),
+                                message: "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this".to_string(),
+                            });
+                        }
+                    }
+                }
+
                 // Extract the "this" attribute to get the tag expression
                 let tag = self.extract_this_attribute(&attributes);
 

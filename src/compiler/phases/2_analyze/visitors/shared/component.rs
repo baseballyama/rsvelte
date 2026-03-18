@@ -190,7 +190,13 @@ pub fn visit_component(
             }
             Attribute::BindDirective(bind) => {
                 // Visit the bind expression
+                // Set in_bind_this flag to prevent false non_reactive_update warnings
+                let prev_in_bind_this = context.in_bind_this;
+                if bind.name == "this" {
+                    context.in_bind_this = true;
+                }
                 super::super::script::walk_expression(&bind.expression, context)?;
+                context.in_bind_this = prev_in_bind_this;
             }
             Attribute::OnDirective(on) => {
                 // Visit the event handler expression if present

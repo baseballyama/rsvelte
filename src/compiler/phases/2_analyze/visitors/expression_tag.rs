@@ -21,6 +21,12 @@ pub fn visit(tag: &ExpressionTag, context: &mut VisitorContext) -> Result<(), An
     // which set needs_context when appropriate
     super::script::walk_expression(&tag.expression, context)?;
 
+    // Detect pickled awaits in template expression tags.
+    // Template expression tags are reactive contexts, so await expressions
+    // that aren't the last evaluated expression need $.save() wrapping.
+    let json = tag.expression.as_json();
+    super::await_block::collect_pickled_awaits(json, &mut context.analysis.pickled_awaits);
+
     Ok(())
 }
 

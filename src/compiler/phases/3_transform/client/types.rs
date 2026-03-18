@@ -749,10 +749,14 @@ impl<'a> ComponentContext<'a> {
                     callback,
                 ],
             )));
+        } else if statements.len() == 1 {
+            self.state.init.push(statements.into_iter().next().unwrap());
         } else {
-            for stmt in statements {
-                self.state.init.push(stmt);
-            }
+            // Wrap multiple statements in a block, matching the official compiler:
+            // context.state.init.push(statements.length === 1 ? statements[0] : b.block(statements))
+            self.state
+                .init
+                .push(JsStatement::Block(JsBlockStatement { body: statements }));
         }
 
         TransformResult::None
@@ -1502,18 +1506,23 @@ impl<'a> ComponentContext<'a> {
                         }
 
                         // Extract and convert the handler expression
+                        let saved_in_event = self.state.in_event_attribute_handler;
+                        self.state.in_event_attribute_handler = true;
                         let handler = extract_event_handler(&event_attr.value, self);
+                        self.state.in_event_attribute_handler = saved_in_event;
 
                         // Build the $.event() call
                         // For special elements, events are never delegated and always go to init
                         let passive = is_passive_event(event_name);
                         // In dev mode, convert arrow function handlers to named functions
-                        let handler = if self.state.options.dev {
-                            let name = self.state.memoizer.generate_id(event_name);
-                            convert_arrow_to_named_function(handler, name.into())
-                        } else {
-                            handler
-                        };
+                        // Only generate a name if handler is actually an arrow function
+                        let handler =
+                            if self.state.options.dev && matches!(handler, JsExpr::Arrow(_)) {
+                                let name = self.state.memoizer.generate_id(event_name);
+                                convert_arrow_to_named_function(handler, name.into())
+                            } else {
+                                handler
+                            };
                         let event_call =
                             build_event(event_name, &self.state.node, handler, capture, passive);
                         self.state.init.push(b::stmt(event_call));
@@ -1739,6 +1748,19 @@ pub struct ComponentClientTransformState<'a> {
     /// Flag indicating if we're inside a bind directive expression.
     /// Used to skip coercive assignment transforms ($.assign_nullish, etc.) for bind setters.
     pub in_bind_directive: bool,
+
+    /// Flag indicating if we're inside an event attribute handler (e.g., onclick={() => ...}).
+    /// Used to track the event handler context so that the expression converter can skip
+    /// coercive assignment transforms for the direct body of event handler arrow functions.
+    /// Reference: AssignmentExpression.js lines 189-209 in the official Svelte compiler.
+    pub in_event_attribute_handler: bool,
+
+    /// Depth counter for tracking whether we're at the direct body level of an event
+    /// handler arrow function. Set to 1 when processing the body expression of an
+    /// event handler arrow, and 0 otherwise. Nested expressions reset this to 0.
+    /// When this is 1 AND in_event_attribute_handler is true, coercive assignment
+    /// transforms ($.assign) are skipped (matching Svelte's path-based check).
+    pub event_handler_arrow_body_level: u32,
 
     /// Flag indicating if the current EachBlock should be treated as "controlled".
     /// A controlled each block is one that is the only child of a static element.
@@ -1968,6 +1990,8 @@ impl<'a> ComponentClientTransformState<'a> {
             snippet_names: ImHashSet::new(),
             in_direct_assignment_lhs: false,
             in_bind_directive: false,
+            in_event_attribute_handler: false,
+            event_handler_arrow_body_level: 0,
             is_controlled_each: false,
             snippets: Vec::new(),
             template_nesting_level: 0,
@@ -2044,9 +2068,10 @@ impl<'a> ComponentClientTransformState<'a> {
         let map = self.blocker_map.borrow();
         let mut indices: Vec<usize> = Vec::new();
         for name in names {
-            if let Some(&idx) = map.get(*name)
-                && !indices.contains(&idx)
-            {
+            if let Some(&idx) = map.get(*name) {
+                // Don't deduplicate - each reference contributes its own blocker entry.
+                // This matches the official Svelte compiler which does not deduplicate
+                // blocker entries in run_after_blockers arrays.
                 indices.push(idx);
             }
         }
@@ -2442,21 +2467,13 @@ impl Memoizer {
     ///
     /// A new memoizer with scope declarations added to conflicts.
     pub fn with_scope_declarations(
-        scope: &crate::compiler::phases::phase2_analyze::scope::Scope,
+        _scope: &crate::compiler::phases::phase2_analyze::scope::Scope,
         scope_root: &crate::compiler::phases::phase2_analyze::scope::ScopeRoot,
     ) -> Self {
-        let mut conflicts = FxHashSet::default();
-
-        // Add all declarations from the scope to conflicts
-        for name in scope.declarations.keys() {
-            conflicts.insert(name.clone());
-        }
-
-        // Also add all binding names from the scope root
-        // This ensures we don't collide with any variable in the component
-        for binding in &scope_root.bindings {
-            conflicts.insert(binding.name.clone());
-        }
+        // Use the comprehensive conflicts set from ScopeRoot which contains
+        // all declaration names from all scopes (mirrors scope.root.conflicts
+        // in the official Svelte compiler).
+        let conflicts = scope_root.conflicts.clone();
 
         Self {
             counter: 0,

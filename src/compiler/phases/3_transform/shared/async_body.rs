@@ -254,10 +254,20 @@ pub fn enrich_blocker_map_with_transitive_deps(
 /// # Arguments
 /// * `script` - The already-transformed instance script text
 /// * `runner` - The runner expression (e.g., "$.run" for client, "$$renderer.run" for server)
+/// * `dev` - Whether dev mode is enabled (affects await wrapping with $.track_reactivity_loss)
 ///
 /// # Returns
 /// The transformed script with sync/async split, or None if no top-level await found.
 pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResult> {
+    transform_async_body_inner(script, runner, false)
+}
+
+/// Transform async body with dev mode support.
+pub fn transform_async_body_dev(script: &str, runner: &str, dev: bool) -> Option<AsyncBodyResult> {
+    transform_async_body_inner(script, runner, dev)
+}
+
+fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<AsyncBodyResult> {
     let trimmed = script.trim();
     if trimmed.is_empty() {
         return None;
@@ -624,7 +634,7 @@ pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResul
     let mut thunk_entries: Vec<(String, bool)> = Vec::new();
     for stmt in &async_stmts {
         let is_hole = matches!(stmt.kind, AsyncStmtKind::Hole(_));
-        let thunk = build_thunk(stmt);
+        let thunk = build_thunk(stmt, dev);
         thunk_entries.push((thunk, is_hole));
     }
 
@@ -728,7 +738,7 @@ struct AsyncStmt {
     has_await: bool,
 }
 
-fn build_thunk(stmt: &AsyncStmt) -> String {
+fn build_thunk(stmt: &AsyncStmt, dev: bool) -> String {
     match &stmt.kind {
         AsyncStmtKind::VarDecl(decl) => {
             if decl.hoist_only {
@@ -774,7 +784,16 @@ fn build_thunk(stmt: &AsyncStmt) -> String {
             }
         }
         AsyncStmtKind::ExprSimple(expr) => {
-            format!("() => {}", expr)
+            if dev {
+                // In dev mode, wrap with $.track_reactivity_loss to track reactivity loss
+                // Reference: AwaitExpression.js - non-pickled awaits in dev mode
+                format!(
+                    "async () => void (await $.track_reactivity_loss({}))()",
+                    expr
+                )
+            } else {
+                format!("() => {}", expr)
+            }
         }
         AsyncStmtKind::ExprAwait(expr) => {
             format!("async () => {}", expr)

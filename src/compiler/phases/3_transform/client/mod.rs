@@ -166,7 +166,7 @@ pub fn transform_client_module(
 
     // Transform the module source (rune replacements, class fields, etc.)
     let class_transformed = transform_class_fields_client(source);
-    let transformed = transform_module_script_runes(&class_transformed, analysis);
+    let transformed = transform_module_script_runes(&class_transformed, analysis, options.dev);
 
     // Transform destructured assignments where LHS contains state variables (client only).
     // e.g., `[a, b] = array;` where `a` and `b` are $state() variables becomes:
@@ -216,9 +216,10 @@ pub fn transform_client_module(
 pub(crate) fn transform_module_source_for_module(
     source: &str,
     analysis: &ComponentAnalysis,
+    dev: bool,
 ) -> String {
     let class_transformed = transform_class_fields_client(source);
-    transform_module_script_runes(&class_transformed, analysis)
+    transform_module_script_runes(&class_transformed, analysis, dev)
 }
 
 /// Extract imports from a string, returning (imports, rest).
@@ -354,9 +355,11 @@ fn transform_client_with_visitors(
     if options.experimental.r#async
         && let Some(ref transformed) = pre_transformed_script
     {
-        if let Some(async_result) =
-            super::shared::async_body::transform_async_body(transformed.trim(), "$.run")
-        {
+        if let Some(async_result) = super::shared::async_body::transform_async_body_dev(
+            transformed.trim(),
+            "$.run",
+            options.dev,
+        ) {
             let mut blocker_map = async_result.blocker_map.clone();
             super::shared::async_body::enrich_blocker_map_with_transitive_deps(
                 transformed,
@@ -740,6 +743,11 @@ fn transform_client_with_visitors(
             )),
             alternate: None,
         }));
+    } else if options.dev {
+        component_body.push(b::stmt(b::call(
+            b::member_path("$.check_target"),
+            vec![b::id("new.target")],
+        )));
     }
 
     // Add $.push at the start if injecting context
@@ -882,9 +890,11 @@ fn transform_client_with_visitors(
             // Apply async body transformation if experimental.async is enabled
             // This splits the instance script at the first top-level `await`
             if options.experimental.r#async {
-                if let Some(async_result) =
-                    super::shared::async_body::transform_async_body(trimmed, "$.run")
-                {
+                if let Some(async_result) = super::shared::async_body::transform_async_body_dev(
+                    trimmed,
+                    "$.run",
+                    options.dev,
+                ) {
                     let cleaned_output = strip_async_noop_placeholders(async_result.output.trim());
                     let normalized = normalize_js_with_oxc(cleaned_output.trim(), script_indent);
                     component_body.push(JsStatement::RawMapped {
@@ -907,14 +917,20 @@ fn transform_client_with_visitors(
                     }
                 }
             } else {
-                // Normalize raw JavaScript formatting using OXC to match
-                // the official Svelte compiler's esrap output (consistent spacing,
-                // semicolons, etc.)
-                let normalized = normalize_js_with_oxc(trimmed, script_indent);
-                component_body.push(JsStatement::RawMapped {
-                    code: normalized.into(),
-                    source_offset: script_source_offset,
-                });
+                // Strip async placeholder markers ($$async_hole from $inspect removal)
+                // even when not in async mode, converting them to `;;` (empty statements).
+                let cleaned = strip_async_noop_placeholders(trimmed);
+                let trimmed = cleaned.trim();
+                if !trimmed.is_empty() {
+                    // Normalize raw JavaScript formatting using OXC to match
+                    // the official Svelte compiler's esrap output (consistent spacing,
+                    // semicolons, etc.)
+                    let normalized = normalize_js_with_oxc(trimmed, script_indent);
+                    component_body.push(JsStatement::RawMapped {
+                        code: normalized.into(),
+                        source_offset: script_source_offset,
+                    });
+                }
             }
         }
     }
@@ -1184,6 +1200,8 @@ fn transform_client_with_visitors(
         }
 
         if !exports_members.is_empty() {
+            // $$exports comes AFTER instance body (user script code)
+            // This matches the official Svelte compiler ordering
             component_body.push(b::var_decl("$$exports", Some(b::object(exports_members))));
         }
     }
@@ -1216,10 +1234,16 @@ fn transform_client_with_visitors(
                 vec![b::id("$$props")],
             )),
         );
-        // Insert after $.push (position 0 is push when should_inject_context)
+        // Insert after $.push (and $.check_target if present)
         // In the official compiler, this is unshifted before push is unshifted,
         // so it ends up right after push
-        let insert_pos = if should_inject_context { 1 } else { 0 };
+        let mut insert_pos = 0;
+        if options.dev && options.compatibility.component_api != crate::compiler::ComponentApi::V4 {
+            insert_pos += 1; // skip $.check_target(new.target)
+        }
+        if should_inject_context {
+            insert_pos += 1; // skip $.push(...)
+        }
         component_body.insert(insert_pos, ownership_decl);
     }
 
@@ -1338,17 +1362,17 @@ fn transform_client_with_visitors(
         }));
     }
 
-    if options.experimental.r#async {
-        body.push(JsStatement::Import(JsImportDeclaration {
-            specifiers: vec![],
-            source: "svelte/internal/flags/async".into(),
-        }));
-    }
-
     if analysis.tracing {
         body.push(JsStatement::Import(JsImportDeclaration {
             specifiers: vec![],
             source: "svelte/internal/flags/tracing".into(),
+        }));
+    }
+
+    if options.experimental.r#async {
+        body.push(JsStatement::Import(JsImportDeclaration {
+            specifiers: vec![],
+            source: "svelte/internal/flags/async".into(),
         }));
     }
 
@@ -1386,7 +1410,14 @@ fn transform_client_with_visitors(
         let (module_imports, rest) = extract_imports(&raw);
         // Add module script imports first (from module.body in official compiler)
         for import_line in module_imports {
-            body.push(JsStatement::Raw(import_line.trim().into()));
+            let trimmed = import_line.trim();
+            // Ensure import statements end with semicolons, matching esrap behavior.
+            let with_semi = if !trimmed.ends_with(';') {
+                format!("{};", trimmed)
+            } else {
+                trimmed.to_string()
+            };
+            body.push(JsStatement::Raw(with_semi.into()));
         }
         let rest_trimmed = rest.trim();
         if rest_trimmed.is_empty() {
@@ -1412,7 +1443,16 @@ fn transform_client_with_visitors(
     if let Some(ref instance_content) = analysis.instance_script_content {
         let (script_imports, _) = extract_imports(&instance_content.raw);
         for import_line in script_imports {
-            body.push(JsStatement::Raw(import_line.trim().into()));
+            let trimmed = import_line.trim();
+            // Ensure import statements end with semicolons, matching esrap behavior.
+            // User code may omit semicolons (ASI), but the Svelte compiler's esrap
+            // printer always adds them.
+            let with_semi = if !trimmed.ends_with(';') {
+                format!("{};", trimmed)
+            } else {
+                trimmed.to_string()
+            };
+            body.push(JsStatement::Raw(with_semi.into()));
         }
     }
 
@@ -1430,7 +1470,7 @@ fn transform_client_with_visitors(
     // Then transform remaining rune calls ($state, $derived, etc.) in module-level script
     if let Some(non_imports) = module_script_non_imports {
         let class_transformed = transform_class_fields_client(&non_imports);
-        let transformed = transform_module_script_runes(&class_transformed, analysis);
+        let transformed = transform_module_script_runes(&class_transformed, analysis, options.dev);
         body.push(JsStatement::Raw(transformed.into()));
     }
 
@@ -1441,13 +1481,24 @@ fn transform_client_with_visitors(
     if analysis.css.has_css && analysis.inject_styles {
         let hash = b::string(analysis.css.hash.clone());
         // Render the actual scoped CSS code
+        // For custom elements, use minified CSS (matching official Svelte compiler behavior)
+        let is_custom_element = analysis.custom_element.is_some();
         let mut css_code = String::new();
-        if let Ok(css_output) = super::css::render_stylesheet(analysis, source, options) {
+        let css_render_result = if is_custom_element {
+            super::css::render_stylesheet_minified(analysis, source, options)
+        } else {
+            super::css::render_stylesheet(analysis, source, options)
+        };
+        if let Ok(css_output) = css_render_result {
             css_code = css_output.code;
             // In dev mode, embed the CSS source map as a data URI in the CSS code.
             // This matches the official Svelte compiler behavior (css/index.js):
             //   css.code += `\n/*# sourceMappingURL=${css.map.toUrl()} */`;
+            // IMPORTANT: Only for css="injected" mode, NOT for custom elements.
+            // Custom elements embed CSS in $$css.code without sourcemaps.
+            // Reference: css/index.js line 68: `if (dev && options.css === 'injected' && css.code)`
             if options.dev
+                && !is_custom_element
                 && !css_code.is_empty()
                 && let Some(mut css_map_json) = css_output.map
             {
@@ -1903,7 +1954,11 @@ fn extract_proxy_vars(script: &str) -> Vec<String> {
 ///
 /// The key distinction: if a module-level $state() variable is NOT reassigned (is_state_source
 /// returns false), it only gets $.proxy() wrapping (no $.state()), and reads don't need $.get().
-pub(crate) fn transform_module_script_runes(script: &str, analysis: &ComponentAnalysis) -> String {
+pub(crate) fn transform_module_script_runes(
+    script: &str,
+    analysis: &ComponentAnalysis,
+    dev: bool,
+) -> String {
     let mut result = script.to_string();
 
     // Strip TypeScript generic parameters from $state<...>() and $derived<...>() calls.
@@ -2174,7 +2229,14 @@ pub(crate) fn transform_module_script_runes(script: &str, analysis: &ComponentAn
     // In module scripts, declarations and assignments coexist, so we need to
     // process non-declaration lines separately.
     if !reactive_module_state_vars.is_empty() {
-        let empty_raw: Vec<String> = Vec::new();
+        // Collect derived vars (these should NOT get proxy flag in $.set())
+        // The official Svelte compiler skips the proxy flag for derived, raw_state,
+        // prop, bindable_prop, and store_sub bindings (AssignmentExpression.js L136-141).
+        let derived_vars: Vec<String> = module_state_vars_with_const
+            .iter()
+            .filter(|(_, _, is_state)| !is_state) // is_state=false means $derived
+            .map(|(name, _, _)| name.clone())
+            .collect();
 
         // Process line by line for assignment transforms
         let lines: Vec<&str> = result.lines().collect();
@@ -2195,7 +2257,7 @@ pub(crate) fn transform_module_script_runes(script: &str, analysis: &ComponentAn
                     &reactive_module_state_vars,
                     &module_non_reactive_vars,
                     &module_proxy_vars,
-                    &empty_raw,
+                    &derived_vars, // derived vars are treated like raw_state for proxy skipping
                     analysis.runes,
                     &[],
                 );
@@ -2216,6 +2278,25 @@ pub(crate) fn transform_module_script_runes(script: &str, analysis: &ComponentAn
     // Transform $effect.root(), $effect.pre(), $effect.tracking(), $effect()
     // These rune calls can appear in module scripts (e.g., inside class constructors)
     result = apply_effect_rune_transforms(result);
+
+    // In dev mode, transform === to $.strict_equals() and !== to !$.strict_equals()
+    // This matches the BinaryExpression visitor from the official Svelte compiler
+    if dev {
+        result = transform_strict_equals(&result);
+    }
+
+    // In dev mode, wrap console.METHOD() calls with $.log_if_contains_state
+    // to detect when state proxies are logged directly.
+    // Reference: CallExpression.js in the official Svelte compiler
+    if dev {
+        result = transform_console_calls_dev(&result);
+    }
+
+    // In dev mode, wrap $.state(), $.derived(), and $.proxy() declarations with $.tag()/$.tag_proxy()
+    // This tags signals with their variable names for better debugging with $inspect.trace()
+    if dev {
+        result = wrap_state_derived_with_tag(&result);
+    }
 
     result
 }
@@ -2650,6 +2731,24 @@ fn transform_instance_script_for_visitors(
         .map(|b| b.name.clone())
         .collect();
 
+    // Collect non-bindable prop vars (kind === 'prop', not 'bindable_prop').
+    // In runes mode, these should NOT have member mutations wrapped with the prop setter
+    // because the official compiler's mutate transform for non-bindable props returns
+    // the value as-is (no wrapping). Only bindable props get the prop(mutation, true) wrapping.
+    let non_bindable_prop_vars: Vec<String> = if analysis.runes {
+        analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|b| {
+                matches!(b.kind, BindingKind::Prop) && !matches!(b.kind, BindingKind::BindableProp)
+            })
+            .map(|b| b.name.clone())
+            .collect()
+    } else {
+        Vec::new()
+    };
+
     // Collect read-only props (props that are not sources and not exported with defaults)
     // These should be accessed directly via $$props.propName
     // Only applicable in runes mode - in legacy mode all props are sources
@@ -3053,7 +3152,11 @@ fn transform_instance_script_for_visitors(
         // doesn't get incorrectly double-wrapped as `callback()(value)`.
         // The is_assignment_target check in wrap_prop_source_reads correctly skips assignments.
         let transformed = if !prop_assignment_transform_vars.is_empty() {
-            wrap_prop_source_reads(&transformed, prop_assignment_transform_vars)
+            wrap_prop_source_reads(
+                &transformed,
+                prop_assignment_transform_vars,
+                &non_bindable_prop_vars,
+            )
         } else {
             transformed
         };
@@ -3062,7 +3165,11 @@ fn transform_instance_script_for_visitors(
         // This handles props declared with `export let` in legacy mode
         // Note: We use prop_assignment_transform_vars which excludes RestProp bindings
         // because rest_props use $.rest_props() which returns a plain object, not getter/setter
-        let transformed = transform_prop_assignments(&transformed, prop_assignment_transform_vars);
+        let transformed = transform_prop_assignments(
+            &transformed,
+            prop_assignment_transform_vars,
+            &non_bindable_prop_vars,
+        );
 
         // Filter out store_sub_vars that appear as function parameters in this statement.
         // Function parameters like `function bar($derived, $effect)` shadow the store
@@ -3163,6 +3270,15 @@ fn transform_instance_script_for_visitors(
         // Reference: validate_mutation() in shared/utils.js
         let transformed = if !prop_mutation_vars.is_empty() {
             wrap_prop_mutation_validation(&transformed, &prop_mutation_vars, &analysis.source)
+        } else {
+            transformed
+        };
+
+        // In dev mode, wrap console.METHOD() calls with $.log_if_contains_state
+        // to detect when state proxies are logged directly.
+        // Reference: CallExpression.js in the official Svelte compiler
+        let transformed = if dev {
+            transform_console_calls_dev(&transformed)
         } else {
             transformed
         };
@@ -3643,7 +3759,14 @@ fn transform_client_runes_with_skip_and_state(
                     non_reactive_vars,
                     proxy_vars,
                 ) {
-                    return apply_effect_rune_transforms(transformed);
+                    let mut transformed = apply_effect_rune_transforms(transformed);
+
+                    // In dev mode, wrap $.state() and $.derived() declarations with $.tag()
+                    if dev {
+                        transformed = wrap_state_derived_with_tag(&transformed);
+                    }
+
+                    return transformed;
                 }
             }
         }
@@ -4196,29 +4319,26 @@ fn transform_client_runes_with_skip_and_state(
 
                         // Build the trace argument thunk
                         let trace_thunk = if trace_arg.is_empty() {
-                            // No argument - extract function name from context for default label
-                            // Look for `function NAME(` pattern before the block
+                            // No argument - extract the label from context
+                            // Uses the same logic as the official compiler's get_function_label():
+                            // 1. Named function -> function name
+                            // 2. Call expression parent (e.g. $effect(() => ...)) -> "$effect(...)"
+                            // 3. Fallback -> "trace"
                             let before_block = &combined[..brace_idx];
-                            let default_label =
-                                extract_enclosing_function_name(before_block).unwrap_or("trace");
-                            // In dev mode, include source location (filename:line:column)
-                            // Find the location of the enclosing function in the original source
-                            let fn_name_for_loc = default_label;
-                            let trace_source_pos = {
-                                // Find the function declaration position in the source
-                                // Look for `function <name>` in the source
-                                let search_pattern = format!("function {}", fn_name_for_loc);
-                                if let Some(fn_pos) = analysis.source.find(&search_pattern) {
-                                    let before_pos = &analysis.source[..fn_pos];
-                                    let line = before_pos.matches('\n').count() + 1;
-                                    let last_nl =
-                                        before_pos.rfind('\n').map(|p| p + 1).unwrap_or(0);
-                                    let col = fn_pos - last_nl;
-                                    Some((line, col))
-                                } else {
-                                    None
-                                }
-                            };
+                            let default_label = extract_enclosing_function_name(before_block)
+                                .unwrap_or_else(|| {
+                                    // Check if the enclosing context is a call expression
+                                    // e.g., $effect(() => { ... }) or $.user_effect(() => { ... })
+                                    extract_trace_call_label(before_block, &analysis.source)
+                                        .unwrap_or("trace")
+                                });
+
+                            // Find source location of the enclosing function/arrow
+                            let trace_source_pos = find_trace_source_location(
+                                before_block,
+                                &analysis.source,
+                                default_label,
+                            );
                             if let Some((line, col)) = trace_source_pos {
                                 format!(
                                     "() => '{} ({}:{}:{})'",
@@ -4319,12 +4439,14 @@ fn transform_client_runes_with_skip_and_state(
                 let before = result[..pos].trim();
                 let after = result[pos + total_end..].trim();
 
-                // If the line is just the $inspect call, output a hole marker.
-                // In non-dev mode, $inspect becomes a null entry in the async
-                // thunk array (an array hole), matching the official compiler.
-                // Include the args content so the blocker_map can track references.
+                // If the line is just the $inspect call, output:
+                // - In async mode: a `/* $$async_hole:... */` marker that the async
+                //   body transform uses for position tracking
+                // - Otherwise: `;;` (two empty statements) matching the official compiler
                 if before.is_empty() && (after.is_empty() || after == ";") {
                     let args = &result[inspect_start..inspect_start + content_end];
+                    // Use $$INSPECT_EMPTY$$ marker that survives wrap_state_vars_in_expr
+                    // and later transforms, then gets converted to ;; before OXC processing
                     return format!("/* $$async_hole:{} */", args);
                 } else {
                     // Remove just the $inspect(...) part but keep other code on the line
@@ -4342,9 +4464,16 @@ fn transform_client_runes_with_skip_and_state(
             exported_names,
             analysis,
             read_only_props,
+            dev,
         )
     {
         return transformed;
+    }
+
+    // In dev mode, transform === to $.strict_equals() and !== to !$.strict_equals()
+    // This is the BinaryExpression visitor from the official Svelte compiler
+    if dev {
+        result = transform_strict_equals(&result);
     }
 
     // In dev mode, wrap $.state() and $.derived() declarations with $.tag() for debugging
@@ -4453,6 +4582,193 @@ fn wrap_state_derived_with_tag(input: &str) -> String {
         }
     }
 
+    // Handle any remaining `name = $.state(...)` patterns that weren't caught by
+    // the let/const/var scan. This catches comma-separated declarators like:
+    //   `let tmp = setup(), num = $.state($.proxy(tmp.num))`
+    // where `num` wasn't processed because it doesn't have its own let/const/var keyword.
+    for &(pattern, prefix_len, tag_fn) in patterns {
+        let mut search_from = 0;
+        loop {
+            let rest = &result[search_from..];
+            let Some(pat_pos) = rest.find(pattern) else {
+                break;
+            };
+            let abs_pat_pos = search_from + pat_pos;
+
+            // Already tagged?
+            let before = &result[..abs_pat_pos];
+            if before.ends_with("$.tag(") || before.ends_with("$.tag_proxy(") {
+                search_from = abs_pat_pos + pattern.len();
+                continue;
+            }
+
+            // Look backwards: expect `name = ` before the pattern
+            let before_trimmed = before.trim_end();
+            if !before_trimmed.ends_with('=') {
+                search_from = abs_pat_pos + pattern.len();
+                continue;
+            }
+            let before_eq = before_trimmed[..before_trimmed.len() - 1].trim_end();
+
+            // Extract the variable name going backwards
+            let name_end = before_eq.len();
+            let name_start = before_eq
+                .rfind(|c: char| !c.is_alphanumeric() && c != '_' && c != '$')
+                .map(|p| p + 1)
+                .unwrap_or(0);
+            let var_name = &before_eq[name_start..name_end];
+
+            if var_name.is_empty() {
+                search_from = abs_pat_pos + pattern.len();
+                continue;
+            }
+
+            // Skip `this.field` and `this.#field` patterns - handled by dedicated section below
+            let before_name_trimmed = before_eq[..name_start].trim_end();
+            if before_name_trimmed.ends_with("this.") || before_name_trimmed.ends_with("this.#") {
+                search_from = abs_pat_pos + pattern.len();
+                continue;
+            }
+
+            // Skip `#field` patterns (class field declarations) - handled by dedicated section below
+            if var_name.starts_with('#') {
+                search_from = abs_pat_pos + pattern.len();
+                continue;
+            }
+
+            // Also skip if the character before the extracted name is `#` (e.g., `#count = $.state()`)
+            // In that case, rfind stops at `#` so var_name is just `count`, but it's actually a private field
+            if name_start > 0 && before_eq.as_bytes().get(name_start - 1) == Some(&b'#') {
+                search_from = abs_pat_pos + pattern.len();
+                continue;
+            }
+
+            let inner_start = abs_pat_pos + prefix_len;
+            if let Some(close_paren) = find_matching_paren(&result[inner_start..]) {
+                let call_end = inner_start + close_paren + 1;
+                let call_expr = result[abs_pat_pos..call_end].to_string();
+                let tagged = format!("{}({}, '{}')", tag_fn, call_expr, var_name);
+                result = format!(
+                    "{}{}{}",
+                    &result[..abs_pat_pos],
+                    tagged,
+                    &result[call_end..]
+                );
+                search_from = abs_pat_pos + tagged.len();
+            } else {
+                search_from = abs_pat_pos + pattern.len();
+            }
+        }
+    }
+
+    // Handle class field declarations: `#field = $.state(...)` (not `this.#field`)
+    // Transform to `#field = $.tag($.state(...), 'ClassName.#field')` or similar
+    {
+        let mut search_from = 0;
+        loop {
+            let rest = &result[search_from..];
+            // Look for `#identifier` that's NOT preceded by `this.`
+            let Some(hash_pos) = rest.find('#') else {
+                break;
+            };
+            let abs_hash_pos = search_from + hash_pos;
+
+            // Check it's not preceded by `this.`
+            let before = &result[..abs_hash_pos];
+            if before.trim_end().ends_with("this.") || before.ends_with("$.") {
+                search_from = abs_hash_pos + 1;
+                continue;
+            }
+
+            // Extract field name after #
+            let after_hash = &result[abs_hash_pos + 1..];
+            let field_name: String = after_hash
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '$')
+                .collect();
+
+            if field_name.is_empty() {
+                search_from = abs_hash_pos + 1;
+                continue;
+            }
+
+            // Find ` = ` after field name
+            let after_name = &after_hash[field_name.len()..];
+            let trimmed = after_name.trim_start();
+            if !trimmed.starts_with('=') || trimmed.starts_with("==") {
+                search_from = abs_hash_pos + 1 + field_name.len();
+                continue;
+            }
+            let eq_offset = after_name.len() - trimmed.len();
+            let rhs_start = abs_hash_pos + 1 + field_name.len() + eq_offset + 1;
+            let rhs = result[rhs_start..].trim_start();
+            let rhs_trim_offset = result[rhs_start..].len() - rhs.len();
+            let rhs_abs_start = rhs_start + rhs_trim_offset;
+
+            let mut matched = false;
+            for &(pattern, prefix_len, tag_fn) in patterns {
+                if !rhs.starts_with(pattern) {
+                    continue;
+                }
+
+                // Already tagged?
+                let before_rhs = &result[..rhs_abs_start];
+                if before_rhs.ends_with("$.tag(") || before_rhs.ends_with("$.tag_proxy(") {
+                    break;
+                }
+
+                let inner_start = rhs_abs_start + prefix_len;
+                if let Some(close_paren) = find_matching_paren(&result[inner_start..]) {
+                    let call_end = inner_start + close_paren + 1;
+                    let call_expr = &result[rhs_abs_start..call_end];
+
+                    // Extract class name from context
+                    let before_text = &result[..abs_hash_pos];
+                    let class_name = extract_enclosing_class_name(before_text).unwrap_or("Unknown");
+
+                    // Determine if this was originally a private field or a public field
+                    // that was converted to private by the compiler.
+                    // For compiler-converted public fields: a public field `fieldname = $state()`
+                    // gets converted to `#fieldname = $.state()` with getter/setter pair.
+                    // For originally private fields: `#fieldname = $state()` stays as
+                    // `#fieldname = $.state()` WITHOUT compiler-generated getter/setter.
+                    //
+                    // We distinguish by checking if the class has a PUBLIC field with the
+                    // same name that was converted. A getter pattern like `get fieldname()`
+                    // with `$.get(this.#fieldname)` exists for BOTH cases (user-written
+                    // or compiler-generated), so we need another approach:
+                    // Check if the class body contains a SETTER `set fieldname(value)` with
+                    // `$.set(this.#fieldname, ...)` - this is only generated for converted public fields.
+                    let setter_sig = format!("set {}(", field_name);
+                    let setter_body = format!("$.set(this.#{})", field_name);
+                    // Also check for a simpler setter pattern
+                    let setter_body2 = format!("$.set(this.#{},", field_name);
+                    let was_originally_public = result.contains(&setter_sig)
+                        && (result.contains(&setter_body) || result.contains(&setter_body2));
+                    let label = if was_originally_public {
+                        format!("{}.{}", class_name, field_name)
+                    } else {
+                        format!("{}.#{}", class_name, field_name)
+                    };
+                    let tagged = format!("{}({}, '{}')", tag_fn, call_expr, label);
+                    result = format!(
+                        "{}{}{}",
+                        &result[..rhs_abs_start],
+                        tagged,
+                        &result[call_end..]
+                    );
+                    search_from = rhs_abs_start + tagged.len();
+                    matched = true;
+                }
+                break;
+            }
+
+            if !matched {
+                search_from = abs_hash_pos + 1 + field_name.len();
+            }
+        }
+    }
+
     // Also handle `this.#field = $.state(...)` or `this.field = $.state(...)` in class constructors
     // Transform to `this.#field = $.tag($.state(...), 'ClassName.#field')` or similar
     {
@@ -4512,7 +4828,22 @@ fn wrap_state_derived_with_tag(input: &str) -> String {
                     let class_name = extract_enclosing_class_name(before_text).unwrap_or("Unknown");
 
                     // Build tag label: ClassName.#field or ClassName.field
-                    let label = format!("{}.{}", class_name, field_name);
+                    // If the field starts with # but has a compiler-generated getter, it was
+                    // originally a public field converted to private by the compiler.
+                    let label = if let Some(base_name) = field_name.strip_prefix('#') {
+                        let compiler_getter_pattern = format!(
+                            "get {}() {{ return $.get(this.{}); }}",
+                            base_name, field_name
+                        );
+                        let was_originally_public = result.contains(&compiler_getter_pattern);
+                        if was_originally_public {
+                            format!("{}.{}", class_name, base_name)
+                        } else {
+                            format!("{}.{}", class_name, field_name)
+                        }
+                    } else {
+                        format!("{}.{}", class_name, field_name)
+                    };
                     let tagged = format!("{}({}, '{}')", tag_fn, call_expr, label);
                     result = format!(
                         "{}{}{}",
@@ -4547,6 +4878,308 @@ fn extract_enclosing_class_name(before: &str) -> Option<&str> {
         return None;
     }
     Some(&after_class[..name_end])
+}
+
+/// Transform `===` to `$.strict_equals()` and `!==` to `!$.strict_equals()` in dev mode.
+/// Only transforms outside of string literals and template literals.
+///
+/// Note: `==` and `!=` are handled by the AST-based expression converter, not here,
+/// because text-based operand extraction cannot reliably handle operator precedence
+/// for loose equality (e.g., `++i % 2 == 0` would incorrectly extract `2` as left operand).
+///
+/// Transforms:
+/// - `a === b` -> `$.strict_equals(a, b)`
+/// - `a !== b` -> `!$.strict_equals(a, b)`
+#[allow(dead_code)]
+fn transform_strict_equals(input: &str) -> String {
+    // Quick check: if no === or !== present, return as-is
+    if !input.contains("===") && !input.contains("!==") {
+        return input.to_string();
+    }
+
+    transform_equality_operators(input, true)
+}
+
+/// Transform a specific set of equality operators.
+/// If `strict` is true, transforms === and !==.
+/// If `strict` is false, transforms == and != (only standalone, not part of ===).
+#[allow(dead_code)]
+fn transform_equality_operators(input: &str, strict: bool) -> String {
+    let op_eq = if strict { "===" } else { "==" };
+    let op_neq = if strict { "!==" } else { "!=" };
+    let fn_name = if strict { "strict_equals" } else { "equals" };
+
+    if !input.contains(op_eq) && !input.contains(op_neq) {
+        return input.to_string();
+    }
+
+    let mut result = input.to_string();
+    let mut search_from = 0;
+    let op_len = op_eq.len();
+
+    loop {
+        let rest = &result[search_from..];
+
+        // Find the next equality or inequality operator
+        let eq_pos = rest.find(op_eq);
+        let neq_pos = rest.find(op_neq);
+
+        let (abs_pos, is_neq) = match (eq_pos, neq_pos) {
+            (Some(e), Some(n)) => {
+                if n < e {
+                    (search_from + n, true)
+                } else {
+                    (search_from + e, false)
+                }
+            }
+            (Some(e), None) => (search_from + e, false),
+            (None, Some(n)) => (search_from + n, true),
+            (None, None) => break,
+        };
+
+        // For loose operators (== / !=), skip if this is actually === or !==
+        if !strict {
+            let after_pos = abs_pos + op_len;
+            if after_pos < result.len() && result.as_bytes()[after_pos] == b'=' {
+                search_from = abs_pos + op_len;
+                continue;
+            }
+            // Also skip != if it's part of !==
+            if is_neq {
+                let after_pos = abs_pos + op_len;
+                if after_pos < result.len() && result.as_bytes()[after_pos] == b'=' {
+                    search_from = abs_pos + op_len;
+                    continue;
+                }
+            }
+        }
+
+        // Skip if inside a string literal or comment (rough heuristic)
+        let before = &result[..abs_pos];
+        let single_quotes = before.matches('\'').count();
+        let double_quotes = before.matches('"').count();
+        let backtick_quotes = before.matches('`').count();
+        if !single_quotes.is_multiple_of(2)
+            || !double_quotes.is_multiple_of(2)
+            || !backtick_quotes.is_multiple_of(2)
+        {
+            search_from = abs_pos + op_len;
+            continue;
+        }
+
+        // Extract left operand: scan backwards from the operator
+        let left_end = abs_pos;
+        let left_str = result[..left_end].trim_end();
+        let (left_expr, left_start) = extract_operand_backward(left_str);
+
+        // Extract right operand: scan forward from after the operator
+        let right_start_raw = abs_pos + op_len;
+        let right_str = result[right_start_raw..].trim_start();
+        let right_offset = result[right_start_raw..].len() - right_str.len();
+        let right_abs_start = right_start_raw + right_offset;
+        let (right_expr, right_len) = extract_operand_forward(right_str);
+
+        if left_expr.is_empty() || right_expr.is_empty() {
+            search_from = abs_pos + op_len;
+            continue;
+        }
+
+        let right_abs_end = right_abs_start + right_len;
+
+        // Build replacement
+        let replacement = if is_neq {
+            format!("!$.{}({}, {})", fn_name, left_expr, right_expr)
+        } else {
+            format!("$.{}({}, {})", fn_name, left_expr, right_expr)
+        };
+
+        result = format!(
+            "{}{}{}",
+            &result[..left_start],
+            replacement,
+            &result[right_abs_end..]
+        );
+        search_from = left_start + replacement.len();
+    }
+
+    result
+}
+
+/// Extract an operand expression scanning backward from the end of a string.
+/// Returns (expression, start_position_in_original).
+#[allow(dead_code)]
+fn extract_operand_backward(s: &str) -> (String, usize) {
+    let trimmed = s.trim_end();
+    if trimmed.is_empty() {
+        return (String::new(), 0);
+    }
+
+    let last_char = trimmed.chars().last().unwrap();
+
+    // Handle parenthesized expressions: scan backward to find matching open paren
+    if last_char == ')' {
+        let mut depth = 0;
+        let mut start = trimmed.len();
+        for (i, c) in trimmed.char_indices().rev() {
+            match c {
+                ')' => depth += 1,
+                '(' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        start = i;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        // Include function name/method call before the paren
+        // Include `?` to handle optional chaining (`?.`)
+        let before_paren = &trimmed[..start];
+        let func_start = before_paren
+            .rfind(|c: char| {
+                !c.is_alphanumeric() && c != '_' && c != '$' && c != '.' && c != '#' && c != '?'
+            })
+            .map(|p| p + 1)
+            .unwrap_or(0);
+        let expr = trimmed[func_start..].to_string();
+        // Find where this starts in the original (untrimmed) string
+        let original_start = s.len() - trimmed.len() + func_start;
+        return (expr, original_start);
+    }
+
+    // Handle string/number/boolean literals and identifiers
+    // Find the start of the identifier/literal
+    // Include `?` to handle optional chaining (`?.`)
+    let expr_start = trimmed
+        .rfind(|c: char| {
+            !c.is_alphanumeric() && c != '_' && c != '$' && c != '.' && c != '#' && c != '?'
+        })
+        .map(|p| p + 1)
+        .unwrap_or(0);
+
+    let expr = trimmed[expr_start..].to_string();
+    let original_start = s.len() - trimmed.len() + expr_start;
+    (expr, original_start)
+}
+
+/// Extract an operand expression scanning forward from the beginning of a string.
+/// Returns (expression, length_consumed_from_input).
+#[allow(dead_code)]
+fn extract_operand_forward(s: &str) -> (String, usize) {
+    if s.is_empty() {
+        return (String::new(), 0);
+    }
+
+    let first_char = s.chars().next().unwrap();
+
+    // Handle parenthesized expressions
+    if first_char == '(' {
+        let mut depth = 0;
+        let mut end = 0;
+        for (i, c) in s.char_indices() {
+            match c {
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = i + 1;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        return (s[..end].to_string(), end);
+    }
+
+    // Handle negation/not: !expr
+    if first_char == '!' {
+        let inner = &s[1..].trim_start();
+        let offset = s.len() - 1 - inner.len() + 1;
+        let (inner_expr, inner_len) = extract_operand_forward(inner);
+        let total_len = offset + inner_len;
+        return (format!("!{}", inner_expr), total_len);
+    }
+
+    // Handle string literals
+    if (first_char == '\'' || first_char == '"')
+        && let Some(end) = s[1..].find(first_char)
+    {
+        let total = end + 2;
+        return (s[..total].to_string(), total);
+    }
+
+    // Handle template literals
+    if first_char == '`' {
+        // Find matching backtick (simplified - doesn't handle nested ${})
+        if let Some(end) = s[1..].find('`') {
+            let total = end + 2;
+            return (s[..total].to_string(), total);
+        }
+    }
+
+    // Identifier, number, or member expression (foo.bar, foo?.bar)
+    let mut end = 0;
+    let mut chars = s.char_indices().peekable();
+    while let Some(&(i, c)) = chars.peek() {
+        if c.is_alphanumeric() || c == '_' || c == '$' || c == '.' || c == '#' {
+            end = i + c.len_utf8();
+            chars.next();
+        } else if c == '?' {
+            // Optional chaining ?.
+            chars.next();
+            if let Some(&(_, '.')) = chars.peek() {
+                end = i + 2;
+                chars.next();
+            } else {
+                break;
+            }
+        } else if c == '(' {
+            // Function call - include parenthesized argument
+            let mut depth = 0;
+            for (j, c2) in s[i..].char_indices() {
+                match c2 {
+                    '(' => depth += 1,
+                    ')' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            end = i + j + 1;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            break;
+        } else if c == '[' {
+            // Array access
+            let mut depth = 0;
+            for (j, c2) in s[i..].char_indices() {
+                match c2 {
+                    '[' => depth += 1,
+                    ']' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            end = i + j + 1;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            // After bracket, check for further chaining
+            let remaining = &s[end..];
+            if remaining.starts_with('.') || remaining.starts_with("?.") {
+                continue;
+            }
+            break;
+        } else {
+            break;
+        }
+    }
+
+    (s[..end].to_string(), end)
 }
 
 /// Apply $effect-related rune transforms to a string.
@@ -5959,7 +6592,7 @@ fn transform_reactive_statement(
         // a top-level assignment.
         if lhs.contains('?') || lhs_starts_with_keyword(lhs) {
             // Treat as non-assignment expression
-            let temp = transform_prop_assignments(body, prop_assignment_transform_vars);
+            let temp = transform_prop_assignments(body, prop_assignment_transform_vars, &[]);
             let temp = transform_prop_update_expressions(&temp, prop_assignment_transform_vars);
             let temp =
                 transform_state_update_expressions(&temp, state_vars, non_reactive_state_vars);
@@ -5990,7 +6623,7 @@ fn transform_reactive_statement(
             let temp =
                 transform_state_update_expressions(&temp, state_vars, non_reactive_state_vars);
             let temp = transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars);
-            let temp = transform_prop_assignments(&temp, prop_assignment_transform_vars);
+            let temp = transform_prop_assignments(&temp, prop_assignment_transform_vars, &[]);
             let temp = transform_state_member_mutations(&temp, state_vars, non_reactive_state_vars);
             let temp = transform_state_set_in_reactive(&temp, state_vars, non_reactive_state_vars);
             transformed_body =
@@ -6129,7 +6762,7 @@ fn transform_reactive_statement(
         // assignment-generated calls like `callback = value` → `callback(value)`.
         let temp = transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars);
         // Then transform prop compound assignments (e.g., `count += 1` → `count(count() + 1)`)
-        let temp = transform_prop_assignments(&temp, prop_assignment_transform_vars);
+        let temp = transform_prop_assignments(&temp, prop_assignment_transform_vars, &[]);
         // Transform state member-expression mutations (e.g., `object[key] = []`)
         // to `$.mutate(object, $.get(object)[key] = [])`. Must run before wrap_state_vars_in_expr
         // so identifiers are still in their original form.
@@ -8138,7 +8771,11 @@ fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> String {
 /// - `console.log(n)` becomes `console.log(n())` where `n` is a prop source
 /// - `let n = $.prop(...)` is NOT modified (declaration line)
 /// - `n = 5` is NOT modified (already handled by transform_prop_assignments)
-fn wrap_prop_source_reads(expr: &str, prop_vars: &[String]) -> String {
+fn wrap_prop_source_reads(
+    expr: &str,
+    prop_vars: &[String],
+    non_bindable_prop_vars: &[String],
+) -> String {
     // Skip lines that are prop declarations (contain $.prop() or $.rest_props())
     // These are generated by transform_props_destructuring and should not be modified
     if expr.contains("$.prop(") || expr.contains("$.prop_source(") || expr.contains("$.rest_props(")
@@ -8401,11 +9038,14 @@ fn wrap_prop_source_reads(expr: &str, prop_vars: &[String]) -> String {
 
                         // Check if this variable is the base of a member expression being
                         // assigned to, e.g., `foo[bar] = 1` or `foo.prop = value`.
-                        // In that case, skip the read transform here and let
+                        // In legacy mode, skip the read transform here and let
                         // transform_prop_assignments handle the full mutation wrapping
                         // (e.g., `foo(foo()[bar] = 1, true)`).
-                        let is_member_mutation =
-                            is_base_of_assigned_member(&chars, i, var_chars.len());
+                        // For non-bindable props in runes mode, the read transform IS needed
+                        // even on the LHS because member mutations are not wrapped.
+                        // For bindable props (not in non_bindable_prop_vars), keep the old behavior.
+                        let is_member_mutation = !non_bindable_prop_vars.contains(var)
+                            && is_base_of_assigned_member(&chars, i, var_chars.len());
 
                         if !preceded_by_dot
                             && !in_param_position
@@ -8734,7 +9374,7 @@ fn apply_prop_reads_in_prop_default_values(line: &str, prop_vars: &[String]) -> 
             let default_val = &after_prop[start_byte..end_byte];
             let _after_default = &after_prop[end_byte..];
 
-            let transformed_default = wrap_prop_source_reads(default_val, prop_vars);
+            let transformed_default = wrap_prop_source_reads(default_val, prop_vars, &[]);
             result.push_str("$.prop(");
             result.push_str(before_default);
             result.push_str(&transformed_default);
@@ -9648,6 +10288,7 @@ fn transform_props_destructuring(
     exported_names: &[String],
     analysis: &ComponentAnalysis,
     read_only_props: &[(String, String)],
+    dev: bool,
 ) -> Option<String> {
     let trimmed = line.trim();
 
@@ -9762,13 +10403,32 @@ fn transform_props_destructuring(
                 let inner = &raw_default_value[10..raw_default_value.len() - 1];
                 if inner.is_empty() {
                     // $bindable() with no args - no default value
-                    // Still need to generate $.prop() but without a default
+                    // Check if this binding is actually a prop source.
+                    // In runes mode without accessors (accessors is forced false in runes mode),
+                    // a $bindable() prop with no default value, no reassignment, and no mutation
+                    // is NOT a prop source and should NOT get a $.prop() declaration.
+                    // Reference: is_prop_source() in utils.js
+                    let is_source = if analysis.runes {
+                        // In runes mode, check binding properties
+                        let binding = analysis.root.bindings.iter().find(|b| b.name == local_name);
+                        if let Some(b) = binding {
+                            analysis.accessors || b.reassigned || b.initial.is_some() || b.mutated
+                        } else {
+                            // Binding not found - be conservative, emit it
+                            true
+                        }
+                    } else {
+                        // In legacy mode, all props are sources
+                        true
+                    };
                     seen.push(prop_name.to_string());
-                    let flags = calculate_prop_flags(local_name, analysis, false);
-                    declarators.push(format!(
-                        "{} = $.prop($$props, '{}', {})",
-                        local_name, prop_name, flags
-                    ));
+                    if is_source {
+                        let flags = calculate_prop_flags(local_name, analysis, false);
+                        declarators.push(format!(
+                            "{} = $.prop($$props, '{}', {})",
+                            local_name, prop_name, flags
+                        ));
+                    }
                     continue;
                 }
                 inner
@@ -9786,7 +10446,7 @@ fn transform_props_destructuring(
                     dv = transform_read_only_props(&dv, read_only_props);
                 }
                 if !prop_source_vars.is_empty() {
-                    dv = wrap_prop_source_reads(&dv, prop_source_vars);
+                    dv = wrap_prop_source_reads(&dv, prop_source_vars, &[]);
                 }
                 dv
             };
@@ -9806,7 +10466,11 @@ fn transform_props_destructuring(
                     || default_value.trim().starts_with('{')
                     || default_value.trim().starts_with("new "));
             let proxy_wrapped = if needs_proxy {
-                format!("$.proxy({})", default_value)
+                if dev {
+                    format!("$.tag_proxy($.proxy({}), '{}')", default_value, local_name)
+                } else {
+                    format!("$.proxy({})", default_value)
+                }
             } else {
                 default_value.to_string()
             };
@@ -9947,9 +10611,14 @@ fn is_valid_js_identifier(s: &str) -> bool {
 
 /// Wrap prop member expression mutations with `$$ownership_validator.mutation()`.
 ///
-/// After `transform_prop_assignments` has already converted:
+/// In legacy mode (after `transform_prop_assignments` has already converted):
 ///   `item.name = value` → `item(item().name = value, true)`
 /// This function detects that pattern and replaces it with:
+///   `$$ownership_validator.mutation('item', ['item', 'name'], item(item().name = value, true), line, col)`
+///
+/// In runes mode (where member mutation wrapping is skipped):
+///   `item().name = value` remains as-is from prop read transform
+/// This function detects `prop().member = value` and wraps it with:
 ///   `$$ownership_validator.mutation('item', ['item', 'name'], item().name = value, line, col)`
 ///
 /// Reference: validate_mutation() in shared/utils.js
@@ -9963,18 +10632,225 @@ fn wrap_prop_mutation_validation(
     let mut result = stmt.to_string();
 
     for (var_name, prop_alias) in prop_vars {
-        // Pattern: `prop(prop().member_chain = value, true)`
-        let wrapper_start = format!("{}({}().", var_name, var_name);
-        let mut search_from = 0;
+        // First, try the runes-mode pattern: `prop().member = value` (not wrapped in prop(..., true))
+        // This handles the case where transform_prop_assignments skips member mutation wrapping in runes mode.
+        let runes_prefix = format!("{}().", var_name);
+        let mut runes_search_from = 0;
 
-        while let Some(start_idx) = result[search_from..].find(&wrapper_start) {
-            let abs_start = search_from + start_idx;
+        while runes_search_from < result.len() {
+            let Some(prefix_rel) = result[runes_search_from..].find(&runes_prefix) else {
+                break;
+            };
+            let abs_start = runes_search_from + prefix_rel;
 
             // Check this is a standalone identifier (not part of a longer name)
             if abs_start > 0 {
                 let prev_char = result.as_bytes()[abs_start - 1] as char;
                 if prev_char.is_alphanumeric() || prev_char == '_' || prev_char == '$' {
-                    search_from = abs_start + wrapper_start.len();
+                    runes_search_from = abs_start + runes_prefix.len();
+                    continue;
+                }
+            }
+
+            // Check it's not already inside a prop(prop()...) wrapper
+            let before = &result[..abs_start];
+            if before.ends_with(&format!("{}(", var_name)) {
+                runes_search_from = abs_start + runes_prefix.len();
+                continue;
+            }
+            // Skip if already inside $$ownership_validator.mutation
+            if before.ends_with("mutation(")
+                || before.contains(&format!("$$ownership_validator.mutation('{}',", prop_alias))
+            {
+                runes_search_from = abs_start + runes_prefix.len();
+                continue;
+            }
+
+            // Find the assignment expression
+            let after_prefix = &result[abs_start + runes_prefix.len()..];
+
+            // Parse member chain to find assignment operator
+            let mut path_parts: Vec<String> = vec![format!("'{}'", prop_alias)];
+            let chars: Vec<char> = after_prefix.chars().collect();
+            let mut pos = 0;
+
+            // Read the first dot member identifier
+            let ident_start = pos;
+            while pos < chars.len()
+                && (chars[pos].is_alphanumeric() || chars[pos] == '_' || chars[pos] == '$')
+            {
+                pos += 1;
+            }
+            if pos > ident_start {
+                let ident: String = chars[ident_start..pos].iter().collect();
+                path_parts.push(format!("'{}'", ident));
+            }
+
+            // Read additional dot-members or bracket accesses
+            while pos < chars.len() && (chars[pos] == '.' || chars[pos] == '[') {
+                if chars[pos] == '.' {
+                    pos += 1;
+                    let ident_start = pos;
+                    while pos < chars.len()
+                        && (chars[pos].is_alphanumeric() || chars[pos] == '_' || chars[pos] == '$')
+                    {
+                        pos += 1;
+                    }
+                    if pos > ident_start {
+                        let ident: String = chars[ident_start..pos].iter().collect();
+                        path_parts.push(format!("'{}'", ident));
+                    }
+                } else {
+                    // bracket access
+                    pos += 1; // skip [
+                    let mut bracket_depth = 1;
+                    let bracket_start = pos;
+                    while pos < chars.len() && bracket_depth > 0 {
+                        match chars[pos] {
+                            '[' => bracket_depth += 1,
+                            ']' => bracket_depth -= 1,
+                            _ => {}
+                        }
+                        if bracket_depth > 0 {
+                            pos += 1;
+                        }
+                    }
+                    if bracket_depth == 0 {
+                        let bracket_expr: String = chars[bracket_start..pos].iter().collect();
+                        path_parts.push(bracket_expr);
+                        pos += 1; // skip ]
+                    }
+                }
+            }
+
+            if path_parts.len() < 2 {
+                runes_search_from = abs_start + runes_prefix.len();
+                continue;
+            }
+
+            // Check for assignment operator (=, +=, ++, etc.)
+            // Skip whitespace
+            while pos < chars.len() && chars[pos].is_whitespace() {
+                pos += 1;
+            }
+
+            // Check for = (but not ==, ===, =>) or ++ or --
+            let has_assignment = if pos < chars.len() {
+                if chars[pos] == '='
+                    && (pos + 1 >= chars.len() || (chars[pos + 1] != '=' && chars[pos + 1] != '>'))
+                {
+                    true
+                } else if pos + 1 < chars.len()
+                    && chars[pos + 1] == '='
+                    && (pos + 2 >= chars.len() || chars[pos + 2] != '=')
+                {
+                    // compound assignment +=, -=, etc. (but not !== etc.)
+                    matches!(chars[pos], '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^')
+                } else if pos + 1 < chars.len()
+                    && ((chars[pos] == '+' && chars[pos + 1] == '+')
+                        || (chars[pos] == '-' && chars[pos + 1] == '-'))
+                {
+                    true // ++ or --
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+
+            if !has_assignment {
+                runes_search_from = abs_start + runes_prefix.len();
+                continue;
+            }
+
+            // Find the end of the full expression/statement
+            // We need to find where this expression ends (at ; or end of line or , at depth 0)
+            let expr_start = abs_start;
+            let after_expr_start = &result[expr_start..];
+            let mut depth = 0i32;
+            let mut expr_end_pos = after_expr_start.len();
+            let mut in_str: Option<char> = None;
+            for (ci, c) in after_expr_start.char_indices() {
+                if let Some(quote) = in_str {
+                    if c == quote && (ci == 0 || after_expr_start.as_bytes()[ci - 1] != b'\\') {
+                        in_str = None;
+                    }
+                } else {
+                    match c {
+                        '\'' | '"' | '`' => in_str = Some(c),
+                        '(' | '[' | '{' => depth += 1,
+                        ')' | ']' | '}' => {
+                            if depth == 0 {
+                                expr_end_pos = ci;
+                                break;
+                            }
+                            depth -= 1;
+                        }
+                        ';' | '\n' if depth == 0 => {
+                            expr_end_pos = ci;
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            let full_expr = result[expr_start..expr_start + expr_end_pos]
+                .trim_end()
+                .to_string();
+
+            // Find source location
+            let (line_num, col_num) = find_prop_mutation_location(source, var_name);
+
+            // Build the path array
+            let path_array = format!("[{}]", path_parts.join(", "));
+
+            // Build the replacement
+            let mut replacement = format!(
+                "$$ownership_validator.mutation('{}', {}, {}",
+                prop_alias, path_array, full_expr,
+            );
+            if line_num > 0 {
+                replacement.push_str(&format!(", {}, {}", line_num, col_num));
+            }
+            replacement.push(')');
+            result = format!(
+                "{}{}{}",
+                &result[..expr_start],
+                replacement,
+                &result[expr_start + expr_end_pos..]
+            );
+            runes_search_from = expr_start + replacement.len();
+        }
+
+        // Pattern: `prop(prop().member_chain = value, true)` or `prop(prop()[expr] = value, true)`
+        // We search for `prop(prop()` followed by either `.` or `[`
+        let wrapper_prefix = format!("{}({}()", var_name, var_name);
+        let mut search_from = 0;
+
+        while search_from < result.len() {
+            let Some(prefix_rel) = result[search_from..].find(&wrapper_prefix) else {
+                break;
+            };
+            let abs_start = search_from + prefix_rel;
+            let after_prefix = abs_start + wrapper_prefix.len();
+            // Check that the next character is `.` or `[` (member access)
+            if after_prefix >= result.len() {
+                search_from = after_prefix;
+                continue;
+            }
+            let next_char = result.as_bytes()[after_prefix] as char;
+            if next_char != '.' && next_char != '[' {
+                search_from = after_prefix;
+                continue;
+            }
+            let wrapper_start_len = wrapper_prefix.len() + 1; // includes the `.` or `[`
+
+            // Check this is a standalone identifier (not part of a longer name)
+            if abs_start > 0 {
+                let prev_char = result.as_bytes()[abs_start - 1] as char;
+                if prev_char.is_alphanumeric() || prev_char == '_' || prev_char == '$' {
+                    search_from = abs_start + wrapper_start_len;
                     continue;
                 }
             }
@@ -10023,7 +10899,7 @@ fn wrap_prop_mutation_validation(
             }
 
             let Some(close_byte_pos) = close_pos else {
-                search_from = abs_start + wrapper_start.len();
+                search_from = abs_start + wrapper_start_len;
                 continue;
             };
 
@@ -10033,7 +10909,7 @@ fn wrap_prop_mutation_validation(
             // Check if it ends with `, true`
             let inner_trimmed = inner_content.trim_end();
             if !inner_trimmed.ends_with(", true") {
-                search_from = abs_start + wrapper_start.len();
+                search_from = abs_start + wrapper_start_len;
                 continue;
             }
 
@@ -10041,34 +10917,46 @@ fn wrap_prop_mutation_validation(
             let assignment_expr = inner_trimmed[..inner_trimmed.len() - ", true".len()].trim();
 
             // Parse the member chain from `prop().member_chain`
-            let prop_call = format!("{}().", var_name);
-            if !assignment_expr.starts_with(&prop_call) {
-                search_from = abs_start + wrapper_start.len();
-                continue;
-            }
+            // Parse the member chain from `prop().member_chain` or `prop()[expr]`
+            let prop_call_dot = format!("{}().", var_name);
+            let prop_call_bracket = format!("{}()[", var_name);
+            let (after_prop_call, starts_with_bracket) =
+                if assignment_expr.starts_with(&prop_call_dot) {
+                    (&assignment_expr[prop_call_dot.len()..], false)
+                } else if assignment_expr.starts_with(&prop_call_bracket) {
+                    (&assignment_expr[prop_call_bracket.len()..], true)
+                } else {
+                    search_from = abs_start + wrapper_start_len;
+                    continue;
+                };
 
-            let after_prop_call = &assignment_expr[prop_call.len()..];
-
-            // Parse member identifiers until we hit a non-member character
+            // Parse member identifiers/bracket accesses until we hit an assignment operator
             let mut path_parts: Vec<String> = vec![format!("'{}'", prop_alias)];
             let chars: Vec<char> = after_prop_call.chars().collect();
             let mut pos = 0;
 
-            // Read the first member
-            let ident_start = pos;
-            while pos < chars.len()
-                && (chars[pos].is_alphanumeric() || chars[pos] == '_' || chars[pos] == '$')
-            {
-                pos += 1;
-            }
-            if pos > ident_start {
-                let ident: String = chars[ident_start..pos].iter().collect();
-                path_parts.push(format!("'{}'", ident));
-            }
-
-            // Read additional dot-members
-            while pos < chars.len() && chars[pos] == '.' {
-                pos += 1;
+            if starts_with_bracket {
+                // Read bracket expression: find matching ]
+                let mut bracket_depth = 1;
+                let bracket_start = pos;
+                while pos < chars.len() && bracket_depth > 0 {
+                    match chars[pos] {
+                        '[' => bracket_depth += 1,
+                        ']' => bracket_depth -= 1,
+                        _ => {}
+                    }
+                    if bracket_depth > 0 {
+                        pos += 1;
+                    }
+                }
+                if bracket_depth == 0 {
+                    let bracket_expr: String = chars[bracket_start..pos].iter().collect();
+                    // Use the expression directly (not quoted) for computed access
+                    path_parts.push(bracket_expr);
+                    pos += 1; // skip ]
+                }
+            } else {
+                // Read the first dot member identifier
                 let ident_start = pos;
                 while pos < chars.len()
                     && (chars[pos].is_alphanumeric() || chars[pos] == '_' || chars[pos] == '$')
@@ -10081,8 +10969,45 @@ fn wrap_prop_mutation_validation(
                 }
             }
 
+            // Read additional dot-members or bracket accesses
+            while pos < chars.len() && (chars[pos] == '.' || chars[pos] == '[') {
+                if chars[pos] == '.' {
+                    pos += 1;
+                    let ident_start = pos;
+                    while pos < chars.len()
+                        && (chars[pos].is_alphanumeric() || chars[pos] == '_' || chars[pos] == '$')
+                    {
+                        pos += 1;
+                    }
+                    if pos > ident_start {
+                        let ident: String = chars[ident_start..pos].iter().collect();
+                        path_parts.push(format!("'{}'", ident));
+                    }
+                } else {
+                    // bracket access
+                    pos += 1; // skip [
+                    let mut bracket_depth = 1;
+                    let bracket_start = pos;
+                    while pos < chars.len() && bracket_depth > 0 {
+                        match chars[pos] {
+                            '[' => bracket_depth += 1,
+                            ']' => bracket_depth -= 1,
+                            _ => {}
+                        }
+                        if bracket_depth > 0 {
+                            pos += 1;
+                        }
+                    }
+                    if bracket_depth == 0 {
+                        let bracket_expr: String = chars[bracket_start..pos].iter().collect();
+                        path_parts.push(bracket_expr);
+                        pos += 1; // skip ]
+                    }
+                }
+            }
+
             if path_parts.len() < 2 {
-                search_from = abs_start + wrapper_start.len();
+                search_from = abs_start + wrapper_start_len;
                 continue;
             }
 
@@ -10092,18 +11017,19 @@ fn wrap_prop_mutation_validation(
             // Build the path array
             let path_array = format!("[{}]", path_parts.join(", "));
 
+            // The full original expression is the entire prop(prop().member = value, true) call
+            let end_pos = inner_start + close_byte_pos + 1; // +1 for closing paren
+            let full_original_expr = result[abs_start..end_pos].to_string();
+
             // Build the replacement
             let mut replacement = format!(
                 "$$ownership_validator.mutation('{}', {}, {}",
-                prop_alias, path_array, assignment_expr,
+                prop_alias, path_array, full_original_expr,
             );
             if line_num > 0 {
                 replacement.push_str(&format!(", {}, {}", line_num, col_num));
             }
             replacement.push(')');
-
-            // Replace: the original span is from abs_start to inner_start + close_byte_pos + 1
-            let end_pos = inner_start + close_byte_pos + 1; // +1 for closing paren
             result = format!(
                 "{}{}{}",
                 &result[..abs_start],
@@ -10118,10 +11044,11 @@ fn wrap_prop_mutation_validation(
 }
 
 /// Find the line/column in the original source for a prop mutation.
-/// Searches for the original assignment pattern like `item.name =` in the source.
+/// Searches for the original assignment pattern like `item.name =` or `item[expr] =` in the source.
 fn find_prop_mutation_location(source: &str, var_name: &str) -> (usize, usize) {
-    // Look for `var_name.` in the source (before text transforms added `()`)
-    let pattern = format!("{}.", var_name);
+    // Look for `var_name.` or `var_name[` in the source (before text transforms added `()`)
+    let pattern_dot = format!("{}.", var_name);
+    let pattern_bracket = format!("{}[", var_name);
     // Search for the pattern after the script tag
     let search_source = if let Some(script_idx) = source.find("<script") {
         &source[script_idx..]
@@ -10129,7 +11056,17 @@ fn find_prop_mutation_location(source: &str, var_name: &str) -> (usize, usize) {
         source
     };
 
-    if let Some(relative_offset) = search_source.find(&pattern) {
+    let relative_offset = match (
+        search_source.find(&pattern_dot),
+        search_source.find(&pattern_bracket),
+    ) {
+        (Some(d), Some(b)) => Some(d.min(b)),
+        (Some(d), None) => Some(d),
+        (None, Some(b)) => Some(b),
+        (None, None) => None,
+    };
+
+    if let Some(relative_offset) = relative_offset {
         let offset = if let Some(script_idx) = source.find("<script") {
             script_idx + relative_offset
         } else {
@@ -10153,6 +11090,218 @@ fn find_prop_mutation_location(source: &str, var_name: &str) -> (usize, usize) {
     } else {
         (0, 0)
     }
+}
+
+/// Transform console.METHOD() calls in dev mode to wrap arguments with
+/// `$.log_if_contains_state()` so the runtime can detect when state proxies
+/// are logged directly.
+///
+/// The transformation is:
+///   `console.log(x, y)` → `console.log(...$.log_if_contains_state("log", x, y))`
+///
+/// This is only applied when at least one argument could potentially reference
+/// reactive state (i.e., not all arguments are simple literals).
+///
+/// Console calls inside `$.inspect()` callbacks are excluded, as those are
+/// already handled by the inspect infrastructure.
+///
+/// Reference: CallExpression.js in the official Svelte compiler
+fn transform_console_calls_dev(stmt: &str) -> String {
+    const CONSOLE_METHODS: &[&str] = &[
+        "debug",
+        "dir",
+        "error",
+        "group",
+        "groupCollapsed",
+        "info",
+        "log",
+        "trace",
+        "warn",
+    ];
+
+    let mut result = stmt.to_string();
+
+    for method in CONSOLE_METHODS {
+        let pattern = format!("console.{}(", method);
+        // Process all occurrences of this console method
+        let mut search_from = 0;
+        while let Some(rel_pos) = result[search_from..].find(&pattern) {
+            let pos = search_from + rel_pos;
+
+            // Skip if inside a string literal
+            if is_inside_string_literal(&result, pos) {
+                search_from = pos + pattern.len();
+                continue;
+            }
+
+            // Skip wrapping for the default $inspect callback pattern:
+            //   console.log(...$$args) - this is the generated default inspector
+            // User-provided inspectors (e.g., .with((t, c) => console.log(t, c))) are wrapped.
+            let args_start_check = pos + pattern.len();
+            if let Some(args_end_check) = find_matching_paren(&result[args_start_check..]) {
+                let args_text = result[args_start_check..args_start_check + args_end_check].trim();
+                if args_text == "...$$args" {
+                    search_from = args_start_check + args_end_check + 1;
+                    continue;
+                }
+            }
+
+            let args_start = pos + pattern.len();
+            if let Some(args_end) = find_matching_paren(&result[args_start..]) {
+                let args_content = &result[args_start..args_start + args_end];
+
+                // Only wrap if arguments could contain reactive state.
+                // Skip if all arguments are simple literals (strings, numbers, booleans).
+                if !args_content.is_empty() && !all_args_are_literals(args_content) {
+                    // Transform: console.METHOD(args) → console.METHOD(...$.log_if_contains_state("METHOD", args))
+                    let new_call = format!(
+                        "console.{}(...$.log_if_contains_state(\"{}\", {}))",
+                        method, method, args_content
+                    );
+                    let call_end = args_start + args_end + 1; // +1 for closing paren
+                    result = format!("{}{}{}", &result[..pos], new_call, &result[call_end..]);
+                    search_from = pos + new_call.len();
+                } else {
+                    search_from = args_start + args_end + 1;
+                }
+            } else {
+                search_from = pos + pattern.len();
+            }
+        }
+    }
+
+    result
+}
+
+/// Check if a position in the code is inside a `$.inspect()` callback.
+///
+/// The `$.inspect()` call has the form:
+///   `$.inspect(() => [...], (...$$args) => console.log(...$$args), true)`
+///
+/// The second argument is the callback function. Console calls inside this
+/// callback should NOT be wrapped with `$.log_if_contains_state`.
+#[allow(dead_code)]
+fn is_inside_inspect_callback(code: &str, pos: usize) -> bool {
+    // Look backwards from pos for `$.inspect(` to see if we're inside it
+    let before = &code[..pos];
+
+    // Find the nearest unmatched `$.inspect(` before our position
+    let mut search_pos = 0;
+    while let Some(rel_idx) = before[search_pos..].find("$.inspect(") {
+        let inspect_pos = search_pos + rel_idx;
+        let args_start = inspect_pos + 10; // after "$.inspect("
+
+        // Check if our position is within the $.inspect(...) call
+        if let Some(args_end) = find_matching_paren(&code[args_start..]) {
+            let call_end = args_start + args_end;
+            if pos > args_start && pos < call_end {
+                return true;
+            }
+        }
+
+        search_pos = inspect_pos + 10;
+    }
+
+    false
+}
+
+/// Check if all arguments in a comma-separated argument list are simple literals.
+///
+/// Simple literals are: string literals, numeric literals, boolean literals,
+/// null, undefined.
+fn all_args_are_literals(args: &str) -> bool {
+    let trimmed = args.trim();
+    if trimmed.is_empty() {
+        return true;
+    }
+
+    // Split on top-level commas (not inside nested parens/brackets/strings)
+    let parts = split_top_level_args(trimmed);
+
+    for part in &parts {
+        let p = part.trim();
+        if p.is_empty() {
+            continue;
+        }
+        // Check if it's a spread element (always wrap)
+        if p.starts_with("...") {
+            return false;
+        }
+        // Check if it's a simple literal
+        if !is_simple_literal(p) {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Check if a string is a simple literal value.
+fn is_simple_literal(s: &str) -> bool {
+    let s = s.trim();
+
+    // Numeric literals (including negative)
+    if s.parse::<f64>().is_ok() {
+        return true;
+    }
+
+    // String literals
+    if (s.starts_with('"') && s.ends_with('"'))
+        || (s.starts_with('\'') && s.ends_with('\''))
+        || (s.starts_with('`') && s.ends_with('`'))
+    {
+        return true;
+    }
+
+    // Boolean and null/undefined literals
+    matches!(s, "true" | "false" | "null" | "undefined")
+}
+
+/// Split an argument string on top-level commas (not inside nested constructs).
+fn split_top_level_args(s: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0i32;
+    let mut in_string = None::<char>;
+    let mut prev_char = None::<char>;
+
+    for c in s.chars() {
+        if let Some(quote) = in_string {
+            current.push(c);
+            if c == quote && prev_char != Some('\\') {
+                in_string = None;
+            }
+        } else {
+            match c {
+                '"' | '\'' | '`' => {
+                    in_string = Some(c);
+                    current.push(c);
+                }
+                '(' | '[' | '{' => {
+                    depth += 1;
+                    current.push(c);
+                }
+                ')' | ']' | '}' => {
+                    depth -= 1;
+                    current.push(c);
+                }
+                ',' if depth == 0 => {
+                    parts.push(current.clone());
+                    current.clear();
+                }
+                _ => {
+                    current.push(c);
+                }
+            }
+        }
+        prev_char = Some(c);
+    }
+
+    if !current.is_empty() {
+        parts.push(current);
+    }
+
+    parts
 }
 
 fn transform_read_only_props(line: &str, read_only_props: &[(String, String)]) -> String {
@@ -11176,7 +12325,11 @@ fn wrap_store_unsub_for_state_sets(
 ///
 /// Note: Update expressions (x++, --x, etc.) are handled by transform_prop_update_expressions
 /// which must be called BEFORE this function.
-fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
+fn transform_prop_assignments(
+    line: &str,
+    prop_vars: &[String],
+    non_bindable_prop_vars: &[String],
+) -> String {
     if prop_vars.is_empty() {
         return line.to_string();
     }
@@ -11298,300 +12451,307 @@ fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
         }
 
         // Transform member mutations: varname.prop = value to varname(varname().prop = value, true)
-        // This is needed for bindable props in legacy mode
-        // Pattern: varname.something = value (but not varname.something.deeper = value which is handled by the above)
-        // Also handle varname().prop when prop reads have already been applied (e.g. in else branch
-        // of reactive statement transform where transform_prop_reads_in_expr runs before this).
-        for dot_suffix in &["().", "."] {
-            let member_pattern = format!("{}{}", var, dot_suffix);
-            let mut member_search_start = 0;
+        // This is needed for bindable props in legacy mode only.
+        // In runes mode, non-bindable props (kind === 'prop') should NOT have member mutations
+        // wrapped with the prop setter - they should just have read transforms applied.
+        // Bindable props (kind === 'bindable_prop') DO need the wrapping because the parent
+        // could be a legacy component which needs coarse-grained reactivity.
+        // Reference: In the official compiler, prop's mutate transform returns the value as-is,
+        // while bindable_prop's mutate transform wraps with prop(mutation, true).
+        if !non_bindable_prop_vars.contains(var) {
+            for dot_suffix in &["().", "."] {
+                let member_pattern = format!("{}{}", var, dot_suffix);
+                let mut member_search_start = 0;
 
-            while let Some(relative_pos) = result[member_search_start..].find(&member_pattern) {
-                let pos = member_search_start + relative_pos;
+                while let Some(relative_pos) = result[member_search_start..].find(&member_pattern) {
+                    let pos = member_search_start + relative_pos;
 
-                // Check that this is a word boundary (not part of another identifier)
-                let before = &result[..pos];
-                if !before.is_empty() && is_identifier_char(before.chars().last().unwrap()) {
-                    member_search_start = pos + member_pattern.len();
-                    continue;
-                }
-
-                // Find the assignment in this member expression
-                let after_member = &result[pos + member_pattern.len()..];
-
-                // Find the property name and equals sign
-                // Example: "parentElement = node.parentElement"
-                // We need to find where the property ends and where = is
-                let mut eq_pos = None;
-                let after_member_chars: Vec<char> = after_member.chars().collect();
-                let mut scan_depth = 0i32;
-                for (i, c) in after_member.char_indices() {
-                    // Track nesting depth to avoid matching = inside parens/brackets
-                    match c {
-                        '(' | '[' | '{' => {
-                            scan_depth += 1;
-                            continue;
-                        }
-                        ')' | ']' | '}' => {
-                            scan_depth -= 1;
-                            continue;
-                        }
-                        ';' | '\n' if scan_depth == 0 => {
-                            // Reached end of statement without finding assignment
-                            break;
-                        }
-                        _ => {}
-                    }
-                    // Only look for assignment at depth 0
-                    if c == '=' && scan_depth == 0 {
-                        let char_idx = after_member[..i].chars().count();
-                        let prev = if char_idx > 0 {
-                            after_member_chars.get(char_idx - 1).copied()
-                        } else {
-                            None
-                        };
-                        let next = after_member_chars.get(char_idx + 1).copied();
-                        // Skip ==, ===
-                        if prev == Some('=') || next == Some('=') {
-                            continue;
-                        }
-                        // Skip => (arrow function)
-                        if next == Some('>') {
-                            continue;
-                        }
-                        // Skip !=, !==, <=, >=
-                        if matches!(prev, Some('!') | Some('<') | Some('>')) {
-                            continue;
-                        }
-                        // For compound assignments (+=, -=, etc.), we still want to
-                        // capture the position so we can generate the wrapped mutation.
-                        eq_pos = Some(i);
-                        break;
-                    }
-                }
-
-                // If we found an assignment (including compound operators)
-                if let Some(eq_idx) = eq_pos {
-                    // Check if this is already wrapped
-                    if before.ends_with(&format!("{}({}().", var, var)) {
+                    // Check that this is a word boundary (not part of another identifier)
+                    let before = &result[..pos];
+                    if !before.is_empty() && is_identifier_char(before.chars().last().unwrap()) {
                         member_search_start = pos + member_pattern.len();
                         continue;
                     }
 
-                    // Detect the full assignment operator (=, +=, -=, *=, etc.)
-                    // eq_idx points to '=' in after_member, but we need to check the
-                    // character before '=' for compound operators
-                    let char_before_eq = if eq_idx > 0 {
-                        after_member.as_bytes().get(eq_idx - 1).map(|&b| b as char)
+                    // Find the assignment in this member expression
+                    let after_member = &result[pos + member_pattern.len()..];
+
+                    // Find the property name and equals sign
+                    // Example: "parentElement = node.parentElement"
+                    // We need to find where the property ends and where = is
+                    let mut eq_pos = None;
+                    let after_member_chars: Vec<char> = after_member.chars().collect();
+                    let mut scan_depth = 0i32;
+                    for (i, c) in after_member.char_indices() {
+                        // Track nesting depth to avoid matching = inside parens/brackets
+                        match c {
+                            '(' | '[' | '{' => {
+                                scan_depth += 1;
+                                continue;
+                            }
+                            ')' | ']' | '}' => {
+                                scan_depth -= 1;
+                                continue;
+                            }
+                            ';' | '\n' if scan_depth == 0 => {
+                                // Reached end of statement without finding assignment
+                                break;
+                            }
+                            _ => {}
+                        }
+                        // Only look for assignment at depth 0
+                        if c == '=' && scan_depth == 0 {
+                            let char_idx = after_member[..i].chars().count();
+                            let prev = if char_idx > 0 {
+                                after_member_chars.get(char_idx - 1).copied()
+                            } else {
+                                None
+                            };
+                            let next = after_member_chars.get(char_idx + 1).copied();
+                            // Skip ==, ===
+                            if prev == Some('=') || next == Some('=') {
+                                continue;
+                            }
+                            // Skip => (arrow function)
+                            if next == Some('>') {
+                                continue;
+                            }
+                            // Skip !=, !==, <=, >=
+                            if matches!(prev, Some('!') | Some('<') | Some('>')) {
+                                continue;
+                            }
+                            // For compound assignments (+=, -=, etc.), we still want to
+                            // capture the position so we can generate the wrapped mutation.
+                            eq_pos = Some(i);
+                            break;
+                        }
+                    }
+
+                    // If we found an assignment (including compound operators)
+                    if let Some(eq_idx) = eq_pos {
+                        // Check if this is already wrapped
+                        if before.ends_with(&format!("{}({}().", var, var)) {
+                            member_search_start = pos + member_pattern.len();
+                            continue;
+                        }
+
+                        // Detect the full assignment operator (=, +=, -=, *=, etc.)
+                        // eq_idx points to '=' in after_member, but we need to check the
+                        // character before '=' for compound operators
+                        let char_before_eq = if eq_idx > 0 {
+                            after_member.as_bytes().get(eq_idx - 1).map(|&b| b as char)
+                        } else {
+                            None
+                        };
+                        let (assign_op, op_start_offset) = match char_before_eq {
+                            Some('+') => ("+=", 1),
+                            Some('-') => ("-=", 1),
+                            Some('*') => {
+                                // Check for **=
+                                if eq_idx >= 2
+                                    && after_member.as_bytes().get(eq_idx - 2).map(|&b| b as char)
+                                        == Some('*')
+                                {
+                                    ("**=", 2)
+                                } else {
+                                    ("*=", 1)
+                                }
+                            }
+                            Some('/') => ("/=", 1),
+                            Some('%') => ("%=", 1),
+                            Some('&') => {
+                                if eq_idx >= 2
+                                    && after_member.as_bytes().get(eq_idx - 2).map(|&b| b as char)
+                                        == Some('&')
+                                {
+                                    ("&&=", 2)
+                                } else {
+                                    ("&=", 1)
+                                }
+                            }
+                            Some('|') => {
+                                if eq_idx >= 2
+                                    && after_member.as_bytes().get(eq_idx - 2).map(|&b| b as char)
+                                        == Some('|')
+                                {
+                                    ("||=", 2)
+                                } else {
+                                    ("|=", 1)
+                                }
+                            }
+                            Some('^') => ("^=", 1),
+                            Some('?') => {
+                                if eq_idx >= 2
+                                    && after_member.as_bytes().get(eq_idx - 2).map(|&b| b as char)
+                                        == Some('?')
+                                {
+                                    ("??=", 2)
+                                } else {
+                                    ("=", 0) // single ? before = is unexpected, treat as =
+                                }
+                            }
+                            _ => ("=", 0),
+                        };
+
+                        let prop_name = after_member[..eq_idx - op_start_offset].trim_end();
+                        let after_eq_raw = &after_member[eq_idx + 1..];
+                        let leading_whitespace =
+                            after_eq_raw.len() - after_eq_raw.trim_start().len();
+                        let after_eq = after_eq_raw.trim_start();
+
+                        // Find the value expression end
+                        let value_end = find_statement_end_client(after_eq);
+                        let value = after_eq[..value_end].trim();
+
+                        // Wrap with prop(prop().prop OP value, true)
+                        let replacement = format!(
+                            "{}({}().{} {} {}, true)",
+                            var, var, prop_name, assign_op, value
+                        );
+
+                        // Calculate the original content length:
+                        // member_pattern.len() + eq_idx + 1 (for '=') + leading_whitespace + value_end
+                        let original_len =
+                            member_pattern.len() + eq_idx + 1 + leading_whitespace + value_end;
+
+                        let new_result = format!(
+                            "{}{}{}",
+                            &result[..pos],
+                            replacement,
+                            &result[pos + original_len..]
+                        );
+                        member_search_start = pos + replacement.len();
+                        result = new_result;
                     } else {
-                        None
-                    };
-                    let (assign_op, op_start_offset) = match char_before_eq {
-                        Some('+') => ("+=", 1),
-                        Some('-') => ("-=", 1),
-                        Some('*') => {
-                            // Check for **=
-                            if eq_idx >= 2
-                                && after_member.as_bytes().get(eq_idx - 2).map(|&b| b as char)
-                                    == Some('*')
-                            {
-                                ("**=", 2)
-                            } else {
-                                ("*=", 1)
-                            }
-                        }
-                        Some('/') => ("/=", 1),
-                        Some('%') => ("%=", 1),
-                        Some('&') => {
-                            if eq_idx >= 2
-                                && after_member.as_bytes().get(eq_idx - 2).map(|&b| b as char)
-                                    == Some('&')
-                            {
-                                ("&&=", 2)
-                            } else {
-                                ("&=", 1)
-                            }
-                        }
-                        Some('|') => {
-                            if eq_idx >= 2
-                                && after_member.as_bytes().get(eq_idx - 2).map(|&b| b as char)
-                                    == Some('|')
-                            {
-                                ("||=", 2)
-                            } else {
-                                ("|=", 1)
-                            }
-                        }
-                        Some('^') => ("^=", 1),
-                        Some('?') => {
-                            if eq_idx >= 2
-                                && after_member.as_bytes().get(eq_idx - 2).map(|&b| b as char)
-                                    == Some('?')
-                            {
-                                ("??=", 2)
-                            } else {
-                                ("=", 0) // single ? before = is unexpected, treat as =
-                            }
-                        }
-                        _ => ("=", 0),
-                    };
-
-                    let prop_name = after_member[..eq_idx - op_start_offset].trim_end();
-                    let after_eq_raw = &after_member[eq_idx + 1..];
-                    let leading_whitespace = after_eq_raw.len() - after_eq_raw.trim_start().len();
-                    let after_eq = after_eq_raw.trim_start();
-
-                    // Find the value expression end
-                    let value_end = find_statement_end_client(after_eq);
-                    let value = after_eq[..value_end].trim();
-
-                    // Wrap with prop(prop().prop OP value, true)
-                    let replacement = format!(
-                        "{}({}().{} {} {}, true)",
-                        var, var, prop_name, assign_op, value
-                    );
-
-                    // Calculate the original content length:
-                    // member_pattern.len() + eq_idx + 1 (for '=') + leading_whitespace + value_end
-                    let original_len =
-                        member_pattern.len() + eq_idx + 1 + leading_whitespace + value_end;
-
-                    let new_result = format!(
-                        "{}{}{}",
-                        &result[..pos],
-                        replacement,
-                        &result[pos + original_len..]
-                    );
-                    member_search_start = pos + replacement.len();
-                    result = new_result;
-                } else {
-                    member_search_start = pos + member_pattern.len();
+                        member_search_start = pos + member_pattern.len();
+                    }
                 }
-            }
-        } // end for dot_suffix
+            } // end for dot_suffix
 
-        // Transform bracket-notation member mutations: varname[expr] = value to varname(varname()[expr] = value, true)
-        // This is needed for bindable props when the member access uses bracket notation
-        // e.g., `rows[row] = ''` -> `rows(rows()[row] = '', true)`
-        //
-        // Also handle the case where prop reads have already been transformed:
-        // e.g., `foo()[bar()] = true` -> `foo(foo()[bar()] = true, true)`
-        // The pattern `{var}()[` matches when transform_prop_reads_in_expr has already
-        // converted `foo` to `foo()` before this function runs.
-        //
-        // We try both patterns: `{var}()[` first (already read-transformed), then `{var}[` (original).
-        for bracket_suffix in &["()[", "["] {
-            let bracket_pattern = format!("{}{}", var, bracket_suffix);
-            let mut bracket_search_start = 0;
+            // Transform bracket-notation member mutations: varname[expr] = value to varname(varname()[expr] = value, true)
+            // This is needed for bindable props when the member access uses bracket notation
+            // e.g., `rows[row] = ''` -> `rows(rows()[row] = '', true)`
+            //
+            // Also handle the case where prop reads have already been transformed:
+            // e.g., `foo()[bar()] = true` -> `foo(foo()[bar()] = true, true)`
+            // The pattern `{var}()[` matches when transform_prop_reads_in_expr has already
+            // converted `foo` to `foo()` before this function runs.
+            //
+            // We try both patterns: `{var}()[` first (already read-transformed), then `{var}[` (original).
+            for bracket_suffix in &["()[", "["] {
+                let bracket_pattern = format!("{}{}", var, bracket_suffix);
+                let mut bracket_search_start = 0;
 
-            while let Some(relative_pos) = result[bracket_search_start..].find(&bracket_pattern) {
-                let pos = bracket_search_start + relative_pos;
+                while let Some(relative_pos) = result[bracket_search_start..].find(&bracket_pattern)
+                {
+                    let pos = bracket_search_start + relative_pos;
 
-                // Check that this is a word boundary (not part of another identifier)
-                let before = &result[..pos];
-                if !before.is_empty() && is_identifier_char(before.chars().last().unwrap()) {
-                    bracket_search_start = pos + bracket_pattern.len();
-                    continue;
-                }
-
-                // Check if this is already wrapped (e.g., varname(varname()[...)
-                // This catches both the full pattern `var(var()[` and the case where
-                // we're inside an already-generated mutation wrapper `var(var()[...]...)`
-                // where `before` is just `var(`.
-                let already_wrapped_pattern = format!("{}({}()", var, var);
-                let short_wrapped_pattern = format!("{}(", var);
-                if before.ends_with(&already_wrapped_pattern) {
-                    bracket_search_start = pos + bracket_pattern.len();
-                    continue;
-                }
-                // Also check the shorter pattern: if `before` ends with `var(` at a word boundary,
-                // then the current `var()[` is inside an existing mutation wrapper.
-                // For example: `items(items()[2] = ...)` - inner `items()` at position 6
-                // has before = `items(`. Verify it's at a word boundary by checking the
-                // character before `var(`.
-                if before.ends_with(&short_wrapped_pattern) {
-                    let prefix_before = &before[..before.len() - short_wrapped_pattern.len()];
-                    if prefix_before.is_empty()
-                        || !is_identifier_char(prefix_before.chars().last().unwrap())
-                    {
+                    // Check that this is a word boundary (not part of another identifier)
+                    let before = &result[..pos];
+                    if !before.is_empty() && is_identifier_char(before.chars().last().unwrap()) {
                         bracket_search_start = pos + bracket_pattern.len();
                         continue;
                     }
-                }
 
-                // Find the matching closing bracket
-                let after_bracket = &result[pos + bracket_pattern.len()..];
-                let mut bracket_depth = 1i32;
-                let mut close_bracket_pos = None;
-                for (i, c) in after_bracket.char_indices() {
-                    match c {
-                        '[' => bracket_depth += 1,
-                        ']' => {
-                            bracket_depth -= 1;
-                            if bracket_depth == 0 {
-                                close_bracket_pos = Some(i);
-                                break;
-                            }
+                    // Check if this is already wrapped (e.g., varname(varname()[...)
+                    // This catches both the full pattern `var(var()[` and the case where
+                    // we're inside an already-generated mutation wrapper `var(var()[...]...)`
+                    // where `before` is just `var(`.
+                    let already_wrapped_pattern = format!("{}({}()", var, var);
+                    let short_wrapped_pattern = format!("{}(", var);
+                    if before.ends_with(&already_wrapped_pattern) {
+                        bracket_search_start = pos + bracket_pattern.len();
+                        continue;
+                    }
+                    // Also check the shorter pattern: if `before` ends with `var(` at a word boundary,
+                    // then the current `var()[` is inside an existing mutation wrapper.
+                    // For example: `items(items()[2] = ...)` - inner `items()` at position 6
+                    // has before = `items(`. Verify it's at a word boundary by checking the
+                    // character before `var(`.
+                    if before.ends_with(&short_wrapped_pattern) {
+                        let prefix_before = &before[..before.len() - short_wrapped_pattern.len()];
+                        if prefix_before.is_empty()
+                            || !is_identifier_char(prefix_before.chars().last().unwrap())
+                        {
+                            bracket_search_start = pos + bracket_pattern.len();
+                            continue;
                         }
-                        _ => {}
+                    }
+
+                    // Find the matching closing bracket
+                    let after_bracket = &result[pos + bracket_pattern.len()..];
+                    let mut bracket_depth = 1i32;
+                    let mut close_bracket_pos = None;
+                    for (i, c) in after_bracket.char_indices() {
+                        match c {
+                            '[' => bracket_depth += 1,
+                            ']' => {
+                                bracket_depth -= 1;
+                                if bracket_depth == 0 {
+                                    close_bracket_pos = Some(i);
+                                    break;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    let Some(close_pos) = close_bracket_pos else {
+                        bracket_search_start = pos + bracket_pattern.len();
+                        continue;
+                    };
+
+                    // After the closing bracket, look for an assignment operator
+                    let after_close = &after_bracket[close_pos + 1..];
+                    let trimmed_after = after_close.trim_start();
+                    let whitespace_len = after_close.len() - trimmed_after.len();
+
+                    // Check for assignment operator (simple `=` or compound `+=`, `-=`, `*=`, etc.)
+                    // but not ==, ===, =>, etc.
+                    let (assign_op, assign_op_len) = detect_assignment_operator(trimmed_after);
+
+                    if let Some(op) = assign_op {
+                        let op_len = assign_op_len;
+                        let after_eq = &trimmed_after[op_len..];
+                        let after_eq_trimmed = after_eq.trim_start();
+                        let eq_whitespace = after_eq.len() - after_eq_trimmed.len();
+
+                        // Find the value expression end
+                        let value_end = find_statement_end_client(after_eq_trimmed);
+                        let value = after_eq_trimmed[..value_end].trim();
+
+                        let bracket_content = &after_bracket[..close_pos];
+
+                        // Build: varname(varname()[bracket_content] OP value, true)
+                        // The inner varname() is always with () for the read getter.
+                        let replacement = format!(
+                            "{}({}()[{}] {} {}, true)",
+                            var, var, bracket_content, op, value
+                        );
+
+                        // Calculate original length from the start of varname to end of value
+                        let original_len = bracket_pattern.len()
+                            + close_pos
+                            + 1
+                            + whitespace_len
+                            + op_len
+                            + eq_whitespace
+                            + value_end;
+
+                        let new_result = format!(
+                            "{}{}{}",
+                            &result[..pos],
+                            replacement,
+                            &result[pos + original_len..]
+                        );
+                        bracket_search_start = pos + replacement.len();
+                        result = new_result;
+                    } else {
+                        bracket_search_start = pos + bracket_pattern.len();
                     }
                 }
-
-                let Some(close_pos) = close_bracket_pos else {
-                    bracket_search_start = pos + bracket_pattern.len();
-                    continue;
-                };
-
-                // After the closing bracket, look for an assignment operator
-                let after_close = &after_bracket[close_pos + 1..];
-                let trimmed_after = after_close.trim_start();
-                let whitespace_len = after_close.len() - trimmed_after.len();
-
-                // Check for assignment operator (simple `=` or compound `+=`, `-=`, `*=`, etc.)
-                // but not ==, ===, =>, etc.
-                let (assign_op, assign_op_len) = detect_assignment_operator(trimmed_after);
-
-                if let Some(op) = assign_op {
-                    let op_len = assign_op_len;
-                    let after_eq = &trimmed_after[op_len..];
-                    let after_eq_trimmed = after_eq.trim_start();
-                    let eq_whitespace = after_eq.len() - after_eq_trimmed.len();
-
-                    // Find the value expression end
-                    let value_end = find_statement_end_client(after_eq_trimmed);
-                    let value = after_eq_trimmed[..value_end].trim();
-
-                    let bracket_content = &after_bracket[..close_pos];
-
-                    // Build: varname(varname()[bracket_content] OP value, true)
-                    // The inner varname() is always with () for the read getter.
-                    let replacement = format!(
-                        "{}({}()[{}] {} {}, true)",
-                        var, var, bracket_content, op, value
-                    );
-
-                    // Calculate original length from the start of varname to end of value
-                    let original_len = bracket_pattern.len()
-                        + close_pos
-                        + 1
-                        + whitespace_len
-                        + op_len
-                        + eq_whitespace
-                        + value_end;
-
-                    let new_result = format!(
-                        "{}{}{}",
-                        &result[..pos],
-                        replacement,
-                        &result[pos + original_len..]
-                    );
-                    bracket_search_start = pos + replacement.len();
-                    result = new_result;
-                } else {
-                    bracket_search_start = pos + bracket_pattern.len();
-                }
             }
-        }
+        } // end if !non_bindable_prop (skip member mutation wrapping for non-bindable props)
     }
 
     result
@@ -16054,6 +17214,100 @@ fn extract_enclosing_function_name(before_block: &str) -> Option<&str> {
                     return Some(name_part);
                 }
             }
+        }
+    }
+    None
+}
+
+/// Extract the trace label from the enclosing call expression context.
+/// For `$effect(() => { ... })`, returns `"$effect(...)"`.
+/// For `$.user_effect(() => { ... })`, returns `"$effect(...)"` (maps internal names to user-facing).
+/// Returns None if no call expression context is found.
+fn extract_trace_call_label<'a>(_before_block: &str, source: &'a str) -> Option<&'a str> {
+    // Look for the $inspect.trace() call in the source to find its context
+    if let Some(trace_pos) = source.find("$inspect.trace(") {
+        // Walk backwards to find the enclosing call expression
+        let before = &source[..trace_pos];
+        // Look for `$effect(` or `$effect.pre(` pattern
+        // The arrow function `() => {` immediately precedes the block containing $inspect.trace
+        for rune in &["$effect.pre", "$effect"] {
+            if before.contains(rune) {
+                // Find the position to compute line/col
+                return Some(if *rune == "$effect.pre" {
+                    "$effect.pre(...)"
+                } else {
+                    "$effect(...)"
+                });
+            }
+        }
+    }
+    None
+}
+
+/// Find source location for the function/arrow containing $inspect.trace().
+fn find_trace_source_location(
+    _before_block: &str,
+    source: &str,
+    _label: &str,
+) -> Option<(usize, usize)> {
+    // Find $inspect.trace() in source and then find the enclosing function/arrow
+    if let Some(trace_pos) = source.find("$inspect.trace(") {
+        let before = &source[..trace_pos];
+
+        // Walk backwards past whitespace and the opening { to find the arrow =>
+        // or function keyword
+        let trimmed = before.trim_end();
+        // Skip `{` if present
+        let trimmed = trimmed.strip_suffix('{').map_or(trimmed, |s| s.trim_end());
+
+        // Look for `=>` (arrow function)
+        if trimmed.ends_with("=>") {
+            let arrow_pos = trimmed.len() - 2;
+            // Go back further to find the start of the arrow function params
+            let before_arrow = trimmed[..arrow_pos].trim_end();
+            // Find the matching `(`
+            if before_arrow.ends_with(')')
+                && let Some(open_paren) = rfind_matching_paren(before_arrow, before_arrow.len() - 1)
+            {
+                // Now we're before the params, check if there's a call expression
+                // e.g., `$effect((` -> the arrow starts at `(`
+                let fn_start = open_paren;
+                let before_fn = &source[..fn_start];
+                let line = before_fn.matches('\n').count() + 1;
+                let last_nl = before_fn.rfind('\n').map(|p| p + 1).unwrap_or(0);
+                let col = fn_start - last_nl;
+                return Some((line, col));
+            }
+        }
+
+        // Look for `function` keyword
+        if let Some(fn_pos) = trimmed.rfind("function ") {
+            let before_pos = &source[..fn_pos];
+            let line = before_pos.matches('\n').count() + 1;
+            let last_nl = before_pos.rfind('\n').map(|p| p + 1).unwrap_or(0);
+            let col = fn_pos - last_nl;
+            return Some((line, col));
+        }
+    }
+    None
+}
+
+/// Find the matching opening parenthesis for a closing `)` at the given position.
+fn rfind_matching_paren(s: &str, close_pos: usize) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let mut depth = 1i32;
+    let mut i = close_pos;
+    while i > 0 {
+        i -= 1;
+        match bytes[i] {
+            b')' => depth += 1,
+            b'(' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            _ => {}
         }
     }
     None
@@ -20594,21 +21848,42 @@ fn strip_js_single_line_comments(source: &str) -> String {
 /// Strip `/* $$async_noop... */;` placeholders from script output.
 /// Used when async body transform returns None (no top-level await).
 fn strip_async_noop_placeholders(s: &str) -> String {
-    s.lines()
-        .filter(|line| !line.trim().contains("$$async_noop"))
-        .map(|line| {
-            let trimmed = line.trim();
-            // When there's no top-level await, $$async_hole markers (from $inspect()
-            // removed in non-dev mode) should become two empty statements (;;) to match
-            // the official compiler behavior. Each $inspect() call produces `;;`.
-            if trimmed.contains("$$async_hole") {
-                ";;"
-            } else {
-                line
+    let lines: Vec<&str> = s.lines().collect();
+    let mut result_lines: Vec<String> = Vec::new();
+
+    for line in lines.iter() {
+        let trimmed = line.trim();
+
+        // Filter out $$async_noop lines
+        if trimmed.contains("$$async_noop") {
+            continue;
+        }
+
+        // When there's no top-level await, $$async_hole markers (from $inspect()
+        // removed in non-dev mode) should become two empty statements (;;) to match
+        // the official compiler behavior.
+        if trimmed.contains("$$async_hole") {
+            // Ensure the previous statement has a semicolon. Without it, ASI causes
+            // the first `;` of `;;` to be consumed by the preceding statement's
+            // termination, resulting in only 1 EmptyStatement instead of 2.
+            if let Some(last) = result_lines.last_mut() {
+                let last_trimmed = last.trim_end();
+                if !last_trimmed.ends_with(';')
+                    && !last_trimmed.ends_with('{')
+                    && !last_trimmed.ends_with('}')
+                    && !last_trimmed.ends_with(',')
+                    && !last_trimmed.is_empty()
+                {
+                    last.push(';');
+                }
             }
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
+            result_lines.push(";;".to_string());
+        } else {
+            result_lines.push(line.to_string());
+        }
+    }
+
+    result_lines.join("\n")
 }
 
 /// Extract variable names from a $props() destructuring pattern.
@@ -20714,9 +21989,15 @@ fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
     // OXC adds a trailing newline; trim to match esrap behavior.
     let code = result.code.trim_end();
 
+    // Rejoin consecutive `;` lines (from $inspect() removal) BEFORE any other
+    // processing. OXC splits `;;` into two separate `;` lines, and later
+    // processing (like add_esrap_blank_lines) can insert blank lines between them,
+    // making it impossible to rejoin them later.
+    let code = rejoin_inspect_empty_stmts(code);
+
     // OXC breaks arrays with >2 elements into multiple lines. Join them back to
     // single lines to match esrap behavior (esrap keeps short arrays inline).
-    let code_joined = join_oxc_multiline_arrays(code);
+    let code_joined = join_oxc_multiline_arrays(&code);
 
     // Add blank lines between different statement types to match esrap behavior.
     let code = add_esrap_blank_lines(&code_joined);
@@ -20734,6 +22015,15 @@ fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
     // but OXC splits them into separate `let` statements. Re-join them.
     let code = rejoin_tmp_destructure_declarations(&code);
 
+    // NOTE: Do NOT rejoin consecutive bare `let x;` declarations.
+    // The official Svelte compiler keeps them separate (e.g., `let el;\nlet component;`)
+    // rather than combining them into `let el, component;`.
+
+    // Strip standalone empty statements (`;` on its own line), but preserve
+    // double-semicolons (`;;` on one line) which come from $inspect() removal.
+    // The rejoin was already done right after OXC output, before add_esrap_blank_lines.
+    let code = strip_empty_statements_from_js(&code);
+
     if indent_level == 0 {
         return code;
     }
@@ -20742,20 +22032,97 @@ fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
     // adds self.indent() before the FIRST line only. Subsequent lines in the Raw block
     // don't get automatic indentation. We need to re-add the original source-level
     // indentation to non-first lines so the output matches the expected format.
+    //
+    // IMPORTANT: We must NOT add indentation to lines inside template literals (backticks),
+    // because that would modify the template content. Template literal content should
+    // preserve its original indentation exactly as-is.
     let mut result_lines = Vec::new();
     let indent_str: String = "\t".repeat(indent_level);
+    let mut in_template_literal = false;
     for (i, line) in code.lines().enumerate() {
         if i == 0 {
             // First line gets indent from emit_statement's self.indent()
+            // Still need to track template literal state
+            in_template_literal = update_template_literal_state(line, in_template_literal);
             result_lines.push(line.to_string());
         } else if line.is_empty() {
             result_lines.push(String::new());
+        } else if in_template_literal {
+            // Inside a template literal - preserve content exactly as-is
+            in_template_literal = update_template_literal_state(line, in_template_literal);
+            result_lines.push(line.to_string());
         } else {
             // Subsequent lines need the source-level indentation prefix
+            in_template_literal = update_template_literal_state(line, in_template_literal);
             result_lines.push(format!("{}{}", indent_str, line));
         }
     }
     result_lines.join("\n")
+}
+
+/// Track whether we're inside a template literal by counting unescaped backticks on a line.
+///
+/// This is used by `normalize_js_with_oxc` to avoid adding indentation to content
+/// inside template literals, which would modify the template content.
+fn update_template_literal_state(line: &str, currently_in_template: bool) -> bool {
+    let mut in_template = currently_in_template;
+    let chars: Vec<char> = line.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if in_template {
+            // Inside template literal: look for closing backtick or ${
+            if c == '\\' {
+                // Skip escaped character
+                i += 2;
+                continue;
+            } else if c == '`' {
+                in_template = false;
+            } else if c == '$' && i + 1 < chars.len() && chars[i + 1] == '{' {
+                // ${...} expression - we need to skip to matching }, handling nesting
+                // For simplicity in line-by-line processing, template expressions
+                // on the same line as the backtick are handled, but multi-line
+                // expressions just rely on the backtick counting on subsequent lines.
+                i += 2;
+                let mut brace_depth = 1;
+                while i < chars.len() && brace_depth > 0 {
+                    if chars[i] == '{' {
+                        brace_depth += 1;
+                    } else if chars[i] == '}' {
+                        brace_depth -= 1;
+                    } else if chars[i] == '`' && brace_depth == 0 {
+                        break;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+        } else {
+            // Outside template literal: look for opening backtick
+            if c == '\'' || c == '"' {
+                // Skip string literals
+                let quote = c;
+                i += 1;
+                while i < chars.len() {
+                    if chars[i] == '\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if chars[i] == quote {
+                        break;
+                    }
+                    i += 1;
+                }
+            } else if c == '/' && i + 1 < chars.len() && chars[i + 1] == '/' {
+                // Line comment - rest of line is comment
+                break;
+            } else if c == '`' {
+                in_template = true;
+            }
+        }
+        i += 1;
+    }
+    in_template
 }
 
 /// Re-join tmp-based destructure declarations that OXC split into separate statements.
@@ -20893,6 +22260,109 @@ fn rejoin_tmp_destructure_declarations(code: &str) -> String {
         }
     }
 
+    result.join("\n")
+}
+
+/// Re-join consecutive bare `let x;` declarations that OXC splits from `let x, y, z;`.
+///
+/// OXC's codegen splits `let x, y, z;` into `let x;\nlet y;\nlet z;`.
+/// This function detects consecutive bare `let` declarations (no initializer) at the
+/// same indent level and re-joins them into a single comma-separated declaration.
+#[allow(dead_code)]
+fn rejoin_bare_let_declarations(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len());
+    let mut i = 0;
+
+    while i < lines.len() {
+        let line = lines[i];
+        if let Some(name) = extract_bare_let_name(line) {
+            let indent = &line[..line.len() - line.trim_start().len()];
+            let mut names = vec![name];
+            let mut j = i + 1;
+
+            while j < lines.len() {
+                let next = lines[j];
+                let next_indent = &next[..next.len() - next.trim_start().len()];
+                if next_indent == indent
+                    && let Some(next_name) = extract_bare_let_name(next)
+                {
+                    names.push(next_name);
+                    j += 1;
+                    continue;
+                }
+                break;
+            }
+
+            if names.len() > 1 {
+                result.push(format!("{}let {};", indent, names.join(", ")));
+                i = j;
+            } else {
+                result.push(line.to_string());
+                i += 1;
+            }
+        } else {
+            result.push(line.to_string());
+            i += 1;
+        }
+    }
+
+    result.join("\n")
+}
+
+/// Extract the variable name from a bare `let x;` declaration (no initializer).
+/// Returns None if the line is not a bare let declaration.
+#[allow(dead_code)]
+fn extract_bare_let_name(line: &str) -> Option<String> {
+    let trimmed = line.trim();
+    if trimmed.starts_with("let ") && trimmed.ends_with(';') && !trimmed.contains('=') {
+        let name = trimmed[4..trimmed.len() - 1].trim();
+        if !name.is_empty() && !name.contains(',') && !name.contains(' ') {
+            return Some(name.to_string());
+        }
+    }
+    None
+}
+
+/// Strip standalone empty statements (`;` on its own line) from JavaScript code.
+///
+/// OXC sometimes emits standalone semicolons that the Svelte compiler doesn't produce.
+/// This removes lines that consist only of whitespace followed by `;`.
+/// Lines with `;;` (from $inspect() removal) are kept as-is.
+fn strip_empty_statements_from_js(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let result: Vec<&str> = lines
+        .into_iter()
+        .filter(|line| {
+            let trimmed = line.trim();
+            // Keep lines that are not just a single `;`
+            // Keep `;;` which comes from $inspect() removal
+            trimmed != ";"
+        })
+        .collect();
+    result.join("\n")
+}
+
+/// Rejoin consecutive `;` lines that OXC split from `;;` (from $inspect() removal).
+///
+/// When $inspect() is removed in non-dev mode, it produces `;;`. OXC then parses this
+/// as two EmptyStatements and outputs them as two separate `;` lines. We rejoin them
+/// back to `;;` so they survive the empty-statement stripping.
+fn rejoin_inspect_empty_stmts(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len());
+    let mut i = 0;
+    while i < lines.len() {
+        if lines[i].trim() == ";" && i + 1 < lines.len() && lines[i + 1].trim() == ";" {
+            // Rejoin consecutive `;` lines into `;;`
+            let indent = &lines[i][..lines[i].len() - lines[i].trim_start().len()];
+            result.push(format!("{};;", indent));
+            i += 2;
+        } else {
+            result.push(lines[i].to_string());
+            i += 1;
+        }
+    }
     result.join("\n")
 }
 
@@ -21331,10 +22801,10 @@ mod tests {
         let result = crate::compiler::compile(input, options).unwrap();
         println!("=== COMMA-SEP LET OUTPUT ===");
         println!("{}", result.js.code);
-        // Should have a single comma-separated let declaration
+        // The official Svelte compiler keeps them as separate let declarations
         assert!(
-            result.js.code.contains("let x1, x2, x3"),
-            "Should have comma-separated let declarations, not split: {}",
+            result.js.code.contains("let x1;"),
+            "Should have separate let declarations: {}",
             result.js.code,
         );
     }
@@ -21751,7 +23221,7 @@ fn test_wrap_prop_source_reads_block_comment_before_property_key() {
     // is_property_key check to fail, wrapping `value` as `value()` in object literal.
     let prop_vars = vec!["value".to_string()];
     let input = r#"{ key: 1, /* comment */ value: 2 }"#;
-    let result = wrap_prop_source_reads(input, &prop_vars);
+    let result = wrap_prop_source_reads(input, &prop_vars, &[]);
     assert!(
         result.contains("value: 2"),
         "value after block comment should NOT be wrapped as value(): {}",
@@ -21768,7 +23238,7 @@ fn test_wrap_prop_source_reads_block_comment_before_property_key() {
 fn test_wrap_prop_source_reads_block_comment_multiline() {
     let prop_vars = vec!["value".to_string()];
     let input = "{ key: 1,\n\t/* multi\n\t   line\n\t   comment */\n\tvalue: 2 }";
-    let result = wrap_prop_source_reads(input, &prop_vars);
+    let result = wrap_prop_source_reads(input, &prop_vars, &[]);
     assert!(
         result.contains("value: 2"),
         "value after multiline block comment should NOT be wrapped: {}",
@@ -21781,7 +23251,7 @@ fn test_wrap_prop_source_reads_value_in_expression() {
     // When `value` is used as an expression (not a property key), it SHOULD be wrapped
     let prop_vars = vec!["value".to_string()];
     let input = "let x = value + 1;";
-    let result = wrap_prop_source_reads(input, &prop_vars);
+    let result = wrap_prop_source_reads(input, &prop_vars, &[]);
     assert!(
         result.contains("value() + 1"),
         "value in expression should be wrapped as value(): {}",
@@ -21795,7 +23265,7 @@ fn test_wrap_prop_source_reads_skips_nullish_assign() {
     // is_on_left_side_of_assignment didn't detect ??=
     let prop_vars = vec!["value".to_string()];
     let input = "value ??= 100;";
-    let result = wrap_prop_source_reads(input, &prop_vars);
+    let result = wrap_prop_source_reads(input, &prop_vars, &[]);
     assert!(
         !result.contains("value() ??= 100"),
         "value on LHS of ??= should NOT be wrapped: {}",
@@ -22383,14 +23853,16 @@ export const fn = () => {
     let code = &result.js.code;
 
     // const $state variables should only get $.proxy(), NOT $.state()
+    // In dev mode, $.proxy([]) is wrapped with $.tag_proxy() for debugging
     assert!(
-        code.contains("const clearTooltipListeners = $.proxy([])"),
-        "const $state([]) should be $.proxy([]) not $.state(): {}",
+        code.contains("$.proxy([])"),
+        "const $state([]) should contain $.proxy([]) not $.state(): {}",
         code
     );
+    // In dev mode, $.proxy({...}) is wrapped with $.tag_proxy() for debugging
     assert!(
-        code.contains("const d = $.proxy({ x: 1 })") || code.contains("const d = $.proxy({x: 1})"),
-        "const $state(obj) should be $.proxy(obj): {}",
+        code.contains("$.proxy({ x: 1 })") || code.contains("$.proxy({x: 1})"),
+        "const $state(obj) should contain $.proxy(obj): {}",
         code
     );
     // Should NOT have $.get() wrapping
@@ -22398,5 +23870,16 @@ export const fn = () => {
         !code.contains("$.get(clearTooltipListeners)"),
         "const $state var should not need $.get(): {}",
         code
+    );
+}
+
+#[test]
+fn test_wrap_state_derived_with_tag_comma_separated() {
+    let input = "let tmp = setup(), num = $.state($.proxy(tmp.num));";
+    let result = wrap_state_derived_with_tag(input);
+    assert!(
+        result.contains("$.tag($.state($.proxy(tmp.num)), 'num')"),
+        "Expected $.tag wrapping for comma-separated declarator: {}",
+        result
     );
 }

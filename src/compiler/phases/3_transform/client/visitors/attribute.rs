@@ -8,6 +8,7 @@ use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::events::{
     build_delegated_event_assignment, build_event, convert_arrow_to_named_function,
 };
+use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 use crate::compiler::utils::can_delegate_event;
 
 /// Visit an Attribute node and generate client-side code.
@@ -180,7 +181,13 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
     let expr_tag = extract_expression_tag(&node.value);
 
     // Build the event handler
+    // Set in_event_attribute_handler flag so that coercive assignment transforms
+    // ($.assign) are skipped inside event handler arrow functions.
+    // Reference: AssignmentExpression.js lines 189-209
+    let saved_in_event_attribute = context.state.in_event_attribute_handler;
+    context.state.in_event_attribute_handler = true;
     let handler = build_event_handler(expr_tag, context);
+    context.state.in_event_attribute_handler = saved_in_event_attribute;
 
     // Determine if this event should be delegated.
     //
@@ -202,8 +209,11 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
 
     let passive = is_passive_event(event_name);
 
-    // In dev mode, convert arrow function handlers to named functions for better stack traces
-    let handler = if context.state.options.dev {
+    // In dev mode, convert arrow function handlers to named functions for better stack traces.
+    // Only generate a name if the handler is actually an arrow function, to avoid consuming
+    // names from the conflicts set unnecessarily.
+    // Reference: events.js build_event(): `if (dev && handler.type === 'ArrowFunctionExpression')`
+    let handler = if context.state.options.dev && matches!(handler, JsExpr::Arrow(_)) {
         let name = context.state.memoizer.generate_id(event_name);
         convert_arrow_to_named_function(handler, name.into())
     } else {

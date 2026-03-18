@@ -75,6 +75,11 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     let value = block.expression.as_json();
     walk_js_expression(value, context, &mut block.metadata.expression)?;
 
+    // Detect pickled awaits in each block collection expressions.
+    // Template expressions are reactive contexts, so await expressions
+    // that aren't the last evaluated expression need $.save() wrapping.
+    super::await_block::collect_pickled_awaits(value, &mut context.analysis.pickled_awaits);
+
     // Mark that we have control flow affecting sibling relationships
     context.analysis.css.has_control_flow = true;
 

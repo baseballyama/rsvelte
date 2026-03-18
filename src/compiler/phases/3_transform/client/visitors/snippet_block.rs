@@ -143,8 +143,8 @@ pub fn snippet_block(node: &SnippetBlock, context: &mut ComponentContext) {
 
     // Create the snippet function
     let snippet = if context.state.dev {
-        // In dev mode, use $.wrap_snippet with a named function expression
-        let func = b::function_expr(Some(snippet_name.clone().into()), args, full_body);
+        // In dev mode, use $.wrap_snippet with an anonymous function expression
+        let func = b::function_expr(None, args, full_body);
 
         b::call(
             b::member_path("$.wrap_snippet"),

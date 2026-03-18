@@ -168,6 +168,8 @@ pub fn fragment(
         snippet_names: context.state.snippet_names.clone(),
         in_direct_assignment_lhs: false,
         in_bind_directive: false,
+        in_event_attribute_handler: false,
+        event_handler_arrow_body_level: 0,
         is_controlled_each: false,
         snippets: Vec::new(),
         // Root fragment starts at level 0; non-root fragments (e.g., inside {#if}/{#each})

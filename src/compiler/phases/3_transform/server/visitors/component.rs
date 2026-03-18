@@ -3,7 +3,7 @@
 use super::super::ServerCodeGenerator;
 use super::super::helpers::{
     get_let_directive_params, get_let_directives, get_slot_name, is_valid_js_identifier,
-    quote_prop_name, strip_ts_type_annotation,
+    prop_string, quote_prop_name, strip_ts_type_annotation,
 };
 use super::super::types::{ComponentBinding, ComponentPropItem, OutputPart};
 use crate::ast::template::{Attribute, AttributeValue, Component, Fragment, TemplateNode};
@@ -127,7 +127,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                 } else {
                                     push_component_prop(
                                         &mut props_and_spreads,
-                                        format!("{}: {}", quote_prop_name(name), expr_source),
+                                        prop_string(name, &expr_source),
                                     );
                                 }
                             }
@@ -155,7 +155,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                     } else {
                                         push_component_prop(
                                             &mut props_and_spreads,
-                                            format!("{}: {}", quote_prop_name(name), expr_source),
+                                            prop_string(name, &expr_source),
                                         );
                                     }
                                     continue;
@@ -436,6 +436,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         css_props_is_html,
                         in_async_block: true,
                         attach_expressions,
+                        dev: self.dev,
                     }],
                 });
             } else {
@@ -452,6 +453,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     css_props_is_html,
                     in_async_block: false,
                     attach_expressions,
+                    dev: self.dev,
                 });
             }
         } else {
@@ -465,6 +467,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 css_custom_props,
                 css_props_is_html,
                 seq_bindings_hoisted: false,
+                dev: self.dev,
             });
         }
 

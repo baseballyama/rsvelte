@@ -21,7 +21,7 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     // 2. It's inside a template expression (context.expression is Some)
     let in_derived = context.derived_function_depth == context.function_depth
         && context.derived_function_depth > 0;
-    let in_reactive = in_derived || context.in_expression_tag;
+    let in_reactive = in_derived || context.expression.is_some();
 
     // Preserve context for awaits that precede other expressions in template or $derived(...)
     if in_reactive && !is_last_evaluated_expression_js(&context.js_path, node) {

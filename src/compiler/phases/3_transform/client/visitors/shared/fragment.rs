@@ -382,23 +382,21 @@ pub fn process_children<F>(
             TemplateNode::ExpressionTag(expr) => {
                 sequence.push(TextOrExpr::Expr(expr.clone()));
             }
-            // Comment nodes: push to template as static content when preserveComments
-            // is true, otherwise skip. This matches the official compiler's Comment visitor
-            // which calls `context.state.template.push_comment()`.
+            // Comment nodes: always push to template. Comments that survived clean_nodes
+            // filtering are intentionally there (e.g., lone-script anchors, or preserved
+            // comments when preserveComments is true). This matches the official compiler's
+            // Comment visitor which unconditionally calls `context.state.template.push_comment()`.
             TemplateNode::Comment(comment) => {
-                if context.state.options.preserve_comments {
-                    // Flush any pending text/expression sequence
-                    if !sequence.is_empty() {
-                        flush_sequence(sequence, &mut prev, &mut skipped, context);
-                        sequence = Vec::new();
-                    }
-                    context
-                        .state
-                        .template
-                        .push_comment(Some(comment.data.to_string()));
-                    skipped += 1;
+                // Flush any pending text/expression sequence
+                if !sequence.is_empty() {
+                    flush_sequence(sequence, &mut prev, &mut skipped, context);
+                    sequence = Vec::new();
                 }
-                // When preserve_comments is false, the node was already filtered by clean_nodes
+                context
+                    .state
+                    .template
+                    .push_comment(Some(comment.data.to_string()));
+                skipped += 1;
             }
             // ConstTag doesn't produce DOM nodes - just visit it to add declarations
             TemplateNode::ConstTag(_) => {

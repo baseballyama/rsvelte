@@ -28,6 +28,17 @@ pub enum ComponentNode {
     SvelteSelf(SvelteElement),
 }
 
+impl ComponentNode {
+    /// Get the start position of the component node.
+    pub fn start(&self) -> u32 {
+        match self {
+            ComponentNode::Component(c) => c.start,
+            ComponentNode::SvelteComponent(c) => c.start,
+            ComponentNode::SvelteSelf(c) => c.start,
+        }
+    }
+}
+
 /// Props entry in the props object.
 #[derive(Debug, Clone)]
 pub enum PropsEntry {
@@ -407,7 +418,7 @@ pub fn build_component(
             context
                 .state
                 .template
-                .push_element(wrapper_element.to_string(), 0, false);
+                .push_element(wrapper_element.to_string(), node.start(), false);
 
             if !is_svg {
                 context
@@ -511,6 +522,7 @@ pub fn build_component(
                 &[],
                 &props_expression,
                 bind_this.as_ref(),
+                node.start(),
             );
         } else {
             // Normal static component instantiation
@@ -1981,11 +1993,13 @@ fn visit_slot_children(
                 }
             };
 
-            // Build the template expression manually from the template state
-            let html_expr = context.state.template.as_html();
-            let template_expr = b::call(
-                b::member(b::id("$"), format!("from_{}", namespace.as_str())),
-                vec![html_expr],
+            // Build the template expression using transform_template
+            // which handles dev mode $.add_locations wrapping
+            let template_expr = crate::compiler::phases::phase3_transform::client::transform_template::transform_template(
+                &mut context.state,
+                namespace,
+                None,
+                None,
             );
             context
                 .state
@@ -2193,16 +2207,18 @@ fn visit_slot_children(
                     _ => Namespace::Html,
                 };
 
-                // Build the template expression
+                // Build the template expression using transform_template
+                // which handles dev mode $.add_locations wrapping
                 let mut flags = 1u32; // TEMPLATE_FRAGMENT
                 if context.state.template.needs_import_node {
                     flags |= 2; // TEMPLATE_USE_IMPORT_NODE
                 }
 
-                let html_expr = context.state.template.as_html();
-                let template_expr = b::call(
-                    b::member(b::id("$"), format!("from_{}", namespace.as_str())),
-                    vec![html_expr, b::number(flags as f64)],
+                let template_expr = crate::compiler::phases::phase3_transform::client::transform_template::transform_template(
+                    &mut context.state,
+                    namespace,
+                    Some(flags),
+                    None,
                 );
                 context
                     .state
@@ -2413,16 +2429,17 @@ fn build_with_css_props(
     binding_initializers: &[JsStatement],
     props_expression: &JsExpr,
     bind_this: Option<&Expression>,
+    component_start: u32,
 ) {
     // Determine wrapper element based on namespace
     let is_svg = context.state.metadata.namespace == "svg";
     let wrapper_element = if is_svg { "g" } else { "svelte-css-wrapper" };
 
-    // Push wrapper element
+    // Push wrapper element - use the component's start position for location tracking
     context
         .state
         .template
-        .push_element(wrapper_element.to_string(), 0, false);
+        .push_element(wrapper_element.to_string(), component_start, false);
 
     if !is_svg {
         context
