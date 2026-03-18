@@ -105,6 +105,11 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
     let value = block.expression.as_json();
     walk_js_expression(value, context, &mut block.metadata.expression)?;
 
+    // Detect pickled awaits in the expression.
+    // An await is "pickled" when it's not the last evaluated expression in a reactive context.
+    // The await block expression IS a reactive context.
+    collect_pickled_awaits(value, &mut context.analysis.pickled_awaits);
+
     // Walk the value pattern's computed property key expressions to detect mutations.
     // For example: {#await promise then { [`prop${num++}`]: ... }}
     // The `num++` in the computed key needs to be detected as a reassignment.
@@ -337,6 +342,148 @@ fn mark_mutations_recursive(expression: &serde_json::Value, context: &mut Visito
             }
         }
         _ => {}
+    }
+}
+
+/// Collect pickled await positions from an expression tree.
+///
+/// An await expression is "pickled" when it's NOT the last evaluated expression
+/// in the reactive context. This means there are more expressions to evaluate
+/// after the await, and the reactive context needs to be preserved.
+///
+/// This is a post-processing pass that walks the expression tree and checks
+/// each AwaitExpression's position relative to its parent.
+pub fn collect_pickled_awaits(expr: &serde_json::Value, pickled: &mut rustc_hash::FxHashSet<u32>) {
+    collect_pickled_awaits_inner(expr, pickled, true);
+}
+
+fn collect_pickled_awaits_inner(
+    expr: &serde_json::Value,
+    pickled: &mut rustc_hash::FxHashSet<u32>,
+    is_last: bool,
+) {
+    let expr_type = expr.get("type").and_then(|t| t.as_str());
+
+    match expr_type {
+        Some("AwaitExpression") => {
+            if !is_last && let Some(start) = expr.get("start").and_then(|s| s.as_u64()) {
+                pickled.insert(start as u32);
+            }
+            // Also recurse into argument
+            if let Some(argument) = expr.get("argument") {
+                collect_pickled_awaits_inner(argument, pickled, true);
+            }
+        }
+        Some("BinaryExpression") | Some("LogicalExpression") | Some("AssignmentExpression") => {
+            // Left side is NOT last (right side evaluates after it)
+            if let Some(left) = expr.get("left") {
+                collect_pickled_awaits_inner(left, pickled, false);
+            }
+            // Right side inherits parent's is_last
+            if let Some(right) = expr.get("right") {
+                collect_pickled_awaits_inner(right, pickled, is_last);
+            }
+        }
+        Some("CallExpression") | Some("NewExpression") => {
+            // Callee is not last if there are arguments
+            if let Some(callee) = expr.get("callee") {
+                let has_args = expr
+                    .get("arguments")
+                    .and_then(|a| a.as_array())
+                    .map(|a| !a.is_empty())
+                    .unwrap_or(false);
+                collect_pickled_awaits_inner(
+                    callee,
+                    pickled,
+                    if has_args { false } else { is_last },
+                );
+            }
+            if let Some(serde_json::Value::Array(args)) = expr.get("arguments") {
+                for (i, arg) in args.iter().enumerate() {
+                    let arg_is_last = i == args.len() - 1 && is_last;
+                    collect_pickled_awaits_inner(arg, pickled, arg_is_last);
+                }
+            }
+        }
+        Some("ConditionalExpression") => {
+            if let Some(test) = expr.get("test") {
+                collect_pickled_awaits_inner(test, pickled, false);
+            }
+            if let Some(consequent) = expr.get("consequent") {
+                collect_pickled_awaits_inner(consequent, pickled, is_last);
+            }
+            if let Some(alternate) = expr.get("alternate") {
+                collect_pickled_awaits_inner(alternate, pickled, is_last);
+            }
+        }
+        Some("SequenceExpression") => {
+            if let Some(serde_json::Value::Array(exprs)) = expr.get("expressions") {
+                for (i, e) in exprs.iter().enumerate() {
+                    let e_is_last = i == exprs.len() - 1 && is_last;
+                    collect_pickled_awaits_inner(e, pickled, e_is_last);
+                }
+            }
+        }
+        Some("ArrayExpression") => {
+            if let Some(serde_json::Value::Array(elements)) = expr.get("elements") {
+                for (i, e) in elements.iter().enumerate() {
+                    let e_is_last = i == elements.len() - 1 && is_last;
+                    collect_pickled_awaits_inner(e, pickled, e_is_last);
+                }
+            }
+        }
+        Some("MemberExpression") => {
+            if let Some(object) = expr.get("object") {
+                let computed = expr
+                    .get("computed")
+                    .and_then(|c| c.as_bool())
+                    .unwrap_or(false);
+                collect_pickled_awaits_inner(
+                    object,
+                    pickled,
+                    if computed { false } else { is_last },
+                );
+            }
+            if let Some(property) = expr.get("property") {
+                let computed = expr
+                    .get("computed")
+                    .and_then(|c| c.as_bool())
+                    .unwrap_or(false);
+                if computed {
+                    collect_pickled_awaits_inner(property, pickled, is_last);
+                }
+            }
+        }
+        Some("TemplateLiteral") => {
+            if let Some(serde_json::Value::Array(exprs)) = expr.get("expressions") {
+                for (i, e) in exprs.iter().enumerate() {
+                    let e_is_last = i == exprs.len() - 1 && is_last;
+                    collect_pickled_awaits_inner(e, pickled, e_is_last);
+                }
+            }
+        }
+        Some("ObjectExpression") => {
+            if let Some(serde_json::Value::Array(props)) = expr.get("properties") {
+                for (i, p) in props.iter().enumerate() {
+                    let p_is_last = i == props.len() - 1 && is_last;
+                    if let Some(value) = p.get("value") {
+                        collect_pickled_awaits_inner(value, pickled, p_is_last);
+                    }
+                }
+            }
+        }
+        Some("UnaryExpression") => {
+            if let Some(argument) = expr.get("argument") {
+                collect_pickled_awaits_inner(argument, pickled, is_last);
+            }
+        }
+        Some("ArrowFunctionExpression") | Some("FunctionExpression") => {
+            // Don't cross function boundaries
+        }
+        _ => {
+            // For other nodes, recursively walk children
+            // This handles ExpressionStatement, VariableDeclarator, etc.
+        }
     }
 }
 

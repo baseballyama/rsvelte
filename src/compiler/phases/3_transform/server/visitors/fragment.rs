@@ -474,6 +474,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     name: snippet.name,
                     params: snippet.params,
                     body: snippet.body_parts,
+                    dev: self.dev,
                 },
             );
         }
@@ -571,6 +572,8 @@ impl<'a> ServerCodeGenerator<'a> {
         body_generator.constant_vars = self.constant_vars.clone();
         body_generator.namespace = self.namespace.clone();
         body_generator.preserve_whitespace = self.preserve_whitespace;
+        body_generator.preserve_comments = self.preserve_comments;
+        body_generator.dev = self.dev;
         body_generator.const_promises_counter = self.const_promises_counter.clone();
         body_generator.const_blocker_map = self.const_blocker_map.clone();
 
@@ -689,6 +692,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 );
                 frag_generator.constant_vars = body_generator.constant_vars.clone();
                 frag_generator.namespace = body_generator.namespace.clone();
+                frag_generator.dev = body_generator.dev;
                 frag_generator.const_promises_counter =
                     body_generator.const_promises_counter.clone();
                 frag_generator.const_blocker_map = body_generator.const_blocker_map.clone();

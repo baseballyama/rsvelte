@@ -23,6 +23,7 @@ impl<'a> ServerCodeGenerator<'a> {
         );
         body_generator.constant_vars = self.constant_vars.clone();
         body_generator.is_typescript = self.is_typescript;
+        body_generator.dev = self.dev;
 
         // Add <title> tag
         body_generator

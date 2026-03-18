@@ -1,7 +1,7 @@
 //! Server-side select, textarea, and option element visitors.
 
 use super::super::ServerCodeGenerator;
-use super::super::helpers::quote_prop_name;
+use super::super::helpers::prop_string;
 use super::super::types::OutputPart;
 use crate::ast::template::{
     Attribute, AttributeValue, AttributeValuePart, RegularElement, TemplateNode,
@@ -78,6 +78,7 @@ impl<'a> ServerCodeGenerator<'a> {
         );
         body_generator.constant_vars = self.constant_vars.clone();
         body_generator.is_typescript = self.is_typescript;
+        body_generator.dev = self.dev;
 
         // Process children
         let children: Vec<_> = element.fragment.nodes.iter().collect();
@@ -125,7 +126,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 // Spread attributes: emit as ...expr
                 attr_parts.push(value.clone());
             } else {
-                attr_parts.push(format!("{}: {}", quote_prop_name(name), value));
+                attr_parts.push(prop_string(name, value));
             }
         }
         let attrs_obj = if attr_parts.is_empty() {
@@ -178,10 +179,10 @@ impl<'a> ServerCodeGenerator<'a> {
                         // Use $.save for select value attrs (they precede children that depend on them)
                         let await_expr = Self::extract_await_with_save(value);
                         declarations.push(format!("const {} = {};", temp_name, await_expr));
-                        new_attrs_parts.push(format!("{}: {}", quote_prop_name(name), temp_name));
+                        new_attrs_parts.push(prop_string(name, &temp_name));
                         temp_counter += 1;
                     } else {
-                        new_attrs_parts.push(format!("{}: {}", quote_prop_name(name), value));
+                        new_attrs_parts.push(prop_string(name, value));
                     }
                 }
 
@@ -273,6 +274,17 @@ impl<'a> ServerCodeGenerator<'a> {
         tag.push('>');
         self.output_parts.push(OutputPart::Html(tag));
 
+        // In dev mode, add $.push_element() after opening tag
+        if self.dev {
+            let (line, col) =
+                super::element::locate_in_source(&self.source, element.start as usize);
+            self.output_parts.push(OutputPart::Flush);
+            self.output_parts.push(OutputPart::RawStatement(format!(
+                "$.push_element($$renderer, 'textarea', {}, {});",
+                line, col
+            )));
+        }
+
         // Generate the body - if we have a value expression, use it
         if let Some(expr) = body_expr {
             // Use TextareaBody OutputPart for proper statement-based generation
@@ -294,6 +306,12 @@ impl<'a> ServerCodeGenerator<'a> {
 
         self.output_parts
             .push(OutputPart::Html("</textarea>".to_string()));
+
+        // In dev mode, add $.pop_element() after closing tag
+        if self.dev {
+            self.output_parts
+                .push(OutputPart::RawStatement("$.pop_element();".to_string()));
+        }
 
         Ok(())
     }
@@ -319,7 +337,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                 let expr = self.source[expr_start..expr_end].trim().to_string();
                                 let expr = self.strip_ts_from_expr(&expr);
                                 let expr = self.transform_store_refs(&expr);
-                                attr_entries.push(format!("{}: {}", name, expr));
+                                attr_entries.push(prop_string(&name, &expr));
                             }
                         }
                         AttributeValue::Sequence(parts) => {
@@ -347,7 +365,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                     if expr_end > expr_start && expr_end <= self.source.len() {
                                         let expr =
                                             self.source[expr_start..expr_end].trim().to_string();
-                                        attr_entries.push(format!("{}: {}", name, expr));
+                                        attr_entries.push(prop_string(&name, &expr));
                                     }
                                 }
                             } else {
@@ -425,6 +443,14 @@ impl<'a> ServerCodeGenerator<'a> {
             let is_rich = Self::is_rich_option_content(&element.fragment.nodes);
 
             // If the expression contains `await`, wrap in AsyncChild
+            let dev_loc = if self.dev {
+                Some(super::element::locate_in_source(
+                    &self.source,
+                    element.start as usize,
+                ))
+            } else {
+                None
+            };
             if self.use_async && super::super::helpers::expr_contains_await(&expr_source) {
                 let temp_name = "$$0";
                 // For option direct_value, use plain await (no $.save)
@@ -437,6 +463,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         is_rich,
                         direct_value: Some(temp_name.to_string()),
                         css_hash: css_hash.clone(),
+                        dev_location: dev_loc,
                     }],
                 });
             } else {
@@ -446,6 +473,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     is_rich,
                     direct_value: Some(expr_source),
                     css_hash: css_hash.clone(),
+                    dev_location: dev_loc,
                 });
             }
 
@@ -463,6 +491,7 @@ impl<'a> ServerCodeGenerator<'a> {
         );
         body_generator.constant_vars = self.constant_vars.clone();
         body_generator.is_typescript = self.is_typescript;
+        body_generator.dev = self.dev;
 
         // Process children (skip leading/trailing whitespace)
         let children: Vec<_> = element.fragment.nodes.iter().collect();
@@ -500,12 +529,22 @@ impl<'a> ServerCodeGenerator<'a> {
         // Check if this option has rich content (non-option elements, components, etc.)
         let is_rich = Self::is_rich_option_content(&element.fragment.nodes);
 
+        let dev_loc = if self.dev {
+            Some(super::element::locate_in_source(
+                &self.source,
+                element.start as usize,
+            ))
+        } else {
+            None
+        };
+
         self.output_parts.push(OutputPart::OptionElement {
             attr_entries,
             body: body_generator.output_parts,
             is_rich,
             direct_value: None,
             css_hash,
+            dev_location: dev_loc,
         });
 
         Ok(())

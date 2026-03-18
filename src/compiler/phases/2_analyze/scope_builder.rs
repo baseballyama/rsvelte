@@ -74,6 +74,10 @@ pub struct ScopeBuilder<'a> {
     /// Used by Phase 2 visitors to properly track context.scope when entering
     /// scope-creating template nodes (EachBlock, AwaitBlock, SnippetBlock, etc.).
     template_scope_map: FxHashMap<u32, usize>,
+    /// Identifier names found in template expression arrow function parameters.
+    /// These need to be in the conflicts set so that generated variable names
+    /// (like `node`, `$$array`, etc.) don't collide with them.
+    template_expression_params: Vec<String>,
 }
 
 impl<'a> ScopeBuilder<'a> {
@@ -101,6 +105,7 @@ impl<'a> ScopeBuilder<'a> {
             current_script_offset: 0,
             each_block_collection_infos: Vec::new(),
             template_scope_map: FxHashMap::default(),
+            template_expression_params: Vec::new(),
         }
     }
 
@@ -128,7 +133,8 @@ impl<'a> ScopeBuilder<'a> {
         // template expressions can find bindings declared in the script.
         let script_scope = if let Some(ref script) = ast.instance {
             // Create a new scope for instance script with module (scope 0) as parent
-            let old_scope = self.push_scope();
+            // Instance scope is non-porous (function_depth = parent + 1 = 1)
+            let old_scope = self.push_function_scope();
             self.instance_scope_index = self.current_scope;
             self.visit_script(script);
 
@@ -229,6 +235,28 @@ impl<'a> ScopeBuilder<'a> {
         // Return the root scope with all scopes preserved for proper lookup
         let all_scopes = std::mem::take(&mut self.scopes);
         let root_scope = all_scopes.first().cloned().unwrap_or_default();
+
+        // Build the conflicts set from all declarations in all scopes.
+        // This mirrors the official Svelte compiler where every scope.declare()
+        // adds the name to scope.root.conflicts.
+        let mut conflicts = rustc_hash::FxHashSet::default();
+        for scope in &all_scopes {
+            for name in scope.declarations.keys() {
+                conflicts.insert(name.clone());
+            }
+        }
+        // Also add binding names
+        for binding in &self.bindings {
+            conflicts.insert(binding.name.clone());
+        }
+        // Also collect arrow function parameter names from template expressions.
+        // Template expressions (event handlers, attach directives, etc.) may contain
+        // arrow functions whose parameters need to be in the conflicts set to avoid
+        // naming collisions with generated variables.
+        for name in &self.template_expression_params {
+            conflicts.insert(name.clone());
+        }
+
         (
             ScopeRoot {
                 bindings: self.bindings,
@@ -238,14 +266,30 @@ impl<'a> ScopeBuilder<'a> {
                 function_scope_map: self.function_scope_map,
                 each_block_collection_infos,
                 template_scope_map: self.template_scope_map,
+                conflicts,
             },
             self.validation_errors,
         )
     }
 
-    /// Push a new child scope and return its index.
+    /// Push a new porous (block-level) child scope and return the old scope index.
+    /// Porous scopes inherit the parent's function_depth.
     fn push_scope(&mut self) -> usize {
-        let new_scope = Scope::new(Some(self.current_scope));
+        let parent_depth = self.scopes[self.current_scope].function_depth;
+        let new_scope = Scope::new_with_depth(Some(self.current_scope), parent_depth);
+        let idx = self.scopes.len();
+        self.scopes[self.current_scope].children.push(idx);
+        self.scopes.push(new_scope);
+        let old_scope = self.current_scope;
+        self.current_scope = idx;
+        old_scope
+    }
+
+    /// Push a new non-porous (function-level) child scope and return the old scope index.
+    /// Non-porous scopes have function_depth = parent.function_depth + 1.
+    fn push_function_scope(&mut self) -> usize {
+        let parent_depth = self.scopes[self.current_scope].function_depth;
+        let new_scope = Scope::new_with_depth(Some(self.current_scope), parent_depth + 1);
         let idx = self.scopes.len();
         self.scopes[self.current_scope].children.push(idx);
         self.scopes.push(new_scope);
@@ -460,8 +504,8 @@ impl<'a> ScopeBuilder<'a> {
                     // Mark as a true JS function (not a snippet block)
                     self.bindings[idx].initial_is_function = true;
                 }
-                // Create a new scope for the function body
-                let old_scope = self.push_scope();
+                // Create a new scope for the function body (non-porous: function_depth + 1)
+                let old_scope = self.push_function_scope();
                 self.function_depth += 1;
                 // Record function body start → scope index mapping for visitor phase
                 // Use current_script_offset + body.span.start - 1 to match JSON AST positions
@@ -663,8 +707,8 @@ impl<'a> ScopeBuilder<'a> {
         for element in &body.body {
             match element {
                 oxc_ast::ast::ClassElement::MethodDefinition(method_def) => {
-                    // Create a new scope for the method
-                    let old_scope = self.push_scope();
+                    // Create a new scope for the method (non-porous)
+                    let old_scope = self.push_function_scope();
                     self.function_depth += 1;
 
                     // Declare function parameters in the new scope
@@ -735,8 +779,8 @@ impl<'a> ScopeBuilder<'a> {
                 }
             }
             Expression::ArrowFunctionExpression(arrow_func) => {
-                // Create a new scope for the arrow function body
-                let old_scope = self.push_scope();
+                // Create a new scope for the arrow function body (non-porous)
+                let old_scope = self.push_function_scope();
                 self.function_depth += 1;
                 // Record function body start → scope index mapping for visitor phase
                 // For arrow functions with block body, use offset + span.start - 1
@@ -760,8 +804,8 @@ impl<'a> ScopeBuilder<'a> {
                 self.pop_scope(old_scope);
             }
             Expression::FunctionExpression(func_expr) => {
-                // Create a new scope for the function body
-                let old_scope = self.push_scope();
+                // Create a new scope for the function body (non-porous)
+                let old_scope = self.push_function_scope();
                 self.function_depth += 1;
                 // Record function body start → scope index mapping for visitor phase
                 if let Some(ref body) = func_expr.body {
@@ -1155,7 +1199,7 @@ impl<'a> ScopeBuilder<'a> {
                 // Process function body to track assignments inside exported functions.
                 // Without this, reassignments like `export function update() { x = 'new'; }`
                 // would not mark `x` as reassigned, causing state_invalid_export to be missed.
-                let old_scope = self.push_scope();
+                let old_scope = self.push_function_scope();
                 self.function_depth += 1;
                 // Record function body start → scope index mapping for visitor phase
                 // Use current_script_offset + body.span.start - 1 to match JSON AST positions
@@ -1221,6 +1265,10 @@ impl<'a> ScopeBuilder<'a> {
                     BindingKind::Normal
                 };
                 let idx = self.declare_binding(name, kind, decl_kind);
+                // Store the declaration position for var hoisting analysis.
+                // Used by the state_referenced_locally warning to skip references
+                // that appear before the var declaration in source order.
+                self.bindings[idx].declaration_start = Some(ident.span.start);
                 // Check if the initializer is a function expression
                 if let Some(init_expr) = init
                     && matches!(
@@ -1550,6 +1598,20 @@ impl<'a> ScopeBuilder<'a> {
                     // For bind directives, the expression target is reassigned
                     self.process_template_expression_for_bind(&bind_dir.expression);
                 }
+                Attribute::AttachTag(attach_tag) => {
+                    // Process attach directive expression for updates and parameter names
+                    self.process_template_expression(&attach_tag.expression);
+                }
+                Attribute::UseDirective(use_dir) => {
+                    // Process use: directive expression
+                    if let Some(ref expression) = use_dir.expression {
+                        self.process_template_expression(expression);
+                    }
+                }
+                Attribute::SpreadAttribute(spread) => {
+                    // Process spread attribute expression
+                    self.process_template_expression(&spread.expression);
+                }
                 _ => {}
             }
         }
@@ -1561,6 +1623,10 @@ impl<'a> ScopeBuilder<'a> {
         // This avoids expensive OXC parse calls for every template expression.
         let json = expr.as_json();
         self.track_json_expression_updates(json);
+        // Also collect arrow function parameter names for the conflicts set.
+        // This ensures generated variable names don't collide with parameter names
+        // in template expression arrow functions (e.g., `(node) => ...` in @attach).
+        collect_arrow_param_names(json, &mut self.template_expression_params);
     }
 
     /// Process a bind expression - the target is marked as reassigned or mutated.
@@ -1658,8 +1724,8 @@ impl<'a> ScopeBuilder<'a> {
                 }
             }
             "ArrowFunctionExpression" => {
-                // Create scope for arrow function
-                let old_scope = self.push_scope();
+                // Create scope for arrow function (non-porous)
+                let old_scope = self.push_function_scope();
                 self.function_depth += 1;
 
                 // Record function scope mapping
@@ -1696,7 +1762,7 @@ impl<'a> ScopeBuilder<'a> {
                 self.pop_scope(old_scope);
             }
             "FunctionExpression" => {
-                let old_scope = self.push_scope();
+                let old_scope = self.push_function_scope();
                 self.function_depth += 1;
 
                 if let Some(body) = obj.get("body") {
@@ -2586,3 +2652,80 @@ pub fn build_scopes(
 //         );
 //     }
 // }
+
+/// Recursively collect identifier names from arrow function parameters in a JSON AST.
+/// This walks the entire expression tree looking for ArrowFunctionExpression and
+/// FunctionExpression nodes, then extracts parameter identifier names.
+fn collect_arrow_param_names(json: &serde_json::Value, names: &mut Vec<String>) {
+    match json {
+        serde_json::Value::Object(obj) => {
+            let node_type = obj.get("type").and_then(|t| t.as_str());
+            if node_type == Some("ArrowFunctionExpression")
+                || node_type == Some("FunctionExpression")
+            {
+                // Extract parameter names
+                if let Some(serde_json::Value::Array(params)) = obj.get("params") {
+                    for param in params {
+                        collect_pattern_names(param, names);
+                    }
+                }
+            }
+            // Recurse into all values
+            for value in obj.values() {
+                collect_arrow_param_names(value, names);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for item in arr {
+                collect_arrow_param_names(item, names);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Extract identifier names from a binding pattern (Identifier, ObjectPattern, ArrayPattern, etc.)
+fn collect_pattern_names(pattern: &serde_json::Value, names: &mut Vec<String>) {
+    if let Some(obj) = pattern.as_object() {
+        match obj.get("type").and_then(|t| t.as_str()) {
+            Some("Identifier") => {
+                if let Some(serde_json::Value::String(name)) = obj.get("name") {
+                    names.push(name.clone());
+                }
+            }
+            Some("ObjectPattern") => {
+                if let Some(serde_json::Value::Array(props)) = obj.get("properties") {
+                    for prop in props {
+                        if let Some(value) = prop.get("value") {
+                            collect_pattern_names(value, names);
+                        } else if prop.get("type").and_then(|t| t.as_str()) == Some("RestElement")
+                            && let Some(arg) = prop.get("argument")
+                        {
+                            collect_pattern_names(arg, names);
+                        }
+                    }
+                }
+            }
+            Some("ArrayPattern") => {
+                if let Some(serde_json::Value::Array(elements)) = obj.get("elements") {
+                    for elem in elements {
+                        if !elem.is_null() {
+                            collect_pattern_names(elem, names);
+                        }
+                    }
+                }
+            }
+            Some("RestElement") => {
+                if let Some(arg) = obj.get("argument") {
+                    collect_pattern_names(arg, names);
+                }
+            }
+            Some("AssignmentPattern") => {
+                if let Some(left) = obj.get("left") {
+                    collect_pattern_names(left, names);
+                }
+            }
+            _ => {}
+        }
+    }
+}

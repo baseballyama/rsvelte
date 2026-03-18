@@ -56,10 +56,35 @@ pub fn transform_server(
     generator.preserve_whitespace = options.preserve_whitespace;
     generator.preserve_comments = options.preserve_comments;
     generator.dev = options.dev;
-    generator.filename = options.filename.clone();
+    generator.component_api_v4 = matches!(
+        options.compatibility.component_api,
+        crate::compiler::ComponentApi::V4
+    );
+    // Make filename relative to rootDir if specified (matches official Svelte compiler behavior)
+    generator.filename = options.filename.as_ref().map(|fname| {
+        let fname = fname.replace('\\', "/");
+        if let Some(ref root_dir) = options.root_dir {
+            let rd = root_dir.replace('\\', "/");
+            let rd = rd.trim_end_matches('/');
+            if let Some(stripped) = fname.strip_prefix(rd) {
+                stripped.trim_start_matches('/').to_string()
+            } else {
+                fname
+            }
+        } else {
+            fname
+        }
+    });
 
-    // Handle CSS injection for <svelte:options css="injected" />
-    if analysis.inject_styles && analysis.css.has_css && !analysis.css.hash.is_empty() {
+    // Handle CSS injection for options.css === 'injected'
+    // Reference: transform-server.js line 303: options.css === 'injected' && !options.customElement
+    // Note: analysis.inject_styles is also true for custom elements, but custom elements
+    // handle styles client-side (in shadow DOM), so we check the compile option directly.
+    if options.css == crate::compiler::CssMode::Injected
+        && analysis.css.has_css
+        && !analysis.css.hash.is_empty()
+        && !options.custom_element
+    {
         // Render the CSS stylesheet with scoping and minification for SSR
         if let Ok(css_output) = render_stylesheet_minified(analysis, &analysis.source, options)
             && !css_output.code.is_empty()
@@ -72,6 +97,7 @@ pub fn transform_server(
     generator.generate_component(&ast.fragment)?;
 
     let output = generator.build();
+    let output = strip_empty_statements(&output);
     Ok(add_esrap_blank_lines(&output))
 }
 
@@ -114,7 +140,7 @@ pub fn transform_server_module(
     // Transform rune calls using the same infrastructure as client modules.
     // The client transform handles class fields ($state, $derived in classes).
     let transformed =
-        super::client::transform_module_source_for_module(&source_without_effects, analysis);
+        super::client::transform_module_source_for_module(&source_without_effects, analysis, false);
 
     // Post-process: replace client-specific runtime calls with server equivalents
     // $.get(x) -> x() for server (derived signals are callable on server)
@@ -130,7 +156,13 @@ pub fn transform_server_module(
     for import_line in &script_imports {
         let trimmed = import_line.trim();
         if !trimmed.contains("svelte/internal/") {
-            parts.push(trimmed.to_string());
+            // Ensure import statements end with semicolons, matching esrap behavior.
+            let with_semi = if !trimmed.ends_with(';') {
+                format!("{};", trimmed)
+            } else {
+                trimmed.to_string()
+            };
+            parts.push(with_semi);
         }
     }
 
@@ -146,6 +178,30 @@ pub fn transform_server_module(
 }
 
 /// Add esrap-style blank lines between statements of different types.
+/// Strip standalone empty statements (`;` on its own line) from server code.
+///
+/// The server code generator sometimes emits standalone semicolons that the
+/// official Svelte compiler doesn't produce. This removes lines that consist
+/// only of whitespace followed by `;`.
+fn strip_empty_statements(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len());
+    for line in lines {
+        let trimmed = line.trim();
+        if trimmed == ";" {
+            continue;
+        }
+        // Clean stray semicolons at start of block: `{;` -> `{`
+        if trimmed.ends_with("{;") {
+            let indent = &line[..line.len() - trimmed.len()];
+            result.push(format!("{}{}", indent, &trimmed[..trimmed.len() - 1]));
+        } else {
+            result.push(line.to_string());
+        }
+    }
+    result.join("\n")
+}
+
 /// In the official Svelte compiler, esrap adds a blank line when:
 /// - The AST node type changes between consecutive statements, OR
 /// - Either statement is multiline
@@ -324,9 +380,7 @@ fn add_esrap_blank_lines(code: &str) -> String {
         result.pop();
     }
 
-    let mut output = result.join("\n");
-    output.push('\n'); // ensure trailing newline
-    output
+    result.join("\n")
 }
 
 /// Determine if a line ending with `{` opens an object literal (property context)
@@ -645,13 +699,90 @@ fn post_process_for_server(source: &str) -> String {
         }
     }
 
-    // Replace $.get(x) with x() for server
+    // Replace $.get(x) for server modules:
+    // - Simple identifiers: $.get(x) -> x (plain variable)
+    // - Member expressions (this.#x): $.get(this.#x) -> this.#x() (callable signal in class)
     while let Some(pos) = result.find("$.get(") {
         let call_start = pos + 6;
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
+            let content = result[call_start..call_start + content_end]
+                .trim()
+                .to_string();
+            // Check if it's a member expression (contains '.')
+            if content.contains('.') {
+                // Member expression: keep as function call
+                result = format!(
+                    "{}{}(){}",
+                    &result[..pos],
+                    content,
+                    &result[call_start + content_end + 1..]
+                );
+            } else {
+                // Simple identifier: just the variable name
+                result = format!(
+                    "{}{}{}",
+                    &result[..pos],
+                    content,
+                    &result[call_start + content_end + 1..]
+                );
+            }
+        } else {
+            break;
+        }
+    }
+
+    // Replace $.set(x, v[, flag]) for server modules:
+    // - Simple identifiers: $.set(x, v) -> x = v
+    // - Member expressions: $.set(this.#x, v) -> this.#x(v)
+    while let Some(pos) = result.find("$.set(") {
+        let call_start = pos + 6;
+        if let Some(content_end) = find_matching_paren(&result[call_start..]) {
             let content = result[call_start..call_start + content_end].to_string();
+            if let Some(comma_pos) = find_first_comma(&content) {
+                let signal = content[..comma_pos].trim();
+                let rest = content[comma_pos + 1..].trim();
+                // Rest might be "value, flag" - take only the value (up to second comma)
+                let value = if let Some(comma2_pos) = find_first_comma(rest) {
+                    rest[..comma2_pos].trim()
+                } else {
+                    rest
+                };
+                if signal.contains('.') {
+                    // Member expression: function call form
+                    result = format!(
+                        "{}{}({}){}",
+                        &result[..pos],
+                        signal,
+                        value,
+                        &result[call_start + content_end + 1..]
+                    );
+                } else {
+                    // Simple identifier: assignment form
+                    result = format!(
+                        "{}{} = {}{}",
+                        &result[..pos],
+                        signal,
+                        value,
+                        &result[call_start + content_end + 1..]
+                    );
+                }
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+
+    // Replace $.update(x) with x++ for server modules
+    while let Some(pos) = result.find("$.update(") {
+        let call_start = pos + 9;
+        if let Some(content_end) = find_matching_paren(&result[call_start..]) {
+            let content = result[call_start..call_start + content_end]
+                .trim()
+                .to_string();
             result = format!(
-                "{}{}(){}",
+                "{}{}++{}",
                 &result[..pos],
                 content,
                 &result[call_start + content_end + 1..]
@@ -661,27 +792,64 @@ fn post_process_for_server(source: &str) -> String {
         }
     }
 
-    // Replace $.set(x, v) with x(v) for server
-    while let Some(pos) = result.find("$.set(") {
-        let call_start = pos + 6;
+    // Replace $.update_pre(x) with ++x for server modules
+    while let Some(pos) = result.find("$.update_pre(") {
+        let call_start = pos + 13;
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
-            let content = result[call_start..call_start + content_end].to_string();
-            // Split on first comma to get (signal, value)
-            if let Some(comma_pos) = find_first_comma(&content) {
-                let signal = content[..comma_pos].trim();
-                let value = content[comma_pos + 1..].trim();
+            let content = result[call_start..call_start + content_end]
+                .trim()
+                .to_string();
+            result = format!(
+                "{}++{}{}",
+                &result[..pos],
+                content,
+                &result[call_start + content_end + 1..]
+            );
+        } else {
+            break;
+        }
+    }
+
+    // Replace $.derived(() => expr) with just expr for module-level (non-class) derived
+    // In class contexts, $.derived is kept as-is (server runtime has $.derived for classes)
+    for pattern in &["$.derived(", "$.derived_safe_equal("] {
+        while let Some(pos) = result.find(pattern) {
+            // Check if this is inside a class body by looking for preceding class-like context
+            // If it's a class field assignment (e.g., #field = $.derived(...)), skip it
+            let before = &result[..pos];
+            let trimmed_before = before.trim_end();
+            let is_class_field = trimmed_before.ends_with("=") && {
+                // Check if the line starts with # or this. (class field/constructor)
+                let line_start = before.rfind('\n').map(|p| p + 1).unwrap_or(0);
+                let line = before[line_start..].trim_start();
+                line.starts_with('#') || line.starts_with("this.#") || line.starts_with("this.")
+            };
+
+            if is_class_field {
+                // Don't strip $.derived in class context - skip past this occurrence
+                break; // Can't easily skip since positions change; just stop processing
+            }
+
+            let call_start = pos + pattern.len();
+            if let Some(content_end) = find_matching_paren(&result[call_start..]) {
+                let content = result[call_start..call_start + content_end]
+                    .trim()
+                    .to_string();
+                // If content is an arrow function () => expr, extract just the expr
+                let value = if content.starts_with("() =>") {
+                    content.trim_start_matches("() =>").trim().to_string()
+                } else {
+                    content
+                };
                 result = format!(
-                    "{}{}({}){}",
+                    "{}{}{}",
                     &result[..pos],
-                    signal,
                     value,
                     &result[call_start + content_end + 1..]
                 );
             } else {
                 break;
             }
-        } else {
-            break;
         }
     }
 
@@ -758,6 +926,8 @@ pub(crate) struct ServerCodeGenerator<'a> {
     pub(crate) preserve_comments: bool,
     /// Whether dev mode is enabled (for $.validate_snippet_args etc.)
     pub(crate) dev: bool,
+    /// Whether compatibility.componentApi === 4 (legacy class API)
+    pub(crate) component_api_v4: bool,
     /// Filename for dev mode (used for FILENAME assignment)
     pub(crate) filename: Option<String>,
     /// Whether we're inside a control-flow block body (if/each block body).
@@ -997,6 +1167,7 @@ impl<'a> ServerCodeGenerator<'a> {
             preserve_whitespace: false,
             preserve_comments: false,
             dev: false,
+            component_api_v4: false,
             filename: None,
             in_block_body: false,
             in_if_body: false,
@@ -1028,6 +1199,7 @@ impl<'a> ServerCodeGenerator<'a> {
             preserve_whitespace: self.preserve_whitespace,
             preserve_comments: self.preserve_comments,
             dev: self.dev,
+            component_api_v4: self.component_api_v4,
             filename: self.filename.clone(),
             in_block_body: self.in_block_body,
             in_if_body: self.in_if_body,
@@ -1139,7 +1311,7 @@ impl<'a> ServerCodeGenerator<'a> {
             || result.contains("$inspect(")
             || result.contains("$inspect.trace(")
         {
-            result = remove_effect_blocks(&result, false);
+            result = remove_effect_blocks(&result, false, false);
         }
         result
     }

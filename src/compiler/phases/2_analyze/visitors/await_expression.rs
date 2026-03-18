@@ -4,72 +4,44 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/AwaitExpression.js`.
 
-use super::VisitorContext;
-use crate::ast::template::TemplateNode;
+use super::{JsPathEntry, VisitorContext};
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use serde_json::Value;
 
 /// Visit an await expression.
 ///
 /// Corresponds to the `AwaitExpression` function in AwaitExpression.js.
-///
-/// This function validates that await expressions are used correctly:
-/// - Top-level await (TLA) requires `experimental.async` and runes mode
-/// - Await in template expressions requires `experimental.async` and runes mode
-/// - Tracks await expressions that precede other expressions for reactivity preservation
-///
-/// # Arguments
-///
-/// * `node` - The await expression node (from serde_json::Value)
-/// * `context` - The visitor context
 pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    // Determine if this is top-level await (TLA)
-    // TLA is when we're in the instance script at function depth 1
-    // Reference: AwaitExpression.js line 11:
-    //   const tla = context.state.ast_type === 'instance' && context.state.function_depth === 1;
     let tla = context.ast_type == super::AstType::Instance && context.function_depth == 1;
 
-    // Check if this await is in a reactive expression
-    // Note: In full implementation, we would check:
-    // - if in $derived() and at same function depth
-    // - if in template expression (via expression metadata)
-    // For now, we'll make a simplified check
-    let in_reactive = false; // TODO: Implement full reactive expression detection
+    // Check if this await is in a reactive expression context.
+    // Reference: AwaitExpression.js line 14-22
+    // An await is in a reactive context when:
+    // 1. It's inside a $derived function (derived_function_depth == function_depth), OR
+    // 2. It's inside a template expression (context.expression is Some)
+    let in_derived = context.derived_function_depth == context.function_depth
+        && context.derived_function_depth > 0;
+    let in_reactive = in_derived || context.in_expression_tag;
 
     // Preserve context for awaits that precede other expressions in template or $derived(...)
-    if in_reactive && !is_last_evaluated_expression(&context.path, node) {
-        // TODO: Add to pickled_awaits set
-        // context.analysis.pickled_awaits.insert(node);
+    if in_reactive && !is_last_evaluated_expression_js(&context.js_path, node) {
+        let start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
+        context.analysis.pickled_awaits.insert(start);
     }
 
     // Determine if this await requires suspension
     let suspend = tla;
 
-    // TODO: Check if we're in a template expression (via context.state.expression)
-    // if context.state.expression {
-    //     context.state.expression.has_await = true;
-    //     suspend = true;
-    // }
-
     // Disallow top-level `await` or `await` in template expressions
     // unless a) in runes mode and b) opted into `experimental.async`
-    if suspend {
-        // Skip validation if experimental.async is enabled
-        if !context.analysis.experimental_async || !context.analysis.runes {
-            // Check for runes mode
-            if !context.analysis.runes {
-                return Err(AnalysisError::ValidationWithCode {
-                    code: "legacy_await_invalid".to_string(),
-                    message: "Top-level await is only allowed in Svelte 5 with runes mode"
-                        .to_string(),
-                });
-            }
-        }
+    if suspend && !context.analysis.runes {
+        return Err(AnalysisError::ValidationWithCode {
+            code: "legacy_await_invalid".to_string(),
+            message: "Top-level await is only allowed in Svelte 5 with runes mode".to_string(),
+        });
     }
 
-    // Visit the argument expression (context.next() in JS version)
-    // This is important for walking into the awaited expression to find
-    // calls like tick() that may set needs_context
+    // Visit the argument expression
     if let Some(argument) = node.get("argument") {
         super::script::walk_js_node(argument, context)?;
     }
@@ -77,76 +49,157 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     Ok(())
 }
 
-/// Check if an expression is reactive (inside template or $derived).
-///
-/// Corresponds to `is_reactive_expression` in AwaitExpression.js.
-///
-/// # Arguments
-///
-/// * `path` - The path from root to current node
-/// * `in_derived` - Whether we're inside a $derived function
-#[allow(dead_code)]
-fn is_reactive_expression(path: &[&TemplateNode], in_derived: bool) -> bool {
+/// Check if an expression is in a reactive context by walking up the JS AST path.
+fn is_reactive_expression_js(js_path: &[JsPathEntry], in_derived: bool) -> bool {
     if in_derived {
         return true;
     }
 
-    // Walk up the path to find a reactive context
-    for node in path.iter().rev() {
-        // Check if we hit a function boundary (which would mean no reactive context)
-        // In the JS version, they check for ArrowFunctionExpression, FunctionExpression, FunctionDeclaration
-        // Since our TemplateNode doesn't include JS expressions, we can't fully implement this
-        // TODO: Implement when we have proper JS expression tracking
+    for entry in js_path.iter().rev() {
+        let parent = entry.as_value();
+        let parent_type = parent.get("type").and_then(|t| t.as_str());
 
-        // Check if the parent has metadata (indicating reactive context)
-        // In the JS version: if (parent.metadata) return true;
-        // We don't have metadata on TemplateNode yet
-        // For now, assume any template node means reactive context
-        match node {
-            TemplateNode::ExpressionTag(_)
-            | TemplateNode::HtmlTag(_)
-            | TemplateNode::ConstTag(_) => return true,
+        // Function boundaries stop the search
+        match parent_type {
+            Some("ArrowFunctionExpression")
+            | Some("FunctionExpression")
+            | Some("FunctionDeclaration") => {
+                return false;
+            }
             _ => {}
+        }
+
+        // Check if parent has metadata (indicating reactive template context)
+        if parent.get("metadata").is_some() {
+            return true;
         }
     }
 
     false
 }
 
-/// Check if an expression is the last evaluated expression in its context.
+/// Check if an expression is the last evaluated expression in its reactive context.
 ///
 /// Corresponds to `is_last_evaluated_expression` in AwaitExpression.js.
-///
-/// This determines if an await expression's result is immediately used,
-/// in which case we don't need to preserve reactivity tracking.
-///
-/// # Arguments
-///
-/// * `path` - The path from root to current node
-/// * `node` - The current expression node
-#[allow(dead_code)]
-fn is_last_evaluated_expression(path: &[&TemplateNode], _node: &Value) -> bool {
-    // Walk up the path to find if this is the last evaluated expression
-    for template_node in path.iter().rev() {
-        // Check for ConstTag - its contents should all get preserve-reactivity treatment
-        if matches!(template_node, TemplateNode::ConstTag(_)) {
+fn is_last_evaluated_expression_js(js_path: &[JsPathEntry], node: &Value) -> bool {
+    let mut current = node;
+
+    for entry in js_path.iter().rev() {
+        let parent = entry.as_value();
+        let parent_type = parent.get("type").and_then(|t| t.as_str());
+
+        if parent_type == Some("ConstTag") {
             return false;
         }
 
-        // Check if we found a node with metadata (reactive context)
-        // If so, this is the last expression in that context
-        match template_node {
-            TemplateNode::ExpressionTag(_) | TemplateNode::HtmlTag(_) => return true,
-            _ => {}
+        if parent.get("metadata").is_some() {
+            return true;
         }
 
-        // In the full implementation, we would check the expression tree structure
-        // to determine if this await is in the last position. For example:
-        // - In ArrayExpression, check if it's the last element
-        // - In BinaryExpression, check if it's the right operand
-        // - In CallExpression, check if it's the last argument
-        // Since we don't have access to the full JS AST here, we'll return false
+        match parent_type {
+            Some("ArrayExpression") => {
+                if let Some(Value::Array(elements)) = parent.get("elements")
+                    && !is_same_node(elements.last(), current)
+                {
+                    return false;
+                }
+            }
+
+            Some("AssignmentExpression") | Some("BinaryExpression") | Some("LogicalExpression") => {
+                if is_same_node(parent.get("left"), current) {
+                    return false;
+                }
+            }
+
+            Some("CallExpression") | Some("NewExpression") => {
+                if let Some(Value::Array(args)) = parent.get("arguments")
+                    && !is_same_node(args.last(), current)
+                {
+                    return false;
+                }
+            }
+
+            Some("ConditionalExpression") => {
+                if is_same_node(parent.get("test"), current) {
+                    return false;
+                }
+            }
+
+            Some("MemberExpression") => {
+                if parent
+                    .get("computed")
+                    .and_then(|c| c.as_bool())
+                    .unwrap_or(false)
+                    && is_same_node(parent.get("object"), current)
+                {
+                    return false;
+                }
+            }
+
+            Some("ObjectExpression") => {
+                if let Some(Value::Array(props)) = parent.get("properties")
+                    && !is_same_node(props.last(), current)
+                {
+                    return false;
+                }
+            }
+
+            Some("Property") => {
+                if is_same_node(parent.get("key"), current) {
+                    return false;
+                }
+            }
+
+            Some("SequenceExpression") => {
+                if let Some(Value::Array(exprs)) = parent.get("expressions")
+                    && !is_same_node(exprs.last(), current)
+                {
+                    return false;
+                }
+            }
+
+            Some("TaggedTemplateExpression") => {
+                if let Some(quasi) = parent.get("quasi")
+                    && let Some(Value::Array(exprs)) = quasi.get("expressions")
+                    && !is_same_node(exprs.last(), current)
+                {
+                    return false;
+                }
+            }
+
+            Some("TemplateLiteral") => {
+                if let Some(Value::Array(exprs)) = parent.get("expressions")
+                    && !is_same_node(exprs.last(), current)
+                {
+                    return false;
+                }
+            }
+
+            Some("VariableDeclarator") => {
+                return true;
+            }
+
+            _ => {
+                return false;
+            }
+        }
+
+        current = parent;
     }
 
     false
+}
+
+/// Check if two JSON nodes are the same by comparing start/end positions.
+fn is_same_node(a: Option<&Value>, b: &Value) -> bool {
+    match a {
+        Some(a_val) => {
+            let a_start = a_val.get("start").and_then(|s| s.as_u64());
+            let b_start = b.get("start").and_then(|s| s.as_u64());
+            let a_end = a_val.get("end").and_then(|s| s.as_u64());
+            let b_end = b.get("end").and_then(|s| s.as_u64());
+            a_start.is_some() && a_start == b_start && a_end == b_end
+        }
+        None => false,
+    }
 }

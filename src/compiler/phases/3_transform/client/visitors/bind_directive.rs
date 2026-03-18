@@ -1663,6 +1663,51 @@ fn build_getter_setter(
             transformed_set
         };
 
+        // In dev mode, apply ownership mutation validation for member expressions on props.
+        // This wraps the setter with $$ownership_validator.mutation() when the root of the
+        // member expression is a prop or bindable_prop.
+        // Reference: validate_mutation() in shared/utils.js, which is called by AssignmentExpression
+        // visitor. The bind directive builds its setter via apply_transforms_to_expression
+        // rather than the AssignmentExpression visitor, so we need to apply this manually.
+        let transformed_set = if dev && original_expr.is_member_expression() {
+            let root_name = get_ast_root_identifier(original_expr);
+            if let Some(ref root_name) = root_name {
+                let binding = context.state.get_binding(root_name);
+                if let Some(binding) = binding {
+                    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                    if matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp) {
+                        context.state.needs_mutation_validation.set(true);
+                        let prop_alias =
+                            binding.prop_alias.as_ref().unwrap_or(&binding.name).clone();
+                        let path = build_ast_member_path(original_expr);
+                        let mut args =
+                            vec![b::string(&prop_alias), b::array(path), transformed_set];
+                        // Add source location (line, column) if available
+                        let start_pos = original_expr
+                            .as_json()
+                            .get("start")
+                            .and_then(|v| v.as_u64())
+                            .map(|v| v as usize);
+                        if let Some(start) = start_pos {
+                            let source = &context.state.analysis.source;
+                            let (line, col) = offset_to_line_col(source, start);
+                            args.push(b::number(line as f64));
+                            args.push(b::number(col as f64));
+                        }
+                        b::call(b::member_path("$$ownership_validator.mutation"), args)
+                    } else {
+                        transformed_set
+                    }
+                } else {
+                    transformed_set
+                }
+            } else {
+                transformed_set
+            }
+        } else {
+            transformed_set
+        };
+
         if dev {
             let get = b::function_expr(
                 Some("get".into()),
@@ -2243,6 +2288,31 @@ fn merge_store_invalidation_into_setter(setter: &JsExpr, store_name: &str) -> Js
                 setter.clone()
             }
         }
+        JsExpr::Function(func) => {
+            // For function expression setters like `function set($$value) { expr; }`,
+            // wrap the body's expression statement in a sequence: `(expr, $.invalidate_store(...))`
+            // This matches the official Svelte compiler output.
+            use crate::compiler::phases::phase3_transform::js_ast::nodes::{
+                JsFunctionExpression, JsSequenceExpression,
+            };
+            let mut new_body = func.body.clone();
+            if let Some(JsStatement::Expression(expr_stmt)) = new_body.body.last_mut() {
+                let seq = JsExpr::Sequence(JsSequenceExpression {
+                    expressions: vec![
+                        (*expr_stmt.expression).clone(),
+                        JsExpr::Raw(invalidation.into()),
+                    ],
+                });
+                *expr_stmt.expression = seq;
+            }
+            JsExpr::Function(JsFunctionExpression {
+                id: func.id.clone(),
+                params: func.params.clone(),
+                body: new_body,
+                is_async: func.is_async,
+                is_generator: func.is_generator,
+            })
+        }
         _ => setter.clone(),
     }
 }
@@ -2434,6 +2504,91 @@ fn extract_root_name_from_json(val: &serde_json::Value) -> Option<String> {
         "Identifier" => obj.get("name")?.as_str().map(|s| s.to_string()),
         "MemberExpression" => extract_root_name_from_json(obj.get("object")?),
         _ => None,
+    }
+}
+
+/// Convert a byte offset to 1-based line and 0-based column.
+fn offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
+    let mut line = 1;
+    let mut col = 0;
+    for (i, ch) in source.char_indices() {
+        if i >= offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            col = 0;
+        } else {
+            col += 1;
+        }
+    }
+    (line, col)
+}
+
+/// Get the root identifier name from an AST Expression (JSON-based).
+/// For `form.count` returns `Some("form")`.
+fn get_ast_root_identifier(expr: &Expression) -> Option<String> {
+    extract_root_name_from_json(expr.as_json())
+}
+
+/// Build the member property path from an AST Expression (JSON-based).
+/// For `form.count` returns `[b::string("form"), b::string("count")]`.
+/// This walks the member expression chain and collects all property names as literals.
+fn build_ast_member_path(expr: &Expression) -> Vec<JsExpr> {
+    let mut path = Vec::new();
+    build_ast_member_path_recursive(expr.as_json(), &mut path);
+    path
+}
+
+fn build_ast_member_path_recursive(val: &serde_json::Value, path: &mut Vec<JsExpr>) {
+    let obj = match val.as_object() {
+        Some(o) => o,
+        None => return,
+    };
+    match obj.get("type").and_then(|t| t.as_str()) {
+        Some("MemberExpression") => {
+            // Recurse into object first
+            if let Some(object) = obj.get("object") {
+                build_ast_member_path_recursive(object, path);
+            }
+            // Add current property
+            let computed = obj
+                .get("computed")
+                .and_then(|c| c.as_bool())
+                .unwrap_or(false);
+            if let Some(property) = obj.get("property")
+                && let Some(prop_obj) = property.as_object()
+                && let Some(prop_type) = prop_obj.get("type").and_then(|t| t.as_str())
+            {
+                match prop_type {
+                    "Identifier" => {
+                        if let Some(name) = prop_obj.get("name").and_then(|n| n.as_str()) {
+                            if computed {
+                                path.push(b::id(name));
+                            } else {
+                                path.push(b::string(name));
+                            }
+                        }
+                    }
+                    "Literal" => {
+                        if let Some(value) = prop_obj.get("value") {
+                            if let Some(s) = value.as_str() {
+                                path.push(b::string(s));
+                            } else if let Some(n) = value.as_f64() {
+                                path.push(b::number(n));
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Some("Identifier") => {
+            if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+                path.push(b::string(name));
+            }
+        }
+        _ => {}
     }
 }
 

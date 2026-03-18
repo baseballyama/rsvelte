@@ -136,7 +136,19 @@ impl<'a> ServerCodeGenerator<'a> {
 
             // Extract imports and transform the rest
             // Use extract_imports_module to keep `export { ... }` statements
-            let (imports, rest) = extract_imports_module(&raw_script);
+            let (imports_raw, rest) = extract_imports_module(&raw_script);
+            // Ensure import statements end with semicolons, matching esrap behavior.
+            let imports: Vec<String> = imports_raw
+                .into_iter()
+                .map(|s| {
+                    let t = s.trim().to_string();
+                    if !t.ends_with(';') {
+                        format!("{};", t)
+                    } else {
+                        t
+                    }
+                })
+                .collect();
             // Apply class field transformation for $derived fields in module-level classes
             let rest = transform_class_fields_server(&rest);
             // Remove $effect(), $effect.pre(), $effect.root(), $inspect(), $inspect.trace() blocks
@@ -148,7 +160,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 || rest.contains("$inspect(")
                 || rest.contains("$inspect.trace(")
             {
-                super::transform_script::remove_effect_blocks(&rest, false)
+                super::transform_script::remove_effect_blocks(&rest, false, self.dev)
             } else {
                 rest
             };
@@ -215,7 +227,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
             // First, remove $effect, $effect.pre, $effect.root, and $inspect.trace blocks
             // These are client-side only and should not appear in SSR output
-            let raw_script = remove_effect_blocks(&raw_script, self.use_async);
+            let raw_script = remove_effect_blocks(&raw_script, self.use_async, self.dev);
 
             // Check if script uses $props() or export let/export { x } (legacy props)
             let has_bindable_props = self.analysis.is_some_and(|a| {
@@ -251,7 +263,19 @@ impl<'a> ServerCodeGenerator<'a> {
                 crate::compiler::phases::phase2_analyze::types::extract_imported_names(&raw_script);
 
             // Extract imports and transform the rest
-            let (imports, rest) = extract_imports(&raw_script);
+            let (imports_raw, rest) = extract_imports(&raw_script);
+            // Ensure import statements end with semicolons, matching esrap behavior.
+            let imports: Vec<String> = imports_raw
+                .into_iter()
+                .map(|s| {
+                    let t = s.trim().to_string();
+                    if !t.ends_with(';') {
+                        format!("{};", t)
+                    } else {
+                        t
+                    }
+                })
+                .collect();
 
             // Apply class field transformation for $derived fields
             let rest = transform_class_fields_server(&rest);
@@ -372,12 +396,27 @@ impl<'a> ServerCodeGenerator<'a> {
                 // The async body transform produces unindented output (0-tab).
                 // Add 1-tab indentation to match the original script_code level,
                 // so transform_props_spread can add another tab for the component wrapper.
+                // IMPORTANT: Don't add indentation inside template literals.
                 let trimmed = async_result.output.trim();
                 let mut indented = String::new();
+                let mut in_template_literal = false;
                 for line in trimmed.lines() {
                     if line.trim().is_empty() {
                         indented.push('\n');
+                    } else if in_template_literal {
+                        in_template_literal =
+                            super::helpers::update_template_literal_state_for_indent(
+                                line,
+                                in_template_literal,
+                            );
+                        indented.push_str(line);
+                        indented.push('\n');
                     } else {
+                        in_template_literal =
+                            super::helpers::update_template_literal_state_for_indent(
+                                line,
+                                in_template_literal,
+                            );
                         indented.push('\t');
                         indented.push_str(line);
                         indented.push('\n');
@@ -400,7 +439,7 @@ impl<'a> ServerCodeGenerator<'a> {
         //   should_inject_context = dev || analysis.needs_context
         // Note: uses_props_spread also needs the wrapper for destructuring.
         let should_inject_context = self.dev || needs_context;
-        let needs_component_wrapper = should_inject_context || uses_props_spread;
+        let needs_component_wrapper = should_inject_context;
 
         // Determine if we need $$props parameter
         // This matches the official compiler's should_inject_props logic (lines 306-313):
@@ -468,14 +507,68 @@ impl<'a> ServerCodeGenerator<'a> {
         // Build the final output - handle empty body case
         let has_content = !script_code.is_empty() || !body_code.is_empty();
 
+        // In dev mode or componentApi v4, the function is not exported inline;
+        // instead `export default ComponentName;` is appended at the end of the module.
+        let fn_export_keyword = if self.dev || self.component_api_v4 {
+            ""
+        } else {
+            "export default "
+        };
+        let dev_export_section = if self.component_api_v4 {
+            // Legacy componentApi: 4 - generate render method that calls $$_render
+            format!(
+                "\n\n{name}.render = function ($$props, $$opts) {{\n\treturn $$_render({name}, {{ props: $$props, context: $$opts?.context }});\n}};\n\nexport default {name};",
+                name = self.component_name
+            )
+        } else if self.dev {
+            format!(
+                "\n\n{name}.render = function () {{\n\tthrow new Error('Component.render(...) is no longer valid in Svelte 5. See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-classes for more information');\n}};\n\nexport default {name};",
+                name = self.component_name
+            )
+        } else {
+            String::new()
+        };
+
+        // For componentApi: 4, add import { render as $$_render } from 'svelte/server'
+        let legacy_render_import = if self.component_api_v4 {
+            "import { render as $$_render } from 'svelte/server';\n"
+        } else {
+            ""
+        };
+
+        // In dev mode, add FILENAME assignment (placed after async import, before main import)
+        let filename_section = if self.dev {
+            if let Some(ref fname) = self.filename {
+                // Use the full filename (normalized to forward slashes)
+                // The official Svelte compiler uses the filename as-is (relative to rootDir if set)
+                let display_name = fname.replace('\\', "/");
+                let leading = if self.use_async { "\n" } else { "" };
+                format!(
+                    "{}{}[$.FILENAME] = '{}';\n\n",
+                    leading, self.component_name, display_name
+                )
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
+
         let raw_output = if has_content {
             if needs_component_wrapper {
                 // Build props declarations ($$sanitized_props, $$restProps) - OUTSIDE wrapper
                 // The official Svelte compiler places $$sanitized_props before the $$renderer.component()
                 // call so it's accessible in the wrapper via closure.
                 let props_declarations = self.build_props_declarations(1);
+
+                // In dev mode, use multi-line format with 3-tab indent inside wrapper
+                // In non-dev mode, use inline format with 2-tab indent
+                let wrapper_indent = if self.dev { 3 } else { 2 };
+                let extra_tabs = if self.dev { 2 } else { 1 };
+
                 // Wrap in $$renderer.component() with proper destructuring
-                let inner_script = transform_props_spread(&script_code);
+                let inner_script =
+                    transform_props_spread_ex(&script_code, extra_tabs, analysis_uses_slots);
                 let mut each_counter: usize = 0;
                 // Hoist <svelte:head> parts to the beginning (official Svelte compiler behavior)
                 let hoisted_parts_wrapper = Self::hoist_svelte_head(&self.output_parts);
@@ -487,44 +580,53 @@ impl<'a> ServerCodeGenerator<'a> {
                 };
                 let inner_body = Self::build_parts_with_store_subs(
                     &hoisted_parts_wrapper,
-                    2,
+                    wrapper_indent,
                     &mut each_counter,
                     &store_subs_ref,
                 );
                 // Build instance-level snippets (cannot be hoisted)
-                let instance_snippets = self.build_instance_snippets(2);
+                let instance_snippets = self.build_instance_snippets(wrapper_indent);
                 // Build $.bind_props() call (inside $$renderer.component())
-                let bind_props_code = self.build_bind_props(2);
+                let bind_props_code = self.build_bind_props(wrapper_indent);
+
+                let indent_str = "\t".repeat(wrapper_indent);
 
                 // Add store subscription variable declaration and cleanup if needed
                 let store_subs_decl = if self.uses_store_subs {
-                    "\t\tvar $$store_subs;\n"
+                    format!("{}var $$store_subs;\n", indent_str)
                 } else {
-                    ""
+                    String::new()
                 };
                 let store_subs_cleanup = if self.uses_store_subs {
-                    "\n\t\tif ($$store_subs) $.unsubscribe_stores($$store_subs);\n"
+                    format!(
+                        "\n{}if ($$store_subs) $.unsubscribe_stores($$store_subs);\n",
+                        indent_str
+                    )
                 } else {
-                    ""
+                    String::new()
                 };
 
                 // If the component uses component bindings, wrap the inner body in $$settled/$$render_inner
                 let inner_body = if uses_component_bindings {
+                    let bi = &indent_str; // body indent
+                    let ii = "\t".repeat(wrapper_indent + 1); // inner indent
                     format!(
-                        r#"		let $$settled = true;
-		let $$inner_renderer;
+                        r#"{bi}let $$settled = true;
+{bi}let $$inner_renderer;
 
-		function $$render_inner($$renderer) {{
-{body_code}		}}
+{bi}function $$render_inner($$renderer) {{
+{body_code}{bi}}}
 
-		do {{
-			$$settled = true;
-			$$inner_renderer = $$renderer.copy();
-			$$render_inner($$inner_renderer);
-		}} while (!$$settled);
+{bi}do {{
+{ii}$$settled = true;
+{ii}$$inner_renderer = $$renderer.copy();
+{ii}$$render_inner($$inner_renderer);
+{bi}}} while (!$$settled);
 
-		$$renderer.subsume($$inner_renderer);
+{bi}$$renderer.subsume($$inner_renderer);
 "#,
+                        bi = bi,
+                        ii = ii,
                         body_code = inner_body.clone()
                     )
                 } else {
@@ -532,58 +634,87 @@ impl<'a> ServerCodeGenerator<'a> {
                 };
 
                 // In dev mode, add component name as 2nd arg to $$renderer.component()
+                // and use multi-line format
                 let component_second_arg = if self.dev {
-                    format!(", {}", self.component_name)
+                    format!(",\n\t\t{}", self.component_name)
                 } else {
                     String::new()
                 };
 
-                // In dev mode, add FILENAME assignment
-                let filename_section = if self.dev {
-                    if let Some(ref fname) = self.filename {
-                        // Use just the basename for the filename
-                        let basename = fname
-                            .rsplit('/')
-                            .next()
-                            .or_else(|| fname.rsplit('\\').next())
-                            .unwrap_or(fname);
-                        format!("{}[$.FILENAME] = '{}';\n\n", self.component_name, basename)
-                    } else {
-                        String::new()
-                    }
-                } else {
-                    String::new()
-                };
-
-                format!(
-                    r#"{filename_section}{async_import}import * as $ from 'svelte/internal/server';
+                if self.dev {
+                    // Dev mode: multi-line $$renderer.component() format
+                    format!(
+                        r#"{async_import}{filename_section}{legacy_render_import}import * as $ from 'svelte/internal/server';
 {imports_section}{snippets_section}{css_const_section}{module_section}
-export default function {component_name}($$renderer{props_param}) {{
+{fn_export_keyword}function {component_name}($$renderer{props_param}) {{
+{css_add_call}{props_declarations}	$$renderer.component(
+		($$renderer) => {{
+{store_subs_decl}{inner_script}
+{instance_snippets}{inner_body}{store_subs_cleanup}{bind_props_code}		}}{component_second_arg}
+	);
+}}{dev_export_section}"#,
+                        fn_export_keyword = fn_export_keyword,
+                        async_import = async_import,
+                        filename_section = filename_section,
+                        legacy_render_import = legacy_render_import,
+                        imports_section = imports_section,
+                        snippets_section = snippets_section,
+                        css_const_section = css_const_section,
+                        module_section = module_section,
+                        component_name = self.component_name,
+                        props_param = props_param,
+                        css_add_call = css_add_call,
+                        props_declarations = props_declarations,
+                        store_subs_decl = store_subs_decl,
+                        inner_script = inner_script,
+                        instance_snippets = instance_snippets,
+                        inner_body = inner_body,
+                        bind_props_code = bind_props_code,
+                        store_subs_cleanup = store_subs_cleanup,
+                        component_second_arg = component_second_arg,
+                        dev_export_section = dev_export_section
+                    )
+                } else {
+                    // Non-dev mode: inline $$renderer.component() format
+                    format!(
+                        r#"{async_import}{filename_section}{legacy_render_import}import * as $ from 'svelte/internal/server';
+{imports_section}{snippets_section}{css_const_section}{module_section}
+{fn_export_keyword}function {component_name}($$renderer{props_param}) {{
 {css_add_call}{props_declarations}	$$renderer.component(($$renderer) => {{
 {store_subs_decl}{inner_script}
 {instance_snippets}{inner_body}{store_subs_cleanup}{bind_props_code}	}}{component_second_arg});
-}}"#,
-                    filename_section = filename_section,
-                    async_import = async_import,
-                    imports_section = imports_section,
-                    snippets_section = snippets_section,
-                    css_const_section = css_const_section,
-                    module_section = module_section,
-                    component_name = self.component_name,
-                    props_param = props_param,
-                    css_add_call = css_add_call,
-                    props_declarations = props_declarations,
-                    store_subs_decl = store_subs_decl,
-                    inner_script = inner_script,
-                    instance_snippets = instance_snippets,
-                    inner_body = inner_body,
-                    bind_props_code = bind_props_code,
-                    store_subs_cleanup = store_subs_cleanup,
-                    component_second_arg = component_second_arg
-                )
+}}{dev_export_section}"#,
+                        fn_export_keyword = fn_export_keyword,
+                        async_import = async_import,
+                        filename_section = filename_section,
+                        legacy_render_import = legacy_render_import,
+                        imports_section = imports_section,
+                        snippets_section = snippets_section,
+                        css_const_section = css_const_section,
+                        module_section = module_section,
+                        component_name = self.component_name,
+                        props_param = props_param,
+                        css_add_call = css_add_call,
+                        props_declarations = props_declarations,
+                        store_subs_decl = store_subs_decl,
+                        inner_script = inner_script,
+                        instance_snippets = instance_snippets,
+                        inner_body = inner_body,
+                        bind_props_code = bind_props_code,
+                        store_subs_cleanup = store_subs_cleanup,
+                        component_second_arg = component_second_arg,
+                        dev_export_section = dev_export_section
+                    )
+                }
             } else {
                 // Build props declarations ($$sanitized_props, $$restProps)
                 let props_declarations = self.build_props_declarations(1);
+                // Apply props spread transformation if needed ($$slots/$$events exclusion)
+                let script_code = if uses_props_spread {
+                    transform_props_spread_ex(&script_code, 0, analysis_uses_slots)
+                } else {
+                    script_code
+                };
                 let script_section = if script_code.is_empty() {
                     String::new()
                 } else {
@@ -645,11 +776,14 @@ export default function {component_name}($$renderer{props_param}) {{
                 };
 
                 format!(
-                    r#"{async_import}import * as $ from 'svelte/internal/server';
+                    r#"{async_import}{filename_section}{legacy_render_import}import * as $ from 'svelte/internal/server';
 {imports_section}{snippets_section}{css_const_section}{module_section}
-export default function {component_name}($$renderer{props_param}) {{
-{css_add_call}{props_declarations}{store_subs_decl}{script_section}{instance_snippets}{body_section}{store_subs_cleanup}{bind_props_code}}}"#,
+{fn_export_keyword}function {component_name}($$renderer{props_param}) {{
+{css_add_call}{props_declarations}{store_subs_decl}{script_section}{instance_snippets}{body_section}{store_subs_cleanup}{bind_props_code}}}{dev_export_section}"#,
                     async_import = async_import,
+                    filename_section = filename_section,
+                    legacy_render_import = legacy_render_import,
+                    fn_export_keyword = fn_export_keyword,
                     imports_section = imports_section,
                     snippets_section = snippets_section,
                     css_const_section = css_const_section,
@@ -663,33 +797,69 @@ export default function {component_name}($$renderer{props_param}) {{
                     instance_snippets = instance_snippets,
                     body_section = body_section,
                     store_subs_cleanup = store_subs_cleanup,
-                    bind_props_code = bind_props_code
+                    bind_props_code = bind_props_code,
+                    dev_export_section = dev_export_section
                 )
             }
+        } else if needs_component_wrapper {
+            // Empty body but needs component wrapper (dev mode or needs_context)
+            let component_second_arg = if self.dev {
+                format!(", {}", self.component_name)
+            } else {
+                String::new()
+            };
+            let bind_props_code = self.build_bind_props(1);
+            format!(
+                r#"{async_import}{filename_section}{legacy_render_import}import * as $ from 'svelte/internal/server';
+{imports_section}{snippets_section}{css_const_section}{module_section}
+{fn_export_keyword}function {component_name}($$renderer{props_param}) {{
+{css_add_call}	$$renderer.component(($$renderer) => {{}}{component_second_arg});
+{bind_props_code}}}{dev_export_section}"#,
+                async_import = async_import,
+                filename_section = filename_section,
+                legacy_render_import = legacy_render_import,
+                fn_export_keyword = fn_export_keyword,
+                imports_section = imports_section,
+                snippets_section = snippets_section,
+                css_const_section = css_const_section,
+                module_section = module_section,
+                component_name = self.component_name,
+                props_param = props_param,
+                css_add_call = css_add_call,
+                component_second_arg = component_second_arg,
+                bind_props_code = bind_props_code,
+                dev_export_section = dev_export_section
+            )
         } else {
             // Empty body - use single line braces
-            // Build $.bind_props() call even for empty body
             let bind_props_code = self.build_bind_props(1);
             if bind_props_code.is_empty() && css_add_call.is_empty() {
                 format!(
-                    r#"{async_import}import * as $ from 'svelte/internal/server';
+                    r#"{async_import}{filename_section}{legacy_render_import}import * as $ from 'svelte/internal/server';
 {imports_section}{snippets_section}{css_const_section}{module_section}
-export default function {component_name}($$renderer{props_param}) {{}}"#,
+{fn_export_keyword}function {component_name}($$renderer{props_param}) {{}}{dev_export_section}"#,
                     async_import = async_import,
+                    filename_section = filename_section,
+                    legacy_render_import = legacy_render_import,
+                    fn_export_keyword = fn_export_keyword,
                     imports_section = imports_section,
                     snippets_section = snippets_section,
                     css_const_section = css_const_section,
                     module_section = module_section,
                     component_name = self.component_name,
                     props_param = props_param,
+                    dev_export_section = dev_export_section,
                 )
             } else {
                 format!(
-                    r#"{async_import}import * as $ from 'svelte/internal/server';
+                    r#"{async_import}{filename_section}{legacy_render_import}import * as $ from 'svelte/internal/server';
 {imports_section}{snippets_section}{css_const_section}{module_section}
-export default function {component_name}($$renderer{props_param}) {{
-{css_add_call}{bind_props_code}}}"#,
+{fn_export_keyword}function {component_name}($$renderer{props_param}) {{
+{css_add_call}{bind_props_code}}}{dev_export_section}"#,
                     async_import = async_import,
+                    filename_section = filename_section,
+                    legacy_render_import = legacy_render_import,
+                    fn_export_keyword = fn_export_keyword,
                     imports_section = imports_section,
                     snippets_section = snippets_section,
                     css_const_section = css_const_section,
@@ -697,10 +867,17 @@ export default function {component_name}($$renderer{props_param}) {{
                     component_name = self.component_name,
                     props_param = props_param,
                     css_add_call = css_add_call,
-                    bind_props_code = bind_props_code
+                    bind_props_code = bind_props_code,
+                    dev_export_section = dev_export_section
                 )
             }
         };
+
+        // Post-process: remove trailing semicolons after function declaration closing braces.
+        // The user's source code may have `function foo() { };` but the official Svelte compiler
+        // (which parses AST and regenerates) drops the trailing `;` since FunctionDeclarations
+        // don't need them. This produces EmptyStatement nodes in the AST that cause mismatches.
+        let raw_output = strip_trailing_semicolons_after_functions(&raw_output);
 
         raw_output
     }
@@ -1082,6 +1259,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     css_custom_props,
                     css_props_is_html,
                     attach_expressions,
+                    dev,
                     ..
                 } => {
                     // Find blockers from component name, all prop expressions,
@@ -1149,6 +1327,7 @@ export default function {component_name}($$renderer{props_param}) {{
                                 css_props_is_html: *css_props_is_html,
                                 in_async_block: true,
                                 attach_expressions: attach_expressions.clone(),
+                                dev: *dev,
                             }],
                         });
                     } else if children.is_some() || !snippets.is_empty() {
@@ -1166,6 +1345,7 @@ export default function {component_name}($$renderer{props_param}) {{
                             css_props_is_html: *css_props_is_html,
                             in_async_block: false,
                             attach_expressions: attach_expressions.clone(),
+                            dev: *dev,
                         });
                     } else {
                         // No children to recurse into - just clone the original
@@ -1181,6 +1361,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     dynamic,
                     css_custom_props,
                     css_props_is_html,
+                    dev,
                     ..
                 } => {
                     // Find blockers from component name, props, and bindings
@@ -1281,6 +1462,7 @@ export default function {component_name}($$renderer{props_param}) {{
                                 css_custom_props: css_custom_props.clone(),
                                 css_props_is_html: *css_props_is_html,
                                 seq_bindings_hoisted: has_seq,
+                                dev: *dev,
                             }],
                         });
                     } else if children.is_some() {
@@ -1294,6 +1476,7 @@ export default function {component_name}($$renderer{props_param}) {{
                             css_custom_props: css_custom_props.clone(),
                             css_props_is_html: *css_props_is_html,
                             seq_bindings_hoisted: false,
+                            dev: *dev,
                         });
                     } else {
                         result.push(part.clone());
@@ -1562,13 +1745,19 @@ export default function {component_name}($$renderer{props_param}) {{
                     let wrapped_body = Self::apply_const_async_wrapping(body, &local_map);
                     result.push(OutputPart::BlockScope { body: wrapped_body });
                 }
-                OutputPart::SnippetFunction { name, params, body } => {
+                OutputPart::SnippetFunction {
+                    name,
+                    params,
+                    body,
+                    dev,
+                } => {
                     // SnippetFunction creates a new scope - recurse with current map as parent
                     let wrapped_body = Self::apply_const_async_wrapping(body, &local_map);
                     result.push(OutputPart::SnippetFunction {
                         name: name.clone(),
                         params: params.clone(),
                         body: wrapped_body,
+                        dev: *dev,
                     });
                 }
                 OutputPart::EachBlock {
@@ -2557,6 +2746,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     css_custom_props: _, // TODO: Handle CSS custom props for components with bindings
                     css_props_is_html: _,
                     seq_bindings_hoisted,
+                    dev: component_dev,
                 } => {
                     // Component with bindings - just generate the component call with getter/setters.
                     // The $$settled/$$render_inner loop is handled at the component level in build().
@@ -2705,10 +2895,23 @@ export default function {component_name}($$renderer{props_param}) {{
                                 each_counter,
                                 store_subs,
                             );
-                            body_code
-                                .push_str(&format!("{}\tchildren: ($$renderer) => {{\n", indent));
+                            if *component_dev {
+                                body_code.push_str(&format!(
+                                    "{}\tchildren: $.prevent_snippet_stringification(($$renderer) => {{\n",
+                                    indent
+                                ));
+                            } else {
+                                body_code.push_str(&format!(
+                                    "{}\tchildren: ($$renderer) => {{\n",
+                                    indent
+                                ));
+                            }
                             body_code.push_str(&children_code);
-                            body_code.push_str(&format!("{}\t}},\n", indent));
+                            if *component_dev {
+                                body_code.push_str(&format!("{}\t}}),\n", indent));
+                            } else {
+                                body_code.push_str(&format!("{}\t}},\n", indent));
+                            }
                             body_code
                                 .push_str(&format!("{}\t$$slots: {{ default: true }}\n", indent));
                         }
@@ -2738,6 +2941,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     css_props_is_html,
                     in_async_block,
                     attach_expressions: _,
+                    dev: component_dev,
                 } => {
                     // Flush current HTML before the component call
                     // For dynamic components, add <!---->  marker before the call (pushed separately)
@@ -2783,6 +2987,14 @@ export default function {component_name}($$renderer{props_param}) {{
 
                             // Generate snippet function declarations inside the block
                             for (snippet_name, params, body_parts, _) in &true_snippets {
+                                // In dev mode, add prevent_snippet_stringification before function
+                                if *component_dev {
+                                    body_code.push_str(&format!(
+                                        "{}\t$.prevent_snippet_stringification({});\n",
+                                        indent, snippet_name
+                                    ));
+                                }
+
                                 let params_str = if params.is_empty() {
                                     "$$renderer".to_string()
                                 } else {
@@ -2792,6 +3004,15 @@ export default function {component_name}($$renderer{props_param}) {{
                                     "{}\tfunction {}({}) {{\n",
                                     indent, snippet_name, params_str
                                 ));
+
+                                // In dev mode, add validate_snippet_args
+                                if *component_dev {
+                                    body_code.push_str(&format!(
+                                        "{}\t\t$.validate_snippet_args($$renderer);\n",
+                                        indent
+                                    ));
+                                }
+
                                 let snippet_body = Self::build_parts_with_store_subs(
                                     body_parts,
                                     indent_level + 2,
@@ -3027,10 +3248,17 @@ export default function {component_name}($$renderer{props_param}) {{
                                     body_code.push_str(&format!("{}\t\t}}\n", indent));
                                 } else {
                                     // No let directives - standard children callback
-                                    body_code.push_str(&format!(
-                                        "{}\t\tchildren: ($$renderer) => {{\n",
-                                        indent
-                                    ));
+                                    if *component_dev {
+                                        body_code.push_str(&format!(
+                                            "{}\t\tchildren: $.prevent_snippet_stringification(($$renderer) => {{\n",
+                                            indent
+                                        ));
+                                    } else {
+                                        body_code.push_str(&format!(
+                                            "{}\t\tchildren: ($$renderer) => {{\n",
+                                            indent
+                                        ));
+                                    }
                                     let children_code = Self::build_parts_with_store_subs(
                                         children_parts,
                                         indent_level + 3,
@@ -3038,7 +3266,11 @@ export default function {component_name}($$renderer{props_param}) {{
                                         store_subs,
                                     );
                                     body_code.push_str(&children_code);
-                                    body_code.push_str(&format!("{}\t\t}},\n", indent));
+                                    if *component_dev {
+                                        body_code.push_str(&format!("{}\t\t}}),\n", indent));
+                                    } else {
+                                        body_code.push_str(&format!("{}\t\t}},\n", indent));
+                                    }
 
                                     if has_slot_children {
                                         body_code.push_str(&format!("{}\t\t$$slots: {{\n", indent));
@@ -3196,11 +3428,18 @@ export default function {component_name}($$renderer{props_param}) {{
                                     body_code.push('\n');
                                     body_code.push_str(&format!("{}\t}}\n", indent));
                                 } else {
-                                    // No let directives - standard children callback
-                                    body_code.push_str(&format!(
-                                        "{}\tchildren: ($$renderer) => {{\n",
-                                        indent
-                                    ));
+                                    // No let directives - standard children callback (no-spreads path)
+                                    if *component_dev {
+                                        body_code.push_str(&format!(
+                                            "{}\tchildren: $.prevent_snippet_stringification(($$renderer) => {{\n",
+                                            indent
+                                        ));
+                                    } else {
+                                        body_code.push_str(&format!(
+                                            "{}\tchildren: ($$renderer) => {{\n",
+                                            indent
+                                        ));
+                                    }
                                     let children_code = Self::build_parts_with_store_subs(
                                         children_parts,
                                         indent_level + 2,
@@ -3208,7 +3447,11 @@ export default function {component_name}($$renderer{props_param}) {{
                                         store_subs,
                                     );
                                     body_code.push_str(&children_code);
-                                    body_code.push_str(&format!("{}\t}},\n", indent));
+                                    if *component_dev {
+                                        body_code.push_str(&format!("{}\t}}),\n", indent));
+                                    } else {
+                                        body_code.push_str(&format!("{}\t}},\n", indent));
+                                    }
 
                                     // $$slots with default: true and any named slot children
                                     if has_slot_children {
@@ -3962,6 +4205,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     is_rich,
                     direct_value,
                     css_hash,
+                    dev_location,
                 } => {
                     // Flush current HTML before option element
                     if !current_html.is_empty() {
@@ -3982,6 +4226,13 @@ export default function {component_name}($$renderer{props_param}) {{
                         format!("{{ {} }}", attrs_str)
                     };
 
+                    // Helper: emit push_element/pop_element in dev mode
+                    let dev_push = if let Some((line, col)) = dev_location {
+                        format!("$.push_element($$renderer, 'option', {}, {});\n", line, col)
+                    } else {
+                        String::new()
+                    };
+
                     // If we have a direct value (from synthetic_value_node), pass it directly
                     if let Some(value_expr) = direct_value {
                         body_code.push_str(&format!(
@@ -3996,6 +4247,11 @@ export default function {component_name}($$renderer{props_param}) {{
                             indent, indent, attrs_obj, indent
                         ));
 
+                        // Dev mode: push_element after callback opening
+                        if !dev_push.is_empty() {
+                            body_code.push_str(&format!("{}\t\t{}", indent, dev_push));
+                        }
+
                         // Body
                         let body_code_inner = Self::build_parts_with_store_subs(
                             body,
@@ -4004,6 +4260,11 @@ export default function {component_name}($$renderer{props_param}) {{
                             store_subs,
                         );
                         body_code.push_str(&body_code_inner);
+
+                        // Dev mode: pop_element before callback closing
+                        if !dev_push.is_empty() {
+                            body_code.push_str(&format!("{}\t\t$.pop_element();\n", indent));
+                        }
 
                         // Close callback with remaining args
                         body_code.push_str(&format!(
@@ -4017,6 +4278,11 @@ export default function {component_name}($$renderer{props_param}) {{
                             indent, indent, attrs_obj, indent
                         ));
 
+                        // Dev mode: push_element
+                        if !dev_push.is_empty() {
+                            body_code.push_str(&format!("{}\t\t{}", indent, dev_push));
+                        }
+
                         // Body
                         let body_code_inner = Self::build_parts_with_store_subs(
                             body,
@@ -4025,6 +4291,11 @@ export default function {component_name}($$renderer{props_param}) {{
                             store_subs,
                         );
                         body_code.push_str(&body_code_inner);
+
+                        // Dev mode: pop_element
+                        if !dev_push.is_empty() {
+                            body_code.push_str(&format!("{}\t\t$.pop_element();\n", indent));
+                        }
 
                         // Close callback with CSS hash
                         body_code.push_str(&format!(
@@ -4037,6 +4308,11 @@ export default function {component_name}($$renderer{props_param}) {{
                             indent, attrs_obj
                         ));
 
+                        // Dev mode: push_element
+                        if !dev_push.is_empty() {
+                            body_code.push_str(&format!("{}\t{}", indent, dev_push));
+                        }
+
                         // Body
                         let body_code_inner = Self::build_parts_with_store_subs(
                             body,
@@ -4045,6 +4321,11 @@ export default function {component_name}($$renderer{props_param}) {{
                             store_subs,
                         );
                         body_code.push_str(&body_code_inner);
+
+                        // Dev mode: pop_element
+                        if !dev_push.is_empty() {
+                            body_code.push_str(&format!("{}\t$.pop_element();\n", indent));
+                        }
 
                         // Close callback
                         body_code.push_str(&format!("{}}});\n", indent));
@@ -4573,30 +4854,51 @@ export default function {component_name}($$renderer{props_param}) {{
                     }
 
                     // Emit the raw statement(s)
+                    // IMPORTANT: Don't add indentation inside template literals.
+                    let mut in_tl = false;
                     for line in stmt.lines() {
                         if line.trim().is_empty() {
                             body_code.push('\n');
+                        } else if in_tl {
+                            in_tl = super::helpers::update_template_literal_state_for_indent(
+                                line, in_tl,
+                            );
+                            body_code.push_str(line);
+                            body_code.push('\n');
                         } else {
+                            in_tl = super::helpers::update_template_literal_state_for_indent(
+                                line, in_tl,
+                            );
                             body_code.push_str(&format!("{}{}\n", indent, line));
                         }
                     }
-                    // Only add a trailing blank line for multi-line or complex statements.
-                    // Simple single-line declarations (let x; / var x;) should not have
-                    // trailing blank lines, matching the official compiler's output.
-                    let is_simple_decl = !stmt.contains('\n')
-                        && (stmt.starts_with("let ") || stmt.starts_with("var "))
-                        && stmt.ends_with(';')
-                        && !stmt.contains('=');
-                    if !is_simple_decl {
+                    // Only add a trailing blank line for multi-line statements.
+                    // Single-line statements should not have trailing blank lines,
+                    // matching the official compiler's output where esrap handles
+                    // blank line insertion between different statement types.
+                    if stmt.contains('\n') {
                         body_code.push('\n');
                     }
                 }
-                OutputPart::SnippetFunction { name, params, body } => {
+                OutputPart::SnippetFunction {
+                    name,
+                    params,
+                    body,
+                    dev: snippet_dev,
+                } => {
                     // Flush current HTML before function declaration
                     if !current_html.is_empty() {
                         body_code
                             .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
                         current_html.clear();
+                    }
+
+                    // In dev mode, add prevent_snippet_stringification before the function
+                    if *snippet_dev {
+                        body_code.push_str(&format!(
+                            "{}$.prevent_snippet_stringification({});\n",
+                            indent, name
+                        ));
                     }
 
                     // Generate function declaration
@@ -4607,6 +4909,14 @@ export default function {component_name}($$renderer{props_param}) {{
                     };
 
                     body_code.push_str(&format!("{}function {}({}) {{\n", indent, name, param_str));
+
+                    // In dev mode, add validate_snippet_args
+                    if *snippet_dev {
+                        body_code.push_str(&format!(
+                            "{}{}$.validate_snippet_args($$renderer);\n",
+                            indent, "\t"
+                        ));
+                    }
 
                     // Generate body
                     if !body.is_empty() {
@@ -4992,6 +5302,14 @@ export default function {component_name}($$renderer{props_param}) {{
         let mut result = String::new();
 
         for snippet in hoisted {
+            // In dev mode, add prevent_snippet_stringification before the function declaration
+            if self.dev {
+                result.push_str(&format!(
+                    "$.prevent_snippet_stringification({});\n",
+                    snippet.name
+                ));
+            }
+
             // Generate function signature
             let params = if snippet.params.is_empty() {
                 "$$renderer".to_string()
@@ -5038,6 +5356,14 @@ export default function {component_name}($$renderer{props_param}) {{
         let mut result = String::new();
 
         for snippet in instance {
+            // In dev mode, add prevent_snippet_stringification before the function declaration
+            if self.dev {
+                result.push_str(&format!(
+                    "{}$.prevent_snippet_stringification({});\n",
+                    indent, snippet.name
+                ));
+            }
+
             // Generate function signature
             let params = if snippet.params.is_empty() {
                 "$$renderer".to_string()
@@ -5569,4 +5895,92 @@ fn strip_async_placeholders(s: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// Strip trailing semicolons after function declaration closing braces.
+/// In JavaScript, `function foo() { };` has a trailing `;` that creates an EmptyStatement.
+/// The official Svelte compiler parses AST and regenerates without it.
+/// Only strips `};` that closes a function declaration body (not object literals, etc.).
+fn strip_trailing_semicolons_after_functions(code: &str) -> String {
+    // Use regex-like approach: find `};\n` patterns that look like function declaration ends.
+    // A function declaration looks like:
+    //   function name(...) {
+    //     ...
+    //   };    <-- strip the ;
+    // But we need to avoid stripping `;` from:
+    //   let obj = { ... };   <-- keep the ;
+    //   return { ... };      <-- keep the ;
+    //
+    // Strategy: Track brace nesting. When we see a `};` at a line that's the same indent
+    // level as a `function ...() {` line, strip the `;`.
+    //
+    // Simpler approach: just look for lines that are just `};` (with only whitespace before)
+    // and check if the matching `{` line starts with `function ` or is an arrow function etc.
+    // For now, use a targeted regex-like approach.
+
+    let mut result = String::with_capacity(code.len());
+    let lines: Vec<&str> = code.lines().collect();
+    let mut i = 0;
+
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+
+        // Check for standalone `};` that closes a function declaration
+        if trimmed == "};" {
+            let indent = &lines[i][..lines[i].len() - lines[i].trim_start().len()];
+            let indent_len = indent.len();
+
+            // Scan backward to find the matching opening brace at the same indent level
+            let mut brace_depth = 1;
+            let mut is_function = false;
+            let mut j = i as isize - 1;
+            while j >= 0 && brace_depth > 0 {
+                let prev = lines[j as usize].trim();
+                // Count braces
+                for c in prev.chars().rev() {
+                    if c == '}' {
+                        brace_depth += 1;
+                    } else if c == '{' {
+                        brace_depth -= 1;
+                        if brace_depth == 0 {
+                            break;
+                        }
+                    }
+                }
+                if brace_depth == 0 {
+                    // Found the matching opening line
+                    let open_line = lines[j as usize];
+                    let open_indent = open_line.len() - open_line.trim_start().len();
+                    let open_trimmed = open_line.trim();
+                    // Check if it's a function declaration or method
+                    if open_indent == indent_len
+                        && (open_trimmed.starts_with("function ")
+                            || open_trimmed.starts_with("async function "))
+                    {
+                        is_function = true;
+                    }
+                }
+                j -= 1;
+            }
+
+            if is_function {
+                // Strip the `;` - output just `}`
+                result.push_str(indent);
+                result.push_str("}\n");
+                i += 1;
+                continue;
+            }
+        }
+
+        result.push_str(lines[i]);
+        result.push('\n');
+        i += 1;
+    }
+
+    // Remove trailing newline if original didn't have one
+    if !code.ends_with('\n') && result.ends_with('\n') {
+        result.pop();
+    }
+
+    result
 }

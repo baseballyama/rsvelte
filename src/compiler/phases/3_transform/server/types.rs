@@ -251,6 +251,8 @@ pub(crate) enum OutputPart {
         /// need to be tracked so the component gets wrapped in async_block
         /// for hydration marker consistency with the client.
         attach_expressions: Vec<String>,
+        /// Whether dev mode is enabled (for prevent_snippet_stringification)
+        dev: bool,
     },
     /// Component with bind directives - requires do/while settling
     ComponentWithBindings {
@@ -274,6 +276,8 @@ pub(crate) enum OutputPart {
         /// hoisted out (e.g., when wrapped in an AsyncBlock). When true, the
         /// build_parts code skips emitting the var declarations.
         seq_bindings_hoisted: bool,
+        /// Whether dev mode is enabled (for prevent_snippet_stringification)
+        dev: bool,
     },
     Comment,
     /// Each block - produces a for loop
@@ -328,6 +332,8 @@ pub(crate) enum OutputPart {
         direct_value: Option<String>,
         /// CSS hash for scoped elements
         css_hash: Option<String>,
+        /// Dev mode location (line, col) for push_element/pop_element
+        dev_location: Option<(usize, usize)>,
     },
     /// Await block - produces $.await() call
     AwaitBlock {
@@ -480,6 +486,8 @@ pub(crate) enum OutputPart {
         name: String,
         params: Vec<String>,
         body: Vec<OutputPart>,
+        /// Whether dev mode is enabled (for prevent_snippet_stringification/validate_snippet_args)
+        dev: bool,
     },
 }
 

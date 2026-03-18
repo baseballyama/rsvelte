@@ -4,7 +4,7 @@
 //! attribute generation, class/style directive handling, and spread attributes.
 
 use super::super::ServerCodeGenerator;
-use super::super::helpers::{collapse_whitespace, needs_clsx, quote_prop_name};
+use super::super::helpers::{collapse_whitespace, needs_clsx, prop_string, quote_prop_name};
 use super::super::types::OutputPart;
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, BindDirective, ClassDirective,
@@ -19,7 +19,7 @@ use crate::compiler::phases::phase3_transform::utils::{
 };
 
 /// Compute 1-based line number and 0-based column for a byte offset in source.
-fn locate_in_source(source: &str, offset: usize) -> (usize, usize) {
+pub(crate) fn locate_in_source(source: &str, offset: usize) -> (usize, usize) {
     let offset = offset.min(source.len());
     let mut line = 1usize;
     let mut col = 0usize;
@@ -668,7 +668,26 @@ impl<'a> ServerCodeGenerator<'a> {
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
                         // Transform rune calls in spread expressions
-                        let expr = Self::transform_rune_in_template_expr(&expr);
+                        let mut expr = Self::transform_rune_in_template_expr(&expr);
+                        // In dev mode, if the parent element has a svelte-ignore
+                        // state_snapshot_uncloneable comment, add `true` arg to $.snapshot()
+                        if self.dev && expr.contains("$.snapshot(") {
+                            let elem_start = element.start as usize;
+                            if elem_start <= self.source.len() {
+                                let before = &self.source[..elem_start];
+                                if crate::compiler::phases::phase3_transform::server::transform_script::has_svelte_ignore_before_pub(before, "state_snapshot_uncloneable") {
+                                    // Add `, true` before closing paren of $.snapshot()
+                                    if let Some(idx) = expr.find("$.snapshot(") {
+                                        let call_start = idx + "$.snapshot(".len();
+                                        if let Some(paren_end) = find_matching_paren_simple(&expr[call_start..]) {
+                                            let content = &expr[call_start..call_start + paren_end];
+                                            let new_call = format!("$.snapshot({}, true)", content);
+                                            expr = format!("{}{}{}", &expr[..idx], new_call, &expr[call_start + paren_end + 1..]);
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         object_parts.push(format!("...{}", expr));
                     }
                 }
@@ -704,7 +723,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     } else {
                         value
                     };
-                    object_parts.push(format!("{}: {}", quote_prop_name(attr_name), value));
+                    object_parts.push(prop_string(attr_name, &value));
                 }
                 Attribute::BindDirective(bind) => {
                     let bind_name = bind.name.as_str();
@@ -821,7 +840,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     let expr_end = bind.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
-                        object_parts.push(format!("{}: {}", quote_prop_name(bind_name), expr));
+                        object_parts.push(prop_string(bind_name, &expr));
                     }
                 }
                 Attribute::ClassDirective(class_dir) => {
@@ -834,7 +853,11 @@ impl<'a> ServerCodeGenerator<'a> {
                     } else {
                         "true".to_string()
                     };
-                    class_directive_parts.push(format!("{}: {}", class_name, value));
+                    if class_name == value {
+                        class_directive_parts.push(class_name.to_string());
+                    } else {
+                        class_directive_parts.push(format!("{}: {}", class_name, value));
+                    }
                 }
                 Attribute::StyleDirective(style_dir) => {
                     // Build style directive: { styleName: expression }
@@ -995,18 +1018,52 @@ impl<'a> ServerCodeGenerator<'a> {
 
         if is_void_element(name) {
             self.output_parts.push(OutputPart::Html("/>".to_string()));
+            // In dev mode, add $.push_element()/$.pop_element() for void elements with spreads
+            if self.dev {
+                let (line, col) = locate_in_source(&self.source, element.start as usize);
+                self.output_parts.push(OutputPart::Flush);
+                self.output_parts.push(OutputPart::RawStatement(format!(
+                    "$.push_element($$renderer, '{}', {}, {});",
+                    name, line, col
+                )));
+                self.output_parts
+                    .push(OutputPart::RawStatement("$.pop_element();".to_string()));
+            }
         } else if is_textarea && textarea_content.is_some() {
             // For textarea with value/bind:value and spread, output body as content
             // Reference: element.js lines 48-63
             let content_expr = textarea_content.unwrap();
             self.output_parts.push(OutputPart::Html(">".to_string()));
+            // In dev mode, add $.push_element() after opening tag
+            if self.dev {
+                let (line, col) = locate_in_source(&self.source, element.start as usize);
+                self.output_parts.push(OutputPart::Flush);
+                self.output_parts.push(OutputPart::RawStatement(format!(
+                    "$.push_element($$renderer, '{}', {}, {});",
+                    name, line, col
+                )));
+            }
             self.output_parts.push(OutputPart::TextareaBody {
                 value_expr: content_expr,
             });
             self.output_parts
                 .push(OutputPart::Html("</textarea>".to_string()));
+            if self.dev {
+                self.output_parts
+                    .push(OutputPart::RawStatement("$.pop_element();".to_string()));
+            }
         } else {
             self.output_parts.push(OutputPart::Html(">".to_string()));
+
+            // In dev mode, add $.push_element() after opening tag for non-void spread elements
+            if self.dev {
+                let (line, col) = locate_in_source(&self.source, element.start as usize);
+                self.output_parts.push(OutputPart::Flush);
+                self.output_parts.push(OutputPart::RawStatement(format!(
+                    "$.push_element($$renderer, '{}', {}, {});",
+                    name, line, col
+                )));
+            }
 
             // For <pre> and <textarea>, preserve whitespace in children
             let preserve_children_whitespace =
@@ -2335,4 +2392,36 @@ impl<'a> ServerCodeGenerator<'a> {
             base_arg, directives_arg
         ))
     }
+}
+
+/// Find the matching closing paren for an expression starting after the opening paren.
+/// Returns the offset of the closing paren relative to the start of `s`.
+fn find_matching_paren_simple(s: &str) -> Option<usize> {
+    let mut depth = 1;
+    let mut i = 0;
+    let bytes = s.as_bytes();
+    while i < bytes.len() && depth > 0 {
+        match bytes[i] {
+            b'(' => depth += 1,
+            b')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            b'\'' | b'"' | b'`' => {
+                let quote = bytes[i];
+                i += 1;
+                while i < bytes.len() && bytes[i] != quote {
+                    if bytes[i] == b'\\' {
+                        i += 1;
+                    }
+                    i += 1;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
 }
