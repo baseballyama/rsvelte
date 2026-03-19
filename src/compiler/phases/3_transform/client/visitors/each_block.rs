@@ -724,7 +724,7 @@ fn get_object_name(expr: &Expression) -> Option<String> {
 /// We iterate its declarations and check if the parent scope has the same name.
 /// We use the `template_scope_map` to look up the each block's scope by its start position,
 /// then check each declaration against the parent scope using `get_binding()`.
-fn get_collection_id_if_needed(node: &EachBlock, context: &ComponentContext) -> Option<String> {
+fn get_collection_id_if_needed(node: &EachBlock, context: &mut ComponentContext) -> Option<String> {
     // Look up the each block's scope using its start position
     let each_scope_idx = context
         .state
@@ -759,7 +759,7 @@ fn get_collection_id_if_needed(node: &EachBlock, context: &ComponentContext) -> 
             }
             if let Some(scope) = context.state.scope_root.all_scopes.get(idx) {
                 if scope.declarations.contains_key(name.as_str()) {
-                    return Some("$$array".to_string());
+                    return Some(context.state.generate_array_name());
                 }
                 walk_idx = scope.parent;
             } else {
@@ -1006,11 +1006,15 @@ fn build_declarations(
                     "$$item".to_string()
                 };
 
-                // Extract paths using the new extract_destructured_paths that handles
-                // ArrayPattern with $.to_array() inserts and computed ObjectPattern keys
-                let mut array_counter: usize = 0;
+                // Extract paths using extract_destructured_paths that handles
+                // ArrayPattern with $.to_array() inserts and computed ObjectPattern keys.
+                // Pass a name generator closure so unique names are created at extraction
+                // time, matching the official compiler's
+                // `id.name = context.state.scope.generate('$$array')` (line 253 of EachBlock.js)
                 let (paths, inserts) =
-                    extract_destructured_paths(obj, &unwrapped_item, false, &mut array_counter);
+                    extract_destructured_paths(obj, &unwrapped_item, false, &mut || {
+                        context.state.generate_array_name()
+                    });
 
                 // Generate intermediate array declarations for ArrayPattern destructuring
                 // This corresponds to lines 256-262 in the official EachBlock.js
@@ -1169,7 +1173,7 @@ fn extract_destructured_paths(
     obj: &serde_json::Map<String, serde_json::Value>,
     base_expr: &str,
     has_parent_default: bool,
-    array_counter: &mut usize,
+    array_name_gen: &mut dyn FnMut() -> String,
 ) -> (Vec<DestructuredPath>, Vec<ArrayInsert>) {
     let mut paths = Vec::new();
     let mut inserts = Vec::new();
@@ -1181,7 +1185,7 @@ fn extract_destructured_paths(
         base_expr,
         base_expr,
         has_parent_default,
-        array_counter,
+        array_name_gen,
     );
 
     (paths, inserts)
@@ -1195,7 +1199,7 @@ fn _extract_destructured_paths(
     expression: &str,
     _update_expression: &str,
     has_default_value: bool,
-    array_counter: &mut usize,
+    array_name_gen: &mut dyn FnMut() -> String,
 ) {
     match param.get("type").and_then(|v| v.as_str()) {
         Some("Identifier") => {
@@ -1308,7 +1312,7 @@ fn _extract_destructured_paths(
                                         &rest_expression,
                                         &rest_expression,
                                         has_default_value,
-                                        array_counter,
+                                        array_name_gen,
                                     );
                                 }
                             }
@@ -1357,7 +1361,7 @@ fn _extract_destructured_paths(
                                         &prop_expr,
                                         &prop_expr,
                                         has_default_value,
-                                        array_counter,
+                                        array_name_gen,
                                     );
                                     // Tag any newly-created paths with the deferred computed key info
                                     if let Some((base, key_json)) = deferred_key {
@@ -1382,12 +1386,7 @@ fn _extract_destructured_paths(
             };
 
             // Generate unique $$array name
-            let array_id = if *array_counter == 0 {
-                "$$array".to_string()
-            } else {
-                format!("$$array_{}", array_counter)
-            };
-            *array_counter += 1;
+            let array_id = array_name_gen();
 
             // Check if last element is RestElement
             let last_is_rest = elements
@@ -1445,7 +1444,7 @@ fn _extract_destructured_paths(
                                     &rest_expression,
                                     &rest_expression,
                                     has_default_value,
-                                    array_counter,
+                                    array_name_gen,
                                 );
                             }
                         }
@@ -1460,7 +1459,7 @@ fn _extract_destructured_paths(
                             &array_expression,
                             &array_expression,
                             has_default_value,
-                            array_counter,
+                            array_name_gen,
                         );
                     }
                 }
@@ -1494,7 +1493,7 @@ fn _extract_destructured_paths(
                         expression,
                         _update_expression,
                         true,
-                        array_counter,
+                        array_name_gen,
                     );
                 }
             }

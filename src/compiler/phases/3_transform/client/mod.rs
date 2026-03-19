@@ -346,6 +346,16 @@ fn transform_client_with_visitors(
             .state
             .destructure_array_counter
             .set(script_array_count);
+        // Also seed the memoizer's conflicts set with names already used by the script,
+        // so that generate_array_name() (which uses the memoizer) won't reuse them.
+        for i in 0..script_array_count {
+            let name = if i == 0 {
+                "$$array".to_string()
+            } else {
+                format!("$$array_{}", i)
+            };
+            context.state.memoizer.add_conflict(&name);
+        }
         Some(transformed)
     } else {
         None

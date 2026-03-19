@@ -13,7 +13,7 @@ use super::transform_store::{
 /// Transform script content for server-side rendering.
 #[allow(dead_code)]
 pub(crate) fn transform_script_content(script: &str) -> String {
-    transform_script_content_inner(script, false, &[], &std::collections::HashSet::new())
+    transform_script_content_inner(script, false, &[], &std::collections::HashSet::new(), false)
 }
 
 /// Transform script content with additional bindable prop names from `export { x }` patterns.
@@ -27,19 +27,21 @@ pub(crate) fn transform_script_content_with_props(
         false,
         reexported_props,
         &std::collections::HashSet::new(),
+        false,
     )
 }
 
-pub(crate) fn transform_script_content_module(script: &str) -> String {
-    transform_script_content_inner(script, true, &[], &std::collections::HashSet::new())
+pub(crate) fn transform_script_content_module(script: &str, dev: bool) -> String {
+    transform_script_content_inner(script, true, &[], &std::collections::HashSet::new(), dev)
 }
 
 /// Transform script content for server-side rendering, with pre-extracted imported names.
 pub(crate) fn transform_script_content_with_imports(
     script: &str,
     imported_names: &std::collections::HashSet<String>,
+    dev: bool,
 ) -> String {
-    transform_script_content_inner(script, false, &[], imported_names)
+    transform_script_content_inner(script, false, &[], imported_names, dev)
 }
 
 /// Transform script content with additional bindable prop names and pre-extracted imported names.
@@ -47,8 +49,9 @@ pub(crate) fn transform_script_content_with_props_and_imports(
     script: &str,
     reexported_props: &[(String, String)],
     imported_names: &std::collections::HashSet<String>,
+    dev: bool,
 ) -> String {
-    transform_script_content_inner(script, false, reexported_props, imported_names)
+    transform_script_content_inner(script, false, reexported_props, imported_names, dev)
 }
 
 fn transform_script_content_inner(
@@ -56,6 +59,7 @@ fn transform_script_content_inner(
     is_module: bool,
     reexported_props: &[(String, String)],
     imported_names: &std::collections::HashSet<String>,
+    dev: bool,
 ) -> String {
     // Check if rune base names are imported (making $state/$derived store subscriptions, not runes).
     // If `state` is imported, `$state(0)` is a store subscription call, not a rune call.
@@ -83,7 +87,7 @@ fn transform_script_content_inner(
     } else {
         script
     };
-    let script = transform_state_snapshot_server(&script, true);
+    let script = transform_state_snapshot_server(&script, dev);
     let script = if !state_imported {
         transform_object_destructure_state(&script)
     } else {

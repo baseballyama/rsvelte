@@ -119,8 +119,13 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Generate body parts with the appropriate skip_hydration_boundaries flag
         let mut body_generator = self.new_child_generator(is_standalone);
-        // Mark that we're inside a block body so async expressions don't use $.save()
-        body_generator.in_block_body = true;
+        // Only mark in_block_body when the each EXPRESSION itself is async
+        // (which means the body will be wrapped in child_block/async_block).
+        // When the each expression is NOT async, the body is a plain for loop
+        // and async expressions inside it still need $.save() wrapping.
+        if block.metadata.expression.is_async() {
+            body_generator.in_block_body = true;
+        }
 
         // Remove constant_vars that are shadowed by the each block's context pattern.
         // E.g., `{#each items as {method}}` shadows any outer `method` constant.

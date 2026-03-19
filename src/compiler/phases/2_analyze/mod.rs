@@ -2739,6 +2739,21 @@ fn attribute_has_await(attr: &crate::ast::template::Attribute) -> bool {
         },
         Attribute::OnDirective(dir) => dir.expression.as_ref().is_some_and(expression_has_await),
         Attribute::BindDirective(dir) => expression_has_await(&dir.expression),
+        Attribute::ClassDirective(dir) => expression_has_await(&dir.expression),
+        Attribute::StyleDirective(dir) => match &dir.value {
+            crate::ast::template::AttributeValue::Expression(expr_tag) => {
+                expression_has_await(&expr_tag.expression)
+            }
+            crate::ast::template::AttributeValue::Sequence(parts) => parts.iter().any(|part| {
+                if let crate::ast::template::AttributeValuePart::ExpressionTag(expr_tag) = part {
+                    expression_has_await(&expr_tag.expression)
+                } else {
+                    false
+                }
+            }),
+            _ => false,
+        },
+        Attribute::SpreadAttribute(spread) => expression_has_await(&spread.expression),
         _ => false,
     }
 }
@@ -2849,6 +2864,21 @@ fn assign_each_block_indices_in_node(
         }
         TemplateNode::SlotElement(slot) => {
             assign_each_block_indices_in_fragment(&mut slot.fragment, index_counter);
+        }
+        TemplateNode::SvelteBoundary(boundary) => {
+            assign_each_block_indices_in_fragment(&mut boundary.fragment, index_counter);
+        }
+        TemplateNode::SvelteBody(el) => {
+            assign_each_block_indices_in_fragment(&mut el.fragment, index_counter);
+        }
+        TemplateNode::SvelteWindow(el) => {
+            assign_each_block_indices_in_fragment(&mut el.fragment, index_counter);
+        }
+        TemplateNode::SvelteDocument(el) => {
+            assign_each_block_indices_in_fragment(&mut el.fragment, index_counter);
+        }
+        TemplateNode::TitleElement(el) => {
+            assign_each_block_indices_in_fragment(&mut el.fragment, index_counter);
         }
         _ => {}
     }

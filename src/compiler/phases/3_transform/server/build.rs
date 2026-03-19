@@ -164,7 +164,7 @@ impl<'a> ServerCodeGenerator<'a> {
             } else {
                 rest
             };
-            let transformed = transform_script_content_module(&rest);
+            let transformed = transform_script_content_module(&rest, self.dev);
 
             (imports, transformed)
         } else {
@@ -351,12 +351,13 @@ impl<'a> ServerCodeGenerator<'a> {
             };
 
             let transformed = if reexported_props.is_empty() {
-                transform_script_content_with_imports(&rest, &imported_names)
+                transform_script_content_with_imports(&rest, &imported_names, self.dev)
             } else {
                 transform_script_content_with_props_and_imports(
                     &rest,
                     &reexported_props,
                     &imported_names,
+                    self.dev,
                 )
             };
 

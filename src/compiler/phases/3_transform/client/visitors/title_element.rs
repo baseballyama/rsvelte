@@ -118,7 +118,7 @@ fn build_async_thunk(expression: &JsExpr) -> JsExpr {
     match expression {
         JsExpr::Await(inner) => {
             // Check if the argument is a simple expression (no nested awaits)
-            if !js_expr_has_await(inner) {
+            if !b::js_expr_has_await(inner) {
                 // Optimize: just use the argument directly
                 // `async () => await push()` → `push`
                 // But we need to check if it's a call or identifier
@@ -148,36 +148,6 @@ fn build_async_thunk(expression: &JsExpr) -> JsExpr {
             // Not an await expression, wrap as async thunk
             b::async_thunk(expression.clone())
         }
-    }
-}
-
-/// Check if a JsExpr contains await expressions.
-fn js_expr_has_await(expr: &JsExpr) -> bool {
-    match expr {
-        JsExpr::Await(_) => true,
-        JsExpr::Call(call) => {
-            js_expr_has_await(&call.callee) || call.arguments.iter().any(js_expr_has_await)
-        }
-        JsExpr::Member(m) => {
-            js_expr_has_await(&m.object)
-                || matches!(&m.property, JsMemberProperty::Expression(e) if js_expr_has_await(e))
-        }
-        JsExpr::Binary(bin) => js_expr_has_await(&bin.left) || js_expr_has_await(&bin.right),
-        JsExpr::Logical(l) => js_expr_has_await(&l.left) || js_expr_has_await(&l.right),
-        JsExpr::Conditional(c) => {
-            js_expr_has_await(&c.test)
-                || js_expr_has_await(&c.consequent)
-                || js_expr_has_await(&c.alternate)
-        }
-        JsExpr::Unary(u) => js_expr_has_await(&u.argument),
-        JsExpr::Array(arr) => arr
-            .elements
-            .iter()
-            .any(|e| e.as_ref().is_some_and(js_expr_has_await)),
-        JsExpr::Sequence(seq) => seq.expressions.iter().any(js_expr_has_await),
-        JsExpr::Assignment(a) => js_expr_has_await(&a.left) || js_expr_has_await(&a.right),
-        JsExpr::TemplateLiteral(t) => t.expressions.iter().any(js_expr_has_await),
-        _ => false,
     }
 }
 

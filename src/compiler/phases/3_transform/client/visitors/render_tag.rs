@@ -81,7 +81,14 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
                 // Generate async value id like $0, $1, etc.
                 let id_name = format!("${}", async_values.len());
                 // Strip the top-level await since $.async handles the awaiting
-                async_values.push(b::thunk(b::strip_await(built)));
+                let stripped = b::strip_await(built);
+                // If the stripped expression still contains awaits, use async thunk
+                let thunked = if b::js_expr_has_await(&stripped) {
+                    b::async_thunk(stripped)
+                } else {
+                    b::thunk(stripped)
+                };
+                async_values.push(thunked);
                 async_ids.push(id_name.clone().into());
                 // Return: () => $.get($N)
                 b::thunk(b::call(b::member_path("$.get"), vec![b::id(&id_name)]))
@@ -225,12 +232,10 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
             ],
         ));
 
-        // If standalone, add $.next() after $.async()
+        // If standalone, push $.async() to init and add $.next() after
         if context.state.is_standalone {
-            return b::block(vec![
-                result,
-                b::stmt(b::call(b::member_path("$.next"), vec![])),
-            ]);
+            context.state.init.push(result);
+            return b::stmt(b::call(b::member_path("$.next"), vec![]));
         }
 
         result

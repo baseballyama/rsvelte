@@ -382,22 +382,6 @@ pub fn process_children<F>(
             TemplateNode::ExpressionTag(expr) => {
                 sequence.push(TextOrExpr::Expr(expr.clone()));
             }
-            // Comment nodes: always push to template. Comments that survived clean_nodes
-            // filtering are intentionally there (e.g., lone-script anchors, or preserved
-            // comments when preserveComments is true). This matches the official compiler's
-            // Comment visitor which unconditionally calls `context.state.template.push_comment()`.
-            TemplateNode::Comment(comment) => {
-                // Flush any pending text/expression sequence
-                if !sequence.is_empty() {
-                    flush_sequence(sequence, &mut prev, &mut skipped, context);
-                    sequence = Vec::new();
-                }
-                context
-                    .state
-                    .template
-                    .push_comment(Some(comment.data.to_string()));
-                skipped += 1;
-            }
             // ConstTag doesn't produce DOM nodes - just visit it to add declarations
             TemplateNode::ConstTag(_) => {
                 // Flush any pending sequence

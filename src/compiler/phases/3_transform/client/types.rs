@@ -2786,6 +2786,12 @@ impl Memoizer {
     /// # Returns
     ///
     /// A unique identifier like "text", "text_2", "text_3", etc.
+    /// Add a name to the conflicts set without generating a new one.
+    /// Used to seed the memoizer with names already generated elsewhere (e.g., script pre-transform).
+    pub fn add_conflict(&self, name: &str) {
+        self.conflicts.borrow_mut().insert(name.to_string());
+    }
+
     pub fn generate_id(&mut self, base: &str) -> String {
         let sanitized = if is_valid_identifier(base) {
             base
