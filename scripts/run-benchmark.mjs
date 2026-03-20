@@ -2,10 +2,12 @@
 /**
  * Benchmark script that measures JS vs Rust compiler performance.
  * Collects all Svelte test files and compiles them with both compilers.
+ *
+ * Supports three tasks: compile-client, compile-server, parse
  */
 
 import pkg from '../svelte/packages/svelte/compiler/index.js';
-const { compile } = pkg;
+const { compile, parse } = pkg;
 import { execSync, spawn } from 'child_process';
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
@@ -71,16 +73,33 @@ function collectTestFiles() {
 }
 
 /**
+ * Process a single file based on the task
+ */
+function processFileJS(file, task) {
+	switch (task) {
+		case 'compile-client':
+			compile(file.content, { generate: 'client', filename: file.path, dev: false });
+			break;
+		case 'compile-server':
+			compile(file.content, { generate: 'server', filename: file.path, dev: false });
+			break;
+		case 'parse':
+			parse(file.content, { modern: true });
+			break;
+	}
+}
+
+/**
  * Benchmark JavaScript Svelte compiler
  */
-function benchmarkJavaScript(files, iterations) {
+function benchmarkJavaScript(files, iterations, task) {
 	const times = [];
 
 	// Warmup
 	for (let i = 0; i < WARMUP_ITERATIONS; i++) {
 		for (const file of files) {
 			try {
-				compile(file.content, { generate: 'client', filename: file.path, dev: false });
+				processFileJS(file, task);
 			} catch {
 				// Ignore compilation errors for benchmark
 			}
@@ -92,7 +111,7 @@ function benchmarkJavaScript(files, iterations) {
 		const start = performance.now();
 		for (const file of files) {
 			try {
-				compile(file.content, { generate: 'client', filename: file.path, dev: false });
+				processFileJS(file, task);
 			} catch {
 				// Ignore compilation errors for benchmark
 			}
@@ -107,7 +126,7 @@ function benchmarkJavaScript(files, iterations) {
 /**
  * Benchmark Rust compiler using the benchmark binary
  */
-async function benchmarkRust(files, singleThread) {
+async function benchmarkRust(files, singleThread, task) {
 	const mode = singleThread ? 'single' : 'multi';
 
 	// Create a temp file with all file paths
@@ -124,6 +143,8 @@ async function benchmarkRust(files, singleThread) {
 			'--',
 			'--mode',
 			mode,
+			'--task',
+			task,
 			'--files',
 			tempFile,
 			'--iterations',
@@ -190,68 +211,79 @@ function calculateStats(times, filesCount) {
 	};
 }
 
+/**
+ * Run a single benchmark task (compile-client, compile-server, or parse)
+ */
+async function runBenchmarkTask(files, task) {
+	const taskLabel = {
+		'compile-client': 'Compile (Client)',
+		'compile-server': 'Compile (SSR)',
+		parse: 'Parse',
+	}[task];
+
+	console.error(`\n=== ${taskLabel} ===`);
+
+	// JS
+	console.error(`  Benchmarking JavaScript...`);
+	const jsTimes = benchmarkJavaScript(files, BENCHMARK_ITERATIONS, task);
+	const jsStats = calculateStats(jsTimes, files.length);
+	console.error(`    ${jsStats.durationMs.toFixed(2)}ms (${jsStats.throughputFilesPerSec.toFixed(0)} files/sec)`);
+
+	// Rust single-threaded
+	console.error(`  Benchmarking Rust (single-threaded)...`);
+	const rustSingleTimes = await benchmarkRust(files, true, task);
+	const rustSingleStats = calculateStats(rustSingleTimes, files.length);
+	console.error(
+		`    ${rustSingleStats.durationMs.toFixed(2)}ms (${rustSingleStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
+	);
+
+	// Rust multi-threaded
+	console.error(`  Benchmarking Rust (multi-threaded)...`);
+	const rustMultiTimes = await benchmarkRust(files, false, task);
+	const rustMultiStats = calculateStats(rustMultiTimes, files.length);
+	console.error(
+		`    ${rustMultiStats.durationMs.toFixed(2)}ms (${rustMultiStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
+	);
+
+	const speedupSingle = jsStats.durationMs / rustSingleStats.durationMs;
+	const speedupMulti = jsStats.durationMs / rustMultiStats.durationMs;
+
+	console.error(`  Speedup: single=${speedupSingle.toFixed(1)}x, multi=${speedupMulti.toFixed(1)}x`);
+
+	return {
+		task,
+		taskLabel,
+		javascript: { ...jsStats },
+		rustSingleThread: { ...rustSingleStats },
+		rustMultiThread: { ...rustMultiStats },
+		speedup: {
+			singleThreadVsJs: speedupSingle,
+			multiThreadVsJs: speedupMulti,
+		},
+	};
+}
+
 async function main() {
 	console.error('Collecting Svelte test files...');
 	const files = collectTestFiles();
-
 	console.error(`Found ${files.length} files`);
 
-	// Run JavaScript benchmark
-	console.error('\nBenchmarking JavaScript compiler...');
-	const jsTimes = benchmarkJavaScript(files, BENCHMARK_ITERATIONS);
-	const jsStats = calculateStats(jsTimes, files.length);
-	console.error(`  Average: ${jsStats.durationMs.toFixed(2)}ms`);
-	console.error(`  Throughput: ${jsStats.throughputFilesPerSec.toFixed(1)} files/sec`);
+	const tasks = ['compile-client', 'compile-server', 'parse'];
+	const results = {};
 
-	// Run Rust single-threaded benchmark
-	console.error('\nBenchmarking Rust compiler (single-threaded)...');
-	const rustSingleTimes = await benchmarkRust(files, true);
-	const rustSingleStats = calculateStats(rustSingleTimes, files.length);
-	console.error(`  Average: ${rustSingleStats.durationMs.toFixed(2)}ms`);
-	console.error(`  Throughput: ${rustSingleStats.throughputFilesPerSec.toFixed(1)} files/sec`);
+	for (const task of tasks) {
+		results[task] = await runBenchmarkTask(files, task);
+	}
 
-	// Run Rust multi-threaded benchmark
-	console.error('\nBenchmarking Rust compiler (multi-threaded)...');
-	const rustMultiTimes = await benchmarkRust(files, false);
-	const rustMultiStats = calculateStats(rustMultiTimes, files.length);
-	console.error(`  Average: ${rustMultiStats.durationMs.toFixed(2)}ms`);
-	console.error(`  Throughput: ${rustMultiStats.throughputFilesPerSec.toFixed(1)} files/sec`);
-
-	// Calculate speedups
-	const speedupSingleVsJs = jsStats.durationMs / rustSingleStats.durationMs;
-	const speedupMultiVsJs = jsStats.durationMs / rustMultiStats.durationMs;
-
-	console.error('\n--- Speedup Summary ---');
-	console.error(`Rust (single) vs JS: ${speedupSingleVsJs.toFixed(1)}x faster`);
-	console.error(`Rust (multi) vs JS: ${speedupMultiVsJs.toFixed(1)}x faster`);
-
-	// Generate results JSON
-	const results = {
+	// Output combined JSON
+	const output = {
 		generatedAt: new Date().toISOString(),
 		commitSha: getCommitSha(),
 		testFilesCount: files.length,
-		javascript: {
-			name: 'JavaScript (svelte/compiler)',
-			filesCount: files.length,
-			...jsStats,
-		},
-		rustSingleThread: {
-			name: 'Rust (single-threaded)',
-			filesCount: files.length,
-			...rustSingleStats,
-		},
-		rustMultiThread: {
-			name: 'Rust (multi-threaded)',
-			filesCount: files.length,
-			...rustMultiStats,
-		},
-		speedup: {
-			singleThreadVsJs: speedupSingleVsJs,
-			multiThreadVsJs: speedupMultiVsJs,
-		},
+		...results,
 	};
 
-	console.log(JSON.stringify(results, null, 2));
+	console.log(JSON.stringify(output, null, 2));
 }
 
 main().catch((err) => {

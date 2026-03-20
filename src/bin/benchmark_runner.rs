@@ -11,11 +11,19 @@ use std::time::Instant;
 #[cfg(feature = "native")]
 use rayon::prelude::*;
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use svelte_compiler_rust::{CompileOptions, GenerateMode, ParseOptions, compile, parse};
+
+#[derive(Debug, Clone, PartialEq)]
+enum Task {
+    CompileClient,
+    CompileServer,
+    Parse,
+}
 
 #[derive(Debug)]
 struct Config {
     mode: String,
+    task: Task,
     files_path: String,
     iterations: usize,
     warmup: usize,
@@ -24,6 +32,7 @@ struct Config {
 fn parse_args() -> Result<Config, String> {
     let args: Vec<String> = env::args().collect();
     let mut mode = String::from("single");
+    let mut task = Task::CompileClient;
     let mut files_path = String::new();
     let mut iterations = 5;
     let mut warmup = 2;
@@ -35,6 +44,17 @@ fn parse_args() -> Result<Config, String> {
                 i += 1;
                 if i < args.len() {
                     mode = args[i].clone();
+                }
+            }
+            "--task" => {
+                i += 1;
+                if i < args.len() {
+                    task = match args[i].as_str() {
+                        "compile-client" => Task::CompileClient,
+                        "compile-server" => Task::CompileServer,
+                        "parse" => Task::Parse,
+                        other => return Err(format!("Unknown task: {}", other)),
+                    };
                 }
             }
             "--files" => {
@@ -66,6 +86,7 @@ fn parse_args() -> Result<Config, String> {
 
     Ok(Config {
         mode,
+        task,
         files_path,
         iterations,
         warmup,
@@ -90,33 +111,50 @@ fn load_files(files_path: &str) -> io::Result<Vec<(String, String)>> {
     Ok(files)
 }
 
-fn compile_file(source: &str, filename: &str) {
-    let options = CompileOptions {
-        name: Some(filename.to_string()),
-        generate: GenerateMode::Client,
-        ..Default::default()
-    };
-    // Ignore compilation errors for benchmark
-    let _ = compile(source, options);
+fn process_file(source: &str, filename: &str, task: &Task) {
+    match task {
+        Task::CompileClient => {
+            let options = CompileOptions {
+                name: Some(filename.to_string()),
+                generate: GenerateMode::Client,
+                ..Default::default()
+            };
+            let _ = compile(source, options);
+        }
+        Task::CompileServer => {
+            let options = CompileOptions {
+                name: Some(filename.to_string()),
+                generate: GenerateMode::Server,
+                ..Default::default()
+            };
+            let _ = compile(source, options);
+        }
+        Task::Parse => {
+            let options = ParseOptions {
+                modern: true,
+                ..Default::default()
+            };
+            let _ = parse(source, options);
+        }
+    }
 }
 
-fn run_single_threaded(files: &[(String, String)]) {
+fn run_single_threaded(files: &[(String, String)], task: &Task) {
     for (path, content) in files {
-        compile_file(content, path);
+        process_file(content, path, task);
     }
 }
 
 #[cfg(feature = "native")]
-fn run_multi_threaded(files: &[(String, String)]) {
+fn run_multi_threaded(files: &[(String, String)], task: &Task) {
     files.par_iter().for_each(|(path, content)| {
-        compile_file(content, path);
+        process_file(content, path, task);
     });
 }
 
 #[cfg(not(feature = "native"))]
-fn run_multi_threaded(files: &[(String, String)]) {
-    // Fallback to single-threaded if rayon is not available
-    run_single_threaded(files);
+fn run_multi_threaded(files: &[(String, String)], task: &Task) {
+    run_single_threaded(files, task);
 }
 
 fn main() {
@@ -137,9 +175,10 @@ fn main() {
     };
 
     eprintln!(
-        "Loaded {} files, mode: {}, iterations: {}, warmup: {}",
+        "Loaded {} files, mode: {}, task: {:?}, iterations: {}, warmup: {}",
         files.len(),
         config.mode,
+        config.task,
         config.iterations,
         config.warmup
     );
@@ -149,9 +188,9 @@ fn main() {
     // Warmup
     for _ in 0..config.warmup {
         if is_multi {
-            run_multi_threaded(&files);
+            run_multi_threaded(&files, &config.task);
         } else {
-            run_single_threaded(&files);
+            run_single_threaded(&files, &config.task);
         }
     }
 
@@ -162,13 +201,13 @@ fn main() {
         let start = Instant::now();
 
         if is_multi {
-            run_multi_threaded(&files);
+            run_multi_threaded(&files, &config.task);
         } else {
-            run_single_threaded(&files);
+            run_single_threaded(&files, &config.task);
         }
 
         let elapsed = start.elapsed();
-        times.push(elapsed.as_secs_f64() * 1000.0); // Convert to milliseconds
+        times.push(elapsed.as_secs_f64() * 1000.0);
     }
 
     // Output as JSON
