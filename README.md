@@ -103,25 +103,25 @@ Benchmark of 3,654 Svelte files (average of 3 runs):
 
 | | Time | Throughput | Speedup |
 |---|---:|---:|---:|
-| **JavaScript (svelte/compiler)** | 696ms | 5,246 files/sec | 1.0x |
-| **Rust (single-threaded)** | 588ms | 6,210 files/sec | **1.2x** |
-| **Rust (multi-threaded)** | 153ms | 23,935 files/sec | **4.6x** |
+| **JavaScript (svelte/compiler)** | 717ms | 5,098 files/sec | 1.0x |
+| **Rust (single-threaded)** | 639ms | 5,720 files/sec | **1.1x** |
+| **Rust (multi-threaded)** | 119ms | 30,738 files/sec | **6.0x** |
 
 **Compile (SSR)**
 
 | | Time | Throughput | Speedup |
 |---|---:|---:|---:|
-| **JavaScript (svelte/compiler)** | 603ms | 6,061 files/sec | 1.0x |
-| **Rust (single-threaded)** | 368ms | 9,929 files/sec | **1.6x** |
-| **Rust (multi-threaded)** | 46ms | 79,240 files/sec | **13.1x** |
+| **JavaScript (svelte/compiler)** | 618ms | 5,915 files/sec | 1.0x |
+| **Rust (single-threaded)** | 331ms | 11,054 files/sec | **1.9x** |
+| **Rust (multi-threaded)** | 47ms | 77,277 files/sec | **13.1x** |
 
 **Parse**
 
 | | Time | Throughput | Speedup |
 |---|---:|---:|---:|
-| **JavaScript (svelte/compiler)** | 153ms | 23,857 files/sec | 1.0x |
-| **Rust (single-threaded)** | 117ms | 31,253 files/sec | **1.3x** |
-| **Rust (multi-threaded)** | 15ms | 251,748 files/sec | **10.6x** |
+| **JavaScript (svelte/compiler)** | 184ms | 19,897 files/sec | 1.0x |
+| **Rust (single-threaded)** | 113ms | 32,452 files/sec | **1.6x** |
+| **Rust (multi-threaded)** | 16ms | 226,978 files/sec | **11.4x** |
 
 > Benchmark environment: Apple M1 Max, 3,654 test files, average of 3 runs
 

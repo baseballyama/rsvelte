@@ -19,6 +19,8 @@
 //! - **Comment handling**: Comments are attached as `leadingComments` and `trailingComments`
 //!   following the ESTree convention. Block comments have their indentation normalized.
 
+use std::cell::RefCell;
+
 use oxc_allocator::Allocator;
 use oxc_ast::ast::Expression as OxcExpression;
 use oxc_parser::Parser as OxcParser;
@@ -31,6 +33,27 @@ use crate::ast::typed_expr::{
 };
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
 use compact_str::CompactString;
+
+// Thread-local OXC allocator reused across all expression parses to avoid
+// repeated allocator creation/destruction overhead. The allocator is reset
+// before each use, which clears all allocations while keeping the underlying
+// memory chunks for reuse.
+thread_local! {
+    static OXC_ALLOCATOR: RefCell<Allocator> = RefCell::new(Allocator::default());
+}
+
+/// Execute a closure with a freshly-reset thread-local OXC allocator.
+/// The allocator is reset before the closure runs, ensuring no stale data.
+fn with_oxc_allocator<F, R>(f: F) -> R
+where
+    F: FnOnce(&Allocator) -> R,
+{
+    OXC_ALLOCATOR.with(|cell| {
+        let mut alloc = cell.borrow_mut();
+        alloc.reset();
+        f(&alloc)
+    })
+}
 
 /// Extract a JsNode from an Expression, avoiding clone/conversion overhead.
 /// For Typed variant: returns the inner JsNode directly (zero cost).
@@ -243,41 +266,40 @@ pub fn parse_destructuring_pattern(
     offset: usize,
     line_offsets: &[usize],
 ) -> Option<Expression> {
-    let allocator = Allocator::default();
-
     // Try TypeScript first, then JavaScript
     for use_typescript in [true, false] {
-        let source_type = if use_typescript {
-            SourceType::ts()
-        } else {
-            SourceType::mjs()
-        };
+        let result = with_oxc_allocator(|allocator| {
+            let source_type = if use_typescript {
+                SourceType::ts()
+            } else {
+                SourceType::mjs()
+            };
 
-        // Wrap the pattern in a `let <pattern> = null` statement
-        // The "let " prefix is 4 characters long
-        let wrapped = format!("let {} = null", content);
-        let parser = OxcParser::new(&allocator, &wrapped, source_type);
-        let result = parser.parse();
+            let wrapped = format!("let {} = null", content);
+            let parser = OxcParser::new(allocator, &wrapped, source_type);
+            let result = parser.parse();
 
-        if !result.errors.is_empty() {
-            continue;
-        }
+            if !result.errors.is_empty() {
+                return None;
+            }
 
-        if let Some(oxc_ast::ast::Statement::VariableDeclaration(var_decl)) =
-            result.program.body.first()
-            && let Some(declarator) = var_decl.declarations.first()
-        {
-            // The offset adjustment: OXC positions start at 0 for the wrapped string.
-            // The "let " prefix is 4 chars, so pattern positions from OXC need
-            // offset - 4 adjustment. But convert_binding_pattern_for_param expects
-            // adjusted_offset to be added to OXC positions.
-            // OXC positions are relative to wrapped string, pattern starts at position 4.
-            // We want final positions to be: offset + (oxc_pos - 4)
-            // So adjusted_offset = offset - 4 (since the function does adjusted_offset + oxc_pos)
-            let adjusted_offset = offset.wrapping_sub(4);
-            let pattern_json =
-                convert_binding_pattern_for_param(&declarator.id, adjusted_offset, line_offsets);
-            return Some(Expression::Value(pattern_json));
+            if let Some(oxc_ast::ast::Statement::VariableDeclaration(var_decl)) =
+                result.program.body.first()
+                && let Some(declarator) = var_decl.declarations.first()
+            {
+                let adjusted_offset = offset.wrapping_sub(4);
+                let pattern_json = convert_binding_pattern_for_param(
+                    &declarator.id,
+                    adjusted_offset,
+                    line_offsets,
+                );
+                return Some(Expression::Value(pattern_json));
+            }
+
+            None
+        });
+        if result.is_some() {
+            return result;
         }
     }
 
@@ -341,34 +363,35 @@ pub fn parse_expression_with_end(
 
 /// Check if JavaScript expression has parse errors. Returns Some(error_message) if there is an error.
 pub fn check_js_parse_error(content: &str) -> Option<String> {
-    let allocator = Allocator::default();
+    let wrapped = format!("({})", content);
 
     // Try TypeScript first
-    let source_type = SourceType::ts();
-    let wrapped = format!("({})", content);
-    let parser = OxcParser::new(&allocator, &wrapped, source_type);
-    let result = parser.parse();
+    let ts_error = with_oxc_allocator(|allocator| {
+        let parser = OxcParser::new(allocator, &wrapped, SourceType::ts());
+        let result = parser.parse();
+        if result.errors.is_empty() {
+            return None;
+        }
+        result.errors.first().map(|e| e.message.to_string())
+    });
 
-    if result.errors.is_empty() {
-        return None;
-    }
+    // No TS errors means valid
+    ts_error.as_ref()?;
 
     // Try JavaScript
-    let allocator2 = Allocator::default();
-    let source_type2 = SourceType::mjs();
-    let parser2 = OxcParser::new(&allocator2, &wrapped, source_type2);
-    let result2 = parser2.parse();
+    let js_error = with_oxc_allocator(|allocator| {
+        let parser = OxcParser::new(allocator, &wrapped, SourceType::mjs());
+        let result = parser.parse();
+        if result.errors.is_empty() {
+            return None;
+        }
+        result.errors.first().map(|e| e.message.to_string())
+    });
 
-    if result2.errors.is_empty() {
-        return None;
-    }
+    // No JS errors means valid
+    js_error.as_ref()?;
 
-    // Return the error message
-    result2
-        .errors
-        .first()
-        .map(|e| e.message.to_string())
-        .or_else(|| result.errors.first().map(|e| e.message.to_string()))
+    js_error.or(ts_error)
 }
 
 /// Create an identifier for invalid expressions
@@ -390,135 +413,136 @@ fn parse_expression_with_typescript(
     line_offsets: &[usize],
     use_typescript: bool,
 ) -> Option<Expression> {
-    let allocator = Allocator::default();
-    let source_type = if use_typescript {
-        SourceType::ts()
-    } else {
-        SourceType::mjs()
-    };
+    with_oxc_allocator(|allocator| {
+        let source_type = if use_typescript {
+            SourceType::ts()
+        } else {
+            SourceType::mjs()
+        };
 
-    // Try to parse as an expression by wrapping it
-    let wrapped = format!("({})", content);
-    let parser = OxcParser::new(&allocator, &wrapped, source_type);
-    let result = parser.parse();
+        // Try to parse as an expression by wrapping it
+        let wrapped = format!("({})", content);
+        let parser = OxcParser::new(allocator, &wrapped, source_type);
+        let result = parser.parse();
 
-    if result.errors.is_empty()
-        && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
-            result.program.body.first()
-    {
-        // Adjust positions: subtract 1 for the opening paren we added
-        let mut expr = convert_expression(&expr_stmt.expression, offset, line_offsets);
-
-        // Attach comments to the expression
-        if !result.program.comments.is_empty() {
-            // Get the actual expression's start and end positions
-            let inner_expr = unwrap_parenthesized(&expr_stmt.expression);
-            let expr_start = inner_expr.span().start;
-            let expr_end = inner_expr.span().end;
-
-            // Collect leading comments (before the expression)
-            let leading_comments: Vec<Value> = result
-                .program
-                .comments
-                .iter()
-                .filter(|comment| comment.span.end <= expr_start)
-                .map(|comment| {
-                    // Adjust positions: -1 for the paren, then add offset
-                    let comment_start = offset + comment.span.start as usize - 1;
-                    let comment_end = offset + comment.span.end as usize - 1;
-
-                    // Get raw comment text
-                    let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
-                    let mut value = extract_comment_value(raw, comment.kind);
-
-                    // Normalize block comment indentation
-                    if matches!(
-                        comment.kind,
-                        oxc_ast::ast::CommentKind::SingleLineBlock
-                            | oxc_ast::ast::CommentKind::MultiLineBlock
-                    ) {
-                        value = normalize_block_comment_indentation(
-                            &value,
-                            content,
-                            comment.span.start as usize - 1,
-                        );
-                    }
-
-                    create_comment_object(
-                        comment.kind,
-                        value,
-                        comment_start,
-                        comment_end,
-                        line_offsets,
-                    )
-                    .to_value()
-                })
-                .collect();
-
-            // Collect trailing comments (after the expression)
-            let trailing_comments: Vec<Value> = result
-                .program
-                .comments
-                .iter()
-                .filter(|comment| comment.span.start >= expr_end)
-                .map(|comment| {
-                    // Adjust positions: -1 for the paren, then add offset
-                    let comment_start = offset + comment.span.start as usize - 1;
-                    let comment_end = offset + comment.span.end as usize - 1;
-
-                    // Get raw comment text
-                    let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
-                    let mut value = extract_comment_value(raw, comment.kind);
-
-                    // Normalize block comment indentation
-                    if matches!(
-                        comment.kind,
-                        oxc_ast::ast::CommentKind::SingleLineBlock
-                            | oxc_ast::ast::CommentKind::MultiLineBlock
-                    ) {
-                        value = normalize_block_comment_indentation(
-                            &value,
-                            content,
-                            comment.span.start as usize - 1,
-                        );
-                    }
-
-                    create_comment_object(
-                        comment.kind,
-                        value,
-                        comment_start,
-                        comment_end,
-                        line_offsets,
-                    )
-                    .to_value()
-                })
-                .collect();
+        if result.errors.is_empty()
+            && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
+                result.program.body.first()
+        {
+            // Adjust positions: subtract 1 for the opening paren we added
+            let mut expr = convert_expression(&expr_stmt.expression, offset, line_offsets);
 
             // Attach comments to the expression
-            if !leading_comments.is_empty() || !trailing_comments.is_empty() {
-                let mut json_val = expr.as_json().clone();
-                if let Value::Object(ref mut obj) = json_val {
-                    if !leading_comments.is_empty() {
-                        obj.insert(
-                            "leadingComments".to_string(),
-                            Value::Array(leading_comments),
-                        );
+            if !result.program.comments.is_empty() {
+                // Get the actual expression's start and end positions
+                let inner_expr = unwrap_parenthesized(&expr_stmt.expression);
+                let expr_start = inner_expr.span().start;
+                let expr_end = inner_expr.span().end;
+
+                // Collect leading comments (before the expression)
+                let leading_comments: Vec<Value> = result
+                    .program
+                    .comments
+                    .iter()
+                    .filter(|comment| comment.span.end <= expr_start)
+                    .map(|comment| {
+                        // Adjust positions: -1 for the paren, then add offset
+                        let comment_start = offset + comment.span.start as usize - 1;
+                        let comment_end = offset + comment.span.end as usize - 1;
+
+                        // Get raw comment text
+                        let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
+                        let mut value = extract_comment_value(raw, comment.kind);
+
+                        // Normalize block comment indentation
+                        if matches!(
+                            comment.kind,
+                            oxc_ast::ast::CommentKind::SingleLineBlock
+                                | oxc_ast::ast::CommentKind::MultiLineBlock
+                        ) {
+                            value = normalize_block_comment_indentation(
+                                &value,
+                                content,
+                                comment.span.start as usize - 1,
+                            );
+                        }
+
+                        create_comment_object(
+                            comment.kind,
+                            value,
+                            comment_start,
+                            comment_end,
+                            line_offsets,
+                        )
+                        .to_value()
+                    })
+                    .collect();
+
+                // Collect trailing comments (after the expression)
+                let trailing_comments: Vec<Value> = result
+                    .program
+                    .comments
+                    .iter()
+                    .filter(|comment| comment.span.start >= expr_end)
+                    .map(|comment| {
+                        // Adjust positions: -1 for the paren, then add offset
+                        let comment_start = offset + comment.span.start as usize - 1;
+                        let comment_end = offset + comment.span.end as usize - 1;
+
+                        // Get raw comment text
+                        let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
+                        let mut value = extract_comment_value(raw, comment.kind);
+
+                        // Normalize block comment indentation
+                        if matches!(
+                            comment.kind,
+                            oxc_ast::ast::CommentKind::SingleLineBlock
+                                | oxc_ast::ast::CommentKind::MultiLineBlock
+                        ) {
+                            value = normalize_block_comment_indentation(
+                                &value,
+                                content,
+                                comment.span.start as usize - 1,
+                            );
+                        }
+
+                        create_comment_object(
+                            comment.kind,
+                            value,
+                            comment_start,
+                            comment_end,
+                            line_offsets,
+                        )
+                        .to_value()
+                    })
+                    .collect();
+
+                // Attach comments to the expression
+                if !leading_comments.is_empty() || !trailing_comments.is_empty() {
+                    let mut json_val = expr.as_json().clone();
+                    if let Value::Object(ref mut obj) = json_val {
+                        if !leading_comments.is_empty() {
+                            obj.insert(
+                                "leadingComments".to_string(),
+                                Value::Array(leading_comments),
+                            );
+                        }
+                        if !trailing_comments.is_empty() {
+                            obj.insert(
+                                "trailingComments".to_string(),
+                                Value::Array(trailing_comments),
+                            );
+                        }
                     }
-                    if !trailing_comments.is_empty() {
-                        obj.insert(
-                            "trailingComments".to_string(),
-                            Value::Array(trailing_comments),
-                        );
-                    }
+                    expr = Expression::Value(json_val);
                 }
-                expr = Expression::Value(json_val);
             }
+
+            return Some(expr);
         }
 
-        return Some(expr);
-    }
-
-    None
+        None
+    })
 }
 
 /// Unwrap ParenthesizedExpression to get the inner expression.
@@ -657,39 +681,49 @@ pub fn parse_typescript_params(
     offset: usize,
     line_offsets: &[usize],
 ) -> Vec<Expression> {
-    let allocator = Allocator::default();
     // Use TypeScript source type to parse type annotations
     let source_type = SourceType::ts();
 
     // Wrap as arrow function to parse parameters: "(msg: string) => {}"
     let wrapped = format!("({}) => {{}}", content);
-    let parser = OxcParser::new(&allocator, &wrapped, source_type);
-    let result = parser.parse();
-
     let mut params = Vec::new();
 
-    if result.errors.is_empty()
-        && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
-            result.program.body.first()
-        && let OxcExpression::ArrowFunctionExpression(arrow) = &expr_stmt.expression
-    {
-        for param in &arrow.params.items {
-            // Adjust offset: -1 for the opening paren we added
-            let param_expr = convert_formal_parameter(param, offset - 1, line_offsets);
-            params.push(param_expr);
+    enum ParseOutcome {
+        Ok(Vec<Expression>),
+        HasErrors,
+    }
+
+    let outcome = with_oxc_allocator(|allocator| {
+        let parser = OxcParser::new(allocator, &wrapped, source_type);
+        let result = parser.parse();
+
+        if result.errors.is_empty()
+            && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
+                result.program.body.first()
+            && let OxcExpression::ArrowFunctionExpression(arrow) = &expr_stmt.expression
+        {
+            let mut p = Vec::new();
+            for param in &arrow.params.items {
+                let param_expr = convert_formal_parameter(param, offset - 1, line_offsets);
+                p.push(param_expr);
+            }
+            ParseOutcome::Ok(p)
+        } else {
+            ParseOutcome::HasErrors
         }
-    } else if !result.errors.is_empty() {
-        // OXC TS parser failed (e.g., `c?: number = 5` which is valid Svelte but
-        // might not parse as a TS arrow function param). Try stripping optional markers
-        // (`?` after identifier names) and re-parsing.
-        //
-        // In Svelte snippets, `c?: number = 5` means "optional param with default".
-        // TypeScript technically allows this but some parsers reject it.
-        // We strip `?` from `name?:` and `name? =` patterns to make them parseable.
-        let stripped = strip_optional_markers(content);
-        let cleaned_wrapped = format!("({}) => {{}}", stripped.content);
-        let cleaned_alloc = Allocator::default();
-        let cleaned_parser = OxcParser::new(&cleaned_alloc, &cleaned_wrapped, source_type);
+    });
+
+    match outcome {
+        ParseOutcome::Ok(p) => return p,
+        ParseOutcome::HasErrors => {}
+    }
+
+    // OXC TS parser failed - try stripping optional markers and re-parsing
+    let stripped = strip_optional_markers(content);
+    let cleaned_wrapped = format!("({}) => {{}}", stripped.content);
+
+    let cleaned_ok = with_oxc_allocator(|allocator| {
+        let cleaned_parser = OxcParser::new(allocator, &cleaned_wrapped, source_type);
         let cleaned_result = cleaned_parser.parse();
 
         if cleaned_result.errors.is_empty()
@@ -697,28 +731,37 @@ pub fn parse_typescript_params(
                 cleaned_result.program.body.first()
             && let OxcExpression::ArrowFunctionExpression(arrow) = &expr_stmt.expression
         {
+            let mut p = Vec::new();
             for param in &arrow.params.items {
-                // When optional markers were stripped, OXC span positions are relative
-                // to the cleaned string. We need to remap them to original positions.
                 let param_expr = if stripped.removed_positions.is_empty() {
                     convert_formal_parameter(param, offset - 1, line_offsets)
                 } else {
                     convert_formal_parameter_with_remap(param, offset, line_offsets, &stripped)
                 };
-                params.push(param_expr);
+                p.push(param_expr);
             }
+            Some(p)
         } else {
-            // Still failed - try parsing each parameter individually
-            let parts = split_top_level_params(content);
-            for part in &parts {
-                let part = part.trim();
-                if part.is_empty() {
-                    continue;
-                }
-                let stripped_part = strip_optional_markers(part);
-                let single_wrapped = format!("({}) => {{}}", stripped_part.content);
-                let single_alloc = Allocator::default();
-                let single_parser = OxcParser::new(&single_alloc, &single_wrapped, source_type);
+            None
+        }
+    });
+
+    if let Some(p) = cleaned_ok {
+        return p;
+    }
+
+    // Still failed - try parsing each parameter individually
+    {
+        let parts = split_top_level_params(content);
+        for part in &parts {
+            let part = part.trim();
+            if part.is_empty() {
+                continue;
+            }
+            let stripped_part = strip_optional_markers(part);
+            let single_wrapped = format!("({}) => {{}}", stripped_part.content);
+            let single_result_expr = with_oxc_allocator(|allocator| {
+                let single_parser = OxcParser::new(allocator, &single_wrapped, source_type);
                 let single_result = single_parser.parse();
                 if single_result.errors.is_empty()
                     && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
@@ -737,8 +780,13 @@ pub fn parse_typescript_params(
                             &stripped_part,
                         )
                     };
-                    params.push(param_expr);
+                    Some(param_expr)
+                } else {
+                    None
                 }
+            });
+            if let Some(expr) = single_result_expr {
+                params.push(expr);
             }
         }
     }
@@ -4227,190 +4275,192 @@ pub fn parse_program(
     script_tag_start: usize,
     script_tag_end: usize,
 ) -> Expression {
-    let allocator = Allocator::default();
-    let source_type = if is_typescript {
-        SourceType::ts()
-    } else {
-        SourceType::mjs()
-    };
-    let parser = OxcParser::new(&allocator, content, source_type);
-    let result = parser.parse();
+    with_oxc_allocator(|allocator| {
+        let source_type = if is_typescript {
+            SourceType::ts()
+        } else {
+            SourceType::mjs()
+        };
+        let parser = OxcParser::new(allocator, content, source_type);
+        let result = parser.parse();
 
-    let program = &result.program;
+        let program = &result.program;
 
-    let mut obj = Map::new();
-    obj.insert("type".to_string(), Value::String("Program".to_string()));
+        let mut obj = Map::new();
+        obj.insert("type".to_string(), Value::String("Program".to_string()));
 
-    // Calculate actual positions within the document
-    let start = offset + program.span.start as usize;
-    let end = offset + program.span.end as usize;
+        // Calculate actual positions within the document
+        let start = offset + program.span.start as usize;
+        let end = offset + program.span.end as usize;
 
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
 
-    // For Program loc, Svelte uses document coordinates:
-    // - loc.start: locator(script_tag_start) - position of <script>
-    // - loc.end: locator(script_tag_end) - position after </script>
-    if let Some(loc) = create_loc_for_script(script_tag_start, script_tag_end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
-
-    // Convert body statements and attach leading comments to each statement.
-    // The official Svelte compiler (via acorn) attaches leadingComments to AST nodes.
-    // OXC stores all comments at the program level, so we distribute them here.
-    let all_comments: Vec<_> = result.program.comments.iter().collect();
-    let mut comment_idx = 0;
-
-    let mut body: Vec<Value> = Vec::new();
-    for stmt in program.body.iter() {
-        if let Some(mut stmt_value) = convert_statement_for_program(stmt, offset, line_offsets) {
-            let stmt_start = stmt.span().start;
-
-            // Collect comments that appear before this statement
-            let mut leading = Vec::new();
-            while comment_idx < all_comments.len()
-                && all_comments[comment_idx].span.end <= stmt_start
-            {
-                let comment = all_comments[comment_idx];
-                let comment_start = offset + comment.span.start as usize;
-                let comment_end = offset + comment.span.end as usize;
-                let comment_type = match comment.kind {
-                    oxc_ast::ast::CommentKind::Line => "Line",
-                    oxc_ast::ast::CommentKind::SingleLineBlock
-                    | oxc_ast::ast::CommentKind::MultiLineBlock => "Block",
-                };
-                let comment_text = if comment_end <= offset + content.len() {
-                    let raw = &content[comment.span.start as usize..comment.span.end as usize];
-                    match comment.kind {
-                        oxc_ast::ast::CommentKind::Line => {
-                            raw.strip_prefix("//").unwrap_or(raw).to_string()
-                        }
-                        oxc_ast::ast::CommentKind::SingleLineBlock
-                        | oxc_ast::ast::CommentKind::MultiLineBlock => raw
-                            .strip_prefix("/*")
-                            .and_then(|s| s.strip_suffix("*/"))
-                            .unwrap_or(raw)
-                            .to_string(),
-                    }
-                } else {
-                    String::new()
-                };
-
-                let mut comment_obj = Map::new();
-                comment_obj.insert("type".to_string(), Value::String(comment_type.to_string()));
-                comment_obj.insert("value".to_string(), Value::String(comment_text));
-                comment_obj.insert(
-                    "start".to_string(),
-                    Value::Number((comment_start as i64).into()),
-                );
-                comment_obj.insert(
-                    "end".to_string(),
-                    Value::Number((comment_end as i64).into()),
-                );
-                leading.push(Value::Object(comment_obj));
-                comment_idx += 1;
-            }
-
-            // Skip comments that are inside the statement
-            while comment_idx < all_comments.len()
-                && all_comments[comment_idx].span.start < stmt.span().end
-            {
-                comment_idx += 1;
-            }
-
-            // Attach leading comments to the statement
-            if !leading.is_empty()
-                && let Value::Object(ref mut obj) = stmt_value
-            {
-                obj.insert("leadingComments".to_string(), Value::Array(leading));
-            }
-
-            body.push(stmt_value);
+        // For Program loc, Svelte uses document coordinates:
+        // - loc.start: locator(script_tag_start) - position of <script>
+        // - loc.end: locator(script_tag_end) - position after </script>
+        if let Some(loc) = create_loc_for_script(script_tag_start, script_tag_end, line_offsets) {
+            obj.insert("loc".to_string(), loc);
         }
-    }
-    obj.insert("body".to_string(), Value::Array(body));
 
-    obj.insert(
-        "sourceType".to_string(),
-        Value::String("module".to_string()),
-    );
+        // Convert body statements and attach leading comments to each statement.
+        // The official Svelte compiler (via acorn) attaches leadingComments to AST nodes.
+        // OXC stores all comments at the program level, so we distribute them here.
+        let all_comments: Vec<_> = result.program.comments.iter().collect();
+        let mut comment_idx = 0;
 
-    // Store all comments on the Program as trailingComments (for backward compat)
-    if !result.program.comments.is_empty() {
-        let comments: Vec<Value> = result
-            .program
-            .comments
-            .iter()
-            .map(|comment| {
-                let mut comment_obj = Map::new();
-                let comment_type = match comment.kind {
-                    oxc_ast::ast::CommentKind::Line => "Line",
-                    oxc_ast::ast::CommentKind::SingleLineBlock
-                    | oxc_ast::ast::CommentKind::MultiLineBlock => "Block",
-                };
-                comment_obj.insert("type".to_string(), Value::String(comment_type.to_string()));
+        let mut body: Vec<Value> = Vec::new();
+        for stmt in program.body.iter() {
+            if let Some(mut stmt_value) = convert_statement_for_program(stmt, offset, line_offsets)
+            {
+                let stmt_start = stmt.span().start;
 
-                let comment_start = offset + comment.span.start as usize;
-                let comment_end = offset + comment.span.end as usize;
-                let comment_text = if comment_end <= offset + content.len() {
-                    let raw = &content[comment.span.start as usize..comment.span.end as usize];
-                    match comment.kind {
-                        oxc_ast::ast::CommentKind::Line => {
-                            raw.strip_prefix("//").unwrap_or(raw).to_string()
-                        }
+                // Collect comments that appear before this statement
+                let mut leading = Vec::new();
+                while comment_idx < all_comments.len()
+                    && all_comments[comment_idx].span.end <= stmt_start
+                {
+                    let comment = all_comments[comment_idx];
+                    let comment_start = offset + comment.span.start as usize;
+                    let comment_end = offset + comment.span.end as usize;
+                    let comment_type = match comment.kind {
+                        oxc_ast::ast::CommentKind::Line => "Line",
                         oxc_ast::ast::CommentKind::SingleLineBlock
-                        | oxc_ast::ast::CommentKind::MultiLineBlock => raw
-                            .strip_prefix("/*")
-                            .and_then(|s| s.strip_suffix("*/"))
-                            .unwrap_or(raw)
-                            .to_string(),
-                    }
-                } else {
-                    String::new()
-                };
+                        | oxc_ast::ast::CommentKind::MultiLineBlock => "Block",
+                    };
+                    let comment_text = if comment_end <= offset + content.len() {
+                        let raw = &content[comment.span.start as usize..comment.span.end as usize];
+                        match comment.kind {
+                            oxc_ast::ast::CommentKind::Line => {
+                                raw.strip_prefix("//").unwrap_or(raw).to_string()
+                            }
+                            oxc_ast::ast::CommentKind::SingleLineBlock
+                            | oxc_ast::ast::CommentKind::MultiLineBlock => raw
+                                .strip_prefix("/*")
+                                .and_then(|s| s.strip_suffix("*/"))
+                                .unwrap_or(raw)
+                                .to_string(),
+                        }
+                    } else {
+                        String::new()
+                    };
 
-                comment_obj.insert("value".to_string(), Value::String(comment_text));
-                comment_obj.insert(
-                    "start".to_string(),
-                    Value::Number((comment_start as i64).into()),
-                );
-                comment_obj.insert(
-                    "end".to_string(),
-                    Value::Number((comment_end as i64).into()),
-                );
-                Value::Object(comment_obj)
-            })
-            .collect();
-        obj.insert("trailingComments".to_string(), Value::Array(comments));
-    }
+                    let mut comment_obj = Map::new();
+                    comment_obj.insert("type".to_string(), Value::String(comment_type.to_string()));
+                    comment_obj.insert("value".to_string(), Value::String(comment_text));
+                    comment_obj.insert(
+                        "start".to_string(),
+                        Value::Number((comment_start as i64).into()),
+                    );
+                    comment_obj.insert(
+                        "end".to_string(),
+                        Value::Number((comment_end as i64).into()),
+                    );
+                    leading.push(Value::Object(comment_obj));
+                    comment_idx += 1;
+                }
 
-    // Add leading comments if there are any (from HTML comments before script tag)
-    if !leading_comments.is_empty() {
-        let leading_comments_value: Vec<Value> = leading_comments
-            .iter()
-            .map(|comment| {
-                let mut comment_obj = Map::new();
-                // HTML comments are treated as "Line" type
-                comment_obj.insert("type".to_string(), Value::String("Line".to_string()));
-                comment_obj.insert("value".to_string(), Value::String(comment.clone()));
-                Value::Object(comment_obj)
-            })
-            .collect();
+                // Skip comments that are inside the statement
+                while comment_idx < all_comments.len()
+                    && all_comments[comment_idx].span.start < stmt.span().end
+                {
+                    comment_idx += 1;
+                }
+
+                // Attach leading comments to the statement
+                if !leading.is_empty()
+                    && let Value::Object(ref mut obj) = stmt_value
+                {
+                    obj.insert("leadingComments".to_string(), Value::Array(leading));
+                }
+
+                body.push(stmt_value);
+            }
+        }
+        obj.insert("body".to_string(), Value::Array(body));
+
         obj.insert(
-            "leadingComments".to_string(),
-            Value::Array(leading_comments_value),
+            "sourceType".to_string(),
+            Value::String("module".to_string()),
         );
-    }
 
-    // Post-process: distribute comments to nested statement bodies.
-    // The top-level comment distribution only handles Program.body.
-    // Comments inside function bodies, if-blocks, etc. are skipped.
-    // This step recursively walks the AST and attaches comments to nested statements.
-    distribute_comments_to_nested_bodies(&mut obj, &all_comments, content, offset);
+        // Store all comments on the Program as trailingComments (for backward compat)
+        if !result.program.comments.is_empty() {
+            let comments: Vec<Value> = result
+                .program
+                .comments
+                .iter()
+                .map(|comment| {
+                    let mut comment_obj = Map::new();
+                    let comment_type = match comment.kind {
+                        oxc_ast::ast::CommentKind::Line => "Line",
+                        oxc_ast::ast::CommentKind::SingleLineBlock
+                        | oxc_ast::ast::CommentKind::MultiLineBlock => "Block",
+                    };
+                    comment_obj.insert("type".to_string(), Value::String(comment_type.to_string()));
 
-    let program_value = Value::Object(obj);
+                    let comment_start = offset + comment.span.start as usize;
+                    let comment_end = offset + comment.span.end as usize;
+                    let comment_text = if comment_end <= offset + content.len() {
+                        let raw = &content[comment.span.start as usize..comment.span.end as usize];
+                        match comment.kind {
+                            oxc_ast::ast::CommentKind::Line => {
+                                raw.strip_prefix("//").unwrap_or(raw).to_string()
+                            }
+                            oxc_ast::ast::CommentKind::SingleLineBlock
+                            | oxc_ast::ast::CommentKind::MultiLineBlock => raw
+                                .strip_prefix("/*")
+                                .and_then(|s| s.strip_suffix("*/"))
+                                .unwrap_or(raw)
+                                .to_string(),
+                        }
+                    } else {
+                        String::new()
+                    };
 
-    Expression::Value(program_value)
+                    comment_obj.insert("value".to_string(), Value::String(comment_text));
+                    comment_obj.insert(
+                        "start".to_string(),
+                        Value::Number((comment_start as i64).into()),
+                    );
+                    comment_obj.insert(
+                        "end".to_string(),
+                        Value::Number((comment_end as i64).into()),
+                    );
+                    Value::Object(comment_obj)
+                })
+                .collect();
+            obj.insert("trailingComments".to_string(), Value::Array(comments));
+        }
+
+        // Add leading comments if there are any (from HTML comments before script tag)
+        if !leading_comments.is_empty() {
+            let leading_comments_value: Vec<Value> = leading_comments
+                .iter()
+                .map(|comment| {
+                    let mut comment_obj = Map::new();
+                    // HTML comments are treated as "Line" type
+                    comment_obj.insert("type".to_string(), Value::String("Line".to_string()));
+                    comment_obj.insert("value".to_string(), Value::String(comment.clone()));
+                    Value::Object(comment_obj)
+                })
+                .collect();
+            obj.insert(
+                "leadingComments".to_string(),
+                Value::Array(leading_comments_value),
+            );
+        }
+
+        // Post-process: distribute comments to nested statement bodies.
+        // The top-level comment distribution only handles Program.body.
+        // Comments inside function bodies, if-blocks, etc. are skipped.
+        // This step recursively walks the AST and attaches comments to nested statements.
+        distribute_comments_to_nested_bodies(&mut obj, &all_comments, content, offset);
+
+        let program_value = Value::Object(obj);
+
+        Expression::Value(program_value)
+    })
 }
 
 /// Recursively distribute comments to nested statement bodies.
@@ -7811,81 +7861,66 @@ pub fn parse_binding_pattern(
     offset: usize,
     line_offsets: &[usize],
 ) -> Result<Expression, crate::error::ParseError> {
-    let allocator = Allocator::default();
-    let source_type = SourceType::mjs();
+    with_oxc_allocator(|allocator| {
+        let source_type = SourceType::mjs();
 
-    // Parse as a variable declaration to get the binding pattern
-    // We prefix with "let " (4 chars) and suffix with " = null"
-    let wrapped = format!("let {} = null", content);
-    let parser = OxcParser::new(&allocator, &wrapped, source_type);
-    let result = parser.parse();
+        let wrapped = format!("let {} = null", content);
+        let parser = OxcParser::new(allocator, &wrapped, source_type);
+        let result = parser.parse();
 
-    if !result.errors.is_empty() {
-        // Only propagate errors for destructuring patterns (starting with { or [).
-        // Simple identifiers with type annotations like "letter: string" will produce
-        // OXC errors in .mjs mode, but we handle those in the fallback below.
+        if !result.errors.is_empty() {
+            let trimmed = content.trim();
+            if trimmed.starts_with('{') || trimmed.starts_with('[') {
+                let err = &result.errors[0];
+                let msg = format!("{}", err);
+                let clean_msg = msg.split('\n').next().unwrap_or(&msg).trim().to_string();
+                let err_pos = offset;
+                return Err(crate::error::ParseError::svelte(
+                    "js_parse_error",
+                    &clean_msg,
+                    (err_pos, err_pos),
+                ));
+            }
+        }
+
+        if let Some(oxc_ast::ast::Statement::VariableDeclaration(var_decl)) =
+            result.program.body.first()
+            && let Some(decl) = var_decl.declarations.first()
+        {
+            if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &decl.id {
+                let start = offset + id.span.start as usize - 4;
+                let end = offset + id.span.end as usize - 4;
+                return Ok(Expression::from_node(
+                    create_identifier_for_binding_toplevel(&id.name, start, end, line_offsets),
+                ));
+            }
+
+            return Ok(Expression::Value(convert_binding_pattern_with_adjustment(
+                &decl.id,
+                offset,
+                4,
+                line_offsets,
+            )));
+        }
+
+        // Fallback: return as simple identifier
         let trimmed = content.trim();
-        if trimmed.starts_with('{') || trimmed.starts_with('[') {
-            // Propagate OXC parse errors as js_parse_error
-            let err = &result.errors[0];
-            let msg = format!("{}", err);
-            // Clean up the message - remove position indicators
-            let clean_msg = msg.split('\n').next().unwrap_or(&msg).trim().to_string();
-            let err_pos = offset;
-            return Err(crate::error::ParseError::svelte(
-                "js_parse_error",
-                &clean_msg,
-                (err_pos, err_pos),
-            ));
-        }
-    }
-
-    if let Some(oxc_ast::ast::Statement::VariableDeclaration(var_decl)) =
-        result.program.body.first()
-        && let Some(decl) = var_decl.declarations.first()
-    {
-        // The pattern in wrapped string starts at position 4 (after "let ")
-        // We need to map positions: wrapped_pos - 4 + offset = document_pos
-        // So we pass offset - 4 to make the formula work: (offset - 4) + span.start = offset + (span.start - 4)
-
-        // For top-level simple identifier, use special format with character field
-        // and name before loc
-        if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &decl.id {
-            let start = offset + id.span.start as usize - 4;
-            let end = offset + id.span.end as usize - 4;
-            return Ok(Expression::from_node(
-                create_identifier_for_binding_toplevel(&id.name, start, end, line_offsets),
-            ));
-        }
-
-        return Ok(Expression::Value(convert_binding_pattern_with_adjustment(
-            &decl.id,
-            offset,
-            4,
-            line_offsets,
-        )));
-    }
-
-    // Fallback: return as simple identifier
-    // Strip type annotation if present (e.g., "letter: string" -> "letter")
-    let trimmed = content.trim();
-    let name = if let Some(colon_pos) = trimmed.find(':') {
-        // Only strip if it looks like a simple identifier with type annotation
-        // (not a destructuring pattern with default values)
-        if !trimmed.starts_with('{') && !trimmed.starts_with('[') {
-            trimmed[..colon_pos].trim()
+        let name = if let Some(colon_pos) = trimmed.find(':') {
+            if !trimmed.starts_with('{') && !trimmed.starts_with('[') {
+                trimmed[..colon_pos].trim()
+            } else {
+                trimmed
+            }
         } else {
             trimmed
-        }
-    } else {
-        trimmed
-    };
-    Ok(create_identifier(
-        name,
-        offset,
-        offset + name.len(),
-        line_offsets,
-    ))
+        };
+        Ok(create_identifier(
+            name,
+            offset,
+            offset + name.len(),
+            line_offsets,
+        ))
+    })
 }
 
 /// Convert a binding pattern with position adjustment.
