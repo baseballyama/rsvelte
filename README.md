@@ -101,11 +101,11 @@ Compilation benchmark of 3,654 Svelte files:
 
 | | Time | Throughput | Speedup |
 |---|---:|---:|---:|
-| **JavaScript (svelte/compiler)** | 689ms | 5,304 files/sec | 1.0x |
-| **Rust (single-threaded)** | 333ms | 10,986 files/sec | **2.1x** |
-| **Rust (multi-threaded)** | 44ms | 83,797 files/sec | **15.8x** |
+| **JavaScript (svelte/compiler)** | 704ms | 5,194 files/sec | 1.0x |
+| **Rust (single-threaded)** | 607ms | 6,022 files/sec | **1.2x** |
+| **Rust (multi-threaded)** | 95ms | 38,546 files/sec | **7.4x** |
 
-> Benchmark environment: Apple M1 Max, 3,654 test files (client + server mode), average of 3 runs
+> Benchmark environment: Apple M1 Max, 3,654 test files (client mode), average of 3 runs
 
 ## Compatibility
 
