@@ -1,5 +1,7 @@
 # svelte-compiler-rust
 
+> **⚠️ Early Stage Project** — This project can compile a range of Svelte components, but it is still in an early phase of development. APIs, output, and behavior may change without notice. It is not yet recommended for production use.
+
 A Rust implementation of the Svelte compiler with **100% test compatibility** with the official compiler.
 
 ## Quick Start

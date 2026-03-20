@@ -405,13 +405,24 @@ pub fn process_children<F>(
                     // Push the static element to the template
                     let css_hash = &context.state.analysis.css.hash;
                     let preserve_comments = context.state.options.preserve_comments;
-                    push_static_element_to_template(
+                    let had_lone_script = push_static_element_to_template(
                         node,
                         &mut context.state.template,
                         &context.state.metadata.namespace,
                         css_hash,
                         preserve_comments,
                     );
+
+                    // When a static element has a lone <script> child, the official
+                    // Svelte compiler's clean_nodes adds a Comment node. The
+                    // RegularElement visitor then calls process_children which calls
+                    // flush_node for the Comment, consuming a "node" name from the
+                    // memoizer. Since we bypass the full visitor for static elements,
+                    // we must consume the name here to keep the counter in sync.
+                    if had_lone_script {
+                        context.state.memoizer.generate_id("node");
+                    }
+
                     skipped += 1;
                 } else if let TemplateNode::EachBlock(each) = node {
                     // Special case: single EachBlock in element can be controlled
@@ -503,13 +514,15 @@ pub enum TextOrExpr {
 }
 
 /// Push a static element and its children to the template.
+/// Returns true if the element contained a lone <script> child (which adds a <!> comment
+/// to match the official Svelte compiler's clean_nodes behavior).
 fn push_static_element_to_template(
     node: &TemplateNode,
     template: &mut Template,
     namespace: &str,
     css_hash: &str,
     preserve_comments: bool,
-) {
+) -> bool {
     push_static_element_to_template_inner(
         node,
         template,
@@ -517,10 +530,11 @@ fn push_static_element_to_template(
         css_hash,
         preserve_comments,
         false,
-    );
+    )
 }
 
 /// Inner implementation with preserve_whitespace tracking.
+/// Returns true if a lone <script> child was encountered (and a <!> comment was added).
 fn push_static_element_to_template_inner(
     node: &TemplateNode,
     template: &mut Template,
@@ -528,7 +542,7 @@ fn push_static_element_to_template_inner(
     css_hash: &str,
     preserve_comments: bool,
     preserve_whitespace: bool,
-) {
+) -> bool {
     match node {
         TemplateNode::RegularElement(elem) => {
             // Determine if this is an HTML element (not SVG/MathML)
@@ -546,7 +560,7 @@ fn push_static_element_to_template_inner(
             // This matches the behavior in visit_regular_element
             if elem.name == "noscript" {
                 template.pop_element();
-                return;
+                return false;
             }
 
             // Determine child namespace for recursion
@@ -795,15 +809,16 @@ fn push_static_element_to_template_inner(
                         && !matches!(n, TemplateNode::Comment(_))
                 })
                 .collect();
-            if meaningful_children.len() == 1
-                && let TemplateNode::RegularElement(child_el) = meaningful_children[0]
-                && child_el.name.as_str() == "script"
-            {
+            let has_lone_script = meaningful_children.len() == 1
+                && matches!(meaningful_children[0], TemplateNode::RegularElement(child_el) if child_el.name.as_str() == "script");
+            if has_lone_script {
                 template.push_comment(Some(String::new()));
             }
 
             // Close the element
             template.pop_element();
+
+            return has_lone_script;
         }
         TemplateNode::Text(text) => {
             template.push_text(vec![text.clone()]);
@@ -815,6 +830,7 @@ fn push_static_element_to_template_inner(
         }
         _ => {}
     }
+    false
 }
 
 use crate::compiler::phases::phase3_transform::client::transform_template::template::Template;
