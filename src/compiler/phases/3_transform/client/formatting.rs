@@ -381,6 +381,43 @@ pub(super) fn extract_destructured_prop_names(statement: &str) -> Vec<String> {
 /// The output uses single quotes, tab indentation, and strips comments
 /// (matching esrap/Svelte compiler behavior).
 pub(super) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
+    // Fast path: skip OXC parse+codegen for scripts without JSDoc or await.
+    // JSDoc comments need OXC to fix indentation (tab+space before *).
+    // await scripts go through async_body transform which needs OXC formatting.
+    let needs_oxc = js.contains("/**") || js.contains("*/") || js.contains("await ");
+
+    if !needs_oxc {
+        // Skip ALL OXC-specific post-processing since those fix OXC artifacts
+        let code = js.trim_end();
+        let code = rejoin_inspect_empty_stmts(code);
+        let code = strip_empty_statements_from_js(&code);
+
+        if indent_level == 0 {
+            return code;
+        }
+
+        // Apply indentation for non-first lines
+        let mut result_lines = Vec::new();
+        let indent_str: String = "\t".repeat(indent_level);
+        let mut in_template_literal = false;
+        for (i, line) in code.lines().enumerate() {
+            if i == 0 {
+                in_template_literal = update_template_literal_state(line, in_template_literal);
+                result_lines.push(line.to_string());
+            } else if line.is_empty() {
+                result_lines.push(String::new());
+            } else if in_template_literal {
+                in_template_literal = update_template_literal_state(line, in_template_literal);
+                result_lines.push(line.to_string());
+            } else {
+                in_template_literal = update_template_literal_state(line, in_template_literal);
+                result_lines.push(format!("{}{}", indent_str, line));
+            }
+        }
+        return result_lines.join("\n");
+    }
+
+    // Slow path: full OXC parse+codegen+post-processing
     use oxc_codegen::{Codegen, CodegenOptions, CommentOptions, LegalComment};
     use oxc_parser::Parser;
     use oxc_span::SourceType;
