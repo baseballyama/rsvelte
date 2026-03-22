@@ -6,7 +6,7 @@
 
 use super::VisitorContext;
 use super::shared::fragment::mark_subtree_dynamic;
-use super::shared::utils::walk_js_expression;
+use super::shared::utils::walk_js_expression_node;
 use crate::ast::template::AttachTag;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
@@ -24,8 +24,8 @@ pub fn visit(tag: &mut AttachTag, context: &mut VisitorContext) -> Result<(), An
     // and to detect needs_context, imports, etc.
     // This ensures that calls like `mount(Child, ...)` or `flushSync()` inside
     // @attach expressions properly trigger needs_context.
-    let value = tag.expression.as_json();
-    walk_js_expression(value, context, &mut tag.metadata.expression)?;
+    let node = tag.expression.as_node();
+    walk_js_expression_node(&node, context, &mut tag.metadata.expression)?;
 
     Ok(())
 }

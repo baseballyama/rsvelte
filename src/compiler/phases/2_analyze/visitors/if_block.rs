@@ -7,7 +7,9 @@
 use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment;
-use super::shared::utils::{validate_block_not_empty, validate_opening_tag, walk_js_expression};
+use super::shared::utils::{
+    validate_block_not_empty, validate_opening_tag, walk_js_expression_node,
+};
 use crate::ast::js::Expression;
 use crate::ast::template::IfBlock;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
@@ -107,14 +109,14 @@ fn analyze_test_expression(
         let metadata = unsafe { &mut *metadata_ptr };
 
         // Walk the JS AST to detect expression features
-        let json_value = test.as_json();
-        walk_js_expression(json_value, context, metadata)?;
+        let node = test.as_node();
+        walk_js_expression_node(&node, context, metadata)?;
 
         // Detect pickled awaits in template test expressions.
         // Template expressions are reactive contexts, so await expressions
         // that aren't the last evaluated expression need $.save() wrapping.
-        super::await_block::collect_pickled_awaits(
-            json_value,
+        super::await_block::collect_pickled_awaits_node(
+            &node,
             &mut context.analysis.pickled_awaits,
         );
     }

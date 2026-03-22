@@ -11,8 +11,11 @@ use regex::Regex;
 use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment;
-use super::shared::utils::{validate_block_not_empty, validate_opening_tag, walk_js_expression};
+use super::shared::utils::{
+    validate_block_not_empty, validate_opening_tag, walk_js_expression, walk_js_expression_node,
+};
 use crate::ast::template::AwaitBlock;
+use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 // Cached regular expressions for block syntax validation
@@ -102,28 +105,35 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
 
     // Visit the expression to populate metadata (has_await, has_state, dependencies, etc.)
     // In the JS version: context.visit(node.expression, { ...context.state, expression: node.metadata.expression });
-    let value = block.expression.as_json();
-    walk_js_expression(value, context, &mut block.metadata.expression)?;
-
-    // Detect pickled awaits in the expression.
-    // An await is "pickled" when it's not the last evaluated expression in a reactive context.
-    // The await block expression IS a reactive context.
-    collect_pickled_awaits(value, &mut context.analysis.pickled_awaits);
+    if let Some(node_ref) = block.expression.try_as_node_ref() {
+        walk_js_expression_node(node_ref, context, &mut block.metadata.expression)?;
+        collect_pickled_awaits_node(node_ref, &mut context.analysis.pickled_awaits);
+    } else {
+        let value = block.expression.as_json();
+        walk_js_expression(value, context, &mut block.metadata.expression)?;
+        collect_pickled_awaits(value, &mut context.analysis.pickled_awaits);
+    }
 
     // Walk the value pattern's computed property key expressions to detect mutations.
     // For example: {#await promise then { [`prop${num++}`]: ... }}
     // The `num++` in the computed key needs to be detected as a reassignment.
     if let Some(ref value_pattern) = block.value {
-        let pattern_json = value_pattern.as_json();
         let mut dummy_metadata = crate::ast::template::ExpressionMetadata::default();
-        walk_pattern_computed_keys(pattern_json, context, &mut dummy_metadata)?;
+        if let Some(node_ref) = value_pattern.try_as_node_ref() {
+            walk_pattern_computed_keys_node(node_ref, context, &mut dummy_metadata)?;
+        } else {
+            walk_pattern_computed_keys(value_pattern.as_json(), context, &mut dummy_metadata)?;
+        }
     }
 
     // Also walk the error pattern's computed property key expressions
     if let Some(ref error_pattern) = block.error {
-        let pattern_json = error_pattern.as_json();
         let mut dummy_metadata = crate::ast::template::ExpressionMetadata::default();
-        walk_pattern_computed_keys(pattern_json, context, &mut dummy_metadata)?;
+        if let Some(node_ref) = error_pattern.try_as_node_ref() {
+            walk_pattern_computed_keys_node(node_ref, context, &mut dummy_metadata)?;
+        } else {
+            walk_pattern_computed_keys(error_pattern.as_json(), context, &mut dummy_metadata)?;
+        }
     }
 
     // Increment block depth for child analysis
@@ -345,6 +355,129 @@ fn mark_mutations_recursive(expression: &serde_json::Value, context: &mut Visito
     }
 }
 
+/// Walk a destructuring pattern and visit any computed property key expressions.
+/// JsNode-based version of `walk_pattern_computed_keys`.
+fn walk_pattern_computed_keys_node(
+    pattern: &JsNode,
+    context: &mut VisitorContext,
+    metadata: &mut crate::ast::template::ExpressionMetadata,
+) -> Result<(), AnalysisError> {
+    match pattern {
+        JsNode::ObjectPattern { properties, .. } => {
+            for prop in properties {
+                match prop {
+                    JsNode::RestElement { argument, .. } => {
+                        walk_pattern_computed_keys_node(argument, context, metadata)?;
+                    }
+                    JsNode::Property {
+                        key,
+                        value,
+                        computed,
+                        ..
+                    } => {
+                        if *computed {
+                            walk_expression_for_mutations_node(key, context, metadata)?;
+                        }
+                        walk_pattern_computed_keys_node(value, context, metadata)?;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        JsNode::ArrayPattern { elements, .. } => {
+            for elem in elements.iter().flatten() {
+                walk_pattern_computed_keys_node(elem, context, metadata)?;
+            }
+        }
+        JsNode::AssignmentPattern { left, .. } => {
+            walk_pattern_computed_keys_node(left, context, metadata)?;
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+/// Walk a JavaScript expression and detect mutations (UpdateExpression, AssignmentExpression).
+/// JsNode-based version of `walk_expression_for_mutations`.
+fn walk_expression_for_mutations_node(
+    expression: &JsNode,
+    context: &mut VisitorContext,
+    metadata: &mut crate::ast::template::ExpressionMetadata,
+) -> Result<(), AnalysisError> {
+    // Walk for metadata (dependency tracking, state detection, etc.)
+    walk_js_expression_node(expression, context, metadata)?;
+
+    // Additionally, recursively walk all sub-expressions looking for mutations
+    mark_mutations_recursive_node(expression, context);
+
+    Ok(())
+}
+
+/// Recursively walk a JsNode expression tree to find and mark UpdateExpression and
+/// AssignmentExpression nodes, calling mark_binding_mutation_node for each.
+fn mark_mutations_recursive_node(expression: &JsNode, context: &mut VisitorContext) {
+    match expression {
+        JsNode::UpdateExpression { argument, .. } => {
+            super::assignment_expression::mark_binding_mutation_node(argument, context);
+        }
+        JsNode::AssignmentExpression { left, right, .. } => {
+            super::assignment_expression::mark_binding_mutation_node(left, context);
+            mark_mutations_recursive_node(right, context);
+        }
+        JsNode::TemplateLiteral { expressions, .. } => {
+            for expr in expressions {
+                mark_mutations_recursive_node(expr, context);
+            }
+        }
+        JsNode::BinaryExpression { left, right, .. }
+        | JsNode::LogicalExpression { left, right, .. } => {
+            mark_mutations_recursive_node(left, context);
+            mark_mutations_recursive_node(right, context);
+        }
+        JsNode::ConditionalExpression {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => {
+            mark_mutations_recursive_node(test, context);
+            mark_mutations_recursive_node(consequent, context);
+            mark_mutations_recursive_node(alternate, context);
+        }
+        JsNode::CallExpression {
+            callee, arguments, ..
+        }
+        | JsNode::NewExpression {
+            callee, arguments, ..
+        } => {
+            mark_mutations_recursive_node(callee, context);
+            for arg in arguments {
+                mark_mutations_recursive_node(arg, context);
+            }
+        }
+        JsNode::SequenceExpression { expressions, .. } => {
+            for expr in expressions {
+                mark_mutations_recursive_node(expr, context);
+            }
+        }
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            ..
+        } => {
+            mark_mutations_recursive_node(object, context);
+            if *computed {
+                mark_mutations_recursive_node(property, context);
+            }
+        }
+        JsNode::UnaryExpression { argument, .. } => {
+            mark_mutations_recursive_node(argument, context);
+        }
+        _ => {}
+    }
+}
+
 /// Collect pickled await positions from an expression tree.
 ///
 /// An await expression is "pickled" when it's NOT the last evaluated expression
@@ -483,6 +616,122 @@ fn collect_pickled_awaits_inner(
         _ => {
             // For other nodes, recursively walk children
             // This handles ExpressionStatement, VariableDeclarator, etc.
+        }
+    }
+}
+
+/// Collect pickled await positions from a JsNode expression tree.
+///
+/// An await expression is "pickled" when it's NOT the last evaluated expression
+/// in the reactive context. This is a JsNode-based version of `collect_pickled_awaits`.
+pub fn collect_pickled_awaits_node(expr: &JsNode, pickled: &mut rustc_hash::FxHashSet<u32>) {
+    collect_pickled_awaits_inner_node(expr, pickled, true);
+}
+
+fn collect_pickled_awaits_inner_node(
+    expr: &JsNode,
+    pickled: &mut rustc_hash::FxHashSet<u32>,
+    is_last: bool,
+) {
+    match expr {
+        JsNode::AwaitExpression {
+            start, argument, ..
+        } => {
+            if !is_last {
+                pickled.insert(*start);
+            }
+            // Also recurse into argument
+            collect_pickled_awaits_inner_node(argument, pickled, true);
+        }
+        JsNode::BinaryExpression { left, right, .. }
+        | JsNode::LogicalExpression { left, right, .. }
+        | JsNode::AssignmentExpression { left, right, .. } => {
+            // Left side is NOT last (right side evaluates after it)
+            collect_pickled_awaits_inner_node(left, pickled, false);
+            // Right side inherits parent's is_last
+            collect_pickled_awaits_inner_node(right, pickled, is_last);
+        }
+        JsNode::CallExpression {
+            callee, arguments, ..
+        }
+        | JsNode::NewExpression {
+            callee, arguments, ..
+        } => {
+            // Callee is not last if there are arguments
+            let has_args = !arguments.is_empty();
+            collect_pickled_awaits_inner_node(
+                callee,
+                pickled,
+                if has_args { false } else { is_last },
+            );
+            for (i, arg) in arguments.iter().enumerate() {
+                let arg_is_last = i == arguments.len() - 1 && is_last;
+                collect_pickled_awaits_inner_node(arg, pickled, arg_is_last);
+            }
+        }
+        JsNode::ConditionalExpression {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => {
+            collect_pickled_awaits_inner_node(test, pickled, false);
+            collect_pickled_awaits_inner_node(consequent, pickled, is_last);
+            collect_pickled_awaits_inner_node(alternate, pickled, is_last);
+        }
+        JsNode::SequenceExpression { expressions, .. } => {
+            for (i, e) in expressions.iter().enumerate() {
+                let e_is_last = i == expressions.len() - 1 && is_last;
+                collect_pickled_awaits_inner_node(e, pickled, e_is_last);
+            }
+        }
+        JsNode::ArrayExpression { elements, .. } => {
+            for (i, e) in elements.iter().enumerate() {
+                let e_is_last = i == elements.len() - 1 && is_last;
+                if let Some(elem) = e {
+                    collect_pickled_awaits_inner_node(elem, pickled, e_is_last);
+                }
+            }
+        }
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            ..
+        } => {
+            collect_pickled_awaits_inner_node(
+                object,
+                pickled,
+                if *computed { false } else { is_last },
+            );
+            if *computed {
+                collect_pickled_awaits_inner_node(property, pickled, is_last);
+            }
+        }
+        JsNode::TemplateLiteral { expressions, .. } => {
+            for (i, e) in expressions.iter().enumerate() {
+                let e_is_last = i == expressions.len() - 1 && is_last;
+                collect_pickled_awaits_inner_node(e, pickled, e_is_last);
+            }
+        }
+        JsNode::ObjectExpression { properties, .. } => {
+            for (i, p) in properties.iter().enumerate() {
+                let p_is_last = i == properties.len() - 1 && is_last;
+                if let JsNode::Property { value, .. } = p {
+                    collect_pickled_awaits_inner_node(value, pickled, p_is_last);
+                }
+            }
+        }
+        JsNode::UnaryExpression { argument, .. } => {
+            collect_pickled_awaits_inner_node(argument, pickled, is_last);
+        }
+        JsNode::ArrowFunctionExpression { .. }
+        | JsNode::FunctionExpression { .. }
+        | JsNode::FunctionDeclaration { .. } => {
+            // Don't cross function boundaries
+        }
+        _ => {
+            // For other nodes, no further recursion needed
         }
     }
 }

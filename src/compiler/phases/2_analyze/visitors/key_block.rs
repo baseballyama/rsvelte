@@ -7,7 +7,9 @@
 use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment;
-use super::shared::utils::{validate_block_not_empty, validate_opening_tag, walk_js_expression};
+use super::shared::utils::{
+    validate_block_not_empty, validate_opening_tag, walk_js_expression_node,
+};
 use crate::ast::template::KeyBlock;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
@@ -40,13 +42,13 @@ pub fn visit(block: &mut KeyBlock, context: &mut VisitorContext) -> Result<(), A
 
     // Visit the key expression and populate metadata
     // This tracks dependencies and references in the expression
-    let value = block.expression.as_json();
-    walk_js_expression(value, context, &mut block.metadata.expression)?;
+    let node = block.expression.as_node();
+    walk_js_expression_node(&node, context, &mut block.metadata.expression)?;
 
     // Detect pickled awaits in key block expressions.
     // Template expressions are reactive contexts, so await expressions
     // that aren't the last evaluated expression need $.save() wrapping.
-    super::await_block::collect_pickled_awaits(value, &mut context.analysis.pickled_awaits);
+    super::await_block::collect_pickled_awaits_node(&node, &mut context.analysis.pickled_awaits);
 
     // Clear is_direct_child_of_component since children of control flow blocks
     // are not direct children of a component

@@ -11,7 +11,9 @@ use super::super::super::errors;
 use super::super::VisitorContext;
 use super::super::attribute::visit_attribute_value_expressions;
 use super::fragment;
-use super::utils::{validate_assignment, validate_attribute_name as validate_attribute_name_colon};
+use super::utils::{
+    validate_assignment_node, validate_attribute_name as validate_attribute_name_colon,
+};
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, Component,
 };
@@ -147,7 +149,8 @@ pub fn visit_component(
                     context.analysis.uses_component_bindings = true;
                 }
                 // Validate the binding expression (checks for const/import bindings)
-                validate_assignment(bind.expression.as_json(), context, true)?;
+                let bind_node = bind.expression.as_node();
+                validate_assignment_node(&bind_node, context, true)?;
             }
             Attribute::OnDirective(on) => {
                 // Validate event handler modifiers

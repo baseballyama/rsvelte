@@ -5,6 +5,7 @@
 use super::super::super::{Binding, BindingKind, DeclarationKind, Scope, errors, warnings};
 use super::super::{AnalysisError, VisitorContext};
 use crate::ast::template::{Fragment, TemplateNode};
+use crate::ast::typed_expr::{JsNode, LiteralValue};
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde_json::Value;
@@ -2250,4 +2251,996 @@ pub fn object(expression: &Value) -> Option<Value> {
     } else {
         None
     }
+}
+
+// =============================================================================
+// JsNode-based helper functions (mirrors of JSON-based functions above)
+// =============================================================================
+
+/// JsNode version of `get_name`.
+/// Extracts the name from an Identifier, PrivateIdentifier, or Literal node.
+fn get_name_node(node: &JsNode) -> Option<String> {
+    match node {
+        JsNode::Literal { value, .. } => match value {
+            LiteralValue::String(s) => Some(s.to_string()),
+            LiteralValue::Number(n) => Some(n.to_string()),
+            LiteralValue::Bool(b) => Some(b.to_string()),
+            LiteralValue::Null => Some("null".to_string()),
+            LiteralValue::Regex(r) => Some(format!("/{}/{}", r.pattern, r.flags)),
+        },
+        JsNode::PrivateIdentifier { name, .. } => Some(format!("#{}", name)),
+        JsNode::Identifier { name, .. } => Some(name.to_string()),
+        JsNode::Raw(value) => get_name(value),
+        _ => None,
+    }
+}
+
+/// JsNode version of `get_global_keypath`.
+/// Get the global keypath for an expression (e.g., "$state", "$derived.by", "$effect.tracking").
+fn get_global_keypath_node(node: &JsNode, scope: &Scope) -> Option<String> {
+    match node {
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            ..
+        } => {
+            if *computed {
+                return None;
+            }
+            // Property must be Identifier
+            let property_name = match property.as_ref() {
+                JsNode::Identifier { name, .. } => name.as_str(),
+                _ => return None,
+            };
+
+            // Recurse on object, then append .property
+            let mut base = get_global_keypath_node(object, scope)?;
+            base.push('.');
+            base.push_str(property_name);
+            Some(base)
+        }
+        JsNode::CallExpression { callee, .. } => {
+            // For CallExpression, check if callee is an Identifier
+            if let JsNode::Identifier { name, .. } = callee.as_ref() {
+                if scope.declarations.contains_key(name.as_str()) {
+                    return None;
+                }
+                let mut result = String::with_capacity(name.len() + 2);
+                result.push_str(name);
+                result.push_str("()");
+                Some(result)
+            } else {
+                None
+            }
+        }
+        JsNode::Identifier { name, .. } => {
+            if scope.declarations.contains_key(name.as_str()) {
+                None
+            } else {
+                Some(name.to_string())
+            }
+        }
+        JsNode::Raw(value) => get_global_keypath(value, scope),
+        _ => None,
+    }
+}
+
+/// JsNode version of `get_rune_from_json`.
+/// Get the rune name from a CallExpression node, if it's a rune call.
+fn get_rune_from_node(node: &JsNode, scope: &Scope) -> Option<String> {
+    match node {
+        JsNode::CallExpression { callee, .. } => {
+            let keypath = get_global_keypath_node(callee, scope)?;
+            if !is_rune(&keypath) {
+                return None;
+            }
+            Some(keypath)
+        }
+        JsNode::Raw(value) => get_rune_from_json(value, scope),
+        _ => None,
+    }
+}
+
+/// JsNode version of `is_pure`.
+/// Check if an expression is pure (has no side effects).
+pub fn is_pure_node(node: &JsNode, context: &VisitorContext) -> bool {
+    match node {
+        JsNode::Literal { .. } => true,
+        JsNode::CallExpression {
+            callee, arguments, ..
+        } => {
+            if !is_pure_node(callee, context) {
+                return false;
+            }
+            for arg in arguments {
+                let arg_to_check = match arg {
+                    JsNode::SpreadElement { argument, .. } => argument.as_ref(),
+                    other => other,
+                };
+                if !is_pure_node(arg_to_check, context) {
+                    return false;
+                }
+            }
+            true
+        }
+        JsNode::Identifier { name, .. } => {
+            // Check if it's $effect.tracking (not pure) - not applicable for bare Identifier
+            // Check if base is a global (no binding means safe)
+            let binding = context.analysis.root.find_binding_any_scope(name.as_str());
+            binding.is_none()
+        }
+        JsNode::MemberExpression { object, .. } => {
+            // Check if it's $effect.tracking (not pure)
+            if let Some(keypath) = get_global_keypath_node(node, &context.analysis.root.scope)
+                && keypath == "$effect.tracking"
+            {
+                return false;
+            }
+
+            // Navigate to the leftmost node
+            let mut left: &JsNode = object;
+            while let JsNode::MemberExpression {
+                object: inner_obj, ..
+            } = left
+            {
+                left = inner_obj;
+            }
+
+            if let JsNode::Identifier { name, .. } = left {
+                let binding = context.analysis.root.find_binding_any_scope(name.as_str());
+                binding.is_none()
+            } else {
+                is_pure_node(left, context)
+            }
+        }
+        JsNode::Raw(value) => is_pure(value, context),
+        _ => false,
+    }
+}
+
+/// JsNode version of `is_safe_identifier`.
+/// Check if an identifier expression is "safe" (doesn't require component context).
+pub fn is_safe_identifier_node(expression: &JsNode, context: &VisitorContext) -> bool {
+    // Navigate to the base identifier through MemberExpression chain
+    let mut node = expression;
+    while let JsNode::MemberExpression { object, .. } = node {
+        node = object;
+    }
+
+    // Must be an Identifier at the base
+    let name = match node {
+        JsNode::Identifier { name, .. } => name.as_str(),
+        JsNode::Raw(value) => return is_safe_identifier(value, context),
+        _ => return false,
+    };
+
+    // Look up the binding
+    let binding_idx = if context.scope > 0 {
+        context.analysis.root.get_binding(name, context.scope)
+    } else {
+        context.analysis.root.find_binding_any_scope(name)
+    };
+    let binding = match binding_idx {
+        Some(idx) => &context.analysis.root.bindings[idx],
+        None => return true,
+    };
+
+    // Check if it's a store subscription ($store)
+    if binding.kind == BindingKind::StoreSub
+        && let Some(store_name) = name.strip_prefix('$')
+        && context
+            .analysis
+            .root
+            .scope
+            .declarations
+            .contains_key(store_name)
+    {
+        let store_expr = serde_json::json!({
+            "type": "Identifier",
+            "name": store_name
+        });
+        return is_safe_identifier(&store_expr, context);
+    }
+
+    // Safe if it's not an import, prop, bindable_prop, or rest_prop
+    binding.declaration_kind != DeclarationKind::Import
+        && !matches!(
+            binding.kind,
+            BindingKind::Prop | BindingKind::BindableProp | BindingKind::RestProp
+        )
+}
+
+/// JsNode version of `validate_no_const_assignment`.
+pub fn validate_no_const_assignment_node(
+    argument: &JsNode,
+    context: &VisitorContext,
+    is_binding: bool,
+) -> Result<(), AnalysisError> {
+    match argument {
+        JsNode::ArrayPattern { elements, .. } => {
+            for elem in elements.iter().flatten() {
+                validate_no_const_assignment_node(elem, context, is_binding)?;
+            }
+        }
+        JsNode::ObjectPattern { properties, .. } => {
+            for property in properties {
+                match property {
+                    JsNode::Property { value, .. } => {
+                        validate_no_const_assignment_node(value, context, is_binding)?;
+                    }
+                    JsNode::RestElement { argument, .. } => {
+                        validate_no_const_assignment_node(argument, context, is_binding)?;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        JsNode::Identifier { name, .. } => {
+            let binding_idx = context
+                .analysis
+                .root
+                .get_binding(name, context.scope)
+                .or_else(|| {
+                    let instance_scope_idx = context.analysis.root.instance_scope_index;
+                    if instance_scope_idx > 0 {
+                        context.analysis.root.get_binding(name, instance_scope_idx)
+                    } else {
+                        None
+                    }
+                })
+                .or_else(|| {
+                    context
+                        .analysis
+                        .root
+                        .scope
+                        .declarations
+                        .get(name.as_str())
+                        .copied()
+                });
+
+            if let Some(idx) = binding_idx {
+                let binding = &context.analysis.root.bindings[idx];
+
+                if binding.kind == BindingKind::SnippetParam {
+                    return Err(errors::snippet_parameter_assignment());
+                }
+
+                if context.function_depth > 1 {
+                    let has_local_shadowing =
+                        has_shadowing_declaration_in_path(&context.js_path, name);
+                    if has_local_shadowing {
+                        return Ok(());
+                    }
+                }
+
+                if binding.declaration_kind == DeclarationKind::Import
+                    || (binding.declaration_kind == DeclarationKind::Const
+                        && binding.kind != BindingKind::EachItem)
+                {
+                    let thing = if binding.declaration_kind == DeclarationKind::Import {
+                        "import"
+                    } else {
+                        "constant"
+                    };
+
+                    if is_binding {
+                        return Err(errors::constant_binding(thing));
+                    } else {
+                        return Err(errors::constant_assignment(thing));
+                    }
+                }
+            }
+        }
+        JsNode::Raw(value) => {
+            return validate_no_const_assignment(value, context, is_binding);
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
+/// JsNode version of `validate_assignment`.
+pub fn validate_assignment_node(
+    argument: &JsNode,
+    context: &VisitorContext,
+    is_bind_directive: bool,
+) -> Result<(), AnalysisError> {
+    validate_no_const_assignment_node(argument, context, is_bind_directive)?;
+
+    // Handle Identifier assignments
+    if let Some(name) = argument.name() {
+        let binding_idx = context
+            .analysis
+            .root
+            .get_binding(name, context.scope)
+            .or_else(|| context.analysis.root.find_binding_any_scope(name));
+
+        if let Some(binding_idx) = binding_idx {
+            let binding = &context.analysis.root.bindings[binding_idx];
+
+            if context.analysis.runes
+                && let Some(ref props_id) = context.analysis.props_id
+                && &binding.name == props_id
+            {
+                return Err(errors::constant_assignment("$props.id()"));
+            }
+
+            if context.analysis.runes && binding.kind == BindingKind::EachItem {
+                return Err(errors::each_item_invalid_assignment());
+            }
+
+            if matches!(binding.kind, BindingKind::SnippetParam) {
+                return Err(errors::snippet_parameter_assignment());
+            }
+        }
+    }
+
+    // Handle MemberExpression with 'this' (state field assignments)
+    if let JsNode::MemberExpression {
+        object,
+        property,
+        computed,
+        ..
+    } = argument
+        && matches!(object.as_ref(), JsNode::ThisExpression { .. })
+    {
+        let name = if *computed && !matches!(property.as_ref(), JsNode::Literal { .. }) {
+            None
+        } else {
+            get_name_node(property)
+        };
+
+        if let Some(ref field_name) = name
+            && let Some(field) = context.state_fields.get(field_name)
+            && field.node.get("type").and_then(|t| t.as_str()) == Some("AssignmentExpression")
+        {
+            let mut i = context.js_path.len();
+            while i > 0 {
+                i -= 1;
+                let parent = &context.js_path[i];
+                let parent_type = parent.get("type").and_then(|t| t.as_str());
+
+                if matches!(
+                    parent_type,
+                    Some("FunctionDeclaration")
+                        | Some("FunctionExpression")
+                        | Some("ArrowFunctionExpression")
+                ) {
+                    if let Some(grandparent) = get_parent(&context.js_path, (i as isize) - 1)
+                        && grandparent.get("type").and_then(|t| t.as_str())
+                            == Some("MethodDefinition")
+                        && grandparent.get("kind").and_then(|k| k.as_str()) == Some("constructor")
+                    {
+                        let node_start = argument.start();
+                        let field_start = field
+                            .node
+                            .get("start")
+                            .and_then(|s| s.as_u64())
+                            .map(|n| n as u32);
+
+                        if let (Some(ns), Some(fs)) = (node_start, field_start)
+                            && ns < fs
+                        {
+                            return Err(errors::state_field_invalid_assignment());
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    // Handle Raw fallback
+    if let JsNode::Raw(value) = argument {
+        return validate_assignment(value, context, is_bind_directive);
+    }
+
+    Ok(())
+}
+
+/// JsNode version of `extract_identifiers`.
+/// Extract all identifier names from a pattern.
+pub fn extract_identifiers_node(pattern: &JsNode) -> Vec<String> {
+    let mut names = Vec::new();
+
+    match pattern {
+        JsNode::Identifier { name, .. } => {
+            names.push(name.to_string());
+        }
+        JsNode::ArrayPattern { elements, .. } => {
+            for elem in elements.iter().flatten() {
+                names.extend(extract_identifiers_node(elem));
+            }
+        }
+        JsNode::ObjectPattern { properties, .. } => {
+            for property in properties {
+                if let Some(value) = property.value_node() {
+                    names.extend(extract_identifiers_node(value));
+                }
+                // Handle RestElement in object pattern
+                if let JsNode::RestElement { argument, .. } = property {
+                    names.extend(extract_identifiers_node(argument));
+                }
+            }
+        }
+        JsNode::AssignmentPattern { left, .. } => {
+            names.extend(extract_identifiers_node(left));
+        }
+        JsNode::RestElement { argument, .. } => {
+            names.extend(extract_identifiers_node(argument));
+        }
+        JsNode::Raw(value) => {
+            return extract_identifiers(value);
+        }
+        _ => {}
+    }
+
+    names
+}
+
+/// JsNode version of `collect_all_identifier_names_from_pattern`.
+/// Collect all identifier names from a pattern (identifier, object, array, rest, assignment).
+pub fn collect_all_identifier_names_from_pattern_node(pattern: &JsNode, names: &mut Vec<String>) {
+    match pattern {
+        JsNode::Identifier { name, .. } => {
+            names.push(name.to_string());
+        }
+        JsNode::ObjectPattern { properties, .. } => {
+            for prop in properties {
+                match prop {
+                    JsNode::RestElement { argument, .. } => {
+                        collect_all_identifier_names_from_pattern_node(argument, names);
+                    }
+                    JsNode::Property { value, .. } => {
+                        collect_all_identifier_names_from_pattern_node(value, names);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        JsNode::ArrayPattern { elements, .. } => {
+            for elem in elements.iter().flatten() {
+                collect_all_identifier_names_from_pattern_node(elem, names);
+            }
+        }
+        JsNode::AssignmentPattern { left, .. } => {
+            collect_all_identifier_names_from_pattern_node(left, names);
+        }
+        JsNode::RestElement { argument, .. } => {
+            collect_all_identifier_names_from_pattern_node(argument, names);
+        }
+        JsNode::Raw(value) => {
+            collect_all_identifier_names_from_pattern(value, names);
+        }
+        _ => {}
+    }
+}
+
+/// JsNode version of `get_rune_name`.
+/// Get the rune name from a callee expression, if it's a rune call.
+fn get_rune_name_node(callee: &JsNode, context: &VisitorContext) -> Option<String> {
+    match callee {
+        JsNode::Identifier { name, .. } => {
+            if super::function::is_rune(name)
+                && !context
+                    .analysis
+                    .root
+                    .scope
+                    .declarations
+                    .contains_key(name.as_str())
+            {
+                return Some(name.to_string());
+            }
+            None
+        }
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            ..
+        } => {
+            if *computed {
+                return None;
+            }
+            let obj_name = match object.as_ref() {
+                JsNode::Identifier { name, .. } => name.as_str(),
+                _ => return None,
+            };
+            let prop_name = match property.as_ref() {
+                JsNode::Identifier { name, .. } => name.as_str(),
+                _ => return None,
+            };
+            let full_name = format!("{}.{}", obj_name, prop_name);
+            if super::function::is_rune(&full_name)
+                && !context
+                    .analysis
+                    .root
+                    .scope
+                    .declarations
+                    .contains_key(obj_name)
+            {
+                return Some(full_name);
+            }
+            None
+        }
+        JsNode::Raw(value) => get_rune_name(value, context),
+        _ => None,
+    }
+}
+
+// =============================================================================
+// JsNode-based walker functions (WITH Raw fallback fix)
+// =============================================================================
+
+/// JsNode version of `walk_js_expression`.
+/// Visit a JavaScript expression (typed JsNode) and track identifier references.
+///
+/// CRITICAL: JsNode::Raw arms fall back to the JSON-based walker, which ensures
+/// that nodes stored as raw JSON inside ArrowFunctionExpression bodies (etc.)
+/// are still fully walked.
+pub fn walk_js_expression_node(
+    expression: &JsNode,
+    context: &mut VisitorContext,
+    metadata: &mut crate::ast::template::ExpressionMetadata,
+) -> Result<(), AnalysisError> {
+    match expression {
+        JsNode::Identifier {
+            name, start, end, ..
+        } => {
+            // Handle legacy mode special variables
+            if !context.analysis.runes {
+                if name == "$$props" {
+                    context.analysis.uses_props = true;
+                }
+                if name == "$$restProps" {
+                    context.analysis.uses_rest_props = true;
+                }
+            }
+            if name == "$$slots" {
+                context.analysis.uses_slots = true;
+            }
+
+            // Check for store scoped subscription errors
+            if name.starts_with('$') && !name.starts_with("$$") && name != "$" {
+                let store_name = &name[1..];
+                if !store_name.is_empty()
+                    && !super::function::is_rune(name)
+                    && context.function_depth > 0
+                    && let Some(&binding_idx) =
+                        context.analysis.root.scope.declarations.get(store_name)
+                {
+                    let binding = &context.analysis.root.bindings[binding_idx];
+                    if binding.scope_index > 1 && binding.scope_index <= context.function_depth + 1
+                    {
+                        return Err(
+                            super::super::super::errors::store_invalid_scoped_subscription(),
+                        );
+                    }
+                }
+            }
+
+            // Look up binding
+            if let Some(binding_idx) = context
+                .analysis
+                .root
+                .get_binding(name, context.scope)
+                .or_else(|| context.analysis.root.find_binding_any_scope(name))
+            {
+                let is_template_reference =
+                    matches!(context.ast_type, super::super::AstType::Template);
+                context.analysis.root.bindings[binding_idx].add_reference(
+                    *start,
+                    *end,
+                    is_template_reference,
+                    false,
+                    false,
+                );
+
+                if is_template_reference && context.function_depth == 0 {
+                    context.analysis.root.bindings[binding_idx].has_direct_template_read = true;
+                }
+
+                let binding = &context.analysis.root.bindings[binding_idx];
+                metadata.references.insert(binding_idx);
+
+                if matches!(
+                    binding.kind,
+                    BindingKind::State | BindingKind::RawState | BindingKind::Derived
+                ) {
+                    metadata.set_has_state(true);
+                }
+
+                metadata.dependencies.insert(binding_idx);
+            }
+        }
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            ..
+        } => {
+            metadata.set_has_member_expression(true);
+
+            if !is_pure_node(expression, context) {
+                metadata.set_has_state(true);
+            }
+
+            if !is_safe_identifier_node(expression, context) {
+                context.analysis.needs_context = true;
+            }
+
+            // Legacy mode $$props/$$restProps check
+            if !context.analysis.runes {
+                let mut base: &JsNode = expression;
+                while let JsNode::MemberExpression { object: obj, .. } = base {
+                    base = obj;
+                }
+                if let JsNode::Identifier { name, .. } = base
+                    && (name == "$$props" || name == "$$restProps")
+                {
+                    context.analysis.needs_context = true;
+                }
+            }
+
+            // Recursively visit object and property
+            walk_js_expression_node(object, context, metadata)?;
+            if *computed {
+                walk_js_expression_node(property, context, metadata)?;
+            }
+        }
+        JsNode::CallExpression {
+            callee, arguments, ..
+        } => {
+            let rune_name = get_rune_name_node(callee, context);
+
+            if let Some(ref rn) = rune_name
+                && matches!(
+                    rn.as_str(),
+                    "$state" | "$state.raw" | "$derived" | "$derived.by"
+                )
+                && context.in_const_tag
+            {
+                return Err(errors::state_invalid_placement(rn));
+            }
+
+            if rune_name.is_none() && !is_safe_identifier_node(callee, context) {
+                context.analysis.needs_context = true;
+            }
+
+            walk_js_expression_node(callee, context, metadata)?;
+            for arg in arguments {
+                walk_js_expression_node(arg, context, metadata)?;
+            }
+
+            let callee_is_pure = is_pure_node(callee, context);
+            if !callee_is_pure || !metadata.dependencies.is_empty() {
+                metadata.set_has_call(true);
+                metadata.set_has_state(true);
+            }
+        }
+        JsNode::BinaryExpression { left, right, .. }
+        | JsNode::LogicalExpression { left, right, .. } => {
+            walk_js_expression_node(left, context, metadata)?;
+            walk_js_expression_node(right, context, metadata)?;
+        }
+        JsNode::UnaryExpression { argument, .. } => {
+            walk_js_expression_node(argument, context, metadata)?;
+        }
+        JsNode::AwaitExpression { argument, .. } => {
+            metadata.set_has_await(true);
+            walk_js_expression_node(argument, context, metadata)?;
+        }
+        JsNode::UpdateExpression { argument, .. } => {
+            validate_assignment_node(argument, context, false)?;
+            walk_js_expression_node(argument, context, metadata)?;
+        }
+        JsNode::ConditionalExpression {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => {
+            walk_js_expression_node(test, context, metadata)?;
+            walk_js_expression_node(consequent, context, metadata)?;
+            walk_js_expression_node(alternate, context, metadata)?;
+        }
+        JsNode::ArrayExpression { elements, .. } => {
+            for elem in elements.iter().flatten() {
+                walk_js_expression_node(elem, context, metadata)?;
+            }
+        }
+        JsNode::ObjectExpression { properties, .. } => {
+            for property in properties {
+                if let Some(value) = property.value_node() {
+                    walk_js_expression_node(value, context, metadata)?;
+                }
+                if let Some(key) = property.key()
+                    && property.computed()
+                {
+                    walk_js_expression_node(key, context, metadata)?;
+                }
+                // Handle SpreadElement in object (rest/spread)
+                if let JsNode::SpreadElement { argument, .. } = property {
+                    walk_js_expression_node(argument, context, metadata)?;
+                }
+            }
+        }
+        JsNode::SequenceExpression { expressions, .. } => {
+            for expr in expressions {
+                walk_js_expression_node(expr, context, metadata)?;
+            }
+        }
+        JsNode::AssignmentExpression { left, right, .. } => {
+            validate_assignment_node(left, context, false)?;
+            super::super::assignment_expression::mark_binding_mutation_node(left, context);
+            walk_js_expression_node(left, context, metadata)?;
+            walk_js_expression_node(right, context, metadata)?;
+            metadata.set_has_assignment(true);
+        }
+        JsNode::ArrowFunctionExpression { params, body, .. }
+        | JsNode::FunctionExpression {
+            params,
+            body: Some(body),
+            ..
+        }
+        | JsNode::FunctionDeclaration {
+            params,
+            body: Some(body),
+            ..
+        } => {
+            context.function_depth += 1;
+
+            let saved_declarations = context.analysis.root.scope.declarations.clone();
+
+            let saved_scope = context.scope;
+            let temp_scope_idx = context.analysis.root.all_scopes.len();
+            let temp_scope =
+                crate::compiler::phases::phase2_analyze::scope::Scope::new(Some(context.scope));
+            context.analysis.root.all_scopes.push(temp_scope);
+            context.scope = temp_scope_idx;
+
+            // Register parameters
+            for param in params {
+                let mut param_names = Vec::new();
+                collect_all_identifier_names_from_pattern_node(param, &mut param_names);
+
+                for param_name in param_names {
+                    let temp_binding_idx = context.analysis.root.bindings.len();
+                    let temp_binding =
+                        crate::compiler::phases::phase2_analyze::Binding::with_declaration_kind(
+                            param_name.clone(),
+                            crate::compiler::phases::phase2_analyze::BindingKind::Normal,
+                            crate::compiler::phases::phase2_analyze::DeclarationKind::Param,
+                            context.function_depth + 1,
+                        );
+                    context.analysis.root.bindings.push(temp_binding);
+
+                    context.analysis.root.all_scopes[temp_scope_idx]
+                        .declarations
+                        .insert(param_name.clone(), temp_binding_idx);
+
+                    context
+                        .analysis
+                        .root
+                        .scope
+                        .declarations
+                        .insert(param_name.clone(), temp_binding_idx);
+                }
+            }
+
+            let saved_expression = context.expression;
+            context.expression = None;
+
+            // Visit function body
+            let mut inner_metadata = crate::ast::template::ExpressionMetadata::default();
+            walk_js_expression_node(body, context, &mut inner_metadata)?;
+
+            // Propagate references and dependencies
+            for ref_idx in &inner_metadata.references {
+                metadata.references.insert(*ref_idx);
+            }
+            for dep_idx in &inner_metadata.dependencies {
+                metadata.dependencies.insert(*dep_idx);
+            }
+            if inner_metadata.has_state() {
+                metadata.set_has_state(true);
+            }
+
+            context.expression = saved_expression;
+            context.scope = saved_scope;
+            context.analysis.root.scope.declarations = saved_declarations;
+            context.function_depth -= 1;
+        }
+        JsNode::FunctionExpression { body: None, .. }
+        | JsNode::FunctionDeclaration { body: None, .. } => {
+            // No body - nothing to walk
+        }
+        JsNode::BlockStatement { body, .. } => {
+            for stmt in body {
+                walk_js_statement_node(stmt, context, metadata)?;
+            }
+        }
+        JsNode::ExpressionStatement {
+            expression: expr, ..
+        } => {
+            walk_js_expression_node(expr, context, metadata)?;
+        }
+        JsNode::SpreadElement { argument, .. } => {
+            walk_js_expression_node(argument, context, metadata)?;
+        }
+        JsNode::TemplateLiteral { expressions, .. } => {
+            for expr in expressions {
+                walk_js_expression_node(expr, context, metadata)?;
+            }
+        }
+        JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
+            walk_js_expression_node(tag, context, metadata)?;
+            walk_js_expression_node(quasi, context, metadata)?;
+        }
+        JsNode::NewExpression {
+            callee, arguments, ..
+        } => {
+            context.analysis.needs_context = true;
+            walk_js_expression_node(callee, context, metadata)?;
+            for arg in arguments {
+                walk_js_expression_node(arg, context, metadata)?;
+            }
+        }
+        JsNode::ChainExpression {
+            expression: expr, ..
+        } => {
+            walk_js_expression_node(expr, context, metadata)?;
+        }
+        JsNode::ImportExpression { source, .. } => {
+            walk_js_expression_node(source, context, metadata)?;
+        }
+        JsNode::YieldExpression {
+            argument: Some(arg),
+            ..
+        } => {
+            walk_js_expression_node(arg, context, metadata)?;
+        }
+        JsNode::YieldExpression { argument: None, .. } => {}
+        // Raw fallback: delegate to JSON-based walker
+        JsNode::Raw(value) => {
+            walk_js_expression(value, context, metadata)?;
+        }
+        // Literals and other leaf nodes - no recursion needed
+        _ => {}
+    }
+
+    Ok(())
+}
+
+/// JsNode version of `walk_js_statement`.
+/// Visit a JavaScript statement (typed JsNode) and track identifier references.
+///
+/// CRITICAL: JsNode::Raw arms fall back to the JSON-based walker.
+pub fn walk_js_statement_node(
+    statement: &JsNode,
+    context: &mut VisitorContext,
+    metadata: &mut crate::ast::template::ExpressionMetadata,
+) -> Result<(), AnalysisError> {
+    match statement {
+        JsNode::ExpressionStatement { expression, .. } => {
+            walk_js_expression_node(expression, context, metadata)?;
+        }
+        JsNode::ReturnStatement {
+            argument: Some(arg),
+            ..
+        } => {
+            walk_js_expression_node(arg, context, metadata)?;
+        }
+        JsNode::ReturnStatement { argument: None, .. } => {}
+        JsNode::IfStatement {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => {
+            walk_js_expression_node(test, context, metadata)?;
+            walk_js_statement_node(consequent, context, metadata)?;
+            if let Some(alt) = alternate {
+                walk_js_statement_node(alt, context, metadata)?;
+            }
+        }
+        JsNode::BlockStatement { body, .. } => {
+            for stmt in body {
+                walk_js_statement_node(stmt, context, metadata)?;
+            }
+        }
+        JsNode::VariableDeclaration { declarations, .. } => {
+            for decl in declarations {
+                // Walk init before registering the binding
+                if let Some(init) = decl.init() {
+                    walk_js_expression_node(init, context, metadata)?;
+                }
+
+                // Register declared variables as temporary bindings
+                if let Some(id) = decl.id() {
+                    let mut names = Vec::new();
+                    collect_all_identifier_names_from_pattern_node(id, &mut names);
+                    for name in names {
+                        let temp_binding_idx = context.analysis.root.bindings.len();
+                        let temp_binding =
+                            crate::compiler::phases::phase2_analyze::Binding::with_declaration_kind(
+                                name.clone(),
+                                crate::compiler::phases::phase2_analyze::BindingKind::Normal,
+                                crate::compiler::phases::phase2_analyze::DeclarationKind::Let,
+                                context.function_depth + 1,
+                            );
+                        context.analysis.root.bindings.push(temp_binding);
+
+                        if let Some(scope) = context.analysis.root.all_scopes.get_mut(context.scope)
+                        {
+                            scope.declarations.insert(name.clone(), temp_binding_idx);
+                        }
+
+                        context
+                            .analysis
+                            .root
+                            .scope
+                            .declarations
+                            .insert(name, temp_binding_idx);
+                    }
+                }
+            }
+        }
+        JsNode::ForStatement { body, .. }
+        | JsNode::ForInStatement { body, .. }
+        | JsNode::ForOfStatement { body, .. } => {
+            walk_js_statement_node(body, context, metadata)?;
+        }
+        JsNode::WhileStatement { test, body, .. } | JsNode::DoWhileStatement { test, body, .. } => {
+            walk_js_expression_node(test, context, metadata)?;
+            walk_js_statement_node(body, context, metadata)?;
+        }
+        JsNode::FunctionDeclaration { .. } => {
+            // Walk function declarations like function expressions
+            walk_js_expression_node(statement, context, metadata)?;
+        }
+        JsNode::SwitchStatement {
+            discriminant,
+            cases,
+            ..
+        } => {
+            walk_js_expression_node(discriminant, context, metadata)?;
+            for case in cases {
+                if let Some(test) = case.test() {
+                    walk_js_expression_node(test, context, metadata)?;
+                }
+                for stmt in case.consequent_stmts() {
+                    walk_js_statement_node(stmt, context, metadata)?;
+                }
+            }
+        }
+        JsNode::TryStatement {
+            block,
+            handler,
+            finalizer,
+            ..
+        } => {
+            walk_js_statement_node(block, context, metadata)?;
+            if let Some(handler) = handler
+                && let Some(body) = handler.body_node()
+            {
+                walk_js_statement_node(body, context, metadata)?;
+            }
+            if let Some(fin) = finalizer {
+                walk_js_statement_node(fin, context, metadata)?;
+            }
+        }
+        JsNode::ThrowStatement { argument, .. } => {
+            walk_js_expression_node(argument, context, metadata)?;
+        }
+        // Raw fallback: delegate to JSON-based walker
+        JsNode::Raw(value) => {
+            walk_js_statement(value, context, metadata)?;
+        }
+        _ => {}
+    }
+
+    Ok(())
 }

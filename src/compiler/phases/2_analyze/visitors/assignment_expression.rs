@@ -6,6 +6,7 @@
 
 use super::VisitorContext;
 use super::shared::utils::{extract_identifiers, object, validate_assignment};
+use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use crate::compiler::phases::phase2_analyze::scope::MutationKind;
 use serde_json::Value;
@@ -149,6 +150,59 @@ fn get_member_expression_root_name(expr: &Value) -> Option<String> {
             let object = expr.get("object")?;
             get_member_expression_root_name(object)
         }
+        _ => None,
+    }
+}
+
+/// JsNode-based version of mark_binding_mutation.
+pub fn mark_binding_mutation_node(target: &JsNode, context: &mut VisitorContext) {
+    match target {
+        JsNode::Identifier { name, .. } => {
+            if let Some(binding_idx) = context
+                .analysis
+                .root
+                .get_binding(name.as_str(), context.scope)
+                .or_else(|| context.analysis.root.find_binding_any_scope(name.as_str()))
+            {
+                let binding = &mut context.analysis.root.bindings[binding_idx];
+                binding.add_mutation(0, 0, MutationKind::Assignment);
+            }
+        }
+        JsNode::MemberExpression { .. } => {
+            if let Some(root_name) = get_member_expression_root_name_node(target)
+                && let Some(binding_idx) = context
+                    .analysis
+                    .root
+                    .get_binding(&root_name, context.scope)
+                    .or_else(|| context.analysis.root.find_binding_any_scope(&root_name))
+            {
+                let binding = &mut context.analysis.root.bindings[binding_idx];
+                binding.add_mutation(0, 0, MutationKind::PropertyMutation);
+            }
+        }
+        JsNode::ArrayPattern { .. } | JsNode::ObjectPattern { .. } => {
+            let identifiers = super::shared::utils::extract_identifiers_node(target);
+            for name in identifiers {
+                if let Some(binding_idx) = context
+                    .analysis
+                    .root
+                    .get_binding(&name, context.scope)
+                    .or_else(|| context.analysis.root.find_binding_any_scope(&name))
+                {
+                    let binding = &mut context.analysis.root.bindings[binding_idx];
+                    binding.add_mutation(0, 0, MutationKind::Assignment);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Get the root identifier name from a JsNode MemberExpression chain.
+fn get_member_expression_root_name_node(expr: &JsNode) -> Option<String> {
+    match expr {
+        JsNode::Identifier { name, .. } => Some(name.to_string()),
+        JsNode::MemberExpression { object, .. } => get_member_expression_root_name_node(object),
         _ => None,
     }
 }

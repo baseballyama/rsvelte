@@ -8,7 +8,7 @@ use super::super::AnalysisError;
 use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment::mark_subtree_dynamic;
-use super::shared::utils::{validate_opening_tag, walk_js_expression};
+use super::shared::utils::{validate_opening_tag, walk_js_expression_node};
 use crate::ast::template::DebugTag;
 
 /// Visit a debug tag.
@@ -43,8 +43,8 @@ pub fn visit(tag: &mut DebugTag, context: &mut VisitorContext) -> Result<(), Ana
 
     // Visit the identifiers to track their references
     for identifier in &tag.identifiers {
-        let value = identifier.as_json();
-        walk_js_expression(value, context, &mut tag.metadata.expression)?;
+        let node = identifier.as_node();
+        walk_js_expression_node(&node, context, &mut tag.metadata.expression)?;
     }
 
     Ok(())

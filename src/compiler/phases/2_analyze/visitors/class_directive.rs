@@ -6,7 +6,7 @@
 
 use super::VisitorContext;
 use super::shared::fragment::mark_subtree_dynamic;
-use super::shared::utils::walk_js_expression;
+use super::shared::utils::walk_js_expression_node;
 use crate::ast::template::ClassDirective;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
@@ -34,9 +34,9 @@ pub fn visit(
     // Walk the expression to track dependencies and references
     // This is important for legacy state promotion - if a class directive
     // references a mutable variable, it needs to be tracked as a template reference
-    let value = directive.expression.as_json();
+    let node = directive.expression.as_node();
     let mut metadata = crate::ast::template::ExpressionMetadata::default();
-    walk_js_expression(value, context, &mut metadata)?;
+    walk_js_expression_node(&node, context, &mut metadata)?;
 
     Ok(())
 }

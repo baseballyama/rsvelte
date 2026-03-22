@@ -205,6 +205,194 @@ impl Expression {
             Expression::Value(v) => v.get("computed").and_then(|c| c.as_bool()).unwrap_or(false),
         }
     }
+
+    /// Get a direct reference to the typed JsNode.
+    /// For Expression::Typed, returns a direct reference (zero cost).
+    /// For Expression::Value, converts lazily and caches.
+    /// Panics if called on Expression::Value (legacy path - should not happen in normal flow).
+    #[inline]
+    pub fn as_node_ref(&self) -> &JsNode {
+        match self {
+            Expression::Typed(te) => &te.node,
+            Expression::Value(_) => {
+                panic!("as_node_ref() called on Expression::Value - use as_node() instead")
+            }
+        }
+    }
+
+    /// Try to get a direct reference to the typed JsNode.
+    /// Returns None for Expression::Value.
+    #[inline]
+    pub fn try_as_node_ref(&self) -> Option<&JsNode> {
+        match self {
+            Expression::Typed(te) => Some(&te.node),
+            Expression::Value(_) => None,
+        }
+    }
+
+    /// Check if this expression is a Typed variant (not legacy Value).
+    #[inline]
+    pub fn is_typed(&self) -> bool {
+        matches!(self, Expression::Typed(_))
+    }
+
+    // ── Delegating accessors to JsNode ─────────────────────────────
+
+    /// Get "name" field (delegates to JsNode::name()).
+    #[inline]
+    pub fn name(&self) -> Option<&str> {
+        match self {
+            Expression::Typed(te) => te.node.name(),
+            Expression::Value(v) => v.get("name").and_then(|n| n.as_str()),
+        }
+    }
+
+    /// Get "callee" for CallExpression/NewExpression (delegates to JsNode::callee()).
+    #[inline]
+    pub fn callee(&self) -> Option<&JsNode> {
+        match self {
+            Expression::Typed(te) => te.node.callee(),
+            Expression::Value(_) => None,
+        }
+    }
+
+    /// Get "arguments" for CallExpression/NewExpression.
+    #[inline]
+    pub fn call_arguments(&self) -> &[JsNode] {
+        match self {
+            Expression::Typed(te) => te.node.call_arguments(),
+            Expression::Value(_) => &[],
+        }
+    }
+
+    /// Get "object" for MemberExpression.
+    #[inline]
+    pub fn object(&self) -> Option<&JsNode> {
+        match self {
+            Expression::Typed(te) => te.node.object(),
+            Expression::Value(_) => None,
+        }
+    }
+
+    /// Get "property" for MemberExpression.
+    #[inline]
+    pub fn property(&self) -> Option<&JsNode> {
+        match self {
+            Expression::Typed(te) => te.node.property(),
+            Expression::Value(_) => None,
+        }
+    }
+
+    /// Get "left" for BinaryExpression, etc.
+    #[inline]
+    pub fn left(&self) -> Option<&JsNode> {
+        match self {
+            Expression::Typed(te) => te.node.left(),
+            Expression::Value(_) => None,
+        }
+    }
+
+    /// Get "right" for BinaryExpression, etc.
+    #[inline]
+    pub fn right(&self) -> Option<&JsNode> {
+        match self {
+            Expression::Typed(te) => te.node.right(),
+            Expression::Value(_) => None,
+        }
+    }
+
+    /// Get "operator" for binary/logical/assignment/update expressions.
+    #[inline]
+    pub fn operator(&self) -> Option<&str> {
+        match self {
+            Expression::Typed(te) => te.node.operator(),
+            Expression::Value(v) => v.get("operator").and_then(|o| o.as_str()),
+        }
+    }
+
+    /// Get "argument" for UnaryExpression, etc.
+    #[inline]
+    pub fn argument(&self) -> Option<&JsNode> {
+        match self {
+            Expression::Typed(te) => te.node.argument(),
+            Expression::Value(_) => None,
+        }
+    }
+
+    /// Get "properties" for ObjectExpression/ObjectPattern.
+    #[inline]
+    pub fn properties(&self) -> &[JsNode] {
+        match self {
+            Expression::Typed(te) => te.node.properties(),
+            Expression::Value(_) => &[],
+        }
+    }
+
+    /// Get "elements" for ArrayExpression/ArrayPattern.
+    #[inline]
+    pub fn elements(&self) -> &[Option<JsNode>] {
+        match self {
+            Expression::Typed(te) => te.node.elements(),
+            Expression::Value(_) => &[],
+        }
+    }
+
+    /// Get "expressions" for SequenceExpression/TemplateLiteral.
+    #[inline]
+    pub fn expressions(&self) -> &[JsNode] {
+        match self {
+            Expression::Typed(te) => te.node.expressions(),
+            Expression::Value(_) => &[],
+        }
+    }
+
+    /// Get "params" for function-like nodes.
+    #[inline]
+    pub fn params(&self) -> &[JsNode] {
+        match self {
+            Expression::Typed(te) => te.node.params(),
+            Expression::Value(_) => &[],
+        }
+    }
+
+    /// Get "test" for ConditionalExpression, IfStatement, etc.
+    #[inline]
+    pub fn test(&self) -> Option<&JsNode> {
+        match self {
+            Expression::Typed(te) => te.node.test(),
+            Expression::Value(_) => None,
+        }
+    }
+
+    /// Get "consequent" for ConditionalExpression, IfStatement.
+    #[inline]
+    pub fn consequent(&self) -> Option<&JsNode> {
+        match self {
+            Expression::Typed(te) => te.node.consequent(),
+            Expression::Value(_) => None,
+        }
+    }
+
+    /// Get "alternate" for ConditionalExpression, IfStatement.
+    #[inline]
+    pub fn alternate(&self) -> Option<&JsNode> {
+        match self {
+            Expression::Typed(te) => te.node.alternate(),
+            Expression::Value(_) => None,
+        }
+    }
+
+    /// Check if the node is a function-like type.
+    #[inline]
+    pub fn is_function(&self) -> bool {
+        match self {
+            Expression::Typed(te) => te.node.is_function(),
+            Expression::Value(v) => matches!(
+                v.get("type").and_then(|t| t.as_str()),
+                Some("FunctionExpression" | "ArrowFunctionExpression" | "FunctionDeclaration")
+            ),
+        }
+    }
 }
 
 impl Clone for Expression {

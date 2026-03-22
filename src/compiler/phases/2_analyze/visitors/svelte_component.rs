@@ -7,7 +7,7 @@
 use super::super::{AnalysisError, warnings};
 use super::VisitorContext;
 use super::shared::fragment;
-use super::shared::utils::validate_assignment;
+use super::shared::utils::validate_assignment_node;
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, SvelteComponentElement,
 };
@@ -35,7 +35,8 @@ pub fn visit(
                 if bind.name != "this" {
                     context.analysis.uses_component_bindings = true;
                 }
-                validate_assignment(bind.expression.as_json(), context, true)?;
+                let bind_node = bind.expression.as_node();
+                validate_assignment_node(&bind_node, context, true)?;
                 // Walk the bind expression to add template references.
                 // This is important for legacy mode state promotion - bindings need
                 // template references to be promoted from 'normal' to 'state' kind.

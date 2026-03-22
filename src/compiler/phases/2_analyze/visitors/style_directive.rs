@@ -6,7 +6,7 @@
 
 use super::super::errors;
 use super::VisitorContext;
-use super::shared::utils::walk_js_expression;
+use super::shared::utils::walk_js_expression_node;
 use crate::ast::template::{AttributeValue, AttributeValuePart, StyleDirective};
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
@@ -44,17 +44,17 @@ pub fn visit(
         }
         AttributeValue::Expression(expr_tag) => {
             // Single expression: `style:color={expr}`
-            let value = expr_tag.expression.as_json();
+            let node = expr_tag.expression.as_node();
             let mut metadata = crate::ast::template::ExpressionMetadata::default();
-            walk_js_expression(value, context, &mut metadata)?;
+            walk_js_expression_node(&node, context, &mut metadata)?;
         }
         AttributeValue::Sequence(parts) => {
             // Mixed content: `style:color="prefix{expr}suffix"`
             for part in parts {
                 if let AttributeValuePart::ExpressionTag(expr_tag) = part {
-                    let value = expr_tag.expression.as_json();
+                    let node = expr_tag.expression.as_node();
                     let mut metadata = crate::ast::template::ExpressionMetadata::default();
-                    walk_js_expression(value, context, &mut metadata)?;
+                    walk_js_expression_node(&node, context, &mut metadata)?;
                 }
             }
         }

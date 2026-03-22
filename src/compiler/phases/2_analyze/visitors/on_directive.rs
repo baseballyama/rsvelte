@@ -8,7 +8,7 @@ use super::super::AnalysisError;
 use super::super::types::EventDirectiveInfo;
 use super::VisitorContext;
 use super::shared::fragment::mark_subtree_dynamic;
-use super::shared::utils::walk_js_expression;
+use super::shared::utils::walk_js_expression_node;
 use crate::ast::template::{OnDirective, TemplateNode};
 
 /// Visit an on: directive.
@@ -67,8 +67,8 @@ pub fn visit(
         // the parent element's metadata.expression field
         let mut metadata = crate::ast::template::ExpressionMetadata::default();
 
-        let value = expression.as_json();
-        walk_js_expression(value, context, &mut metadata)?;
+        let node = expression.as_node();
+        walk_js_expression_node(&node, context, &mut metadata)?;
 
         // The metadata tracking is handled by the parent element visitor
         // (RegularElement, SvelteElement, etc.) which creates and manages

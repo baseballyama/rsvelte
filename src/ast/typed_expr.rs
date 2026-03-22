@@ -2707,6 +2707,568 @@ impl JsNode {
         }
     }
 
+    // ── Typed Accessor Methods ─────────────────────────────────────────
+
+    /// Get the "name" field for nodes that have one (Identifier, PrivateIdentifier).
+    #[inline]
+    pub fn name(&self) -> Option<&str> {
+        match self {
+            JsNode::Identifier { name, .. } | JsNode::PrivateIdentifier { name, .. } => {
+                Some(name.as_str())
+            }
+            JsNode::Raw(v) => v.get("name").and_then(|n| n.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Get the "body" field as a slice of JsNode (for Program, BlockStatement, ClassBody, StaticBlock).
+    #[inline]
+    pub fn body_stmts(&self) -> &[JsNode] {
+        match self {
+            JsNode::Program { body, .. }
+            | JsNode::BlockStatement { body, .. }
+            | JsNode::ClassBody { body, .. }
+            | JsNode::StaticBlock { body, .. } => body,
+            _ => &[],
+        }
+    }
+
+    /// Get the "body" field as a single node (for ArrowFunctionExpression, ForStatement, etc).
+    #[inline]
+    pub fn body_node(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::ArrowFunctionExpression { body, .. }
+            | JsNode::ForStatement { body, .. }
+            | JsNode::ForOfStatement { body, .. }
+            | JsNode::ForInStatement { body, .. }
+            | JsNode::WhileStatement { body, .. }
+            | JsNode::DoWhileStatement { body, .. }
+            | JsNode::LabeledStatement { body, .. }
+            | JsNode::CatchClause { body, .. }
+            | JsNode::ClassExpression { body, .. }
+            | JsNode::ClassDeclaration { body, .. } => Some(body),
+            JsNode::FunctionExpression { body, .. } | JsNode::FunctionDeclaration { body, .. } => {
+                body.as_deref()
+            }
+            JsNode::TSModuleDeclaration { body, .. } => body.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Get "declarations" for VariableDeclaration.
+    #[inline]
+    pub fn declarations(&self) -> &[JsNode] {
+        match self {
+            JsNode::VariableDeclaration { declarations, .. } => declarations,
+            _ => &[],
+        }
+    }
+
+    /// Get "callee" for CallExpression, NewExpression.
+    #[inline]
+    pub fn callee(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::CallExpression { callee, .. } | JsNode::NewExpression { callee, .. } => {
+                Some(callee)
+            }
+            _ => None,
+        }
+    }
+
+    /// Get "arguments" for CallExpression, NewExpression.
+    #[inline]
+    pub fn call_arguments(&self) -> &[JsNode] {
+        match self {
+            JsNode::CallExpression { arguments, .. } | JsNode::NewExpression { arguments, .. } => {
+                arguments
+            }
+            _ => &[],
+        }
+    }
+
+    /// Get "left" for BinaryExpression, LogicalExpression, AssignmentExpression, AssignmentPattern,
+    /// ForOfStatement, ForInStatement.
+    #[inline]
+    pub fn left(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::BinaryExpression { left, .. }
+            | JsNode::LogicalExpression { left, .. }
+            | JsNode::AssignmentExpression { left, .. }
+            | JsNode::AssignmentPattern { left, .. }
+            | JsNode::ForOfStatement { left, .. }
+            | JsNode::ForInStatement { left, .. } => Some(left),
+            _ => None,
+        }
+    }
+
+    /// Get "right" for BinaryExpression, LogicalExpression, AssignmentExpression, AssignmentPattern,
+    /// ForOfStatement, ForInStatement.
+    #[inline]
+    pub fn right(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::BinaryExpression { right, .. }
+            | JsNode::LogicalExpression { right, .. }
+            | JsNode::AssignmentExpression { right, .. }
+            | JsNode::AssignmentPattern { right, .. }
+            | JsNode::ForOfStatement { right, .. }
+            | JsNode::ForInStatement { right, .. } => Some(right),
+            _ => None,
+        }
+    }
+
+    /// Get "properties" for ObjectExpression, ObjectPattern.
+    #[inline]
+    pub fn properties(&self) -> &[JsNode] {
+        match self {
+            JsNode::ObjectExpression { properties, .. }
+            | JsNode::ObjectPattern { properties, .. } => properties,
+            _ => &[],
+        }
+    }
+
+    /// Get "elements" for ArrayExpression, ArrayPattern (nullable elements).
+    #[inline]
+    pub fn elements(&self) -> &[Option<JsNode>] {
+        match self {
+            JsNode::ArrayExpression { elements, .. } | JsNode::ArrayPattern { elements, .. } => {
+                elements
+            }
+            _ => &[],
+        }
+    }
+
+    /// Get "params" for FunctionExpression, FunctionDeclaration, ArrowFunctionExpression.
+    #[inline]
+    pub fn params(&self) -> &[JsNode] {
+        match self {
+            JsNode::FunctionExpression { params, .. }
+            | JsNode::FunctionDeclaration { params, .. }
+            | JsNode::ArrowFunctionExpression { params, .. } => params,
+            _ => &[],
+        }
+    }
+
+    /// Get "object" for MemberExpression.
+    #[inline]
+    pub fn object(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::MemberExpression { object, .. } => Some(object),
+            _ => None,
+        }
+    }
+
+    /// Get "property" for MemberExpression, MetaProperty.
+    #[inline]
+    pub fn property(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::MemberExpression { property, .. } | JsNode::MetaProperty { property, .. } => {
+                Some(property)
+            }
+            _ => None,
+        }
+    }
+
+    /// Get "computed" for MemberExpression, Property, MethodDefinition, PropertyDefinition.
+    #[inline]
+    pub fn computed(&self) -> bool {
+        match self {
+            JsNode::MemberExpression { computed, .. }
+            | JsNode::Property { computed, .. }
+            | JsNode::MethodDefinition { computed, .. }
+            | JsNode::PropertyDefinition { computed, .. } => *computed,
+            _ => false,
+        }
+    }
+
+    /// Get "optional" for CallExpression, MemberExpression.
+    #[inline]
+    pub fn optional(&self) -> bool {
+        match self {
+            JsNode::CallExpression { optional, .. } | JsNode::MemberExpression { optional, .. } => {
+                *optional
+            }
+            _ => false,
+        }
+    }
+
+    /// Get "operator" for BinaryExpression, LogicalExpression, UnaryExpression,
+    /// AssignmentExpression, UpdateExpression.
+    #[inline]
+    pub fn operator(&self) -> Option<&str> {
+        match self {
+            JsNode::BinaryExpression { operator, .. }
+            | JsNode::LogicalExpression { operator, .. }
+            | JsNode::UnaryExpression { operator, .. }
+            | JsNode::AssignmentExpression { operator, .. }
+            | JsNode::UpdateExpression { operator, .. } => Some(operator.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Get "prefix" for UnaryExpression, UpdateExpression.
+    #[inline]
+    pub fn prefix(&self) -> bool {
+        match self {
+            JsNode::UnaryExpression { prefix, .. } | JsNode::UpdateExpression { prefix, .. } => {
+                *prefix
+            }
+            _ => false,
+        }
+    }
+
+    /// Get "test" for ConditionalExpression, IfStatement, SwitchCase.
+    #[inline]
+    pub fn test(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::ConditionalExpression { test, .. }
+            | JsNode::IfStatement { test, .. }
+            | JsNode::WhileStatement { test, .. }
+            | JsNode::DoWhileStatement { test, .. } => Some(test),
+            JsNode::ForStatement { test, .. } | JsNode::SwitchCase { test, .. } => test.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Get "consequent" for ConditionalExpression, IfStatement.
+    #[inline]
+    pub fn consequent(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::ConditionalExpression { consequent, .. }
+            | JsNode::IfStatement { consequent, .. } => Some(consequent),
+            _ => None,
+        }
+    }
+
+    /// Get "consequent" items for SwitchCase.
+    #[inline]
+    pub fn consequent_stmts(&self) -> &[JsNode] {
+        match self {
+            JsNode::SwitchCase { consequent, .. } => consequent,
+            _ => &[],
+        }
+    }
+
+    /// Get "alternate" for ConditionalExpression, IfStatement.
+    #[inline]
+    pub fn alternate(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::ConditionalExpression { alternate, .. } => Some(alternate),
+            JsNode::IfStatement { alternate, .. } => alternate.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Get "init" for VariableDeclarator, ForStatement.
+    #[inline]
+    pub fn init(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::VariableDeclarator { init, .. } | JsNode::ForStatement { init, .. } => {
+                init.as_deref()
+            }
+            _ => None,
+        }
+    }
+
+    /// Get "id" for VariableDeclarator, FunctionDeclaration, FunctionExpression,
+    /// ClassDeclaration, ClassExpression.
+    #[inline]
+    pub fn id(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::VariableDeclarator { id, .. } => Some(id),
+            JsNode::FunctionDeclaration { id, .. }
+            | JsNode::FunctionExpression { id, .. }
+            | JsNode::ClassDeclaration { id, .. }
+            | JsNode::ClassExpression { id, .. }
+            | JsNode::ArrowFunctionExpression { id, .. } => id.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Get "argument" for UnaryExpression, UpdateExpression, SpreadElement, RestElement,
+    /// ReturnStatement, ThrowStatement, AwaitExpression, YieldExpression.
+    #[inline]
+    pub fn argument(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::UnaryExpression { argument, .. }
+            | JsNode::UpdateExpression { argument, .. }
+            | JsNode::SpreadElement { argument, .. }
+            | JsNode::RestElement { argument, .. }
+            | JsNode::ThrowStatement { argument, .. }
+            | JsNode::AwaitExpression { argument, .. } => Some(argument),
+            JsNode::ReturnStatement { argument, .. } | JsNode::YieldExpression { argument, .. } => {
+                argument.as_deref()
+            }
+            _ => None,
+        }
+    }
+
+    /// Get "expression" for ExpressionStatement, ChainExpression.
+    #[inline]
+    pub fn expression_node(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::ExpressionStatement { expression, .. }
+            | JsNode::ChainExpression { expression, .. } => Some(expression),
+            _ => None,
+        }
+    }
+
+    /// Get "expressions" for SequenceExpression, TemplateLiteral.
+    #[inline]
+    pub fn expressions(&self) -> &[JsNode] {
+        match self {
+            JsNode::SequenceExpression { expressions, .. }
+            | JsNode::TemplateLiteral { expressions, .. } => expressions,
+            _ => &[],
+        }
+    }
+
+    /// Get "key" for Property, MethodDefinition, PropertyDefinition.
+    #[inline]
+    pub fn key(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::Property { key, .. }
+            | JsNode::MethodDefinition { key, .. }
+            | JsNode::PropertyDefinition { key, .. } => Some(key),
+            _ => None,
+        }
+    }
+
+    /// Get "value" as a JsNode for Property, VariableDeclarator (init), PropertyDefinition.
+    #[inline]
+    pub fn value_node(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::Property { value, .. } | JsNode::MethodDefinition { value, .. } => Some(value),
+            JsNode::PropertyDefinition { value, .. } => value.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Get "shorthand" for Property.
+    #[inline]
+    pub fn shorthand(&self) -> bool {
+        match self {
+            JsNode::Property { shorthand, .. } => *shorthand,
+            _ => false,
+        }
+    }
+
+    /// Get "method" for Property.
+    #[inline]
+    pub fn method(&self) -> bool {
+        match self {
+            JsNode::Property { method, .. } => *method,
+            _ => false,
+        }
+    }
+
+    /// Get "kind" for VariableDeclaration, Property, MethodDefinition.
+    #[inline]
+    pub fn kind(&self) -> Option<&str> {
+        match self {
+            JsNode::VariableDeclaration { kind, .. }
+            | JsNode::Property { kind, .. }
+            | JsNode::MethodDefinition { kind, .. } => Some(kind.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Check if the node is async (FunctionExpression, FunctionDeclaration, ArrowFunctionExpression).
+    #[inline]
+    pub fn is_async(&self) -> bool {
+        match self {
+            JsNode::FunctionExpression { r#async, .. }
+            | JsNode::FunctionDeclaration { r#async, .. }
+            | JsNode::ArrowFunctionExpression { r#async, .. } => *r#async,
+            _ => false,
+        }
+    }
+
+    /// Check if the node is a generator.
+    #[inline]
+    pub fn is_generator(&self) -> bool {
+        match self {
+            JsNode::FunctionExpression { generator, .. }
+            | JsNode::FunctionDeclaration { generator, .. }
+            | JsNode::ArrowFunctionExpression { generator, .. } => *generator,
+            _ => false,
+        }
+    }
+
+    /// Get "raw" for Literal.
+    #[inline]
+    pub fn raw(&self) -> Option<&str> {
+        match self {
+            JsNode::Literal { raw, .. } => Some(raw.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Get the LiteralValue for Literal nodes.
+    #[inline]
+    pub fn literal_value(&self) -> Option<&LiteralValue> {
+        match self {
+            JsNode::Literal { value, .. } => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Get "specifiers" for ImportDeclaration, ExportNamedDeclaration.
+    #[inline]
+    pub fn specifiers(&self) -> &[JsNode] {
+        match self {
+            JsNode::ImportDeclaration { specifiers, .. }
+            | JsNode::ExportNamedDeclaration { specifiers, .. } => specifiers,
+            _ => &[],
+        }
+    }
+
+    /// Get "source" for ImportDeclaration, ImportExpression.
+    #[inline]
+    pub fn source(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::ImportDeclaration { source, .. } | JsNode::ImportExpression { source, .. } => {
+                Some(source)
+            }
+            JsNode::ExportNamedDeclaration { source, .. } => source.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Get "local" for ImportSpecifier, ImportDefaultSpecifier, ImportNamespaceSpecifier, ExportSpecifier.
+    #[inline]
+    pub fn local(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::ImportSpecifier { local, .. }
+            | JsNode::ImportDefaultSpecifier { local, .. }
+            | JsNode::ImportNamespaceSpecifier { local, .. }
+            | JsNode::ExportSpecifier { local, .. } => Some(local),
+            _ => None,
+        }
+    }
+
+    /// Get "imported" for ImportSpecifier.
+    #[inline]
+    pub fn imported(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::ImportSpecifier { imported, .. } => Some(imported),
+            _ => None,
+        }
+    }
+
+    /// Get "exported" for ExportSpecifier.
+    #[inline]
+    pub fn exported(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::ExportSpecifier { exported, .. } => Some(exported),
+            _ => None,
+        }
+    }
+
+    /// Get "declaration" for ExportNamedDeclaration, ExportDefaultDeclaration.
+    #[inline]
+    pub fn declaration(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::ExportDefaultDeclaration { declaration, .. } => Some(declaration),
+            JsNode::ExportNamedDeclaration { declaration, .. } => declaration.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Get "quasis" for TemplateLiteral.
+    #[inline]
+    pub fn quasis(&self) -> &[JsNode] {
+        match self {
+            JsNode::TemplateLiteral { quasis, .. } => quasis,
+            _ => &[],
+        }
+    }
+
+    /// Get "tag" for TaggedTemplateExpression.
+    #[inline]
+    pub fn tag(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::TaggedTemplateExpression { tag, .. } => Some(tag),
+            _ => None,
+        }
+    }
+
+    /// Get "discriminant" for SwitchStatement.
+    #[inline]
+    pub fn discriminant(&self) -> Option<&JsNode> {
+        match self {
+            JsNode::SwitchStatement { discriminant, .. } => Some(discriminant),
+            _ => None,
+        }
+    }
+
+    /// Get "cases" for SwitchStatement.
+    #[inline]
+    pub fn cases(&self) -> &[JsNode] {
+        match self {
+            JsNode::SwitchStatement { cases, .. } => cases,
+            _ => &[],
+        }
+    }
+
+    /// Check if this is an expression type (not a statement/declaration).
+    #[inline]
+    pub fn is_expression(&self) -> bool {
+        matches!(
+            self,
+            JsNode::Identifier { .. }
+                | JsNode::PrivateIdentifier { .. }
+                | JsNode::Literal { .. }
+                | JsNode::BinaryExpression { .. }
+                | JsNode::LogicalExpression { .. }
+                | JsNode::UnaryExpression { .. }
+                | JsNode::ConditionalExpression { .. }
+                | JsNode::CallExpression { .. }
+                | JsNode::MemberExpression { .. }
+                | JsNode::NewExpression { .. }
+                | JsNode::FunctionExpression { .. }
+                | JsNode::ClassExpression { .. }
+                | JsNode::ArrowFunctionExpression { .. }
+                | JsNode::AssignmentExpression { .. }
+                | JsNode::UpdateExpression { .. }
+                | JsNode::SequenceExpression { .. }
+                | JsNode::ArrayExpression { .. }
+                | JsNode::ObjectExpression { .. }
+                | JsNode::TemplateLiteral { .. }
+                | JsNode::TaggedTemplateExpression { .. }
+                | JsNode::ThisExpression { .. }
+                | JsNode::Super { .. }
+                | JsNode::ImportExpression { .. }
+                | JsNode::AwaitExpression { .. }
+                | JsNode::YieldExpression { .. }
+                | JsNode::ChainExpression { .. }
+                | JsNode::MetaProperty { .. }
+                | JsNode::SpreadElement { .. }
+        )
+    }
+
+    /// Check if this is a pattern (ObjectPattern, ArrayPattern, etc).
+    #[inline]
+    pub fn is_pattern(&self) -> bool {
+        matches!(
+            self,
+            JsNode::ObjectPattern { .. }
+                | JsNode::ArrayPattern { .. }
+                | JsNode::AssignmentPattern { .. }
+                | JsNode::RestElement { .. }
+        )
+    }
+
+    /// Check if this is a function-like node (FunctionExpression, ArrowFunction, FunctionDeclaration).
+    #[inline]
+    pub fn is_function(&self) -> bool {
+        matches!(
+            self,
+            JsNode::FunctionExpression { .. }
+                | JsNode::ArrowFunctionExpression { .. }
+                | JsNode::FunctionDeclaration { .. }
+        )
+    }
+
     fn get_start_inner(&self) -> u32 {
         match self {
             JsNode::Identifier { start, .. }
