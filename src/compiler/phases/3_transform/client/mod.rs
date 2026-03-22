@@ -2467,6 +2467,37 @@ fn transform_instance_script_for_visitors(
         return String::new();
     }
 
+    // Fast path: if the script has no runes ($state, $derived, $effect, $props),
+    // no store subscriptions ($xxx), no reactive statements ($:), and no exports,
+    // the text-based transform pipeline has nothing to do. Just return the script
+    // with imports stripped.
+    // Fast path: if the script has no runes, stores, reactive statements, exports,
+    // or comma-separated declarations, the text-based transform pipeline has nothing to do.
+    let has_dollar = script.contains('$');
+    let has_export = script.contains("export ");
+    let has_comma_decl = script.contains(", ") || script.contains(",\n") || script.contains(",\t");
+    if !has_dollar
+        && !has_export
+        && !has_comma_decl
+        && analysis.root.bindings.iter().all(|b| {
+            !matches!(
+                b.kind,
+                BindingKind::State
+                    | BindingKind::RawState
+                    | BindingKind::Derived
+                    | BindingKind::LegacyReactive
+                    | BindingKind::StoreSub
+                    | BindingKind::Prop
+                    | BindingKind::BindableProp
+                    | BindingKind::RestProp
+            )
+        })
+    {
+        // No transforms needed - just strip imports and return the rest
+        let (_imports, rest) = extract_imports(script);
+        return rest.to_string();
+    }
+
     // Reset the $$array counters for this component
     // This ensures unique names across multiple $derived destructuring patterns
     SCRIPT_ARRAY_COUNTER.with(|c| c.set(0));
