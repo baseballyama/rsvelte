@@ -1399,67 +1399,141 @@ pub(super) fn transform_state_assignments(
 
     let mut result = line.to_string();
 
+    // Pre-check: does the line contain any update operators at all?
+    let has_inc_dec = result.contains("++") || result.contains("--");
+    let has_compound_assign = result.contains("+=")
+        || result.contains("-=")
+        || result.contains("*=")
+        || result.contains("/=")
+        || result.contains("%=")
+        || result.contains("**=")
+        || result.contains("??=")
+        || result.contains("&&=")
+        || result.contains("||=");
+    let has_simple_assign = result.contains(" = ");
+
     for var in state_vars {
         // Skip variables that don't appear in this line at all
         if !result.contains(var.as_str()) {
             continue;
         }
 
-        // Transform ++varname to $.update_pre(varname)
-        let pre_inc_pattern = format!("++{}", var);
-        if result.contains(&pre_inc_pattern) {
-            result = replace_with_word_boundary_scoped(
-                &result,
-                &pre_inc_pattern,
-                &format!("$.update_pre({})", var),
-                true,
-                Some(var),
-            );
-        }
+        // Transform ++/-- operators only if the line contains them
+        if has_inc_dec {
+            // Transform ++varname to $.update_pre(varname)
+            let pre_inc_pattern = format!("++{}", var);
+            if result.contains(&pre_inc_pattern) {
+                result = replace_with_word_boundary_scoped(
+                    &result,
+                    &pre_inc_pattern,
+                    &format!("$.update_pre({})", var),
+                    true,
+                    Some(var),
+                );
+            }
 
-        // Transform --varname to $.update_pre(varname, -1)
-        let pre_dec_pattern = format!("--{}", var);
-        if result.contains(&pre_dec_pattern) {
-            result = replace_with_word_boundary_scoped(
-                &result,
-                &pre_dec_pattern,
-                &format!("$.update_pre({}, -1)", var),
-                true,
-                Some(var),
-            );
-        }
+            // Transform --varname to $.update_pre(varname, -1)
+            let pre_dec_pattern = format!("--{}", var);
+            if result.contains(&pre_dec_pattern) {
+                result = replace_with_word_boundary_scoped(
+                    &result,
+                    &pre_dec_pattern,
+                    &format!("$.update_pre({}, -1)", var),
+                    true,
+                    Some(var),
+                );
+            }
 
-        // Transform varname++ to $.update(varname)
-        let post_inc_pattern = format!("{}++", var);
-        if result.contains(&post_inc_pattern) {
-            result = replace_with_word_boundary_scoped(
-                &result,
-                &post_inc_pattern,
-                &format!("$.update({})", var),
-                false,
-                Some(var),
-            );
-        }
+            // Transform varname++ to $.update(varname)
+            let post_inc_pattern = format!("{}++", var);
+            if result.contains(&post_inc_pattern) {
+                result = replace_with_word_boundary_scoped(
+                    &result,
+                    &post_inc_pattern,
+                    &format!("$.update({})", var),
+                    false,
+                    Some(var),
+                );
+            }
 
-        // Transform varname-- to $.update(varname, -1)
-        let post_dec_pattern = format!("{}--", var);
-        if result.contains(&post_dec_pattern) {
-            result = replace_with_word_boundary_scoped(
-                &result,
-                &post_dec_pattern,
-                &format!("$.update({}, -1)", var),
-                false,
-                Some(var),
-            );
+            // Transform varname-- to $.update(varname, -1)
+            let post_dec_pattern = format!("{}--", var);
+            if result.contains(&post_dec_pattern) {
+                result = replace_with_word_boundary_scoped(
+                    &result,
+                    &post_dec_pattern,
+                    &format!("$.update({}, -1)", var),
+                    false,
+                    Some(var),
+                );
+            }
         }
 
         // Transform compound assignments: varname += expr to $.set(varname, $.get(varname) + (expr))
-        for op in &["+=", "-=", "*=", "/=", "%=", "**="] {
-            let pattern = format!("{} {}", var, op);
-            if result.contains(&pattern) {
-                let op_char = &op[..op.len() - 1]; // Remove the '='
+        if has_compound_assign {
+            for op in &["+=", "-=", "*=", "/=", "%=", "**="] {
+                let pattern = format!("{} {}", var, op);
+                if result.contains(&pattern) {
+                    let op_char = &op[..op.len() - 1]; // Remove the '='
+                    if let Some(pos) = result.find(&pattern) {
+                        // Skip if this is a member expression (e.g., this.count +=, obj.prop +=)
+                        let before = &result[..pos];
+                        if before.ends_with('.') {
+                            continue;
+                        }
+
+                        // Skip if preceded by an identifier character or '#' (private field)
+                        if !before.is_empty()
+                            && (is_identifier_char(before.chars().last().unwrap())
+                                || before.ends_with('#'))
+                        {
+                            continue;
+                        }
+
+                        // Skip if inside a for-loop scope with the same variable
+                        {
+                            let chars: Vec<char> = result.chars().collect();
+                            let char_pos = byte_pos_to_char_index(&result, pos);
+                            if is_shadowed_by_for_loop_var(&chars, char_pos, var) {
+                                continue;
+                            }
+                        }
+
+                        let after = &result[pos + pattern.len()..];
+                        // Find the expression (until ; or end, respecting nested braces)
+                        let expr_end = find_statement_end_client(after);
+                        let expr = after[..expr_end].trim();
+                        // Don't wrap here - let the later wrap_state_vars_in_expr call handle it
+                        // so it can properly detect function parameter shadowing
+                        //
+                        // Only add parens around expr when needed for precedence.
+                        // Simple expressions (literals, identifiers, function calls) don't
+                        // need parens since they have higher precedence than any binary op.
+                        let expr_str = if needs_compound_assignment_parens(expr, op_char) {
+                            format!("({})", expr)
+                        } else {
+                            expr.to_string()
+                        };
+                        let replacement =
+                            format!("$.set({}, $.get({}) {} {})", var, var, op_char, expr_str);
+                        result = format!(
+                            "{}{}{}",
+                            &result[..pos],
+                            replacement,
+                            &result[pos + pattern.len() + expr_end..]
+                        );
+                    }
+                }
+            }
+        } // end if has_compound_assign
+
+        // Transform logical assignment operators: varname ??= expr to $.set(varname, $.get(varname) ?? (expr))
+        // These operators have two-character prefixes before the '='
+        if has_compound_assign {
+            for (op, op_without_eq) in &[("??=", "??"), ("&&=", "&&"), ("||=", "||")] {
+                let pattern = format!("{} {}", var, op);
                 if let Some(pos) = result.find(&pattern) {
-                    // Skip if this is a member expression (e.g., this.count +=, obj.prop +=)
+                    // Skip if this is a member expression (e.g., this.count ??=, obj.prop ??=)
                     let before = &result[..pos];
                     if before.ends_with('.') {
                         continue;
@@ -1488,17 +1562,15 @@ pub(super) fn transform_state_assignments(
                     let expr = after[..expr_end].trim();
                     // Don't wrap here - let the later wrap_state_vars_in_expr call handle it
                     // so it can properly detect function parameter shadowing
-                    //
-                    // Only add parens around expr when needed for precedence.
-                    // Simple expressions (literals, identifiers, function calls) don't
-                    // need parens since they have higher precedence than any binary op.
-                    let expr_str = if needs_compound_assignment_parens(expr, op_char) {
+                    let expr_str = if needs_compound_assignment_parens(expr, op_without_eq) {
                         format!("({})", expr)
                     } else {
                         expr.to_string()
                     };
-                    let replacement =
-                        format!("$.set({}, $.get({}) {} {})", var, var, op_char, expr_str);
+                    let replacement = format!(
+                        "$.set({}, $.get({}) {} {})",
+                        var, var, op_without_eq, expr_str
+                    );
                     result = format!(
                         "{}{}{}",
                         &result[..pos],
@@ -1507,61 +1579,13 @@ pub(super) fn transform_state_assignments(
                     );
                 }
             }
-        }
-
-        // Transform logical assignment operators: varname ??= expr to $.set(varname, $.get(varname) ?? (expr))
-        // These operators have two-character prefixes before the '='
-        for (op, op_without_eq) in &[("??=", "??"), ("&&=", "&&"), ("||=", "||")] {
-            let pattern = format!("{} {}", var, op);
-            if let Some(pos) = result.find(&pattern) {
-                // Skip if this is a member expression (e.g., this.count ??=, obj.prop ??=)
-                let before = &result[..pos];
-                if before.ends_with('.') {
-                    continue;
-                }
-
-                // Skip if preceded by an identifier character or '#' (private field)
-                if !before.is_empty()
-                    && (is_identifier_char(before.chars().last().unwrap()) || before.ends_with('#'))
-                {
-                    continue;
-                }
-
-                // Skip if inside a for-loop scope with the same variable
-                {
-                    let chars: Vec<char> = result.chars().collect();
-                    let char_pos = byte_pos_to_char_index(&result, pos);
-                    if is_shadowed_by_for_loop_var(&chars, char_pos, var) {
-                        continue;
-                    }
-                }
-
-                let after = &result[pos + pattern.len()..];
-                // Find the expression (until ; or end, respecting nested braces)
-                let expr_end = find_statement_end_client(after);
-                let expr = after[..expr_end].trim();
-                // Don't wrap here - let the later wrap_state_vars_in_expr call handle it
-                // so it can properly detect function parameter shadowing
-                let expr_str = if needs_compound_assignment_parens(expr, op_without_eq) {
-                    format!("({})", expr)
-                } else {
-                    expr.to_string()
-                };
-                let replacement = format!(
-                    "$.set({}, $.get({}) {} {})",
-                    var, var, op_without_eq, expr_str
-                );
-                result = format!(
-                    "{}{}{}",
-                    &result[..pos],
-                    replacement,
-                    &result[pos + pattern.len() + expr_end..]
-                );
-            }
-        }
+        } // end if has_compound_assign (logical)
 
         // Transform simple assignment: varname = expr to $.set(varname, expr)
         // But not if it's a declaration (let/const/var varname = ...)
+        if !has_simple_assign {
+            continue; // No " = " in the line, skip simple assignment transforms for this var
+        }
         // Use a loop to handle multiple assignments of the same variable in one statement
         let assignment_pattern = format!("{} = ", var);
         let mut search_start = 0;
