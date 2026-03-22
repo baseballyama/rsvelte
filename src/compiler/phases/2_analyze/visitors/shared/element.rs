@@ -115,15 +115,11 @@ pub fn validate_element(
                     && let Some(expression_tag) = get_attribute_expression(attr)
                     && let Some(expr_type) = expression_tag.expression.node_type()
                     && expr_type == "Identifier"
+                    && let Some(name) = expression_tag.expression.identifier_name()
+                    && name == attr.name
+                    && context.analysis.root.find_binding_any_scope(name).is_none()
                 {
-                    let expr_value = expression_tag.expression.as_json();
-                    if let Some(name) = expr_value.get("name").and_then(|n| n.as_str())
-                        && name == attr.name
-                        && context.analysis.root.find_binding_any_scope(name).is_none()
-                    {
-                        context
-                            .emit_warning(warnings::attribute_global_event_reference(&attr.name));
-                    }
+                    context.emit_warning(warnings::attribute_global_event_reference(&attr.name));
                 }
 
                 // Validate slot attribute

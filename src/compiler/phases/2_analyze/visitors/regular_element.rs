@@ -1272,22 +1272,16 @@ pub fn visit_regular_element(
 /// for `items[0]` -> "items".
 /// Corresponds to the `object()` function call in the official compiler.
 fn extract_binding_root_identifier(expr: &crate::ast::js::Expression) -> Option<String> {
-    let val = expr.as_json();
-    let obj = val.as_object()?;
-    let expr_type = obj.get("type").and_then(|v| v.as_str())?;
+    let node = expr.as_node();
+    extract_binding_root_identifier_node(&node)
+}
 
-    match expr_type {
-        "Identifier" => obj
-            .get("name")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+fn extract_binding_root_identifier_node(node: &crate::ast::typed_expr::JsNode) -> Option<String> {
+    match node.node_type()? {
+        "Identifier" => node.name().map(|s| s.to_string()),
         "MemberExpression" => {
-            // Recurse into object
-            if let Some(object) = obj.get("object") {
-                extract_binding_root_identifier(&crate::ast::js::Expression::Value(object.clone()))
-            } else {
-                None
-            }
+            let object = node.object()?;
+            extract_binding_root_identifier_node(object)
         }
         _ => None,
     }

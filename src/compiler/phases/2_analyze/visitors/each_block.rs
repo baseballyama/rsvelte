@@ -8,7 +8,9 @@ use indexmap::IndexSet;
 
 use super::super::{AnalysisError, Binding, BindingKind, errors};
 use super::shared::fragment;
-use super::shared::utils::{validate_block_not_empty, validate_opening_tag, walk_js_expression};
+use super::shared::utils::{
+    validate_block_not_empty, validate_opening_tag, walk_js_expression_node,
+};
 use super::{EachBlockContext, VisitorContext};
 use crate::ast::template::{EachBlock, TemplateNode};
 
@@ -72,13 +74,13 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
 
     // Visit the expression in parent scope
     // Extract the JavaScript expression value
-    let value = block.expression.as_json();
-    walk_js_expression(value, context, &mut block.metadata.expression)?;
+    let node = block.expression.as_node();
+    walk_js_expression_node(&node, context, &mut block.metadata.expression)?;
 
     // Detect pickled awaits in each block collection expressions.
     // Template expressions are reactive contexts, so await expressions
     // that aren't the last evaluated expression need $.save() wrapping.
-    super::await_block::collect_pickled_awaits(value, &mut context.analysis.pickled_awaits);
+    super::await_block::collect_pickled_awaits_node(&node, &mut context.analysis.pickled_awaits);
 
     // Mark that we have control flow affecting sibling relationships
     context.analysis.css.has_control_flow = true;
@@ -162,9 +164,9 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     // Adding key dependencies to expression metadata would incorrectly set EACH_ITEM_REACTIVE
     // in cases where the iterable has no external dependencies but the key does.
     if let Some(key) = &block.key {
-        let value = key.as_json();
+        let key_node = key.as_node();
         let mut key_metadata = crate::ast::template::ExpressionMetadata::default();
-        walk_js_expression(value, context, &mut key_metadata)?;
+        walk_js_expression_node(&key_node, context, &mut key_metadata)?;
     }
 
     // Decrement block depth

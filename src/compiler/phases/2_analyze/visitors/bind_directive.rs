@@ -5,13 +5,12 @@
 //! Corresponds to Svelte's `2-analyze/visitors/BindDirective.js`.
 
 use super::VisitorContext;
-use super::shared::utils::validate_assignment;
+use super::shared::utils::validate_assignment_node;
 use crate::ast::template::{AttributeValue, BindDirective, RegularElement, TemplateNode};
+use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use crate::compiler::phases::phase2_analyze::binding_properties::BINDING_PROPERTIES;
 use crate::compiler::phases::phase2_analyze::errors;
-use serde_json::Value;
-
 /// Visit a bind directive with explicit element context.
 ///
 /// This is called from regular_element visitor when we have direct access to the element.
@@ -151,17 +150,16 @@ fn visit_common(
         }
 
         // Validate that sequence expression has exactly 2 expressions (getter and setter)
-        if let Some(expressions) = directive
-            .expression
-            .as_json()
-            .get("expressions")
-            .and_then(|e| e.as_array())
-            && expressions.len() != 2
         {
-            return Err(AnalysisError::ValidationWithCode {
-                code: "bind_invalid_expression".to_string(),
-                message: "Binding with getter/setter requires exactly two functions".to_string(),
-            });
+            let node = directive.expression.as_node();
+            let expressions = node.expressions();
+            if !expressions.is_empty() && expressions.len() != 2 {
+                return Err(AnalysisError::ValidationWithCode {
+                    code: "bind_invalid_expression".to_string(),
+                    message: "Binding with getter/setter requires exactly two functions"
+                        .to_string(),
+                });
+            }
         }
 
         // Mark subtree as dynamic
@@ -171,15 +169,13 @@ fn visit_common(
         // This is important for cases like:
         //   bind:checked={()=>check, (v)=>{ check = v }}
         // where the setter contains an assignment that marks `check` as reassigned
-        if let Some(expressions) = directive
-            .expression
-            .as_json()
-            .get("expressions")
-            .and_then(|e| e.as_array())
         {
+            let node = directive.expression.as_node();
+            let expressions = node.expressions();
             for expr in expressions {
                 // Walk the expression to track mutations (e.g., assignments in setters)
-                super::script::walk_js_node(expr, context)?;
+                let expr_value = expr.to_value();
+                super::script::walk_js_node(&expr_value, context)?;
             }
         }
 
@@ -191,10 +187,14 @@ fn visit_common(
     }
 
     // Validate the assignment target
-    validate_assignment(directive.expression.as_json(), context, true)?;
+    {
+        let node = directive.expression.as_node();
+        validate_assignment_node(&node, context, true)?;
+    }
 
     // Get the leftmost identifier (the binding target)
-    let left = get_object(directive.expression.as_json());
+    let expr_node = directive.expression.as_node();
+    let left = get_object_node(&expr_node);
 
     if left.is_none() {
         return Err(AnalysisError::ValidationWithCode {
@@ -204,10 +204,7 @@ fn visit_common(
     }
 
     let left = left.unwrap();
-    let binding_name = left
-        .get("name")
-        .and_then(|n| n.as_str())
-        .unwrap_or_default();
+    let binding_name = left.name().unwrap_or_default();
 
     // Look up the binding in the scope using proper scope chain traversal
     let binding_idx = context
@@ -334,7 +331,7 @@ fn visit_common(
     if directive.name == "this" {
         context.in_bind_this = true;
     }
-    super::script::walk_js_node(directive.expression.as_json(), context)?;
+    super::script::walk_expression(&directive.expression, context)?;
     context.in_bind_this = prev_in_bind_this;
 
     // TODO: Check for await in expression
@@ -747,17 +744,24 @@ fn is_text_attribute(attr: &crate::ast::template::AttributeNode) -> bool {
     }
 }
 
-/// Get the object (leftmost identifier) from an expression.
+/// Get the object (leftmost identifier) from a JsNode expression.
 ///
 /// Corresponds to `object()` in utils/ast.js.
-fn get_object(node: &Value) -> Option<Value> {
-    let node_type = node.get("type")?.as_str()?;
-
-    match node_type {
-        "Identifier" => Some(node.clone()),
-        "MemberExpression" => {
-            let object = node.get("object")?;
-            get_object(object)
+fn get_object_node(node: &JsNode) -> Option<&JsNode> {
+    match node {
+        JsNode::Identifier { .. } => Some(node),
+        JsNode::MemberExpression { object, .. } => get_object_node(object),
+        JsNode::Raw(v) => {
+            // Fallback for raw JSON nodes
+            let node_type = v.get("type")?.as_str()?;
+            match node_type {
+                "Identifier" => Some(node),
+                "MemberExpression" => {
+                    // For Raw nodes we can't recurse into sub-nodes easily, fall back
+                    None
+                }
+                _ => None,
+            }
         }
         _ => None,
     }

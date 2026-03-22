@@ -135,8 +135,7 @@ pub fn visit(
 
     // Analyze the 'this' expression to track template references
     // This is crucial for legacy state promotion to work correctly
-    let tag_value = element.tag.as_json();
-    super::script::walk_js_node(tag_value, context)?;
+    super::script::walk_expression(&element.tag, context)?;
 
     // Determine SVG/MathML metadata based on xmlns attribute or ancestor context.
     // This follows the official Svelte compiler's SvelteElement.js analysis logic.

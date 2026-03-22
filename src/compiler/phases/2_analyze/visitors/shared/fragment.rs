@@ -172,7 +172,7 @@ fn check_const_tag_cycles(nodes: &[TemplateNode]) -> Result<(), AnalysisError> {
 
     for node in nodes {
         if let TemplateNode::ConstTag(tag) = node {
-            let value = tag.declaration.as_json();
+            let decl_node = tag.declaration.as_node();
 
             // The declaration can be either:
             // 1. A VariableDeclaration (official Svelte structure):
@@ -180,18 +180,19 @@ fn check_const_tag_cycles(nodes: &[TemplateNode]) -> Result<(), AnalysisError> {
             // 2. An AssignmentExpression (what the Rust parser currently produces):
             //    { type: "AssignmentExpression", left, right }
 
-            let (bindings, deps) = if let Some(declarations) =
-                value.get("declarations").and_then(|d| d.as_array())
-            {
+            let declarations = decl_node.declarations();
+            let (bindings, deps) = if !declarations.is_empty() {
                 // VariableDeclaration structure
                 if let Some(declaration) = declarations.first() {
-                    let bindings = if let Some(id) = declaration.get("id") {
-                        extract_pattern_identifiers(id)
+                    let bindings = if let Some(id) = declaration.id() {
+                        let id_value = id.to_value();
+                        extract_pattern_identifiers(&id_value)
                     } else {
                         Vec::new()
                     };
-                    let deps = if let Some(init) = declaration.get("init") {
-                        extract_expression_identifiers(init)
+                    let deps = if let Some(init) = declaration.init() {
+                        let init_value = init.to_value();
+                        extract_expression_identifiers(&init_value)
                     } else {
                         FxHashSet::default()
                     };
@@ -199,15 +200,17 @@ fn check_const_tag_cycles(nodes: &[TemplateNode]) -> Result<(), AnalysisError> {
                 } else {
                     (Vec::new(), FxHashSet::default())
                 }
-            } else if value.get("type").and_then(|t| t.as_str()) == Some("AssignmentExpression") {
+            } else if decl_node.node_type() == Some("AssignmentExpression") {
                 // AssignmentExpression structure
-                let bindings = if let Some(left) = value.get("left") {
-                    extract_pattern_identifiers(left)
+                let bindings = if let Some(left) = decl_node.left() {
+                    let left_value = left.to_value();
+                    extract_pattern_identifiers(&left_value)
                 } else {
                     Vec::new()
                 };
-                let deps = if let Some(right) = value.get("right") {
-                    extract_expression_identifiers(right)
+                let deps = if let Some(right) = decl_node.right() {
+                    let right_value = right.to_value();
+                    extract_expression_identifiers(&right_value)
                 } else {
                     FxHashSet::default()
                 };

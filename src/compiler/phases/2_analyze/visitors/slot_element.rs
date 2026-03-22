@@ -82,8 +82,7 @@ pub fn visit(slot: &mut SlotElement, context: &mut VisitorContext) -> Result<(),
                 super::attribute::visit_attribute_value_expressions(&a.value, context)?;
             }
             Attribute::SpreadAttribute(spread) => {
-                let v = spread.expression.as_json();
-                super::script::walk_js_node(v, context)?;
+                super::script::walk_expression(&spread.expression, context)?;
             }
             _ => {}
         }

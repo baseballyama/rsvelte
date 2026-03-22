@@ -12,6 +12,7 @@ use super::shared::snippets::validate_snippet;
 use super::shared::utils::validate_block_not_empty;
 use crate::ast::js::Expression;
 use crate::ast::template::{SnippetBlock, TemplateNode};
+use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 /// Visit a snippet block.
@@ -137,6 +138,338 @@ fn can_hoist_snippet(snippet: &SnippetBlock, context: &VisitorContext) -> bool {
         && check_params_hoistable(&snippet.parameters, &param_names, context)
 }
 
+// ── Dispatch functions: Expression → JsNode or JSON ──────────────────────────
+
+/// Dispatch to JsNode or JSON version of expression_only_uses_params.
+fn expr_only_uses_params(
+    expr: &Expression,
+    param_names: &FxHashSet<String>,
+    context: &VisitorContext,
+) -> bool {
+    match expr {
+        Expression::Typed(te) => expression_only_uses_params_node(&te.node, param_names, context),
+        Expression::Value(v) => expression_only_uses_params(v, param_names, context),
+    }
+}
+
+/// Dispatch to JsNode or JSON version of extract_pattern_names.
+fn extract_pattern_names_for_expr(expr: &Expression) -> Option<Vec<String>> {
+    match expr {
+        Expression::Typed(te) => extract_pattern_names_node(&te.node),
+        Expression::Value(v) => extract_pattern_names(v),
+    }
+}
+
+/// Dispatch to JsNode or JSON version of check_pattern_defaults_hoistable.
+fn check_pattern_defaults_for_expr(
+    expr: &Expression,
+    param_names: &FxHashSet<String>,
+    context: &VisitorContext,
+) -> bool {
+    match expr {
+        Expression::Typed(te) => {
+            check_pattern_defaults_hoistable_node(&te.node, param_names, context)
+        }
+        Expression::Value(v) => check_pattern_defaults_hoistable(v, param_names, context),
+    }
+}
+
+// ── JsNode-based implementations ─────────────────────────────────────────────
+
+/// Check if an expression (as JsNode) only uses hoistable identifiers.
+fn expression_only_uses_params_node(
+    node: &JsNode,
+    param_names: &FxHashSet<String>,
+    context: &VisitorContext,
+) -> bool {
+    match node {
+        JsNode::Identifier { name, .. } => {
+            is_identifier_hoistable(name.as_str(), param_names, context)
+        }
+
+        JsNode::Literal { .. } => true,
+
+        JsNode::CallExpression {
+            callee, arguments, ..
+        } => {
+            if !expression_only_uses_params_node(callee, param_names, context) {
+                return false;
+            }
+            for arg in arguments {
+                if !expression_only_uses_params_node(arg, param_names, context) {
+                    return false;
+                }
+            }
+            true
+        }
+
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            ..
+        } => {
+            if !expression_only_uses_params_node(object, param_names, context) {
+                return false;
+            }
+            if *computed && !expression_only_uses_params_node(property, param_names, context) {
+                return false;
+            }
+            true
+        }
+
+        JsNode::BinaryExpression { left, right, .. }
+        | JsNode::LogicalExpression { left, right, .. } => {
+            if !expression_only_uses_params_node(left, param_names, context) {
+                return false;
+            }
+            if !expression_only_uses_params_node(right, param_names, context) {
+                return false;
+            }
+            true
+        }
+
+        JsNode::ConditionalExpression {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => {
+            expression_only_uses_params_node(test, param_names, context)
+                && expression_only_uses_params_node(consequent, param_names, context)
+                && expression_only_uses_params_node(alternate, param_names, context)
+        }
+
+        JsNode::TemplateLiteral { expressions, .. } => {
+            for e in expressions {
+                if !expression_only_uses_params_node(e, param_names, context) {
+                    return false;
+                }
+            }
+            true
+        }
+
+        JsNode::ArrayExpression { elements, .. } => {
+            for e in elements.iter().flatten() {
+                if !expression_only_uses_params_node(e, param_names, context) {
+                    return false;
+                }
+            }
+            true
+        }
+
+        JsNode::ObjectExpression { properties, .. } => {
+            for prop in properties {
+                match prop {
+                    JsNode::Property {
+                        key,
+                        value,
+                        computed,
+                        ..
+                    } => {
+                        if *computed && !expression_only_uses_params_node(key, param_names, context)
+                        {
+                            return false;
+                        }
+                        if !expression_only_uses_params_node(value, param_names, context) {
+                            return false;
+                        }
+                    }
+                    JsNode::SpreadElement { argument, .. } => {
+                        if !expression_only_uses_params_node(argument, param_names, context) {
+                            return false;
+                        }
+                    }
+                    JsNode::Raw(v) => {
+                        // Fallback for Raw property nodes
+                        if let Some(prop_obj) = v.as_object() {
+                            if prop_obj
+                                .get("computed")
+                                .and_then(|c| c.as_bool())
+                                .unwrap_or(false)
+                                && let Some(key) = prop_obj.get("key")
+                                && !expression_only_uses_params(key, param_names, context)
+                            {
+                                return false;
+                            }
+                            if let Some(value) = prop_obj.get("value")
+                                && !expression_only_uses_params(value, param_names, context)
+                            {
+                                return false;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            true
+        }
+
+        JsNode::SpreadElement { argument, .. } => {
+            expression_only_uses_params_node(argument, param_names, context)
+        }
+
+        JsNode::UnaryExpression { argument, .. } | JsNode::UpdateExpression { argument, .. } => {
+            expression_only_uses_params_node(argument, param_names, context)
+        }
+
+        JsNode::AssignmentExpression { left, right, .. } => {
+            if !expression_only_uses_params_node(left, param_names, context) {
+                return false;
+            }
+            if !expression_only_uses_params_node(right, param_names, context) {
+                return false;
+            }
+            true
+        }
+
+        JsNode::SequenceExpression { expressions, .. } => {
+            for e in expressions {
+                if !expression_only_uses_params_node(e, param_names, context) {
+                    return false;
+                }
+            }
+            true
+        }
+
+        JsNode::ArrowFunctionExpression { .. } | JsNode::FunctionExpression { .. } => true,
+
+        // Fallback for Raw nodes: convert to JSON and use the JSON-based function
+        JsNode::Raw(v) => expression_only_uses_params(v, param_names, context),
+
+        _ => false,
+    }
+}
+
+/// Extract all names from a pattern (as JsNode).
+fn extract_pattern_names_node(node: &JsNode) -> Option<Vec<String>> {
+    match node {
+        JsNode::Identifier { name, .. } => Some(vec![name.to_string()]),
+
+        JsNode::ObjectPattern { properties, .. } => {
+            let mut names = Vec::new();
+            for prop in properties {
+                match prop {
+                    JsNode::Property { value, .. } => {
+                        // If value is AssignmentPattern, extract from left
+                        let actual = match value.as_ref() {
+                            JsNode::AssignmentPattern { left, .. } => left.as_ref(),
+                            other => other,
+                        };
+                        if let Some(inner_names) = extract_pattern_names_node(actual) {
+                            names.extend(inner_names);
+                        }
+                    }
+                    JsNode::RestElement { argument, .. } => {
+                        if let Some(inner_names) = extract_pattern_names_node(argument) {
+                            names.extend(inner_names);
+                        }
+                    }
+                    JsNode::Raw(v) => {
+                        // Fallback for Raw property nodes
+                        if let Some(prop_obj) = v.as_object() {
+                            if prop_obj.get("type").and_then(|t| t.as_str()) == Some("Property") {
+                                if let Some(value) = prop_obj.get("value") {
+                                    let actual_value = if value.get("type").and_then(|t| t.as_str())
+                                        == Some("AssignmentPattern")
+                                    {
+                                        value.get("left")
+                                    } else {
+                                        Some(value)
+                                    };
+                                    if let Some(v) = actual_value
+                                        && let Some(inner_names) = extract_pattern_names(v)
+                                    {
+                                        names.extend(inner_names);
+                                    }
+                                }
+                            } else if prop_obj.get("type").and_then(|t| t.as_str())
+                                == Some("RestElement")
+                                && let Some(arg) = prop_obj.get("argument")
+                                && let Some(inner_names) = extract_pattern_names(arg)
+                            {
+                                names.extend(inner_names);
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            Some(names)
+        }
+
+        JsNode::ArrayPattern { elements, .. } => {
+            let mut names = Vec::new();
+            for e in elements.iter().flatten() {
+                if let Some(inner_names) = extract_pattern_names_node(e) {
+                    names.extend(inner_names);
+                }
+            }
+            Some(names)
+        }
+
+        JsNode::AssignmentPattern { left, .. } => extract_pattern_names_node(left),
+
+        JsNode::RestElement { argument, .. } => extract_pattern_names_node(argument),
+
+        // Fallback for Raw nodes
+        JsNode::Raw(v) => extract_pattern_names(v),
+
+        _ => None,
+    }
+}
+
+/// Check if default values inside a destructuring pattern (as JsNode) are hoistable.
+fn check_pattern_defaults_hoistable_node(
+    node: &JsNode,
+    param_names: &FxHashSet<String>,
+    context: &VisitorContext,
+) -> bool {
+    match node {
+        JsNode::ObjectPattern { properties, .. } => {
+            for prop in properties {
+                match prop {
+                    JsNode::Property { value, .. } => {
+                        if !check_pattern_defaults_hoistable_node(value, param_names, context) {
+                            return false;
+                        }
+                    }
+                    JsNode::Raw(v) => {
+                        if let Some(prop_obj) = v.as_object()
+                            && let Some(value) = prop_obj.get("value")
+                            && !check_pattern_defaults_hoistable(value, param_names, context)
+                        {
+                            return false;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            true
+        }
+
+        JsNode::ArrayPattern { elements, .. } => {
+            for elem in elements {
+                if let Some(e) = elem
+                    && !check_pattern_defaults_hoistable_node(e, param_names, context)
+                {
+                    return false;
+                }
+            }
+            true
+        }
+
+        JsNode::AssignmentPattern { right, .. } => {
+            expression_only_uses_params_node(right, param_names, context)
+        }
+
+        // Fallback for Raw nodes
+        JsNode::Raw(v) => check_pattern_defaults_hoistable(v, param_names, context),
+
+        _ => true,
+    }
+}
+
 /// Check if snippet parameter default values are hoistable.
 /// Parameters with default values that reference instance-level state prevent hoisting.
 fn check_params_hoistable(
@@ -145,65 +478,53 @@ fn check_params_hoistable(
     context: &VisitorContext,
 ) -> bool {
     for param in params {
-        let val = param.as_json();
-        if let Some(obj) = val.as_object() {
-            let param_type = obj.get("type").and_then(|v| v.as_str());
-            if param_type == Some("AssignmentPattern")
-                && let Some(right) = obj.get("right")
-                && !expression_only_uses_params(right, param_names, context)
-            {
-                return false;
-            } else if param_type == Some("ObjectPattern") || param_type == Some("ArrayPattern") {
-                // Check default values inside destructuring patterns
-                if !check_pattern_defaults_hoistable(val, param_names, context) {
-                    return false;
+        match param {
+            Expression::Typed(te) => match &te.node {
+                JsNode::AssignmentPattern { right, .. } => {
+                    if !expression_only_uses_params_node(right, param_names, context) {
+                        return false;
+                    }
                 }
-            }
-        }
-    }
-    true
-}
-
-/// Check if default values inside a destructuring pattern are hoistable.
-fn check_pattern_defaults_hoistable(
-    val: &serde_json::Value,
-    param_names: &FxHashSet<String>,
-    context: &VisitorContext,
-) -> bool {
-    if let Some(obj) = val.as_object() {
-        let val_type = obj.get("type").and_then(|v| v.as_str());
-        match val_type {
-            Some("ObjectPattern") => {
-                if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
-                    for prop in props {
-                        if let Some(prop_obj) = prop.as_object()
-                            && let Some(value) = prop_obj.get("value")
-                            && !check_pattern_defaults_hoistable(value, param_names, context)
+                JsNode::ObjectPattern { .. } | JsNode::ArrayPattern { .. } => {
+                    if !check_pattern_defaults_hoistable_node(&te.node, param_names, context) {
+                        return false;
+                    }
+                }
+                JsNode::Raw(v) => {
+                    // Fallback for Raw nodes
+                    if let Some(obj) = v.as_object() {
+                        let param_type = obj.get("type").and_then(|v| v.as_str());
+                        if param_type == Some("AssignmentPattern")
+                            && let Some(right) = obj.get("right")
+                            && !expression_only_uses_params(right, param_names, context)
+                        {
+                            return false;
+                        } else if (param_type == Some("ObjectPattern")
+                            || param_type == Some("ArrayPattern"))
+                            && !check_pattern_defaults_hoistable(v, param_names, context)
                         {
                             return false;
                         }
                     }
                 }
-            }
-            Some("ArrayPattern") => {
-                if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
-                    for elem in elements {
-                        if !elem.is_null()
-                            && !check_pattern_defaults_hoistable(elem, param_names, context)
-                        {
-                            return false;
-                        }
+                _ => {}
+            },
+            Expression::Value(v) => {
+                if let Some(obj) = v.as_object() {
+                    let param_type = obj.get("type").and_then(|v| v.as_str());
+                    if param_type == Some("AssignmentPattern")
+                        && let Some(right) = obj.get("right")
+                        && !expression_only_uses_params(right, param_names, context)
+                    {
+                        return false;
+                    } else if (param_type == Some("ObjectPattern")
+                        || param_type == Some("ArrayPattern"))
+                        && !check_pattern_defaults_hoistable(v, param_names, context)
+                    {
+                        return false;
                     }
                 }
             }
-            Some("AssignmentPattern") => {
-                if let Some(right) = obj.get("right")
-                    && !expression_only_uses_params(right, param_names, context)
-                {
-                    return false;
-                }
-            }
-            _ => {}
         }
     }
     true
@@ -222,15 +543,14 @@ fn check_hoistable(
 
             // Expression tags - check if they only reference parameters
             TemplateNode::ExpressionTag(tag) => {
-                if !expression_only_uses_params(tag.expression.as_json(), param_names, context) {
+                if !expr_only_uses_params(&tag.expression, param_names, context) {
                     return false;
                 }
             }
 
             // HtmlTag - check its expression
             TemplateNode::HtmlTag(html_tag) => {
-                if !expression_only_uses_params(html_tag.expression.as_json(), param_names, context)
-                {
+                if !expr_only_uses_params(&html_tag.expression, param_names, context) {
                     return false;
                 }
             }
@@ -263,7 +583,7 @@ fn check_hoistable(
 
             // IfBlock - check test expression and all branches
             TemplateNode::IfBlock(if_block) => {
-                if !expression_only_uses_params(if_block.test.as_json(), param_names, context) {
+                if !expr_only_uses_params(&if_block.test, param_names, context) {
                     return false;
                 }
                 if !check_hoistable(&if_block.consequent.nodes, param_names, context) {
@@ -278,20 +598,15 @@ fn check_hoistable(
 
             // EachBlock - check iterable expression and body
             TemplateNode::EachBlock(each_block) => {
-                if !expression_only_uses_params(
-                    each_block.expression.as_json(),
-                    param_names,
-                    context,
-                ) {
+                if !expr_only_uses_params(&each_block.expression, param_names, context) {
                     return false;
                 }
                 let mut inner_params = param_names.clone();
-                if let Some(ref ctx) = each_block.context {
-                    let val = ctx.as_json();
-                    if let Some(names) = extract_pattern_names(val) {
-                        for n in names {
-                            inner_params.insert(n);
-                        }
+                if let Some(ref ctx) = each_block.context
+                    && let Some(names) = extract_pattern_names_for_expr(ctx)
+                {
+                    for n in names {
+                        inner_params.insert(n);
                     }
                 }
                 if let Some(ref index) = each_block.index {
@@ -309,11 +624,7 @@ fn check_hoistable(
 
             // AwaitBlock - check promise expression and all branches
             TemplateNode::AwaitBlock(await_block) => {
-                if !expression_only_uses_params(
-                    await_block.expression.as_json(),
-                    param_names,
-                    context,
-                ) {
+                if !expr_only_uses_params(&await_block.expression, param_names, context) {
                     return false;
                 }
                 if let Some(ref pending) = await_block.pending
@@ -323,12 +634,11 @@ fn check_hoistable(
                 }
                 if let Some(ref then_block) = await_block.then {
                     let mut inner_params = param_names.clone();
-                    if let Some(ref value) = await_block.value {
-                        let val = value.as_json();
-                        if let Some(name) = extract_pattern_names(val) {
-                            for n in name {
-                                inner_params.insert(n);
-                            }
+                    if let Some(ref value) = await_block.value
+                        && let Some(name) = extract_pattern_names_for_expr(value)
+                    {
+                        for n in name {
+                            inner_params.insert(n);
                         }
                     }
                     if !check_hoistable(&then_block.nodes, &inner_params, context) {
@@ -337,12 +647,11 @@ fn check_hoistable(
                 }
                 if let Some(ref catch_block) = await_block.catch {
                     let mut inner_params = param_names.clone();
-                    if let Some(ref error) = await_block.error {
-                        let val = error.as_json();
-                        if let Some(name) = extract_pattern_names(val) {
-                            for n in name {
-                                inner_params.insert(n);
-                            }
+                    if let Some(ref error) = await_block.error
+                        && let Some(name) = extract_pattern_names_for_expr(error)
+                    {
+                        for n in name {
+                            inner_params.insert(n);
                         }
                     }
                     if !check_hoistable(&catch_block.nodes, &inner_params, context) {
@@ -353,11 +662,7 @@ fn check_hoistable(
 
             // KeyBlock - check key expression and body
             TemplateNode::KeyBlock(key_block) => {
-                if !expression_only_uses_params(
-                    key_block.expression.as_json(),
-                    param_names,
-                    context,
-                ) {
+                if !expr_only_uses_params(&key_block.expression, param_names, context) {
                     return false;
                 }
                 if !check_hoistable(&key_block.fragment.nodes, param_names, context) {
@@ -367,7 +672,7 @@ fn check_hoistable(
 
             // RenderTag - check the expression
             TemplateNode::RenderTag(tag) => {
-                if !expression_only_uses_params(tag.expression.as_json(), param_names, context) {
+                if !expr_only_uses_params(&tag.expression, param_names, context) {
                     return false;
                 }
             }
@@ -405,11 +710,7 @@ fn check_attribute_hoistable(
             crate::ast::template::AttributeValue::Sequence(parts) => {
                 for p in parts {
                     if let crate::ast::template::AttributeValuePart::ExpressionTag(tag) = p
-                        && !expression_only_uses_params(
-                            tag.expression.as_json(),
-                            param_names,
-                            context,
-                        )
+                        && !expr_only_uses_params(&tag.expression, param_names, context)
                     {
                         return false;
                     }
@@ -417,22 +718,22 @@ fn check_attribute_hoistable(
                 true
             }
             crate::ast::template::AttributeValue::Expression(tag) => {
-                expression_only_uses_params(tag.expression.as_json(), param_names, context)
+                expr_only_uses_params(&tag.expression, param_names, context)
             }
             _ => true,
         },
         crate::ast::template::Attribute::BindDirective(bind) => {
-            expression_only_uses_params(bind.expression.as_json(), param_names, context)
+            expr_only_uses_params(&bind.expression, param_names, context)
         }
         crate::ast::template::Attribute::OnDirective(on) => {
             if let Some(ref expr) = on.expression {
-                expression_only_uses_params(expr.as_json(), param_names, context)
+                expr_only_uses_params(expr, param_names, context)
             } else {
                 true
             }
         }
         crate::ast::template::Attribute::SpreadAttribute(spread) => {
-            expression_only_uses_params(spread.expression.as_json(), param_names, context)
+            expr_only_uses_params(&spread.expression, param_names, context)
         }
         _ => true,
     }
@@ -440,11 +741,10 @@ fn check_attribute_hoistable(
 
 /// Extract ALL parameter names from a parameter expression (including destructured names).
 fn extract_all_param_names(param: &Expression) -> Vec<String> {
-    let val = param.as_json();
-    extract_pattern_names(val).unwrap_or_default()
+    extract_pattern_names_for_expr(param).unwrap_or_default()
 }
 
-/// Extract all names from a pattern (Identifier, ObjectPattern, ArrayPattern).
+/// Extract all names from a pattern (Identifier, ObjectPattern, ArrayPattern) - JSON version.
 fn extract_pattern_names(val: &serde_json::Value) -> Option<Vec<String>> {
     if let serde_json::Value::Object(obj) = val {
         let expr_type = obj.get("type").and_then(|v| v.as_str())?;
@@ -613,7 +913,7 @@ fn is_identifier_hoistable(
     }
 }
 
-/// Check if an expression only uses hoistable identifiers.
+/// Check if an expression only uses hoistable identifiers - JSON version.
 fn expression_only_uses_params(
     val: &serde_json::Value,
     param_names: &FxHashSet<String>,
@@ -789,6 +1089,51 @@ fn expression_only_uses_params(
     } else {
         true
     }
+}
+
+/// Check if default values inside a destructuring pattern are hoistable - JSON version.
+fn check_pattern_defaults_hoistable(
+    val: &serde_json::Value,
+    param_names: &FxHashSet<String>,
+    context: &VisitorContext,
+) -> bool {
+    if let Some(obj) = val.as_object() {
+        let val_type = obj.get("type").and_then(|v| v.as_str());
+        match val_type {
+            Some("ObjectPattern") => {
+                if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+                    for prop in props {
+                        if let Some(prop_obj) = prop.as_object()
+                            && let Some(value) = prop_obj.get("value")
+                            && !check_pattern_defaults_hoistable(value, param_names, context)
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+            Some("ArrayPattern") => {
+                if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
+                    for elem in elements {
+                        if !elem.is_null()
+                            && !check_pattern_defaults_hoistable(elem, param_names, context)
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+            Some("AssignmentPattern") => {
+                if let Some(right) = obj.get("right")
+                    && !expression_only_uses_params(right, param_names, context)
+                {
+                    return false;
+                }
+            }
+            _ => {}
+        }
+    }
+    true
 }
 
 /// Alias for visit function.

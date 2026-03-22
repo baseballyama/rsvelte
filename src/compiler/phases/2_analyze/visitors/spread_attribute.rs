@@ -5,7 +5,6 @@
 //! Corresponds to Svelte's `2-analyze/visitors/SpreadAttribute.js`.
 
 use super::VisitorContext;
-use crate::ast::js::Expression;
 use crate::ast::template::SpreadAttribute;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
@@ -19,7 +18,7 @@ pub fn visit(
 
     // Check if this is a $$restProps or $$props spread (for legacy mode)
     if !context.analysis.runes
-        && let Some(name) = get_identifier_name(&attribute.expression)
+        && let Some(name) = attribute.expression.identifier_name()
     {
         if name == "$$restProps" {
             context.analysis.uses_rest_props = true;
@@ -37,18 +36,4 @@ pub fn visit(
     super::script::walk_expression(&attribute.expression, context)?;
 
     Ok(())
-}
-
-/// Extract identifier name from an expression.
-fn get_identifier_name(expr: &Expression) -> Option<String> {
-    let val = expr.as_json();
-    if let Some(obj) = val.as_object()
-        && let Some("Identifier") = obj.get("type").and_then(|t| t.as_str())
-    {
-        return obj
-            .get("name")
-            .and_then(|n| n.as_str())
-            .map(|s| s.to_string());
-    }
-    None
 }

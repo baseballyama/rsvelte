@@ -672,18 +672,15 @@ fn has_sibling_combinator(selector: &CssComplexSelector) -> bool {
 
 /// Extract the callee name from a RenderTag expression.
 fn get_render_tag_callee_name(render_tag: &template::RenderTag) -> Option<String> {
-    let expr = render_tag.expression.as_json();
-    let expr = if expr.get("type").and_then(|t| t.as_str()) == Some("ChainExpression") {
-        expr.get("expression").unwrap_or(expr)
+    let expr_node = render_tag.expression.as_node();
+    let expr = if expr_node.node_type() == Some("ChainExpression") {
+        expr_node.expression_node().unwrap_or(&expr_node)
     } else {
-        expr
+        &*expr_node
     };
-    let callee = expr.get("callee")?;
-    if callee.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
-        callee
-            .get("name")
-            .and_then(|n| n.as_str())
-            .map(String::from)
+    let callee = expr.callee()?;
+    if callee.node_type() == Some("Identifier") {
+        callee.name().map(String::from)
     } else {
         None
     }

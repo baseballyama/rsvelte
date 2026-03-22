@@ -164,15 +164,13 @@ pub fn visit_attribute_value_expressions(
         }
         AttributeValue::Expression(expr_tag) => {
             // Visit the expression
-            let v = expr_tag.expression.as_json();
-            super::script::walk_js_node(v, context)?;
+            super::script::walk_expression(&expr_tag.expression, context)?;
         }
         AttributeValue::Sequence(parts) => {
             // Visit each expression tag in the sequence
             for part in parts {
                 if let AttributeValuePart::ExpressionTag(expr_tag) = part {
-                    let v = expr_tag.expression.as_json();
-                    super::script::walk_js_node(v, context)?;
+                    super::script::walk_expression(&expr_tag.expression, context)?;
                 }
             }
         }
