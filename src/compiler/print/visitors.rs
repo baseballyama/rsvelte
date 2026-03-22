@@ -8,8 +8,9 @@
 
 use super::Context;
 use super::helpers::{
-    LINE_BREAK_THRESHOLD, expression_to_string, format_program, is_shorthand_identifier,
-    is_void_element,
+    LINE_BREAK_THRESHOLD, format_program, format_program_from_source,
+    format_variable_declaration_from_source, is_shorthand_identifier, is_void_element,
+    source_expression_to_string,
 };
 use crate::ast::css::StyleSheet;
 use crate::ast::{
@@ -23,8 +24,6 @@ use crate::ast::{
 /// * `context` - The context to write to
 /// * `root` - The root AST node
 pub fn visit_root(context: &mut Context, root: &Root) {
-    let mut started = false;
-
     // Visit svelte:options if present
     if let Some(ref options) = root.options {
         context.write("<svelte:options");
@@ -35,45 +34,43 @@ pub fn visit_root(context: &mut Context, root: &Root) {
         }
 
         context.write(" />");
-        started = true;
     }
 
-    // Visit module script if present
+    // Iterate through [module, instance, fragment, css] like the official
+    let mut started = root.options.is_some();
+
     if let Some(ref module) = root.module {
         if started {
-            context.newline();
+            context.margin();
             context.newline();
         }
-
         visit_script(context, module);
         started = true;
     }
 
-    // Visit instance script if present
     if let Some(ref instance) = root.instance {
         if started {
-            context.newline();
+            context.margin();
             context.newline();
         }
-
         visit_script(context, instance);
         started = true;
     }
 
-    // Visit template fragment
-    if !root.fragment.nodes.is_empty() {
+    // Always visit fragment (even if empty), matching the official behavior
+    // which iterates [module, instance, fragment, css] and visits all non-null items.
+    {
         if started {
-            context.newline();
+            context.margin();
             context.newline();
         }
         visit_fragment(context, &root.fragment);
         started = true;
     }
 
-    // Visit CSS if present
     if let Some(ref css) = root.css {
         if started {
-            context.newline();
+            context.margin();
             context.newline();
         }
         visit_css_stylesheet(context, css);
@@ -89,9 +86,14 @@ fn visit_script(context: &mut Context, script: &crate::ast::Script) {
 
     context.write(">");
 
-    // Format and write script content using block()
-    let program = script.content.as_json();
-    let content = format_program(program);
+    // Format and write script content.
+    // Use source text for faithful reproduction when available.
+    let content = if let Some(source) = context.source {
+        format_program_from_source(&script.content, source)
+    } else {
+        let program = script.content.as_json();
+        format_program(program)
+    };
 
     if !content.is_empty() {
         context.indent();
@@ -140,14 +142,15 @@ fn visit_script_attributes(attributes: &[crate::ast::AttributeNode], context: &m
 /// Visit a fragment and generate its children.
 ///
 /// This implements the Fragment visitor from the official Svelte printer,
-/// which handles whitespace normalization and determines line breaks.
+/// which handles whitespace normalization, block element separation,
+/// and determines line breaks.
 ///
 /// # Arguments
 ///
 /// * `context` - The context to write to
 /// * `fragment` - The fragment node
 pub fn visit_fragment(context: &mut Context, fragment: &Fragment) {
-    // Group nodes into sequences separated by whitespace
+    // Group nodes into sequences separated by whitespace and block elements
     let mut items: Vec<Vec<ProcessedNode>> = Vec::new();
     let mut sequence: Vec<ProcessedNode> = Vec::new();
 
@@ -185,8 +188,7 @@ pub fn visit_fragment(context: &mut Context, fragment: &Fragment) {
             // If data starts with space and prev is not ExpressionTag, flush
             if data.starts_with(' ') && prev.is_some() && !is_expression_tag(prev) {
                 if !sequence.is_empty() {
-                    items.push(sequence);
-                    sequence = Vec::new();
+                    items.push(std::mem::take(&mut sequence));
                 }
                 data = data.trim_start().to_string();
             }
@@ -196,25 +198,34 @@ pub fn visit_fragment(context: &mut Context, fragment: &Fragment) {
 
                 // If data ends with space and next is not ExpressionTag, flush
                 if data.ends_with(' ') && next.is_some() && !is_expression_tag(next) {
-                    items.push(sequence);
-                    sequence = Vec::new();
+                    items.push(std::mem::take(&mut sequence));
                 }
             }
         } else {
+            // Check if this is a block element
+            let is_block = is_block_element(child_node);
+
+            if is_block && !sequence.is_empty() {
+                items.push(std::mem::take(&mut sequence));
+            }
+
             sequence.push(ProcessedNode::Node(child_node));
+
+            if is_block {
+                items.push(std::mem::take(&mut sequence));
+            }
         }
     }
 
-    if !sequence.is_empty() {
-        items.push(sequence);
-    }
+    items.push(sequence);
 
-    // Measure and create child contexts
+    // Filter out empty sequences and measure
     let mut multiline = false;
     let mut width = 0;
 
     let child_contexts: Vec<Context> = items
         .iter()
+        .filter(|seq| !seq.is_empty())
         .map(|seq| {
             let mut child_context = context.child();
 
@@ -250,13 +261,33 @@ pub fn visit_fragment(context: &mut Context, fragment: &Fragment) {
 
         if let Some(next_ctx) = next {
             if prev.multiline || next_ctx.multiline {
-                context.newline();
+                context.margin();
                 context.newline();
             } else if multiline {
                 context.newline();
             }
         }
     }
+}
+
+/// Check if a template node is a "block element" that should get its own sequence.
+/// Matches the official Svelte printer's is_block_element logic.
+fn is_block_element(node: &TemplateNode) -> bool {
+    matches!(
+        node,
+        TemplateNode::RegularElement(_)
+            | TemplateNode::Component(_)
+            | TemplateNode::SvelteHead(_)
+            | TemplateNode::SvelteFragment(_)
+            | TemplateNode::SvelteBoundary(_)
+            | TemplateNode::SvelteDocument(_)
+            | TemplateNode::SvelteSelf(_)
+            | TemplateNode::SvelteWindow(_)
+            | TemplateNode::SvelteComponent(_)
+            | TemplateNode::SvelteElement(_)
+            | TemplateNode::SlotElement(_)
+            | TemplateNode::TitleElement(_)
+    )
 }
 
 /// Helper enum for processed nodes in fragment
@@ -297,6 +328,7 @@ fn is_expression_tag(node: Option<&TemplateNode>) -> bool {
 /// * `context` - The context to write to
 /// * `node` - The template node to visit
 pub fn visit_template_node(context: &mut Context, node: &TemplateNode) {
+    let source = context.source;
     match node {
         TemplateNode::Text(text) => visit_text(context, text),
         TemplateNode::Comment(comment) => {
@@ -306,7 +338,7 @@ pub fn visit_template_node(context: &mut Context, node: &TemplateNode) {
         }
         TemplateNode::ExpressionTag(expr) => {
             context.write("{");
-            context.write(&expression_to_string(&expr.expression));
+            context.write(&source_expression_to_string(&expr.expression, source));
             context.write("}");
         }
         TemplateNode::RegularElement(element) => {
@@ -332,12 +364,19 @@ pub fn visit_template_node(context: &mut Context, node: &TemplateNode) {
         }
         TemplateNode::HtmlTag(tag) => {
             context.write("{@html ");
-            context.write(&expression_to_string(&tag.expression));
+            context.write(&source_expression_to_string(&tag.expression, source));
             context.write("}");
         }
         TemplateNode::ConstTag(tag) => {
-            context.write("{@const ");
-            context.write(&expression_to_string(&tag.declaration));
+            // Official: context.write('{@'); context.visit(node.declaration); context.write('}');
+            // The declaration is a VariableDeclaration. In Svelte's AST, the span
+            // doesn't include 'const' keyword. We need to generate "const x = expr;"
+            // from the AST structure.
+            context.write("{@");
+            context.write(&format_variable_declaration_from_source(
+                &tag.declaration,
+                source,
+            ));
             context.write("}");
         }
         TemplateNode::DebugTag(tag) => {
@@ -348,13 +387,13 @@ pub fn visit_template_node(context: &mut Context, node: &TemplateNode) {
                 } else {
                     context.write(", ");
                 }
-                context.write(&expression_to_string(ident));
+                context.write(&source_expression_to_string(ident, source));
             }
             context.write("}");
         }
         TemplateNode::RenderTag(tag) => {
             context.write("{@render ");
-            context.write(&expression_to_string(&tag.expression));
+            context.write(&source_expression_to_string(&tag.expression, source));
             context.write("}");
         }
         TemplateNode::SvelteComponent(comp) => {
@@ -395,7 +434,7 @@ pub fn visit_template_node(context: &mut Context, node: &TemplateNode) {
         }
         TemplateNode::AttachTag(tag) => {
             context.write("{@attach ");
-            context.write(&expression_to_string(&tag.expression));
+            context.write(&source_expression_to_string(&tag.expression, source));
             context.write("}");
         }
     }
@@ -431,6 +470,13 @@ fn visit_regular_element(context: &mut Context, element: &crate::ast::RegularEle
 
 /// Base element visitor that handles the common logic for all element types.
 /// This follows the official Svelte printer's base_element function.
+///
+/// The official implementation is simple:
+/// 1. Write to a child context
+/// 2. Call block() for content with allow_inline=true
+/// 3. Append to parent context
+///
+/// No extra newlines before or after.
 fn visit_base_element(
     context: &mut Context,
     name: &str,
@@ -439,6 +485,7 @@ fn visit_base_element(
     this_expr: Option<&crate::ast::js::Expression>,
     is_component: bool,
 ) {
+    let source = context.source;
     let mut child_context = context.child();
 
     child_context.write("<");
@@ -447,7 +494,7 @@ fn visit_base_element(
     // Handle 'this' attribute for svelte:component and svelte:element
     if let Some(expr) = this_expr {
         child_context.write(" this={");
-        child_context.write(&expression_to_string(expr));
+        child_context.write(&source_expression_to_string(expr, source));
         child_context.write("}");
     }
 
@@ -455,7 +502,6 @@ fn visit_base_element(
     let is_doctype_node = name.to_lowercase() == "!doctype";
     let is_void = is_void_element(name);
     let is_self_closing = is_void || (is_component && fragment.nodes.is_empty());
-    let mut multiline_content = false;
 
     if is_doctype_node {
         child_context.write(">");
@@ -467,54 +513,13 @@ fn visit_base_element(
         }
     } else {
         child_context.write(">");
-
-        // Process the element's content in a separate context for measurement
-        let mut content_context = child_context.child();
-        let allow_inline_content = child_context.measure() < LINE_BREAK_THRESHOLD;
-        block(&mut content_context, fragment, allow_inline_content);
-
-        // Determine if content should be formatted on multiple lines
-        multiline_content = content_context.measure() > LINE_BREAK_THRESHOLD;
-
-        if multiline_content {
-            child_context.newline();
-
-            // Only indent if attributes are inline and content itself isn't already multiline
-            let should_indent = !multiline_attributes && !content_context.multiline;
-            if should_indent {
-                child_context.indent();
-            }
-
-            child_context.append(&content_context);
-
-            if should_indent {
-                child_context.dedent();
-            }
-
-            child_context.newline();
-        } else {
-            child_context.append(&content_context);
-        }
-
+        block(&mut child_context, fragment, true);
         child_context.write("</");
         child_context.write(name);
         child_context.write(">");
     }
 
-    let break_line_after = child_context.measure() > LINE_BREAK_THRESHOLD;
-
-    if (multiline_content || multiline_attributes) && !context.empty() {
-        context.newline();
-    }
-
     context.append(&child_context);
-
-    if is_self_closing {
-        return;
-    }
-    if multiline_content || multiline_attributes || break_line_after {
-        context.newline();
-    }
 }
 
 /// Block helper function - processes content and handles inline vs multiline formatting.
@@ -583,6 +588,7 @@ fn visit_attributes(context: &mut Context, attributes: &[Attribute]) -> bool {
 /// * `context` - The context to write to
 /// * `attr` - The attribute node to visit
 fn visit_attribute_node(context: &mut Context, attr: &crate::ast::AttributeNode) {
+    let source = context.source;
     context.write(attr.name.as_str());
     match &attr.value {
         AttributeValue::True(_) => {
@@ -590,7 +596,7 @@ fn visit_attribute_node(context: &mut Context, attr: &crate::ast::AttributeNode)
         }
         AttributeValue::Expression(expr) => {
             context.write("={");
-            context.write(&expression_to_string(&expr.expression));
+            context.write(&source_expression_to_string(&expr.expression, source));
             context.write("}");
         }
         AttributeValue::Sequence(parts) => {
@@ -602,7 +608,7 @@ fn visit_attribute_node(context: &mut Context, attr: &crate::ast::AttributeNode)
                     }
                     AttributeValuePart::ExpressionTag(expr) => {
                         context.write("{");
-                        context.write(&expression_to_string(&expr.expression));
+                        context.write(&source_expression_to_string(&expr.expression, source));
                         context.write("}");
                     }
                 }
@@ -643,13 +649,14 @@ fn visit_json_attribute(context: &mut Context, attr: &serde_json::Value) {
 /// * `context` - The context to write to
 /// * `attribute` - The attribute to visit
 fn visit_attribute(context: &mut Context, attribute: &Attribute) {
+    let source = context.source;
     match attribute {
         Attribute::Attribute(attr) => {
             visit_attribute_node(context, attr);
         }
         Attribute::SpreadAttribute(spread) => {
             context.write("{...");
-            context.write(&expression_to_string(&spread.expression));
+            context.write(&source_expression_to_string(&spread.expression, source));
             context.write("}");
         }
         Attribute::BindDirective(dir) => {
@@ -659,7 +666,7 @@ fn visit_attribute(context: &mut Context, attribute: &Attribute) {
             // Shorthand detection: bind:value (expression is Identifier with name === "value")
             if !is_shorthand_identifier(&dir.expression, dir.name.as_str()) {
                 context.write("={");
-                context.write(&expression_to_string(&dir.expression));
+                context.write(&source_expression_to_string(&dir.expression, source));
                 context.write("}");
             }
         }
@@ -678,7 +685,7 @@ fn visit_attribute(context: &mut Context, attribute: &Attribute) {
                 && !is_shorthand_identifier(expr, dir.name.as_str())
             {
                 context.write("={");
-                context.write(&expression_to_string(expr));
+                context.write(&source_expression_to_string(expr, source));
                 context.write("}");
             }
         }
@@ -688,7 +695,7 @@ fn visit_attribute(context: &mut Context, attribute: &Attribute) {
 
             if !is_shorthand_identifier(&dir.expression, dir.name.as_str()) {
                 context.write("={");
-                context.write(&expression_to_string(&dir.expression));
+                context.write(&source_expression_to_string(&dir.expression, source));
                 context.write("}");
             }
         }
@@ -708,7 +715,7 @@ fn visit_attribute(context: &mut Context, attribute: &Attribute) {
                 }
                 AttributeValue::Expression(expr) => {
                     context.write("={");
-                    context.write(&expression_to_string(&expr.expression));
+                    context.write(&source_expression_to_string(&expr.expression, source));
                     context.write("}");
                 }
                 AttributeValue::Sequence(parts) => {
@@ -718,7 +725,8 @@ fn visit_attribute(context: &mut Context, attribute: &Attribute) {
                             AttributeValuePart::Text(text) => context.write(&text.raw),
                             AttributeValuePart::ExpressionTag(expr) => {
                                 context.write("{");
-                                context.write(&expression_to_string(&expr.expression));
+                                context
+                                    .write(&source_expression_to_string(&expr.expression, source));
                                 context.write("}");
                             }
                         }
@@ -751,7 +759,7 @@ fn visit_attribute(context: &mut Context, attribute: &Attribute) {
                 && !is_shorthand_identifier(expr, dir.name.as_str())
             {
                 context.write("={");
-                context.write(&expression_to_string(expr));
+                context.write(&source_expression_to_string(expr, source));
                 context.write("}");
             }
         }
@@ -763,7 +771,7 @@ fn visit_attribute(context: &mut Context, attribute: &Attribute) {
                 && !is_shorthand_identifier(expr, dir.name.as_str())
             {
                 context.write("={");
-                context.write(&expression_to_string(expr));
+                context.write(&source_expression_to_string(expr, source));
                 context.write("}");
             }
         }
@@ -775,7 +783,7 @@ fn visit_attribute(context: &mut Context, attribute: &Attribute) {
                 && !is_shorthand_identifier(expr, dir.name.as_str())
             {
                 context.write("={");
-                context.write(&expression_to_string(expr));
+                context.write(&source_expression_to_string(expr, source));
                 context.write("}");
             }
         }
@@ -787,13 +795,13 @@ fn visit_attribute(context: &mut Context, attribute: &Attribute) {
                 && !is_shorthand_identifier(expr, dir.name.as_str())
             {
                 context.write("={");
-                context.write(&expression_to_string(expr));
+                context.write(&source_expression_to_string(expr, source));
                 context.write("}");
             }
         }
         Attribute::AttachTag(attach) => {
             context.write("{@attach ");
-            context.write(&expression_to_string(&attach.expression));
+            context.write(&source_expression_to_string(&attach.expression, source));
             context.write("}");
         }
     }
@@ -813,15 +821,16 @@ fn visit_component(context: &mut Context, component: &crate::ast::Component) {
 
 /// Visit an if block.
 fn visit_if_block(context: &mut Context, if_block: &crate::ast::IfBlock) {
+    let source = context.source;
     if if_block.elseif {
         context.write("{:else if ");
-        context.write(&expression_to_string(&if_block.test));
+        context.write(&source_expression_to_string(&if_block.test, source));
         context.write("}");
 
         block(context, &if_block.consequent, false);
     } else {
         context.write("{#if ");
-        context.write(&expression_to_string(&if_block.test));
+        context.write(&source_expression_to_string(&if_block.test, source));
         context.write("}");
 
         block(context, &if_block.consequent, false);
@@ -849,12 +858,13 @@ fn visit_if_block(context: &mut Context, if_block: &crate::ast::IfBlock) {
 
 /// Visit an each block.
 fn visit_each_block(context: &mut Context, each_block: &crate::ast::EachBlock) {
+    let source = context.source;
     context.write("{#each ");
-    context.write(&expression_to_string(&each_block.expression));
+    context.write(&source_expression_to_string(&each_block.expression, source));
 
     if let Some(ref ctx_pattern) = each_block.context {
         context.write(" as ");
-        context.write(&expression_to_string(ctx_pattern));
+        context.write(&source_expression_to_string(ctx_pattern, source));
     }
 
     if let Some(ref index) = each_block.index {
@@ -864,7 +874,7 @@ fn visit_each_block(context: &mut Context, each_block: &crate::ast::EachBlock) {
 
     if let Some(ref key) = each_block.key {
         context.write(" (");
-        context.write(&expression_to_string(key));
+        context.write(&source_expression_to_string(key, source));
         context.write(")");
     }
 
@@ -882,8 +892,12 @@ fn visit_each_block(context: &mut Context, each_block: &crate::ast::EachBlock) {
 
 /// Visit an await block.
 fn visit_await_block(context: &mut Context, await_block: &crate::ast::AwaitBlock) {
+    let source = context.source;
     context.write("{#await ");
-    context.write(&expression_to_string(&await_block.expression));
+    context.write(&source_expression_to_string(
+        &await_block.expression,
+        source,
+    ));
 
     if await_block.pending.is_some() {
         context.write("}");
@@ -899,7 +913,7 @@ fn visit_await_block(context: &mut Context, await_block: &crate::ast::AwaitBlock
         if await_block.value.is_some() {
             context.write("then ");
             if let Some(ref value) = await_block.value {
-                context.write(&expression_to_string(value));
+                context.write(&source_expression_to_string(value, source));
             }
         } else {
             context.write("then");
@@ -917,7 +931,7 @@ fn visit_await_block(context: &mut Context, await_block: &crate::ast::AwaitBlock
         if await_block.error.is_some() {
             context.write("catch ");
             if let Some(ref error) = await_block.error {
-                context.write(&expression_to_string(error));
+                context.write(&source_expression_to_string(error, source));
             }
         } else {
             context.write("catch");
@@ -932,8 +946,9 @@ fn visit_await_block(context: &mut Context, await_block: &crate::ast::AwaitBlock
 
 /// Visit a key block.
 fn visit_key_block(context: &mut Context, key_block: &crate::ast::KeyBlock) {
+    let source = context.source;
     context.write("{#key ");
-    context.write(&expression_to_string(&key_block.expression));
+    context.write(&source_expression_to_string(&key_block.expression, source));
     context.write("}");
     block(context, &key_block.fragment, false);
     context.write("{/key}");
@@ -941,8 +956,9 @@ fn visit_key_block(context: &mut Context, key_block: &crate::ast::KeyBlock) {
 
 /// Visit a snippet block.
 fn visit_snippet_block(context: &mut Context, snippet: &crate::ast::SnippetBlock) {
+    let source = context.source;
     context.write("{#snippet ");
-    context.write(&expression_to_string(&snippet.expression));
+    context.write(&source_expression_to_string(&snippet.expression, source));
 
     if let Some(ref type_params) = snippet.type_params {
         context.write("<");
@@ -956,7 +972,7 @@ fn visit_snippet_block(context: &mut Context, snippet: &crate::ast::SnippetBlock
         if i > 0 {
             context.write(", ");
         }
-        context.write(&expression_to_string(param));
+        context.write(&source_expression_to_string(param, source));
     }
 
     context.write(")}");
@@ -966,10 +982,11 @@ fn visit_snippet_block(context: &mut Context, snippet: &crate::ast::SnippetBlock
 
 /// Visit a svelte:component element.
 fn visit_svelte_component(context: &mut Context, comp: &crate::ast::SvelteComponentElement) {
+    let source = context.source;
     let mut child_context = context.child();
 
     child_context.write("<svelte:component this={");
-    child_context.write(&expression_to_string(&comp.expression));
+    child_context.write(&source_expression_to_string(&comp.expression, source));
     child_context.write("}");
 
     let multiline_attributes = visit_attributes(&mut child_context, &comp.attributes);
@@ -991,10 +1008,11 @@ fn visit_svelte_component(context: &mut Context, comp: &crate::ast::SvelteCompon
 
 /// Visit a svelte:element (dynamic element).
 fn visit_svelte_dynamic_element(context: &mut Context, elem: &crate::ast::SvelteDynamicElement) {
+    let source = context.source;
     let mut child_context = context.child();
 
     child_context.write("<svelte:element this={");
-    child_context.write(&expression_to_string(&elem.tag));
+    child_context.write(&source_expression_to_string(&elem.tag, source));
     child_context.write("}");
 
     let multiline_attributes = visit_attributes(&mut child_context, &elem.attributes);
@@ -1043,6 +1061,29 @@ fn visit_css_stylesheet(context: &mut Context, stylesheet: &StyleSheet) {
 
     context.write(">");
 
+    // Try source-based approach: extract CSS content from source text and reformat.
+    // This is more reliable than reconstructing from the CSS AST, which may have
+    // parsing issues with @font-face declarations and keyframe percentage selectors.
+    if let Some(source) = context.source {
+        let css_content = extract_and_reformat_css(source, stylesheet);
+        if let Some(css) = css_content {
+            if !css.is_empty() {
+                context.indent();
+                context.newline();
+
+                for line in css.lines() {
+                    context.write(line);
+                    context.newline();
+                }
+
+                context.dedent();
+            }
+            context.write("</style>");
+            return;
+        }
+    }
+
+    // Fallback: use CSS AST visitors
     if !stylesheet.children.is_empty() {
         context.indent();
         context.newline();
@@ -1051,7 +1092,7 @@ fn visit_css_stylesheet(context: &mut Context, stylesheet: &StyleSheet) {
 
         for child in &stylesheet.children {
             if started {
-                context.newline();
+                context.margin();
                 context.newline();
             }
 
@@ -1064,4 +1105,365 @@ fn visit_css_stylesheet(context: &mut Context, stylesheet: &StyleSheet) {
     }
 
     context.write("</style>");
+}
+
+/// Extract CSS content from source and reformat with proper indentation.
+fn extract_and_reformat_css(source: &str, stylesheet: &StyleSheet) -> Option<String> {
+    // The stylesheet content is between start and end positions.
+    // But start/end include the <style> and </style> tags.
+    // We need to find the content between > and </style>.
+    let start = stylesheet.start as usize;
+    let end = stylesheet.end as usize;
+
+    if start >= end || end > source.len() {
+        return None;
+    }
+
+    let tag_text = &source[start..end];
+
+    // Find the end of the opening <style...> tag
+    let content_start = tag_text.find('>')? + 1;
+    // Find the start of the closing </style> tag
+    let content_end = tag_text.rfind("</style>")?;
+
+    let css_content = &tag_text[content_start..content_end];
+
+    // Split into top-level blocks by tracking brace depth
+    let blocks = split_css_top_level_blocks(css_content);
+
+    if blocks.is_empty() {
+        return Some(String::new());
+    }
+
+    // Reformat each block with tab indentation
+    let mut result_parts = Vec::new();
+    for block in &blocks {
+        let reformatted = reformat_css_block(block);
+        if !reformatted.is_empty() {
+            result_parts.push(reformatted);
+        }
+    }
+
+    Some(result_parts.join("\n\n"))
+}
+
+/// Split CSS content into top-level blocks (rules, at-rules).
+/// Returns trimmed block strings.
+fn split_css_top_level_blocks(css: &str) -> Vec<String> {
+    let mut blocks = Vec::new();
+    let mut depth = 0;
+    let mut current_start = 0;
+    let mut in_block = false;
+    let chars: Vec<char> = css.chars().collect();
+
+    let mut i = 0;
+    while i < chars.len() {
+        match chars[i] {
+            '{' => {
+                if depth == 0 {
+                    in_block = true;
+                }
+                depth += 1;
+            }
+            '}' => {
+                depth -= 1;
+                if depth == 0 && in_block {
+                    // End of top-level block
+                    let block_text: String = chars[current_start..=i].iter().collect();
+                    let trimmed = block_text.trim().to_string();
+                    if !trimmed.is_empty() {
+                        blocks.push(trimmed);
+                    }
+                    current_start = i + 1;
+                    in_block = false;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+
+    // Handle any remaining text (shouldn't happen in valid CSS)
+    let remaining: String = chars[current_start..].iter().collect();
+    let trimmed = remaining.trim().to_string();
+    if !trimmed.is_empty() {
+        blocks.push(trimmed);
+    }
+
+    blocks
+}
+
+/// Reformat a single CSS block with tab indentation.
+fn reformat_css_block(block: &str) -> String {
+    // Check if this is an at-rule
+    if block.starts_with('@') {
+        return reformat_css_at_rule(block);
+    }
+
+    // Regular rule: selector { declarations }
+    reformat_css_rule(block)
+}
+
+/// Reformat a CSS rule.
+fn reformat_css_rule(block: &str) -> String {
+    if let Some(brace_pos) = block.find('{') {
+        let selector = block[..brace_pos].trim();
+        let rest = &block[brace_pos + 1..];
+
+        if let Some(close_pos) = rest.rfind('}') {
+            let inner = rest[..close_pos].trim();
+
+            // Format the selector: split multiple selectors by comma onto separate lines
+            let formatted_selector = format_css_selector(selector);
+
+            if inner.is_empty() {
+                return format!("{} {{}}", formatted_selector);
+            }
+
+            // Check if inner contains nested blocks
+            if inner.contains('{') {
+                // Split declarations and nested blocks
+                let parts = split_css_declarations_and_blocks(inner);
+                let mut lines = vec![format!("{} {{", formatted_selector)];
+                for part in &parts {
+                    if part.contains('{') {
+                        // It's a nested block
+                        let reformatted = indent_lines(&reformat_css_block(part), "\t");
+                        lines.push(reformatted);
+                    } else {
+                        // It's a declaration
+                        let decl = part.trim();
+                        if !decl.is_empty() {
+                            let decl = decl.trim_end_matches(';').trim();
+                            lines.push(format!("\t{};", decl));
+                        }
+                    }
+                }
+                lines.push("}".to_string());
+                return lines.join("\n");
+            }
+
+            // Simple declarations
+            let mut lines = vec![format!("{} {{", formatted_selector)];
+            for decl in inner.split(';') {
+                let decl = decl.trim();
+                if !decl.is_empty() {
+                    lines.push(format!("\t{};", decl));
+                }
+            }
+            lines.push("}".to_string());
+            return lines.join("\n");
+        }
+    }
+
+    block.to_string()
+}
+
+/// Format CSS selector, splitting multiple selectors onto separate lines.
+fn format_css_selector(selector: &str) -> String {
+    // Split by commas that are not inside parentheses
+    let parts = split_top_level_commas(selector);
+    if parts.len() <= 1 {
+        return selector.to_string();
+    }
+
+    parts
+        .iter()
+        .map(|s| s.trim().to_string())
+        .collect::<Vec<_>>()
+        .join(",\n")
+}
+
+/// Split a string by commas that are not inside parentheses.
+fn split_top_level_commas(s: &str) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut depth = 0;
+    let mut start = 0;
+
+    for (i, ch) in s.char_indices() {
+        match ch {
+            '(' => depth += 1,
+            ')' => depth -= 1,
+            ',' if depth == 0 => {
+                parts.push(&s[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    parts.push(&s[start..]);
+    parts
+}
+
+/// Split inner CSS content into declarations and nested blocks.
+fn split_css_declarations_and_blocks(inner: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut depth = 0;
+    let mut current_start = 0;
+    let chars: Vec<char> = inner.chars().collect();
+
+    let mut i = 0;
+    while i < chars.len() {
+        match chars[i] {
+            '{' => {
+                depth += 1;
+            }
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    // End of a nested block - collect everything from current_start
+                    let block_text: String = chars[current_start..=i].iter().collect();
+                    let trimmed = block_text.trim().to_string();
+                    if !trimmed.is_empty() {
+                        parts.push(trimmed);
+                    }
+                    current_start = i + 1;
+                }
+            }
+            ';' if depth == 0 => {
+                // End of a declaration
+                let decl: String = chars[current_start..=i].iter().collect();
+                let trimmed = decl.trim().to_string();
+                if !trimmed.is_empty() {
+                    parts.push(trimmed);
+                }
+                current_start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+
+    // Handle remaining text
+    let remaining: String = chars[current_start..].iter().collect();
+    let trimmed = remaining.trim().to_string();
+    if !trimmed.is_empty() {
+        parts.push(trimmed);
+    }
+
+    parts
+}
+
+/// Reformat a CSS at-rule.
+fn reformat_css_at_rule(block: &str) -> String {
+    if let Some(brace_pos) = block.find('{') {
+        let prelude = block[..brace_pos].trim();
+        let rest = &block[brace_pos + 1..];
+
+        if let Some(close_pos) = rest.rfind('}') {
+            let inner = rest[..close_pos].trim();
+
+            if inner.is_empty() {
+                return format!("{} {{}}", prelude);
+            }
+
+            let is_keyframes = prelude.starts_with("@keyframes");
+
+            // Check if inner contains nested blocks (like @media, @keyframes)
+            if inner.contains('{') {
+                let nested_blocks = split_css_inner_blocks(inner);
+                let mut lines = vec![format!("{} {{", prelude)];
+                for nested in &nested_blocks {
+                    let mut reformatted = reformat_css_block(nested);
+                    // For keyframes, double the % in percentage selectors
+                    if is_keyframes {
+                        reformatted = double_keyframe_percentages(&reformatted);
+                    }
+                    lines.push(indent_lines(&reformatted, "\t"));
+                }
+                lines.push("}".to_string());
+                return lines.join("\n");
+            }
+
+            // Simple declarations (like @font-face)
+            let mut lines = vec![format!("{} {{", prelude)];
+            for decl in inner.split(';') {
+                let decl = decl.trim();
+                if !decl.is_empty() {
+                    lines.push(format!("\t{};", decl));
+                }
+            }
+            lines.push("}".to_string());
+            return lines.join("\n");
+        }
+    }
+
+    // No block, just the at-rule (like @import)
+    if !block.ends_with(';') {
+        format!("{};", block)
+    } else {
+        block.to_string()
+    }
+}
+
+/// Double percentage signs in keyframe selectors (e.g., "50%" -> "50%%").
+/// This matches the official Svelte printer behavior where esrap's Percentage
+/// visitor outputs "50%" but inside keyframes it becomes "50%%".
+fn double_keyframe_percentages(text: &str) -> String {
+    // Only double % in the prelude (before the {)
+    if let Some(brace_pos) = text.find('{') {
+        let prelude = &text[..brace_pos];
+        let rest = &text[brace_pos..];
+
+        // Check if prelude contains a percentage (digits followed by %)
+        let doubled_prelude = prelude.replace('%', "%%");
+        format!("{}{}", doubled_prelude, rest)
+    } else {
+        text.to_string()
+    }
+}
+
+/// Split inner CSS content into blocks (at brace depth 0).
+fn split_css_inner_blocks(inner: &str) -> Vec<String> {
+    let mut blocks = Vec::new();
+    let mut depth = 0;
+    let mut current_start = 0;
+    let chars: Vec<char> = inner.chars().collect();
+
+    let mut i = 0;
+    while i < chars.len() {
+        match chars[i] {
+            '{' => {
+                depth += 1;
+            }
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    let block_text: String = chars[current_start..=i].iter().collect();
+                    let trimmed = block_text.trim().to_string();
+                    if !trimmed.is_empty() {
+                        blocks.push(trimmed);
+                    }
+                    current_start = i + 1;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+
+    // Handle remaining declarations without braces
+    let remaining: String = chars[current_start..].iter().collect();
+    let trimmed = remaining.trim().to_string();
+    if !trimmed.is_empty() {
+        // These are standalone declarations, add them to the previous block
+        // or create a new one
+        blocks.push(trimmed);
+    }
+
+    blocks
+}
+
+/// Indent all lines of text by the given prefix.
+fn indent_lines(text: &str, prefix: &str) -> String {
+    text.lines()
+        .map(|line| {
+            if line.is_empty() {
+                String::new()
+            } else {
+                format!("{}{}", prefix, line)
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }

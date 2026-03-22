@@ -152,13 +152,20 @@ pub enum JsVariableKind {
     Const,
 }
 
+impl JsVariableKind {
+    #[inline]
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            JsVariableKind::Var => "var",
+            JsVariableKind::Let => "let",
+            JsVariableKind::Const => "const",
+        }
+    }
+}
+
 impl fmt::Display for JsVariableKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            JsVariableKind::Var => write!(f, "var"),
-            JsVariableKind::Let => write!(f, "let"),
-            JsVariableKind::Const => write!(f, "const"),
-        }
+        f.write_str(self.as_str())
     }
 }
 
@@ -535,9 +542,10 @@ pub enum JsBinaryOp {
     InstanceOf,
 }
 
-impl fmt::Display for JsBinaryOp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
+impl JsBinaryOp {
+    #[inline]
+    pub fn as_str(&self) -> &'static str {
+        match self {
             JsBinaryOp::Add => "+",
             JsBinaryOp::Sub => "-",
             JsBinaryOp::Mul => "*",
@@ -560,8 +568,13 @@ impl fmt::Display for JsBinaryOp {
             JsBinaryOp::UShr => ">>>",
             JsBinaryOp::In => "in",
             JsBinaryOp::InstanceOf => "instanceof",
-        };
-        write!(f, "{}", s)
+        }
+    }
+}
+
+impl fmt::Display for JsBinaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -581,14 +594,20 @@ pub enum JsLogicalOp {
     NullishCoalescing,
 }
 
-impl fmt::Display for JsLogicalOp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
+impl JsLogicalOp {
+    #[inline]
+    pub fn as_str(&self) -> &'static str {
+        match self {
             JsLogicalOp::And => "&&",
             JsLogicalOp::Or => "||",
             JsLogicalOp::NullishCoalescing => "??",
-        };
-        write!(f, "{}", s)
+        }
+    }
+}
+
+impl fmt::Display for JsLogicalOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -612,9 +631,10 @@ pub enum JsUnaryOp {
     Delete,
 }
 
-impl fmt::Display for JsUnaryOp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
+impl JsUnaryOp {
+    #[inline]
+    pub fn as_str(&self) -> &'static str {
+        match self {
             JsUnaryOp::Minus => "-",
             JsUnaryOp::Plus => "+",
             JsUnaryOp::Not => "!",
@@ -622,8 +642,13 @@ impl fmt::Display for JsUnaryOp {
             JsUnaryOp::TypeOf => "typeof",
             JsUnaryOp::Void => "void",
             JsUnaryOp::Delete => "delete",
-        };
-        write!(f, "{}", s)
+        }
+    }
+}
+
+impl fmt::Display for JsUnaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -642,13 +667,19 @@ pub enum JsUpdateOp {
     Decrement,
 }
 
-impl fmt::Display for JsUpdateOp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
+impl JsUpdateOp {
+    #[inline]
+    pub fn as_str(&self) -> &'static str {
+        match self {
             JsUpdateOp::Increment => "++",
             JsUpdateOp::Decrement => "--",
-        };
-        write!(f, "{}", s)
+        }
+    }
+}
+
+impl fmt::Display for JsUpdateOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -681,9 +712,10 @@ pub enum JsAssignmentOp {
     NullishAssign,
 }
 
-impl fmt::Display for JsAssignmentOp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
+impl JsAssignmentOp {
+    #[inline]
+    pub fn as_str(&self) -> &'static str {
+        match self {
             JsAssignmentOp::Assign => "=",
             JsAssignmentOp::AddAssign => "+=",
             JsAssignmentOp::SubAssign => "-=",
@@ -700,8 +732,13 @@ impl fmt::Display for JsAssignmentOp {
             JsAssignmentOp::AndAssign => "&&=",
             JsAssignmentOp::OrAssign => "||=",
             JsAssignmentOp::NullishAssign => "??=",
-        };
-        write!(f, "{}", s)
+        }
+    }
+}
+
+impl fmt::Display for JsAssignmentOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 

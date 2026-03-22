@@ -78,14 +78,14 @@ impl Parser<'_> {
         // This corresponds to CSS-Tree's lexer error handling in the official Svelte compiler.
         {
             let mut in_string = false;
-            let mut string_char = '\0';
+            let mut string_byte = 0u8;
             let mut in_block_comment = false;
-            let css_chars: Vec<char> = style_content.chars().collect();
+            let css_bytes = style_content.as_bytes();
             let mut i = 0;
-            while i < css_chars.len() {
-                let ch = css_chars[i];
+            while i < css_bytes.len() {
+                let ch = css_bytes[i];
                 if in_block_comment {
-                    if ch == '*' && i + 1 < css_chars.len() && css_chars[i + 1] == '/' {
+                    if ch == b'*' && i + 1 < css_bytes.len() && css_bytes[i + 1] == b'/' {
                         in_block_comment = false;
                         i += 2;
                         continue;
@@ -94,25 +94,25 @@ impl Parser<'_> {
                     continue;
                 }
                 if in_string {
-                    if ch == '\\' {
+                    if ch == b'\\' {
                         // Escape sequence - skip next char
                         i += 2;
                         continue;
                     }
-                    if ch == string_char {
+                    if ch == string_byte {
                         in_string = false;
                     }
                     i += 1;
                     continue;
                 }
-                if ch == '/' && i + 1 < css_chars.len() && css_chars[i + 1] == '*' {
+                if ch == b'/' && i + 1 < css_bytes.len() && css_bytes[i + 1] == b'*' {
                     in_block_comment = true;
                     i += 2;
                     continue;
                 }
-                if ch == '"' || ch == '\'' {
+                if ch == b'"' || ch == b'\'' {
                     in_string = true;
-                    string_char = ch;
+                    string_byte = ch;
                 }
                 i += 1;
             }
@@ -175,22 +175,31 @@ impl Parser<'_> {
             if !trimmed.is_empty() {
                 // Strip CSS comments to check if there's real content
                 let mut stripped = String::new();
-                let chars: Vec<char> = trimmed.chars().collect();
+                let bytes = trimmed.as_bytes();
                 let mut i = 0;
-                while i < chars.len() {
-                    if i + 1 < chars.len() && chars[i] == '/' && chars[i + 1] == '*' {
+                let mut segment_start = 0;
+                while i < bytes.len() {
+                    if i + 1 < bytes.len() && bytes[i] == b'/' && bytes[i + 1] == b'*' {
+                        // Flush non-comment segment
+                        if segment_start < i {
+                            stripped.push_str(&trimmed[segment_start..i]);
+                        }
                         // Skip block comment
                         i += 2;
-                        while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
+                        while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
                             i += 1;
                         }
-                        if i + 1 < chars.len() {
+                        if i + 1 < bytes.len() {
                             i += 2; // skip */
                         }
+                        segment_start = i;
                     } else {
-                        stripped.push(chars[i]);
                         i += 1;
                     }
+                }
+                // Flush remaining segment
+                if segment_start < bytes.len() {
+                    stripped.push_str(&trimmed[segment_start..]);
                 }
                 let stripped = stripped.trim();
                 if !stripped.is_empty()
@@ -581,20 +590,20 @@ impl<'a> CssParser<'a> {
     /// character in the source is the escape terminator and should be preserved
     /// in position calculations.
     fn ends_with_css_hex_escape(text: &str) -> bool {
-        let chars: Vec<char> = text.chars().collect();
-        let len = chars.len();
+        let bytes = text.as_bytes();
+        let len = bytes.len();
         if len < 2 {
             return false;
         }
 
         let mut i = 0;
         while i < len {
-            if chars[i] == '\\' && i + 1 < len {
+            if bytes[i] == b'\\' && i + 1 < len {
                 i += 1; // skip backslash
-                if chars[i].is_ascii_hexdigit() {
+                if bytes[i].is_ascii_hexdigit() {
                     // Hex escape: consume up to 6 hex digits
                     let mut hex_count = 0;
-                    while i < len && hex_count < 6 && chars[i].is_ascii_hexdigit() {
+                    while i < len && hex_count < 6 && bytes[i].is_ascii_hexdigit() {
                         i += 1;
                         hex_count += 1;
                     }
@@ -603,7 +612,7 @@ impl<'a> CssParser<'a> {
                         return true;
                     }
                     // Consume optional single whitespace terminator
-                    if chars[i] == ' ' || chars[i] == '\t' || chars[i] == '\n' {
+                    if bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\n' {
                         i += 1;
                     }
                 } else {
@@ -644,37 +653,37 @@ impl<'a> CssParser<'a> {
         let mut result = Vec::new();
         let mut current_start = 0;
         let mut i = 0;
-        let chars: Vec<char> = text.chars().collect();
+        let bytes = text.as_bytes();
         let mut last_combinator: Option<(char, usize, usize)> = None;
 
-        while i < chars.len() {
-            let c = chars[i];
+        while i < bytes.len() {
+            let c = bytes[i];
 
             // Skip CSS comments
-            if c == '/' && i + 1 < chars.len() && chars[i + 1] == '*' {
+            if c == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'*' {
                 i += 2; // skip /*
-                while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
                     i += 1;
                 }
-                if i + 1 < chars.len() {
+                if i + 1 < bytes.len() {
                     i += 2; // skip */
                 }
                 continue;
             }
 
             // Skip content in parentheses
-            if c == '(' {
+            if c == b'(' {
                 let mut depth = 1;
                 i += 1;
-                while i < chars.len() && depth > 0 {
+                while i < bytes.len() && depth > 0 {
                     // Handle escaped characters
-                    if chars[i] == '\\' && i + 1 < chars.len() {
+                    if bytes[i] == b'\\' && i + 1 < bytes.len() {
                         i += 2; // Skip backslash and next char
                         continue;
                     }
-                    if chars[i] == '(' {
+                    if bytes[i] == b'(' {
                         depth += 1;
-                    } else if chars[i] == ')' {
+                    } else if bytes[i] == b')' {
                         depth -= 1;
                     }
                     i += 1;
@@ -683,18 +692,18 @@ impl<'a> CssParser<'a> {
             }
 
             // Skip content in brackets
-            if c == '[' {
+            if c == b'[' {
                 let mut depth = 1;
                 i += 1;
-                while i < chars.len() && depth > 0 {
+                while i < bytes.len() && depth > 0 {
                     // Handle escaped characters
-                    if chars[i] == '\\' && i + 1 < chars.len() {
+                    if bytes[i] == b'\\' && i + 1 < bytes.len() {
                         i += 2; // Skip backslash and next char
                         continue;
                     }
-                    if chars[i] == '[' {
+                    if bytes[i] == b'[' {
                         depth += 1;
-                    } else if chars[i] == ']' {
+                    } else if bytes[i] == b']' {
                         depth -= 1;
                     }
                     i += 1;
@@ -706,18 +715,18 @@ impl<'a> CssParser<'a> {
             // Skip over escape sequences so we don't misinterpret their terminating
             // whitespace as a descendant combinator.
             // E.g., `.a\1f642 b` is a SINGLE class selector `.a🙂b`, not `.a🙂` descendant `b`.
-            if c == '\\' && i + 1 < chars.len() {
+            if c == b'\\' && i + 1 < bytes.len() {
                 i += 1; // skip backslash
-                if chars[i].is_ascii_hexdigit() {
+                if bytes[i].is_ascii_hexdigit() {
                     // Consume up to 6 hex digits
                     let mut hex_count = 0;
-                    while i < chars.len() && hex_count < 6 && chars[i].is_ascii_hexdigit() {
+                    while i < bytes.len() && hex_count < 6 && bytes[i].is_ascii_hexdigit() {
                         i += 1;
                         hex_count += 1;
                     }
                     // Consume optional single whitespace terminator
                     // This whitespace is part of the escape, NOT a combinator
-                    if i < chars.len() && chars[i].is_whitespace() {
+                    if i < bytes.len() && bytes[i].is_ascii_whitespace() {
                         i += 1;
                     }
                 } else {
@@ -728,7 +737,7 @@ impl<'a> CssParser<'a> {
             }
 
             // Check for combinators (+, >, ~)
-            if c == '+' || c == '>' || c == '~' {
+            if c == b'+' || c == b'>' || c == b'~' {
                 let selector_text = text[current_start..i].trim();
                 if !selector_text.is_empty() {
                     let selector_offset = base_offset + current_start;
@@ -742,11 +751,11 @@ impl<'a> CssParser<'a> {
 
                 let combinator_start = base_offset + i;
                 let combinator_end = combinator_start + 1;
-                last_combinator = Some((c, combinator_start, combinator_end));
+                last_combinator = Some((c as char, combinator_start, combinator_end));
 
                 i += 1;
                 // Skip whitespace after combinator
-                while i < chars.len() && chars[i].is_whitespace() {
+                while i < bytes.len() && bytes[i].is_ascii_whitespace() {
                     i += 1;
                 }
                 current_start = i;
@@ -754,35 +763,35 @@ impl<'a> CssParser<'a> {
             }
 
             // Check for descendant combinator (whitespace between selectors)
-            if c.is_whitespace() {
+            if c.is_ascii_whitespace() {
                 // Look ahead to see if this is followed by a selector (not a combinator)
                 let mut j = i + 1;
-                while j < chars.len() && chars[j].is_whitespace() {
+                while j < bytes.len() && bytes[j].is_ascii_whitespace() {
                     j += 1;
                 }
                 // Also skip comments in look-ahead
-                while j + 1 < chars.len() && chars[j] == '/' && chars[j + 1] == '*' {
+                while j + 1 < bytes.len() && bytes[j] == b'/' && bytes[j + 1] == b'*' {
                     j += 2; // skip /*
-                    while j + 1 < chars.len() && !(chars[j] == '*' && chars[j + 1] == '/') {
+                    while j + 1 < bytes.len() && !(bytes[j] == b'*' && bytes[j + 1] == b'/') {
                         j += 1;
                     }
-                    if j + 1 < chars.len() {
+                    if j + 1 < bytes.len() {
                         j += 2; // skip */
                     }
                     // Skip whitespace after comment
-                    while j < chars.len() && chars[j].is_whitespace() {
+                    while j < bytes.len() && bytes[j].is_ascii_whitespace() {
                         j += 1;
                     }
                 }
-                if j < chars.len() && !matches!(chars[j], '+' | '>' | '~' | ')' | ']') {
+                if j < bytes.len() && !matches!(bytes[j], b'+' | b'>' | b'~' | b')' | b']') {
                     // Check if next is a selector start
-                    if chars[j].is_alphabetic()
-                        || chars[j] == ':'
-                        || chars[j] == '.'
-                        || chars[j] == '#'
-                        || chars[j] == '['
-                        || chars[j] == '*'
-                        || chars[j] == '&'
+                    if bytes[j].is_ascii_alphabetic()
+                        || bytes[j] == b':'
+                        || bytes[j] == b'.'
+                        || bytes[j] == b'#'
+                        || bytes[j] == b'['
+                        || bytes[j] == b'*'
+                        || bytes[j] == b'&'
                     {
                         // This is a descendant combinator (space)
                         let selector_text = text[current_start..i].trim();
@@ -1093,24 +1102,24 @@ impl<'a> CssParser<'a> {
     /// by looking ahead to see if { comes before a declaration-style : (property: value)
     fn is_nested_rule(&self) -> bool {
         let remaining = &self.source[self.index..];
-        let chars: Vec<char> = remaining.chars().collect();
-        let mut depth = 0;
+        let bytes = remaining.as_bytes();
+        let mut depth: i32 = 0;
         let mut i = 0;
 
         // If it starts with & (nesting selector), it's always a nested rule
         // Skip the & and any following selector parts including pseudo-classes
-        if chars.first() == Some(&'&') {
+        if bytes.first() == Some(&b'&') {
             i = 1;
             // After &, skip any combination of selector parts
             // (identifiers, pseudo-classes like :hover, classes like .foo, etc.)
             // until we find a { which confirms it's a nested rule
-            while i < chars.len() {
-                let c = chars[i];
+            while i < bytes.len() {
+                let c = bytes[i];
                 match c {
-                    '(' | '[' => depth += 1,
-                    ')' | ']' => depth -= 1,
-                    '{' if depth == 0 => return true,
-                    ';' | '}' if depth == 0 => return false,
+                    b'(' | b'[' => depth += 1,
+                    b')' | b']' => depth -= 1,
+                    b'{' if depth == 0 => return true,
+                    b';' | b'}' if depth == 0 => return false,
                     _ => {}
                 }
                 i += 1;
@@ -1120,39 +1129,41 @@ impl<'a> CssParser<'a> {
 
         // If it starts with : followed by an identifier and then {, it's a pseudo-class selector
         // like :global { ... } or :hover { ... }
-        if chars.first() == Some(&':') {
+        if bytes.first() == Some(&b':') {
             // Skip past the pseudo-class/pseudo-element
             i = 1;
             // Skip any additional ':'
-            while i < chars.len() && chars[i] == ':' {
+            while i < bytes.len() && bytes[i] == b':' {
                 i += 1;
             }
             // Skip the identifier
-            while i < chars.len()
-                && (chars[i].is_alphanumeric() || chars[i] == '-' || chars[i] == '_')
+            while i < bytes.len()
+                && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'-' || bytes[i] == b'_')
             {
                 i += 1;
             }
         }
 
-        while i < chars.len() {
-            let c = chars[i];
+        while i < bytes.len() {
+            let c = bytes[i];
             match c {
-                '(' | '[' => depth += 1,
-                ')' | ']' => depth -= 1,
-                '{' if depth == 0 => return true,
-                ':' if depth == 0 => {
+                b'(' | b'[' => depth += 1,
+                b')' | b']' => depth -= 1,
+                b'{' if depth == 0 => return true,
+                b':' if depth == 0 => {
                     // Distinguish between property: value (declaration) and selector :pseudo-class
                     // If the ':' follows whitespace, it's likely a pseudo-class in a selector
                     // (e.g., "p :global", "div :hover")
                     // If the ':' directly follows a non-whitespace char, check if it's a pseudo-class
                     // (e.g., "header:has(&)", "div:hover") or a declaration (e.g., "color:", "font-size:")
-                    if i > 0 && chars[i - 1].is_whitespace() {
+                    if i > 0 && bytes[i - 1].is_ascii_whitespace() {
                         // ':' after whitespace - likely a pseudo-class selector, skip it
                         // Skip past the pseudo-class name
                         i += 1;
-                        while i < chars.len()
-                            && (chars[i].is_alphanumeric() || chars[i] == '-' || chars[i] == '_')
+                        while i < bytes.len()
+                            && (bytes[i].is_ascii_alphanumeric()
+                                || bytes[i] == b'-'
+                                || bytes[i] == b'_')
                         {
                             i += 1;
                         }
@@ -1166,16 +1177,18 @@ impl<'a> CssParser<'a> {
                     // pseudo-classes have an identifier (no whitespace) directly after `:`
                     let mut j = i + 1;
                     // Skip any additional ':' (for pseudo-elements like ::before)
-                    while j < chars.len() && chars[j] == ':' {
+                    while j < bytes.len() && bytes[j] == b':' {
                         j += 1;
                     }
                     // Check if an identifier follows directly (pseudo-class like :has, :hover, :is)
-                    if j < chars.len()
-                        && (chars[j].is_alphabetic() || chars[j] == '-' || chars[j] == '_')
+                    if j < bytes.len()
+                        && (bytes[j].is_ascii_alphabetic() || bytes[j] == b'-' || bytes[j] == b'_')
                     {
                         // Skip the identifier
-                        while j < chars.len()
-                            && (chars[j].is_alphanumeric() || chars[j] == '-' || chars[j] == '_')
+                        while j < bytes.len()
+                            && (bytes[j].is_ascii_alphanumeric()
+                                || bytes[j] == b'-'
+                                || bytes[j] == b'_')
                         {
                             j += 1;
                         }
@@ -1184,8 +1197,8 @@ impl<'a> CssParser<'a> {
                         // - '{' means it's a selector like div:hover { }
                         // - whitespace followed by '{' or selector parts means it's a selector
                         // - ',' means it's a selector list
-                        if j < chars.len()
-                            && (chars[j] == '(' || chars[j] == '{' || chars[j] == ',')
+                        if j < bytes.len()
+                            && (bytes[j] == b'(' || bytes[j] == b'{' || bytes[j] == b',')
                         {
                             // This is a pseudo-class selector, not a declaration
                             // Skip past the pseudo-class and continue checking
@@ -1193,13 +1206,13 @@ impl<'a> CssParser<'a> {
                             continue;
                         }
                         // Check if whitespace follows and then eventually a {
-                        if j < chars.len() && chars[j].is_whitespace() {
+                        if j < bytes.len() && bytes[j].is_ascii_whitespace() {
                             // Could be "div:hover {" or "font-size: 12px" - look ahead for '{'
                             let mut k = j;
-                            while k < chars.len() && chars[k].is_whitespace() {
+                            while k < bytes.len() && bytes[k].is_ascii_whitespace() {
                                 k += 1;
                             }
-                            if k < chars.len() && chars[k] == '{' {
+                            if k < bytes.len() && bytes[k] == b'{' {
                                 // "selector:pseudo {" - it's a nested rule
                                 return true;
                             }
@@ -1215,7 +1228,7 @@ impl<'a> CssParser<'a> {
                     // ':' not followed by identifier - this is a property: value declaration
                     return false;
                 }
-                ';' | '}' if depth == 0 => return false,
+                b';' | b'}' if depth == 0 => return false,
                 _ => {}
             }
             i += 1;
@@ -1983,25 +1996,25 @@ impl<'a> SelectorParser<'a> {
         let mut result = Vec::new();
         let mut current_start = 0;
         let mut i = 0;
-        let chars: Vec<char> = text.chars().collect();
+        let bytes = text.as_bytes();
         let mut last_combinator: Option<(char, usize, usize)> = None;
 
-        while i < chars.len() {
-            let c = chars[i];
+        while i < bytes.len() {
+            let c = bytes[i];
 
             // Skip content in parentheses
-            if c == '(' {
+            if c == b'(' {
                 let mut depth = 1;
                 i += 1;
-                while i < chars.len() && depth > 0 {
+                while i < bytes.len() && depth > 0 {
                     // Handle escaped characters
-                    if chars[i] == '\\' && i + 1 < chars.len() {
+                    if bytes[i] == b'\\' && i + 1 < bytes.len() {
                         i += 2; // Skip backslash and next char
                         continue;
                     }
-                    if chars[i] == '(' {
+                    if bytes[i] == b'(' {
                         depth += 1;
-                    } else if chars[i] == ')' {
+                    } else if bytes[i] == b')' {
                         depth -= 1;
                     }
                     i += 1;
@@ -2010,15 +2023,15 @@ impl<'a> SelectorParser<'a> {
             }
 
             // Handle CSS escape sequences in :has()/:is()/:not() argument parsing too
-            if c == '\\' && i + 1 < chars.len() {
+            if c == b'\\' && i + 1 < bytes.len() {
                 i += 1;
-                if chars[i].is_ascii_hexdigit() {
+                if bytes[i].is_ascii_hexdigit() {
                     let mut hex_count = 0;
-                    while i < chars.len() && hex_count < 6 && chars[i].is_ascii_hexdigit() {
+                    while i < bytes.len() && hex_count < 6 && bytes[i].is_ascii_hexdigit() {
                         i += 1;
                         hex_count += 1;
                     }
-                    if i < chars.len() && chars[i].is_whitespace() {
+                    if i < bytes.len() && bytes[i].is_ascii_whitespace() {
                         i += 1;
                     }
                 } else {
@@ -2028,7 +2041,7 @@ impl<'a> SelectorParser<'a> {
             }
 
             // Check for combinators
-            if c == '+' || c == '>' || c == '~' {
+            if c == b'+' || c == b'>' || c == b'~' {
                 // Found a combinator
                 let selector_text = text[current_start..i].trim();
                 if !selector_text.is_empty() {
@@ -2043,11 +2056,11 @@ impl<'a> SelectorParser<'a> {
 
                 let combinator_start = base_offset + i;
                 let combinator_end = combinator_start + 1;
-                last_combinator = Some((c, combinator_start, combinator_end));
+                last_combinator = Some((c as char, combinator_start, combinator_end));
 
                 i += 1;
                 // Skip whitespace after combinator
-                while i < chars.len() && chars[i].is_whitespace() {
+                while i < bytes.len() && bytes[i].is_ascii_whitespace() {
                     i += 1;
                 }
                 current_start = i;
@@ -2055,22 +2068,24 @@ impl<'a> SelectorParser<'a> {
             }
 
             // Check for descendant combinator (whitespace between selectors)
-            if c.is_whitespace() {
+            if c.is_ascii_whitespace() {
                 // Look ahead to see if this is followed by a selector (not a combinator)
                 let mut j = i + 1;
-                while j < chars.len() && chars[j].is_whitespace() {
+                while j < bytes.len() && bytes[j].is_ascii_whitespace() {
                     j += 1;
                 }
-                if j < chars.len() && !matches!(chars[j], '+' | '>' | '~' | ')') && chars[j] != '('
+                if j < bytes.len()
+                    && !matches!(bytes[j], b'+' | b'>' | b'~' | b')')
+                    && bytes[j] != b'('
                 {
                     // Check if next is a selector start
-                    if chars[j].is_alphabetic()
-                        || chars[j] == ':'
-                        || chars[j] == '.'
-                        || chars[j] == '#'
-                        || chars[j] == '['
-                        || chars[j] == '*'
-                        || chars[j] == '&'
+                    if bytes[j].is_ascii_alphabetic()
+                        || bytes[j] == b':'
+                        || bytes[j] == b'.'
+                        || bytes[j] == b'#'
+                        || bytes[j] == b'['
+                        || bytes[j] == b'*'
+                        || bytes[j] == b'&'
                     {
                         // This is a descendant combinator (space)
                         let selector_text = text[current_start..i].trim();

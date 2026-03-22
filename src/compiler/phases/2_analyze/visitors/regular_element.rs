@@ -1072,10 +1072,9 @@ pub fn visit(
         }
     }
 
-    // Save parent element and set new one
-    let old_parent = context.parent_element.clone();
+    // Save parent element and set new one (use Option::replace to avoid clone)
+    let old_parent = context.parent_element.replace(element.name.to_string());
     let is_root_a_tag = element.name == "a" && old_parent.is_none();
-    context.parent_element = Some(element.name.to_string());
 
     // Increment element depth for child analysis
     context.element_depth += 1;
@@ -1168,37 +1167,41 @@ pub fn visit(
                         // references (used in the template), excluding the binding itself.
                         // This correctly excludes bindings only referenced inside nested
                         // function bodies (which have is_template_reference = false).
+                        //
+                        // We collect indirect_names first (read-only access to declarations
+                        // and bindings), then mutate the target binding separately to avoid
+                        // cloning the entire declarations HashMap.
                         let mut indirect_names: Vec<String> = Vec::new();
-                        let scope_declarations =
-                            if context.analysis.root.all_scopes.len() > scope_idx {
-                                context.analysis.root.all_scopes[scope_idx]
-                                    .declarations
-                                    .clone()
-                            } else {
-                                context.analysis.root.scope.declarations.clone()
-                            };
+                        {
+                            let scope_declarations =
+                                if context.analysis.root.all_scopes.len() > scope_idx {
+                                    &context.analysis.root.all_scopes[scope_idx].declarations
+                                } else {
+                                    &context.analysis.root.scope.declarations
+                                };
 
-                        for (name, &other_idx) in &scope_declarations {
-                            if name == root_name {
-                                continue;
-                            }
-                            if let Some(other_binding) =
-                                context.analysis.root.bindings.get(other_idx)
-                            {
-                                let has_template_ref = other_binding
-                                    .references
-                                    .iter()
-                                    .any(|r| r.is_template_reference);
-                                if has_template_ref {
-                                    indirect_names.push(name.clone());
+                            for (name, &other_idx) in scope_declarations {
+                                if name == root_name {
+                                    continue;
+                                }
+                                if let Some(other_binding) =
+                                    context.analysis.root.bindings.get(other_idx)
+                                {
+                                    let has_template_ref = other_binding
+                                        .references
+                                        .iter()
+                                        .any(|r| r.is_template_reference);
+                                    if has_template_ref {
+                                        indirect_names.push(name.clone());
+                                    }
                                 }
                             }
                         }
 
                         let binding = &mut context.analysis.root.bindings[binding_idx];
-                        for name in &indirect_names {
-                            if !binding.legacy_indirect_bindings.contains(name) {
-                                binding.legacy_indirect_bindings.push(name.clone());
+                        for name in indirect_names {
+                            if !binding.legacy_indirect_bindings.contains(&name) {
+                                binding.legacy_indirect_bindings.push(name);
                             }
                         }
                     }

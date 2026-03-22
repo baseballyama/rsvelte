@@ -166,6 +166,20 @@ fn transform_script_content_inner(
         result.pop();
     }
 
+    // Post-processing: add missing semicolons to multi-line let/const/var declarations.
+    // When a declaration spans multiple lines (e.g., `let b = (() => {\n...\n})()`),
+    // the last line may lack a semicolon because `add_statement_semicolon` only checks
+    // individual lines. We detect this by tracking bracket depth across lines.
+    result = fix_multiline_declaration_semicolons(&result);
+
+    // Normalize IIFE patterns: (function(a){...}(args)) → (function(a){...})(args)
+    // The official Svelte compiler's AST printer (esrap) normalizes these automatically.
+    result = normalize_iife_parens(&result);
+
+    // Strip unnecessary parens around arrow functions: (() => { ... }) → () => { ... }
+    // when they're not part of an IIFE call.
+    result = strip_arrow_function_parens(&result);
+
     // In legacy mode (non-module, non-runes), reorder $: reactive statements
     // to appear after function declarations (to match official Svelte SSR behavior)
     if !is_module {
@@ -1320,11 +1334,98 @@ fn params_contain_name(params: &str, name: &str) -> bool {
     false
 }
 
+/// Fix missing semicolons on multi-line let/const/var declarations.
+///
+/// When a declaration like `let b = (() => { return a; })()` spans multiple lines,
+/// the last line `})()` may lack a trailing semicolon. This function detects such
+/// patterns and adds the missing semicolon.
+fn fix_multiline_declaration_semicolons(script: &str) -> String {
+    let lines: Vec<&str> = script.lines().collect();
+    let mut result_lines: Vec<String> = Vec::with_capacity(lines.len());
+    let mut in_multiline_decl = false;
+    let mut decl_bracket_depth: i32 = 0;
+
+    for &line in &lines {
+        let trimmed = line.trim();
+
+        if !in_multiline_decl {
+            if (trimmed.starts_with("let ")
+                || trimmed.starts_with("const ")
+                || trimmed.starts_with("var "))
+                && !trimmed.ends_with(';')
+            {
+                // Count brackets on this line
+                let depth = count_bracket_depth(trimmed);
+                if depth > 0 {
+                    in_multiline_decl = true;
+                    decl_bracket_depth = depth;
+                }
+            }
+            result_lines.push(line.to_string());
+        } else {
+            decl_bracket_depth += count_bracket_depth(trimmed);
+            if decl_bracket_depth <= 0 {
+                if trimmed.ends_with(',') {
+                    // Another declarator follows
+                    decl_bracket_depth = 0;
+                    result_lines.push(line.to_string());
+                } else {
+                    in_multiline_decl = false;
+                    // End of multi-line declaration: ensure semicolon
+                    if !trimmed.ends_with(';') && !trimmed.is_empty() {
+                        let indent = &line[..line.len() - line.trim_start().len()];
+                        result_lines.push(format!("{}{};", indent, trimmed));
+                    } else {
+                        result_lines.push(line.to_string());
+                    }
+                }
+            } else {
+                result_lines.push(line.to_string());
+            }
+        }
+    }
+
+    result_lines.join("\n")
+}
+
+/// Count bracket depth change for a line (positive = more opens, negative = more closes).
+fn count_bracket_depth(line: &str) -> i32 {
+    let mut depth: i32 = 0;
+    let mut in_str = false;
+    let mut str_ch = ' ';
+    for ch in line.chars() {
+        if in_str {
+            if ch == str_ch {
+                in_str = false;
+            }
+            continue;
+        }
+        match ch {
+            '\'' | '"' | '`' => {
+                in_str = true;
+                str_ch = ch;
+            }
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            _ => {}
+        }
+    }
+    depth
+}
+
 fn add_statement_semicolon(line: &str) -> String {
     let trimmed = line.trim();
 
     if trimmed.is_empty() {
         return line.to_string();
+    }
+
+    // Strip trailing `;` from lines that are just `};` (block close + empty statement).
+    // The official Svelte compiler strips these redundant empty statements.
+    // e.g., `$: { ... };` → the closing `};` becomes just `}`
+    if trimmed == "};" {
+        let indent = &line[..line.len() - line.trim_start().len()];
+        return format!("{}}}", indent);
     }
 
     // Lines that are already terminated or are block delimiters
@@ -3243,4 +3344,285 @@ fn split_name_default(s: &str) -> (&str, Option<&str>) {
     } else {
         (s, None)
     }
+}
+
+/// Normalize IIFE patterns: `(function(a){...}(args))` → `(function(a){...})(args)`
+///
+/// The official Svelte compiler uses an AST printer (esrap) which normalizes
+/// IIFE parens automatically. Since we work with text, we need to do it manually.
+///
+/// The pattern we look for is:
+/// `(function` ... function body `}` ... `(` args `)` `)` where the outer parens
+/// wrap the entire call expression. We move the outer closing `)` to just after
+/// the function body `}`, turning it into `(function...body)(args)`.
+pub(crate) fn normalize_iife_parens(s: &str) -> String {
+    let chars: Vec<char> = s.chars().collect();
+    let len = chars.len();
+    let mut result = String::with_capacity(s.len());
+    let mut i = 0;
+
+    while i < len {
+        // Look for `(function` pattern (not inside strings)
+        if chars[i] == '('
+            && i + 9 < len
+            && &s[i + 1..i + 9] == "function"
+            && !chars[i + 9].is_alphanumeric()
+        {
+            // Try to match the IIFE pattern
+            if let Some((end_pos, new_form)) = try_normalize_iife(&chars, i) {
+                result.push_str(&new_form);
+                i = end_pos;
+                continue;
+            }
+        }
+        result.push(chars[i]);
+        i += 1;
+    }
+
+    result
+}
+
+/// Try to normalize an IIFE starting at position `start`.
+/// Returns `Some((end_pos, normalized_form))` on success.
+fn try_normalize_iife(chars: &[char], start: usize) -> Option<(usize, String)> {
+    let len = chars.len();
+    // chars[start] == '('
+    // chars[start+1..] starts with "function"
+
+    // Find the function body: skip params, find the opening `{` of the body
+    let mut i = start + 1; // skip `(`
+    // Skip past `function` and optional name
+    i += 8; // "function"
+    // Skip optional function name (identifier chars)
+    while i < len && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '$') {
+        i += 1;
+    }
+    // Skip whitespace
+    while i < len && chars[i].is_whitespace() {
+        i += 1;
+    }
+    // Should be `(` for params
+    if i >= len || chars[i] != '(' {
+        return None;
+    }
+    // Find matching `)` for params
+    let mut depth = 1;
+    i += 1;
+    while i < len && depth > 0 {
+        match chars[i] {
+            '(' => depth += 1,
+            ')' => depth -= 1,
+            '"' | '\'' | '`' => {
+                let q = chars[i];
+                i += 1;
+                while i < len && chars[i] != q {
+                    if chars[i] == '\\' {
+                        i += 1;
+                    }
+                    i += 1;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    // Skip whitespace
+    while i < len && chars[i].is_whitespace() {
+        i += 1;
+    }
+    // Should be `{` for function body
+    if i >= len || chars[i] != '{' {
+        return None;
+    }
+    // Find matching `}` for body
+    depth = 1;
+    i += 1;
+    let mut in_string = false;
+    let mut string_char = ' ';
+    while i < len && depth > 0 {
+        let c = chars[i];
+        if in_string {
+            if c == '\\' {
+                i += 2;
+                continue;
+            }
+            if c == string_char {
+                in_string = false;
+            }
+        } else if c == '"' || c == '\'' || c == '`' {
+            in_string = true;
+            string_char = c;
+        } else {
+            match c {
+                '{' => depth += 1,
+                '}' => depth -= 1,
+                _ => {}
+            }
+        }
+        i += 1;
+    }
+    // i is now just past the closing `}` of the function body
+    let func_end = i; // position after `}`
+
+    // Skip optional whitespace/newlines
+    while i < len && chars[i].is_whitespace() {
+        i += 1;
+    }
+
+    // Should be `(` for the call arguments
+    if i >= len || chars[i] != '(' {
+        return None;
+    }
+    let args_start = i;
+    // Find matching `)` for call args
+    depth = 1;
+    i += 1;
+    in_string = false;
+    while i < len && depth > 0 {
+        let c = chars[i];
+        if in_string {
+            if c == '\\' {
+                i += 2;
+                continue;
+            }
+            if c == string_char {
+                in_string = false;
+            }
+        } else if c == '"' || c == '\'' || c == '`' {
+            in_string = true;
+            string_char = c;
+        } else {
+            match c {
+                '(' => depth += 1,
+                ')' => depth -= 1,
+                _ => {}
+            }
+        }
+        i += 1;
+    }
+    let args_end = i; // position after `)` of call args
+
+    // Should be `)` for the outer wrapper
+    if i >= len || chars[i] != ')' {
+        return None;
+    }
+    let outer_end = i + 1; // position after outer `)`
+
+    // Build normalized form: (function...body)(args)
+    let func_part: String = chars[start..func_end].iter().collect();
+    let args_part: String = chars[args_start..args_end].iter().collect();
+    let normalized = format!("{}){}", func_part, args_part);
+
+    Some((outer_end, normalized))
+}
+
+/// Strip unnecessary parens around arrow function expressions.
+///
+/// Converts `(() => { ... })` to `() => { ... }` when the closing `)` is NOT
+/// followed by `(` (which would indicate an IIFE call that needs the parens).
+///
+/// The official Svelte compiler's AST representation doesn't include
+/// ParenthesizedExpression nodes (acorn strips them), so when it reprints
+/// the AST, arrow functions never have unnecessary wrapping parens.
+pub(crate) fn strip_arrow_function_parens(s: &str) -> String {
+    let chars: Vec<char> = s.chars().collect();
+    let len = chars.len();
+    let mut result = String::with_capacity(s.len());
+    let mut i = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    while i < len {
+        let c = chars[i];
+
+        // Track string boundaries
+        if in_string {
+            if c == '\\' && i + 1 < len {
+                result.push(c);
+                result.push(chars[i + 1]);
+                i += 2;
+                continue;
+            }
+            if c == string_char {
+                in_string = false;
+            }
+            result.push(c);
+            i += 1;
+            continue;
+        }
+        if c == '"' || c == '\'' || c == '`' {
+            in_string = true;
+            string_char = c;
+            result.push(c);
+            i += 1;
+            continue;
+        }
+
+        // Look for `(() =>` pattern - but only when `(` is NOT a function call.
+        // If preceded by an identifier char, `)`, or `]`, it's a call, not wrapping parens.
+        if c == '(' && i + 5 < len {
+            let prev_is_call = {
+                let mut k = if i > 0 { i - 1 } else { 0 };
+                while k > 0 && chars[k].is_whitespace() {
+                    k -= 1;
+                }
+                let pc = if i > 0 { chars[k] } else { ' ' };
+                i > 0 && (pc.is_alphanumeric() || pc == '_' || pc == '$' || pc == ')' || pc == ']')
+            };
+            let ahead: String = chars[i + 1..std::cmp::min(i + 7, len)].iter().collect();
+            if !prev_is_call && ahead.starts_with("() =>") {
+                // Find the matching `)` for the outer parens
+                let inner_start = i + 1;
+                let mut depth = 1;
+                let mut j = inner_start;
+                let mut j_in_string = false;
+                let mut j_string_char = ' ';
+                while j < len && depth > 0 {
+                    let jc = chars[j];
+                    if j_in_string {
+                        if jc == '\\' {
+                            j += 1;
+                        } else if jc == j_string_char {
+                            j_in_string = false;
+                        }
+                    } else if jc == '"' || jc == '\'' || jc == '`' {
+                        j_in_string = true;
+                        j_string_char = jc;
+                    } else {
+                        match jc {
+                            '(' => depth += 1,
+                            ')' => depth -= 1,
+                            _ => {}
+                        }
+                    }
+                    if depth > 0 {
+                        j += 1;
+                    }
+                }
+                // j is at the closing `)` of the outer parens
+                if depth == 0 {
+                    // Check that `)` is NOT followed by `(` (which would be an IIFE)
+                    let next_non_ws = {
+                        let mut k = j + 1;
+                        while k < len && chars[k].is_whitespace() {
+                            k += 1;
+                        }
+                        if k < len { Some(chars[k]) } else { None }
+                    };
+                    if next_non_ws != Some('(') {
+                        // Safe to strip the outer parens
+                        let inner: String = chars[inner_start..j].iter().collect();
+                        result.push_str(&inner);
+                        i = j + 1;
+                        continue;
+                    }
+                }
+            }
+        }
+
+        result.push(c);
+        i += 1;
+    }
+
+    result
 }

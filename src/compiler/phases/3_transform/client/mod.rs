@@ -50,7 +50,7 @@ use regex::Regex;
 use super::TransformError;
 use super::js_ast::{
     builders::{self as b},
-    codegen::{CodegenResult, generate_with_sourcemap},
+    codegen::{CodegenResult, generate, generate_with_sourcemap},
     nodes::{
         JsBlockStatement, JsExportDefault, JsExportDefaultDeclaration, JsExpr,
         JsFunctionDeclaration, JsImportDeclaration, JsImportSpecifier, JsObjectMember, JsPattern,
@@ -346,25 +346,36 @@ fn transform_client_with_visitors(
         }
     }
 
-    // Pre-transform the script to determine how many $$array names it consumes.
-    // This must happen BEFORE template generation so that the template's $$array counter
-    // starts at the correct value, matching the official compiler where script declarations
-    // are visited before template nodes and share the same scope.root.conflicts set.
-    // Pre-transform the script to determine how many $$array names it consumes.
-    // This must happen BEFORE template generation so that the template's $$array counter
-    // starts at the correct value, matching the official compiler where script declarations
-    // are visited before template nodes and share the same scope.root.conflicts set.
-    // Note: we pass empty reactive_imports here because they don't affect $$array naming,
-    // and the real reactive_import_names haven't been computed yet. The pre-transformed
-    // result is used for blocker_map computation but NOT for the final output (which
-    // needs reactive_import_names for store invalidation wrappers).
+    // Compute reactive import names early so we can do a single script transform.
+    // These only depend on analysis data (not on template traversal results).
+    let reactive_import_names: Vec<String> =
+        if !analysis.runes && analysis.instance_script_content.is_some() {
+            let instance_scope_index = analysis.root.instance_scope_index;
+            analysis
+                .root
+                .bindings
+                .iter()
+                .filter(|b| {
+                    b.declaration_kind == DeclarationKind::Import
+                        && b.mutated
+                        && b.scope_index == instance_scope_index
+                })
+                .map(|b| b.name.clone())
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+    // Transform the instance script once with the real reactive_import_names.
+    // This also determines how many $$array names it consumes (for template generation)
+    // and is used for blocker_map computation and the final output.
     let pre_transformed_script = if analysis.instance_script_content.is_some() {
         let raw = &analysis.instance_script_content.as_ref().unwrap().raw;
         let transformed = transform_instance_script_for_visitors(
             raw,
             analysis,
             options.dev,
-            &[], // empty: only used for $$array counter sync and blocker_map
+            &reactive_import_names,
         );
         // Transfer the script's $$array counter to the context state so that the template
         // visitor continues numbering from where the script left off.
@@ -480,28 +491,7 @@ fn transform_client_with_visitors(
         map
     };
 
-    // Collect reactive import names for legacy mode.
-    // In legacy mode, mutated imports in the instance scope are wrapped with $.reactive_import()
-    // and all references in the instance body use $$_import_X() instead of $.get(X).
-    // Module-level imports (in <script module>) are NOT wrapped.
-    // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/Program.js L18-41
-    let reactive_import_names: Vec<String> =
-        if !analysis.runes && analysis.instance_script_content.is_some() {
-            let instance_scope_index = analysis.root.instance_scope_index;
-            analysis
-                .root
-                .bindings
-                .iter()
-                .filter(|b| {
-                    b.declaration_kind == DeclarationKind::Import
-                        && b.mutated
-                        && b.scope_index == instance_scope_index
-                })
-                .map(|b| b.name.clone())
-                .collect()
-        } else {
-            Vec::new()
-        };
+    // reactive_import_names was already computed before the script transform above.
 
     // Collect store subscription bindings and generate setup code
     // Reference: transform-client.js lines 211-254
@@ -891,17 +881,9 @@ fn transform_client_with_visitors(
 
     // Add instance script content (transformed runes)
     // This includes $state, $derived, $effect, $props transformations
+    // Reuse the pre_transformed_script from above (already has reactive_import_names).
     if let Some(ref content) = analysis.instance_script_content {
-        // Always re-transform with the real reactive_import_names.
-        // The pre_transformed_script was generated with empty reactive_imports
-        // (only for $$array counter sync and blocker_map), so it lacks store
-        // invalidation wrappers like $$_import_foo(assignment).
-        let mut transformed_script = transform_instance_script_for_visitors(
-            &content.raw,
-            analysis,
-            options.dev,
-            &reactive_import_names,
-        );
+        let mut transformed_script = pre_transformed_script.clone().unwrap_or_default();
 
         // Post-process reactive imports: replace $.get(X)/$.mutate(X,...) with $$_import_X()
         for name in &reactive_import_names {
@@ -1694,8 +1676,16 @@ fn transform_client_with_visitors(
     // Create the program
     let program = JsProgram { body };
 
-    // Generate JavaScript code from the program with source map data
-    generate_with_sourcemap(&program, source).map_err(TransformError::CodeGen)
+    // Generate JavaScript code from the program, optionally with source map data
+    if options.enable_sourcemap {
+        generate_with_sourcemap(&program, source).map_err(TransformError::CodeGen)
+    } else {
+        let code = generate(&program).map_err(TransformError::CodeGen)?;
+        Ok(CodegenResult {
+            code,
+            mappings: vec![],
+        })
+    }
 }
 
 // ============================================================================
@@ -2484,25 +2474,34 @@ fn transform_instance_script_for_visitors(
     // Reset the tmp counter for $state destructuring
     STATE_TMP_COUNTER.with(|c| c.set(0));
 
-    // The official Svelte compiler (via esrap) preserves comments in output.
-    // However, our text-based store transforms can break when comments contain
-    // braces/parens (e.g., `$value = { ... } // { ... }`). So we only strip
-    // comments in legacy mode (non-runes) where store transforms are applied.
-    // In runes mode, comments are safe to preserve since rune transforms don't
-    // match across comment boundaries.
-    let script = if analysis.runes {
-        script.to_string()
+    // Use Cow to avoid unnecessary String copies when no transformation is needed.
+    // In runes mode, comments are safe to preserve (no store transforms that break on them).
+    // In legacy mode, strip single-line comments to prevent braces in comments from
+    // interfering with store transforms.
+    let script: std::borrow::Cow<str> = if analysis.runes {
+        std::borrow::Cow::Borrowed(script)
     } else {
-        strip_js_single_line_comments(script)
+        std::borrow::Cow::Owned(strip_js_single_line_comments(script))
     };
 
-    // First, transform class fields with $state and $derived
-    let script = transform_class_fields_client(&script);
+    // Transform class fields only if the script contains class definitions with runes
+    let script: std::borrow::Cow<str> = if script.contains("class ")
+        && (script.contains("$state") || script.contains("$derived"))
+    {
+        std::borrow::Cow::Owned(transform_class_fields_client(&script))
+    } else {
+        script
+    };
 
-    // Split comma-separated variable declarations into individual statements.
-    // This matches the official Svelte compiler's behavior where each declarator
-    // in a multi-declarator statement becomes its own statement.
-    let script = crate::compiler::phases::phase3_transform::server::transform_script::split_comma_separated_declarations(&script);
+    // Split comma-separated variable declarations only if needed
+    let script: std::borrow::Cow<str> = if script.contains(", ")
+        || script.contains(",\n")
+        || script.contains(",\t")
+    {
+        std::borrow::Cow::Owned(crate::compiler::phases::phase3_transform::server::transform_script::split_comma_separated_declarations(&script))
+    } else {
+        script
+    };
 
     // Extract imports from script (they will be hoisted separately)
     let (_script_imports, script_rest) = extract_imports(&script);
@@ -2875,6 +2874,29 @@ fn transform_instance_script_for_visitors(
 
     let mut result = String::new();
 
+    // Pre-compute non-proxyable variables once (invariant across all statements).
+    // This mirrors the official Svelte compiler's should_proxy() which resolves
+    // identifiers to their binding's initial values.
+    let non_proxy_vars: Vec<String> = analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|b| {
+            !b.reassigned
+                && b.initial.is_some()
+                && !matches!(
+                    b.kind,
+                    BindingKind::State
+                        | BindingKind::RawState
+                        | BindingKind::Derived
+                        | BindingKind::Prop
+                        | BindingKind::BindableProp
+                        | BindingKind::StoreSub
+                )
+        })
+        .map(|b| b.name.clone())
+        .collect();
+
     // Collect reactive statements to append at end (mirroring official compiler behavior
     // which appends all $: reactive statements AFTER the rest of instance body code).
     // Each entry is (assigned_vars, dependency_vars, transformed_code).
@@ -2914,29 +2936,6 @@ fn transform_instance_script_for_visitors(
         if accumulated.is_empty() {
             return;
         }
-
-        // Compute variables whose initial values are known primitives (non-proxyable).
-        // This mirrors the official Svelte compiler's should_proxy() which resolves
-        // identifiers to their binding's initial values.
-        let non_proxy_vars: Vec<String> = analysis
-            .root
-            .bindings
-            .iter()
-            .filter(|b| {
-                !b.reassigned
-                    && b.initial.is_some()
-                    && !matches!(
-                        b.kind,
-                        BindingKind::State
-                            | BindingKind::RawState
-                            | BindingKind::Derived
-                            | BindingKind::Prop
-                            | BindingKind::BindableProp
-                            | BindingKind::StoreSub
-                    )
-            })
-            .map(|b| b.name.clone())
-            .collect();
 
         // Join all accumulated lines into a single statement
         let statement = accumulated.join("\n");
@@ -3235,42 +3234,34 @@ fn transform_instance_script_for_visitors(
             &non_bindable_prop_vars,
         );
 
-        // Filter out store_sub_vars that appear as function parameters in this statement.
-        // Function parameters like `function bar($derived, $effect)` shadow the store
-        // subscription within the function body, so we must NOT transform those.
-        let effective_store_sub_vars: Vec<String> = if store_sub_vars
-            .iter()
-            .any(|s| transformed.contains(s.as_str()))
-        {
-            store_sub_vars
+        // Store transforms: skip entirely when there are no store subscriptions
+        let transformed = if !store_sub_vars.is_empty() {
+            // Filter out store_sub_vars that appear as function parameters in this statement.
+            let effective_store_sub_vars: Vec<String> = if store_sub_vars
                 .iter()
-                .filter(|s| !is_function_parameter_in_statement(&transformed, s))
-                .cloned()
-                .collect()
+                .any(|s| transformed.contains(s.as_str()))
+            {
+                store_sub_vars
+                    .iter()
+                    .filter(|s| !is_function_parameter_in_statement(&transformed, s))
+                    .cloned()
+                    .collect()
+            } else {
+                store_sub_vars.to_vec()
+            };
+
+            let transformed = transform_store_assignments_client(
+                &transformed,
+                &effective_store_sub_vars,
+                prop_assignment_transform_vars,
+                state_vars,
+                non_reactive_state_vars,
+            );
+            let transformed = transform_store_sub_calls(&transformed, &effective_store_sub_vars);
+            transform_store_reads_client(&transformed, &effective_store_sub_vars)
         } else {
-            store_sub_vars.to_vec()
+            transformed
         };
-
-        // Transform store subscription assignments to $.store_set()
-        let transformed = transform_store_assignments_client(
-            &transformed,
-            &effective_store_sub_vars,
-            prop_assignment_transform_vars,
-            state_vars,
-            non_reactive_state_vars,
-        );
-
-        // Pre-transform store sub names that are used as function calls with arguments.
-        // This handles cases like `$state(0)` -> `$state()(0)` where $state is a store sub
-        // (not a rune) and the parens contain arguments. We need to insert the getter call
-        // `()` before the argument parens.
-        // This must happen BEFORE transform_store_reads_client, which will then see
-        // `$state()` and skip adding another `()` (due to is_already_call check).
-        let transformed = transform_store_sub_calls(&transformed, &effective_store_sub_vars);
-
-        // Transform store subscription reads to $store()
-        // e.g., `const answer = $foo` -> `const answer = $foo()`
-        let transformed = transform_store_reads_client(&transformed, &effective_store_sub_vars);
 
         // Expand legacy destructuring declarations with state variables into tmp-based
         // individual declarations BEFORE mutable_source wrapping.

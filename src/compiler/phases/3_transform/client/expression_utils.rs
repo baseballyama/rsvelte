@@ -1852,10 +1852,34 @@ pub(super) fn transform_state_in_expr(
         return expr.to_string();
     }
 
+    // Quick pre-check: if none of the state var names appear in the text at all,
+    // skip the expensive char-by-char scan entirely
+    if !effective_state_vars
+        .iter()
+        .any(|v| expr.contains(v.as_str()))
+    {
+        return expr.to_string();
+    }
+
     // Build a HashSet for O(1) variable lookup
     let var_set: FxHashSet<&str> = effective_state_vars.iter().map(|v| v.as_str()).collect();
 
+    // Build char vector and a parallel byte-offset vector so we can extract
+    // identifiers as &str slices from `expr` without allocating a String.
     let chars: Vec<char> = expr.chars().collect();
+    let is_ascii = expr.is_ascii();
+    // For ASCII strings, char index == byte index, so no separate offset table needed.
+    let byte_offsets: Vec<usize> = if is_ascii {
+        Vec::new() // unused for ASCII
+    } else {
+        let mut offsets = Vec::with_capacity(chars.len() + 1);
+        for (byte_idx, _) in expr.char_indices() {
+            offsets.push(byte_idx);
+        }
+        offsets.push(expr.len());
+        offsets
+    };
+
     let mut new_result = String::with_capacity(expr.len() + expr.len() / 4);
     let mut i = 0;
 
@@ -1998,10 +2022,15 @@ pub(super) fn transform_state_in_expr(
             // Check word boundary before (digits are handled by is_identifier_start_char)
             let before_ok = id_start == 0 || !is_identifier_char(chars[id_start - 1]);
 
-            // Build identifier string and check if it's a state variable
-            let identifier: String = chars[id_start..id_end].iter().collect();
+            // Extract identifier as a zero-copy &str slice (no String allocation).
+            // For ASCII strings, char index == byte index so we index directly.
+            let identifier: &str = if is_ascii {
+                &expr[id_start..id_end]
+            } else {
+                &expr[byte_offsets[id_start]..byte_offsets[id_end]]
+            };
 
-            if before_ok && var_set.contains(identifier.as_str()) {
+            if before_ok && var_set.contains(identifier) {
                 // Apply all the same context checks, using id_start as position
                 let pos = id_start;
                 let var_len = id_end - id_start;
@@ -2104,9 +2133,9 @@ pub(super) fn transform_state_in_expr(
                 let is_shorthand_property = is_shorthand_object_property(&chars, pos, var_len);
 
                 // Check if this variable is shadowed
-                let is_shadowed = is_shadowed_by_function_param(&chars, pos, &identifier)
-                    || is_shadowed_by_for_loop_var(&chars, pos, &identifier)
-                    || is_shadowed_by_local_var_decl(&chars, pos, &identifier);
+                let is_shadowed = is_shadowed_by_function_param(&chars, pos, identifier)
+                    || is_shadowed_by_for_loop_var(&chars, pos, identifier)
+                    || is_shadowed_by_local_var_decl(&chars, pos, identifier);
 
                 // Check if this variable is the target of an update expression
                 let is_update_target = {
@@ -2139,30 +2168,31 @@ pub(super) fn transform_state_in_expr(
                     && !is_method_shorthand_name
                 {
                     // Check if this is a var-declared state variable that needs $.safe_get()
-                    let use_safe_get = VAR_STATE_VARS.with(|v| v.borrow().contains(&identifier));
+                    let use_safe_get = VAR_STATE_VARS
+                        .with(|v| v.borrow().iter().any(|s| s.as_str() == identifier));
                     let getter = if use_safe_get { "$.safe_get" } else { "$.get" };
                     if is_shorthand_property {
                         // Expand shorthand property: { foo } -> { foo: $.get(foo) }
-                        new_result.push_str(&identifier);
+                        new_result.push_str(identifier);
                         new_result.push_str(": ");
                         new_result.push_str(getter);
                         new_result.push('(');
-                        new_result.push_str(&identifier);
+                        new_result.push_str(identifier);
                         new_result.push(')');
                     } else {
                         new_result.push_str(getter);
                         new_result.push('(');
-                        new_result.push_str(&identifier);
+                        new_result.push_str(identifier);
                         new_result.push(')');
                     }
                     continue;
                 }
 
                 // Not a state var match or excluded by checks - emit as-is
-                new_result.push_str(&identifier);
+                new_result.push_str(identifier);
             } else {
                 // Not a state variable - emit the identifier as-is
-                new_result.push_str(&identifier);
+                new_result.push_str(identifier);
             }
             continue;
         }

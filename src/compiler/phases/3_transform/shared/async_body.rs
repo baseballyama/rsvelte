@@ -116,6 +116,20 @@ pub fn compute_blocker_map(raw_script: &str) -> std::collections::HashMap<String
                 }
             }
 
+            // Special case: if the statement references $$props (from $props()
+            // transformation), add it to the blocker_map. The template transform
+            // accesses destructured props via $$props.name, so $$props needs a
+            // blocker index for the template_effect to wait on.
+            if trimmed_stmt.contains("$$props") {
+                let should_update = match blocker_map.get("$$props") {
+                    None => true,
+                    Some(&existing) => current_async_index > existing,
+                };
+                if should_update {
+                    blocker_map.insert("$$props".to_string(), current_async_index);
+                }
+            }
+
             // Transitively resolve function calls: if a function is called in this
             // async thunk, all instance-scope variables referenced in that function's
             // body should also be considered blocked.
@@ -521,6 +535,19 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                             if should_update {
                                 blocker_map.insert(ref_id.clone(), idx);
                             }
+                        }
+                    }
+                    // Special case: if the init references $$props (from $props()
+                    // transformation), add $$props to the blocker_map. The template
+                    // transform accesses destructured props via $$props.name, so
+                    // $$props needs a blocker index for the template_effect to wait on.
+                    if init.contains("$$props") {
+                        let should_update = match blocker_map.get("$$props") {
+                            None => true,
+                            Some(&existing) => idx > existing,
+                        };
+                        if should_update {
+                            blocker_map.insert("$$props".to_string(), idx);
                         }
                     }
                 }

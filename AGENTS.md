@@ -115,11 +115,11 @@ Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically.
 | Hydration | 77/77 | 100% |
 | Runtime Browser | 31/31 | 100% |
 | Validator | 324/324 | 100% |
+| Print | 40/40 | 100% |
 | Preprocess | 0/19 | N/A |
-| Print | 0/40 | N/A |
 | Migrate | 0/76 | N/A |
 
-**Overall: 3028/3028 (100.0%)**
+**Overall: 3068/3068 (100.0%)**
 
 ## Implementation Status
 
@@ -131,6 +131,7 @@ Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically.
 **CSS** - Selector scoping, combinators, pseudo-classes, `:global()`, keyframe prefixing
 **Validator** - All warning/error detection including A11y
 **Compiler Errors** - All error detection patterns
+**Print** - AST-to-source-code conversion with source text preservation
 
 ## Quick Reference
 

@@ -409,6 +409,7 @@ fn profile_file(config: &Config, filename: &str, content: &str) -> FileMetrics {
     let compile_options = CompileOptions {
         generate: config.mode,
         filename: Some(filename.to_string()),
+        enable_sourcemap: false,
         ..Default::default()
     };
 

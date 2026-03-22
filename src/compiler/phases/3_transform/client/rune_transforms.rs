@@ -72,14 +72,19 @@ pub(super) fn transform_client_runes_with_skip_and_state(
     store_sub_vars: &[String],
     read_only_props: &[(String, String)],
 ) -> String {
+    // Quick pre-check: if no rune-like pattern (`$` followed by letter) appears, skip
+    if !line.contains('$') {
+        return line.to_string();
+    }
+
     let mut result = line.to_string();
 
     // Check which rune names are actually store subscriptions.
     // When $state or $effect is imported from a store (not a real rune),
     // we must NOT transform $state(x) to $.state(x) or $effect(x) to $.user_effect(x).
-    let state_is_store_sub = store_sub_vars.contains(&"$state".to_string());
-    let effect_is_store_sub = store_sub_vars.contains(&"$effect".to_string());
-    let derived_is_store_sub = store_sub_vars.contains(&"$derived".to_string());
+    let state_is_store_sub = store_sub_vars.iter().any(|s| s == "$state");
+    let effect_is_store_sub = store_sub_vars.iter().any(|s| s == "$effect");
+    let derived_is_store_sub = store_sub_vars.iter().any(|s| s == "$derived");
 
     // Also check if rune names appear as function parameters in this statement.
     // When a function declares `function bar($derived, $effect)`, those names shadow

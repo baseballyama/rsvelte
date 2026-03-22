@@ -1,5 +1,29 @@
 //! Code formatting and cleanup utilities for generated JavaScript.
 
+use std::cell::RefCell;
+
+use oxc_allocator::Allocator;
+
+// Thread-local OXC allocator reused across normalize_js_with_oxc calls to avoid
+// repeated allocator creation/destruction overhead. The allocator is reset
+// before each use, which clears all allocations while keeping the underlying
+// memory chunks for reuse.
+thread_local! {
+    static NORMALIZE_OXC_ALLOCATOR: RefCell<Allocator> = RefCell::new(Allocator::default());
+}
+
+/// Execute a closure with a freshly-reset thread-local OXC allocator.
+fn with_normalize_allocator<F, R>(f: F) -> R
+where
+    F: FnOnce(&Allocator) -> R,
+{
+    NORMALIZE_OXC_ALLOCATOR.with(|cell| {
+        let mut alloc = cell.borrow_mut();
+        alloc.reset();
+        f(&alloc)
+    })
+}
+
 pub(super) fn replace_state_with_reactive_import(
     script: &str,
     name: &str,
@@ -357,35 +381,35 @@ pub(super) fn extract_destructured_prop_names(statement: &str) -> Vec<String> {
 /// The output uses single quotes, tab indentation, and strips comments
 /// (matching esrap/Svelte compiler behavior).
 pub(super) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
-    use oxc_allocator::Allocator;
     use oxc_codegen::{Codegen, CodegenOptions, CommentOptions, LegalComment};
     use oxc_parser::Parser;
     use oxc_span::SourceType;
 
-    let allocator = Allocator::default();
-    let source_type = SourceType::mjs();
-    let parsed = Parser::new(&allocator, js, source_type).parse();
+    // Use thread-local allocator to avoid repeated allocation overhead
+    let code = with_normalize_allocator(|allocator| {
+        let source_type = SourceType::mjs();
+        let parsed = Parser::new(allocator, js, source_type).parse();
 
-    if !parsed.errors.is_empty() {
-        return js.to_string();
-    }
+        if !parsed.errors.is_empty() {
+            return js.to_string();
+        }
 
-    let options = CodegenOptions {
-        single_quote: true,
-        // Preserve comments - esrap/Svelte keeps them in the output
-        comments: CommentOptions {
-            normal: true,
-            jsdoc: true,
-            annotation: true,
-            legal: LegalComment::Inline,
-        },
-        ..CodegenOptions::default()
-    };
+        let options = CodegenOptions {
+            single_quote: true,
+            comments: CommentOptions {
+                normal: true,
+                jsdoc: true,
+                annotation: true,
+                legal: LegalComment::Inline,
+            },
+            ..CodegenOptions::default()
+        };
 
-    let result = Codegen::new().with_options(options).build(&parsed.program);
+        let result = Codegen::new().with_options(options).build(&parsed.program);
+        result.code.trim_end().to_string()
+    });
 
-    // OXC adds a trailing newline; trim to match esrap behavior.
-    let code = result.code.trim_end();
+    let code = &code;
 
     // Rejoin consecutive `;` lines (from $inspect() removal) BEFORE any other
     // processing. OXC splits `;;` into two separate `;` lines, and later
@@ -530,6 +554,11 @@ pub(super) fn update_template_literal_state(line: &str, currently_in_template: b
 /// OXC splits these into separate `let` statements. This function detects the pattern
 /// and re-joins them into a single chained declaration.
 pub(super) fn rejoin_tmp_destructure_declarations(code: &str) -> String {
+    // Quick pre-check: if there's no `let tmp` pattern, there are no tmp declarations to rejoin
+    if !code.contains("let tmp") {
+        return code.to_string();
+    }
+
     // Find lines that start a tmp declaration (possibly multi-line)
     let lines: Vec<&str> = code.lines().collect();
     let mut result: Vec<String> = Vec::with_capacity(lines.len());
@@ -728,6 +757,13 @@ pub(super) fn extract_bare_let_name(line: &str) -> Option<String> {
 /// This removes lines that consist only of whitespace followed by `;`.
 /// Lines with `;;` (from $inspect() removal) are kept as-is.
 pub(super) fn strip_empty_statements_from_js(code: &str) -> String {
+    // Quick pre-check: if there's no standalone `;` possibility (no newline followed by
+    // optional whitespace and `;`), skip the expensive line-by-line processing.
+    // We check for `\n;` or a code that starts with `;` (first line could be bare `;`).
+    if !code.starts_with(';') && !code.contains("\n;") && !code.contains("\n\t;") {
+        return code.to_string();
+    }
+
     let lines: Vec<&str> = code.lines().collect();
     let result: Vec<&str> = lines
         .into_iter()
@@ -747,6 +783,11 @@ pub(super) fn strip_empty_statements_from_js(code: &str) -> String {
 /// as two EmptyStatements and outputs them as two separate `;` lines. We rejoin them
 /// back to `;;` so they survive the empty-statement stripping.
 pub(super) fn rejoin_inspect_empty_stmts(code: &str) -> String {
+    // Quick pre-check: if there's no `;\n` pattern, there can't be consecutive `;` lines
+    if !code.contains(";\n") {
+        return code.to_string();
+    }
+
     let lines: Vec<&str> = code.lines().collect();
     let mut result: Vec<String> = Vec::with_capacity(lines.len());
     let mut i = 0;
@@ -770,6 +811,11 @@ pub(super) fn rejoin_inspect_empty_stmts(code: &str) -> String {
 /// but esrap keeps short arrays (like `['a', 'b', 'c']`) on a single line.
 /// This function only joins arrays whose elements are simple (no nested brackets/braces).
 pub(super) fn join_oxc_multiline_arrays(code: &str) -> String {
+    // Quick pre-check: if there's no `[\n` pattern, there are no multi-line arrays to join
+    if !code.contains("[\n") {
+        return code.to_string();
+    }
+
     let lines: Vec<&str> = code.lines().collect();
     let mut result: Vec<String> = Vec::with_capacity(lines.len());
     let mut i = 0;
@@ -1184,6 +1230,12 @@ pub(super) fn fix_array_holes(code: &str) -> String {
 /// OXC sometimes inserts blank lines before `}` in function bodies
 /// (e.g., after return statements), but esrap does not.
 pub(super) fn remove_blank_lines_before_closing_braces(code: &str) -> String {
+    // Quick pre-check: if there's no blank line followed eventually by `}`,
+    // there's nothing to remove. A blank line before `}` requires `\n\n` in the code.
+    if !code.contains("\n\n") {
+        return code.to_string();
+    }
+
     let lines: Vec<&str> = code.lines().collect();
     let mut result: Vec<&str> = Vec::with_capacity(lines.len());
 

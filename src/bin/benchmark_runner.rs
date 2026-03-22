@@ -117,6 +117,7 @@ fn process_file(source: &str, filename: &str, task: &Task) {
             let options = CompileOptions {
                 name: Some(filename.to_string()),
                 generate: GenerateMode::Client,
+                enable_sourcemap: false,
                 ..Default::default()
             };
             let _ = compile(source, options);
@@ -125,6 +126,7 @@ fn process_file(source: &str, filename: &str, task: &Task) {
             let options = CompileOptions {
                 name: Some(filename.to_string()),
                 generate: GenerateMode::Server,
+                enable_sourcemap: false,
                 ..Default::default()
             };
             let _ = compile(source, options);

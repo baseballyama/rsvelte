@@ -185,6 +185,7 @@ impl Parser<'_> {
             instance: self.instance_script.take().map(Box::new),
             module: self.module_script.take().map(Box::new),
             parse_warnings: std::mem::take(&mut self.parse_warnings),
+            source: Some(self.source.to_string()),
         })
     }
 

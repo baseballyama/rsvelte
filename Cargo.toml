@@ -54,6 +54,9 @@ im = "15.1"
 # SIMD-accelerated string search
 memchr = "2.7"
 
+# Fast integer formatting (already a transitive dep, now used directly in codegen)
+itoa = "1"
+
 # Source map handling
 sourcemap = "9.0"
 

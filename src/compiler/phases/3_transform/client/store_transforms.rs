@@ -21,6 +21,11 @@ pub(super) fn transform_store_assignments_client(
         return line.to_string();
     }
 
+    // Quick pre-check: if none of the store sub vars appear in the line, skip expensive transforms
+    if !store_sub_vars.iter().any(|v| line.contains(v.as_str())) {
+        return line.to_string();
+    }
+
     let mut result = line.to_string();
 
     for store_sub in store_sub_vars {
@@ -263,6 +268,11 @@ pub(super) fn transform_store_sub_calls(line: &str, store_sub_vars: &[String]) -
         return line.to_string();
     }
 
+    // Quick pre-check: if none of the store sub vars appear in the line, skip expensive transforms
+    if !store_sub_vars.iter().any(|v| line.contains(v.as_str())) {
+        return line.to_string();
+    }
+
     let mut result = line.to_string();
 
     for store_sub in store_sub_vars {
@@ -365,6 +375,11 @@ pub(super) fn transform_store_sub_calls(line: &str, store_sub_vars: &[String]) -
 /// This is similar to `transform_prop_reads_in_expr` but for store subscriptions.
 pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]) -> String {
     if store_sub_vars.is_empty() {
+        return line.to_string();
+    }
+
+    // Quick pre-check: if none of the store sub vars appear in the line, skip expensive transforms
+    if !store_sub_vars.iter().any(|v| line.contains(v.as_str())) {
         return line.to_string();
     }
 

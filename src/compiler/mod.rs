@@ -242,6 +242,10 @@ pub struct CompileOptions {
     pub hmr: bool,
     /// Return modern AST format.
     pub modern_ast: bool,
+    /// Enable source map generation.
+    /// When false, sourcemap computation is skipped for better performance.
+    /// Defaults to true for backward compatibility.
+    pub enable_sourcemap: bool,
 }
 
 impl Default for CompileOptions {
@@ -275,6 +279,7 @@ impl Default for CompileOptions {
             css_output_filename: None,
             hmr: false,
             modern_ast: false,
+            enable_sourcemap: true,
         }
     }
 }
@@ -310,6 +315,7 @@ impl std::fmt::Debug for CompileOptions {
             .field("css_output_filename", &self.css_output_filename)
             .field("hmr", &self.hmr)
             .field("modern_ast", &self.modern_ast)
+            .field("enable_sourcemap", &self.enable_sourcemap)
             .finish()
     }
 }
@@ -743,6 +749,7 @@ pub fn compile_module(
             attributes: Vec::new(),
         })),
         parse_warnings: Vec::new(),
+        source: Some(source.to_string()),
     };
 
     // Convert ModuleCompileOptions to CompileOptions for the analysis phase.

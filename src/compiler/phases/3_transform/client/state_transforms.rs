@@ -1393,6 +1393,10 @@ pub(super) fn transform_state_assignments(
     is_runes: bool,
     non_proxy_vars: &[String],
 ) -> String {
+    if state_vars.is_empty() || !state_vars.iter().any(|v| line.contains(v.as_str())) {
+        return line.to_string();
+    }
+
     let mut result = line.to_string();
 
     for var in state_vars {
@@ -1698,6 +1702,11 @@ pub(super) fn wrap_store_unsub_for_state_sets(
         return line.to_string();
     }
 
+    // Quick pre-check: if `$.set(` doesn't appear in the line, there are no state sets to wrap
+    if !line.contains("$.set(") {
+        return line.to_string();
+    }
+
     let mut result = line.to_string();
 
     for state_var in state_vars {
@@ -1833,6 +1842,11 @@ pub(super) fn transform_prop_assignments(
     // the subsequent declarators don't have `let` before them, so the simple assignment
     // transform would incorrectly convert `bar = $.prop(...)` to `bar($.prop(...))`.
     if line.contains("$.prop(") || line.contains("$.rest_props(") {
+        return line.to_string();
+    }
+
+    // Quick pre-check: if none of the prop vars appear in the line, skip expensive transforms
+    if !prop_vars.iter().any(|v| line.contains(v.as_str())) {
         return line.to_string();
     }
 

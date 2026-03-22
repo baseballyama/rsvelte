@@ -41,6 +41,9 @@ pub struct Root {
     /// These are collected during parsing and forwarded to the analysis phase.
     #[serde(skip)]
     pub parse_warnings: Vec<ParseWarning>,
+    /// Original source text, used by the printer for faithful reproduction.
+    #[serde(skip)]
+    pub source: Option<String>,
 }
 
 /// A warning emitted during parsing.

@@ -416,7 +416,15 @@ impl<'a> ServerCodeGenerator<'a> {
                             new_props_and_spreads.push(ComponentPropItem::Props(new_props));
                         }
                         ComponentPropItem::Spread(s) => {
-                            new_props_and_spreads.push(ComponentPropItem::Spread(s.clone()));
+                            if super::super::helpers::expr_contains_await(s) {
+                                let temp_name = format!("$${}", temp_counter);
+                                let await_expr = Self::extract_await_with_save(s);
+                                declarations.push(format!("const {} = {};", temp_name, await_expr));
+                                new_props_and_spreads.push(ComponentPropItem::Spread(temp_name));
+                                temp_counter += 1;
+                            } else {
+                                new_props_and_spreads.push(ComponentPropItem::Spread(s.clone()));
+                            }
                         }
                     }
                 }

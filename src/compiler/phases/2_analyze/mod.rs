@@ -149,19 +149,56 @@ pub fn analyze_component(
         is_module_file,
     )?;
 
-    // Detect await expressions in template and instance script.
+    // Detect await expressions and rune references in template and scripts.
     // This is needed for:
-    // 1. Auto-detecting runes mode (await implies runes)
+    // 1. Auto-detecting runes mode (await or rune references imply runes)
     // 2. Marking the component as needing async function wrapper
-    let fragment_has_await = fragment_has_await_expression(&ast.fragment);
-    let instance_has_await = ast
+    //
+    // We collect store subscription names to exclude them from rune detection.
+    // Store auto-subscriptions ($store) look like rune references (dollar prefix)
+    // but are NOT runes. If we don't exclude them, a component with $store in the
+    // template would be incorrectly detected as being in runes mode, which would
+    // then reject `export let` with `legacy_export_invalid` error.
+    let store_sub_names: rustc_hash::FxHashSet<&str> = analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|b| matches!(b.kind, BindingKind::StoreSub))
+        .map(|b| b.name.as_str())
+        .collect();
+
+    // Check the template fragment for both await expressions and rune references
+    // in a single traversal (previously done as two separate walks).
+    let fragment_results = fragment_check_features(&ast.fragment, &store_sub_names);
+
+    // Check the instance script for both await expressions and rune references
+    // in a single traversal (previously done as two separate walks).
+    // For script checks, we use an empty set for store_subs (scripts can have both
+    // runes and stores, but store_subs are created from template/instance references
+    // after scope building, so they are not relevant for script-level rune detection).
+    let empty_store_subs: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
+    let instance_results = ast
         .instance
         .as_ref()
         .map(|inst| {
             let val = inst.content.as_json();
-            json_has_await_expression(val)
+            json_check_features(val, &empty_store_subs)
+        })
+        .unwrap_or_default();
+
+    // Check the module script for rune references (module scripts don't need await check
+    // since the original code only checked instance script for await).
+    let module_has_rune_reference = ast
+        .module
+        .as_ref()
+        .map(|module| {
+            let val = module.content.as_json();
+            json_check_features(val, &empty_store_subs).has_rune_reference
         })
         .unwrap_or(false);
+
+    let fragment_has_await = fragment_results.has_await;
+    let instance_has_await = instance_results.has_await;
 
     // Track whether the component has await (needed for async function wrapper)
     if fragment_has_await || instance_has_await {
@@ -177,61 +214,10 @@ pub fn analyze_component(
     // const runes = options.runes ?? (has_await || instance.has_await ||
     //     Array.from(module.scope.references.keys()).some(is_rune));
     if options.runes.is_none() && !analysis.runes {
-        // Check for rune references in instance and module scripts.
-        // This mirrors the official Svelte compiler's approach at L449-451:
-        //   Array.from(module.scope.references.keys()).some(is_rune)
-        // We check for rune identifier names ($state, $derived, $effect, etc.) in the
-        // AST rather than checking binding kinds. Checking binding kinds (e.g., State,
-        // Derived) would be fragile because other code paths (like legacy state promotion
-        // for each-block collections) can also set bindings to State kind, which would
-        // falsely trigger runes mode and reject `export let` with `legacy_export_invalid`.
-        //
-        // Collect store subscription names to exclude them from rune detection.
-        // Store auto-subscriptions ($store) look like rune references (dollar prefix)
-        // but are NOT runes. If we don't exclude them, a component with $store in the
-        // template would be incorrectly detected as being in runes mode, which would
-        // then reject `export let` with `legacy_export_invalid` error.
-        let store_sub_names: rustc_hash::FxHashSet<&str> = analysis
-            .root
-            .bindings
-            .iter()
-            .filter(|b| matches!(b.kind, BindingKind::StoreSub))
-            .map(|b| b.name.as_str())
-            .collect();
-        // For script checks, we use an empty set (scripts can have both runes and stores,
-        // but store_subs are created from template/instance references after scope building,
-        // so they are not relevant for script-level rune detection).
-        let empty_store_subs: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
-        let has_rune_references = ast
-            .instance
-            .as_ref()
-            .map(|inst| {
-                let val = inst.content.as_json();
-                json_has_rune_reference(val, &empty_store_subs)
-            })
-            .unwrap_or(false)
-            || ast
-                .module
-                .as_ref()
-                .map(|module| {
-                    let val = module.content.as_json();
-                    json_has_rune_reference(val, &empty_store_subs)
-                })
-                .unwrap_or(false);
-        // Also check the template fragment for rune references.
-        // This is needed for template-only components (no script tags) that use
-        // rune references like {$effect.tracking()}.
-        // In the official Svelte compiler, unresolved references bubble up through
-        // the scope chain to the module scope, which is checked for rune names.
-        // Our scope model doesn't do this bubbling, so we explicitly check the
-        // template fragment here.
-        let template_has_rune_references =
-            fragment_has_rune_reference(&ast.fragment, &store_sub_names);
-        if fragment_has_await
-            || instance_has_await
-            || has_rune_references
-            || template_has_rune_references
-        {
+        let has_rune_references = instance_results.has_rune_reference
+            || module_has_rune_reference
+            || fragment_results.has_rune_reference;
+        if fragment_has_await || instance_has_await || has_rune_references {
             analysis.runes = true;
         }
     }
@@ -639,21 +625,22 @@ pub fn analyze_component(
     // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L468
     {
         // Collect all names that are used across all scopes (declarations + references)
-        let mut used_names = rustc_hash::FxHashSet::default();
+        // Use &str references to avoid String allocations
+        let mut used_names: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
         // Check root scope
         for key in analysis.root.scope.declarations.keys() {
-            used_names.insert(key.clone());
+            used_names.insert(key.as_str());
         }
         for r in &analysis.root.scope.references {
-            used_names.insert(r.name.clone());
+            used_names.insert(r.name.as_str());
         }
         // Check all child scopes
         for scope in &analysis.root.all_scopes {
             for key in scope.declarations.keys() {
-                used_names.insert(key.clone());
+                used_names.insert(key.as_str());
             }
             for r in &scope.references {
-                used_names.insert(r.name.clone());
+                used_names.insert(r.name.as_str());
             }
         }
         // Also collect component names from template AST since they're identifiers
@@ -663,7 +650,7 @@ pub fn analyze_component(
         let mut name = analysis.name.clone();
         let base = name.clone();
         let mut counter = 1u32;
-        while used_names.contains(&name) {
+        while used_names.contains(name.as_str()) {
             name = format!("{}_{}", base, counter);
             counter += 1;
         }
@@ -998,11 +985,12 @@ fn check_reactive_declaration_cycles(
     }
 
     // Build edges for cycle detection: (assignment_name, dependency_name)
-    let mut edges: Vec<(String, String)> = Vec::new();
+    // Use &str references to avoid String allocations
+    let mut edges: Vec<(&str, &str)> = Vec::new();
     for (assignments, dependencies) in &reactive_stmts {
         for assignment in assignments {
             for dependency in dependencies {
-                edges.push((assignment.clone(), dependency.clone()));
+                edges.push((assignment.as_str(), dependency.as_str()));
             }
         }
     }
@@ -2232,94 +2220,174 @@ pub fn order_reactive_statements(
 /// Corresponds to `has_await` from `create_scopes()` in the official Svelte compiler,
 /// which tracks AwaitExpression nodes not nested inside function bodies.
 #[allow(dead_code)]
-fn fragment_has_await_expression(fragment: &crate::ast::template::Fragment) -> bool {
-    for node in &fragment.nodes {
-        if node_has_await_expression(node) {
-            return true;
-        }
-    }
-    false
+/// Results from a combined fragment AST check for both await expressions and rune references.
+/// This allows a single traversal of the template AST to detect both features simultaneously.
+#[derive(Default)]
+struct FragmentCheckResults {
+    has_await: bool,
+    has_rune_reference: bool,
 }
 
-/// Check if a template node contains an AwaitExpression.
-#[allow(dead_code)]
-fn node_has_await_expression(node: &crate::ast::template::TemplateNode) -> bool {
+impl FragmentCheckResults {
+    fn all_found(&self) -> bool {
+        self.has_await && self.has_rune_reference
+    }
+
+    fn merge(&mut self, other: &FragmentCheckResults) {
+        self.has_await = self.has_await || other.has_await;
+        self.has_rune_reference = self.has_rune_reference || other.has_rune_reference;
+    }
+
+    fn merge_json(&mut self, other: &JsonCheckResults) {
+        self.has_await = self.has_await || other.has_await;
+        self.has_rune_reference = self.has_rune_reference || other.has_rune_reference;
+    }
+}
+
+/// Check a template fragment for both await expressions and rune references in a single walk.
+fn fragment_check_features(
+    fragment: &crate::ast::template::Fragment,
+    store_subs: &rustc_hash::FxHashSet<&str>,
+) -> FragmentCheckResults {
+    let mut results = FragmentCheckResults::default();
+    for node in &fragment.nodes {
+        let node_results = node_check_features(node, store_subs);
+        results.merge(&node_results);
+        if results.all_found() {
+            return results;
+        }
+    }
+    results
+}
+
+/// Check if a template node contains an AwaitExpression and/or rune references in a single walk.
+///
+/// Key semantic differences between await and rune checks:
+/// - SnippetBlock: await check returns false (awaits in snippets don't affect parent),
+///   but rune check walks the body (rune references anywhere indicate runes mode).
+fn node_check_features(
+    node: &crate::ast::template::TemplateNode,
+    store_subs: &rustc_hash::FxHashSet<&str>,
+) -> FragmentCheckResults {
     use crate::ast::template::TemplateNode;
 
     match node {
-        TemplateNode::ExpressionTag(tag) => expression_has_await(&tag.expression),
+        TemplateNode::ExpressionTag(tag) => {
+            let json_results = expression_check_features(&tag.expression, store_subs);
+            FragmentCheckResults {
+                has_await: json_results.has_await,
+                has_rune_reference: json_results.has_rune_reference,
+            }
+        }
         TemplateNode::RegularElement(elem) => {
+            let mut results = FragmentCheckResults::default();
             for attr in &elem.attributes {
-                if attribute_has_await(attr) {
-                    return true;
+                let attr_results = attribute_check_features(attr, store_subs);
+                results.merge(&attr_results);
+                if results.all_found() {
+                    return results;
                 }
             }
-            fragment_has_await_expression(&elem.fragment)
+            let frag_results = fragment_check_features(&elem.fragment, store_subs);
+            results.merge(&frag_results);
+            results
         }
         TemplateNode::Component(comp) => {
+            let mut results = FragmentCheckResults::default();
             for attr in &comp.attributes {
-                if attribute_has_await(attr) {
-                    return true;
+                let attr_results = attribute_check_features(attr, store_subs);
+                results.merge(&attr_results);
+                if results.all_found() {
+                    return results;
                 }
             }
-            fragment_has_await_expression(&comp.fragment)
+            let frag_results = fragment_check_features(&comp.fragment, store_subs);
+            results.merge(&frag_results);
+            results
         }
         TemplateNode::IfBlock(block) => {
-            if expression_has_await(&block.test) {
-                return true;
+            let mut results = FragmentCheckResults::default();
+            let expr_results = expression_check_features(&block.test, store_subs);
+            results.merge_json(&expr_results);
+            if results.all_found() {
+                return results;
             }
-            if fragment_has_await_expression(&block.consequent) {
-                return true;
+            let cons_results = fragment_check_features(&block.consequent, store_subs);
+            results.merge(&cons_results);
+            if results.all_found() {
+                return results;
             }
-            if let Some(ref alternate) = block.alternate
-                && fragment_has_await_expression(alternate)
-            {
-                return true;
+            if let Some(ref alternate) = block.alternate {
+                let alt_results = fragment_check_features(alternate, store_subs);
+                results.merge(&alt_results);
             }
-            false
+            results
         }
         TemplateNode::EachBlock(block) => {
-            if expression_has_await(&block.expression) {
-                return true;
+            let mut results = FragmentCheckResults::default();
+            let expr_results = expression_check_features(&block.expression, store_subs);
+            results.merge_json(&expr_results);
+            if results.all_found() {
+                return results;
             }
-            if fragment_has_await_expression(&block.body) {
-                return true;
+            let body_results = fragment_check_features(&block.body, store_subs);
+            results.merge(&body_results);
+            if results.all_found() {
+                return results;
             }
-            if let Some(ref fallback) = block.fallback
-                && fragment_has_await_expression(fallback)
-            {
-                return true;
+            if let Some(ref fallback) = block.fallback {
+                let fb_results = fragment_check_features(fallback, store_subs);
+                results.merge(&fb_results);
             }
-            false
+            results
         }
         TemplateNode::KeyBlock(block) => {
-            if expression_has_await(&block.expression) {
-                return true;
+            let mut results = FragmentCheckResults::default();
+            let expr_results = expression_check_features(&block.expression, store_subs);
+            results.merge_json(&expr_results);
+            if results.all_found() {
+                return results;
             }
-            fragment_has_await_expression(&block.fragment)
+            let frag_results = fragment_check_features(&block.fragment, store_subs);
+            results.merge(&frag_results);
+            results
         }
         TemplateNode::AwaitBlock(block) => {
-            if expression_has_await(&block.expression) {
-                return true;
+            let mut results = FragmentCheckResults::default();
+            let expr_results = expression_check_features(&block.expression, store_subs);
+            results.merge_json(&expr_results);
+            if results.all_found() {
+                return results;
             }
-            if let Some(ref pending) = block.pending
-                && fragment_has_await_expression(pending)
-            {
-                return true;
+            if let Some(ref pending) = block.pending {
+                let p_results = fragment_check_features(pending, store_subs);
+                results.merge(&p_results);
+                if results.all_found() {
+                    return results;
+                }
             }
-            if let Some(ref then) = block.then
-                && fragment_has_await_expression(then)
-            {
-                return true;
+            if let Some(ref then) = block.then {
+                let t_results = fragment_check_features(then, store_subs);
+                results.merge(&t_results);
+                if results.all_found() {
+                    return results;
+                }
             }
-            if let Some(ref catch) = block.catch
-                && fragment_has_await_expression(catch)
-            {
-                return true;
+            if let Some(ref catch) = block.catch {
+                let c_results = fragment_check_features(catch, store_subs);
+                results.merge(&c_results);
             }
-            false
+            results
         }
-        TemplateNode::SnippetBlock(_block) => false,
+        TemplateNode::SnippetBlock(block) => {
+            // SnippetBlock: await check returns false (awaits in snippets don't affect parent),
+            // but rune check walks the body (rune references anywhere indicate runes mode).
+            let body_results = fragment_check_features(&block.body, store_subs);
+            FragmentCheckResults {
+                has_await: false,
+                has_rune_reference: body_results.has_rune_reference,
+            }
+        }
         TemplateNode::SvelteBoundary(elem)
         | TemplateNode::SvelteBody(elem)
         | TemplateNode::SvelteDocument(elem)
@@ -2327,103 +2395,135 @@ fn node_has_await_expression(node: &crate::ast::template::TemplateNode) -> bool 
         | TemplateNode::SvelteHead(elem)
         | TemplateNode::SvelteOptions(elem)
         | TemplateNode::SvelteWindow(elem) => {
+            let mut results = FragmentCheckResults::default();
             for attr in &elem.attributes {
-                if attribute_has_await(attr) {
-                    return true;
+                let attr_results = attribute_check_features(attr, store_subs);
+                results.merge(&attr_results);
+                if results.all_found() {
+                    return results;
                 }
             }
-            fragment_has_await_expression(&elem.fragment)
+            let frag_results = fragment_check_features(&elem.fragment, store_subs);
+            results.merge(&frag_results);
+            results
         }
         TemplateNode::SvelteSelf(elem) => {
+            let mut results = FragmentCheckResults::default();
             for attr in &elem.attributes {
-                if attribute_has_await(attr) {
-                    return true;
+                let attr_results = attribute_check_features(attr, store_subs);
+                results.merge(&attr_results);
+                if results.all_found() {
+                    return results;
                 }
             }
-            fragment_has_await_expression(&elem.fragment)
+            let frag_results = fragment_check_features(&elem.fragment, store_subs);
+            results.merge(&frag_results);
+            results
         }
         TemplateNode::SvelteComponent(elem) => {
+            let mut results = FragmentCheckResults::default();
             for attr in &elem.attributes {
-                if attribute_has_await(attr) {
-                    return true;
+                let attr_results = attribute_check_features(attr, store_subs);
+                results.merge(&attr_results);
+                if results.all_found() {
+                    return results;
                 }
             }
-            fragment_has_await_expression(&elem.fragment)
+            let frag_results = fragment_check_features(&elem.fragment, store_subs);
+            results.merge(&frag_results);
+            results
         }
         TemplateNode::SvelteElement(elem) => {
+            let mut results = FragmentCheckResults::default();
             for attr in &elem.attributes {
-                if attribute_has_await(attr) {
-                    return true;
+                let attr_results = attribute_check_features(attr, store_subs);
+                results.merge(&attr_results);
+                if results.all_found() {
+                    return results;
                 }
             }
-            fragment_has_await_expression(&elem.fragment)
+            let frag_results = fragment_check_features(&elem.fragment, store_subs);
+            results.merge(&frag_results);
+            results
         }
         TemplateNode::TitleElement(elem) => {
+            let mut results = FragmentCheckResults::default();
             for attr in &elem.attributes {
-                if attribute_has_await(attr) {
-                    return true;
+                let attr_results = attribute_check_features(attr, store_subs);
+                results.merge(&attr_results);
+                if results.all_found() {
+                    return results;
                 }
             }
-            fragment_has_await_expression(&elem.fragment)
+            let frag_results = fragment_check_features(&elem.fragment, store_subs);
+            results.merge(&frag_results);
+            results
         }
         TemplateNode::SlotElement(elem) => {
+            let mut results = FragmentCheckResults::default();
             for attr in &elem.attributes {
-                if attribute_has_await(attr) {
-                    return true;
+                let attr_results = attribute_check_features(attr, store_subs);
+                results.merge(&attr_results);
+                if results.all_found() {
+                    return results;
                 }
             }
-            fragment_has_await_expression(&elem.fragment)
+            let frag_results = fragment_check_features(&elem.fragment, store_subs);
+            results.merge(&frag_results);
+            results
         }
-        TemplateNode::RenderTag(tag) => expression_has_await(&tag.expression),
-        TemplateNode::HtmlTag(tag) => expression_has_await(&tag.expression),
-        TemplateNode::ConstTag(tag) => expression_has_await(&tag.declaration),
-        _ => false,
+        TemplateNode::RenderTag(tag) => {
+            let json_results = expression_check_features(&tag.expression, store_subs);
+            FragmentCheckResults {
+                has_await: json_results.has_await,
+                has_rune_reference: json_results.has_rune_reference,
+            }
+        }
+        TemplateNode::HtmlTag(tag) => {
+            let json_results = expression_check_features(&tag.expression, store_subs);
+            FragmentCheckResults {
+                has_await: json_results.has_await,
+                has_rune_reference: json_results.has_rune_reference,
+            }
+        }
+        TemplateNode::ConstTag(tag) => {
+            let json_results = expression_check_features(&tag.declaration, store_subs);
+            FragmentCheckResults {
+                has_await: json_results.has_await,
+                has_rune_reference: json_results.has_rune_reference,
+            }
+        }
+        _ => FragmentCheckResults::default(),
     }
 }
 
-/// Check if an expression (stored as JSON) contains an AwaitExpression.
-#[allow(dead_code)]
-fn expression_has_await(expr: &crate::ast::js::Expression) -> bool {
+/// Results from a combined JSON AST check for both await expressions and rune references.
+/// This allows a single traversal of the JSON AST to detect both features simultaneously.
+#[derive(Default)]
+struct JsonCheckResults {
+    has_await: bool,
+    has_rune_reference: bool,
+}
+
+impl JsonCheckResults {
+    fn all_found(&self) -> bool {
+        self.has_await && self.has_rune_reference
+    }
+
+    fn merge(&mut self, other: &JsonCheckResults) {
+        self.has_await = self.has_await || other.has_await;
+        self.has_rune_reference = self.has_rune_reference || other.has_rune_reference;
+    }
+}
+
+/// Check if an expression (stored as JSON) contains an AwaitExpression and/or rune references
+/// in a single traversal.
+fn expression_check_features(
+    expr: &crate::ast::js::Expression,
+    store_subs: &rustc_hash::FxHashSet<&str>,
+) -> JsonCheckResults {
     let value = expr.as_json();
-    json_has_await_expression(value)
-}
-
-/// Recursively check a JSON AST node for AwaitExpression.
-/// Stops at function boundaries (FunctionExpression, ArrowFunctionExpression, FunctionDeclaration).
-#[allow(dead_code)]
-fn json_has_await_expression(node: &serde_json::Value) -> bool {
-    let node_type = node.get("type").and_then(|t| t.as_str());
-
-    match node_type {
-        Some("AwaitExpression") => return true,
-        Some("FunctionExpression" | "ArrowFunctionExpression" | "FunctionDeclaration") => {
-            return false;
-        }
-        _ => {}
-    }
-
-    match node {
-        serde_json::Value::Object(map) => {
-            for (key, val) in map {
-                if key == "type" || key == "start" || key == "end" || key == "loc" {
-                    continue;
-                }
-                if json_has_await_expression(val) {
-                    return true;
-                }
-            }
-        }
-        serde_json::Value::Array(arr) => {
-            for val in arr {
-                if json_has_await_expression(val) {
-                    return true;
-                }
-            }
-        }
-        _ => {}
-    }
-
-    false
+    json_check_features(value, store_subs)
 }
 
 /// Check if a name is a rune identifier.
@@ -2437,23 +2537,41 @@ fn is_rune_name(name: &str) -> bool {
     )
 }
 
-/// Recursively check a JSON AST node for rune identifier references.
+/// Recursively check a JSON AST node for both AwaitExpression and rune identifier references
+/// in a single pass.
 ///
-/// This walks the JSON AST looking for Identifier nodes whose name matches
-/// a rune name ($state, $derived, $effect, $inspect, $props, $bindable, $host).
+/// For await detection:
+/// - Stops at function boundaries (FunctionExpression, ArrowFunctionExpression, FunctionDeclaration)
+///   but continues checking for rune references past those boundaries.
 ///
-/// Unlike the await check, this does NOT stop at function boundaries because
-/// rune references inside functions (e.g., `$effect(...)` in a callback) still
-/// indicate runes mode. This matches the official compiler's behavior where
-/// unresolved references bubble up through the scope chain.
+/// For rune detection:
+/// - Does NOT stop at function boundaries because rune references inside functions still
+///   indicate runes mode.
+/// - Skips label properties of LabeledStatement, non-computed property keys in
+///   MemberExpressions, and non-computed keys in Property nodes.
 ///
-/// Corresponds to the check `Array.from(module.scope.references.keys()).some(is_rune)`
-/// in Svelte's `2-analyze/index.js`.
-fn json_has_rune_reference(
+/// The `inside_function` parameter tracks whether we are inside a function boundary,
+/// which suppresses await detection while still allowing rune detection.
+fn json_check_features(
     node: &serde_json::Value,
     store_subs: &rustc_hash::FxHashSet<&str>,
-) -> bool {
+) -> JsonCheckResults {
+    json_check_features_inner(node, store_subs, false)
+}
+
+fn json_check_features_inner(
+    node: &serde_json::Value,
+    store_subs: &rustc_hash::FxHashSet<&str>,
+    inside_function: bool,
+) -> JsonCheckResults {
+    let mut results = JsonCheckResults::default();
     let node_type = node.get("type").and_then(|t| t.as_str());
+
+    // Check for AwaitExpression (only if not inside a function boundary)
+    if !inside_function && node_type == Some("AwaitExpression") {
+        results.has_await = true;
+        // Don't return early - still need to check children for rune references
+    }
 
     // Check if this is an Identifier with a rune name
     if node_type == Some("Identifier")
@@ -2461,8 +2579,20 @@ fn json_has_rune_reference(
         && is_rune_name(name)
         && !store_subs.contains(name)
     {
-        return true;
+        results.has_rune_reference = true;
     }
+
+    // Early exit if both features found
+    if results.all_found() {
+        return results;
+    }
+
+    // Determine if we're entering a function boundary
+    let is_function_boundary = matches!(
+        node_type,
+        Some("FunctionExpression" | "ArrowFunctionExpression" | "FunctionDeclaration")
+    );
+    let child_inside_function = inside_function || is_function_boundary;
 
     match node {
         serde_json::Value::Object(map) => {
@@ -2470,16 +2600,20 @@ fn json_has_rune_reference(
                 if key == "type" || key == "start" || key == "end" || key == "loc" {
                     continue;
                 }
-                // Skip the "label" property of LabeledStatement nodes.
+                // Skip the "label" property of LabeledStatement nodes for rune check.
                 // Labels like `$effect:` contain Identifiers with rune names but
                 // they are NOT rune references - they are just label declarations.
                 // Without this check, `$effect: if (obj) x++` would falsely trigger
                 // runes mode detection, causing `export let` to be rejected.
+                //
+                // For the await check, labels can't contain AwaitExpression, so skipping is safe.
                 if key == "label" && node_type == Some("LabeledStatement") {
                     continue;
                 }
-                // Skip property keys in non-computed MemberExpressions and Properties.
+                // Skip property keys in non-computed MemberExpressions and Properties for rune check.
                 // `foo.$state` should not be treated as a rune reference.
+                //
+                // For the await check, property keys can't contain AwaitExpression, so skipping is safe.
                 if key == "property"
                     && node_type == Some("MemberExpression")
                     && !node
@@ -2489,8 +2623,10 @@ fn json_has_rune_reference(
                 {
                     continue;
                 }
-                // Skip the "key" field of non-computed Property nodes.
+                // Skip the "key" field of non-computed Property nodes for rune check.
                 // { $state: value } should not be treated as a rune reference.
+                //
+                // For the await check, non-computed keys can't contain AwaitExpression, so skipping is safe.
                 if key == "key"
                     && node_type == Some("Property")
                     && !node
@@ -2500,261 +2636,128 @@ fn json_has_rune_reference(
                 {
                     continue;
                 }
-                if json_has_rune_reference(val, store_subs) {
-                    return true;
+                let child_results =
+                    json_check_features_inner(val, store_subs, child_inside_function);
+                results.merge(&child_results);
+                if results.all_found() {
+                    return results;
                 }
             }
         }
         serde_json::Value::Array(arr) => {
             for val in arr {
-                if json_has_rune_reference(val, store_subs) {
-                    return true;
+                let child_results =
+                    json_check_features_inner(val, store_subs, child_inside_function);
+                results.merge(&child_results);
+                if results.all_found() {
+                    return results;
                 }
             }
         }
         _ => {}
     }
 
-    false
+    results
 }
 
-/// Check if a template fragment contains rune references.
+/// Check if an attribute contains both await expressions and rune references in a single walk.
 ///
-/// This is needed for template-only components (no script tags) that use rune
-/// references like `{$effect.tracking()}`. The official Svelte compiler detects
-/// these because unresolved references bubble up through the scope chain to the
-/// module scope, which is checked for rune references. Our scope model doesn't
-/// do this bubbling, so we need to explicitly check the template fragment.
-fn fragment_has_rune_reference(
-    fragment: &crate::ast::template::Fragment,
-    store_subs: &rustc_hash::FxHashSet<&str>,
-) -> bool {
-    for node in &fragment.nodes {
-        if node_has_rune_reference(node, store_subs) {
-            return true;
-        }
-    }
-    false
-}
-
-/// Check if a template node contains a rune reference.
-fn node_has_rune_reference(
-    node: &crate::ast::template::TemplateNode,
-    store_subs: &rustc_hash::FxHashSet<&str>,
-) -> bool {
-    use crate::ast::template::TemplateNode;
-
-    match node {
-        TemplateNode::ExpressionTag(tag) => {
-            expression_has_rune_reference(&tag.expression, store_subs)
-        }
-        TemplateNode::RegularElement(elem) => {
-            for attr in &elem.attributes {
-                if attribute_has_rune_reference(attr, store_subs) {
-                    return true;
-                }
-            }
-            fragment_has_rune_reference(&elem.fragment, store_subs)
-        }
-        TemplateNode::Component(comp) => {
-            for attr in &comp.attributes {
-                if attribute_has_rune_reference(attr, store_subs) {
-                    return true;
-                }
-            }
-            fragment_has_rune_reference(&comp.fragment, store_subs)
-        }
-        TemplateNode::IfBlock(block) => {
-            if expression_has_rune_reference(&block.test, store_subs) {
-                return true;
-            }
-            if fragment_has_rune_reference(&block.consequent, store_subs) {
-                return true;
-            }
-            if let Some(ref alternate) = block.alternate
-                && fragment_has_rune_reference(alternate, store_subs)
-            {
-                return true;
-            }
-            false
-        }
-        TemplateNode::EachBlock(block) => {
-            if expression_has_rune_reference(&block.expression, store_subs) {
-                return true;
-            }
-            if fragment_has_rune_reference(&block.body, store_subs) {
-                return true;
-            }
-            if let Some(ref fallback) = block.fallback
-                && fragment_has_rune_reference(fallback, store_subs)
-            {
-                return true;
-            }
-            false
-        }
-        TemplateNode::KeyBlock(block) => {
-            if expression_has_rune_reference(&block.expression, store_subs) {
-                return true;
-            }
-            fragment_has_rune_reference(&block.fragment, store_subs)
-        }
-        TemplateNode::AwaitBlock(block) => {
-            if expression_has_rune_reference(&block.expression, store_subs) {
-                return true;
-            }
-            if let Some(ref pending) = block.pending
-                && fragment_has_rune_reference(pending, store_subs)
-            {
-                return true;
-            }
-            if let Some(ref then) = block.then
-                && fragment_has_rune_reference(then, store_subs)
-            {
-                return true;
-            }
-            if let Some(ref catch) = block.catch
-                && fragment_has_rune_reference(catch, store_subs)
-            {
-                return true;
-            }
-            false
-        }
-        TemplateNode::SnippetBlock(block) => fragment_has_rune_reference(&block.body, store_subs),
-        TemplateNode::SvelteBoundary(elem)
-        | TemplateNode::SvelteBody(elem)
-        | TemplateNode::SvelteDocument(elem)
-        | TemplateNode::SvelteFragment(elem)
-        | TemplateNode::SvelteHead(elem)
-        | TemplateNode::SvelteOptions(elem)
-        | TemplateNode::SvelteWindow(elem) => {
-            for attr in &elem.attributes {
-                if attribute_has_rune_reference(attr, store_subs) {
-                    return true;
-                }
-            }
-            fragment_has_rune_reference(&elem.fragment, store_subs)
-        }
-        TemplateNode::SvelteSelf(elem) => {
-            for attr in &elem.attributes {
-                if attribute_has_rune_reference(attr, store_subs) {
-                    return true;
-                }
-            }
-            fragment_has_rune_reference(&elem.fragment, store_subs)
-        }
-        TemplateNode::SvelteComponent(elem) => {
-            for attr in &elem.attributes {
-                if attribute_has_rune_reference(attr, store_subs) {
-                    return true;
-                }
-            }
-            fragment_has_rune_reference(&elem.fragment, store_subs)
-        }
-        TemplateNode::SvelteElement(elem) => {
-            for attr in &elem.attributes {
-                if attribute_has_rune_reference(attr, store_subs) {
-                    return true;
-                }
-            }
-            fragment_has_rune_reference(&elem.fragment, store_subs)
-        }
-        TemplateNode::TitleElement(elem) => {
-            for attr in &elem.attributes {
-                if attribute_has_rune_reference(attr, store_subs) {
-                    return true;
-                }
-            }
-            fragment_has_rune_reference(&elem.fragment, store_subs)
-        }
-        TemplateNode::SlotElement(elem) => {
-            for attr in &elem.attributes {
-                if attribute_has_rune_reference(attr, store_subs) {
-                    return true;
-                }
-            }
-            fragment_has_rune_reference(&elem.fragment, store_subs)
-        }
-        TemplateNode::RenderTag(tag) => expression_has_rune_reference(&tag.expression, store_subs),
-        TemplateNode::HtmlTag(tag) => expression_has_rune_reference(&tag.expression, store_subs),
-        TemplateNode::ConstTag(tag) => expression_has_rune_reference(&tag.declaration, store_subs),
-        _ => false,
-    }
-}
-
-/// Check if an expression (stored as JSON) contains a rune reference.
-fn expression_has_rune_reference(
-    expr: &crate::ast::js::Expression,
-    store_subs: &rustc_hash::FxHashSet<&str>,
-) -> bool {
-    let value = expr.as_json();
-    json_has_rune_reference(value, store_subs)
-}
-
-/// Check if an attribute contains a rune reference.
-fn attribute_has_rune_reference(
+/// This combines the checks previously done by `attribute_has_await` and `attribute_has_rune_reference`.
+/// Note: The await check covers more attribute types (ClassDirective, StyleDirective, SpreadAttribute)
+/// than the rune check (which only checks Attribute, OnDirective, BindDirective).
+fn attribute_check_features(
     attr: &crate::ast::template::Attribute,
     store_subs: &rustc_hash::FxHashSet<&str>,
-) -> bool {
+) -> FragmentCheckResults {
     use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart};
 
     match attr {
         Attribute::Attribute(attr_node) => match &attr_node.value {
             AttributeValue::Expression(expr_tag) => {
-                expression_has_rune_reference(&expr_tag.expression, store_subs)
+                let r = expression_check_features(&expr_tag.expression, store_subs);
+                FragmentCheckResults {
+                    has_await: r.has_await,
+                    has_rune_reference: r.has_rune_reference,
+                }
             }
-            AttributeValue::Sequence(parts) => parts.iter().any(|part| {
-                if let AttributeValuePart::ExpressionTag(expr_tag) = part {
-                    expression_has_rune_reference(&expr_tag.expression, store_subs)
-                } else {
-                    false
+            AttributeValue::Sequence(parts) => {
+                let mut results = FragmentCheckResults::default();
+                for part in parts {
+                    if let AttributeValuePart::ExpressionTag(expr_tag) = part {
+                        let r = expression_check_features(&expr_tag.expression, store_subs);
+                        results.merge_json(&r);
+                        if results.all_found() {
+                            return results;
+                        }
+                    }
                 }
-            }),
-            _ => false,
-        },
-        Attribute::OnDirective(dir) => dir
-            .expression
-            .as_ref()
-            .is_some_and(|e| expression_has_rune_reference(e, store_subs)),
-        Attribute::BindDirective(dir) => expression_has_rune_reference(&dir.expression, store_subs),
-        _ => false,
-    }
-}
-
-/// Check if an attribute contains an await expression.
-#[allow(dead_code)]
-fn attribute_has_await(attr: &crate::ast::template::Attribute) -> bool {
-    use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart};
-
-    match attr {
-        Attribute::Attribute(attr_node) => match &attr_node.value {
-            AttributeValue::Expression(expr_tag) => expression_has_await(&expr_tag.expression),
-            AttributeValue::Sequence(parts) => parts.iter().any(|part| {
-                if let AttributeValuePart::ExpressionTag(expr_tag) = part {
-                    expression_has_await(&expr_tag.expression)
-                } else {
-                    false
-                }
-            }),
-            _ => false,
-        },
-        Attribute::OnDirective(dir) => dir.expression.as_ref().is_some_and(expression_has_await),
-        Attribute::BindDirective(dir) => expression_has_await(&dir.expression),
-        Attribute::ClassDirective(dir) => expression_has_await(&dir.expression),
-        Attribute::StyleDirective(dir) => match &dir.value {
-            crate::ast::template::AttributeValue::Expression(expr_tag) => {
-                expression_has_await(&expr_tag.expression)
+                results
             }
-            crate::ast::template::AttributeValue::Sequence(parts) => parts.iter().any(|part| {
-                if let crate::ast::template::AttributeValuePart::ExpressionTag(expr_tag) = part {
-                    expression_has_await(&expr_tag.expression)
-                } else {
-                    false
-                }
-            }),
-            _ => false,
+            _ => FragmentCheckResults::default(),
         },
-        Attribute::SpreadAttribute(spread) => expression_has_await(&spread.expression),
-        _ => false,
+        Attribute::OnDirective(dir) => {
+            if let Some(ref expr) = dir.expression {
+                let r = expression_check_features(expr, store_subs);
+                FragmentCheckResults {
+                    has_await: r.has_await,
+                    has_rune_reference: r.has_rune_reference,
+                }
+            } else {
+                FragmentCheckResults::default()
+            }
+        }
+        Attribute::BindDirective(dir) => {
+            let r = expression_check_features(&dir.expression, store_subs);
+            FragmentCheckResults {
+                has_await: r.has_await,
+                has_rune_reference: r.has_rune_reference,
+            }
+        }
+        Attribute::ClassDirective(dir) => {
+            // Only await check applies here (rune check originally skipped this)
+            let r = expression_check_features(&dir.expression, store_subs);
+            FragmentCheckResults {
+                has_await: r.has_await,
+                has_rune_reference: false,
+            }
+        }
+        Attribute::StyleDirective(dir) => {
+            // Only await check applies here (rune check originally skipped this)
+            match &dir.value {
+                crate::ast::template::AttributeValue::Expression(expr_tag) => {
+                    let r = expression_check_features(&expr_tag.expression, store_subs);
+                    FragmentCheckResults {
+                        has_await: r.has_await,
+                        has_rune_reference: false,
+                    }
+                }
+                crate::ast::template::AttributeValue::Sequence(parts) => {
+                    let mut results = FragmentCheckResults::default();
+                    for part in parts {
+                        if let crate::ast::template::AttributeValuePart::ExpressionTag(expr_tag) =
+                            part
+                        {
+                            let r = expression_check_features(&expr_tag.expression, store_subs);
+                            results.has_await = results.has_await || r.has_await;
+                            if results.has_await {
+                                return results;
+                            }
+                        }
+                    }
+                    results
+                }
+                _ => FragmentCheckResults::default(),
+            }
+        }
+        Attribute::SpreadAttribute(spread) => {
+            // Only await check applies here (rune check originally skipped this)
+            let r = expression_check_features(&spread.expression, store_subs);
+            FragmentCheckResults {
+                has_await: r.has_await,
+                has_rune_reference: false,
+            }
+        }
+        _ => FragmentCheckResults::default(),
     }
 }
 
@@ -3228,15 +3231,15 @@ fn build_keypath_parts(expr: &serde_json::Value, parts: &mut Vec<String>) {
 /// Recursively collect component names from template AST nodes.
 /// These names represent identifiers that are referenced in the template and need to be
 /// considered during component name deconfliction.
-fn collect_template_component_names(
-    nodes: &[crate::ast::template::TemplateNode],
-    names: &mut rustc_hash::FxHashSet<String>,
+fn collect_template_component_names<'a>(
+    nodes: &'a [crate::ast::template::TemplateNode],
+    names: &mut rustc_hash::FxHashSet<&'a str>,
 ) {
     use crate::ast::template::TemplateNode;
     for node in nodes {
         match node {
             TemplateNode::Component(c) => {
-                names.insert(c.name.to_string());
+                names.insert(c.name.as_str());
                 collect_template_component_names(&c.fragment.nodes, names);
             }
             TemplateNode::RegularElement(e) => {

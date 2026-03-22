@@ -239,23 +239,20 @@ fn add_esrap_blank_lines(code: &str) -> String {
     while i < lines.len() {
         let line = lines[i];
 
-        // Track template literal state across lines.
-        // Count unescaped backticks to determine if we enter/exit a template literal.
+        // Track template literal state across lines using proper parsing
+        // that handles string literals, ${} expressions, and nested template literals.
         if in_template_literal {
             result.push(line);
             // Check if this line closes the template literal
-            let backtick_count = count_unescaped_backticks(line);
-            if backtick_count % 2 == 1 {
-                in_template_literal = false;
-            }
+            in_template_literal = line_ends_in_template_literal(line, true);
             i += 1;
             continue;
         }
 
         // Check if this line starts a template literal that doesn't close on the same line
-        let backtick_count = count_unescaped_backticks(line);
-        if backtick_count % 2 == 1 {
-            // Odd number of backticks: template literal started but not closed
+        let ends_in_tl = line_ends_in_template_literal(line, false);
+        if ends_in_tl {
+            // Template literal started but not closed on this line
             // Process this line normally (it's a statement start) but mark subsequent
             // lines as inside the template literal
             in_template_literal = true;
@@ -532,6 +529,7 @@ fn split_concatenated_braces(code: &str) -> String {
             // and the rest looks like a new statement (not a continuation like `)` or `]`)
             if !rest.is_empty()
                 && !rest.starts_with(')')
+                && !rest.starts_with('(')
                 && !rest.starts_with(']')
                 && !rest.starts_with(',')
                 && !rest.starts_with(';')
@@ -565,23 +563,216 @@ fn split_concatenated_braces(code: &str) -> String {
     result
 }
 
-/// Count unescaped backticks in a line.
-/// Used to track template literal boundaries across lines.
-fn count_unescaped_backticks(line: &str) -> usize {
+/// Determine whether a line ends inside a template literal, given the starting state.
+///
+/// This properly handles:
+/// - Escaped characters (`\``, `\\`, etc.)
+/// - String literals inside template expressions (`'...'`, `"..."`)
+/// - Nested template literals inside `${...}` expressions
+/// - `${...}` expression nesting depth
+///
+/// Returns `true` if we're inside a template literal at the end of the line.
+fn line_ends_in_template_literal(line: &str, in_template_literal_at_start: bool) -> bool {
     let bytes = line.as_bytes();
-    let mut count = 0;
+    let len = bytes.len();
     let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'\\' {
-            i += 2; // skip escaped character
-            continue;
+
+    // Stack tracks nesting: each entry is true if we're in a template literal,
+    // false if we're in a ${} expression context.
+    // When the stack is empty, we're at the top level (outside template literals).
+    let mut in_tl = in_template_literal_at_start;
+    // Track ${} nesting depth when inside a template literal.
+    // When depth > 0, we're inside a ${} expression.
+    let mut expr_depth: u32 = 0;
+    // Track brace depth inside ${} expressions (for nested objects, functions, etc.)
+    let mut brace_depth: u32 = 0;
+
+    while i < len {
+        let ch = bytes[i];
+
+        if in_tl && expr_depth == 0 {
+            // Inside a template literal (not inside a ${} expression)
+            if ch == b'\\' {
+                i += 2; // skip escaped character
+                continue;
+            }
+            if ch == b'`' {
+                // Closing backtick - exit template literal
+                in_tl = false;
+                i += 1;
+                continue;
+            }
+            if ch == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                // Enter ${} expression
+                expr_depth = 1;
+                brace_depth = 0;
+                i += 2;
+                continue;
+            }
+            i += 1;
+        } else if in_tl && expr_depth > 0 {
+            // Inside a ${} expression within a template literal
+            if ch == b'\\' {
+                i += 2;
+                continue;
+            }
+            if ch == b'\'' || ch == b'"' {
+                // Skip string literal inside expression
+                let quote = ch;
+                i += 1;
+                while i < len && bytes[i] != quote {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                    } else {
+                        i += 1;
+                    }
+                }
+                if i < len {
+                    i += 1; // skip closing quote
+                }
+                continue;
+            }
+            if ch == b'`' {
+                // Nested template literal inside expression
+                // We push into a "nested template literal" context.
+                // For simplicity, recursively process from this point.
+                // Actually, since we track state with a simple model,
+                // handle this by incrementing expr_depth would be wrong.
+                // Instead, recursively scan the nested template literal.
+                let remaining = &line[i..];
+                let consumed = skip_template_literal_from_start(remaining);
+                i += consumed;
+                continue;
+            }
+            if ch == b'{' {
+                brace_depth += 1;
+                i += 1;
+                continue;
+            }
+            if ch == b'}' {
+                if brace_depth > 0 {
+                    brace_depth -= 1;
+                } else {
+                    // Close the ${} expression, back to template literal content
+                    expr_depth = 0;
+                }
+                i += 1;
+                continue;
+            }
+            i += 1;
+        } else {
+            // Outside template literal (top level or after closing a template literal)
+            if ch == b'\\' {
+                i += 2;
+                continue;
+            }
+            if ch == b'\'' || ch == b'"' {
+                // Skip string literal at top level
+                let quote = ch;
+                i += 1;
+                while i < len && bytes[i] != quote {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                    } else {
+                        i += 1;
+                    }
+                }
+                if i < len {
+                    i += 1; // skip closing quote
+                }
+                continue;
+            }
+            if ch == b'`' {
+                // Opening backtick - enter template literal
+                in_tl = true;
+                expr_depth = 0;
+                brace_depth = 0;
+                i += 1;
+                continue;
+            }
+            i += 1;
         }
-        if bytes[i] == b'`' {
-            count += 1;
-        }
-        i += 1;
     }
-    count
+
+    in_tl
+}
+
+/// Skip a complete template literal starting at position 0 (which must be a backtick).
+/// Returns the number of bytes consumed (including the opening and closing backticks).
+/// If the template literal is not closed on this line, returns the length of the input.
+fn skip_template_literal_from_start(s: &str) -> usize {
+    let bytes = s.as_bytes();
+    let len = bytes.len();
+    debug_assert!(bytes[0] == b'`');
+    let mut i = 1; // skip opening backtick
+    let mut brace_depth: u32 = 0;
+    let mut in_expr = false;
+
+    while i < len {
+        let ch = bytes[i];
+
+        if !in_expr {
+            // Inside template literal content
+            if ch == b'\\' {
+                i += 2;
+                continue;
+            }
+            if ch == b'`' {
+                return i + 1; // closing backtick
+            }
+            if ch == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                in_expr = true;
+                brace_depth = 0;
+                i += 2;
+                continue;
+            }
+            i += 1;
+        } else {
+            // Inside ${} expression
+            if ch == b'\\' {
+                i += 2;
+                continue;
+            }
+            if ch == b'\'' || ch == b'"' {
+                let quote = ch;
+                i += 1;
+                while i < len && bytes[i] != quote {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                    } else {
+                        i += 1;
+                    }
+                }
+                if i < len {
+                    i += 1;
+                }
+                continue;
+            }
+            if ch == b'`' {
+                // Nested template literal
+                let consumed = skip_template_literal_from_start(&s[i..]);
+                i += consumed;
+                continue;
+            }
+            if ch == b'{' {
+                brace_depth += 1;
+                i += 1;
+                continue;
+            }
+            if ch == b'}' {
+                if brace_depth > 0 {
+                    brace_depth -= 1;
+                } else {
+                    in_expr = false;
+                }
+                i += 1;
+                continue;
+            }
+            i += 1;
+        }
+    }
+
+    len // template literal not closed on this line
 }
 
 /// Strip $effect and $effect.root blocks from source code.

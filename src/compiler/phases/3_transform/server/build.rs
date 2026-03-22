@@ -758,12 +758,27 @@ impl<'a> ServerCodeGenerator<'a> {
 	$$renderer.subsume($$inner_renderer);
 "#,
                         body_code = {
-                            // Add one tab of indentation to each non-empty line
+                            // Add one tab of indentation to each non-empty line,
+                            // but NOT inside template literals (to preserve source indentation).
                             let mut result = String::new();
+                            let mut in_template_literal = false;
                             for line in body_code.lines() {
                                 if line.trim().is_empty() {
                                     result.push('\n');
+                                } else if in_template_literal {
+                                    in_template_literal =
+                                        super::helpers::update_template_literal_state_for_indent(
+                                            line,
+                                            in_template_literal,
+                                        );
+                                    result.push_str(line);
+                                    result.push('\n');
                                 } else {
+                                    in_template_literal =
+                                        super::helpers::update_template_literal_state_for_indent(
+                                            line,
+                                            in_template_literal,
+                                        );
                                     result.push('\t');
                                     result.push_str(line);
                                     result.push('\n');

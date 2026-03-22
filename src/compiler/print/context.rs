@@ -34,6 +34,12 @@ pub struct Context<'a> {
     at_line_start: bool,
     /// Whether the context contains multiline content
     pub multiline: bool,
+    /// Original source text for faithful reproduction of expressions/scripts.
+    pub source: Option<&'a str>,
+    /// Deferred newline flag (like esrap's needs_newline)
+    needs_newline: bool,
+    /// Deferred margin flag (like esrap's needs_margin)
+    needs_margin: bool,
     /// Source map mappings (line, column) -> (original_line, original_column)
     /// TODO: Implement proper source map support
     #[allow(dead_code)]
@@ -53,6 +59,24 @@ impl<'a> Context<'a> {
             indent_level: 0,
             at_line_start: true,
             multiline: false,
+            source: None,
+            needs_newline: false,
+            needs_margin: false,
+            mappings: Vec::new(),
+        }
+    }
+
+    /// Create a new Context with source text.
+    pub fn new_with_source(allocator: &'a Allocator, source: Option<&'a str>) -> Self {
+        Self {
+            allocator,
+            buffer: String::new(),
+            indent_level: 0,
+            at_line_start: true,
+            multiline: false,
+            source,
+            needs_newline: false,
+            needs_margin: false,
             mappings: Vec::new(),
         }
     }
@@ -67,6 +91,19 @@ impl<'a> Context<'a> {
     pub fn write(&mut self, text: &str) {
         if text.is_empty() {
             return;
+        }
+
+        // Flush deferred newline/margin before writing content
+        if self.needs_newline {
+            if self.needs_margin {
+                // margin + newline = blank line + new indented line
+                self.buffer.push('\n');
+            }
+            self.buffer.push('\n');
+            self.at_line_start = true;
+            self.multiline = true;
+            self.needs_newline = false;
+            self.needs_margin = false;
         }
 
         // Add indentation if at line start
@@ -95,11 +132,21 @@ impl<'a> Context<'a> {
 
     /// Add a newline to the output.
     ///
-    /// This marks the context as multiline and sets the at_line_start flag.
+    /// Uses deferred processing like esrap: the actual newline is written
+    /// when the next content is written via write().
     pub fn newline(&mut self) {
-        self.buffer.push('\n');
-        self.at_line_start = true;
-        self.multiline = true;
+        // If there's already a deferred newline that hasn't been flushed,
+        // flush it now (this happens for consecutive newlines)
+        if self.needs_newline {
+            if self.needs_margin {
+                self.buffer.push('\n');
+                self.needs_margin = false;
+            }
+            self.buffer.push('\n');
+            self.at_line_start = true;
+            self.multiline = true;
+        }
+        self.needs_newline = true;
     }
 
     /// Increase the indentation level.
@@ -120,12 +167,11 @@ impl<'a> Context<'a> {
 
     /// Add a margin (blank line) to the output.
     ///
-    /// This adds a newline if the buffer is not empty.
-    #[allow(dead_code)]
+    /// Matches esrap's deferred margin behavior:
+    /// `margin(); newline()` creates a blank line between sections.
+    /// The margin flag is consumed when the deferred newline is flushed.
     pub fn margin(&mut self) {
-        if !self.buffer.is_empty() {
-            self.newline();
-        }
+        self.needs_margin = true;
     }
 
     /// Measure the length of the current output.
@@ -138,9 +184,9 @@ impl<'a> Context<'a> {
 
     /// Check if the context is empty.
     ///
-    /// Returns true if the buffer contains no content.
+    /// Returns true if the buffer contains no content and no deferred writes.
     pub fn empty(&self) -> bool {
-        self.buffer.is_empty()
+        self.buffer.is_empty() && !self.needs_newline
     }
 
     /// Append another context to this one.
@@ -152,8 +198,20 @@ impl<'a> Context<'a> {
     ///
     /// * `other` - The context to append
     pub fn append(&mut self, other: &Context) {
-        if other.buffer.is_empty() {
+        if other.buffer.is_empty() && !other.needs_newline {
             return;
+        }
+
+        // Flush our deferred newlines before appending content
+        if self.needs_newline && !other.buffer.is_empty() {
+            if self.needs_margin {
+                self.buffer.push('\n');
+            }
+            self.buffer.push('\n');
+            self.at_line_start = true;
+            self.multiline = true;
+            self.needs_newline = false;
+            self.needs_margin = false;
         }
 
         // Add indentation for each line in the other context
@@ -172,6 +230,15 @@ impl<'a> Context<'a> {
         if other.multiline {
             self.multiline = true;
         }
+
+        // Inherit deferred state from the other context
+        if other.needs_newline {
+            self.needs_newline = true;
+            self.multiline = true;
+        }
+        if other.needs_margin {
+            self.needs_margin = true;
+        }
     }
 
     /// Create a new child context.
@@ -185,6 +252,9 @@ impl<'a> Context<'a> {
             indent_level: 0,
             at_line_start: true,
             multiline: false,
+            source: self.source,
+            needs_newline: false,
+            needs_margin: false,
             mappings: Vec::new(),
         }
     }
@@ -206,10 +276,25 @@ impl<'a> Context<'a> {
             .push((current_line, current_column, line, column));
     }
 
+    /// Flush any deferred newlines to the buffer.
+    fn flush_deferred(&mut self) {
+        if self.needs_newline {
+            if self.needs_margin {
+                self.buffer.push('\n');
+            }
+            self.buffer.push('\n');
+            self.at_line_start = true;
+            self.multiline = true;
+            self.needs_newline = false;
+            self.needs_margin = false;
+        }
+    }
+
     /// Get the buffer content as a string.
     ///
     /// Returns the complete output buffer.
-    pub fn finish(self) -> String {
+    pub fn finish(mut self) -> String {
+        self.flush_deferred();
         self.buffer
     }
 
@@ -232,7 +317,15 @@ impl<'a> Context<'a> {
 
 impl<'a> std::fmt::Display for Context<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.buffer)
+        write!(f, "{}", self.buffer)?;
+        // Flush deferred newlines in display
+        if self.needs_newline {
+            if self.needs_margin {
+                writeln!(f)?;
+            }
+            writeln!(f)?;
+        }
+        Ok(())
     }
 }
 

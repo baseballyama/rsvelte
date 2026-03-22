@@ -53,6 +53,28 @@ pub fn visit_css_node(context: &mut Context, node: &Value) {
 /// * `node` - The Atrule node
 fn visit_atrule(context: &mut Context, node: &Value) {
     if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+        // For @font-face, the CSS parser may incorrectly parse declarations as selectors.
+        // Use source text extraction as a workaround when source is available.
+        if name == "font-face"
+            && let Some(source) = context.source
+        {
+            let start = node
+                .get("start")
+                .and_then(|s| s.as_u64())
+                .map(|n| n as usize);
+            let end = node.get("end").and_then(|e| e.as_u64()).map(|n| n as usize);
+            if let (Some(s), Some(e)) = (start, end)
+                && s < e
+                && e <= source.len()
+            {
+                // Extract and reformat the @font-face block from source
+                let raw = &source[s..e];
+                let reformatted = reformat_font_face(raw);
+                context.write(&reformatted);
+                return;
+            }
+        }
+
         context.write("@");
         context.write(name);
 
@@ -74,6 +96,41 @@ fn visit_atrule(context: &mut Context, node: &Value) {
             context.write(";");
         }
     }
+}
+
+/// Reformat a @font-face block from raw source text.
+fn reformat_font_face(raw: &str) -> String {
+    // Parse the raw text: @font-face { declarations }
+    let mut result = String::from("@font-face {");
+
+    // Find the opening brace
+    if let Some(brace_pos) = raw.find('{') {
+        let inner = &raw[brace_pos + 1..];
+        // Find the closing brace
+        if let Some(close_pos) = inner.rfind('}') {
+            let declarations_text = inner[..close_pos].trim();
+
+            if !declarations_text.is_empty() {
+                // Split by semicolons to get declarations
+                for decl in declarations_text.split(';') {
+                    let decl = decl.trim();
+                    if !decl.is_empty() {
+                        result.push_str("\n\t");
+                        result.push_str(decl);
+                        result.push(';');
+                    }
+                }
+            }
+
+            result.push_str("\n}");
+        } else {
+            result.push('}');
+        }
+    } else {
+        result.push('}');
+    }
+
+    result
 }
 
 /// Visit an attribute selector (e.g., [name="value"]).
@@ -329,8 +386,32 @@ fn visit_relative_selector(context: &mut Context, node: &Value) {
     }
 
     if let Some(selectors) = node.get("selectors").and_then(|s| s.as_array()) {
-        for selector in selectors {
-            visit_css_node(context, selector);
+        if selectors.is_empty() {
+            // Empty selectors array - try to extract from source text.
+            // This happens for keyframe selectors like "50%" that the parser
+            // doesn't store as typed selector nodes.
+            if let Some(source) = context.source
+                && let Some(s) = node
+                    .get("start")
+                    .and_then(|s| s.as_u64())
+                    .map(|n| n as usize)
+                && let Some(e) = node.get("end").and_then(|e| e.as_u64()).map(|n| n as usize)
+                && s < e
+                && e <= source.len()
+            {
+                let text = source[s..e].trim();
+                // For keyframe percentages, double the % for esrap compatibility
+                if text.ends_with('%') {
+                    context.write(text);
+                    context.write("%");
+                } else {
+                    context.write(text);
+                }
+            }
+        } else {
+            for selector in selectors {
+                visit_css_node(context, selector);
+            }
         }
     }
 }

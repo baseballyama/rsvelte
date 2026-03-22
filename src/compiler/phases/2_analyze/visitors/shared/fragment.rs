@@ -100,7 +100,7 @@ pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<
     //
     // We collect preceding ignores for both non-Comment/non-Text nodes AND Text nodes,
     // but only emit legacy_code/unknown_code warnings for non-Comment/non-Text nodes.
-    let ignore_info = compute_all_preceding_ignores(&fragment.nodes, runes);
+    let mut ignore_info = compute_all_preceding_ignores(&fragment.nodes, runes);
 
     // Emit warnings from svelte-ignore comment validation (legacy_code, unknown_code).
     // These are emitted only once per comment because only the first
@@ -122,15 +122,13 @@ pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<
     }
 
     for (idx, node) in fragment.nodes.iter_mut().enumerate() {
-        // Push ignores for this node
+        // Take ownership of ignore codes to avoid cloning
         let ignore_codes = ignore_info[idx]
-            .as_ref()
-            .map(|(p, _)| p.ignores.clone())
+            .take()
+            .map(|(p, _)| p.ignores)
             .unwrap_or_default();
         let has_ignores = !ignore_codes.is_empty();
         if has_ignores {
-            context.push_ignore(ignore_codes.clone());
-
             // Store ignored codes on element metadata for use during code generation
             match node {
                 TemplateNode::RegularElement(elem) => {
@@ -147,6 +145,7 @@ pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<
                 }
                 _ => {}
             }
+            context.push_ignore(ignore_codes);
         }
 
         // Visit the node

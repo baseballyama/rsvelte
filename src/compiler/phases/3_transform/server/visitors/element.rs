@@ -378,7 +378,20 @@ impl<'a> ServerCodeGenerator<'a> {
                 // Preserve whitespace: output children as-is (no trimming/collapsing)
                 let saved_preserve = self.preserve_whitespace;
                 self.preserve_whitespace = true;
-                for child in &children {
+
+                // If the first text node inside a <pre> is a single newline, discard it.
+                // This matches the official compiler's clean_nodes behavior (utils.js lines 253-262):
+                // browsers would strip it anyway, and keeping it would break hydration.
+                let skip_first_newline = name == "pre"
+                    && matches!(
+                        children.first(),
+                        Some(TemplateNode::Text(t)) if t.data.as_str() == "\n" || t.data.as_str() == "\r\n"
+                    );
+
+                for (idx, child) in children.iter().enumerate() {
+                    if skip_first_newline && idx == 0 {
+                        continue; // Skip the first newline text node
+                    }
                     if matches!(child, TemplateNode::Comment(_)) {
                         continue;
                     }
@@ -493,15 +506,24 @@ impl<'a> ServerCodeGenerator<'a> {
                             has_output_content = true;
                             continue;
                         }
-                        // Whitespace-only text: add space only if between content elements
+                        // Whitespace-only text: matching clean_nodes behavior.
+                        // In clean_nodes, text nodes are modified in-place: if the previous
+                        // text ends with whitespace, leading whitespace is stripped (→ empty).
+                        // The next text then checks this empty text (which doesn't end with ws)
+                        // and replaces its leading whitespace with " ".
                         if has_output_content
                             && last_content.is_some()
                             && i < last_content.unwrap()
                             && !data.is_empty()
-                            && !last_output_was_space
                         {
-                            self.output_parts.push(OutputPart::Html(" ".to_string()));
-                            last_output_was_space = true;
+                            if !last_output_was_space {
+                                self.output_parts.push(OutputPart::Html(" ".to_string()));
+                                last_output_was_space = true;
+                            } else {
+                                // Text stripped (like clean_nodes setting data to "").
+                                // Reset flag so the next text can produce a space.
+                                last_output_was_space = false;
+                            }
                         }
                         continue;
                     }
@@ -1072,7 +1094,18 @@ impl<'a> ServerCodeGenerator<'a> {
             if preserve_children_whitespace {
                 let saved_preserve = self.preserve_whitespace;
                 self.preserve_whitespace = true;
-                for child in element.fragment.nodes.iter() {
+
+                // Strip first newline in <pre> (same logic as above)
+                let skip_first_newline = name == "pre"
+                    && matches!(
+                        element.fragment.nodes.first(),
+                        Some(TemplateNode::Text(t)) if t.data.as_str() == "\n" || t.data.as_str() == "\r\n"
+                    );
+
+                for (idx, child) in element.fragment.nodes.iter().enumerate() {
+                    if skip_first_newline && idx == 0 {
+                        continue;
+                    }
                     if matches!(child, TemplateNode::Comment(_)) {
                         continue;
                     }

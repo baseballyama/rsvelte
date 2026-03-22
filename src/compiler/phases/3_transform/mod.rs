@@ -90,40 +90,53 @@ pub fn transform_component(
 
     let (js, mut js_mappings) = match options.generate {
         GenerateMode::Client => {
-            let result = client::transform_client(analysis, ast, source, options)?;
-            // Merge codegen-tracked mappings with full token-level mappings.
-            // When a preprocessor map is present, token-level mappings (by name) are
-            // more reliable than sequential-scan codegen mappings because the
-            // transformed script content contains framework tokens (e.g., $.prop,
-            // $$props) that confuse the sequential source scanner in emit_raw_mapped,
-            // causing it to advance past user code and produce wrong source positions.
-            // Token-level mappings match by token name and handle this correctly.
-            let token_mappings = generate_token_mappings(&result.code, source);
-            let rune_mappings = generate_rune_mappings(&result.code, source);
-            let mut mappings = if options.sourcemap.is_some() {
-                // Preprocessor present: token mappings take priority
-                let mut m = token_mappings;
-                m.extend(rune_mappings);
-                m.extend(result.mappings);
-                m
+            let mut result = client::transform_client(analysis, ast, source, options)?;
+            // Strip unnecessary parens around arrow functions (e.g., (() => { ... }) → () => { ... })
+            // matching the official Svelte compiler's AST printer behavior.
+            result.code = server::transform_script::strip_arrow_function_parens(&result.code);
+
+            if options.enable_sourcemap {
+                // Merge codegen-tracked mappings with full token-level mappings.
+                // When a preprocessor map is present, token-level mappings (by name) are
+                // more reliable than sequential-scan codegen mappings because the
+                // transformed script content contains framework tokens (e.g., $.prop,
+                // $$props) that confuse the sequential source scanner in emit_raw_mapped,
+                // causing it to advance past user code and produce wrong source positions.
+                // Token-level mappings match by token name and handle this correctly.
+                let token_mappings = generate_token_mappings(&result.code, source);
+                let rune_mappings = generate_rune_mappings(&result.code, source);
+                let mut mappings = if options.sourcemap.is_some() {
+                    // Preprocessor present: token mappings take priority
+                    let mut m = token_mappings;
+                    m.extend(rune_mappings);
+                    m.extend(result.mappings);
+                    m
+                } else {
+                    // No preprocessor: codegen mappings take priority (more precise)
+                    let mut m = result.mappings;
+                    m.extend(token_mappings);
+                    m.extend(rune_mappings);
+                    m
+                };
+                // Sort and dedup
+                mappings
+                    .sort_by(|a, b| a.gen_line.cmp(&b.gen_line).then(a.gen_col.cmp(&b.gen_col)));
+                mappings.dedup_by(|a, b| a.gen_line == b.gen_line && a.gen_col == b.gen_col);
+                (result.code, mappings)
             } else {
-                // No preprocessor: codegen mappings take priority (more precise)
-                let mut m = result.mappings;
-                m.extend(token_mappings);
-                m.extend(rune_mappings);
-                m
-            };
-            // Sort and dedup
-            mappings.sort_by(|a, b| a.gen_line.cmp(&b.gen_line).then(a.gen_col.cmp(&b.gen_col)));
-            mappings.dedup_by(|a, b| a.gen_line == b.gen_line && a.gen_col == b.gen_col);
-            (result.code, mappings)
+                (result.code, Vec::new())
+            }
         }
         GenerateMode::Server => {
             let code = server::transform_server(analysis, ast, source, options)?;
-            // Generate token-level mappings by matching tokens in the server
-            // output to tokens in the original source
-            let mappings = generate_token_mappings(&code, source);
-            (code, mappings)
+            if options.enable_sourcemap {
+                // Generate token-level mappings by matching tokens in the server
+                // output to tokens in the original source
+                let mappings = generate_token_mappings(&code, source);
+                (code, mappings)
+            } else {
+                (code, Vec::new())
+            }
         }
         GenerateMode::None => {
             // Don't generate code - useful for tooling that only needs warnings
@@ -135,7 +148,9 @@ pub fn transform_component(
     // Our mappings currently point to positions in the preprocessed source;
     // the preprocessor map tells us where those positions came from in the
     // original source.
-    if let Some(ref pp_map) = options.sourcemap {
+    if options.enable_sourcemap
+        && let Some(ref pp_map) = options.sourcemap
+    {
         remap_through_sourcemap(&mut js_mappings, pp_map);
 
         // After remapping, some JS mappings may incorrectly reference CSS/style
@@ -228,211 +243,65 @@ pub fn transform_component(
         }
     }
 
-    // Extract original source info from preprocessor map if available
-    struct PreprocessorInfo {
-        /// Source file names from the preprocessor map
-        sources: Vec<String>,
-        /// Source contents from the preprocessor map
-        sources_content: Vec<String>,
-        /// Names from the preprocessor map
-        names: Vec<String>,
-    }
-
-    let pp_info = options.sourcemap.as_ref().and_then(|pp_map| {
-        let map: serde_json::Value = serde_json::from_str(pp_map).ok()?;
-        let sources = map
-            .get("sources")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        let sources_content = map
-            .get("sourcesContent")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        let names = map
-            .get("names")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        if sources.is_empty() && sources_content.is_empty() {
-            None
-        } else {
-            Some(PreprocessorInfo {
-                sources,
-                sources_content,
-                names,
-            })
-        }
-    });
-
-    // Generate JS source map if we have mappings
-    let js_map = if !js_mappings.is_empty() {
-        let output_filename = options.output_filename.as_deref();
-        let filename = options.filename.as_deref();
-        let source_name = get_source_name(filename, output_filename, "input.svelte");
-
-        // Determine the output file basename for the "file" field
-        let file_name = output_filename
-            .map(|f| {
-                f.split(['/', '\\'])
-                    .next_back()
-                    .unwrap_or("input.svelte.js")
-                    .to_string()
-            })
-            .unwrap_or_else(|| "input.svelte.js".to_string());
-
-        let mut mappings_str = encode_vlq_mappings(&js_mappings);
-
-        // Ensure the mappings string covers all lines of the generated output.
-        // The VLQ encoding uses ';' to separate lines. If the last mapping is on
-        // line N but the output has M>N lines, we need trailing semicolons so
-        // that decode() produces an array of length M+1.
-        let output_line_count = js.chars().filter(|&c| c == '\n').count();
-        let mapped_lines = mappings_str.chars().filter(|&c| c == ';').count();
-        for _ in mapped_lines..output_line_count {
-            mappings_str.push(';');
+    // Generate JS source map only when sourcemaps are enabled
+    let js_map = if options.enable_sourcemap {
+        // Extract original source info from preprocessor map if available
+        struct PreprocessorInfo {
+            /// Source file names from the preprocessor map
+            sources: Vec<String>,
+            /// Source contents from the preprocessor map
+            sources_content: Vec<String>,
+            /// Names from the preprocessor map
+            names: Vec<String>,
         }
 
-        // When a preprocessor map is present, use its source info
-        if let Some(ref info) = pp_info {
-            let names_refs: Vec<&str> = info.names.iter().map(|s| s.as_str()).collect();
-
-            if info.sources.len() > 1 {
-                // Multi-source case: only include sources actually referenced by JS mappings.
-                // After remap_through_sourcemap, each mapping's `source` field is a
-                // preprocessor source index. Collect which indices are actually used.
-                let mut used_indices: Vec<u32> = js_mappings
-                    .iter()
-                    .map(|m| m.source)
-                    .collect::<std::collections::BTreeSet<_>>()
-                    .into_iter()
-                    .collect();
-                if used_indices.is_empty() {
-                    // Fallback: use index 0 (the input file)
-                    used_indices.push(0);
-                }
-
-                // Build a mapping from old source index to new source index
-                let mut index_remap: std::collections::HashMap<u32, u32> =
-                    std::collections::HashMap::new();
-                for (new_idx, &old_idx) in used_indices.iter().enumerate() {
-                    index_remap.insert(old_idx, new_idx as u32);
-                }
-
-                // Remap source indices in JS mappings
-                for m in js_mappings.iter_mut() {
-                    if let Some(&new_idx) = index_remap.get(&m.source) {
-                        m.source = new_idx;
-                    }
-                }
-
-                // Re-encode the mappings with remapped source indices
-                mappings_str = encode_vlq_mappings(&js_mappings);
-                let output_line_count = js.chars().filter(|&c| c == '\n').count();
-                let mapped_lines = mappings_str.chars().filter(|&c| c == ';').count();
-                for _ in mapped_lines..output_line_count {
-                    mappings_str.push(';');
-                }
-
-                // Build filtered source/content lists using only used indices
-                let output_filename = options.output_filename.as_deref();
-                let mut multi_sources: Vec<String> = Vec::new();
-                let mut multi_contents: Vec<String> = Vec::new();
-                for &old_idx in &used_indices {
-                    let pp_src = &info.sources[old_idx as usize];
-                    if let Some(fname) = options.filename.as_deref() {
-                        let fname_basename = fname.split(['/', '\\']).next_back().unwrap_or(fname);
-                        if pp_src == fname_basename || pp_src == fname {
-                            multi_sources.push(source_name.clone());
-                        } else {
-                            let source_path = if let Some(fname_dir) =
-                                fname.rsplit_once('/').or_else(|| fname.rsplit_once('\\'))
-                            {
-                                format!("{}/{}", fname_dir.0, pp_src)
-                            } else {
-                                pp_src.clone()
-                            };
-                            multi_sources.push(get_source_name(
-                                Some(&source_path),
-                                output_filename,
-                                pp_src,
-                            ));
-                        }
-                    } else {
-                        multi_sources.push(pp_src.clone());
-                    }
-                    if let Some(content) = info.sources_content.get(old_idx as usize) {
-                        multi_contents.push(content.clone());
-                    }
-                }
-
-                if multi_sources.len() == 1 {
-                    // Only one source referenced - use single-source format
-                    let content = multi_contents.first().map(|s| s.as_str()).unwrap_or(source);
-                    Some(generate_sourcemap_json(
-                        &file_name,
-                        &multi_sources[0],
-                        content,
-                        &mappings_str,
-                        &names_refs,
-                    ))
-                } else {
-                    let sources_refs: Vec<&str> =
-                        multi_sources.iter().map(|s| s.as_str()).collect();
-                    let contents_refs: Vec<&str> =
-                        multi_contents.iter().map(|s| s.as_str()).collect();
-                    Some(js_ast::codegen::generate_sourcemap_json_multi(
-                        &file_name,
-                        &sources_refs,
-                        &contents_refs,
-                        &mappings_str,
-                        &names_refs,
-                    ))
-                }
+        let pp_info = options.sourcemap.as_ref().and_then(|pp_map| {
+            let map: serde_json::Value = serde_json::from_str(pp_map).ok()?;
+            let sources = map
+                .get("sources")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            let sources_content = map
+                .get("sourcesContent")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            let names = map
+                .get("names")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            if sources.is_empty() && sources_content.is_empty() {
+                None
             } else {
-                // Single source - use the first source content if available
-                let content = info
-                    .sources_content
-                    .first()
-                    .map(|s| s.as_str())
-                    .unwrap_or(source);
-                Some(generate_sourcemap_json(
-                    &file_name,
-                    &source_name,
-                    content,
-                    &mappings_str,
-                    &names_refs,
-                ))
+                Some(PreprocessorInfo {
+                    sources,
+                    sources_content,
+                    names,
+                })
             }
-        } else {
-            Some(generate_sourcemap_json(
-                &file_name,
-                &source_name,
-                source,
-                &mappings_str,
-                &[],
-            ))
-        }
-    } else {
-        // If no mappings tracked (e.g., server mode), generate a trivial source map
-        // so that tests checking for map existence still pass
-        let output_filename = options.output_filename.as_deref();
-        let filename = options.filename.as_deref();
-        if output_filename.is_some() || filename.is_some() {
+        });
+
+        // Generate JS source map if we have mappings
+        if !js_mappings.is_empty() {
+            let output_filename = options.output_filename.as_deref();
+            let filename = options.filename.as_deref();
             let source_name = get_source_name(filename, output_filename, "input.svelte");
+
+            // Determine the output file basename for the "file" field
             let file_name = output_filename
                 .map(|f| {
                     f.split(['/', '\\'])
@@ -442,30 +311,183 @@ pub fn transform_component(
                 })
                 .unwrap_or_else(|| "input.svelte.js".to_string());
 
-            // Generate line-level identity mappings (each generated line maps to line 0, col 0)
-            let line_count = js.chars().filter(|&c| c == '\n').count();
-            let mut trivial_mappings = Vec::new();
-            for line in 0..=line_count {
-                trivial_mappings.push(SourceMapping {
-                    gen_line: line as u32,
-                    gen_col: 0,
-                    source: 0,
-                    orig_line: 0,
-                    orig_col: 0,
-                    name: None,
-                });
+            let mut mappings_str = encode_vlq_mappings(&js_mappings);
+
+            // Ensure the mappings string covers all lines of the generated output.
+            // The VLQ encoding uses ';' to separate lines. If the last mapping is on
+            // line N but the output has M>N lines, we need trailing semicolons so
+            // that decode() produces an array of length M+1.
+            let output_line_count = js.chars().filter(|&c| c == '\n').count();
+            let mapped_lines = mappings_str.chars().filter(|&c| c == ';').count();
+            for _ in mapped_lines..output_line_count {
+                mappings_str.push(';');
             }
-            let mappings_str = encode_vlq_mappings(&trivial_mappings);
-            Some(generate_sourcemap_json(
-                &file_name,
-                &source_name,
-                source,
-                &mappings_str,
-                &[],
-            ))
+
+            // When a preprocessor map is present, use its source info
+            if let Some(ref info) = pp_info {
+                let names_refs: Vec<&str> = info.names.iter().map(|s| s.as_str()).collect();
+
+                if info.sources.len() > 1 {
+                    // Multi-source case: only include sources actually referenced by JS mappings.
+                    // After remap_through_sourcemap, each mapping's `source` field is a
+                    // preprocessor source index. Collect which indices are actually used.
+                    let mut used_indices: Vec<u32> = js_mappings
+                        .iter()
+                        .map(|m| m.source)
+                        .collect::<std::collections::BTreeSet<_>>()
+                        .into_iter()
+                        .collect();
+                    if used_indices.is_empty() {
+                        // Fallback: use index 0 (the input file)
+                        used_indices.push(0);
+                    }
+
+                    // Build a mapping from old source index to new source index
+                    let mut index_remap: std::collections::HashMap<u32, u32> =
+                        std::collections::HashMap::new();
+                    for (new_idx, &old_idx) in used_indices.iter().enumerate() {
+                        index_remap.insert(old_idx, new_idx as u32);
+                    }
+
+                    // Remap source indices in JS mappings
+                    for m in js_mappings.iter_mut() {
+                        if let Some(&new_idx) = index_remap.get(&m.source) {
+                            m.source = new_idx;
+                        }
+                    }
+
+                    // Re-encode the mappings with remapped source indices
+                    mappings_str = encode_vlq_mappings(&js_mappings);
+                    let output_line_count = js.chars().filter(|&c| c == '\n').count();
+                    let mapped_lines = mappings_str.chars().filter(|&c| c == ';').count();
+                    for _ in mapped_lines..output_line_count {
+                        mappings_str.push(';');
+                    }
+
+                    // Build filtered source/content lists using only used indices
+                    let output_filename = options.output_filename.as_deref();
+                    let mut multi_sources: Vec<String> = Vec::new();
+                    let mut multi_contents: Vec<String> = Vec::new();
+                    for &old_idx in &used_indices {
+                        let pp_src = &info.sources[old_idx as usize];
+                        if let Some(fname) = options.filename.as_deref() {
+                            let fname_basename =
+                                fname.split(['/', '\\']).next_back().unwrap_or(fname);
+                            if pp_src == fname_basename || pp_src == fname {
+                                multi_sources.push(source_name.clone());
+                            } else {
+                                let source_path = if let Some(fname_dir) =
+                                    fname.rsplit_once('/').or_else(|| fname.rsplit_once('\\'))
+                                {
+                                    format!("{}/{}", fname_dir.0, pp_src)
+                                } else {
+                                    pp_src.clone()
+                                };
+                                multi_sources.push(get_source_name(
+                                    Some(&source_path),
+                                    output_filename,
+                                    pp_src,
+                                ));
+                            }
+                        } else {
+                            multi_sources.push(pp_src.clone());
+                        }
+                        if let Some(content) = info.sources_content.get(old_idx as usize) {
+                            multi_contents.push(content.clone());
+                        }
+                    }
+
+                    if multi_sources.len() == 1 {
+                        // Only one source referenced - use single-source format
+                        let content = multi_contents.first().map(|s| s.as_str()).unwrap_or(source);
+                        Some(generate_sourcemap_json(
+                            &file_name,
+                            &multi_sources[0],
+                            content,
+                            &mappings_str,
+                            &names_refs,
+                        ))
+                    } else {
+                        let sources_refs: Vec<&str> =
+                            multi_sources.iter().map(|s| s.as_str()).collect();
+                        let contents_refs: Vec<&str> =
+                            multi_contents.iter().map(|s| s.as_str()).collect();
+                        Some(js_ast::codegen::generate_sourcemap_json_multi(
+                            &file_name,
+                            &sources_refs,
+                            &contents_refs,
+                            &mappings_str,
+                            &names_refs,
+                        ))
+                    }
+                } else {
+                    // Single source - use the first source content if available
+                    let content = info
+                        .sources_content
+                        .first()
+                        .map(|s| s.as_str())
+                        .unwrap_or(source);
+                    Some(generate_sourcemap_json(
+                        &file_name,
+                        &source_name,
+                        content,
+                        &mappings_str,
+                        &names_refs,
+                    ))
+                }
+            } else {
+                Some(generate_sourcemap_json(
+                    &file_name,
+                    &source_name,
+                    source,
+                    &mappings_str,
+                    &[],
+                ))
+            }
         } else {
-            None
+            // If no mappings tracked (e.g., server mode), generate a trivial source map
+            // so that tests checking for map existence still pass
+            let output_filename = options.output_filename.as_deref();
+            let filename = options.filename.as_deref();
+            if output_filename.is_some() || filename.is_some() {
+                let source_name = get_source_name(filename, output_filename, "input.svelte");
+                let file_name = output_filename
+                    .map(|f| {
+                        f.split(['/', '\\'])
+                            .next_back()
+                            .unwrap_or("input.svelte.js")
+                            .to_string()
+                    })
+                    .unwrap_or_else(|| "input.svelte.js".to_string());
+
+                // Generate line-level identity mappings (each generated line maps to line 0, col 0)
+                let line_count = js.chars().filter(|&c| c == '\n').count();
+                let mut trivial_mappings = Vec::new();
+                for line in 0..=line_count {
+                    trivial_mappings.push(SourceMapping {
+                        gen_line: line as u32,
+                        gen_col: 0,
+                        source: 0,
+                        orig_line: 0,
+                        orig_col: 0,
+                        name: None,
+                    });
+                }
+                let mappings_str = encode_vlq_mappings(&trivial_mappings);
+                Some(generate_sourcemap_json(
+                    &file_name,
+                    &source_name,
+                    source,
+                    &mappings_str,
+                    &[],
+                ))
+            } else {
+                None
+            }
         }
+    } else {
+        // Sourcemaps disabled - skip all mapping generation for performance
+        None
     };
 
     Ok(TransformResult {

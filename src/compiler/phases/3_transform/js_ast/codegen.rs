@@ -45,8 +45,10 @@ pub fn generate(program: &JsProgram) -> Result<String, String> {
     let mut codegen = JsCodegen::new();
     codegen.emit_program(program);
     // Trim trailing newline to match esrap behavior (Svelte's codegen)
-    let output = codegen.output.trim_end_matches('\n').to_string();
-    Ok(output)
+    // Truncate in-place to avoid allocating a new String.
+    let trimmed_len = codegen.output.trim_end_matches('\n').len();
+    codegen.output.truncate(trimmed_len);
+    Ok(codegen.output)
 }
 
 /// Generate JavaScript source code from a program AST, with source map data.
@@ -60,9 +62,14 @@ pub fn generate_with_sourcemap(program: &JsProgram, source: &str) -> Result<Code
     let mappings = codegen.compute_mappings();
 
     // Trim trailing newline to match esrap behavior (Svelte's codegen)
-    let code = codegen.output.trim_end_matches('\n').to_string();
+    // Truncate in-place to avoid allocating a new String.
+    let trimmed_len = codegen.output.trim_end_matches('\n').len();
+    codegen.output.truncate(trimmed_len);
 
-    Ok(CodegenResult { code, mappings })
+    Ok(CodegenResult {
+        code: codegen.output,
+        mappings,
+    })
 }
 
 /// Generate JavaScript source code for a single expression.
@@ -98,6 +105,7 @@ impl<'a> JsCodegen<'a> {
     }
 
     /// Record the start of a spanned expression in the output.
+    #[inline]
     fn record_span_start(&mut self, source_start: u32, source_end: u32) {
         if self.track_mappings {
             self.raw_spans.push(RawSpan {
@@ -147,12 +155,40 @@ impl<'a> JsCodegen<'a> {
         mappings
     }
 
+    /// Pre-computed indentation strings for common indent levels (0..16).
+    /// Avoids per-character push loop for the most common cases.
+    const INDENT_CACHE: [&'static str; 17] = [
+        "",
+        "\t",
+        "\t\t",
+        "\t\t\t",
+        "\t\t\t\t",
+        "\t\t\t\t\t",
+        "\t\t\t\t\t\t",
+        "\t\t\t\t\t\t\t",
+        "\t\t\t\t\t\t\t\t",
+        "\t\t\t\t\t\t\t\t\t",
+        "\t\t\t\t\t\t\t\t\t\t",
+        "\t\t\t\t\t\t\t\t\t\t\t",
+        "\t\t\t\t\t\t\t\t\t\t\t\t",
+        "\t\t\t\t\t\t\t\t\t\t\t\t\t",
+        "\t\t\t\t\t\t\t\t\t\t\t\t\t\t",
+        "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t",
+        "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t",
+    ];
+
+    #[inline]
     fn indent(&mut self) {
-        for _ in 0..self.indent_level {
-            self.output.push('\t');
+        if self.indent_level < Self::INDENT_CACHE.len() {
+            self.output.push_str(Self::INDENT_CACHE[self.indent_level]);
+        } else {
+            for _ in 0..self.indent_level {
+                self.output.push('\t');
+            }
         }
     }
 
+    #[inline]
     fn newline(&mut self) {
         self.output.push('\n');
     }
@@ -202,12 +238,13 @@ impl<'a> JsCodegen<'a> {
                     prev_multiline = last_trimmed.starts_with('}');
                     prev_type = Some(raw_stmt_type_name(last_line));
                 } else {
-                    prev_multiline = rendered.bytes().filter(|&b| b == b'\n').count() > 1;
+                    prev_multiline = has_multiple_newlines(rendered.as_bytes());
                     prev_type = Some(current_type);
                 }
             } else {
-                // A statement is multiline if it contains a newline before the final newline
-                prev_multiline = rendered.bytes().filter(|&b| b == b'\n').count() > 1;
+                // A statement is multiline if it contains a newline before the final newline.
+                // Use memchr for fast newline search: find 2nd newline to confirm >1.
+                prev_multiline = has_multiple_newlines(rendered.as_bytes());
                 prev_type = Some(current_type);
             }
         }
@@ -418,7 +455,9 @@ impl<'a> JsCodegen<'a> {
                     if imported == local {
                         self.output.push_str(local);
                     } else {
-                        let _ = write!(self.output, "{} as {}", imported, local);
+                        self.output.push_str(imported);
+                        self.output.push_str(" as ");
+                        self.output.push_str(local);
                     }
                 }
                 self.output.push_str(" }");
@@ -459,7 +498,9 @@ impl<'a> JsCodegen<'a> {
                 if spec.local == spec.exported {
                     self.output.push_str(&spec.local);
                 } else {
-                    let _ = write!(self.output, "{} as {}", spec.local, spec.exported);
+                    self.output.push_str(&spec.local);
+                    self.output.push_str(" as ");
+                    self.output.push_str(&spec.exported);
                 }
             }
             self.output.push_str(" }");
@@ -468,7 +509,7 @@ impl<'a> JsCodegen<'a> {
     }
 
     fn emit_variable_declaration(&mut self, decl: &JsVariableDeclaration) {
-        self.output.push_str(&decl.kind.to_string());
+        self.output.push_str(decl.kind.as_str());
         self.output.push(' ');
 
         for (i, declarator) in decl.declarations.iter().enumerate() {
@@ -540,7 +581,7 @@ impl<'a> JsCodegen<'a> {
         if let Some(ref init) = for_stmt.init {
             match init {
                 JsForInit::Variable(decl) => {
-                    self.output.push_str(&decl.kind.to_string());
+                    self.output.push_str(decl.kind.as_str());
                     self.output.push(' ');
                     for (i, declarator) in decl.declarations.iter().enumerate() {
                         if i > 0 {
@@ -578,7 +619,7 @@ impl<'a> JsCodegen<'a> {
         self.output.push('(');
         match &for_of.left {
             JsForOfLeft::Variable(decl) => {
-                self.output.push_str(&decl.kind.to_string());
+                self.output.push_str(decl.kind.as_str());
                 self.output.push(' ');
                 if let Some(declarator) = decl.declarations.first() {
                     self.emit_pattern(&declarator.id);
@@ -666,6 +707,7 @@ impl<'a> JsCodegen<'a> {
         }
     }
 
+    #[inline]
     fn emit_expression(&mut self, expr: &JsExpr) {
         match expr {
             JsExpr::Identifier(name) => self.output.push_str(name),
@@ -722,6 +764,7 @@ impl<'a> JsCodegen<'a> {
         }
     }
 
+    #[inline]
     fn emit_literal(&mut self, lit: &JsLiteral) {
         match lit {
             JsLiteral::String(s) => {
@@ -734,7 +777,18 @@ impl<'a> JsCodegen<'a> {
                 self.output.push('\'');
             }
             JsLiteral::Number(n) => {
-                let _ = write!(self.output, "{}", n);
+                // Fast path for non-negative integer values: use itoa for
+                // zero-allocation integer formatting. This covers the vast
+                // majority of number literals in generated Svelte code
+                // (indices, counts, etc.). We exclude negative zero (-0.0)
+                // because it must render as "-0" in JS, and itoa would give "0".
+                let i = *n as i64;
+                if i >= 0 && *n == i as f64 && n.is_finite() {
+                    let mut buf = itoa::Buffer::new();
+                    self.output.push_str(buf.format(i));
+                } else {
+                    let _ = write!(self.output, "{}", n);
+                }
             }
             JsLiteral::Boolean(b) => {
                 self.output.push_str(if *b { "true" } else { "false" });
@@ -742,7 +796,10 @@ impl<'a> JsCodegen<'a> {
             JsLiteral::Null => self.output.push_str("null"),
             JsLiteral::Undefined => self.output.push_str("undefined"),
             JsLiteral::Regex { pattern, flags } => {
-                let _ = write!(self.output, "/{}/{}", pattern, flags);
+                self.output.push('/');
+                self.output.push_str(pattern);
+                self.output.push('/');
+                self.output.push_str(flags);
             }
         }
     }
@@ -945,6 +1002,7 @@ impl<'a> JsCodegen<'a> {
         }
     }
 
+    #[inline]
     fn emit_property_key(&mut self, key: &JsPropertyKey) {
         match key {
             JsPropertyKey::Identifier(name) => self.output.push_str(name),
@@ -1012,6 +1070,7 @@ impl<'a> JsCodegen<'a> {
         }
     }
 
+    #[inline]
     fn emit_call_expression(&mut self, call: &JsCallExpression) {
         // Need parentheses for callees that have lower precedence than function calls:
         // - Arrow functions: (() => x)()
@@ -1064,6 +1123,7 @@ impl<'a> JsCodegen<'a> {
         self.output.push(')');
     }
 
+    #[inline]
     fn emit_member_expression(&mut self, member: &JsMemberExpression) {
         // Add parentheses around the object when it has lower precedence than member access.
         // Member access (.) has very high precedence (18), so most expression types
@@ -1138,7 +1198,9 @@ impl<'a> JsCodegen<'a> {
         if left_needs_parens {
             self.output.push(')');
         }
-        let _ = write!(self.output, " {} ", binary.operator);
+        self.output.push(' ');
+        self.output.push_str(binary.operator.as_str());
+        self.output.push(' ');
         // Right operand: needs parens if it has lower or equal precedence
         // (for left-associative operators) to preserve correct grouping.
         let right_needs_parens = self.binary_operand_needs_parens(
@@ -1201,7 +1263,9 @@ impl<'a> JsCodegen<'a> {
         if left_needs_parens {
             self.output.push(')');
         }
-        let _ = write!(self.output, " {} ", logical.operator);
+        self.output.push(' ');
+        self.output.push_str(logical.operator.as_str());
+        self.output.push(' ');
         // Check if the right operand needs parentheses
         let right_needs_parens =
             self.logical_operand_needs_parens(&logical.right, &logical.operator);
@@ -1232,10 +1296,11 @@ impl<'a> JsCodegen<'a> {
         }
     }
 
+    #[inline]
     fn emit_unary_expression(&mut self, unary: &JsUnaryExpression) {
-        let op_str = unary.operator.to_string();
+        let op_str = unary.operator.as_str();
         if unary.prefix {
-            self.output.push_str(&op_str);
+            self.output.push_str(op_str);
             if matches!(
                 unary.operator,
                 JsUnaryOp::TypeOf | JsUnaryOp::Void | JsUnaryOp::Delete
@@ -1245,23 +1310,27 @@ impl<'a> JsCodegen<'a> {
             self.emit_expression(&unary.argument);
         } else {
             self.emit_expression(&unary.argument);
-            self.output.push_str(&op_str);
+            self.output.push_str(op_str);
         }
     }
 
+    #[inline]
     fn emit_update_expression(&mut self, update: &JsUpdateExpression) {
         if update.prefix {
-            self.output.push_str(&update.operator.to_string());
+            self.output.push_str(update.operator.as_str());
             self.emit_expression(&update.argument);
         } else {
             self.emit_expression(&update.argument);
-            self.output.push_str(&update.operator.to_string());
+            self.output.push_str(update.operator.as_str());
         }
     }
 
+    #[inline]
     fn emit_assignment_expression(&mut self, assignment: &JsAssignmentExpression) {
         self.emit_expression(&assignment.left);
-        let _ = write!(self.output, " {} ", assignment.operator);
+        self.output.push(' ');
+        self.output.push_str(assignment.operator.as_str());
+        self.output.push(' ');
         self.emit_expression(&assignment.right);
     }
 
@@ -1323,6 +1392,7 @@ impl<'a> JsCodegen<'a> {
         }
     }
 
+    #[inline]
     fn emit_pattern(&mut self, pattern: &JsPattern) {
         match pattern {
             JsPattern::Identifier(name) => self.output.push_str(name),
@@ -1444,7 +1514,7 @@ impl<'a> JsCodegen<'a> {
             source_code: None,
         };
         tmp.emit_statement(stmt);
-        tmp.output.bytes().filter(|&b| b == b'\n').count() > 1
+        has_multiple_newlines(tmp.output.as_bytes())
     }
 
     /// Pre-render an expression to a string without modifying the output.
@@ -1712,6 +1782,17 @@ impl<'a> JsCodegen<'a> {
     }
 }
 
+/// Check if a byte slice contains more than one newline character.
+/// Uses memchr for SIMD-accelerated search, short-circuiting after finding 2 newlines.
+#[inline]
+fn has_multiple_newlines(bytes: &[u8]) -> bool {
+    if let Some(first) = memchr::memchr(b'\n', bytes) {
+        memchr::memchr(b'\n', &bytes[first + 1..]).is_some()
+    } else {
+        false
+    }
+}
+
 /// Check if an expression is an object or array value (used for margin logic in sequence).
 /// In esrap, consecutive multiline properties with object/array values don't get extra margins.
 fn has_object_or_array_value(item: &Option<&JsExpr>) -> bool {
@@ -1795,6 +1876,7 @@ fn raw_stmt_type_name(code: &str) -> &'static str {
 /// Get the precedence level of a binary operator.
 /// Higher number = higher precedence (binds tighter).
 /// Based on MDN operator precedence table.
+#[inline]
 fn binary_op_precedence(op: &JsBinaryOp) -> u8 {
     match op {
         JsBinaryOp::Pow => 14,
@@ -2032,11 +2114,21 @@ fn extract_tokens(code: &str) -> Vec<Token<'_>> {
 // ============================================================================
 
 /// Build a list of byte offsets where each line starts.
+/// Uses byte-level iteration instead of char_indices since '\n' is a single
+/// byte in UTF-8, which is faster and avoids UTF-8 decoding overhead.
 pub fn build_line_starts(s: &str) -> Vec<usize> {
-    let mut starts = vec![0usize];
-    for (i, c) in s.char_indices() {
-        if c == '\n' {
-            starts.push(i + 1);
+    let bytes = s.as_bytes();
+    // Estimate ~80 chars per line for initial capacity
+    let estimated_lines = bytes.len() / 80 + 1;
+    let mut starts = Vec::with_capacity(estimated_lines);
+    starts.push(0);
+    let mut pos = 0;
+    while pos < bytes.len() {
+        if let Some(offset) = memchr::memchr(b'\n', &bytes[pos..]) {
+            starts.push(pos + offset + 1);
+            pos += offset + 1;
+        } else {
+            break;
         }
     }
     starts
@@ -2107,8 +2199,11 @@ pub fn encode_vlq_mappings(mappings: &[SourceMapping]) -> String {
 }
 
 /// Encode a single integer as a VLQ value appended to the output string.
+/// Uses a pre-computed ASCII lookup table to avoid the `as char` conversion overhead.
+#[inline]
 fn vlq_encode(out: &mut String, value: i64) {
-    const B64: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    // Base64 chars as a static array for direct indexing
+    const B64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut v = if value < 0 {
         ((-value) << 1) | 1
     } else {
@@ -2121,6 +2216,8 @@ fn vlq_encode(out: &mut String, value: i64) {
         if v > 0 {
             digit |= 0x20; // continuation bit
         }
+        // SAFETY: digit is at most 0x3F (63), which is within B64 bounds,
+        // and B64 contains only ASCII bytes.
         out.push(B64[digit as usize] as char);
         if v == 0 {
             break;

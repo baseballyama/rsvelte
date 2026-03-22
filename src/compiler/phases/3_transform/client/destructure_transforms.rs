@@ -64,13 +64,27 @@ pub(super) fn transform_destructure_assignments_with_props(
     store_sub_vars: &[String],
     prop_vars: &[String],
 ) -> String {
+    // Quick check: destructure assignments require `=` with `[` or `{` on the LHS
+    if state_vars.is_empty() && store_sub_vars.is_empty() && prop_vars.is_empty() {
+        return statement.to_string();
+    }
+
     let mut result = statement.to_string();
+
+    // Build HashSets once for O(1) lookups across all iterations
+    let state_set: rustc_hash::FxHashSet<&str> = state_vars.iter().map(|s| s.as_str()).collect();
+    let store_set: rustc_hash::FxHashSet<&str> =
+        store_sub_vars.iter().map(|s| s.as_str()).collect();
 
     // Process the statement, looking for destructure assignments.
     // We scan for patterns and replace them with IIFEs.
-    while let Some(transformed) =
-        find_and_transform_one_destructure(&result, state_vars, store_sub_vars, prop_vars)
-    {
+    while let Some(transformed) = find_and_transform_one_destructure(
+        &result,
+        store_sub_vars,
+        prop_vars,
+        &state_set,
+        &store_set,
+    ) {
         result = transformed;
     }
 
@@ -91,9 +105,10 @@ pub(super) fn transform_destructure_assignments_with_props(
 /// values match the official compiler output.
 pub(super) fn find_and_transform_one_destructure(
     statement: &str,
-    state_vars: &[String],
     store_sub_vars: &[String],
     prop_vars: &[String],
+    state_set: &rustc_hash::FxHashSet<&str>,
+    store_set: &rustc_hash::FxHashSet<&str>,
 ) -> Option<String> {
     let chars: Vec<char> = statement.chars().collect();
     let len = chars.len();
@@ -204,7 +219,7 @@ pub(super) fn find_and_transform_one_destructure(
                     // Check if any target is a reactive variable
                     let has_reactive_target = targets
                         .iter()
-                        .any(|t| state_vars.contains(t) || store_sub_vars.contains(t));
+                        .any(|t| state_set.contains(t.as_str()) || store_set.contains(t.as_str()));
 
                     if !has_reactive_target {
                         i = j + 1;
@@ -1525,6 +1540,19 @@ pub(super) fn transform_member_mutations(
     non_reactive_state_vars: &[String],
     raw_state_vars: &[String],
 ) -> String {
+    if state_vars.is_empty() {
+        return line.to_string();
+    }
+
+    // Quick pre-check: if none of the state variable names appear in the line, skip expensive transforms
+    if !state_vars.iter().any(|v| {
+        !non_reactive_state_vars.contains(v)
+            && !raw_state_vars.contains(v)
+            && line.contains(v.as_str())
+    }) {
+        return line.to_string();
+    }
+
     // Use the character-scanning approach from transform_state_member_mutations
     // to find member mutations at any nesting level (including inside function bodies).
     let mut result = line.to_string();

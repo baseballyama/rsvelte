@@ -844,6 +844,226 @@ pub fn expression_to_string(expr: &crate::ast::js::Expression) -> String {
     estree_to_string(value)
 }
 
+/// Convert an Expression to string using source text when available.
+///
+/// Falls back to the ESTree-based generator if source is not available or
+/// the expression doesn't have valid start/end positions.
+pub fn source_expression_to_string(
+    expr: &crate::ast::js::Expression,
+    source: Option<&str>,
+) -> String {
+    if let Some(src) = source {
+        match expr {
+            crate::ast::js::Expression::Typed(typed) => {
+                if let (Some(start), Some(end)) = (typed.node.start(), typed.node.end()) {
+                    let start = start as usize;
+                    let end = end as usize;
+                    if start < end && end <= src.len() {
+                        return src[start..end].to_string();
+                    }
+                }
+            }
+            crate::ast::js::Expression::Value(val) => {
+                // Extract start/end from JSON value
+                let start = val
+                    .get("start")
+                    .and_then(|s| s.as_u64())
+                    .map(|n| n as usize);
+                let end = val.get("end").and_then(|e| e.as_u64()).map(|n| n as usize);
+                if let (Some(start), Some(end)) = (start, end)
+                    && start < end
+                    && end <= src.len()
+                {
+                    return src[start..end].to_string();
+                }
+            }
+        }
+    }
+    expression_to_string(expr)
+}
+
+/// Format a VariableDeclaration for ConstTag output.
+///
+/// Generates "const x = expr;" from the AST, using source text for the
+/// declarator's init expression when available.
+pub fn format_variable_declaration_from_source(
+    expr: &crate::ast::js::Expression,
+    source: Option<&str>,
+) -> String {
+    let json = expr.as_json();
+
+    // Extract kind (should be "const")
+    let kind = json.get("kind").and_then(|k| k.as_str()).unwrap_or("const");
+
+    if let Some(declarations) = json.get("declarations").and_then(|d| d.as_array()) {
+        let mut result = format!("{} ", kind);
+
+        for (i, decl) in declarations.iter().enumerate() {
+            if i > 0 {
+                result.push_str(", ");
+            }
+
+            // Get the declarator's start..end from source if available
+            let decl_start = decl
+                .get("start")
+                .and_then(|s| s.as_u64())
+                .map(|n| n as usize);
+            let decl_end = decl.get("end").and_then(|e| e.as_u64()).map(|n| n as usize);
+
+            if let (Some(src), Some(s), Some(e)) = (source, decl_start, decl_end)
+                && s < e
+                && e <= src.len()
+            {
+                result.push_str(&src[s..e]);
+                continue;
+            }
+
+            // Fallback: construct from AST
+            if let Some(id) = decl.get("id") {
+                result.push_str(&estree_to_string(id));
+            }
+            if let Some(init) = decl.get("init")
+                && !init.is_null()
+            {
+                result.push_str(" = ");
+                result.push_str(&estree_to_string(init));
+            }
+        }
+
+        result.push(';');
+        return result;
+    }
+
+    // Fallback
+    expression_to_string(expr)
+}
+
+/// Format a Program node (script content) using original source text.
+///
+/// Extracts each statement's text from the source, normalizes indentation to tabs,
+/// and preserves blank lines between statements.
+pub fn format_program_from_source(program: &crate::ast::js::Expression, source: &str) -> String {
+    // Collect (start, end) pairs from the program body
+    let positions = get_program_body_positions(program);
+
+    if positions.is_empty() {
+        // Fallback
+        return format_program(program.as_json());
+    }
+
+    let mut lines = Vec::new();
+    let mut prev_end: Option<usize> = None;
+
+    for (s, e) in &positions {
+        let s = *s;
+        let e = *e;
+
+        if s >= e || e > source.len() {
+            continue;
+        }
+
+        // Check for blank lines between statements
+        if let Some(pe) = prev_end {
+            let between = &source[pe..s];
+            let newline_count = between.chars().filter(|c| *c == '\n').count();
+            if newline_count > 1 {
+                lines.push(String::new()); // blank line
+            }
+        }
+
+        // Determine the base indentation from the source position
+        let base_indent = get_column_indent(source, s);
+
+        let stmt_text = &source[s..e];
+        let normalized = strip_base_indent(stmt_text, base_indent);
+        lines.push(normalized);
+        prev_end = Some(e);
+    }
+
+    if lines.is_empty() {
+        format_program(program.as_json())
+    } else {
+        lines.join("\n")
+    }
+}
+
+/// Get (start, end) positions of each statement in a Program body.
+fn get_program_body_positions(program: &crate::ast::js::Expression) -> Vec<(usize, usize)> {
+    use crate::ast::typed_expr::JsNode;
+
+    // Try typed variant first
+    if let crate::ast::js::Expression::Typed(typed) = program
+        && let JsNode::Program { body, .. } = &typed.node
+    {
+        return body
+            .iter()
+            .filter_map(|stmt| {
+                let s = stmt.start()? as usize;
+                let e = stmt.end()? as usize;
+                Some((s, e))
+            })
+            .collect();
+    }
+
+    // Handle Value variant (legacy JSON)
+    let json = program.as_json();
+    if let Some(body) = json.get("body").and_then(|v| v.as_array()) {
+        return body
+            .iter()
+            .filter_map(|stmt| {
+                let s = stmt.get("start").and_then(|s| s.as_u64())? as usize;
+                let e = stmt.get("end").and_then(|e| e.as_u64())? as usize;
+                Some((s, e))
+            })
+            .collect();
+    }
+
+    Vec::new()
+}
+
+/// Get the indentation at a particular position in the source.
+/// Counts backwards from the position to the most recent newline to find the column,
+/// then determines how many indent units (tabs or spaces) precede the position.
+fn get_column_indent(source: &str, pos: usize) -> usize {
+    // Find the start of the current line
+    let before = &source[..pos];
+    let line_start = before.rfind('\n').map(|i| i + 1).unwrap_or(0);
+    let prefix = &source[line_start..pos];
+
+    // Count leading whitespace characters
+    prefix.len() - prefix.trim_start().len()
+}
+
+/// Strip a given number of indentation characters from each line of text.
+/// The first line is assumed to have 0 leading indent (since start position
+/// is at the first token character), so only subsequent lines are stripped.
+fn strip_base_indent(text: &str, base_indent: usize) -> String {
+    let text_lines: Vec<&str> = text.lines().collect();
+    if text_lines.is_empty() {
+        return String::new();
+    }
+
+    let mut result_lines = Vec::new();
+    for (i, line) in text_lines.iter().enumerate() {
+        if i == 0 {
+            // First line: no stripping needed (start pos is at token)
+            result_lines.push(line.to_string());
+        } else if line.trim().is_empty() {
+            result_lines.push(String::new());
+        } else {
+            // Strip base_indent characters from the beginning
+            let stripped = if line.len() > base_indent {
+                &line[base_indent..]
+            } else {
+                line.trim_start()
+            };
+            result_lines.push(stripped.to_string());
+        }
+    }
+
+    result_lines.join("\n")
+}
+
 /// Format a Program node (script content) to JavaScript source code.
 ///
 /// # Arguments

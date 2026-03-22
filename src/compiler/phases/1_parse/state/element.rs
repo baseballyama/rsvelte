@@ -2374,68 +2374,65 @@ impl Parser<'_> {
 /// Check if a name is a valid HTML element name.
 /// Based on: /^(?:![a-zA-Z]+|[a-zA-Z](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?|[a-zA-Z][a-zA-Z0-9]*:[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9])$/
 fn is_valid_element_name(name: &str) -> bool {
-    if name.is_empty() {
+    let bytes = name.as_bytes();
+    if bytes.is_empty() {
         return false;
     }
 
-    let chars: Vec<char> = name.chars().collect();
-
     // Check for doctype-like: !DOCTYPE, etc.
-    if chars[0] == '!' {
-        return chars.len() > 1 && chars[1..].iter().all(|c| c.is_ascii_alphabetic());
+    if bytes[0] == b'!' {
+        return bytes.len() > 1 && bytes[1..].iter().all(|b| b.is_ascii_alphabetic());
     }
 
     // Must start with a letter
-    if !chars[0].is_ascii_alphabetic() {
+    if !bytes[0].is_ascii_alphabetic() {
         return false;
     }
 
     // Check for namespaced element (e.g., svg:rect)
     if let Some(colon_pos) = name.find(':') {
-        let before_colon = &name[..colon_pos];
-        let after_colon = &name[colon_pos + 1..];
+        let before_bytes = &name.as_bytes()[..colon_pos];
+        let after_bytes = &name.as_bytes()[colon_pos + 1..];
 
         // Before colon: [a-zA-Z][a-zA-Z0-9]*
-        let before_chars: Vec<char> = before_colon.chars().collect();
-        if before_chars.is_empty() || !before_chars[0].is_ascii_alphabetic() {
+        if before_bytes.is_empty() || !before_bytes[0].is_ascii_alphabetic() {
             return false;
         }
-        if !before_chars[1..].iter().all(|c| c.is_ascii_alphanumeric()) {
+        if !before_bytes[1..].iter().all(|b| b.is_ascii_alphanumeric()) {
             return false;
         }
 
         // After colon: [a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]
-        let after_chars: Vec<char> = after_colon.chars().collect();
-        if after_chars.is_empty() || !after_chars[0].is_ascii_alphabetic() {
+        if after_bytes.is_empty() || !after_bytes[0].is_ascii_alphabetic() {
             return false;
         }
-        if after_chars.len() == 1 {
+        if after_bytes.len() == 1 {
             return true;
         }
         // Must end with alphanumeric
-        if !after_chars.last().unwrap().is_ascii_alphanumeric() {
+        if !after_bytes.last().unwrap().is_ascii_alphanumeric() {
             return false;
         }
         // Middle can be alphanumeric or hyphen
-        return after_chars[1..after_chars.len() - 1]
+        return after_bytes[1..after_bytes.len() - 1]
             .iter()
-            .all(|c| c.is_ascii_alphanumeric() || *c == '-');
+            .all(|b| b.is_ascii_alphanumeric() || *b == b'-');
     }
 
     // Simple element name: [a-zA-Z](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?
-    if chars.len() == 1 {
+    if bytes.len() == 1 {
         return true; // Single letter is valid
     }
 
     // Must end with alphanumeric
-    if !chars.last().unwrap().is_ascii_alphanumeric() {
+    if !bytes.last().unwrap().is_ascii_alphanumeric() {
         return false;
     }
 
     // Middle can be alphanumeric or hyphen
-    chars[1..chars.len() - 1]
+    bytes[1..bytes.len() - 1]
         .iter()
-        .all(|c| c.is_ascii_alphanumeric() || *c == '-')
+        .all(|b| b.is_ascii_alphanumeric() || *b == b'-')
 }
 
 /// Check if a name is a valid Svelte component name.
@@ -2449,18 +2446,19 @@ fn is_valid_component_name(name: &str) -> bool {
         return false;
     }
 
-    let chars: Vec<char> = name.chars().collect();
+    let mut chars = name.chars();
+    let first = chars.next().unwrap();
 
     // Check for uppercase-starting component (e.g., Component, MyComponent)
     // Also supports Unicode uppercase letters (e.g., Wunderschön, Cæжαकン中)
-    if chars[0].is_uppercase() {
+    if first.is_uppercase() {
         // Rest can be identifier characters, $, or .
-        return chars[1..].iter().all(|c| is_component_name_char(*c));
+        return chars.all(is_component_name_char);
     }
 
     // Check for dot-notation component (e.g., foo.Bar, a.b.C)
     // Must start with a valid identifier start character
-    if !is_identifier_start(chars[0]) {
+    if !is_identifier_start(first) {
         return false;
     }
 
@@ -2475,26 +2473,23 @@ fn is_valid_component_name(name: &str) -> bool {
         if part.is_empty() {
             return false;
         }
-        let part_chars: Vec<char> = part.chars().collect();
+        let mut part_chars = part.chars();
+        let part_first = part_chars.next().unwrap();
 
         // First part must start with identifier start
         if i == 0 {
-            if !is_identifier_start(part_chars[0]) {
+            if !is_identifier_start(part_first) {
                 return false;
             }
         } else {
             // Subsequent parts can start with identifier continue, $
-            let first = part_chars[0];
-            if !is_identifier_continue(first) && first != '$' {
+            if !is_identifier_continue(part_first) && part_first != '$' {
                 return false;
             }
         }
 
         // Rest of part must be identifier continue or $
-        if !part_chars[1..]
-            .iter()
-            .all(|c| is_identifier_continue(*c) || *c == '$')
-        {
+        if !part_chars.all(|c| is_identifier_continue(c) || c == '$') {
             return false;
         }
     }

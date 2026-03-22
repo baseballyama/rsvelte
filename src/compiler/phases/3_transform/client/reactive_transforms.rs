@@ -861,6 +861,15 @@ pub(super) fn unwrap_block_statement_owned(body: &str) -> (String, bool) {
 /// Converts `x++` to `$.update_prop(x)`, `++x` to `$.update_pre_prop(x)`,
 /// `x--` to `$.update_prop(x, -1)`, and `--x` to `$.update_pre_prop(x, -1)`.
 pub(super) fn transform_prop_update_expressions(expr: &str, prop_vars: &[String]) -> String {
+    if prop_vars.is_empty() {
+        return expr.to_string();
+    }
+
+    // Quick pre-check: if none of the prop vars appear in the expression, skip expensive transforms
+    if !prop_vars.iter().any(|v| expr.contains(v.as_str())) {
+        return expr.to_string();
+    }
+
     let mut result = expr.to_string();
     for var in prop_vars {
         // Transform postfix x++ to $.update_prop(x)

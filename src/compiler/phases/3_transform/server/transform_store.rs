@@ -317,11 +317,34 @@ pub(crate) fn replace_store_identifier_in_script(
                                                 found_close = true;
                                                 // Register shadow: $store is a parameter,
                                                 // it shadows in the function body.
-                                                // Use brace_depth + 1 so the shadow is only
-                                                // active inside the function body block,
-                                                // not at the call site level.
-                                                shadowed_params
-                                                    .push((brace_depth + 1, paren_depth - 1));
+                                                if is_arrow {
+                                                    // For arrow functions, check if body is a block or expression.
+                                                    // Skip past `=>` and whitespace to check.
+                                                    let mut body_pos = m + 2;
+                                                    while body_pos < chars.len()
+                                                        && chars[body_pos].is_whitespace()
+                                                    {
+                                                        body_pos += 1;
+                                                    }
+                                                    if body_pos < chars.len()
+                                                        && chars[body_pos] == '{'
+                                                    {
+                                                        // Block body: shadow active inside braces
+                                                        shadowed_params.push((
+                                                            brace_depth + 1,
+                                                            paren_depth - 1,
+                                                        ));
+                                                    } else {
+                                                        // Expression body: shadow active at same
+                                                        // brace depth (until paren depth decreases)
+                                                        shadowed_params
+                                                            .push((brace_depth, paren_depth - 1));
+                                                    }
+                                                } else {
+                                                    // Regular function: shadow active inside braces
+                                                    shadowed_params
+                                                        .push((brace_depth + 1, paren_depth - 1));
+                                                }
                                             }
                                             break;
                                         } else {
@@ -764,10 +787,11 @@ fn transform_store_property_mutations(script: &str) -> String {
 /// `$.store_get()` from appearing on the LHS of destructure assignments.
 pub(crate) fn transform_store_destructure_assignments(script: &str) -> String {
     let mut result = script.to_string();
+    let mut array_counter = 0usize;
 
     // Keep transforming until no more changes (handles multiple destructures)
     loop {
-        let new = transform_one_store_destructure(&result);
+        let new = transform_one_store_destructure(&result, &mut array_counter);
         if new == result {
             break;
         }
@@ -778,7 +802,7 @@ pub(crate) fn transform_store_destructure_assignments(script: &str) -> String {
 }
 
 /// Find and transform one store destructure assignment.
-fn transform_one_store_destructure(script: &str) -> String {
+fn transform_one_store_destructure(script: &str, array_counter: &mut usize) -> String {
     let chars: Vec<char> = script.chars().collect();
     let len = chars.len();
     // Build byte offset mapping: char index -> byte index
@@ -893,6 +917,14 @@ fn transform_one_store_destructure(script: &str) -> String {
 
                     // Check if pattern contains any $store targets
                     if !has_store_targets(pattern_str) {
+                        // Even though we're not transforming this destructure,
+                        // we need to increment the array counter for array
+                        // patterns to match the official Svelte compiler's
+                        // scope.generate('$$array') behavior, which assigns
+                        // names to ALL array destructures (not just store ones).
+                        if close_bracket == ']' {
+                            *array_counter += 1;
+                        }
                         i = j + 1;
                         continue;
                     }
@@ -942,7 +974,12 @@ fn transform_one_store_destructure(script: &str) -> String {
                     let expansion = if close_bracket == '}' {
                         expand_object_store_destructure(pattern_str, rhs_str, needs_return)
                     } else {
-                        expand_array_store_destructure(pattern_str, rhs_str, needs_return)
+                        expand_array_store_destructure(
+                            pattern_str,
+                            rhs_str,
+                            needs_return,
+                            array_counter,
+                        )
                     };
 
                     let mut new_script = String::new();
@@ -1098,15 +1135,27 @@ fn expand_object_store_destructure(pattern: &str, rhs: &str, needs_return: bool)
 
 /// Expand an array destructure `[$u, $v, $w]` into an IIFE with `$.to_array()` and `$.store_set()`.
 /// When `needs_return` is true, the IIFE returns `$$value` (expression position).
-fn expand_array_store_destructure(pattern: &str, rhs: &str, needs_return: bool) -> String {
+fn expand_array_store_destructure(
+    pattern: &str,
+    rhs: &str,
+    needs_return: bool,
+    array_counter: &mut usize,
+) -> String {
     let inner = pattern.trim();
     let inner = &inner[1..inner.len() - 1]; // strip [ ]
 
     let parts = split_top_level_commas(inner);
     let n = parts.len();
 
+    let array_name = if *array_counter == 0 {
+        "$$array".to_string()
+    } else {
+        format!("$$array_{}", array_counter)
+    };
+    *array_counter += 1;
+
     let mut body_lines = Vec::new();
-    body_lines.push(format!("var $$array = $.to_array($$value, {});", n));
+    body_lines.push(format!("var {} = $.to_array($$value, {});", array_name, n));
 
     for (idx, part) in parts.iter().enumerate() {
         let part = part.trim();
@@ -1116,9 +1165,12 @@ fn expand_array_store_destructure(pattern: &str, rhs: &str, needs_return: bool) 
 
         if part.starts_with('$') && part.len() > 1 && (part.as_bytes()[1] as char).is_alphabetic() {
             let store_name = &part[1..];
-            body_lines.push(format!("$.store_set({}, $$array[{}]);", store_name, idx));
+            body_lines.push(format!(
+                "$.store_set({}, {}[{}]);",
+                store_name, array_name, idx
+            ));
         } else {
-            body_lines.push(format!("{} = $$array[{}];", part, idx));
+            body_lines.push(format!("{} = {}[{}];", part, array_name, idx));
         }
     }
 
