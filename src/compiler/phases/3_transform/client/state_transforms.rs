@@ -1400,45 +1400,58 @@ pub(super) fn transform_state_assignments(
     let mut result = line.to_string();
 
     for var in state_vars {
+        // Skip variables that don't appear in this line at all
+        if !result.contains(var.as_str()) {
+            continue;
+        }
+
         // Transform ++varname to $.update_pre(varname)
         let pre_inc_pattern = format!("++{}", var);
-        result = replace_with_word_boundary_scoped(
-            &result,
-            &pre_inc_pattern,
-            &format!("$.update_pre({})", var),
-            true,
-            Some(var),
-        );
+        if result.contains(&pre_inc_pattern) {
+            result = replace_with_word_boundary_scoped(
+                &result,
+                &pre_inc_pattern,
+                &format!("$.update_pre({})", var),
+                true,
+                Some(var),
+            );
+        }
 
         // Transform --varname to $.update_pre(varname, -1)
         let pre_dec_pattern = format!("--{}", var);
-        result = replace_with_word_boundary_scoped(
-            &result,
-            &pre_dec_pattern,
-            &format!("$.update_pre({}, -1)", var),
-            true,
-            Some(var),
-        );
+        if result.contains(&pre_dec_pattern) {
+            result = replace_with_word_boundary_scoped(
+                &result,
+                &pre_dec_pattern,
+                &format!("$.update_pre({}, -1)", var),
+                true,
+                Some(var),
+            );
+        }
 
         // Transform varname++ to $.update(varname)
         let post_inc_pattern = format!("{}++", var);
-        result = replace_with_word_boundary_scoped(
-            &result,
-            &post_inc_pattern,
-            &format!("$.update({})", var),
-            false,
-            Some(var),
-        );
+        if result.contains(&post_inc_pattern) {
+            result = replace_with_word_boundary_scoped(
+                &result,
+                &post_inc_pattern,
+                &format!("$.update({})", var),
+                false,
+                Some(var),
+            );
+        }
 
         // Transform varname-- to $.update(varname, -1)
         let post_dec_pattern = format!("{}--", var);
-        result = replace_with_word_boundary_scoped(
-            &result,
-            &post_dec_pattern,
-            &format!("$.update({}, -1)", var),
-            false,
-            Some(var),
-        );
+        if result.contains(&post_dec_pattern) {
+            result = replace_with_word_boundary_scoped(
+                &result,
+                &post_dec_pattern,
+                &format!("$.update({}, -1)", var),
+                false,
+                Some(var),
+            );
+        }
 
         // Transform compound assignments: varname += expr to $.set(varname, $.get(varname) + (expr))
         for op in &["+=", "-=", "*=", "/=", "%=", "**="] {
