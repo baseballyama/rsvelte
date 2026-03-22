@@ -340,18 +340,22 @@ fn is_single_expression_tag(nodes: &[TemplateNode]) -> bool {
 
 /// Check if an expression is known to be defined (not null/undefined).
 fn is_known_defined_expr(expr: &crate::ast::js::Expression) -> bool {
-    let json_value = expr.as_json();
-    if let Some(obj) = json_value.as_object() {
-        let expr_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
-        match expr_type {
-            "Literal" => {
-                let value = obj.get("value");
-                !matches!(value, Some(serde_json::Value::Null) | None)
+    match expr.node_type() {
+        Some("Literal") => {
+            // Check if literal value is not null
+            let node = expr.as_node();
+            match &*node {
+                crate::ast::typed_expr::JsNode::Literal { value, .. } => {
+                    !matches!(value, crate::ast::typed_expr::LiteralValue::Null)
+                }
+                crate::ast::typed_expr::JsNode::Raw(val) => {
+                    let value = val.get("value");
+                    !matches!(value, Some(serde_json::Value::Null) | None)
+                }
+                _ => false,
             }
-            "TemplateLiteral" => true,
-            _ => false,
         }
-    } else {
-        false
+        Some("TemplateLiteral") => true,
+        _ => false,
     }
 }

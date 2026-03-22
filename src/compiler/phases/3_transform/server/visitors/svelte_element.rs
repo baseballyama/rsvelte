@@ -19,23 +19,27 @@ impl<'a> ServerCodeGenerator<'a> {
         // Check if tag is a Literal node (e.g., from this="svg")
         let tag_expr = if elem.tag.node_type() == Some("Literal") {
             // Use the raw field for proper quoting: 'svg'
-            if let Some(raw) = elem.tag.as_json().get("raw").and_then(|r| r.as_str()) {
+            let node = elem.tag.as_node();
+            if let crate::ast::typed_expr::JsNode::Literal { raw, .. } = &*node {
                 raw.to_string()
-            } else if let Some(val) = elem.tag.as_json().get("value").and_then(|v| v.as_str()) {
-                format!("'{}'", val)
+            } else if let crate::ast::typed_expr::JsNode::Raw(val) = &*node {
+                if let Some(raw) = val.get("raw").and_then(|r| r.as_str()) {
+                    raw.to_string()
+                } else if let Some(v) = val.get("value").and_then(|v| v.as_str()) {
+                    format!("'{}'", v)
+                } else {
+                    "null".to_string()
+                }
             } else {
                 "null".to_string()
             }
         } else if end > start && end <= self.source.len() {
             let raw = self.source[start..end].trim().to_string();
             self.transform_store_refs(&raw)
+        } else if let Some(name) = elem.tag.name() {
+            format!("'{}'", name)
         } else {
-            let json = elem.tag.as_json();
-            if let Some(s) = json.as_str() {
-                format!("'{}'", s)
-            } else {
-                "null".to_string()
-            }
+            "null".to_string()
         };
 
         // Generate attributes expression if there are any

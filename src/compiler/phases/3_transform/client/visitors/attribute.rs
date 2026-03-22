@@ -507,8 +507,17 @@ pub fn locate_in_source(source: &str, offset: usize) -> (usize, usize) {
 /// Check if an expression has side effects.
 /// Matches `has_side_effects` in events.js.
 fn expression_has_side_effects(expr: &crate::ast::js::Expression) -> bool {
-    let json = expr.as_json();
-    json_has_side_effects(json)
+    match expr.node_type() {
+        Some("CallExpression" | "NewExpression" | "AssignmentExpression" | "UpdateExpression") => {
+            true
+        }
+        Some("SequenceExpression") => {
+            // Fall back to JSON for recursive check on sequence expressions
+            let json = expr.as_json();
+            json_has_side_effects(json)
+        }
+        _ => false,
+    }
 }
 
 fn json_has_side_effects(value: &serde_json::Value) -> bool {
@@ -531,20 +540,12 @@ fn json_has_side_effects(value: &serde_json::Value) -> bool {
 /// Check if expression is a call with no arguments to an identifier (for remove_parens).
 /// Matches the `remove_parens` check in events.js.
 fn expression_is_removable_call(expr: &crate::ast::js::Expression) -> bool {
-    let json = expr.as_json();
-    if json.get("type").and_then(|t| t.as_str()) == Some("CallExpression") {
-        let args_empty = json
-            .get("arguments")
-            .and_then(|a| a.as_array())
-            .is_some_and(|a| a.is_empty());
-        let callee_is_identifier = json
-            .get("callee")
-            .and_then(|c| c.get("type"))
-            .and_then(|t| t.as_str())
-            == Some("Identifier");
-        return args_empty && callee_is_identifier;
+    if expr.node_type() != Some("CallExpression") {
+        return false;
     }
-    false
+    let args_empty = expr.call_arguments().is_empty();
+    let callee_is_identifier = expr.callee().and_then(|c| c.node_type()) == Some("Identifier");
+    args_empty && callee_is_identifier
 }
 
 #[cfg(test)]

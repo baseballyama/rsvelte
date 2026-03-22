@@ -244,10 +244,10 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
 
                     // Check if the expression is a SequenceExpression (getter/setter pair)
-                    let expr_json = bind.expression.as_json();
-                    let expr_type = expr_json.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                    let expr_type = bind.expression.node_type().unwrap_or("");
 
                     if expr_type == "SequenceExpression" {
+                        let expr_json = bind.expression.as_json();
                         // Extract getter and setter from the SequenceExpression
                         if let Some(expressions) = expr_json
                             .get("expressions")

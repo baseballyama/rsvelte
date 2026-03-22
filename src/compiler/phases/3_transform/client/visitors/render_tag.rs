@@ -94,7 +94,7 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
                 b::thunk(b::call(b::member_path("$.get"), vec![b::id(&id_name)]))
             } else {
                 // If the argument expression has a call, we need to memoize it with $.derived()
-                let has_call_from_expr = json_value_has_call(arg.as_json());
+                let has_call_from_expr = render_tag_has_call(arg);
                 if template_metadata.has_call() || has_call_from_expr {
                     let id_name = context.state.memoizer.generate_id("$0");
                     derived_decls.push(b::let_decl(
@@ -122,13 +122,7 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
     };
 
     // If we have a chain expression then ensure a nullish snippet function gets turned into an empty one
-    let is_chain_expression = node
-        .expression
-        .as_json()
-        .as_object()
-        .and_then(|obj| obj.get("type"))
-        .and_then(|t| t.as_str())
-        == Some("ChainExpression");
+    let is_chain_expression = node.expression.node_type() == Some("ChainExpression");
 
     // Build the call based on whether the snippet is dynamic
     let call = if node.metadata.dynamic {
@@ -250,43 +244,66 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
 ///
 /// Corresponds to `unwrap_optional` in Svelte's utils.
 fn unwrap_optional(expr: &Expression) -> Expression {
-    let val = expr.as_json();
-    // Check for ChainExpression (optional chaining)
-    if let Some(obj) = val.as_object()
-        && let Some("ChainExpression") = obj.get("type").and_then(|t| t.as_str())
-        && let Some(inner) = obj.get("expression")
-        && let Some(inner_obj) = inner.as_object()
-    {
-        return Expression::Value(serde_json::Value::Object(inner_obj.clone()));
+    use crate::ast::typed_expr::JsNode;
+    if expr.node_type() == Some("ChainExpression") {
+        let node = expr.as_node();
+        match &*node {
+            JsNode::ChainExpression { expression, .. } => {
+                return Expression::from_node((**expression).clone());
+            }
+            JsNode::Raw(val) => {
+                if let Some(inner) = val.get("expression") {
+                    return Expression::Value(inner.clone());
+                }
+            }
+            _ => {}
+        }
     }
     expr.clone()
 }
 
 /// Extract arguments from a call expression.
 fn extract_call_arguments(expr: &Expression) -> Vec<Expression> {
-    let val = expr.as_json();
-    if let Some(obj) = val.as_object()
-        && let Some("CallExpression") = obj.get("type").and_then(|t| t.as_str())
-        && let Some(args) = obj.get("arguments").and_then(|a| a.as_array())
-    {
-        return args
-            .iter()
-            .map(|arg| Expression::Value(arg.clone()))
-            .collect();
+    use crate::ast::typed_expr::JsNode;
+    if expr.node_type() != Some("CallExpression") {
+        return Vec::new();
     }
-    Vec::new()
+    let node = expr.as_node();
+    match &*node {
+        JsNode::CallExpression { arguments, .. } => arguments
+            .iter()
+            .map(|arg| Expression::from_node(arg.clone()))
+            .collect(),
+        JsNode::Raw(val) => {
+            if let Some(args) = val.get("arguments").and_then(|a| a.as_array()) {
+                args.iter()
+                    .map(|arg| Expression::Value(arg.clone()))
+                    .collect()
+            } else {
+                Vec::new()
+            }
+        }
+        _ => Vec::new(),
+    }
 }
 
 /// Extract callee from a call expression.
 fn extract_call_callee(expr: &Expression) -> Option<Expression> {
-    let val = expr.as_json();
-    if let Some(obj) = val.as_object()
-        && let Some("CallExpression") = obj.get("type").and_then(|t| t.as_str())
-        && let Some(callee) = obj.get("callee")
-    {
-        return Some(Expression::Value(callee.clone()));
+    use crate::ast::typed_expr::JsNode;
+    if expr.node_type() != Some("CallExpression") {
+        return None;
     }
-    None
+    let node = expr.as_node();
+    match &*node {
+        JsNode::CallExpression { callee, .. } => Some(Expression::from_node((**callee).clone())),
+        JsNode::Raw(val) => val.get("callee").map(|c| Expression::Value(c.clone())),
+        _ => None,
+    }
+}
+
+/// Wrapper to check if an Expression has a call.
+fn render_tag_has_call(expr: &Expression) -> bool {
+    json_value_has_call(expr.as_json())
 }
 
 /// Recursively check if a JSON value (ESTree node) contains a CallExpression.
@@ -332,10 +349,8 @@ mod tests {
         assert!(callee.is_some());
 
         if let Some(callee_expr) = callee {
-            let val = callee_expr.as_json();
-            let obj = val.as_object().unwrap();
-            assert_eq!(obj.get("type").and_then(|t| t.as_str()), Some("Identifier"));
-            assert_eq!(obj.get("name").and_then(|n| n.as_str()), Some("snip"));
+            assert_eq!(callee_expr.node_type(), Some("Identifier"));
+            assert_eq!(callee_expr.name(), Some("snip"));
         }
     }
 

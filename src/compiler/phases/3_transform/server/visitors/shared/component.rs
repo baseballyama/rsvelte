@@ -233,17 +233,7 @@ pub fn build_inline_component<F>(
                     let prop_name = let_dir.name.to_string();
                     // Check if let:x={y} renames the variable
                     let local_name = match &let_dir.expression {
-                        Some(expr) => {
-                            let val = expr.as_json();
-                            if let serde_json::Value::Object(obj) = val {
-                                obj.get("name")
-                                    .and_then(|n| n.as_str())
-                                    .unwrap_or(&prop_name)
-                                    .to_string()
-                            } else {
-                                prop_name.clone()
-                            }
-                        }
+                        Some(expr) => expr.name().unwrap_or(&prop_name).to_string(),
                         None => prop_name.clone(),
                     };
 

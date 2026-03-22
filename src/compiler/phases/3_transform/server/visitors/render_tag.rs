@@ -8,14 +8,12 @@ use serde_json::Value;
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_render_tag(&mut self, tag: &RenderTag) -> Result<(), TransformError> {
-        // Get the expression JSON
-        let expr_json = tag.expression.as_json();
-        let expr_type = expr_json
-            .get("type")
-            .and_then(|t: &Value| t.as_str())
-            .unwrap_or("");
-
+        // Get the expression type
+        let expr_type = tag.expression.node_type().unwrap_or("");
         let is_optional = expr_type == "ChainExpression";
+
+        // Get the expression JSON for deep access
+        let expr_json = tag.expression.as_json();
 
         // Get the inner call for ChainExpression - clone to avoid lifetime issues
         let call_json: Value = if is_optional {

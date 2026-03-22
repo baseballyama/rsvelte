@@ -822,10 +822,7 @@ fn build_group_binding_call(
             // bind:group={$order.scoops}), look up in analysis.binding_groups by keypath.
             // The keypath must match what mark_group_bindings_in_node used when registering.
             let keypath = directive_expr
-                .map(|expr| {
-                    let val = expr.as_json();
-                    build_group_binding_keypath(val)
-                })
+                .map(|expr| build_group_binding_keypath(expr.as_json()))
                 .unwrap_or_default();
 
             if let Some(group_name) = context.state.analysis.binding_groups.get(&keypath).cloned() {
@@ -964,6 +961,11 @@ fn unwrap_thunk(expr: &JsExpr) -> JsExpr {
     }
 }
 
+/// Check if an expression is a member expression (has dots, subscript access).
+fn expression_is_member(expr: &crate::ast::js::Expression) -> bool {
+    expression_json_is_member(expr.as_json())
+}
+
 /// Check if a raw expression JSON is a member expression (has dots, subscript access).
 fn expression_json_is_member(val: &serde_json::Value) -> bool {
     let obj = match val.as_object() {
@@ -1004,10 +1006,7 @@ fn build_value_expression(value: &AttributeValue, context: &mut ComponentContext
 
             // Check if the expression is a member expression - this affects how
             // build_expression handles it in legacy mode (uses untrack + sequence pattern)
-            let has_member_expression = {
-                let val = expr_tag.expression.as_json();
-                expression_json_is_member(val)
-            };
+            let has_member_expression = expression_is_member(&expr_tag.expression);
 
             // Build the expression with transforms applied
             let mut metadata = ExpressionMetadata::default();
@@ -1025,10 +1024,7 @@ fn build_value_expression(value: &AttributeValue, context: &mut ComponentContext
                         &expr_tag.expression,
                         context,
                     );
-                    let has_member_expression = {
-                        let val = expr_tag.expression.as_json();
-                        expression_json_is_member(val)
-                    };
+                    let has_member_expression = expression_is_member(&expr_tag.expression);
 
                     let mut metadata = ExpressionMetadata::default();
                     metadata.set_has_state(has_state);
@@ -1685,11 +1681,7 @@ fn build_getter_setter(
                         let mut args =
                             vec![b::string(&prop_alias), b::array(path), transformed_set];
                         // Add source location (line, column) if available
-                        let start_pos = original_expr
-                            .as_json()
-                            .get("start")
-                            .and_then(|v| v.as_u64())
-                            .map(|v| v as usize);
+                        let start_pos = original_expr.start().map(|v| v as usize);
                         if let Some(start) = start_pos {
                             let source = &context.state.analysis.source;
                             let (line, col) = offset_to_line_col(source, start);
@@ -2030,13 +2022,11 @@ fn analyze_each_binding_expression(
     expr: &Expression,
     context: &ComponentContext,
 ) -> Option<(EachBindingExprInfo, usize)> {
-    let val = expr.as_json();
-    let obj = val.as_object()?;
-    let expr_type = obj.get("type").and_then(|v| v.as_str())?;
+    let expr_type = expr.node_type()?;
 
     match expr_type {
         "Identifier" => {
-            let name = obj.get("name").and_then(|v| v.as_str())?;
+            let name = expr.name()?;
 
             // Search ALL ancestor each contexts for a matching item name.
             // We prefer the innermost match (search from last to first).
@@ -2072,6 +2062,8 @@ fn analyze_each_binding_expression(
         }
         "MemberExpression" => {
             // item.prop, item.a.b, item[0], etc.
+            let json_val = expr.as_json();
+            let obj = json_val.as_object()?;
             let (root_name, property_path) = extract_member_path(obj)?;
 
             // Search ALL ancestor each contexts for a matching item name.
@@ -2407,10 +2399,7 @@ pub fn emit_validate_binding(
     use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
     // Extract the root object name from the original AST expression
-    let root_name = match &node.expression {
-        Expression::Value(val) => extract_root_name_from_json(val),
-        Expression::Typed(te) => extract_root_name_from_json(te.as_json()),
-    };
+    let root_name = extract_root_name_from_json(node.expression.as_json());
     let root_name = match root_name {
         Some(n) => n,
         None => return,

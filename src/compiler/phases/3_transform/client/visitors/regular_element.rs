@@ -73,29 +73,12 @@ fn process_element_let_directives(
         // Check if expression is an Identifier or null (simple case)
         let is_simple = match &let_dir.expression {
             None => true,
-            Some(expr) => {
-                let val = expr.as_json();
-                if let serde_json::Value::Object(obj) = val {
-                    obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                } else {
-                    true
-                }
-            }
+            Some(expr) => expr.node_type() == Some("Identifier"),
         };
 
         if is_simple {
             let name = match &let_dir.expression {
-                Some(expr) => {
-                    let val = expr.as_json();
-                    if let serde_json::Value::Object(obj) = val {
-                        obj.get("name")
-                            .and_then(|n| n.as_str())
-                            .unwrap_or(prop_name)
-                            .to_string()
-                    } else {
-                        prop_name.to_string()
-                    }
-                }
+                Some(expr) => expr.name().unwrap_or(prop_name).to_string(),
                 None => prop_name.to_string(),
             };
 

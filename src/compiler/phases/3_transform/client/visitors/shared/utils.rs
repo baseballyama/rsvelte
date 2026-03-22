@@ -3132,34 +3132,54 @@ pub(crate) fn get_literal_value(
     expr: &crate::ast::js::Expression,
     context: &ComponentContext,
 ) -> Option<Option<String>> {
-    use crate::ast::js::Expression;
+    use crate::ast::typed_expr::LiteralValue;
 
     {
-        let json_value = expr.as_json();
-        let obj = json_value.as_object()?;
-        let expr_type = obj.get("type").and_then(|v| v.as_str())?;
+        let expr_type = expr.node_type()?;
 
         match expr_type {
             "Literal" => {
-                if let Some(value) = obj.get("value") {
-                    if let Some(s) = value.as_str() {
-                        return Some(Some(s.to_string()));
-                    } else if let Some(n) = value.as_f64() {
-                        // Format integers without decimal point
-                        if n.fract() == 0.0 {
-                            return Some(Some(format!("{}", n as i64)));
+                let node = expr.as_node();
+                match &*node {
+                    crate::ast::typed_expr::JsNode::Literal { value, .. } => match value {
+                        LiteralValue::String(s) => Some(Some(s.to_string())),
+                        LiteralValue::Number(n) => {
+                            if n.fract() == 0.0 {
+                                Some(Some(format!("{}", *n as i64)))
+                            } else {
+                                Some(Some(n.to_string()))
+                            }
                         }
-                        return Some(Some(n.to_string()));
-                    } else if let Some(b_val) = value.as_bool() {
-                        return Some(Some(b_val.to_string()));
-                    } else if value.is_null() {
-                        return Some(None);
+                        LiteralValue::Bool(b_val) => Some(Some(b_val.to_string())),
+                        LiteralValue::Null => Some(None),
+                        LiteralValue::Regex(_) => None,
+                    },
+                    crate::ast::typed_expr::JsNode::Raw(val) => {
+                        if let Some(value) = val.get("value") {
+                            if let Some(s) = value.as_str() {
+                                Some(Some(s.to_string()))
+                            } else if let Some(n) = value.as_f64() {
+                                if n.fract() == 0.0 {
+                                    Some(Some(format!("{}", n as i64)))
+                                } else {
+                                    Some(Some(n.to_string()))
+                                }
+                            } else if let Some(b_val) = value.as_bool() {
+                                Some(Some(b_val.to_string()))
+                            } else if value.is_null() {
+                                Some(None)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
                     }
+                    _ => None,
                 }
-                None
             }
             "Identifier" => {
-                let name = obj.get("name").and_then(|v| v.as_str())?;
+                let name = expr.name()?;
                 if name == "undefined" {
                     return Some(None);
                 }
@@ -3247,224 +3267,241 @@ pub(crate) fn get_literal_value(
                     }
                 }
             }
-            "LogicalExpression" => {
-                // Handle ?? (nullish coalescing) operator
-                let operator = obj.get("operator").and_then(|v| v.as_str())?;
-                if operator != "??" {
-                    return None;
-                }
-
-                let left = obj.get("left")?;
-                let left_expr = serde_json::from_value::<Expression>(left.clone()).ok()?;
-
-                match get_literal_value(&left_expr, context) {
-                    Some(Some(val)) => {
-                        // Left side has non-null value, return it
-                        Some(Some(val))
-                    }
-                    Some(None) => {
-                        // Left side is null/undefined, evaluate right side
-                        let right = obj.get("right")?;
-                        let right_expr =
-                            serde_json::from_value::<Expression>(right.clone()).ok()?;
-                        get_literal_value(&right_expr, context)
-                    }
-                    None => {
-                        // Left side cannot be evaluated at compile time
-                        None
-                    }
-                }
-            }
-            "CallExpression" => {
-                // Handle pure Math functions with constant arguments
-                let callee = obj.get("callee").and_then(|v| v.as_object())?;
-                let callee_type = callee.get("type").and_then(|t| t.as_str())?;
-
-                if callee_type == "MemberExpression" {
-                    let obj_node = callee.get("object").and_then(|o| o.as_object())?;
-                    let prop_node = callee.get("property").and_then(|p| p.as_object())?;
-
-                    let obj_type = obj_node.get("type").and_then(|t| t.as_str())?;
-                    let obj_name = obj_node.get("name").and_then(|n| n.as_str())?;
-                    let prop_name = prop_node.get("name").and_then(|n| n.as_str())?;
-
-                    if obj_type == "Identifier" && obj_name == "Math" {
-                        let args = obj.get("arguments").and_then(|a| a.as_array())?;
-
-                        // Evaluate all arguments
-                        let mut arg_values: Vec<f64> = Vec::new();
-                        for arg in args {
-                            let arg_expr =
-                                serde_json::from_value::<Expression>(arg.clone()).ok()?;
-                            let arg_val = get_literal_value(&arg_expr, context)??;
-                            let num = arg_val.parse::<f64>().ok()?;
-                            arg_values.push(num);
-                        }
-
-                        let result = match prop_name {
-                            "max" if !arg_values.is_empty() => {
-                                arg_values.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
-                            }
-                            "min" if !arg_values.is_empty() => {
-                                arg_values.iter().cloned().fold(f64::INFINITY, f64::min)
-                            }
-                            "floor" if arg_values.len() == 1 => arg_values[0].floor(),
-                            "ceil" if arg_values.len() == 1 => arg_values[0].ceil(),
-                            "round" if arg_values.len() == 1 => arg_values[0].round(),
-                            "abs" if arg_values.len() == 1 => arg_values[0].abs(),
-                            "sqrt" if arg_values.len() == 1 => arg_values[0].sqrt(),
-                            "pow" if arg_values.len() == 2 => arg_values[0].powf(arg_values[1]),
-                            _ => return None,
-                        };
-
-                        // Format result
-                        if result.fract() == 0.0 && result.abs() < i64::MAX as f64 {
-                            return Some(Some(format!("{}", result as i64)));
-                        }
-                        return Some(Some(result.to_string()));
-                    }
-                }
-                None
-            }
-            "BinaryExpression" => {
-                let operator = obj.get("operator").and_then(|v| v.as_str())?;
-                let left = obj.get("left")?;
-                let right = obj.get("right")?;
-                let left_expr = serde_json::from_value::<Expression>(left.clone()).ok()?;
-                let right_expr = serde_json::from_value::<Expression>(right.clone()).ok()?;
-
-                let left_val = get_literal_value(&left_expr, context)?;
-                let right_val = get_literal_value(&right_expr, context)?;
-
-                // Try numeric comparison first
-                let left_num = left_val.as_ref().and_then(|s| s.parse::<f64>().ok());
-                let right_num = right_val.as_ref().and_then(|s| s.parse::<f64>().ok());
-
-                if let (Some(l), Some(r)) = (left_num, right_num) {
-                    let result: Option<String> = match operator {
-                        "===" | "==" => Some(format!("{}", l == r)),
-                        "!==" | "!=" => Some(format!("{}", l != r)),
-                        "<" => Some(format!("{}", l < r)),
-                        ">" => Some(format!("{}", l > r)),
-                        "<=" => Some(format!("{}", l <= r)),
-                        ">=" => Some(format!("{}", l >= r)),
-                        "+" => {
-                            let res = l + r;
-                            if res.fract() == 0.0 {
-                                Some(format!("{}", res as i64))
-                            } else {
-                                Some(res.to_string())
-                            }
-                        }
-                        "-" => {
-                            let res = l - r;
-                            if res.fract() == 0.0 {
-                                Some(format!("{}", res as i64))
-                            } else {
-                                Some(res.to_string())
-                            }
-                        }
-                        "*" => {
-                            let res = l * r;
-                            if res.fract() == 0.0 {
-                                Some(format!("{}", res as i64))
-                            } else {
-                                Some(res.to_string())
-                            }
-                        }
-                        "/" if r != 0.0 => {
-                            let res = l / r;
-                            if res.fract() == 0.0 {
-                                Some(format!("{}", res as i64))
-                            } else {
-                                Some(res.to_string())
-                            }
-                        }
-                        "%" if r != 0.0 => {
-                            let res = l % r;
-                            if res.fract() == 0.0 {
-                                Some(format!("{}", res as i64))
-                            } else {
-                                Some(res.to_string())
-                            }
-                        }
-                        _ => None,
-                    };
-                    return result.map(Some);
-                }
-
-                // String comparison for === and !==
-                if let (Some(l), Some(r)) = (&left_val, &right_val) {
-                    match operator {
-                        "===" => return Some(Some(format!("{}", l == r))),
-                        "!==" => return Some(Some(format!("{}", l != r))),
-                        "+" => return Some(Some(format!("{}{}", l, r))),
-                        _ => {}
-                    }
-                }
-
-                None
-            }
-            "UnaryExpression" => {
-                let operator = obj.get("operator").and_then(|v| v.as_str())?;
-                let argument = obj.get("argument")?;
-                let arg_expr = serde_json::from_value::<Expression>(argument.clone()).ok()?;
-                let arg_val = get_literal_value(&arg_expr, context)?;
-
-                match operator {
-                    "!" => {
-                        // Logical NOT
-                        match arg_val.as_deref() {
-                            Some("true") => Some(Some("false".to_string())),
-                            Some("false") | Some("0") | Some("") | None => {
-                                Some(Some("true".to_string()))
-                            }
-                            Some(s) => {
-                                // Any non-empty, non-zero string is truthy
-                                if s.parse::<f64>().ok() != Some(0.0) {
-                                    Some(Some("false".to_string()))
-                                } else {
-                                    Some(Some("true".to_string()))
-                                }
-                            }
-                        }
-                    }
-                    "-" => {
-                        let val = arg_val?;
-                        let n = val.parse::<f64>().ok()?;
-                        let res = -n;
-                        if res.fract() == 0.0 {
-                            Some(Some(format!("{}", res as i64)))
-                        } else {
-                            Some(Some(res.to_string()))
-                        }
-                    }
-                    "+" => {
-                        let val = arg_val?;
-                        let n = val.parse::<f64>().ok()?;
-                        if n.fract() == 0.0 {
-                            Some(Some(format!("{}", n as i64)))
-                        } else {
-                            Some(Some(n.to_string()))
-                        }
-                    }
-                    "typeof" => match arg_val.as_deref() {
-                        None => Some(Some("undefined".to_string())),
-                        Some(s) => {
-                            if s == "true" || s == "false" {
-                                Some(Some("boolean".to_string()))
-                            } else if s.parse::<f64>().is_ok() {
-                                Some(Some("number".to_string()))
-                            } else {
-                                Some(Some("string".to_string()))
-                            }
-                        }
-                    },
-                    _ => None,
-                }
+            "LogicalExpression" | "CallExpression" | "BinaryExpression" | "UnaryExpression" => {
+                // These complex branches need JSON access for deep traversal
+                let json_value = expr.as_json();
+                let obj = json_value.as_object()?;
+                get_literal_value_complex(expr_type, obj, context)
             }
             _ => None,
         }
+    }
+}
+
+/// Handle complex expression types for get_literal_value that need JSON access.
+fn get_literal_value_complex(
+    expr_type: &str,
+    obj: &serde_json::Map<String, serde_json::Value>,
+    context: &ComponentContext,
+) -> Option<Option<String>> {
+    use crate::ast::js::Expression;
+
+    match expr_type {
+        "LogicalExpression" => {
+            // Handle ?? (nullish coalescing) operator
+            let operator = obj.get("operator").and_then(|v| v.as_str())?;
+            if operator != "??" {
+                return None;
+            }
+
+            let left = obj.get("left")?;
+            let left_expr = serde_json::from_value::<Expression>(left.clone()).ok()?;
+
+            match get_literal_value(&left_expr, context) {
+                Some(Some(val)) => {
+                    // Left side has non-null value, return it
+                    Some(Some(val))
+                }
+                Some(None) => {
+                    // Left side is null/undefined, evaluate right side
+                    let right = obj.get("right")?;
+                    let right_expr = serde_json::from_value::<Expression>(right.clone()).ok()?;
+                    get_literal_value(&right_expr, context)
+                }
+                None => {
+                    // Left side cannot be evaluated at compile time
+                    None
+                }
+            }
+        }
+        "CallExpression" => {
+            // Handle pure Math functions with constant arguments
+            let callee = obj.get("callee").and_then(|v| v.as_object())?;
+            let callee_type = callee.get("type").and_then(|t| t.as_str())?;
+
+            if callee_type == "MemberExpression" {
+                let obj_node = callee.get("object").and_then(|o| o.as_object())?;
+                let prop_node = callee.get("property").and_then(|p| p.as_object())?;
+
+                let obj_type = obj_node.get("type").and_then(|t| t.as_str())?;
+                let obj_name = obj_node.get("name").and_then(|n| n.as_str())?;
+                let prop_name = prop_node.get("name").and_then(|n| n.as_str())?;
+
+                if obj_type == "Identifier" && obj_name == "Math" {
+                    let args = obj.get("arguments").and_then(|a| a.as_array())?;
+
+                    // Evaluate all arguments
+                    let mut arg_values: Vec<f64> = Vec::new();
+                    for arg in args {
+                        let arg_expr = serde_json::from_value::<Expression>(arg.clone()).ok()?;
+                        let arg_val = get_literal_value(&arg_expr, context)??;
+                        let num = arg_val.parse::<f64>().ok()?;
+                        arg_values.push(num);
+                    }
+
+                    let result = match prop_name {
+                        "max" if !arg_values.is_empty() => {
+                            arg_values.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+                        }
+                        "min" if !arg_values.is_empty() => {
+                            arg_values.iter().cloned().fold(f64::INFINITY, f64::min)
+                        }
+                        "floor" if arg_values.len() == 1 => arg_values[0].floor(),
+                        "ceil" if arg_values.len() == 1 => arg_values[0].ceil(),
+                        "round" if arg_values.len() == 1 => arg_values[0].round(),
+                        "abs" if arg_values.len() == 1 => arg_values[0].abs(),
+                        "sqrt" if arg_values.len() == 1 => arg_values[0].sqrt(),
+                        "pow" if arg_values.len() == 2 => arg_values[0].powf(arg_values[1]),
+                        _ => return None,
+                    };
+
+                    // Format result
+                    if result.fract() == 0.0 && result.abs() < i64::MAX as f64 {
+                        return Some(Some(format!("{}", result as i64)));
+                    }
+                    return Some(Some(result.to_string()));
+                }
+            }
+            None
+        }
+        "BinaryExpression" => {
+            let operator = obj.get("operator").and_then(|v| v.as_str())?;
+            let left = obj.get("left")?;
+            let right = obj.get("right")?;
+            let left_expr = serde_json::from_value::<Expression>(left.clone()).ok()?;
+            let right_expr = serde_json::from_value::<Expression>(right.clone()).ok()?;
+
+            let left_val = get_literal_value(&left_expr, context)?;
+            let right_val = get_literal_value(&right_expr, context)?;
+
+            // Try numeric comparison first
+            let left_num = left_val.as_ref().and_then(|s| s.parse::<f64>().ok());
+            let right_num = right_val.as_ref().and_then(|s| s.parse::<f64>().ok());
+
+            if let (Some(l), Some(r)) = (left_num, right_num) {
+                let result: Option<String> = match operator {
+                    "===" | "==" => Some(format!("{}", l == r)),
+                    "!==" | "!=" => Some(format!("{}", l != r)),
+                    "<" => Some(format!("{}", l < r)),
+                    ">" => Some(format!("{}", l > r)),
+                    "<=" => Some(format!("{}", l <= r)),
+                    ">=" => Some(format!("{}", l >= r)),
+                    "+" => {
+                        let res = l + r;
+                        if res.fract() == 0.0 {
+                            Some(format!("{}", res as i64))
+                        } else {
+                            Some(res.to_string())
+                        }
+                    }
+                    "-" => {
+                        let res = l - r;
+                        if res.fract() == 0.0 {
+                            Some(format!("{}", res as i64))
+                        } else {
+                            Some(res.to_string())
+                        }
+                    }
+                    "*" => {
+                        let res = l * r;
+                        if res.fract() == 0.0 {
+                            Some(format!("{}", res as i64))
+                        } else {
+                            Some(res.to_string())
+                        }
+                    }
+                    "/" if r != 0.0 => {
+                        let res = l / r;
+                        if res.fract() == 0.0 {
+                            Some(format!("{}", res as i64))
+                        } else {
+                            Some(res.to_string())
+                        }
+                    }
+                    "%" if r != 0.0 => {
+                        let res = l % r;
+                        if res.fract() == 0.0 {
+                            Some(format!("{}", res as i64))
+                        } else {
+                            Some(res.to_string())
+                        }
+                    }
+                    _ => None,
+                };
+                return result.map(Some);
+            }
+
+            // String comparison for === and !==
+            if let (Some(l), Some(r)) = (&left_val, &right_val) {
+                match operator {
+                    "===" => return Some(Some(format!("{}", l == r))),
+                    "!==" => return Some(Some(format!("{}", l != r))),
+                    "+" => return Some(Some(format!("{}{}", l, r))),
+                    _ => {}
+                }
+            }
+
+            None
+        }
+        "UnaryExpression" => {
+            let operator = obj.get("operator").and_then(|v| v.as_str())?;
+            let argument = obj.get("argument")?;
+            let arg_expr = serde_json::from_value::<Expression>(argument.clone()).ok()?;
+            let arg_val = get_literal_value(&arg_expr, context)?;
+
+            match operator {
+                "!" => {
+                    // Logical NOT
+                    match arg_val.as_deref() {
+                        Some("true") => Some(Some("false".to_string())),
+                        Some("false") | Some("0") | Some("") | None => {
+                            Some(Some("true".to_string()))
+                        }
+                        Some(s) => {
+                            // Any non-empty, non-zero string is truthy
+                            if s.parse::<f64>().ok() != Some(0.0) {
+                                Some(Some("false".to_string()))
+                            } else {
+                                Some(Some("true".to_string()))
+                            }
+                        }
+                    }
+                }
+                "-" => {
+                    let val = arg_val?;
+                    let n = val.parse::<f64>().ok()?;
+                    let res = -n;
+                    if res.fract() == 0.0 {
+                        Some(Some(format!("{}", res as i64)))
+                    } else {
+                        Some(Some(res.to_string()))
+                    }
+                }
+                "+" => {
+                    let val = arg_val?;
+                    let n = val.parse::<f64>().ok()?;
+                    if n.fract() == 0.0 {
+                        Some(Some(format!("{}", n as i64)))
+                    } else {
+                        Some(Some(n.to_string()))
+                    }
+                }
+                "typeof" => match arg_val.as_deref() {
+                    None => Some(Some("undefined".to_string())),
+                    Some(s) => {
+                        if s == "true" || s == "false" {
+                            Some(Some("boolean".to_string()))
+                        } else if s.parse::<f64>().is_ok() {
+                            Some(Some("number".to_string()))
+                        } else {
+                            Some(Some("string".to_string()))
+                        }
+                    }
+                },
+                _ => None,
+            }
+        }
+        _ => None,
     }
 }
 
@@ -3911,37 +3948,59 @@ pub fn expression_has_reactive_state(
 /// so the caller can set has_state = true without affecting has_call.
 #[inline]
 pub fn is_effect_pending_expr(expr: &crate::ast::js::Expression) -> bool {
-    let json_value = expr.as_json();
-    let Some(obj) = json_value.as_object() else {
+    use crate::ast::typed_expr::JsNode;
+    // Must be a CallExpression
+    if expr.node_type() != Some("CallExpression") {
+        return false;
+    }
+    // Check callee is $effect.pending (MemberExpression, not computed)
+    let Some(callee) = expr.callee() else {
         return false;
     };
-    if obj.get("type").and_then(|v| v.as_str()) != Some("CallExpression") {
-        return false;
+    match callee {
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            ..
+        } => {
+            if *computed {
+                return false;
+            }
+            let is_pending = matches!(&**property, JsNode::Identifier { name, .. } if name.as_str() == "pending");
+            let is_effect_obj =
+                matches!(&**object, JsNode::Identifier { name, .. } if name.as_str() == "$effect");
+            is_pending && is_effect_obj
+        }
+        JsNode::Raw(val) => {
+            // Fallback for legacy Value variant
+            let Some(callee_obj) = val.as_object() else {
+                return false;
+            };
+            if callee_obj.get("type").and_then(|t| t.as_str()) != Some("MemberExpression") {
+                return false;
+            }
+            if callee_obj.get("computed").and_then(|v| v.as_bool()) == Some(true) {
+                return false;
+            }
+            let is_pending = callee_obj
+                .get("property")
+                .and_then(|p| p.as_object())
+                .is_some_and(|p_obj| {
+                    p_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                        && p_obj.get("name").and_then(|n| n.as_str()) == Some("pending")
+                });
+            let is_effect_obj = callee_obj
+                .get("object")
+                .and_then(|o| o.as_object())
+                .is_some_and(|o_obj| {
+                    o_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                        && o_obj.get("name").and_then(|n| n.as_str()) == Some("$effect")
+                });
+            is_pending && is_effect_obj
+        }
+        _ => false,
     }
-    let Some(callee) = obj.get("callee").and_then(|c| c.as_object()) else {
-        return false;
-    };
-    if callee.get("type").and_then(|t| t.as_str()) != Some("MemberExpression") {
-        return false;
-    }
-    if callee.get("computed").and_then(|v| v.as_bool()) == Some(true) {
-        return false;
-    }
-    let is_pending = callee
-        .get("property")
-        .and_then(|p| p.as_object())
-        .is_some_and(|p_obj| {
-            p_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                && p_obj.get("name").and_then(|n| n.as_str()) == Some("pending")
-        });
-    let is_effect_obj = callee
-        .get("object")
-        .and_then(|o| o.as_object())
-        .is_some_and(|o_obj| {
-            o_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                && o_obj.get("name").and_then(|n| n.as_str()) == Some("$effect")
-        });
-    is_pending && is_effect_obj
 }
 
 /// Internal helper that processes JSON values directly, avoiding serde_json::from_value overhead.

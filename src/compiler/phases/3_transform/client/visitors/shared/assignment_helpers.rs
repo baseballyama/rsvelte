@@ -55,25 +55,39 @@ pub fn get_rune(expr: &Expression, scope: &Scope) -> Option<String> {
         return None;
     }
 
-    // Get the callee from the expression
-    let json = expr.as_json();
-    let callee = json.get("callee")?;
+    // Get the callee from the expression using typed accessors
+    let callee = expr.callee()?;
 
     // Extract the callee name based on its type
-    let callee_name = if let Some(name) = callee.get("name").and_then(|n| n.as_str()) {
-        // Simple identifier: $state
-        name.to_string()
-    } else if callee.get("type")?.as_str()? == "MemberExpression" {
-        // Member expression: $derived.by
-        let object = callee.get("object")?;
-        let property = callee.get("property")?;
-
-        let object_name = object.get("name")?.as_str()?;
-        let property_name = property.get("name")?.as_str()?;
-
-        format!("{}.{}", object_name, property_name)
-    } else {
-        return None;
+    let callee_name = match callee {
+        crate::ast::typed_expr::JsNode::Identifier { name, .. } => {
+            // Simple identifier: $state
+            name.to_string()
+        }
+        crate::ast::typed_expr::JsNode::MemberExpression {
+            object, property, ..
+        } => {
+            // Member expression: $derived.by
+            let object_name = object.name()?;
+            let property_name = property.name()?;
+            format!("{}.{}", object_name, property_name)
+        }
+        _ => {
+            // Fallback to JSON for Raw variant
+            let json = expr.as_json();
+            let callee_json = json.get("callee")?;
+            if let Some(name) = callee_json.get("name").and_then(|n| n.as_str()) {
+                name.to_string()
+            } else if callee_json.get("type")?.as_str()? == "MemberExpression" {
+                let object = callee_json.get("object")?;
+                let property = callee_json.get("property")?;
+                let object_name = object.get("name")?.as_str()?;
+                let property_name = property.get("name")?.as_str()?;
+                format!("{}.{}", object_name, property_name)
+            } else {
+                return None;
+            }
+        }
     };
 
     // Check if it's a valid rune
@@ -129,10 +143,7 @@ pub fn should_proxy(expr: &Expression, _scope: &Scope) -> Option<bool> {
         "Literal" => return Some(false),
         "TemplateLiteral" => {
             // Static templates don't need proxy
-            let json = expr.as_json();
-            if let Some(expressions) = json.get("expressions")
-                && expressions.as_array()?.is_empty()
-            {
+            if expr.expressions().is_empty() {
                 return Some(false);
             }
         }

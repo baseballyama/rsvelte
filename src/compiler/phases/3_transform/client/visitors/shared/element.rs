@@ -290,19 +290,11 @@ fn extract_expression_from_tag(expr_tag: &ExpressionTag) -> JsExpr {
     if let Some(name) = expr_tag.expression.identifier_name() {
         return b::id(name);
     }
-    // Fallback: try to get any "name" field, or handle non-object values
-    let val = expr_tag.expression.as_json();
-    match val {
-        serde_json::Value::Object(obj) => {
-            if let Some(serde_json::Value::String(name)) = obj.get("name") {
-                b::id(name)
-            } else {
-                b::id("expr")
-            }
-        }
-        serde_json::Value::String(s) => b::id(s),
-        _ => b::id("expr"),
+    // Fallback: try to get any "name" field
+    if let Some(name) = expr_tag.expression.name() {
+        return b::id(name);
     }
+    b::id("expr")
 }
 
 /// Extract metadata from an ExpressionTag.
@@ -1408,52 +1400,36 @@ fn is_function_expression(expr: &JsExpr) -> bool {
 /// Extract a JavaScript expression from a directive's expression.
 #[allow(dead_code)]
 fn extract_expression_from_directive(expression: &crate::ast::js::Expression) -> JsExpr {
-    let val = expression.as_json();
-    match val {
-        serde_json::Value::Object(obj) => {
-            // Check if it's a Literal with a value field
-            if let Some(serde_json::Value::String(type_str)) = obj.get("type") {
-                if type_str == "Literal" {
-                    if let Some(value) = obj.get("value") {
-                        return match value {
-                            serde_json::Value::Bool(b) => b::boolean(*b),
-                            serde_json::Value::Number(n) => {
-                                if let Some(f) = n.as_f64() {
-                                    b::number(f)
-                                } else {
-                                    b::number(0.0)
-                                }
-                            }
-                            serde_json::Value::String(s) => b::string(s),
-                            serde_json::Value::Null => b::null(),
-                            _ => b::boolean(true),
-                        };
-                    }
-                } else if type_str == "Identifier" {
-                    // It's an identifier
-                    if let Some(serde_json::Value::String(name)) = obj.get("name") {
-                        return b::id(name);
-                    }
-                }
+    use crate::ast::typed_expr::{JsNode, LiteralValue};
+    match expression.node_type() {
+        Some("Literal") => {
+            let node = expression.as_node();
+            match &*node {
+                JsNode::Literal { value, .. } => match value {
+                    LiteralValue::Bool(b) => b::boolean(*b),
+                    LiteralValue::Number(n) => b::number(*n),
+                    LiteralValue::String(s) => b::string(s.as_str()),
+                    LiteralValue::Null => b::null(),
+                    LiteralValue::Regex(_) => b::boolean(true),
+                },
+                _ => b::boolean(true),
             }
-            // Try to extract the identifier name
-            if let Some(serde_json::Value::String(name)) = obj.get("name") {
+        }
+        Some("Identifier") => {
+            if let Some(name) = expression.name() {
                 b::id(name)
             } else {
                 b::boolean(true)
             }
         }
-        serde_json::Value::Bool(b) => b::boolean(*b),
-        serde_json::Value::String(s) => b::id(s),
-        serde_json::Value::Number(n) => {
-            if let Some(f) = n.as_f64() {
-                b::number(f)
+        _ => {
+            // Fallback: try name field
+            if let Some(name) = expression.name() {
+                b::id(name)
             } else {
-                b::number(0.0)
+                b::boolean(true)
             }
         }
-        serde_json::Value::Null => b::null(),
-        _ => b::boolean(true),
     }
 }
 

@@ -778,30 +778,55 @@ fn process_let_directive(
         // Generates: const derived_name = $.derived(() => { let {y, z} = $$slotProps.x; return {y, z}; })
         // And tracks binding names for transform registration
         if let Some(expr) = &let_dir.expression {
-            let val = expr.as_json();
-            if let serde_json::Value::Object(obj) = val {
-                let expr_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            {
+                let expr_type = expr.node_type().unwrap_or("");
 
                 // Extract binding names from the expression
                 let mut binding_names: Vec<compact_str::CompactString> = Vec::new();
-                if expr_type == "ObjectExpression" {
-                    if let Some(serde_json::Value::Array(props)) = obj.get("properties") {
-                        for prop in props {
-                            if let Some(name) = prop
-                                .get("key")
-                                .and_then(|k| k.get("name"))
-                                .and_then(|n| n.as_str())
+                let node = expr.as_node();
+                match &*node {
+                    crate::ast::typed_expr::JsNode::ObjectExpression { properties, .. } => {
+                        for prop in properties {
+                            if let Some(key) = prop.key()
+                                && let Some(name) = key.name()
                             {
                                 binding_names.push(name.into());
                             }
                         }
                     }
-                } else if expr_type == "ArrayExpression"
-                    && let Some(serde_json::Value::Array(elements)) = obj.get("elements")
-                {
-                    for elem in elements {
-                        if let Some(name) = elem.get("name").and_then(|n| n.as_str()) {
-                            binding_names.push(name.into());
+                    crate::ast::typed_expr::JsNode::ArrayExpression { elements, .. } => {
+                        for elem in elements.iter().flatten() {
+                            if let Some(name) = elem.name() {
+                                binding_names.push(name.into());
+                            }
+                        }
+                    }
+                    _ => {
+                        // Raw/other fallback
+                        let val = expr.as_json();
+                        if let serde_json::Value::Object(obj) = val {
+                            if expr_type == "ObjectExpression"
+                                && let Some(serde_json::Value::Array(props)) = obj.get("properties")
+                            {
+                                for prop in props {
+                                    if let Some(name) = prop
+                                        .get("key")
+                                        .and_then(|k| k.get("name"))
+                                        .and_then(|n| n.as_str())
+                                    {
+                                        binding_names.push(name.into());
+                                    }
+                                }
+                            } else if expr_type == "ArrayExpression"
+                                && let Some(serde_json::Value::Array(elements)) =
+                                    obj.get("elements")
+                            {
+                                for elem in elements {
+                                    if let Some(name) = elem.get("name").and_then(|n| n.as_str()) {
+                                        binding_names.push(name.into());
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -1537,13 +1562,7 @@ fn process_bind_directive(
 
     // Dev mode: add ownership validation for bindable props
     // Reference: component.js lines 207-230
-    let is_sequence_expression = {
-        let json = bind.expression.as_json();
-        json.as_object()
-            .and_then(|o| o.get("type"))
-            .and_then(|t| t.as_str())
-            == Some("SequenceExpression")
-    };
+    let is_sequence_expression = bind.expression.node_type() == Some("SequenceExpression");
     let binding_ignored = ignored_codes
         .iter()
         .any(|c| c == "ownership_invalid_binding");
@@ -2592,8 +2611,12 @@ fn extract_identifier_name(expr: &Expression) -> Option<String> {
 /// Get the root identifier name from an expression, traversing through member expressions.
 /// E.g., `obj.foo.bar` returns `"obj"`, `obj` returns `"obj"`, other types return None.
 fn get_binding_root_name(expr: &Expression) -> Option<String> {
-    let json = expr.as_json();
-    get_root_identifier_from_json(json)
+    // Fast path for common identifier case
+    if let Some(name) = expr.identifier_name() {
+        return Some(name.to_string());
+    }
+    // Fall back to JSON for member expression chain traversal
+    get_root_identifier_from_json(expr.as_json())
 }
 
 fn get_root_identifier_from_json(val: &serde_json::Value) -> Option<String> {

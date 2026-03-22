@@ -1566,10 +1566,10 @@ impl<'a> ServerCodeGenerator<'a> {
             // Check if the expression is a getter/setter pair (SequenceExpression).
             // In Svelte 5, bind:value={() => val, (v) => val = v} is a getter/setter pair.
             // For SSR, we only need the getter's value (invoke the getter immediately).
-            let json = bind.expression.as_json();
-            let expr_type = json.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            let expr_type = bind.expression.node_type().unwrap_or("");
 
             let expr = if expr_type == "SequenceExpression" {
+                let json = bind.expression.as_json();
                 // Extract just the getter (first expression in the sequence)
                 // and wrap it in an IIFE: (() => val)()
                 if let Some(expressions) = json.get("expressions").and_then(|e| e.as_array()) {
@@ -2138,18 +2138,29 @@ impl<'a> ServerCodeGenerator<'a> {
     /// Only returns string literals - numeric and boolean literals should use $.attr() calls
     /// because the official Svelte compiler uses $.attr() for non-string expression attributes.
     fn extract_literal_value(&self, expr: &crate::ast::js::Expression) -> Option<String> {
-        let json = expr.as_json();
-        let expr_type = json.get("type").and_then(|t| t.as_str())?;
-
-        if expr_type == "Literal" {
-            // Only inline string literals. Numeric and boolean literals should
-            // use $.attr() calls to match the official compiler behavior.
-            if let Some(serde_json::Value::String(s)) = json.get("value") {
-                return Some(s.clone());
-            }
+        if expr.node_type()? != "Literal" {
+            return None;
         }
-
-        None
+        // Only inline string literals. Numeric and boolean literals should
+        // use $.attr() calls to match the official compiler behavior.
+        let node = expr.as_node();
+        match &*node {
+            crate::ast::typed_expr::JsNode::Literal { value, .. } => {
+                if let crate::ast::typed_expr::LiteralValue::String(s) = value {
+                    Some(s.to_string())
+                } else {
+                    None
+                }
+            }
+            crate::ast::typed_expr::JsNode::Raw(val) => {
+                if let Some(serde_json::Value::String(s)) = val.get("value") {
+                    Some(s.clone())
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
     }
 
     /// Extract a plain text value from an attribute.
