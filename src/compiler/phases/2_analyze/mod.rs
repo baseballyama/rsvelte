@@ -40,6 +40,7 @@ pub use types::{
 pub use visitors::AstType;
 
 use crate::ast::template::Root;
+use crate::ast::typed_expr::JsNode;
 use crate::compiler::CompileOptions;
 
 /// Analyze a parsed Svelte component.
@@ -177,6 +178,7 @@ pub fn analyze_component(
     // runes and stores, but store_subs are created from template/instance references
     // after scope building, so they are not relevant for script-level rune detection).
     let empty_store_subs: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
+    // TODO: migrate json_check_features to JsNode walker
     let instance_results = ast
         .instance
         .as_ref()
@@ -188,6 +190,7 @@ pub fn analyze_component(
 
     // Check the module script for rune references (module scripts don't need await check
     // since the original code only checked instance script for await).
+    // TODO: migrate json_check_features to JsNode walker
     let module_has_rune_reference = ast
         .module
         .as_ref()
@@ -271,6 +274,7 @@ pub fn analyze_component(
                 .push(warnings::script_context_deprecated());
         }
 
+        // TODO: migrate visit_script to accept JsNode
         let script_ast = module.content.as_json();
         let mut context = visitors::VisitorContext::new(&mut analysis);
         context.ast_type = visitors::AstType::Module;
@@ -304,6 +308,7 @@ pub fn analyze_component(
         // Validate script attributes - warn for unknown attributes
         validate_script_attributes(&instance.attributes, &mut analysis);
 
+        // TODO: migrate visit_script to accept JsNode
         let script_ast = instance.content.as_json();
         let mut context = visitors::VisitorContext::new(&mut analysis);
         context.ast_type = visitors::AstType::Instance;
@@ -335,6 +340,7 @@ pub fn analyze_component(
     // This mirrors the official Svelte compiler's index.js post-walk checks.
     // Must run AFTER analyze_template so that analysis.template.snippets is populated.
     // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js
+    // TODO: migrate post-analysis module export checks to JsNode
     if let Some(ref module) = ast.module {
         let module_json = module.content.as_json();
         if let Some(body) = module_json.get("body").and_then(|b| b.as_array()) {
@@ -828,6 +834,7 @@ fn instance_has_legacy_patterns(ast: &Root) -> bool {
         return false;
     };
 
+    // TODO: migrate instance_has_legacy_patterns to JsNode
     let script_ast = instance.content.as_json();
     let Some(body) = script_ast.get("body").and_then(|v| v.as_array()) else {
         return false;
@@ -907,6 +914,7 @@ fn check_reactive_declaration_cycles(
         return Ok(());
     };
 
+    // TODO: migrate check_reactive_declaration_cycles to JsNode
     let script_ast = instance.content.as_json();
     let Some(body) = script_ast.get("body").and_then(|v| v.as_array()) else {
         return Ok(());
@@ -1135,6 +1143,7 @@ fn process_legacy_exports(ast: &Root, analysis: &mut ComponentAnalysis) {
         return;
     };
 
+    // TODO: migrate process_legacy_exports to JsNode
     let script_ast = instance.content.as_json();
 
     // Get the body array from the Program node
@@ -1496,9 +1505,9 @@ fn collect_each_block_promotions(
         match node {
             TemplateNode::EachBlock(each) => {
                 let has_updated_binding = if let Some(ref context_expr) = each.context {
-                    let context_json = context_expr.as_json();
+                    let context_node = context_expr.as_node();
                     let mut names = Vec::new();
-                    extract_each_pattern_identifiers(context_json, &mut names);
+                    extract_each_pattern_identifiers_node(&context_node, &mut names);
                     names.iter().any(|name| {
                         // Check ALL bindings with this name, not just the first one.
                         // The each block's item binding (EachItem kind) may be shadowed by
@@ -1623,6 +1632,7 @@ fn populate_legacy_dependencies(ast: &Root, analysis: &mut ComponentAnalysis) {
         None => return,
     };
 
+    // TODO: migrate populate_legacy_dependencies to JsNode
     let program = instance.content.as_json();
 
     // Walk the program body to find labeled statements with label "$"
@@ -1976,6 +1986,44 @@ fn extract_each_pattern_identifiers(node: &serde_json::Value, names: &mut Vec<St
             if let Some(arg) = node.get("argument") {
                 extract_each_pattern_identifiers(arg, names);
             }
+        }
+        _ => {}
+    }
+}
+
+/// Extract identifier names from a destructuring pattern (JsNode version).
+fn extract_each_pattern_identifiers_node(node: &JsNode, names: &mut Vec<String>) {
+    match node {
+        JsNode::Identifier { name, .. } => {
+            names.push(name.to_string());
+        }
+        JsNode::ObjectPattern { properties, .. } => {
+            for prop in properties {
+                match prop {
+                    JsNode::RestElement { argument, .. } => {
+                        extract_each_pattern_identifiers_node(argument, names);
+                    }
+                    JsNode::Property { value, .. } => {
+                        extract_each_pattern_identifiers_node(value, names);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        JsNode::ArrayPattern { elements, .. } => {
+            for elem in elements.iter().flatten() {
+                extract_each_pattern_identifiers_node(elem, names);
+            }
+        }
+        JsNode::AssignmentPattern { left, .. } => {
+            extract_each_pattern_identifiers_node(left, names);
+        }
+        JsNode::RestElement { argument, .. } => {
+            extract_each_pattern_identifiers_node(argument, names);
+        }
+        // Raw fallback
+        JsNode::Raw(v) => {
+            extract_each_pattern_identifiers(v, names);
         }
         _ => {}
     }
@@ -2522,6 +2570,7 @@ fn expression_check_features(
     expr: &crate::ast::js::Expression,
     store_subs: &rustc_hash::FxHashSet<&str>,
 ) -> JsonCheckResults {
+    // TODO: migrate json_check_features to JsNode walker
     let value = expr.as_json();
     json_check_features(value, store_subs)
 }
@@ -2929,12 +2978,13 @@ fn mark_group_bindings_in_node(
                     // For `bind:group={selected_array[index]}`, this gives [selected_array, index].
                     // This mirrors the official compiler's extract_all_identifiers_from_expression().
                     let mut ids: Vec<String> = Vec::new();
-                    extract_all_identifiers_from_expr(bind.expression.as_json(), &mut ids);
+                    let bind_node = bind.expression.as_node();
+                    extract_all_identifiers_from_node(&bind_node, &mut ids);
 
                     // Compute the keypath for this expression (used as binding group key).
                     // This mirrors the official compiler's keypath from extract_all_identifiers_from_expression.
                     // Example: `$order.scoops` → "$order.scoops", `list[key]` → "list.[key]"
-                    let keypath = build_binding_keypath(bind.expression.as_json());
+                    let keypath = build_binding_keypath_node(&bind_node);
 
                     // Walk ancestor each blocks from innermost to outermost.
                     // For each each block, check if any of the current `ids` are declared by it.
@@ -2957,7 +3007,8 @@ fn mark_group_bindings_in_node(
                         // (both the context pattern and the index variable)
                         let mut declared: Vec<String> = Vec::new();
                         if let Some(ref ctx) = each.context {
-                            extract_each_pattern_identifiers(ctx.as_json(), &mut declared);
+                            let ctx_node = ctx.as_node();
+                            extract_each_pattern_identifiers_node(&ctx_node, &mut declared);
                         }
                         if let Some(ref idx) = each.index {
                             declared.push(idx.to_string());
@@ -2981,8 +3032,9 @@ fn mark_group_bindings_in_node(
                             // the outer each blocks that declare the inner each's expression
                             // variable (e.g., `list as { id, data }` declaring `data`).
                             // This mirrors the official Svelte compiler's parent_each_blocks logic.
-                            extract_all_identifiers_from_expr(
-                                each.expression.as_json(),
+                            let each_expr_node = each.expression.as_node();
+                            extract_all_identifiers_from_node(
+                                &each_expr_node,
                                 &mut ids_for_matching,
                             );
                         }
@@ -3165,6 +3217,59 @@ fn extract_all_identifiers_from_expr(expr: &serde_json::Value, ids: &mut Vec<Str
     }
 }
 
+/// Extract ALL identifier names from a JsNode expression.
+/// JsNode version of `extract_all_identifiers_from_expr`.
+fn extract_all_identifiers_from_node(node: &JsNode, ids: &mut Vec<String>) {
+    match node {
+        JsNode::Identifier { name, .. } => {
+            let name_str = name.to_string();
+            if !ids.contains(&name_str) {
+                ids.push(name_str);
+            }
+        }
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            ..
+        } => {
+            extract_all_identifiers_from_node(object, ids);
+            // Only extract computed property identifiers (e.g., [index] in arr[index])
+            if *computed {
+                extract_all_identifiers_from_node(property, ids);
+            }
+        }
+        JsNode::CallExpression {
+            callee, arguments, ..
+        } => {
+            extract_all_identifiers_from_node(callee, ids);
+            for arg in arguments {
+                extract_all_identifiers_from_node(arg, ids);
+            }
+        }
+        JsNode::BinaryExpression { left, right, .. }
+        | JsNode::LogicalExpression { left, right, .. } => {
+            extract_all_identifiers_from_node(left, ids);
+            extract_all_identifiers_from_node(right, ids);
+        }
+        JsNode::ConditionalExpression {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => {
+            extract_all_identifiers_from_node(test, ids);
+            extract_all_identifiers_from_node(consequent, ids);
+            extract_all_identifiers_from_node(alternate, ids);
+        }
+        // Raw fallback
+        JsNode::Raw(v) => {
+            extract_all_identifiers_from_expr(v, ids);
+        }
+        _ => {}
+    }
+}
+
 /// Build a keypath string from a binding expression.
 /// This mirrors the `extract_all_identifiers_from_expression` function in the official Svelte
 /// compiler (utils/ast.js), which builds a keypath string for use as a binding group key.
@@ -3223,6 +3328,51 @@ fn build_keypath_parts(expr: &serde_json::Value, parts: &mut Vec<String>) {
             // representation that includes all identifiers
             let mut ids: Vec<String> = Vec::new();
             extract_all_identifiers_from_expr(expr, &mut ids);
+            parts.extend(ids);
+        }
+    }
+}
+
+/// Build a keypath string from a JsNode binding expression.
+/// JsNode version of `build_binding_keypath`.
+fn build_binding_keypath_node(node: &JsNode) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    build_keypath_parts_node(node, &mut parts);
+    parts.join(".")
+}
+
+fn build_keypath_parts_node(node: &JsNode, parts: &mut Vec<String>) {
+    match node {
+        JsNode::Identifier { name, .. } => {
+            parts.push(name.to_string());
+        }
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            ..
+        } => {
+            // Walk the object part
+            build_keypath_parts_node(object, parts);
+            // Handle the property part
+            if *computed {
+                // Computed property: arr[idx] -> push "[idx]"
+                let prop_str = build_binding_keypath_node(property);
+                parts.push(format!("[{}]", prop_str));
+            } else if let Some(name) = property.name() {
+                // Static property: obj.prop -> push "prop"
+                parts.push(name.to_string());
+            }
+        }
+        // Raw fallback
+        JsNode::Raw(v) => {
+            build_keypath_parts(v, parts);
+        }
+        _ => {
+            // For other expression types (CallExpression, etc.), fall back to a
+            // representation that includes all identifiers
+            let mut ids: Vec<String> = Vec::new();
+            extract_all_identifiers_from_node(node, &mut ids);
             parts.extend(ids);
         }
     }

@@ -9,6 +9,7 @@ use crate::ast::template::{
     AwaitBlock, ConstTag, EachBlock, Fragment, IfBlock, KeyBlock, RegularElement, Root, Script,
     SnippetBlock, TemplateNode,
 };
+use crate::ast::typed_expr::JsNode;
 use rustc_hash::FxHashMap;
 
 use oxc_allocator::Allocator;
@@ -1548,11 +1549,8 @@ impl<'a> ScopeBuilder<'a> {
                 if let Some(ref expression) = let_dir.expression {
                     // Destructured let directive: let:x={{ a, b }}
                     // Extract identifiers from the destructuring pattern
-                    self.declare_bindings_from_pattern(
-                        expression.as_json(),
-                        BindingKind::Let,
-                        false,
-                    );
+                    let node = expression.as_node();
+                    self.declare_bindings_from_pattern_node(&node, BindingKind::Let, false);
                 } else {
                     // Simple let directive: let:bar
                     self.declare_binding(
@@ -1621,6 +1619,7 @@ impl<'a> ScopeBuilder<'a> {
     fn process_template_expression(&mut self, expr: &crate::ast::js::Expression) {
         // Walk the JSON AST directly instead of re-parsing with OXC.
         // This avoids expensive OXC parse calls for every template expression.
+        // TODO: migrate track_json_expression_updates and collect_arrow_param_names to JsNode walkers
         let json = expr.as_json();
         self.track_json_expression_updates(json);
         // Also collect arrow function parameter names for the conflicts set.
@@ -1636,46 +1635,75 @@ impl<'a> ScopeBuilder<'a> {
     /// - For MemberExpression (bind:this={foo[i]}), extracts the base object and marks as mutated
     /// - SequenceExpression (getter/setter syntax) is skipped (handled separately)
     fn process_template_expression_for_bind(&mut self, expr: &crate::ast::js::Expression) {
-        let json = expr.as_json();
-        let expr_type = json.get("type").and_then(|t| t.as_str());
+        let node = expr.as_node();
 
-        // Skip SequenceExpression (getter/setter syntax) - handled separately
-        if expr_type == Some("SequenceExpression") {
-            return;
-        }
+        match &*node {
+            // Skip SequenceExpression (getter/setter syntax) - handled separately
+            JsNode::SequenceExpression { .. } => {}
 
-        // For direct Identifier (bind:value={x}), mark as reassigned
-        if expr_type == Some("Identifier") {
-            if let Some(serde_json::Value::String(name)) = json.get("name") {
+            // For direct Identifier (bind:value={x}), mark as reassigned
+            JsNode::Identifier { name, .. } => {
                 self.updates.push(Update {
-                    name: name.clone(),
+                    name: name.to_string(),
                     is_direct_assignment: true,
                     scope_idx: self.current_scope,
                 });
             }
-            return;
-        }
 
-        // For MemberExpression (bind:this={foo[i]}), traverse to base object
-        // and mark as mutated (not reassigned, since only a property is being set)
-        if expr_type == Some("MemberExpression") {
-            let mut current = json;
-            while current.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
-                if let Some(obj) = current.get("object") {
-                    current = obj;
-                } else {
-                    return;
+            // For MemberExpression (bind:this={foo[i]}), traverse to base object
+            // and mark as mutated (not reassigned, since only a property is being set)
+            JsNode::MemberExpression { .. } => {
+                let mut current = &*node;
+                while let JsNode::MemberExpression { object, .. } = current {
+                    current = object;
+                }
+                if let JsNode::Identifier { name, .. } = current {
+                    self.updates.push(Update {
+                        name: name.to_string(),
+                        is_direct_assignment: false, // mutation, not reassignment
+                        scope_idx: self.current_scope,
+                    });
                 }
             }
-            if current.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                && let Some(serde_json::Value::String(name)) = current.get("name")
-            {
-                self.updates.push(Update {
-                    name: name.clone(),
-                    is_direct_assignment: false, // mutation, not reassignment
-                    scope_idx: self.current_scope,
-                });
+
+            // Raw fallback: use JSON version
+            JsNode::Raw(json) => {
+                let expr_type = json.get("type").and_then(|t| t.as_str());
+                if expr_type == Some("SequenceExpression") {
+                    return;
+                }
+                if expr_type == Some("Identifier") {
+                    if let Some(serde_json::Value::String(name)) = json.get("name") {
+                        self.updates.push(Update {
+                            name: name.clone(),
+                            is_direct_assignment: true,
+                            scope_idx: self.current_scope,
+                        });
+                    }
+                    return;
+                }
+                if expr_type == Some("MemberExpression") {
+                    let mut current = json;
+                    while current.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+                        if let Some(obj) = current.get("object") {
+                            current = obj;
+                        } else {
+                            return;
+                        }
+                    }
+                    if current.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                        && let Some(serde_json::Value::String(name)) = current.get("name")
+                    {
+                        self.updates.push(Update {
+                            name: name.clone(),
+                            is_direct_assignment: false,
+                            scope_idx: self.current_scope,
+                        });
+                    }
+                }
             }
+
+            _ => {}
         }
     }
 
@@ -2216,8 +2244,8 @@ impl<'a> ScopeBuilder<'a> {
 
         // Declare the item binding(s) - handle destructuring patterns
         if let Some(context) = block.context.as_ref() {
-            let context_json = context.as_json();
-            self.declare_bindings_from_pattern(context_json, BindingKind::EachItem, false);
+            let context_node = context.as_node();
+            self.declare_bindings_from_pattern_node(&context_node, BindingKind::EachItem, false);
         }
 
         // Declare the index binding if present
@@ -2243,9 +2271,9 @@ impl<'a> ScopeBuilder<'a> {
         // We can't check is_updated() yet because updates are processed after the template visit.
         let each_scope = self.current_scope;
         let collection_names = {
-            let json = block.expression.as_json();
+            let node = block.expression.as_node();
             let mut ids = Vec::new();
-            collect_identifiers_from_json(json, &mut ids);
+            collect_identifiers_from_node(&node, &mut ids);
             ids
         };
         self.each_block_collection_infos
@@ -2330,6 +2358,75 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
+    /// Declare bindings from a JsNode pattern (handles destructuring).
+    ///
+    /// JsNode version of `declare_bindings_from_pattern` that uses typed pattern matching
+    /// instead of JSON field access. Falls back to JSON version for `JsNode::Raw`.
+    fn declare_bindings_from_pattern_node(
+        &mut self,
+        pattern: &JsNode,
+        kind: BindingKind,
+        inside_rest: bool,
+    ) {
+        match pattern {
+            JsNode::Identifier { name, .. } => {
+                // Check for invalid $state/$derived usage in each context
+                if kind == BindingKind::EachItem
+                    && (name.as_str() == "$state" || name.as_str() == "$derived")
+                {
+                    self.validation_errors
+                        .push(super::errors::state_invalid_placement(name));
+                    return;
+                }
+                let binding_idx =
+                    self.declare_binding(name.to_string(), kind, DeclarationKind::Const);
+                if inside_rest {
+                    self.bindings[binding_idx].inside_rest = true;
+                }
+            }
+            // Handle both ObjectPattern (official AST) and ObjectExpression (our parser's AST
+            // for destructured let directive patterns like let:box={{width, height}})
+            JsNode::ObjectPattern { properties, .. }
+            | JsNode::ObjectExpression { properties, .. } => {
+                for prop in properties {
+                    match prop {
+                        JsNode::RestElement { argument, .. }
+                        | JsNode::SpreadElement { argument, .. } => {
+                            self.declare_bindings_from_pattern_node(argument, kind, true);
+                        }
+                        JsNode::Property { value, .. } => {
+                            self.declare_bindings_from_pattern_node(value, kind, inside_rest);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            // Handle both ArrayPattern (official AST) and ArrayExpression (our parser's AST)
+            JsNode::ArrayPattern { elements, .. } => {
+                for elem in elements.iter().flatten() {
+                    self.declare_bindings_from_pattern_node(elem, kind, inside_rest);
+                }
+            }
+            JsNode::ArrayExpression { elements, .. } => {
+                for elem in elements.iter().flatten() {
+                    self.declare_bindings_from_pattern_node(elem, kind, inside_rest);
+                }
+            }
+            // Handle both RestElement (official AST) and SpreadElement (our parser's AST)
+            JsNode::RestElement { argument, .. } | JsNode::SpreadElement { argument, .. } => {
+                self.declare_bindings_from_pattern_node(argument, kind, true);
+            }
+            JsNode::AssignmentPattern { left, .. } => {
+                self.declare_bindings_from_pattern_node(left, kind, inside_rest);
+            }
+            // Raw fallback: use JSON version
+            JsNode::Raw(v) => {
+                self.declare_bindings_from_pattern(v, kind, inside_rest);
+            }
+            _ => {}
+        }
+    }
+
     /// Visit an if block.
     fn visit_if_block(&mut self, block: &IfBlock) {
         // Each branch of an if/else block gets its own scope.
@@ -2373,7 +2470,8 @@ impl<'a> ScopeBuilder<'a> {
 
             // Declare the then value binding(s) - handle destructuring patterns
             if let Some(ref value) = block.value {
-                self.declare_bindings_from_pattern(value.as_json(), BindingKind::AwaitThen, false);
+                let node = value.as_node();
+                self.declare_bindings_from_pattern_node(&node, BindingKind::AwaitThen, false);
             }
 
             self.visit_fragment(then);
@@ -2390,7 +2488,8 @@ impl<'a> ScopeBuilder<'a> {
 
             // Declare the error binding(s) - handle destructuring patterns
             if let Some(ref error) = block.error {
-                self.declare_bindings_from_pattern(error.as_json(), BindingKind::AwaitCatch, false);
+                let node = error.as_node();
+                self.declare_bindings_from_pattern_node(&node, BindingKind::AwaitCatch, false);
             }
 
             self.visit_fragment(catch);
@@ -2415,12 +2514,7 @@ impl<'a> ScopeBuilder<'a> {
         // This matches the official Svelte compiler: scope.declare(node.expression, 'normal', 'function', node)
         // The snippet name must be available in the enclosing scope so that {@render snippet()}
         // can find it and know that it's a local (non-dynamic) snippet
-        if let Some(name) = block
-            .expression
-            .as_json()
-            .get("name")
-            .and_then(|n| n.as_str())
-        {
+        if let Some(name) = block.expression.name() {
             self.declare_binding(
                 name.to_string(),
                 BindingKind::Normal,
@@ -2436,7 +2530,8 @@ impl<'a> ScopeBuilder<'a> {
 
         // Declare snippet parameters - handle destructuring patterns
         for param in &block.parameters {
-            self.declare_bindings_from_pattern(param.as_json(), BindingKind::SnippetParam, false);
+            let node = param.as_node();
+            self.declare_bindings_from_pattern_node(&node, BindingKind::SnippetParam, false);
         }
 
         // Visit body
@@ -2453,31 +2548,50 @@ impl<'a> ScopeBuilder<'a> {
         // The declaration can be either:
         // - AssignmentExpression: @const b = a + 1 (left is Identifier)
         // - VariableDeclaration: @const {x, y} = obj (declarations array)
-        let value = tag.declaration.as_json();
+        let node = tag.declaration.as_node();
 
-        // Check if it's an AssignmentExpression
-        if value.get("type").and_then(|t| t.as_str()) == Some("AssignmentExpression") {
-            // Extract binding from left side
-            if let Some(left) = value.get("left") {
-                self.process_binding_pattern_from_json(left);
+        match &*node {
+            JsNode::AssignmentExpression { left, right, .. } => {
+                self.process_binding_pattern_from_node(left);
                 // Store the initial value (right side) on the binding for scope.evaluate()
-                if let Some(right) = value.get("right") {
-                    self.set_const_tag_initial(left, right);
+                // set_const_tag_initial still uses JSON since it stores init.to_string()
+                let left_json = left.to_value();
+                let right_json = right.to_value();
+                self.set_const_tag_initial(&left_json, &right_json);
+            }
+            JsNode::VariableDeclaration { declarations, .. } => {
+                if let Some(decl) = declarations.first()
+                    && let Some(id) = decl.id()
+                {
+                    self.process_binding_pattern_from_node(id);
+                    // Store the initial value on the binding for scope.evaluate()
+                    let id_json = id.to_value();
+                    if let Some(init) = decl.init() {
+                        let init_json = init.to_value();
+                        self.set_const_tag_initial(&id_json, &init_json);
+                    }
                 }
             }
-        }
-        // Check if it's a VariableDeclaration
-        else if let Some(declarations) = value.get("declarations").and_then(|d| d.as_array())
-            && let Some(declaration) = declarations.first()
-        {
-            // Extract identifier names from the pattern
-            if let Some(id) = declaration.get("id") {
-                self.process_binding_pattern_from_json(id);
-                // Store the initial value on the binding for scope.evaluate()
-                if let Some(init) = declaration.get("init") {
-                    self.set_const_tag_initial(id, init);
+            // Raw fallback: use JSON version
+            JsNode::Raw(v) => {
+                if v.get("type").and_then(|t| t.as_str()) == Some("AssignmentExpression") {
+                    if let Some(left) = v.get("left") {
+                        self.process_binding_pattern_from_json(left);
+                        if let Some(right) = v.get("right") {
+                            self.set_const_tag_initial(left, right);
+                        }
+                    }
+                } else if let Some(declarations) = v.get("declarations").and_then(|d| d.as_array())
+                    && let Some(declaration) = declarations.first()
+                    && let Some(id) = declaration.get("id")
+                {
+                    self.process_binding_pattern_from_json(id);
+                    if let Some(init) = declaration.get("init") {
+                        self.set_const_tag_initial(id, init);
+                    }
                 }
             }
+            _ => {}
         }
     }
 
@@ -2541,6 +2655,45 @@ impl<'a> ScopeBuilder<'a> {
             _ => {}
         }
     }
+
+    /// Process a binding pattern from a JsNode.
+    /// Const-tag bindings get `BindingKind::Template` to match the official Svelte compiler.
+    /// JsNode version of `process_binding_pattern_from_json`.
+    fn process_binding_pattern_from_node(&mut self, pattern: &JsNode) {
+        match pattern {
+            JsNode::Identifier { name, .. } => {
+                self.declare_binding(
+                    name.to_string(),
+                    BindingKind::Template,
+                    DeclarationKind::Const,
+                );
+            }
+            JsNode::ObjectPattern { properties, .. }
+            | JsNode::ObjectExpression { properties, .. } => {
+                for prop in properties {
+                    if let Some(value) = prop.value_node() {
+                        self.process_binding_pattern_from_node(value);
+                    }
+                }
+            }
+            JsNode::ArrayPattern { elements, .. } | JsNode::ArrayExpression { elements, .. } => {
+                for elem in elements.iter().flatten() {
+                    self.process_binding_pattern_from_node(elem);
+                }
+            }
+            JsNode::AssignmentPattern { left, .. } => {
+                self.process_binding_pattern_from_node(left);
+            }
+            JsNode::RestElement { argument, .. } => {
+                self.process_binding_pattern_from_node(argument);
+            }
+            // Raw fallback: use JSON version
+            JsNode::Raw(v) => {
+                self.process_binding_pattern_from_json(v);
+            }
+            _ => {}
+        }
+    }
 }
 
 /// Recursively collect all Identifier names from a JSON AST value.
@@ -2569,6 +2722,101 @@ fn collect_identifiers_from_json(val: &serde_json::Value, result: &mut Vec<Strin
                 collect_identifiers_from_json(v, result);
             }
         }
+        _ => {}
+    }
+}
+
+/// Recursively collect all Identifier names from a JsNode AST.
+///
+/// JsNode version of `collect_identifiers_from_json`. Used to extract identifiers
+/// from a collection expression so their bindings can be promoted to State kind.
+fn collect_identifiers_from_node(node: &JsNode, result: &mut Vec<String>) {
+    match node {
+        JsNode::Identifier { name, .. } => {
+            result.push(name.to_string());
+        }
+        // For other node types, recurse into children
+        JsNode::MemberExpression {
+            object, property, ..
+        } => {
+            collect_identifiers_from_node(object, result);
+            collect_identifiers_from_node(property, result);
+        }
+        JsNode::CallExpression {
+            callee, arguments, ..
+        } => {
+            collect_identifiers_from_node(callee, result);
+            for arg in arguments {
+                collect_identifiers_from_node(arg, result);
+            }
+        }
+        JsNode::BinaryExpression { left, right, .. }
+        | JsNode::LogicalExpression { left, right, .. }
+        | JsNode::AssignmentExpression { left, right, .. }
+        | JsNode::AssignmentPattern { left, right, .. } => {
+            collect_identifiers_from_node(left, result);
+            collect_identifiers_from_node(right, result);
+        }
+        JsNode::ConditionalExpression {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => {
+            collect_identifiers_from_node(test, result);
+            collect_identifiers_from_node(consequent, result);
+            collect_identifiers_from_node(alternate, result);
+        }
+        JsNode::UnaryExpression { argument, .. }
+        | JsNode::UpdateExpression { argument, .. }
+        | JsNode::SpreadElement { argument, .. }
+        | JsNode::RestElement { argument, .. }
+        | JsNode::AwaitExpression { argument, .. } => {
+            collect_identifiers_from_node(argument, result);
+        }
+        JsNode::ArrayExpression { elements, .. } | JsNode::ArrayPattern { elements, .. } => {
+            for e in elements.iter().flatten() {
+                collect_identifiers_from_node(e, result);
+            }
+        }
+        JsNode::ObjectExpression { properties, .. } | JsNode::ObjectPattern { properties, .. } => {
+            for prop in properties {
+                collect_identifiers_from_node(prop, result);
+            }
+        }
+        JsNode::Property { key, value, .. } => {
+            collect_identifiers_from_node(key, result);
+            collect_identifiers_from_node(value, result);
+        }
+        JsNode::SequenceExpression { expressions, .. }
+        | JsNode::TemplateLiteral { expressions, .. } => {
+            for expr in expressions {
+                collect_identifiers_from_node(expr, result);
+            }
+        }
+        JsNode::ArrowFunctionExpression { body, params, .. } => {
+            for p in params {
+                collect_identifiers_from_node(p, result);
+            }
+            collect_identifiers_from_node(body, result);
+        }
+        JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
+            collect_identifiers_from_node(tag, result);
+            collect_identifiers_from_node(quasi, result);
+        }
+        JsNode::NewExpression {
+            callee, arguments, ..
+        } => {
+            collect_identifiers_from_node(callee, result);
+            for arg in arguments {
+                collect_identifiers_from_node(arg, result);
+            }
+        }
+        // Raw fallback
+        JsNode::Raw(v) => {
+            collect_identifiers_from_json(v, result);
+        }
+        // Leaf nodes (Literal, ThisExpression, etc.) - no identifiers
         _ => {}
     }
 }
