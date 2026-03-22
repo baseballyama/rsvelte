@@ -2940,52 +2940,84 @@ pub(super) fn replace_with_word_boundary_scoped(
     check_before: bool,
     var_name: Option<&str>,
 ) -> String {
-    let mut result = String::new();
-    let chars: Vec<char> = input.chars().collect();
-    let pattern_chars: Vec<char> = pattern.chars().collect();
+    // Fast path: if pattern doesn't exist in input at all, return input unchanged
+    if !input.contains(pattern) {
+        return input.to_string();
+    }
+
+    // Work with bytes for ASCII patterns (all JS identifiers are ASCII)
+    let input_bytes = input.as_bytes();
+    let pattern_bytes = pattern.as_bytes();
+    let pattern_len = pattern_bytes.len();
+    let input_len = input_bytes.len();
+
+    // Pre-allocate result with same capacity as input
+    let mut result = String::with_capacity(input.len() + 64);
+
+    // For the for-loop shadowing check, we need chars. Lazily compute only if needed.
+    let chars_lazy: std::cell::OnceCell<Vec<char>> = std::cell::OnceCell::new();
+
     let mut i = 0;
+    while i < input_len {
+        if i + pattern_len <= input_len && input_bytes[i..i + pattern_len] == *pattern_bytes {
+            // Potential match found - check word boundaries
+            let preceded_by_dot = i > 0 && input_bytes[i - 1] == b'.';
+            let followed_by_dot =
+                i + pattern_len < input_len && input_bytes[i + pattern_len] == b'.';
 
-    while i < chars.len() {
-        if i + pattern_chars.len() <= chars.len() {
-            let potential_match: String = chars[i..i + pattern_chars.len()].iter().collect();
-            if potential_match == pattern {
-                // Always check that we're not preceded by a dot (property access)
-                // e.g., don't match `count++` in `foo.count++` since `count` is a property, not the state variable
-                let preceded_by_dot = i > 0 && chars[i - 1] == '.';
+            let before_ok = !preceded_by_dot
+                && (!check_before
+                    || i == 0
+                    || !is_identifier_byte(input_bytes[i - 1])
+                    || input_bytes[i] == b'+');
+            let after_ok = !followed_by_dot
+                && (i + pattern_len >= input_len
+                    || !is_identifier_byte(input_bytes[i + pattern_len]));
 
-                // Also check that we're not followed by a dot (property access)
-                // e.g., don't match `++foo` in `++foo.count` since we're incrementing foo.count, not foo
-                let followed_by_dot =
-                    i + pattern_chars.len() < chars.len() && chars[i + pattern_chars.len()] == '.';
+            // Check if this variable is inside a for-loop scope with shadowing
+            let is_for_shadowed = if let Some(vn) = var_name {
+                let chars = chars_lazy.get_or_init(|| input.chars().collect());
+                // Find the char index corresponding to byte index i
+                let char_idx = input[..i].chars().count();
+                is_shadowed_by_for_loop_var(chars, char_idx, vn)
+            } else {
+                false
+            };
 
-                let before_ok = !preceded_by_dot
-                    && (!check_before
-                        || i == 0
-                        || !is_identifier_char(chars[i - 1])
-                        || chars[i] == '+');
-                let after_ok = !followed_by_dot
-                    && (i + pattern_chars.len() >= chars.len()
-                        || !is_identifier_char(chars[i + pattern_chars.len()]));
-
-                // Check if this variable is inside a for-loop scope with shadowing
-                let is_for_shadowed = if let Some(vn) = var_name {
-                    is_shadowed_by_for_loop_var(&chars, i, vn)
-                } else {
-                    false
-                };
-
-                if before_ok && after_ok && !is_for_shadowed {
-                    result.push_str(replacement);
-                    i += pattern_chars.len();
-                    continue;
-                }
+            if before_ok && after_ok && !is_for_shadowed {
+                result.push_str(replacement);
+                i += pattern_len;
+                continue;
             }
         }
-        result.push(chars[i]);
-        i += 1;
+        // Copy one byte (safe for UTF-8 since we only match ASCII patterns)
+        // But we need to handle multi-byte chars correctly
+        let ch_len = utf8_char_len(input_bytes[i]);
+        result.push_str(&input[i..i + ch_len]);
+        i += ch_len;
     }
 
     result
+}
+
+/// Check if a byte is a valid JavaScript identifier character (ASCII subset).
+#[inline(always)]
+fn is_identifier_byte(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
+}
+
+/// Get the length of a UTF-8 character from its first byte.
+#[inline(always)]
+fn utf8_char_len(b: u8) -> usize {
+    if b < 0x80 {
+        1
+    } else if b < 0xE0 {
+        2
+    } else if b < 0xF0 {
+        3
+    } else {
+        4
+    }
 }
 
 // ============================================================================
