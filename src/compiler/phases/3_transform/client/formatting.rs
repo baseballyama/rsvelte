@@ -32,43 +32,61 @@ pub(super) fn replace_state_with_reactive_import(
     let mut result = script.to_string();
 
     // 1. Replace $.get(name) -> import_id()
-    let get_pattern = format!("$.get({})", name);
-    let get_replacement = format!("{}()", import_id);
+    // Build patterns without intermediate format! allocations
+    let mut get_pattern = String::with_capacity(6 + name.len());
+    get_pattern.push_str("$.get(");
+    get_pattern.push_str(name);
+    get_pattern.push(')');
+    let mut get_replacement = String::with_capacity(import_id.len() + 2);
+    get_replacement.push_str(import_id);
+    get_replacement.push_str("()");
     result = result.replace(&get_pattern, &get_replacement);
 
     // 2. Replace $.mutate(name, EXPR) -> import_id(EXPR)
     // We need to find the matching closing paren for $.mutate(name, ...)
-    let mutate_prefix = format!("$.mutate({}, ", name);
+    let mut mutate_prefix = String::with_capacity(10 + name.len());
+    mutate_prefix.push_str("$.mutate(");
+    mutate_prefix.push_str(name);
+    mutate_prefix.push_str(", ");
     while let Some(start) = result.find(&mutate_prefix) {
         let after_prefix = start + mutate_prefix.len();
         // Find the matching closing paren
         if let Some(end) = find_matching_close_paren(&result[after_prefix..]) {
             let inner = &result[after_prefix..after_prefix + end];
-            let replacement = format!("{}({})", import_id, inner);
-            result = format!(
-                "{}{}{}",
-                &result[..start],
-                replacement,
-                &result[after_prefix + end + 1..] // +1 to skip the closing ')'
-            );
+            let mut replacement = String::with_capacity(import_id.len() + inner.len() + 2);
+            replacement.push_str(import_id);
+            replacement.push('(');
+            replacement.push_str(inner);
+            replacement.push(')');
+            let mut new_result = String::with_capacity(result.len());
+            new_result.push_str(&result[..start]);
+            new_result.push_str(&replacement);
+            new_result.push_str(&result[after_prefix + end + 1..]); // +1 to skip the closing ')'
+            result = new_result;
         } else {
             break;
         }
     }
 
     // 3. Replace $.set(name, EXPR) -> import_id(EXPR) (in case assignments are generated)
-    let set_prefix = format!("$.set({}, ", name);
+    let mut set_prefix = String::with_capacity(7 + name.len());
+    set_prefix.push_str("$.set(");
+    set_prefix.push_str(name);
+    set_prefix.push_str(", ");
     while let Some(start) = result.find(&set_prefix) {
         let after_prefix = start + set_prefix.len();
         if let Some(end) = find_matching_close_paren(&result[after_prefix..]) {
             let inner = &result[after_prefix..after_prefix + end];
-            let replacement = format!("{}({})", import_id, inner);
-            result = format!(
-                "{}{}{}",
-                &result[..start],
-                replacement,
-                &result[after_prefix + end + 1..]
-            );
+            let mut replacement = String::with_capacity(import_id.len() + inner.len() + 2);
+            replacement.push_str(import_id);
+            replacement.push('(');
+            replacement.push_str(inner);
+            replacement.push(')');
+            let mut new_result = String::with_capacity(result.len());
+            new_result.push_str(&result[..start]);
+            new_result.push_str(&replacement);
+            new_result.push_str(&result[after_prefix + end + 1..]);
+            result = new_result;
         } else {
             break;
         }
@@ -80,54 +98,63 @@ pub(super) fn replace_state_with_reactive_import(
     // - Part of the import_id itself ($$_import_name)
     // - Part of another identifier
     // - On the LHS of a declaration
-    let chars: Vec<char> = result.chars().collect();
-    let name_chars: Vec<char> = name.chars().collect();
-    let name_len = name_chars.len();
-    let import_id_len = import_id.len();
-    let mut new_result = String::with_capacity(result.len());
+    //
+    // Use byte-level scanning for ASCII delimiters, but copy UTF-8 segments to preserve encoding.
+    let result_bytes = result.as_bytes();
+    let name_bytes = name.as_bytes();
+    let name_len = name_bytes.len();
+    let import_id_bytes = import_id.as_bytes();
+    let import_id_len = import_id_bytes.len();
+    let mut new_result = String::with_capacity(result.len() + result.len() / 4);
     let mut i = 0;
+    let mut copy_start = 0;
 
-    while i < chars.len() {
-        // Check if the next chars match the import_id (skip it to avoid infinite recursion)
-        if i + import_id_len <= chars.len() {
-            let candidate: String = chars[i..i + import_id_len].iter().collect();
-            if candidate == import_id {
+    while i < result_bytes.len() {
+        // Check if the next bytes match the import_id (skip it to avoid infinite recursion)
+        if i + import_id_len <= result_bytes.len()
+            && &result_bytes[i..i + import_id_len] == import_id_bytes
+        {
+            new_result.push_str(&result[copy_start..i]);
+            new_result.push_str(import_id);
+            i += import_id_len;
+            copy_start = i;
+            continue;
+        }
+
+        // Check if current position matches the bare name
+        if i + name_len <= result_bytes.len() && &result_bytes[i..i + name_len] == name_bytes {
+            // Check word boundary before
+            let before_ok = if i == 0 {
+                true
+            } else {
+                let prev = result_bytes[i - 1];
+                !prev.is_ascii_alphanumeric() && prev != b'_' && prev != b'$'
+            };
+            // Check word boundary after
+            let after_ok = if i + name_len >= result_bytes.len() {
+                true
+            } else {
+                let next = result_bytes[i + name_len];
+                !next.is_ascii_alphanumeric() && next != b'_' && next != b'$'
+            };
+
+            if before_ok && after_ok {
+                // Replace with import_id()
+                new_result.push_str(&result[copy_start..i]);
                 new_result.push_str(import_id);
-                i += import_id_len;
+                new_result.push_str("()");
+                i += name_len;
+                copy_start = i;
                 continue;
             }
         }
 
-        // Check if current position matches the bare name
-        if i + name_len <= chars.len() {
-            let candidate: String = chars[i..i + name_len].iter().collect();
-            if candidate == name {
-                // Check word boundary before
-                let before_ok = if i == 0 {
-                    true
-                } else {
-                    let prev = chars[i - 1];
-                    !prev.is_alphanumeric() && prev != '_' && prev != '$'
-                };
-                // Check word boundary after
-                let after_ok = if i + name_len >= chars.len() {
-                    true
-                } else {
-                    let next = chars[i + name_len];
-                    !next.is_alphanumeric() && next != '_' && next != '$'
-                };
-
-                if before_ok && after_ok {
-                    // Replace with import_id()
-                    new_result.push_str(&format!("{}()", import_id));
-                    i += name_len;
-                    continue;
-                }
-            }
-        }
-
-        new_result.push(chars[i]);
         i += 1;
+    }
+
+    // Flush remaining content
+    if copy_start < result_bytes.len() {
+        new_result.push_str(&result[copy_start..]);
     }
 
     new_result
@@ -138,17 +165,17 @@ pub(super) fn replace_state_with_reactive_import(
 /// Returns the index of the closing ')' relative to the start of the string,
 /// or None if not found.
 pub(super) fn find_matching_close_paren(s: &str) -> Option<usize> {
-    let mut depth = 1; // We're already inside one paren level
-    let chars: Vec<char> = s.chars().collect();
+    let mut depth: u32 = 1; // We're already inside one paren level
+    let bytes = s.as_bytes();
     let mut i = 0;
     let mut in_string = false;
-    let mut string_char = '"';
+    let mut string_char = b'"';
 
-    while i < chars.len() {
-        let c = chars[i];
+    while i < bytes.len() {
+        let c = bytes[i];
 
         if in_string {
-            if c == string_char && (i == 0 || chars[i - 1] != '\\') {
+            if c == string_char && (i == 0 || bytes[i - 1] != b'\\') {
                 in_string = false;
             }
             i += 1;
@@ -156,12 +183,12 @@ pub(super) fn find_matching_close_paren(s: &str) -> Option<usize> {
         }
 
         match c {
-            '"' | '\'' | '`' => {
+            b'"' | b'\'' | b'`' => {
                 in_string = true;
                 string_char = c;
             }
-            '(' => depth += 1,
-            ')' => {
+            b'(' => depth += 1,
+            b')' => {
                 depth -= 1;
                 if depth == 0 {
                     return Some(i);
@@ -189,29 +216,27 @@ pub(super) fn find_matching_close_paren(s: &str) -> Option<usize> {
 /// It also handles `/* ... */` block comments.
 pub(super) fn strip_js_single_line_comments(source: &str) -> String {
     let mut result = String::with_capacity(source.len());
-    let chars: Vec<char> = source.chars().collect();
-    let len = chars.len();
+    let bytes = source.as_bytes();
+    let len = bytes.len();
     let mut i = 0;
+    let mut copy_start = 0; // Start of current segment to bulk-copy (preserves UTF-8)
     let mut in_string = false;
-    let mut string_char = '"';
+    let mut string_char = b'"';
 
     while i < len {
-        let c = chars[i];
+        let c = bytes[i];
 
         // Handle string literals
-        if !in_string && (c == '\'' || c == '"' || c == '`') {
+        if !in_string && (c == b'\'' || c == b'"' || c == b'`') {
             in_string = true;
             string_char = c;
-            result.push(c);
             i += 1;
             continue;
         }
 
         if in_string {
-            result.push(c);
-            if c == '\\' && i + 1 < len {
-                // Push the escaped character too
-                result.push(chars[i + 1]);
+            if c == b'\\' && i + 1 < len {
+                // Skip escaped character
                 i += 2;
                 continue;
             }
@@ -219,37 +244,39 @@ pub(super) fn strip_js_single_line_comments(source: &str) -> String {
                 in_string = false;
             }
             // Handle template literal expressions: `${...}`
-            if string_char == '`' && c == '$' && i + 1 < len && chars[i + 1] == '{' {
-                // Don't exit string mode for template expression - the backtick
-                // string continues after the closing }
-            }
+            // (backtick string continues after the closing })
             i += 1;
             continue;
         }
 
         // Detect // single-line comments
-        if c == '/' && i + 1 < len && chars[i + 1] == '/' {
-            // Collect the comment text to check if it's a svelte-ignore comment
+        if c == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+            // Flush everything before the comment
+            result.push_str(&source[copy_start..i]);
+            // Scan to end of line
             let comment_start = i;
             i += 2;
-            while i < len && chars[i] != '\n' {
+            while i < len && bytes[i] != b'\n' {
                 i += 1;
             }
             // Preserve svelte-ignore comments as they affect subsequent code generation
-            let comment_text: String = chars[comment_start..i].iter().collect();
+            let comment_text = &source[comment_start..i];
             if comment_text.contains("svelte-ignore") {
-                result.push_str(&comment_text);
+                result.push_str(comment_text);
             }
-            // The newline will be pushed in the next iteration
+            copy_start = i;
+            // The newline will be copied in the next segment
             continue;
         }
 
         // Detect /* block comments */
-        if c == '/' && i + 1 < len && chars[i + 1] == '*' {
+        if c == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+            // Flush everything before the comment
+            result.push_str(&source[copy_start..i]);
             i += 2;
-            while i + 1 < len && !(chars[i] == '*' && chars[i + 1] == '/') {
+            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
                 // Preserve newlines inside block comments to maintain line structure
-                if chars[i] == '\n' {
+                if bytes[i] == b'\n' {
                     result.push('\n');
                 }
                 i += 1;
@@ -257,11 +284,16 @@ pub(super) fn strip_js_single_line_comments(source: &str) -> String {
             if i + 1 < len {
                 i += 2; // Skip */
             }
+            copy_start = i;
             continue;
         }
 
-        result.push(c);
         i += 1;
+    }
+
+    // Flush remaining content
+    if copy_start < len {
+        result.push_str(&source[copy_start..]);
     }
 
     result
@@ -270,10 +302,17 @@ pub(super) fn strip_js_single_line_comments(source: &str) -> String {
 /// Strip `/* $$async_noop... */;` placeholders from script output.
 /// Used when async body transform returns None (no top-level await).
 pub(super) fn strip_async_noop_placeholders(s: &str) -> String {
-    let lines: Vec<&str> = s.lines().collect();
-    let mut result_lines: Vec<String> = Vec::new();
+    // Fast path: if no $$async markers exist, return early
+    if !s.contains("$$async_noop") && !s.contains("$$async_hole") {
+        return s.to_string();
+    }
 
-    for line in lines.iter() {
+    let mut result = String::with_capacity(s.len());
+    let mut first = true;
+    // Track whether previous line needs a semicolon appended
+    let mut need_semicolon_on_prev = false;
+
+    for line in s.lines() {
         let trimmed = line.trim();
 
         // Filter out $$async_noop lines
@@ -281,31 +320,38 @@ pub(super) fn strip_async_noop_placeholders(s: &str) -> String {
             continue;
         }
 
+        if need_semicolon_on_prev {
+            // Insert semicolon before the newline of the previous content
+            result.push(';');
+            need_semicolon_on_prev = false;
+        }
+
+        if !first {
+            result.push('\n');
+        }
+        first = false;
+
         // When there's no top-level await, $$async_hole markers (from $inspect()
         // removed in non-dev mode) should become two empty statements (;;) to match
         // the official compiler behavior.
         if trimmed.contains("$$async_hole") {
-            // Ensure the previous statement has a semicolon. Without it, ASI causes
-            // the first `;` of `;;` to be consumed by the preceding statement's
-            // termination, resulting in only 1 EmptyStatement instead of 2.
-            if let Some(last) = result_lines.last_mut() {
-                let last_trimmed = last.trim_end();
-                if !last_trimmed.ends_with(';')
-                    && !last_trimmed.ends_with('{')
-                    && !last_trimmed.ends_with('}')
-                    && !last_trimmed.ends_with(',')
-                    && !last_trimmed.is_empty()
-                {
-                    last.push(';');
-                }
+            // Check if prev content needs a semicolon
+            let prev_trimmed = result.trim_end();
+            if !prev_trimmed.ends_with(';')
+                && !prev_trimmed.ends_with('{')
+                && !prev_trimmed.ends_with('}')
+                && !prev_trimmed.ends_with(',')
+                && !prev_trimmed.is_empty()
+            {
+                result.push(';');
             }
-            result_lines.push(";;".to_string());
+            result.push_str(";;");
         } else {
-            result_lines.push(line.to_string());
+            result.push_str(line);
         }
     }
 
-    result_lines.join("\n")
+    result
 }
 
 /// Extract variable names from a $props() destructuring pattern.
@@ -397,24 +443,34 @@ pub(super) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
         }
 
         // Apply indentation for non-first lines
-        let mut result_lines = Vec::new();
-        let indent_str: String = "\t".repeat(indent_level);
+        // Build directly into a single String to avoid Vec<String> + join overhead
+        let indent_str: &str = match indent_level {
+            1 => "\t",
+            2 => "\t\t",
+            3 => "\t\t\t",
+            _ => &"\t".repeat(indent_level),
+        };
+        let mut result = String::with_capacity(code.len() + code.lines().count() * indent_level);
         let mut in_template_literal = false;
         for (i, line) in code.lines().enumerate() {
+            if i > 0 {
+                result.push('\n');
+            }
             if i == 0 {
                 in_template_literal = update_template_literal_state(line, in_template_literal);
-                result_lines.push(line.to_string());
+                result.push_str(line);
             } else if line.is_empty() {
-                result_lines.push(String::new());
+                // empty line, nothing to push
             } else if in_template_literal {
                 in_template_literal = update_template_literal_state(line, in_template_literal);
-                result_lines.push(line.to_string());
+                result.push_str(line);
             } else {
                 in_template_literal = update_template_literal_state(line, in_template_literal);
-                result_lines.push(format!("{}{}", indent_str, line));
+                result.push_str(indent_str);
+                result.push_str(line);
             }
         }
-        return result_lines.join("\n");
+        return result;
     }
 
     // Slow path: full OXC parse+codegen+post-processing
@@ -525,31 +581,32 @@ pub(super) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
 /// inside template literals, which would modify the template content.
 pub(super) fn update_template_literal_state(line: &str, currently_in_template: bool) -> bool {
     let mut in_template = currently_in_template;
-    let chars: Vec<char> = line.chars().collect();
+    let bytes = line.as_bytes();
+    let len = bytes.len();
     let mut i = 0;
-    while i < chars.len() {
-        let c = chars[i];
+    while i < len {
+        let c = bytes[i];
         if in_template {
             // Inside template literal: look for closing backtick or ${
-            if c == '\\' {
+            if c == b'\\' {
                 // Skip escaped character
                 i += 2;
                 continue;
-            } else if c == '`' {
+            } else if c == b'`' {
                 in_template = false;
-            } else if c == '$' && i + 1 < chars.len() && chars[i + 1] == '{' {
+            } else if c == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
                 // ${...} expression - we need to skip to matching }, handling nesting
                 // For simplicity in line-by-line processing, template expressions
                 // on the same line as the backtick are handled, but multi-line
                 // expressions just rely on the backtick counting on subsequent lines.
                 i += 2;
-                let mut brace_depth = 1;
-                while i < chars.len() && brace_depth > 0 {
-                    if chars[i] == '{' {
+                let mut brace_depth: u32 = 1;
+                while i < len && brace_depth > 0 {
+                    if bytes[i] == b'{' {
                         brace_depth += 1;
-                    } else if chars[i] == '}' {
+                    } else if bytes[i] == b'}' {
                         brace_depth -= 1;
-                    } else if chars[i] == '`' && brace_depth == 0 {
+                    } else if bytes[i] == b'`' && brace_depth == 0 {
                         break;
                     }
                     i += 1;
@@ -558,24 +615,24 @@ pub(super) fn update_template_literal_state(line: &str, currently_in_template: b
             }
         } else {
             // Outside template literal: look for opening backtick
-            if c == '\'' || c == '"' {
+            if c == b'\'' || c == b'"' {
                 // Skip string literals
                 let quote = c;
                 i += 1;
-                while i < chars.len() {
-                    if chars[i] == '\\' {
+                while i < len {
+                    if bytes[i] == b'\\' {
                         i += 2;
                         continue;
                     }
-                    if chars[i] == quote {
+                    if bytes[i] == quote {
                         break;
                     }
                     i += 1;
                 }
-            } else if c == '/' && i + 1 < chars.len() && chars[i + 1] == '/' {
+            } else if c == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
                 // Line comment - rest of line is comment
                 break;
-            } else if c == '`' {
+            } else if c == b'`' {
                 in_template = true;
             }
         }
@@ -1110,15 +1167,15 @@ pub(super) fn add_esrap_blank_lines(code: &str) -> String {
 /// Inside a template literal, we only need to find the closing backtick.
 /// Escaped backticks (`\``) should not be counted.
 pub(super) fn count_unescaped_backticks_in_template(line: &str) -> usize {
-    let chars: Vec<char> = line.chars().collect();
+    let bytes = line.as_bytes();
     let mut count = 0;
     let mut i = 0;
-    while i < chars.len() {
-        if chars[i] == '\\' {
+    while i < bytes.len() {
+        if bytes[i] == b'\\' {
             i += 2; // skip escaped character
             continue;
         }
-        if chars[i] == '`' {
+        if bytes[i] == b'`' {
             count += 1;
         }
         i += 1;
@@ -1130,14 +1187,14 @@ pub(super) fn count_unescaped_backticks_in_template(line: &str) -> usize {
 /// We need to skip backticks that appear inside single-quoted or double-quoted
 /// string literals (e.g., `$.html('`')` has a backtick inside single quotes).
 pub(super) fn count_unescaped_backticks_outside_template(line: &str) -> usize {
-    let chars: Vec<char> = line.chars().collect();
+    let bytes = line.as_bytes();
     let mut count = 0;
     let mut i = 0;
-    let mut in_string: Option<char> = None;
-    while i < chars.len() {
-        let c = chars[i];
+    let mut in_string: Option<u8> = None;
+    while i < bytes.len() {
+        let c = bytes[i];
         if let Some(quote) = in_string {
-            if c == '\\' {
+            if c == b'\\' {
                 i += 2; // skip escaped character inside string
                 continue;
             }
@@ -1147,16 +1204,16 @@ pub(super) fn count_unescaped_backticks_outside_template(line: &str) -> usize {
             i += 1;
             continue;
         }
-        if c == '\\' {
+        if c == b'\\' {
             i += 2; // skip escaped character
             continue;
         }
-        if c == '\'' || c == '"' {
+        if c == b'\'' || c == b'"' {
             in_string = Some(c);
             i += 1;
             continue;
         }
-        if c == '`' {
+        if c == b'`' {
             count += 1;
         }
         i += 1;

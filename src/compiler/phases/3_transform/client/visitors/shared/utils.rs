@@ -295,6 +295,15 @@ fn should_proxy_node_type(node_type: &str) -> bool {
 ///
 /// Returns the transformed expression with all applicable transforms applied.
 pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext) -> JsExpr {
+    // Fast path: if there are no transforms registered AND no each-block tracking is active,
+    // the expression cannot be changed by the recursive walk. Return a clone directly.
+    if context.state.transform.is_empty()
+        && context.state.each_index_name.is_none()
+        && context.state.each_item_names.is_empty()
+        && context.state.each_binding_context.is_empty()
+    {
+        return expr.clone();
+    }
     apply_transforms_to_expression_with_shadowed(expr, context, &LocalScope::new())
 }
 
@@ -464,26 +473,22 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 recurse!(&call.callee)
             };
 
-            let transformed_args: Vec<JsExpr> = call
-                .arguments
-                .iter()
-                .enumerate()
-                .map(|(i, arg)| {
-                    // Skip transforming arguments that shouldn't have transforms applied:
-                    // 1. ALL arguments of $.untrack(), $.store_mutate(), etc.
-                    // 2. First argument of $.set(), $.update(), $.update_pre() (state reference)
-                    // 3. For $.update_store/$.update_pre_store: transform first arg (may need $.get()),
-                    //    skip second+ args ($store() already constructed)
-                    if skip_args_transform
-                        || (is_svelte_set_call && i == 0)
-                        || (is_store_update && i >= 1)
-                    {
-                        arg.clone()
-                    } else {
-                        recurse!(arg)
-                    }
-                })
-                .collect();
+            let mut transformed_args: Vec<JsExpr> = Vec::with_capacity(call.arguments.len());
+            for (i, arg) in call.arguments.iter().enumerate() {
+                // Skip transforming arguments that shouldn't have transforms applied:
+                // 1. ALL arguments of $.untrack(), $.store_mutate(), etc.
+                // 2. First argument of $.set(), $.update(), $.update_pre() (state reference)
+                // 3. For $.update_store/$.update_pre_store: transform first arg (may need $.get()),
+                //    skip second+ args ($store() already constructed)
+                if skip_args_transform
+                    || (is_svelte_set_call && i == 0)
+                    || (is_store_update && i >= 1)
+                {
+                    transformed_args.push(arg.clone());
+                } else {
+                    transformed_args.push(recurse!(arg));
+                }
+            }
 
             JsExpr::Call(JsCallExpression {
                 callee: Box::new(transformed_callee),
@@ -2909,9 +2914,10 @@ pub fn build_template_chunk(
     use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
     use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::TextOrExpr;
 
-    let mut expressions: Vec<JsExpr> = Vec::new();
+    let mut expressions: Vec<JsExpr> = Vec::with_capacity(values.len());
     let mut quasi = b::quasi("", false);
-    let mut quasis = vec![quasi.clone()];
+    let mut quasis = Vec::with_capacity(values.len() + 1);
+    quasis.push(quasi.clone());
 
     let mut has_state = false;
     let mut blocker_indices: Vec<usize> = Vec::new();

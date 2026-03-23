@@ -186,8 +186,9 @@ impl<'a> ComponentContext<'a> {
         // Add a comment node to the template for the anchor
         self.state.template.push_comment(None);
 
-        // Categorize attributes
-        let mut attributes: Vec<&Attribute> = Vec::new();
+        // Categorize attributes - pre-allocate based on attribute count
+        let attr_count = elem.attributes.len();
+        let mut attributes: Vec<&Attribute> = Vec::with_capacity(attr_count);
         let mut class_directives: Vec<&ClassDirective> = Vec::new();
         let mut style_directives: Vec<&StyleDirective> = Vec::new();
         let mut on_directives: Vec<OnDirective> = Vec::new();
@@ -1998,12 +1999,12 @@ impl<'a> ComponentClientTransformState<'a> {
             analysis,
             scope_root,
             options,
-            hoisted: Vec::new(),
+            hoisted: Vec::with_capacity(4),
             template: Template::new(),
-            init: Vec::new(),
-            update: Vec::new(),
-            after_update: Vec::new(),
-            consts: Vec::new(),
+            init: Vec::with_capacity(8),
+            update: Vec::with_capacity(4),
+            after_update: Vec::with_capacity(2),
+            consts: Vec::with_capacity(4),
             async_consts: None,
             let_directives: Vec::new(),
             node,

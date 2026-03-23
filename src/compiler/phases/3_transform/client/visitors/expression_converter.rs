@@ -469,7 +469,11 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 JsNode::Identifier { name, .. } => name.as_str(),
                 _ => "meta",
             };
-            JsExpr::Raw(format!("{}.{}", meta_name, prop_name).into())
+            let mut s = String::with_capacity(meta_name.len() + 1 + prop_name.len());
+            s.push_str(meta_name);
+            s.push('.');
+            s.push_str(prop_name);
+            JsExpr::Raw(s.into())
         }
 
         // MemberExpression: direct JsNode handling
@@ -506,7 +510,9 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
             // Handle private state field access: this.#foo -> this.#foo.v or $.get(this.#foo)
             if !computed && let Some(prop_name) = get_jsnode_private_identifier_name(property) {
-                let field_name = format!("#{}", prop_name);
+                let mut field_name = String::with_capacity(1 + prop_name.len());
+                field_name.push('#');
+                field_name.push_str(&prop_name);
                 let field_info = context
                     .state
                     .state_fields
@@ -1738,7 +1744,9 @@ fn convert_member_expression(
         && let Some("PrivateIdentifier") = prop_obj.get("type").and_then(|t| t.as_str())
         && let Some(prop_name) = prop_obj.get("name").and_then(|n| n.as_str())
     {
-        let field_name = format!("#{}", prop_name);
+        let mut field_name = String::with_capacity(1 + prop_name.len());
+        field_name.push('#');
+        field_name.push_str(prop_name);
         // Extract field info before using context mutably
         let field_info = context
             .state
@@ -3867,8 +3875,11 @@ fn comment_has_svelte_ignore(text: &str, code: &str) -> bool {
     if let Some(rest) = trimmed.strip_prefix("svelte-ignore") {
         let rest = rest.trim();
         rest == code
-            || rest.starts_with(&format!("{} ", code))
-            || rest.starts_with(&format!("{},", code))
+            || (rest.starts_with(code)
+                && rest
+                    .as_bytes()
+                    .get(code.len())
+                    .is_some_and(|&c| c == b' ' || c == b','))
     } else {
         false
     }
