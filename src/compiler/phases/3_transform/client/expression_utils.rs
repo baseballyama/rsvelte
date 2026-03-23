@@ -549,6 +549,90 @@ pub(super) fn find_assignment_expr_end(s: &str, in_ternary: bool) -> usize {
     s.len()
 }
 
+/// Incrementally update expression depth counters by scanning only the given line.
+/// This avoids re-scanning the entire accumulated text each time a new line is added.
+/// Returns true if the expression is still incomplete (any depth != 0, in string, or in block comment).
+pub(super) fn update_expression_depths(
+    line: &str,
+    paren_depth: &mut i32,
+    bracket_depth: &mut i32,
+    brace_depth: &mut i32,
+    in_string: &mut Option<char>,
+    in_block_comment: &mut bool,
+) {
+    let bytes = line.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+
+    while i < len {
+        let c = bytes[i];
+
+        // Handle block comment start/end
+        if in_string.is_none() {
+            if !*in_block_comment && c == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+                *in_block_comment = true;
+                i += 2;
+                continue;
+            }
+            if *in_block_comment && c == b'*' && i + 1 < len && bytes[i + 1] == b'/' {
+                *in_block_comment = false;
+                i += 2;
+                continue;
+            }
+        }
+
+        if *in_block_comment {
+            i += 1;
+            continue;
+        }
+
+        // Handle string literals
+        if (c == b'"' || c == b'\'' || c == b'`') && (i == 0 || bytes[i - 1] != b'\\') {
+            if let Some(string_char) = *in_string {
+                if c == string_char as u8 {
+                    *in_string = None;
+                }
+            } else {
+                *in_string = Some(c as char);
+            }
+            i += 1;
+            continue;
+        }
+
+        if in_string.is_some() {
+            i += 1;
+            continue;
+        }
+
+        match c {
+            b'(' => *paren_depth += 1,
+            b')' => *paren_depth -= 1,
+            b'[' => *bracket_depth += 1,
+            b']' => *bracket_depth -= 1,
+            b'{' => *brace_depth += 1,
+            b'}' => *brace_depth -= 1,
+            _ => {}
+        }
+        i += 1;
+    }
+}
+
+/// Check if expression depths indicate an incomplete expression.
+#[inline]
+pub(super) fn is_expression_incomplete(
+    paren_depth: i32,
+    bracket_depth: i32,
+    brace_depth: i32,
+    in_string: &Option<char>,
+    in_block_comment: bool,
+) -> bool {
+    paren_depth != 0
+        || bracket_depth != 0
+        || brace_depth != 0
+        || in_string.is_some()
+        || in_block_comment
+}
+
 /// Check if an expression is incomplete (e.g., unbalanced brackets).
 /// This is used to skip transformations on multi-line statements that are
 /// processed line by line.

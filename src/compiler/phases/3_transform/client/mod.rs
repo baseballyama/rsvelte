@@ -2942,12 +2942,12 @@ fn transform_instance_script_for_visitors(
     // Track if we're inside a multi-line export block
     let mut in_export_block = false;
 
-    // Accumulator for multi-line statements
-    let mut accumulated_lines: Vec<String> = Vec::new();
+    // Accumulator for multi-line statements (borrows from script_lines, zero allocation)
+    let mut accumulated_lines: Vec<&str> = Vec::new();
 
     // Helper closure to process accumulated lines as a complete statement
     #[allow(clippy::too_many_arguments)]
-    let process_accumulated = |accumulated: &[String],
+    let process_accumulated = |accumulated: &[&str],
                                result: &mut String,
                                pending_reactive: &mut Vec<(Vec<String>, Vec<String>, String)>,
                                state_vars: &[String],
@@ -3118,13 +3118,14 @@ fn transform_instance_script_for_visitors(
             || first_line_trimmed.starts_with("export async function ")
         {
             // Remove the "export " prefix from the first line
-            let mut lines: Vec<String> = accumulated.to_vec();
-            if let Some(first) = lines.first_mut()
-                && let Some(pos) = first.find("export ")
-            {
-                first.replace_range(pos..pos + 7, "");
+            if let Some(pos) = statement.find("export ") {
+                let mut s = String::with_capacity(statement.len() - 7);
+                s.push_str(&statement[..pos]);
+                s.push_str(&statement[pos + 7..]);
+                s
+            } else {
+                statement
             }
-            lines.join("\n")
         } else {
             statement
         };
@@ -3209,8 +3210,12 @@ fn transform_instance_script_for_visitors(
         // because it decomposes destructure patterns into individual assignments that those
         // transforms can then process.
         // Corresponds to visit_assignment_expression in shared/assignments.js.
-        let transformed =
-            transform_destructure_assignments(&transformed, state_vars, store_sub_vars);
+        // Skip if no state vars or store sub vars to destructure against
+        let transformed = if state_vars.is_empty() && store_sub_vars.is_empty() {
+            transformed
+        } else {
+            transform_destructure_assignments(&transformed, state_vars, store_sub_vars)
+        };
 
         // Transform state variable assignments to $.set()
         // In runes mode, deferred to AST-based transform after main loop.
@@ -3400,6 +3405,17 @@ fn transform_instance_script_for_visitors(
     // Collect lines into a Vec so we can peek at the next line for continuation detection
     let script_lines: Vec<&str> = script_rest.lines().collect();
     let mut line_idx = 0;
+
+    // Incremental depth tracking state - avoids O(n^2) re-scanning of accumulated text
+    let mut depth_paren: i32 = 0;
+    let mut depth_bracket: i32 = 0;
+    let mut depth_brace: i32 = 0;
+    let mut depth_in_string: Option<char> = None;
+    let mut depth_in_block_comment: bool = false;
+
+    // Pre-compute runes fast-path eligibility flags
+    let runes_fastpath_eligible = analysis.runes && !dev && prop_mutation_vars.is_empty();
+
     while line_idx < script_lines.len() {
         let line = script_lines[line_idx];
         let trimmed = line.trim();
@@ -3407,7 +3423,8 @@ fn transform_instance_script_for_visitors(
         // Skip empty lines (but preserve them if we're accumulating)
         if trimmed.is_empty() {
             if !accumulated_lines.is_empty() {
-                accumulated_lines.push(line.to_string());
+                accumulated_lines.push(line);
+                // Empty lines don't change depths (no significant chars)
             }
             line_idx += 1;
             continue;
@@ -3443,49 +3460,107 @@ fn transform_instance_script_for_visitors(
             continue;
         }
 
-        // Add line to accumulator
-        accumulated_lines.push(line.to_string());
+        // Add line to accumulator (zero-copy borrow from script_lines)
+        accumulated_lines.push(line);
+
+        // Incrementally update depth counters (only scans this new line, not the whole buffer)
+        update_expression_depths(
+            line,
+            &mut depth_paren,
+            &mut depth_bracket,
+            &mut depth_brace,
+            &mut depth_in_string,
+            &mut depth_in_block_comment,
+        );
 
         // Check if we have a complete statement (balanced braces/parens)
-        let combined = accumulated_lines.join("\n");
-        if !is_incomplete_expression(&combined) {
-            // Before processing, check if the next non-empty line starts with '.'
-            // (method chaining continuation like `.fill(null).map(...)`)
-            let mut next_continues = false;
-            for future_line in script_lines.iter().skip(line_idx + 1) {
-                let future_trimmed = future_line.trim();
-                if future_trimmed.is_empty() {
-                    continue;
-                }
-                if future_trimmed.starts_with('.') {
-                    next_continues = true;
-                }
-                break;
-            }
+        if !is_expression_incomplete(
+            depth_paren,
+            depth_bracket,
+            depth_brace,
+            &depth_in_string,
+            depth_in_block_comment,
+        ) {
+            // Check for trailing comma in variable declarations (multi-declarator continuation)
+            let first_trimmed_line = accumulated_lines[0].trim();
+            let is_var_decl = first_trimmed_line.starts_with("let ")
+                || first_trimmed_line.starts_with("const ")
+                || first_trimmed_line.starts_with("var ");
+            // The current line (trimmed) is always the last accumulated line,
+            // so checking its trailing char is equivalent to checking the full text's trailing char.
+            let trailing_comma = is_var_decl && trimmed.ends_with(',');
 
-            if !next_continues {
-                // Process the complete statement
-                process_accumulated(
-                    &accumulated_lines,
-                    &mut result,
-                    &mut pending_reactive_statements,
-                    &state_vars,
-                    &non_reactive_state_vars,
-                    &proxy_vars,
-                    &raw_state_vars,
-                    &store_sub_vars,
-                    &prop_source_vars,
-                    &prop_assignment_transform_vars,
-                    &exported_names,
-                    &rest_prop_vars,
-                    &read_only_props,
-                    &legacy_state_vars,
-                    &import_names,
-                    analysis,
-                    dev,
-                    has_legacy_export_let,
-                );
-                accumulated_lines.clear();
+            if !trailing_comma {
+                // Before processing, check if the next non-empty line starts with '.'
+                // (method chaining continuation like `.fill(null).map(...)`)
+                let mut next_continues = false;
+                for future_line in script_lines.iter().skip(line_idx + 1) {
+                    let future_trimmed = future_line.trim();
+                    if future_trimmed.is_empty() {
+                        continue;
+                    }
+                    if future_trimmed.starts_with('.') {
+                        next_continues = true;
+                    }
+                    break;
+                }
+
+                if !next_continues {
+                    // Runes fast-path: skip process_accumulated entirely when no transforms apply
+                    if runes_fastpath_eligible {
+                        let statement = accumulated_lines.join("\n");
+                        let stmt_trimmed = statement.trim();
+                        let needs_rune = statement.contains('$');
+                        let needs_export = stmt_trimmed.starts_with("export ");
+                        let needs_destructure = (statement.contains('[')
+                            || statement.contains('{'))
+                            && statement.contains('=')
+                            && (!state_vars.is_empty() || !store_sub_vars.is_empty());
+
+                        if !needs_rune && !needs_export && !needs_destructure {
+                            result.push_str(&statement);
+                            result.push('\n');
+                            accumulated_lines.clear();
+                            // Reset depth counters for next statement
+                            depth_paren = 0;
+                            depth_bracket = 0;
+                            depth_brace = 0;
+                            depth_in_string = None;
+                            depth_in_block_comment = false;
+                            line_idx += 1;
+                            continue;
+                        }
+                    }
+
+                    // Process the complete statement
+                    process_accumulated(
+                        &accumulated_lines,
+                        &mut result,
+                        &mut pending_reactive_statements,
+                        &state_vars,
+                        &non_reactive_state_vars,
+                        &proxy_vars,
+                        &raw_state_vars,
+                        &store_sub_vars,
+                        &prop_source_vars,
+                        &prop_assignment_transform_vars,
+                        &exported_names,
+                        &rest_prop_vars,
+                        &read_only_props,
+                        &legacy_state_vars,
+                        &import_names,
+                        analysis,
+                        dev,
+                        has_legacy_export_let,
+                    );
+                    accumulated_lines.clear();
+                    // Reset depth counters for next statement
+                    depth_paren = 0;
+                    depth_bracket = 0;
+                    depth_brace = 0;
+                    depth_in_string = None;
+                    depth_in_block_comment = false;
+                }
             }
         }
         line_idx += 1;
