@@ -50,6 +50,11 @@ pub fn visit_script(script_ast: &Value, context: &mut VisitorContext) -> Result<
 /// * `node` - The JavaScript AST node
 /// * `context` - The visitor context
 pub fn walk_js_node(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    // Fast path: skip non-object values (primitives, arrays, nulls)
+    if !node.is_object() {
+        return Ok(());
+    }
+
     let node_type = node.get("type").and_then(|t| t.as_str());
 
     // Process leadingComments for svelte-ignore directives.
@@ -72,75 +77,95 @@ pub fn walk_js_node(node: &Value, context: &mut VisitorContext) -> Result<(), An
     // Push to JS path
     context.js_path.push(super::JsPathEntry::new(node));
 
-    // Visit specific node types
-    match node_type {
+    // Visit specific node types and determine if the visitor handles its own children
+    let self_traversal = match node_type {
         Some("CallExpression") => {
             super::call_expression::visit(node, context)?;
+            true
         }
         Some("VariableDeclarator") => {
             super::variable_declarator::visit(node, context)?;
+            true
         }
         Some("FunctionDeclaration") => {
             super::function_declaration::visit(node, context)?;
+            true
         }
         Some("FunctionExpression") | Some("ArrowFunctionExpression") => {
             super::function_expression::visit(node, context)?;
+            true
         }
         Some("ClassDeclaration") => {
             super::class_declaration::visit(node, context)?;
+            true
         }
         Some("ClassBody") => {
             super::class_body::visit(node, context)?;
+            true
         }
         Some("PropertyDefinition") => {
             super::property_definition::visit(node, context)?;
+            true
         }
         Some("AssignmentExpression") => {
             super::assignment_expression::visit(node, context)?;
+            true
         }
         Some("AwaitExpression") => {
             super::await_expression::visit(node, context)?;
+            true
         }
         Some("ExpressionStatement") => {
             super::expression_statement::visit(node, context)?;
+            true
         }
         Some("Identifier") => {
             super::identifier::visit(node, context)?;
+            false
         }
         Some("Literal") => {
             super::literal::visit(node, context)?;
+            false
         }
         Some("TemplateElement") => {
             super::template_element::visit(node, context)?;
+            false
         }
         Some("MemberExpression") => {
             super::member_expression::visit(node, context)?;
+            true
         }
         Some("NewExpression") => {
             super::new_expression::visit(node, context)?;
+            true
         }
         Some("UpdateExpression") => {
             super::update_expression::visit(node, context)?;
+            true
         }
         Some("LabeledStatement") => {
             super::labeled_statement::visit(node, context)?;
+            true
         }
         Some("ExportDefaultDeclaration") => {
             super::export_default_declaration::visit(node, context)?;
+            true
         }
         Some("ExportNamedDeclaration") => {
             super::export_named_declaration::visit(node, context)?;
+            true
         }
         Some("ImportDeclaration") => {
             super::import_declaration::visit(node, context)?;
+            true
         }
-        _ => {
-            // For other node types, just visit their children
-        }
-    }
+        _ => false,
+    };
 
-    // Visit children (common fields)
-    visit_children(node, context)?;
+    // Visit children (common fields) - pass node_type to avoid re-reading it
+    if !self_traversal {
+        visit_children(node, node_type, context)?;
+    }
 
     // Pop from JS path
     context.js_path.pop();
@@ -169,121 +194,47 @@ fn walk_body(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
 }
 
 /// Fallback child visitor for unknown node types.
-/// Checks all common fields broadly (the previous behavior).
+/// Instead of probing ~25 specific field names (each a HashMap miss for most nodes),
+/// iterate all values of the JSON object and visit any that are objects or arrays of objects.
 fn visit_children_fallback(
     node: &Value,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
-    // body (array or single node)
-    walk_body(node, context)?;
-
-    if let Some(expression) = node.get("expression") {
-        walk_js_node(expression, context)?;
-    }
-    if let Some(declarations) = node.get("declarations").and_then(|d| d.as_array()) {
-        for decl in declarations {
-            walk_js_node(decl, context)?;
-        }
-    }
-    if let Some(arguments) = node.get("arguments").and_then(|a| a.as_array()) {
-        for arg in arguments {
-            walk_js_node(arg, context)?;
-        }
-    }
-    if let Some(consequent) = node.get("consequent") {
-        walk_js_node(consequent, context)?;
-    }
-    if let Some(alternate) = node.get("alternate") {
-        walk_js_node(alternate, context)?;
-    }
-    if let Some(test) = node.get("test") {
-        walk_js_node(test, context)?;
-    }
-    if let Some(init) = node.get("init") {
-        walk_js_node(init, context)?;
-    }
-    if let Some(update) = node.get("update") {
-        walk_js_node(update, context)?;
-    }
-    if let Some(value) = node.get("value") {
-        walk_js_node(value, context)?;
-    }
-    let computed = node
-        .get("computed")
-        .and_then(|c| c.as_bool())
-        .unwrap_or(false);
-    if computed && let Some(key) = node.get("key") {
-        walk_js_node(key, context)?;
-    }
-    if let Some(properties) = node.get("properties").and_then(|p| p.as_array()) {
-        for prop in properties {
-            walk_js_node(prop, context)?;
-        }
-    }
-    if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
-        for elem in elements {
-            if !elem.is_null() {
-                walk_js_node(elem, context)?;
+    if let Value::Object(map) = node {
+        for (key, value) in map {
+            // Skip metadata fields that are never AST child nodes
+            match key.as_str() {
+                "type" | "start" | "end" | "loc" | "range" | "raw" | "name" | "operator"
+                | "prefix" | "computed" | "optional" | "shorthand" | "method" | "kind"
+                | "async" | "generator" | "static" | "declare" | "abstract" | "override"
+                | "definite" | "readonly" | "accessibility" | "delegate" | "regex" | "bigint"
+                | "leadingComments" | "trailingComments" | "innerComments" | "sourceType"
+                | "await" => continue,
+                // For params, we need special handling (only visit "right" of default params)
+                "params" => {
+                    if let Some(arr) = value.as_array() {
+                        for param in arr {
+                            if let Some(right) = param.get("right") {
+                                walk_js_node(right, context)?;
+                            }
+                        }
+                    }
+                }
+                _ => match value {
+                    Value::Object(_) => {
+                        walk_js_node(value, context)?;
+                    }
+                    Value::Array(arr) => {
+                        for item in arr {
+                            if item.is_object() {
+                                walk_js_node(item, context)?;
+                            }
+                        }
+                    }
+                    _ => {}
+                },
             }
         }
-    }
-    if let Some(left) = node.get("left") {
-        walk_js_node(left, context)?;
-    }
-    if let Some(right) = node.get("right") {
-        walk_js_node(right, context)?;
-    }
-    if let Some(argument) = node.get("argument") {
-        walk_js_node(argument, context)?;
-    }
-    if let Some(expressions) = node.get("expressions").and_then(|e| e.as_array()) {
-        for expr in expressions {
-            walk_js_node(expr, context)?;
-        }
-    }
-    if let Some(quasis) = node.get("quasis").and_then(|q| q.as_array()) {
-        for quasi in quasis {
-            walk_js_node(quasi, context)?;
-        }
-    }
-    if let Some(callee) = node.get("callee") {
-        walk_js_node(callee, context)?;
-    }
-    if let Some(params) = node.get("params").and_then(|p| p.as_array()) {
-        for param in params {
-            if let Some(right) = param.get("right") {
-                walk_js_node(right, context)?;
-            }
-        }
-    }
-    if let Some(tag) = node.get("tag") {
-        walk_js_node(tag, context)?;
-    }
-    if let Some(quasi) = node.get("quasi") {
-        walk_js_node(quasi, context)?;
-    }
-    if let Some(source) = node.get("source") {
-        walk_js_node(source, context)?;
-    }
-    if let Some(discriminant) = node.get("discriminant") {
-        walk_js_node(discriminant, context)?;
-    }
-    if let Some(cases) = node.get("cases").and_then(|c| c.as_array()) {
-        for case in cases {
-            walk_js_node(case, context)?;
-        }
-    }
-    if let Some(block) = node.get("block") {
-        walk_js_node(block, context)?;
-    }
-    if let Some(handler) = node.get("handler") {
-        walk_js_node(handler, context)?;
-    }
-    if let Some(finalizer) = node.get("finalizer") {
-        walk_js_node(finalizer, context)?;
-    }
-    if let Some(param) = node.get("param") {
-        walk_js_node(param, context)?;
     }
     Ok(())
 }
@@ -292,41 +243,21 @@ fn visit_children_fallback(
 ///
 /// Dispatches based on node type to minimize HashMap lookups per node.
 /// Known node types only check the fields relevant to them (typically 1-3).
-/// Unknown node types fall back to checking all common fields.
+/// Unknown node types fall back to iterating all object values.
+///
+/// The `node_type` parameter is passed from the caller to avoid re-reading
+/// `node.get("type")` which was already done in `walk_js_node`.
 ///
 /// # Arguments
 ///
 /// * `node` - The JavaScript AST node
+/// * `node_type` - The already-extracted type string (avoids double HashMap lookup)
 /// * `context` - The visitor context
-fn visit_children(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    let node_type = node.get("type").and_then(|t| t.as_str());
-
-    // Skip visiting children for certain node types that handle their own traversal
-    match node_type {
-        Some("CallExpression")
-        | Some("VariableDeclarator")
-        | Some("FunctionDeclaration")
-        | Some("FunctionExpression")
-        | Some("ArrowFunctionExpression")
-        | Some("ClassDeclaration")
-        | Some("ClassBody")
-        | Some("PropertyDefinition")
-        | Some("AssignmentExpression")
-        | Some("AwaitExpression")
-        | Some("ExpressionStatement")
-        | Some("MemberExpression")
-        | Some("NewExpression")
-        | Some("UpdateExpression")
-        | Some("LabeledStatement")
-        | Some("ExportDefaultDeclaration")
-        | Some("ExportNamedDeclaration")
-        | Some("ImportDeclaration") => {
-            // These visitors handle their own child traversal
-            return Ok(());
-        }
-        _ => {}
-    }
-
+fn visit_children(
+    node: &Value,
+    node_type: Option<&str>,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
     // Dispatch based on node type to minimize HashMap lookups
     match node_type {
         Some("Program") | Some("BlockStatement") => {
@@ -541,8 +472,17 @@ fn visit_children(node: &Value, context: &mut VisitorContext) -> Result<(), Anal
                 walk_js_node(value, context)?;
             }
         }
-        Some("ExportAllDeclaration") => {
-            // no children to walk
+        Some("ExportAllDeclaration")
+        | Some("Identifier")
+        | Some("Literal")
+        | Some("TemplateElement")
+        | Some("ThisExpression")
+        | Some("Super")
+        | Some("BreakStatement")
+        | Some("ContinueStatement")
+        | Some("EmptyStatement")
+        | Some("DebuggerStatement") => {
+            // Leaf nodes - no children to walk
         }
         Some("ImportExpression") => {
             // source
@@ -1023,7 +963,8 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
                     has_ignores = true;
                 }
             }
-            let result = visit_children(value, context);
+            let raw_type = value.get("type").and_then(|t| t.as_str());
+            let result = visit_children(value, raw_type, context);
             if has_ignores {
                 context.pop_ignore();
             }
