@@ -5,6 +5,7 @@
 //! This module mirrors the official Svelte compiler structure at
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/`.
 
+mod ast_state_transform;
 mod class_transforms;
 mod destructure_transforms;
 mod expression_utils;
