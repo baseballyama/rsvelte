@@ -168,24 +168,30 @@ pub(super) fn body_references_identifier(body: &str, identifier: &str) -> bool {
 /// This prevents false identifier matches inside literal text, e.g., `<circle>` in
 /// a template literal won't match the variable name `circle`.
 pub(super) fn strip_string_literal_text(code: &str) -> String {
-    let chars: Vec<char> = code.chars().collect();
-    let mut result = chars.clone();
-    let len = chars.len();
+    // Fast path: if no string delimiters exist, return as-is
+    if !code.contains('\'') && !code.contains('"') && !code.contains('`') {
+        return code.to_string();
+    }
+
+    // Work with bytes for performance (string literal delimiters are all ASCII)
+    let bytes = code.as_bytes();
+    let mut result: Vec<u8> = bytes.to_vec();
+    let len = bytes.len();
     let mut i = 0;
 
     while i < len {
-        match chars[i] {
+        match bytes[i] {
             // Handle single/double-quoted strings
-            '\'' | '"' => {
-                let quote = chars[i];
+            b'\'' | b'"' => {
+                let quote = bytes[i];
                 i += 1; // skip opening quote
-                while i < len && chars[i] != quote {
-                    if chars[i] == '\\' && i + 1 < len {
-                        result[i] = ' ';
-                        result[i + 1] = ' ';
+                while i < len && bytes[i] != quote {
+                    if bytes[i] == b'\\' && i + 1 < len {
+                        result[i] = b' ';
+                        result[i + 1] = b' ';
                         i += 2;
                     } else {
-                        result[i] = ' ';
+                        result[i] = b' ';
                         i += 1;
                     }
                 }
@@ -194,22 +200,22 @@ pub(super) fn strip_string_literal_text(code: &str) -> String {
                 }
             }
             // Handle template literals
-            '`' => {
+            b'`' => {
                 i += 1; // skip opening backtick
-                while i < len && chars[i] != '`' {
-                    if chars[i] == '\\' && i + 1 < len {
-                        result[i] = ' ';
-                        result[i + 1] = ' ';
+                while i < len && bytes[i] != b'`' {
+                    if bytes[i] == b'\\' && i + 1 < len {
+                        result[i] = b' ';
+                        result[i + 1] = b' ';
                         i += 2;
-                    } else if chars[i] == '$' && i + 1 < len && chars[i + 1] == '{' {
+                    } else if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
                         // Keep `${` and skip to the expression inside
                         i += 2; // skip `${`
                         // Find matching `}` - track depth
                         let mut depth = 1;
                         while i < len && depth > 0 {
-                            match chars[i] {
-                                '{' => depth += 1,
-                                '}' => {
+                            match bytes[i] {
+                                b'{' => depth += 1,
+                                b'}' => {
                                     depth -= 1;
                                     if depth == 0 {
                                         i += 1; // skip closing `}`
@@ -217,18 +223,18 @@ pub(super) fn strip_string_literal_text(code: &str) -> String {
                                     }
                                 }
                                 // Handle nested template literals
-                                '`' => {
+                                b'`' => {
                                     i += 1;
                                     // Skip nested template literal
                                     let mut nested_depth = 0;
-                                    while i < len && (chars[i] != '`' || nested_depth > 0) {
-                                        if chars[i] == '$' && i + 1 < len && chars[i + 1] == '{' {
+                                    while i < len && (bytes[i] != b'`' || nested_depth > 0) {
+                                        if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
                                             nested_depth += 1;
                                             i += 2;
-                                        } else if chars[i] == '}' && nested_depth > 0 {
+                                        } else if bytes[i] == b'}' && nested_depth > 0 {
                                             nested_depth -= 1;
                                             i += 1;
-                                        } else if chars[i] == '\\' && i + 1 < len {
+                                        } else if bytes[i] == b'\\' && i + 1 < len {
                                             i += 2;
                                         } else {
                                             i += 1;
@@ -239,17 +245,17 @@ pub(super) fn strip_string_literal_text(code: &str) -> String {
                                     }
                                     continue;
                                 }
-                                '\'' | '"' => {
+                                b'\'' | b'"' => {
                                     // Strip string content inside expression
-                                    let quote = chars[i];
+                                    let quote = bytes[i];
                                     i += 1;
-                                    while i < len && chars[i] != quote {
-                                        if chars[i] == '\\' && i + 1 < len {
-                                            result[i] = ' ';
-                                            result[i + 1] = ' ';
+                                    while i < len && bytes[i] != quote {
+                                        if bytes[i] == b'\\' && i + 1 < len {
+                                            result[i] = b' ';
+                                            result[i + 1] = b' ';
                                             i += 2;
                                         } else {
-                                            result[i] = ' ';
+                                            result[i] = b' ';
                                             i += 1;
                                         }
                                     }
@@ -264,7 +270,7 @@ pub(super) fn strip_string_literal_text(code: &str) -> String {
                         }
                     } else {
                         // Regular text in template literal - blank it out
-                        result[i] = ' ';
+                        result[i] = b' ';
                         i += 1;
                     }
                 }
@@ -273,7 +279,7 @@ pub(super) fn strip_string_literal_text(code: &str) -> String {
                 }
             }
             // Skip escaped characters outside strings
-            '\\' if i + 1 < len => {
+            b'\\' if i + 1 < len => {
                 i += 2;
             }
             _ => {
@@ -282,7 +288,7 @@ pub(super) fn strip_string_literal_text(code: &str) -> String {
         }
     }
 
-    result.into_iter().collect()
+    String::from_utf8(result).unwrap_or_else(|_| code.to_string())
 }
 
 /// Strip non-shorthand, non-computed object property keys from code.
