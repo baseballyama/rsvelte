@@ -153,6 +153,54 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         }
     }
 
+    /// Check if a call expression is an already-transformed `$.*()` helper call
+    /// whose first argument is a state variable name (and should not be re-wrapped).
+    /// Only matches calls where the first arg is a bare state variable identifier:
+    /// $.get(x), $.safe_get(x), $.set(x, ...), $.update(x, ...), $.update_pre(x, ...)
+    /// Does NOT match $.state(), $.derived(), etc. where args are expressions/callbacks.
+    fn is_dollar_helper_call(&self, expr: &CallExpression<'_>) -> bool {
+        if expr.arguments.is_empty() {
+            return false;
+        }
+        // Check that the first argument is a simple identifier that's a state variable
+        let first_arg_is_state_var = matches!(
+            &expr.arguments[0],
+            Argument::Identifier(ident) if self.state_vars.contains(ident.name.as_str())
+        );
+        if !first_arg_is_state_var {
+            return false;
+        }
+        if let Expression::StaticMemberExpression(member) = &expr.callee
+            && let Expression::Identifier(obj) = &member.object
+            && obj.name == "$"
+        {
+            let method = member.property.name.as_str();
+            return matches!(method, "get" | "safe_get" | "set" | "update" | "update_pre");
+        }
+        false
+    }
+
+    /// Check if a variable declarator is a state variable declaration.
+    /// A state variable declaration has an initializer that is a call to
+    /// `$.state()`, `$.derived()`, `$.derived_by()`, `$.state.raw()`,
+    /// or `await $.async_derived()`.
+    /// These are the already-transformed rune calls (e.g., `$state()` -> `$.state()`).
+    fn is_state_var_declaration(&self, declarator: &VariableDeclarator<'_>) -> bool {
+        if let Some(ref init) = declarator.init {
+            let init_start = init.span().start as usize;
+            let init_end = init.span().end as usize;
+            if init_end <= self.source.len() {
+                let init_text = &self.source[init_start..init_end];
+                return init_text.starts_with("$.state(")
+                    || init_text.starts_with("$.state.raw(")
+                    || init_text.starts_with("$.derived(")
+                    || init_text.starts_with("$.derived_by(")
+                    || init_text.starts_with("await $.async_derived(");
+            }
+        }
+        false
+    }
+
     /// Add a replacement.
     fn add_replacement(&mut self, start: u32, end: u32, text: String) {
         self.replacements.push(Replacement { start, end, text });
@@ -193,28 +241,45 @@ impl<'a, 's> StateVarCollector<'a, 's> {
 
     /// Collect all binding identifiers from a BindingPattern into the current scope.
     fn collect_binding_names(&mut self, pattern: &BindingPattern<'_>) {
+        self.collect_binding_names_inner(pattern, false);
+    }
+
+    /// Like `collect_binding_names`, but skips names that are state variables.
+    /// Used at the program scope level where state variable declarations live -
+    /// registering them would incorrectly shadow the very variables we want to transform.
+    fn collect_binding_names_skip_state(&mut self, pattern: &BindingPattern<'_>) {
+        self.collect_binding_names_inner(pattern, true);
+    }
+
+    /// Inner implementation for collecting binding names.
+    /// When `skip_state_vars` is true, names that are in `self.state_vars` are not registered.
+    fn collect_binding_names_inner(&mut self, pattern: &BindingPattern<'_>, skip_state_vars: bool) {
         match pattern {
             BindingPattern::BindingIdentifier(id) => {
-                self.declare_in_current_scope(&id.name);
+                if skip_state_vars && self.state_vars.contains(id.name.as_str()) {
+                    // Don't register - this is a state variable declaration at program scope
+                } else {
+                    self.declare_in_current_scope(&id.name);
+                }
             }
             BindingPattern::ObjectPattern(obj) => {
                 for prop in &obj.properties {
-                    self.collect_binding_names(&prop.value);
+                    self.collect_binding_names_inner(&prop.value, skip_state_vars);
                 }
                 if let Some(rest) = &obj.rest {
-                    self.collect_binding_names(&rest.argument);
+                    self.collect_binding_names_inner(&rest.argument, skip_state_vars);
                 }
             }
             BindingPattern::ArrayPattern(arr) => {
                 for elem in arr.elements.iter().flatten() {
-                    self.collect_binding_names(elem);
+                    self.collect_binding_names_inner(elem, skip_state_vars);
                 }
                 if let Some(rest) = &arr.rest {
-                    self.collect_binding_names(&rest.argument);
+                    self.collect_binding_names_inner(&rest.argument, skip_state_vars);
                 }
             }
             BindingPattern::AssignmentPattern(assign) => {
-                self.collect_binding_names(&assign.left);
+                self.collect_binding_names_inner(&assign.left, skip_state_vars);
             }
         }
     }
@@ -234,9 +299,20 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
     // -----------------------------------------------------------------------
 
     fn visit_variable_declaration(&mut self, decl: &VariableDeclaration<'ast>) {
-        // First, register all declared names in the current scope
+        // Register declared names in the current scope for shadowing detection.
+        // For each declarator, check if it's a state variable declaration
+        // (initialized with $.state(), $.derived(), etc.). If so, skip registering
+        // the name - it IS the state variable we want to transform, and registering
+        // it would cause is_shadowed() to return true, preventing all transforms.
+        // Regular declarations with the same name (e.g., `let count = 0` inside
+        // a nested function) correctly shadow the outer state variable.
         for declarator in &decl.declarations {
-            self.collect_binding_names(&declarator.id);
+            let is_state_decl = self.is_state_var_declaration(declarator);
+            if is_state_decl {
+                self.collect_binding_names_skip_state(&declarator.id);
+            } else {
+                self.collect_binding_names(&declarator.id);
+            }
         }
         // Then walk the declaration normally (to visit initializers, etc.)
         walk::walk_variable_declaration(self, decl);
@@ -284,6 +360,33 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         } else {
             walk::walk_object_property(self, prop);
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Skip already-transformed $.get/$.set/$.update calls
+    // -----------------------------------------------------------------------
+
+    fn visit_call_expression(&mut self, expr: &CallExpression<'ast>) {
+        // Check if this is an already-transformed $.*() call where the first argument
+        // is a state variable name that should NOT be re-wrapped.
+        // This handles cases where rune transforms (e.g., $derived) already applied
+        // $.get() wrapping before the AST transform runs.
+        if self.is_dollar_helper_call(expr) {
+            // Skip the first argument (the state variable name) but visit remaining args.
+            // For $.get(count) - skip entirely (no other args to visit)
+            // For $.set(count, value) - skip count, visit value
+            // For $.set(count, value, true) - skip count, visit value and true
+            for (i, arg) in expr.arguments.iter().enumerate() {
+                if i == 0 {
+                    continue; // Skip the state variable name argument
+                }
+                self.visit_argument(arg);
+            }
+            return;
+        }
+
+        // Normal call expression - walk as usual
+        walk::walk_call_expression(self, expr);
     }
 
     // -----------------------------------------------------------------------
@@ -875,6 +978,47 @@ mod tests {
         // Only the outer `count` should be transformed, inner one is shadowed
         let input = "count; function outer() { let count = 0; return count; }";
         let expected = "$.get(count); function outer() { let count = 0; return count; }";
+        assert_eq!(transform(input, &["count"]), expected);
+    }
+
+    // -----------------------------------------------------------------------
+    // State variable declarations (should not self-shadow)
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_state_var_declaration_does_not_shadow() {
+        // `let count = $.state(0)` is the state var declaration itself.
+        // It should NOT cause `count` references elsewhere to be treated as shadowed.
+        let input = "let count = $.state(0);\ncount += 2;";
+        let expected = "let count = $.state(0);\n$.set(count, $.get(count) + 2);";
+        assert_eq!(transform(input, &["count"]), expected);
+    }
+
+    #[test]
+    fn test_derived_var_declaration_does_not_shadow() {
+        // `let double = $.derived(...)` should not prevent transforms of `double`
+        // Note: The input has `count` (not `$.get(count)`) inside $.derived() because
+        // the AST transform is responsible for adding $.get() wrapping.
+        let input =
+            "let count = $.state(0);\nlet double = $.derived(count * 2);\nconsole.log(double);";
+        let expected = "let count = $.state(0);\nlet double = $.derived($.get(count) * 2);\nconsole.log($.get(double));";
+        assert_eq!(transform(input, &["count", "double"]), expected);
+    }
+
+    #[test]
+    fn test_inner_state_var_does_not_shadow_itself() {
+        // State variables inside nested functions should also not self-shadow
+        let input = "function wrap(initial) {\nlet _value = $.state(initial);\nreturn _value;\n}";
+        let expected =
+            "function wrap(initial) {\nlet _value = $.state(initial);\nreturn $.get(_value);\n}";
+        assert_eq!(transform(input, &["_value"]), expected);
+    }
+
+    #[test]
+    fn test_non_state_declaration_does_shadow() {
+        // A regular `let count = 0` inside a function SHOULD shadow
+        let input = "let count = $.state(0);\nfunction f() { let count = 0; return count; }";
+        let expected = "let count = $.state(0);\nfunction f() { let count = 0; return count; }";
         assert_eq!(transform(input, &["count"]), expected);
     }
 }

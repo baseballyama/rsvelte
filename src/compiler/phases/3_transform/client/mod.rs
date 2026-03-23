@@ -3026,12 +3026,16 @@ fn transform_instance_script_for_visitors(
             if after_export_let.starts_with('{') || after_export_let.starts_with('[') {
                 // Destructured export let: flatten using extract_paths pattern
                 if let Some(flattened) = transform_destructured_export_let(&statement, analysis) {
-                    let flattened = wrap_state_vars_in_expr(
-                        &flattened,
-                        state_vars,
-                        non_reactive_state_vars,
-                        proxy_vars,
-                    );
+                    let flattened = if analysis.runes {
+                        flattened // AST transform handles state var wrapping
+                    } else {
+                        wrap_state_vars_in_expr(
+                            &flattened,
+                            state_vars,
+                            non_reactive_state_vars,
+                            proxy_vars,
+                        )
+                    };
                     result.push_str(&flattened);
                     result.push('\n');
                     return;
@@ -3057,22 +3061,25 @@ fn transform_instance_script_for_visitors(
             // within the default value expression, e.g.:
             //   export let promise = new Promise((resolve) => { setTimeout(() => { answer = 42; }, 0); })
             // The `answer = 42` inside the callback needs to become `$.set(answer, 42)`.
-            let transformed = transform_state_assignments(
-                &transformed,
-                state_vars,
-                non_reactive_state_vars,
-                proxy_vars,
-                raw_state_vars,
-                analysis.runes,
-                &non_proxy_vars,
-            );
-            // Also wrap state variable reads in $.get() within the export let statement.
-            let transformed = wrap_state_vars_in_expr(
-                &transformed,
-                state_vars,
-                non_reactive_state_vars,
-                proxy_vars,
-            );
+            let transformed = if analysis.runes {
+                transformed // AST transform handles state var wrapping
+            } else {
+                let transformed = transform_state_assignments(
+                    &transformed,
+                    state_vars,
+                    non_reactive_state_vars,
+                    proxy_vars,
+                    raw_state_vars,
+                    analysis.runes,
+                    &non_proxy_vars,
+                );
+                wrap_state_vars_in_expr(
+                    &transformed,
+                    state_vars,
+                    non_reactive_state_vars,
+                    proxy_vars,
+                )
+            };
             result.push_str(&transformed);
             result.push('\n');
             return;
@@ -3206,20 +3213,21 @@ fn transform_instance_script_for_visitors(
             transform_destructure_assignments(&transformed, state_vars, store_sub_vars);
 
         // Transform state variable assignments to $.set()
-        let transformed = transform_state_assignments(
-            &transformed,
-            state_vars,
-            non_reactive_state_vars,
-            proxy_vars,
-            raw_state_vars,
-            analysis.runes,
-            &non_proxy_vars,
-        );
-
-        // Wrap $.set() calls with $.store_unsub() for state variables that have
-        // corresponding store subscriptions. This must run right after
-        // transform_state_assignments so the $.set() calls are already generated.
-        let transformed = wrap_store_unsub_for_state_sets(&transformed, state_vars, store_sub_vars);
+        // In runes mode, deferred to AST-based transform after main loop.
+        let transformed = if analysis.runes {
+            transformed
+        } else {
+            let transformed = transform_state_assignments(
+                &transformed,
+                state_vars,
+                non_reactive_state_vars,
+                proxy_vars,
+                raw_state_vars,
+                analysis.runes,
+                &non_proxy_vars,
+            );
+            wrap_store_unsub_for_state_sets(&transformed, state_vars, store_sub_vars)
+        };
 
         // Transform member mutations to $.mutate() calls (only in legacy/non-runes mode).
         // This handles patterns like `obj.self = obj` → `$.mutate(obj, obj.self = obj)`.
@@ -3331,17 +3339,17 @@ fn transform_instance_script_for_visitors(
         };
 
         // Wrap state variable reads in $.get() for ALL statements including declarations.
-        // This handles cases like:
-        // - console.log('init ' + double) - where `double` is a $derived variable
-        // - let foo = { get bar() { return bar } } - getter referencing state variable
-        // The wrap function already handles skipping left-side-of-assignment cases,
-        // so `let bar = ...` won't wrap `bar` on the left side.
-        let transformed = wrap_state_vars_in_expr(
-            &transformed,
-            state_vars,
-            non_reactive_state_vars,
-            proxy_vars,
-        );
+        // In runes mode, deferred to AST-based transform after main loop.
+        let transformed = if analysis.runes {
+            transformed
+        } else {
+            wrap_state_vars_in_expr(
+                &transformed,
+                state_vars,
+                non_reactive_state_vars,
+                proxy_vars,
+            )
+        };
 
         // Transform rest_prop member access to $$props (only in runes mode)
         let transformed = if analysis.runes && !rest_prop_vars.is_empty() {
@@ -3512,7 +3520,31 @@ fn transform_instance_script_for_visitors(
         }
     }
 
+    // AST-based state variable transforms for runes mode.
+    // Replaces text-based transform_state_assignments and wrap_state_vars_in_expr
+    // with a single OXC parse + AST walk, eliminating O(M*N) text scanning.
+    if analysis.runes && !state_vars.is_empty() {
+        if let Some(ast_result) = ast_state_transform::transform_state_vars_ast(
+            &result,
+            &state_vars,
+            &non_reactive_state_vars,
+            &raw_state_vars,
+            &non_proxy_vars,
+            true,
+        ) {
+            result = ast_result;
+        }
+        // Apply store_unsub wrapping after AST transform (searches for $.set patterns)
+        if !store_sub_vars.is_empty() {
+            result = wrap_store_unsub_for_state_sets(&result, &state_vars, &store_sub_vars);
+        }
+    }
+
     // Post-processing: transform shadowed local reactive vars within their enclosing function bodies.
+    // These are state variables declared inside nested functions that share names with
+    // top-level bindings. They're not in state_vars (to avoid incorrectly transforming
+    // top-level references), so neither text-based nor AST-based transforms handle them.
+    // This must run regardless of runes mode.
     if !shadowed_local_reactive_vars.is_empty() {
         result = transform_shadowed_local_state_vars(&result, &shadowed_local_reactive_vars);
     }
