@@ -8,8 +8,8 @@ use crate::ast::template::{Attribute, RegularElement, TemplateNode};
 use crate::compiler::phases::phase2_analyze::scope::Scope;
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 use compact_str::CompactString;
+use rustc_hash::FxHashMap;
 use std::borrow::Cow;
-use std::collections::HashMap;
 
 /// A borrowed reference to a parent node, avoiding expensive clones of TemplateNode.
 ///
@@ -222,7 +222,7 @@ fn sort_const_tags(nodes: Vec<TemplateNode>) -> Vec<TemplateNode> {
     }
 
     // Build a map from declared name to const tag index (within const_infos)
-    let mut name_to_tag: HashMap<&str, usize> = HashMap::new();
+    let mut name_to_tag: FxHashMap<&str, usize> = FxHashMap::default();
     for (tag_idx, info) in const_infos.iter().enumerate() {
         for name in &info.declared_names {
             name_to_tag.insert(name.as_str(), tag_idx);

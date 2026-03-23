@@ -720,8 +720,7 @@ pub(crate) fn extract_legacy_reactive_var_declaration(script: &str) -> String {
     }
 
     // Build var -> stmt index map
-    let mut var_to_stmt: std::collections::HashMap<String, usize> =
-        std::collections::HashMap::new();
+    let mut var_to_stmt: rustc_hash::FxHashMap<String, usize> = rustc_hash::FxHashMap::default();
     for (i, decls) in stmt_declared.iter().enumerate() {
         for decl in decls {
             var_to_stmt.insert(decl.clone(), i);
@@ -1652,8 +1651,8 @@ fn sort_reactive_statements_topologically(stmts: Vec<Vec<&str>>) -> Vec<Vec<&str
     }
 
     // Build a map from variable name to all statement indices that declare it
-    let mut var_to_stmts: std::collections::HashMap<String, Vec<usize>> =
-        std::collections::HashMap::new();
+    let mut var_to_stmts: rustc_hash::FxHashMap<String, Vec<usize>> =
+        rustc_hash::FxHashMap::default();
     for (i, decls) in declared.iter().enumerate() {
         for decl in decls {
             var_to_stmts.entry(decl.clone()).or_default().push(i);

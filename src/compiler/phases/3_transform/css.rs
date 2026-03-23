@@ -419,8 +419,8 @@ fn generate_css_sourcemap(
     let mut mappings = Vec::new();
 
     // Build per-token-name matching (same approach as JS token matching)
-    use std::collections::HashMap;
-    let mut src_positions: HashMap<&str, Vec<usize>> = HashMap::new();
+    let mut src_positions: rustc_hash::FxHashMap<&str, Vec<usize>> =
+        rustc_hash::FxHashMap::default();
     for token in &src_tokens {
         src_positions
             .entry(token.text)
@@ -428,7 +428,7 @@ fn generate_css_sourcemap(
             .push(token.offset + css_start); // Absolute position in source
     }
 
-    let mut src_consumed: HashMap<&str, usize> = HashMap::new();
+    let mut src_consumed: rustc_hash::FxHashMap<&str, usize> = rustc_hash::FxHashMap::default();
 
     // Track the last matched source position for handling .svelte-xxx scoping suffixes
     let mut last_src_end: Option<usize> = None;

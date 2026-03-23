@@ -60,8 +60,7 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         // Build a map from variable name to const tag index
-        let mut name_to_tag: std::collections::HashMap<&str, usize> =
-            std::collections::HashMap::new();
+        let mut name_to_tag: rustc_hash::FxHashMap<&str, usize> = rustc_hash::FxHashMap::default();
         for (i, names) in declared_names.iter().enumerate() {
             for name in names {
                 name_to_tag.insert(name.as_str(), i);

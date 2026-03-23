@@ -187,7 +187,7 @@ pub struct VisitorContext<'a> {
     /// Whether we have a $props() rune.
     pub has_props_rune: bool,
     /// Current component slots.
-    pub component_slots: std::collections::HashSet<String>,
+    pub component_slots: rustc_hash::FxHashSet<String>,
     /// AST type being analyzed ('instance', 'template', or 'module')
     pub ast_type: AstType,
     /// Current reactive statement being analyzed (for legacy mode)
@@ -196,7 +196,7 @@ pub struct VisitorContext<'a> {
     /// Used for reactive_declaration_module_script_dependency warning.
     pub in_reactive_declaration: bool,
     /// State fields in the current class (for class body analysis)
-    pub state_fields: std::collections::HashMap<String, super::types::StateField>,
+    pub state_fields: rustc_hash::FxHashMap<String, super::types::StateField>,
     /// Stack of DOM element indices for tracking parent-child relationships.
     pub dom_element_stack: Vec<usize>,
     /// Depth inside regular elements (for placement validation).
@@ -340,11 +340,11 @@ impl<'a> VisitorContext<'a> {
             function_depth: 0,
             derived_function_depth: 0,
             has_props_rune: false,
-            component_slots: std::collections::HashSet::new(),
+            component_slots: rustc_hash::FxHashSet::default(),
             ast_type: AstType::Template,
             reactive_statement: None,
             in_reactive_declaration: false,
-            state_fields: std::collections::HashMap::new(),
+            state_fields: rustc_hash::FxHashMap::default(),
             dom_element_stack: Vec::new(),
             element_depth: 0,
             block_depth: 0,
@@ -497,8 +497,8 @@ pub fn visit_node(
 /// possible_prev_general, and possible_next_general fields in CssDomElement.
 fn build_sibling_relationships(dom_structure: &mut DomStructure) {
     // Group elements by their parent
-    let mut parent_children: std::collections::HashMap<Option<usize>, Vec<usize>> =
-        std::collections::HashMap::new();
+    let mut parent_children: rustc_hash::FxHashMap<Option<usize>, Vec<usize>> =
+        rustc_hash::FxHashMap::default();
 
     for (idx, element) in dom_structure.elements.iter().enumerate() {
         parent_children

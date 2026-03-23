@@ -3,7 +3,8 @@
 //! Corresponds to utilities in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/utils.js`.
 
-use std::collections::{HashMap, HashSet};
+use rustc_hash::FxHashMap;
+use std::collections::HashSet;
 
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::client::types::*;
@@ -23,7 +24,7 @@ pub struct LocalScope {
     /// For parameters, the value is None.
     /// For const/let declarations, the value is the JsExpr discriminant string
     /// (e.g., "Binary", "Literal", "Arrow", etc.)
-    vars: HashMap<String, Option<JsExprKind>>,
+    vars: FxHashMap<String, Option<JsExprKind>>,
 }
 
 /// A simplified classification of JsExpr types for should_proxy() decisions.
@@ -41,7 +42,7 @@ enum JsExprKind {
 impl LocalScope {
     fn new() -> Self {
         Self {
-            vars: HashMap::new(),
+            vars: FxHashMap::default(),
         }
     }
 

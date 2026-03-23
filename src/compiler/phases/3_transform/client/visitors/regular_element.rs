@@ -140,10 +140,12 @@ pub fn visit_regular_element(
 ) -> TransformResult {
     // Push element to template
     let is_html = context.state.metadata.namespace == "html" && node.name != "svg";
-    let elem_name = if is_html {
-        node.name.as_str().to_lowercase()
+    // Avoid allocation when name is already lowercase (common case for HTML)
+    let name_str = node.name.as_str();
+    let elem_name = if is_html && name_str.bytes().any(|b| b.is_ascii_uppercase()) {
+        name_str.to_lowercase()
     } else {
-        node.name.to_string()
+        name_str.to_string()
     };
     context
         .state
@@ -1344,21 +1346,33 @@ fn is_boolean_attribute(name: &str) -> bool {
 /// Lowercases the name and maps through ATTRIBUTE_ALIASES.
 /// Reference: svelte/packages/svelte/src/utils.js ATTRIBUTE_ALIASES and normalize_attribute
 fn normalize_attribute_string(name: &str) -> String {
-    let lower = name.to_lowercase();
-    match lower.as_str() {
-        "formnovalidate" => "formNoValidate".to_string(),
-        "ismap" => "isMap".to_string(),
-        "nomodule" => "noModule".to_string(),
-        "playsinline" => "playsInline".to_string(),
-        "readonly" => "readOnly".to_string(),
-        "defaultvalue" => "defaultValue".to_string(),
-        "defaultchecked" => "defaultChecked".to_string(),
-        "srcobject" => "srcObject".to_string(),
-        "novalidate" => "noValidate".to_string(),
-        "allowfullscreen" => "allowFullscreen".to_string(),
-        "disablepictureinpicture" => "disablePictureInPicture".to_string(),
-        "disableremoteplayback" => "disableRemotePlayback".to_string(),
-        _ => lower,
+    // Use case-insensitive comparison to avoid allocating a lowercase copy.
+    // Match on length first to minimize comparisons.
+    match name.len() {
+        5 if name.eq_ignore_ascii_case("ismap") => "isMap".to_string(),
+        8 if name.eq_ignore_ascii_case("readonly") => "readOnly".to_string(),
+        8 if name.eq_ignore_ascii_case("nomodule") => "noModule".to_string(),
+        9 if name.eq_ignore_ascii_case("srcobject") => "srcObject".to_string(),
+        10 if name.eq_ignore_ascii_case("novalidate") => "noValidate".to_string(),
+        11 if name.eq_ignore_ascii_case("playsinline") => "playsInline".to_string(),
+        12 if name.eq_ignore_ascii_case("defaultvalue") => "defaultValue".to_string(),
+        14 if name.eq_ignore_ascii_case("defaultchecked") => "defaultChecked".to_string(),
+        14 if name.eq_ignore_ascii_case("formnovalidate") => "formNoValidate".to_string(),
+        15 if name.eq_ignore_ascii_case("allowfullscreen") => "allowFullscreen".to_string(),
+        21 if name.eq_ignore_ascii_case("disableremoteplayback") => {
+            "disableRemotePlayback".to_string()
+        }
+        23 if name.eq_ignore_ascii_case("disablepictureinpicture") => {
+            "disablePictureInPicture".to_string()
+        }
+        _ => {
+            // Only allocate a new string if there are uppercase chars
+            if name.bytes().any(|b| b.is_ascii_uppercase()) {
+                name.to_lowercase()
+            } else {
+                name.to_string()
+            }
+        }
     }
 }
 
@@ -1366,20 +1380,21 @@ fn normalize_attribute_string(name: &str) -> String {
 /// For cases where the result doesn't need to be owned.
 /// Reference: svelte/packages/svelte/src/utils.js ATTRIBUTE_ALIASES and normalize_attribute
 fn normalize_attribute(name: &str) -> &str {
-    let lower = name.to_lowercase();
-    match lower.as_str() {
-        "formnovalidate" => "formNoValidate",
-        "ismap" => "isMap",
-        "nomodule" => "noModule",
-        "playsinline" => "playsInline",
-        "readonly" => "readOnly",
-        "defaultvalue" => "defaultValue",
-        "defaultchecked" => "defaultChecked",
-        "srcobject" => "srcObject",
-        "novalidate" => "noValidate",
-        "allowfullscreen" => "allowFullscreen",
-        "disablepictureinpicture" => "disablePictureInPicture",
-        "disableremoteplayback" => "disableRemotePlayback",
+    // Use case-insensitive comparison to avoid allocating a lowercase copy.
+    // Match on length first to minimize comparisons.
+    match name.len() {
+        5 if name.eq_ignore_ascii_case("ismap") => "isMap",
+        8 if name.eq_ignore_ascii_case("readonly") => "readOnly",
+        8 if name.eq_ignore_ascii_case("nomodule") => "noModule",
+        9 if name.eq_ignore_ascii_case("srcobject") => "srcObject",
+        10 if name.eq_ignore_ascii_case("novalidate") => "noValidate",
+        11 if name.eq_ignore_ascii_case("playsinline") => "playsInline",
+        12 if name.eq_ignore_ascii_case("defaultvalue") => "defaultValue",
+        14 if name.eq_ignore_ascii_case("defaultchecked") => "defaultChecked",
+        14 if name.eq_ignore_ascii_case("formnovalidate") => "formNoValidate",
+        15 if name.eq_ignore_ascii_case("allowfullscreen") => "allowFullscreen",
+        21 if name.eq_ignore_ascii_case("disableremoteplayback") => "disableRemotePlayback",
+        23 if name.eq_ignore_ascii_case("disablepictureinpicture") => "disablePictureInPicture",
         _ => name,
     }
 }

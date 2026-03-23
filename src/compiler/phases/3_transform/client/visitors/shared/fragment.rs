@@ -256,8 +256,8 @@ pub fn process_children<F>(
     let mut prev: Box<dyn FnMut(bool) -> JsExpr> = Box::new(initial);
     let mut skipped = 0usize;
 
-    // Sequence of Text/ExpressionTag nodes
-    let mut sequence: Vec<TextOrExpr> = Vec::new();
+    // Sequence of Text/ExpressionTag nodes - pre-allocate with a reasonable capacity
+    let mut sequence: Vec<TextOrExpr> = Vec::with_capacity(4);
 
     // Helper: get node with proper sibling navigation
     let get_node = |is_text: bool,
@@ -547,10 +547,13 @@ fn push_static_element_to_template_inner(
         TemplateNode::RegularElement(elem) => {
             // Determine if this is an HTML element (not SVG/MathML)
             let is_html = namespace == "html" && elem.name != "svg";
-            let elem_name = if is_html {
-                elem.name.as_str().to_lowercase()
+            // Avoid allocation when name is already lowercase (common case for HTML)
+            let name_str = elem.name.as_str();
+            let needs_lowercase = is_html && name_str.bytes().any(|b| b.is_ascii_uppercase());
+            let elem_name = if needs_lowercase {
+                name_str.to_lowercase()
             } else {
-                elem.name.to_string()
+                name_str.to_string()
             };
 
             // Push the element opening tag
@@ -612,10 +615,13 @@ fn push_static_element_to_template_inner(
                         continue;
                     }
                     // Lowercase attribute names for HTML elements (matches official compiler)
-                    let attr_name = if is_html {
-                        a.name.as_str().to_lowercase()
+                    // Avoid allocation when name is already lowercase (common case)
+                    let a_name_str = a.name.as_str();
+                    let attr_name = if is_html && a_name_str.bytes().any(|b| b.is_ascii_uppercase())
+                    {
+                        a_name_str.to_lowercase()
                     } else {
-                        a.name.to_string()
+                        a_name_str.to_string()
                     };
                     template.set_prop(attr_name, value);
                 }
@@ -718,40 +724,62 @@ fn push_static_element_to_template_inner(
                         let mut raw = text.raw.to_string();
                         if Some(i) == first_meaningful {
                             // First text: trim leading whitespace entirely
-                            data = data.trim_start_matches(ws).to_string();
-                            raw = raw.trim_start_matches(ws).to_string();
+                            let trimmed = data.trim_start_matches(ws);
+                            if trimmed.len() < data.len() {
+                                let start = data.len() - trimmed.len();
+                                data.drain(..start);
+                            }
+                            let trimmed = raw.trim_start_matches(ws);
+                            if trimmed.len() < raw.len() {
+                                let start = raw.len() - trimmed.len();
+                                raw.drain(..start);
+                            }
                         } else {
                             // Non-first text: collapse leading whitespace to single space
                             let trimmed_data = data.trim_start_matches(ws);
                             if trimmed_data.len() < data.len() && !trimmed_data.is_empty() {
-                                data = format!(" {}", trimmed_data);
+                                let start = data.len() - trimmed_data.len();
+                                data.drain(..start);
+                                data.insert(0, ' ');
                             } else if trimmed_data.is_empty() && !data.is_empty() {
-                                data = " ".to_string();
+                                data.clear();
+                                data.push(' ');
                             }
                             let trimmed_raw = raw.trim_start_matches(ws);
                             if trimmed_raw.len() < raw.len() && !trimmed_raw.is_empty() {
-                                raw = format!(" {}", trimmed_raw);
+                                let start = raw.len() - trimmed_raw.len();
+                                raw.drain(..start);
+                                raw.insert(0, ' ');
                             } else if trimmed_raw.is_empty() && !raw.is_empty() {
-                                raw = " ".to_string();
+                                raw.clear();
+                                raw.push(' ');
                             }
                         }
                         if Some(i) == last_meaningful {
                             // Last text: trim trailing whitespace entirely
-                            data = data.trim_end_matches(ws).to_string();
-                            raw = raw.trim_end_matches(ws).to_string();
+                            let trimmed = data.trim_end_matches(ws);
+                            data.truncate(trimmed.len());
+                            let trimmed = raw.trim_end_matches(ws);
+                            raw.truncate(trimmed.len());
                         } else {
                             // Non-last text: collapse trailing whitespace to single space
                             let trimmed_data = data.trim_end_matches(ws);
                             if trimmed_data.len() < data.len() && !trimmed_data.is_empty() {
-                                data = format!("{} ", trimmed_data);
+                                let new_len = trimmed_data.len();
+                                data.truncate(new_len);
+                                data.push(' ');
                             } else if trimmed_data.is_empty() && !data.is_empty() {
-                                data = " ".to_string();
+                                data.clear();
+                                data.push(' ');
                             }
                             let trimmed_raw = raw.trim_end_matches(ws);
                             if trimmed_raw.len() < raw.len() && !trimmed_raw.is_empty() {
-                                raw = format!("{} ", trimmed_raw);
+                                let new_len = trimmed_raw.len();
+                                raw.truncate(new_len);
+                                raw.push(' ');
                             } else if trimmed_raw.is_empty() && !raw.is_empty() {
-                                raw = " ".to_string();
+                                raw.clear();
+                                raw.push(' ');
                             }
                         }
                         // Skip whitespace-only text that would collapse to just space
@@ -800,17 +828,22 @@ fn push_static_element_to_template_inner(
             // add a comment anchor after it. This matches clean_nodes behavior in the
             // official compiler (lines 264-274 of utils.js) to ensure run_scripts
             // logic can call node.replaceWith() on the script tag.
-            let meaningful_children: Vec<_> = elem
-                .fragment
-                .nodes
-                .iter()
-                .filter(|n| {
-                    !matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data))
-                        && !matches!(n, TemplateNode::Comment(_))
-                })
-                .collect();
-            let has_lone_script = meaningful_children.len() == 1
-                && matches!(meaningful_children[0], TemplateNode::RegularElement(child_el) if child_el.name.as_str() == "script");
+            // Avoid collecting into a Vec - count and check inline.
+            let mut meaningful_count = 0usize;
+            let mut lone_script = false;
+            for n in &elem.fragment.nodes {
+                let dominated = matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data))
+                    || matches!(n, TemplateNode::Comment(_));
+                if !dominated {
+                    meaningful_count += 1;
+                    if meaningful_count == 1 {
+                        lone_script = matches!(n, TemplateNode::RegularElement(child_el) if child_el.name.as_str() == "script");
+                    } else {
+                        lone_script = false;
+                    }
+                }
+            }
+            let has_lone_script = meaningful_count == 1 && lone_script;
             if has_lone_script {
                 template.push_comment(Some(String::new()));
             }
@@ -846,47 +879,55 @@ use crate::compiler::phases::phase3_transform::utils::determine_namespace_for_ch
 /// contain rich content themselves.
 fn is_customizable_select_element(node: &RegularElement) -> bool {
     if node.name == "select" || node.name == "optgroup" || node.name == "option" {
-        for child in find_descendants(&node.fragment) {
-            match &child {
+        let node_name = node.name.as_str();
+        return has_matching_descendant(&node.fragment, &|child| {
+            match child {
                 TemplateNode::RegularElement(elem) => {
-                    if node.name == "select" && elem.name != "option" && elem.name != "optgroup" {
+                    if node_name == "select" && elem.name != "option" && elem.name != "optgroup" {
                         return true;
                     }
-                    if node.name == "optgroup" && elem.name != "option" {
+                    if node_name == "optgroup" && elem.name != "option" {
                         return true;
                     }
-                    if node.name == "option" {
+                    if node_name == "option" {
                         return true;
                     }
+                    false
                 }
                 TemplateNode::Text(text) => {
                     // Text nodes directly in <select> or <optgroup> are rich content
                     // (only if non-empty after trim)
-                    if (node.name == "select" || node.name == "optgroup")
+                    (node_name == "select" || node_name == "optgroup")
                         && !is_svelte_whitespace_only(&text.data)
-                    {
-                        return true;
-                    }
                 }
                 _ => {
                     // Any non-RegularElement, non-Text node is rich content
                     // This includes Component, RenderTag, HtmlTag, etc.
-                    return true;
+                    true
                 }
             }
-        }
+        });
     }
     false
 }
 
-/// Iterate through descendants of a fragment, recursively descending into control flow blocks.
-fn find_descendants(fragment: &Fragment) -> Vec<TemplateNode> {
-    let mut result = Vec::new();
-    find_descendants_recursive(&fragment.nodes, &mut result);
-    result
+/// Check if a fragment has any descendant that would be considered "rich content"
+/// for the purposes of `is_customizable_select_element`.
+///
+/// This is equivalent to the old `find_descendants` but avoids allocating a Vec
+/// and cloning TemplateNodes. Instead, it calls a predicate on each descendant
+/// and returns true as soon as the predicate returns true.
+fn has_matching_descendant<F>(fragment: &Fragment, predicate: &F) -> bool
+where
+    F: Fn(&TemplateNode) -> bool,
+{
+    has_matching_descendant_recursive(&fragment.nodes, predicate)
 }
 
-fn find_descendants_recursive(nodes: &[TemplateNode], result: &mut Vec<TemplateNode>) {
+fn has_matching_descendant_recursive<F>(nodes: &[TemplateNode], predicate: &F) -> bool
+where
+    F: Fn(&TemplateNode) -> bool,
+{
     for node in nodes {
         match node {
             // Skip these types - they don't contribute to rich content detection
@@ -896,52 +937,73 @@ fn find_descendants_recursive(nodes: &[TemplateNode], result: &mut Vec<TemplateN
             | TemplateNode::Comment(_)
             | TemplateNode::ExpressionTag(_) => {}
 
-            // Text nodes: yield if non-whitespace
+            // Text nodes: check if non-whitespace
             TemplateNode::Text(text) => {
-                if !is_svelte_whitespace_only(&text.data) {
-                    result.push(node.clone());
+                if !is_svelte_whitespace_only(&text.data) && predicate(node) {
+                    return true;
                 }
             }
 
             // Control flow blocks: recurse into their content
             TemplateNode::IfBlock(if_block) => {
-                find_descendants_recursive(&if_block.consequent.nodes, result);
-                if let Some(alternate) = &if_block.alternate {
-                    find_descendants_recursive(&alternate.nodes, result);
+                if has_matching_descendant_recursive(&if_block.consequent.nodes, predicate) {
+                    return true;
+                }
+                if let Some(alternate) = &if_block.alternate
+                    && has_matching_descendant_recursive(&alternate.nodes, predicate)
+                {
+                    return true;
                 }
             }
 
             TemplateNode::EachBlock(each_block) => {
-                find_descendants_recursive(&each_block.body.nodes, result);
-                if let Some(fallback) = &each_block.fallback {
-                    find_descendants_recursive(&fallback.nodes, result);
+                if has_matching_descendant_recursive(&each_block.body.nodes, predicate) {
+                    return true;
+                }
+                if let Some(fallback) = &each_block.fallback
+                    && has_matching_descendant_recursive(&fallback.nodes, predicate)
+                {
+                    return true;
                 }
             }
 
             TemplateNode::KeyBlock(key_block) => {
-                find_descendants_recursive(&key_block.fragment.nodes, result);
+                if has_matching_descendant_recursive(&key_block.fragment.nodes, predicate) {
+                    return true;
+                }
             }
 
             TemplateNode::AwaitBlock(await_block) => {
-                if let Some(pending) = &await_block.pending {
-                    find_descendants_recursive(&pending.nodes, result);
+                if let Some(pending) = &await_block.pending
+                    && has_matching_descendant_recursive(&pending.nodes, predicate)
+                {
+                    return true;
                 }
-                if let Some(then) = &await_block.then {
-                    find_descendants_recursive(&then.nodes, result);
+                if let Some(then) = &await_block.then
+                    && has_matching_descendant_recursive(&then.nodes, predicate)
+                {
+                    return true;
                 }
-                if let Some(catch) = &await_block.catch {
-                    find_descendants_recursive(&catch.nodes, result);
+                if let Some(catch) = &await_block.catch
+                    && has_matching_descendant_recursive(&catch.nodes, predicate)
+                {
+                    return true;
                 }
             }
 
             TemplateNode::SvelteBoundary(boundary) => {
-                find_descendants_recursive(&boundary.fragment.nodes, result);
+                if has_matching_descendant_recursive(&boundary.fragment.nodes, predicate) {
+                    return true;
+                }
             }
 
-            // All other nodes (RegularElement, Component, RenderTag, HtmlTag, etc.) are yielded
+            // All other nodes (RegularElement, Component, RenderTag, HtmlTag, etc.)
             _ => {
-                result.push(node.clone());
+                if predicate(node) {
+                    return true;
+                }
             }
         }
     }
+    false
 }

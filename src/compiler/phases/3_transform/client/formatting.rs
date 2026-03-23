@@ -1005,12 +1005,12 @@ pub(super) fn add_esrap_blank_lines(code: &str) -> String {
     }
 
     // Track the previous statement type and multiline status at each indent level.
-    let mut prev_type_at_indent: std::collections::HashMap<usize, &str> =
-        std::collections::HashMap::new();
-    let mut prev_multiline_at_indent: std::collections::HashMap<usize, bool> =
-        std::collections::HashMap::new();
+    let mut prev_type_at_indent: rustc_hash::FxHashMap<usize, &str> =
+        rustc_hash::FxHashMap::default();
+    let mut prev_multiline_at_indent: rustc_hash::FxHashMap<usize, bool> =
+        rustc_hash::FxHashMap::default();
     // Track indent levels that have a pending leading comment for the next statement
-    let mut comment_at_indent: std::collections::HashSet<usize> = std::collections::HashSet::new();
+    let mut comment_at_indent: rustc_hash::FxHashSet<usize> = rustc_hash::FxHashSet::default();
 
     let mut result: Vec<&str> = Vec::with_capacity(lines.len() + 20);
 

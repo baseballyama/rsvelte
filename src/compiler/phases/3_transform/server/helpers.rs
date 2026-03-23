@@ -1977,7 +1977,7 @@ fn split_declarators(s: &str) -> Vec<&str> {
 /// wrapped in `$$renderer.async()` or `$$renderer.async_block()`.
 pub(crate) fn find_expression_blockers(
     expr: &str,
-    blocker_map: &std::collections::HashMap<String, usize>,
+    blocker_map: &rustc_hash::FxHashMap<String, usize>,
 ) -> Vec<usize> {
     if blocker_map.is_empty() {
         return Vec::new();
@@ -2355,7 +2355,7 @@ fn extract_all_awaits(
 /// referenced in the expression that have entries in the const_blocker_map.
 pub(crate) fn find_const_expression_blockers(
     expr: &str,
-    const_blocker_map: &std::collections::HashMap<String, String>,
+    const_blocker_map: &rustc_hash::FxHashMap<String, String>,
 ) -> Vec<String> {
     let mut blockers = Vec::new();
     let idents = extract_identifiers_from_js(expr);
@@ -2373,7 +2373,7 @@ pub(crate) fn find_const_expression_blockers(
 /// Only checks ${...} expression interpolations within the HTML.
 pub(crate) fn find_const_html_blockers(
     html: &str,
-    const_blocker_map: &std::collections::HashMap<String, String>,
+    const_blocker_map: &rustc_hash::FxHashMap<String, String>,
 ) -> Vec<String> {
     let mut blockers = Vec::new();
     // Find ${...} expressions in the HTML

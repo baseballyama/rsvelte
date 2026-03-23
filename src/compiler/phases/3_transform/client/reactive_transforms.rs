@@ -182,8 +182,8 @@ pub(super) fn sort_reactive_statements(
     let n = statements.len();
 
     // Build a lookup: variable name -> indices of statements that assign to it
-    let mut assign_lookup: std::collections::HashMap<&str, Vec<usize>> =
-        std::collections::HashMap::new();
+    let mut assign_lookup: rustc_hash::FxHashMap<&str, Vec<usize>> =
+        rustc_hash::FxHashMap::default();
     for (i, (assigned, _, _)) in statements.iter().enumerate() {
         for var_name in assigned {
             assign_lookup.entry(var_name.as_str()).or_default().push(i);

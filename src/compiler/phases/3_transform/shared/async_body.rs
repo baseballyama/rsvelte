@@ -14,7 +14,7 @@ pub struct AsyncBodyResult {
     /// Mapping from variable names to their promise indices in $$promises.
     /// e.g., if `condition` is assigned in the 2nd thunk (index 1), then
     /// `blocker_map["condition"] = 1`.
-    pub blocker_map: std::collections::HashMap<String, usize>,
+    pub blocker_map: rustc_hash::FxHashMap<String, usize>,
 }
 
 /// Pre-compute the blocker map from raw instance script content.
@@ -26,10 +26,10 @@ pub struct AsyncBodyResult {
 ///
 /// This should be called BEFORE template generation but doesn't need the fully
 /// transformed script - it works on the raw instance script content.
-pub fn compute_blocker_map(raw_script: &str) -> std::collections::HashMap<String, usize> {
+pub fn compute_blocker_map(raw_script: &str) -> rustc_hash::FxHashMap<String, usize> {
     let trimmed = raw_script.trim();
     if trimmed.is_empty() || !has_top_level_await(trimmed) {
-        return std::collections::HashMap::new();
+        return rustc_hash::FxHashMap::default();
     }
 
     let statements = split_top_level_statements(trimmed);
@@ -45,7 +45,7 @@ pub fn compute_blocker_map(raw_script: &str) -> std::collections::HashMap<String
     let function_bodies = collect_function_bodies(&statements);
 
     let mut found_await = false;
-    let mut blocker_map = std::collections::HashMap::new();
+    let mut blocker_map = rustc_hash::FxHashMap::default();
     let mut async_index: usize = 0;
 
     for stmt in &statements {
@@ -226,7 +226,7 @@ pub fn compute_blocker_map(raw_script: &str) -> std::collections::HashMap<String
 /// If `value` is blocked, then `x` is blocked, and transitively `getValue` is too.
 pub fn enrich_blocker_map_with_transitive_deps(
     transformed_script: &str,
-    blocker_map: &mut std::collections::HashMap<String, usize>,
+    blocker_map: &mut rustc_hash::FxHashMap<String, usize>,
 ) {
     if blocker_map.is_empty() {
         return;
@@ -507,7 +507,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
     // Variables assigned in an async thunk are "blocked" by that promise.
     // Additionally, variables referenced in call expressions within async statements
     // get the same blocker (mimicking the official compiler's trace_references/touch).
-    let mut blocker_map = std::collections::HashMap::new();
+    let mut blocker_map = rustc_hash::FxHashMap::default();
 
     for (idx, stmt) in async_stmts.iter().enumerate() {
         match &stmt.kind {
@@ -2167,8 +2167,8 @@ fn extract_ident_from_item(item: &str) -> String {
 /// Collect function bodies indexed by function name.
 /// This includes both `function foo() { ... }` declarations and
 /// `let foo = function() { ... }` / `let foo = (...) => { ... }` declarations.
-fn collect_function_bodies(statements: &[String]) -> std::collections::HashMap<String, String> {
-    let mut bodies = std::collections::HashMap::new();
+fn collect_function_bodies(statements: &[String]) -> rustc_hash::FxHashMap<String, String> {
+    let mut bodies = rustc_hash::FxHashMap::default();
 
     for stmt in statements {
         let trimmed = stmt.trim();
@@ -2247,9 +2247,9 @@ fn extract_var_decl_name(s: &str) -> Option<String> {
 /// This mimics the official compiler's trace_references behavior.
 fn resolve_transitive_function_deps(
     stmt: &str,
-    function_bodies: &std::collections::HashMap<String, String>,
+    function_bodies: &rustc_hash::FxHashMap<String, String>,
     all_declared_vars: &std::collections::HashSet<String>,
-    blocker_map: &mut std::collections::HashMap<String, usize>,
+    blocker_map: &mut rustc_hash::FxHashMap<String, usize>,
     blocker_index: usize,
 ) {
     // Extract all identifiers from the async statement

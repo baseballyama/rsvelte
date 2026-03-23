@@ -230,8 +230,7 @@ fn check_const_tag_cycles(nodes: &[TemplateNode]) -> Result<(), AnalysisError> {
     }
 
     // Build a map of binding name -> ConstTag index
-    let mut binding_to_tag: std::collections::HashMap<String, usize> =
-        std::collections::HashMap::new();
+    let mut binding_to_tag: rustc_hash::FxHashMap<String, usize> = rustc_hash::FxHashMap::default();
     for (idx, (_, bindings, _)) in const_tags.iter().enumerate() {
         for binding in bindings {
             binding_to_tag.insert(binding.clone(), idx);

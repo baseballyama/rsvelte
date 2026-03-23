@@ -215,21 +215,21 @@ fn add_esrap_blank_lines(code: &str) -> String {
     let mut result = Vec::with_capacity(lines.len() + 20);
 
     // Track the previous statement type at each indentation level
-    let mut prev_type_at_indent: std::collections::HashMap<usize, &str> =
-        std::collections::HashMap::new();
-    let mut prev_multiline_at_indent: std::collections::HashMap<usize, bool> =
-        std::collections::HashMap::new();
+    let mut prev_type_at_indent: rustc_hash::FxHashMap<usize, &str> =
+        rustc_hash::FxHashMap::default();
+    let mut prev_multiline_at_indent: rustc_hash::FxHashMap<usize, bool> =
+        rustc_hash::FxHashMap::default();
 
     // Track whether each indent level is a "statement context" (function body, if-block, etc.)
     // or a "property context" (object literal properties). esrap only adds blank lines between
     // statements, not between object properties.
     // true = statement context (add blank lines), false = property context (no blank lines)
-    let mut is_statement_context: std::collections::HashMap<usize, bool> =
-        std::collections::HashMap::new();
+    let mut is_statement_context: rustc_hash::FxHashMap<usize, bool> =
+        rustc_hash::FxHashMap::default();
     // The top level and any function body are statement contexts
     is_statement_context.insert(0, true);
     // Track indent levels that have a pending leading comment for the next statement
-    let mut comment_at_indent: std::collections::HashSet<usize> = std::collections::HashSet::new();
+    let mut comment_at_indent: rustc_hash::FxHashSet<usize> = rustc_hash::FxHashSet::default();
 
     // Track whether we're inside a template literal (backtick string).
     // Lines inside template literals must not be modified.
@@ -1138,7 +1138,7 @@ pub(crate) struct ServerCodeGenerator<'a> {
     /// Shared across nested generators via Rc<RefCell> so blockers from outer boundaries
     /// are visible in inner boundaries.
     pub(crate) const_blocker_map:
-        std::rc::Rc<std::cell::RefCell<std::collections::HashMap<String, String>>>,
+        std::rc::Rc<std::cell::RefCell<rustc_hash::FxHashMap<String, String>>>,
     /// Accumulator for async const tag grouping.
     /// When an async const tag is encountered, subsequent const tags in the same fragment
     /// are accumulated into this group. Flushed by the fragment visitor after processing all nodes.
@@ -1364,7 +1364,7 @@ impl<'a> ServerCodeGenerator<'a> {
             in_if_body: false,
             const_promises_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
             const_blocker_map: std::rc::Rc::new(std::cell::RefCell::new(
-                std::collections::HashMap::new(),
+                rustc_hash::FxHashMap::default(),
             )),
             async_consts: None,
         }

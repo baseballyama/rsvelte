@@ -95,8 +95,8 @@ pub fn build_inline_component<F>(
 {
     let mut props_and_spreads: Vec<PropsOrSpread> = Vec::new();
     let mut custom_css_props: Vec<JsObjectMember> = Vec::new();
-    let mut lets: std::collections::HashMap<String, Vec<&LetDirective>> =
-        std::collections::HashMap::new();
+    let mut lets: rustc_hash::FxHashMap<String, Vec<&LetDirective>> =
+        rustc_hash::FxHashMap::default();
     lets.insert("default".to_string(), Vec::new());
 
     let mut has_children_prop = false;
@@ -182,8 +182,8 @@ pub fn build_inline_component<F>(
     }
 
     // Process children and slots
-    let mut children: std::collections::HashMap<String, Vec<&TemplateNode>> =
-        std::collections::HashMap::new();
+    let mut children: rustc_hash::FxHashMap<String, Vec<&TemplateNode>> =
+        rustc_hash::FxHashMap::default();
     let snippet_declarations: Vec<JsStatement> = Vec::new();
     let mut serialized_slots: Vec<JsObjectMember> = Vec::new();
 

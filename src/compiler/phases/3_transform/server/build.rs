@@ -81,13 +81,13 @@ impl<'a> ServerCodeGenerator<'a> {
                     let raw_script = &self.source[start..end];
                     crate::compiler::phases::phase3_transform::shared::async_body::compute_blocker_map(raw_script)
                 } else {
-                    std::collections::HashMap::new()
+                    rustc_hash::FxHashMap::default()
                 }
             } else {
-                std::collections::HashMap::new()
+                rustc_hash::FxHashMap::default()
             }
         } else {
-            std::collections::HashMap::new()
+            rustc_hash::FxHashMap::default()
         };
 
         // Hoist <svelte:head> parts to the beginning (official Svelte compiler behavior)
@@ -977,7 +977,7 @@ impl<'a> ServerCodeGenerator<'a> {
     fn collect_if_chain_blockers_recursive(
         test_expr: &str,
         alternate_body: Option<&[OutputPart]>,
-        blocker_map: &std::collections::HashMap<String, usize>,
+        blocker_map: &rustc_hash::FxHashMap<String, usize>,
         all_blockers: &mut std::collections::BTreeSet<usize>,
     ) {
         // Add blockers from this test expression
@@ -1009,7 +1009,7 @@ impl<'a> ServerCodeGenerator<'a> {
     #[allow(dead_code)]
     fn collect_parts_blockers(
         parts: &[OutputPart],
-        blocker_map: &std::collections::HashMap<String, usize>,
+        blocker_map: &rustc_hash::FxHashMap<String, usize>,
         all_blockers: &mut std::collections::BTreeSet<usize>,
     ) {
         for part in parts {
@@ -1112,7 +1112,7 @@ impl<'a> ServerCodeGenerator<'a> {
     /// Exception: else-if blocks with `await` in their test get their own async wrapping.
     fn apply_async_wrapping_skip_elseif(
         parts: &[OutputPart],
-        blocker_map: &std::collections::HashMap<String, usize>,
+        blocker_map: &rustc_hash::FxHashMap<String, usize>,
     ) -> Vec<OutputPart> {
         let mut result = Vec::with_capacity(parts.len());
         for part in parts {
@@ -1156,7 +1156,7 @@ impl<'a> ServerCodeGenerator<'a> {
     /// Corresponds to `create_child_block()` and `PromiseOptimiser.render()` in the official compiler.
     fn apply_async_wrapping(
         parts: &[OutputPart],
-        blocker_map: &std::collections::HashMap<String, usize>,
+        blocker_map: &rustc_hash::FxHashMap<String, usize>,
     ) -> Vec<OutputPart> {
         // Pre-pass: merge Html parts that contain blocked expressions with their
         // immediately following closing tag Html parts.
@@ -1571,7 +1571,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     };
 
                     // Build a filtered blocker map that excludes specified variables
-                    let effective_blocker_map: std::collections::HashMap<String, usize> =
+                    let effective_blocker_map: rustc_hash::FxHashMap<String, usize> =
                         if excluded_vars.is_empty() {
                             blocker_map.clone()
                         } else {
@@ -1643,7 +1643,7 @@ impl<'a> ServerCodeGenerator<'a> {
     /// level contributes its own blocker entries to the map.
     pub(crate) fn apply_const_async_wrapping(
         parts: &[OutputPart],
-        parent_blocker_map: &std::collections::HashMap<String, String>,
+        parent_blocker_map: &rustc_hash::FxHashMap<String, String>,
     ) -> Vec<OutputPart> {
         // Build a local blocker map by starting from the parent and adding entries
         // from ConstBlockerMetadata parts in this scope.
@@ -1831,7 +1831,7 @@ impl<'a> ServerCodeGenerator<'a> {
     /// This ensures elements like `<div${...}>` + `</div>` are treated as one unit `<div${...}></div>`.
     fn merge_html_with_closing_tags(
         parts: &[OutputPart],
-        blocker_map: &std::collections::HashMap<String, usize>,
+        blocker_map: &rustc_hash::FxHashMap<String, usize>,
     ) -> Vec<OutputPart> {
         let mut merged = Vec::with_capacity(parts.len());
         let mut i = 0;
@@ -1846,7 +1846,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 _ => (None, Vec::new()),
             };
             if let Some(html) = html_ref {
-                let effective_map: std::collections::HashMap<String, usize> =
+                let effective_map: rustc_hash::FxHashMap<String, usize> =
                     if excluded_vars.is_empty() {
                         blocker_map.clone()
                     } else {
@@ -1896,7 +1896,7 @@ impl<'a> ServerCodeGenerator<'a> {
     /// Static text is NOT checked (to avoid false positives like "baz: " matching "baz").
     fn find_html_expression_blockers(
         html: &str,
-        blocker_map: &std::collections::HashMap<String, usize>,
+        blocker_map: &rustc_hash::FxHashMap<String, usize>,
     ) -> Vec<usize> {
         let bytes = html.as_bytes();
         let len = bytes.len();
@@ -1947,7 +1947,7 @@ impl<'a> ServerCodeGenerator<'a> {
     /// and check each element-level segment for blockers. This keeps element tags intact.
     fn split_html_by_blockers(
         html: &str,
-        blocker_map: &std::collections::HashMap<String, usize>,
+        blocker_map: &rustc_hash::FxHashMap<String, usize>,
     ) -> Vec<HtmlSegment> {
         // First, find all "element segments" - ranges that contain complete element tags.
         // Split points are after `/>` or `>` (at element boundaries), or before `<`.

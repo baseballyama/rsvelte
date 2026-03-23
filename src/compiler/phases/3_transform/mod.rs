@@ -343,8 +343,8 @@ pub fn transform_component(
                     }
 
                     // Build a mapping from old source index to new source index
-                    let mut index_remap: std::collections::HashMap<u32, u32> =
-                        std::collections::HashMap::new();
+                    let mut index_remap: rustc_hash::FxHashMap<u32, u32> =
+                        rustc_hash::FxHashMap::default();
                     for (new_idx, &old_idx) in used_indices.iter().enumerate() {
                         index_remap.insert(old_idx, new_idx as u32);
                     }
@@ -685,7 +685,6 @@ impl std::error::Error for TransformError {}
 /// consume source positions intended for user-code tokens that appear later.
 fn generate_token_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen::SourceMapping> {
     use js_ast::codegen::{build_line_starts, offset_to_line_col};
-    use std::collections::HashMap;
 
     let gen_tokens = extract_tokens_simple(generated);
     let src_tokens = extract_tokens_simple(source);
@@ -693,7 +692,8 @@ fn generate_token_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen
     let src_line_starts = build_line_starts(source);
 
     // Build a map: token_text -> list of source positions (byte offsets)
-    let mut src_positions: HashMap<&str, Vec<usize>> = HashMap::new();
+    let mut src_positions: rustc_hash::FxHashMap<&str, Vec<usize>> =
+        rustc_hash::FxHashMap::default();
     for token in &src_tokens {
         src_positions
             .entry(token.text)
@@ -702,7 +702,7 @@ fn generate_token_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen
     }
 
     // For each token name, track how many generated occurrences we've consumed
-    let mut src_consumed: HashMap<&str, usize> = HashMap::new();
+    let mut src_consumed: rustc_hash::FxHashMap<&str, usize> = rustc_hash::FxHashMap::default();
 
     let mut mappings = Vec::new();
 
