@@ -3247,7 +3247,8 @@ fn transform_instance_script_for_visitors(
         // Transform prop update expressions like `x++` to `$.update_prop(x)` FIRST,
         // before transform_prop_assignments runs (which would incorrectly turn `x++` into `x(x() + 1)`)
         // and before wrap_prop_source_reads (which would turn `count` → `count()`, causing `count()++`)
-        let transformed = if !prop_assignment_transform_vars.is_empty() {
+        // In runes mode, deferred to AST-based transform after main loop.
+        let transformed = if !prop_assignment_transform_vars.is_empty() && !analysis.runes {
             transform_prop_update_expressions(&transformed, prop_assignment_transform_vars)
         } else {
             transformed
@@ -3258,7 +3259,8 @@ fn transform_instance_script_for_visitors(
         // Must come BEFORE transform_prop_assignments so that `callback = value` (assignment)
         // doesn't get incorrectly double-wrapped as `callback()(value)`.
         // The is_assignment_target check in wrap_prop_source_reads correctly skips assignments.
-        let transformed = if !prop_assignment_transform_vars.is_empty() {
+        // In runes mode, deferred to AST-based transform after main loop.
+        let transformed = if !prop_assignment_transform_vars.is_empty() && !analysis.runes {
             wrap_prop_source_reads(
                 &transformed,
                 prop_assignment_transform_vars,
@@ -3272,14 +3274,20 @@ fn transform_instance_script_for_visitors(
         // This handles props declared with `export let` in legacy mode
         // Note: We use prop_assignment_transform_vars which excludes RestProp bindings
         // because rest_props use $.rest_props() which returns a plain object, not getter/setter
-        let transformed = transform_prop_assignments(
-            &transformed,
-            prop_assignment_transform_vars,
-            &non_bindable_prop_vars,
-        );
+        // In runes mode, deferred to AST-based transform after main loop.
+        let transformed = if !analysis.runes {
+            transform_prop_assignments(
+                &transformed,
+                prop_assignment_transform_vars,
+                &non_bindable_prop_vars,
+            )
+        } else {
+            transformed
+        };
 
         // Store transforms: skip entirely when there are no store subscriptions
-        let transformed = if !store_sub_vars.is_empty() {
+        // In runes mode, deferred to AST-based transform after main loop.
+        let transformed = if !store_sub_vars.is_empty() && !analysis.runes {
             // Filter out store_sub_vars that appear as function parameters in this statement.
             let effective_store_sub_vars: Vec<String> = if store_sub_vars
                 .iter()
@@ -3351,15 +3359,17 @@ fn transform_instance_script_for_visitors(
             )
         };
 
-        // Transform rest_prop member access to $$props (only in runes mode)
-        let transformed = if analysis.runes && !rest_prop_vars.is_empty() {
+        // Transform rest_prop member access to $$props (only in non-runes mode here;
+        // in runes mode, deferred to AST-based transform after main loop)
+        let transformed = if !analysis.runes && !rest_prop_vars.is_empty() {
             transform_rest_prop_member_access(&transformed, rest_prop_vars)
         } else {
             transformed
         };
 
-        // Transform read-only props to $$props.propName (only in runes mode)
-        let transformed = if analysis.runes && !read_only_props.is_empty() {
+        // Transform read-only props to $$props.propName (only in non-runes mode here;
+        // in runes mode, deferred to AST-based transform after main loop)
+        let transformed = if !analysis.runes && !read_only_props.is_empty() {
             transform_read_only_props(&transformed, read_only_props)
         } else {
             transformed
@@ -3520,23 +3530,40 @@ fn transform_instance_script_for_visitors(
         }
     }
 
-    // AST-based state variable transforms for runes mode.
-    // Replaces text-based transform_state_assignments and wrap_state_vars_in_expr
+    // AST-based transforms for runes mode.
+    // Replaces text-based transform_state_assignments, wrap_state_vars_in_expr,
+    // prop transforms, store transforms, read-only props, and rest-prop transforms
     // with a single OXC parse + AST walk, eliminating O(M*N) text scanning.
-    if analysis.runes && !state_vars.is_empty() {
-        if let Some(ast_result) = ast_state_transform::transform_state_vars_ast(
-            &result,
-            &state_vars,
-            &non_reactive_state_vars,
-            &raw_state_vars,
-            &non_proxy_vars,
-            true,
-        ) {
-            result = ast_result;
-        }
-        // Apply store_unsub wrapping after AST transform (searches for $.set patterns)
-        if !store_sub_vars.is_empty() {
-            result = wrap_store_unsub_for_state_sets(&result, &state_vars, &store_sub_vars);
+    if analysis.runes {
+        let has_transforms = !state_vars.is_empty()
+            || !prop_assignment_transform_vars.is_empty()
+            || !store_sub_vars.is_empty()
+            || !read_only_props.is_empty()
+            || !rest_prop_vars.is_empty();
+
+        if has_transforms {
+            let ast_config = ast_state_transform::AstTransformConfig {
+                state_vars: &state_vars,
+                non_reactive_vars: &non_reactive_state_vars,
+                raw_state_vars: &raw_state_vars,
+                non_proxy_vars: &non_proxy_vars,
+                is_runes: true,
+                prop_source_vars: &prop_source_vars,
+                prop_assignment_transform_vars: &prop_assignment_transform_vars,
+                non_bindable_prop_vars: &non_bindable_prop_vars,
+                store_sub_vars: &store_sub_vars,
+                read_only_props: &read_only_props,
+                rest_prop_vars: &rest_prop_vars,
+            };
+            if let Some(ast_result) =
+                ast_state_transform::transform_state_vars_ast(&result, &ast_config)
+            {
+                result = ast_result;
+            }
+            // Apply store_unsub wrapping after AST transform (searches for $.set patterns)
+            if !store_sub_vars.is_empty() {
+                result = wrap_store_unsub_for_state_sets(&result, &state_vars, &store_sub_vars);
+            }
         }
     }
 
