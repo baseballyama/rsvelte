@@ -250,6 +250,7 @@ impl<'a> JsCodegen<'a> {
         }
     }
 
+    #[inline]
     fn emit_statement(&mut self, stmt: &JsStatement) {
         self.indent();
         self.emit_statement_inner(stmt);
@@ -415,8 +416,9 @@ impl<'a> JsCodegen<'a> {
 
         if has_specifiers {
             let mut has_default = false;
-            let mut named = Vec::new();
-            let mut namespace = None;
+            // Use references instead of cloning strings
+            let mut named: Vec<(&str, &str)> = Vec::new();
+            let mut namespace: Option<&str> = None;
 
             for spec in &import.specifiers {
                 match spec {
@@ -425,10 +427,10 @@ impl<'a> JsCodegen<'a> {
                         self.output.push_str(name);
                     }
                     JsImportSpecifier::Namespace(name) => {
-                        namespace = Some(name.clone());
+                        namespace = Some(name.as_str());
                     }
                     JsImportSpecifier::Named { imported, local } => {
-                        named.push((imported.clone(), local.clone()));
+                        named.push((imported.as_str(), local.as_str()));
                     }
                     JsImportSpecifier::SideEffect => {}
                 }
@@ -438,7 +440,7 @@ impl<'a> JsCodegen<'a> {
                 self.output.push_str(", ");
             }
 
-            if let Some(ref ns) = namespace {
+            if let Some(ns) = namespace {
                 self.output.push_str("* as ");
                 self.output.push_str(ns);
             }
@@ -888,7 +890,9 @@ impl<'a> JsCodegen<'a> {
                     0
                 };
 
-            let any_multiline = rendered.iter().any(|r| r.contains('\n'));
+            let any_multiline = rendered
+                .iter()
+                .any(|r| memchr::memchr(b'\n', r.as_bytes()).is_some());
             let multiline = any_multiline || total_len > 60;
 
             if multiline {
@@ -1473,9 +1477,9 @@ impl<'a> JsCodegen<'a> {
             JsStatement::If(_) => true,
             // Labeled inherits from body
             JsStatement::Labeled(labeled) => self.is_stmt_multiline(&labeled.body),
-            // Raw code: check if it contains newlines
-            JsStatement::Raw(code) => code.contains('\n'),
-            JsStatement::RawMapped { code, .. } => code.contains('\n'),
+            // Raw code: check if it contains newlines (memchr is SIMD-accelerated)
+            JsStatement::Raw(code) => memchr::memchr(b'\n', code.as_bytes()).is_some(),
+            JsStatement::RawMapped { code, .. } => memchr::memchr(b'\n', code.as_bytes()).is_some(),
             // Variable declarations: multiline if they have complex initializers
             JsStatement::VariableDeclaration(decl) => {
                 decl.declarations.len() > 1
@@ -1639,9 +1643,9 @@ impl<'a> JsCodegen<'a> {
                     self.output.push(',');
                 }
 
-                // Check if the rendered item was multiline
+                // Check if the rendered item was multiline (memchr for SIMD speed)
                 let rendered_part = &self.output[start_pos..];
-                let curr_is_multiline = rendered_part.contains('\n');
+                let curr_is_multiline = memchr::memchr(b'\n', rendered_part.as_bytes()).is_some();
 
                 // Insert blank line (margin) between consecutive multiline items
                 // that don't have object/array values (matching esrap behavior).
@@ -1683,7 +1687,9 @@ impl<'a> JsCodegen<'a> {
                     0
                 };
 
-            let any_multiline = rendered.iter().any(|r| r.contains('\n'));
+            let any_multiline = rendered
+                .iter()
+                .any(|r| memchr::memchr(b'\n', r.as_bytes()).is_some());
             let multiline = any_multiline || total_len > 60;
 
             if multiline {
@@ -1703,8 +1709,8 @@ impl<'a> JsCodegen<'a> {
 
                     if i < items.len() - 1 {
                         let next_rendered = &rendered[i + 1];
-                        if rendered_str.contains('\n')
-                            && next_rendered.contains('\n')
+                        if memchr::memchr(b'\n', rendered_str.as_bytes()).is_some()
+                            && memchr::memchr(b'\n', next_rendered.as_bytes()).is_some()
                             && !has_object_or_array_value(item)
                             && !has_object_or_array_value(&items[i + 1])
                         {
@@ -1738,23 +1744,35 @@ impl<'a> JsCodegen<'a> {
 
     /// Emit call/new expression arguments with esrap-style wrapping.
     /// In esrap, only non-final arguments' multiline status triggers wrapping.
-    /// We always pre-render non-final args to accurately detect multiline status,
-    /// matching esrap's behavior of rendering into separate contexts.
+    /// Uses a heuristic fast-path to avoid expensive pre-rendering when possible.
     fn emit_call_args(&mut self, arguments: &[JsExpr]) {
         if arguments.is_empty() {
             return;
         }
 
-        // Pre-render non-final arguments to check if any are multiline.
-        // This matches esrap's approach of rendering into a child_context
-        // and checking its multiline property.
-        let rendered: Vec<String> = arguments
+        // Fast path: use heuristic to check if any non-final argument is likely multiline.
+        // This avoids expensive pre-rendering for the common case where all args are simple.
+        let non_final = &arguments[..arguments.len().saturating_sub(1)];
+        let any_likely_multiline = non_final
             .iter()
-            .take(arguments.len().saturating_sub(1))
-            .map(|arg| self.pre_render_expr(arg))
-            .collect();
+            .any(|arg| self.is_expr_likely_multiline(arg));
 
-        let non_final_multiline = rendered.iter().any(|r| r.contains('\n'));
+        // Only pre-render if the heuristic didn't find anything (to catch edge cases
+        // where simple-looking expressions render as multiline due to width)
+        // If heuristic found multiline, we can skip pre-rendering entirely.
+        let non_final_multiline = if any_likely_multiline {
+            true
+        } else if non_final.is_empty() {
+            false
+        } else {
+            // Pre-render non-final arguments to check actual multiline status.
+            // This only runs when the heuristic says "probably not multiline"
+            // but we need to verify (for edge cases like long expressions).
+            non_final.iter().any(|arg| {
+                let rendered = self.pre_render_expr(arg);
+                memchr::memchr(b'\n', rendered.as_bytes()).is_some()
+            })
+        };
 
         if non_final_multiline {
             self.indent_level += 1;
@@ -1795,6 +1813,7 @@ fn has_multiple_newlines(bytes: &[u8]) -> bool {
 
 /// Check if an expression is an object or array value (used for margin logic in sequence).
 /// In esrap, consecutive multiline properties with object/array values don't get extra margins.
+#[inline]
 fn has_object_or_array_value(item: &Option<&JsExpr>) -> bool {
     if let Some(expr) = item {
         matches!(expr, JsExpr::Object(_) | JsExpr::Array(_))
@@ -1806,6 +1825,7 @@ fn has_object_or_array_value(item: &Option<&JsExpr>) -> bool {
 /// Get the ESTree-style type name for a statement, used for blank line logic.
 /// Consecutive statements of the same type don't get blank lines between them
 /// (unless either is multiline).
+#[inline]
 fn stmt_type_name(stmt: &JsStatement) -> &'static str {
     match stmt {
         JsStatement::Import(_) => "ImportDeclaration",
@@ -1835,41 +1855,97 @@ fn stmt_type_name(stmt: &JsStatement) -> &'static str {
 
 /// Infer the ESTree-like type name for a Raw statement based on its content.
 /// This allows Raw statements to participate correctly in blank-line logic.
+/// Dispatches on the first byte to minimize the number of `starts_with()` comparisons.
+#[inline]
 fn raw_stmt_type_name(code: &str) -> &'static str {
     let trimmed = code.trim_start();
-    if trimmed.starts_with("/*") || trimmed.starts_with("//") {
-        // Comments are typically part of the preceding/following statement group.
-        // Treat them as a unique type to get blank lines around them.
-        "Comment"
-    } else if trimmed.starts_with("import ") || trimmed.starts_with("import\t") {
-        "ImportDeclaration"
-    } else if trimmed.starts_with("export default ") {
-        "ExportDefaultDeclaration"
-    } else if trimmed.starts_with("export ") {
-        "ExportNamedDeclaration"
-    } else if trimmed.starts_with("var ")
-        || trimmed.starts_with("let ")
-        || trimmed.starts_with("const ")
-    {
-        "VariableDeclaration"
-    } else if trimmed.starts_with("function ") || trimmed.starts_with("async function ") {
-        "FunctionDeclaration"
-    } else if trimmed.starts_with("return ")
-        || trimmed.starts_with("return;")
-        || trimmed == "return"
-    {
-        "ReturnStatement"
-    } else if trimmed.starts_with("if ") || trimmed.starts_with("if(") {
-        "IfStatement"
-    } else if trimmed.starts_with("for ") || trimmed.starts_with("for(") {
-        "ForStatement"
-    } else if trimmed.starts_with("while ") || trimmed.starts_with("while(") {
-        "WhileStatement"
-    } else if trimmed.starts_with("class ") {
-        "ClassDeclaration"
-    } else {
-        // Default: treat as expression statement (most common case for raw code)
-        "ExpressionStatement"
+    let bytes = trimmed.as_bytes();
+    if bytes.is_empty() {
+        return "ExpressionStatement";
+    }
+    match bytes[0] {
+        b'/' => {
+            if trimmed.starts_with("/*") || trimmed.starts_with("//") {
+                "Comment"
+            } else {
+                "ExpressionStatement"
+            }
+        }
+        b'i' => {
+            if trimmed.starts_with("import ") || trimmed.starts_with("import\t") {
+                "ImportDeclaration"
+            } else if trimmed.starts_with("if ") || trimmed.starts_with("if(") {
+                "IfStatement"
+            } else {
+                "ExpressionStatement"
+            }
+        }
+        b'e' => {
+            if trimmed.starts_with("export default ") {
+                "ExportDefaultDeclaration"
+            } else if trimmed.starts_with("export ") {
+                "ExportNamedDeclaration"
+            } else {
+                "ExpressionStatement"
+            }
+        }
+        b'v' => {
+            if trimmed.starts_with("var ") {
+                "VariableDeclaration"
+            } else {
+                "ExpressionStatement"
+            }
+        }
+        b'l' => {
+            if trimmed.starts_with("let ") {
+                "VariableDeclaration"
+            } else {
+                "ExpressionStatement"
+            }
+        }
+        b'c' => {
+            if trimmed.starts_with("const ") {
+                "VariableDeclaration"
+            } else if trimmed.starts_with("class ") {
+                "ClassDeclaration"
+            } else {
+                "ExpressionStatement"
+            }
+        }
+        b'f' => {
+            if trimmed.starts_with("function ") {
+                "FunctionDeclaration"
+            } else if trimmed.starts_with("for ") || trimmed.starts_with("for(") {
+                "ForStatement"
+            } else {
+                "ExpressionStatement"
+            }
+        }
+        b'a' => {
+            if trimmed.starts_with("async function ") {
+                "FunctionDeclaration"
+            } else {
+                "ExpressionStatement"
+            }
+        }
+        b'r' => {
+            if trimmed.starts_with("return ")
+                || trimmed.starts_with("return;")
+                || trimmed == "return"
+            {
+                "ReturnStatement"
+            } else {
+                "ExpressionStatement"
+            }
+        }
+        b'w' => {
+            if trimmed.starts_with("while ") || trimmed.starts_with("while(") {
+                "WhileStatement"
+            } else {
+                "ExpressionStatement"
+            }
+        }
+        _ => "ExpressionStatement",
     }
 }
 
@@ -1897,27 +1973,34 @@ fn binary_op_precedence(op: &JsBinaryOp) -> u8 {
 }
 
 /// Escape special characters in a single-quoted string literal.
+#[inline]
 fn escape_string_single(s: &str) -> std::borrow::Cow<'_, str> {
-    // Fast path: check if any escaping is needed
-    if !s
-        .bytes()
-        .any(|b| b == b'\'' || b == b'\\' || b == b'\n' || b == b'\r')
+    // Fast path: use memchr to check if any escaping is needed.
+    // This is faster than iterating all bytes for strings that don't need escaping.
+    let bytes = s.as_bytes();
+    if memchr::memchr3(b'\'', b'\\', b'\n', bytes).is_none()
+        && memchr::memchr(b'\r', bytes).is_none()
     {
         return std::borrow::Cow::Borrowed(s);
     }
-    // Slow path: escape needed
-    let mut result = String::with_capacity(s.len());
-    for c in s.chars() {
-        match c {
-            '\'' => result.push_str("\\'"),
-            '\\' => result.push_str("\\\\"),
-            '\n' => result.push_str("\\n"),
-            '\r' => result.push_str("\\r"),
-            // Tab characters are kept as literal tabs to match the official
-            // Svelte compiler's esrap codegen output.
-            _ => result.push(c),
-        }
+    // Slow path: escape needed. Use byte-level scanning and copy slices
+    // between special characters to reduce per-character overhead.
+    let mut result = String::with_capacity(s.len() + 8);
+    let mut last_copied = 0;
+    for (i, &b) in bytes.iter().enumerate() {
+        let replacement = match b {
+            b'\'' => "\\'",
+            b'\\' => "\\\\",
+            b'\n' => "\\n",
+            b'\r' => "\\r",
+            _ => continue,
+        };
+        // Copy the unmodified slice before this special character
+        result.push_str(&s[last_copied..i]);
+        result.push_str(replacement);
+        last_copied = i + 1;
     }
+    result.push_str(&s[last_copied..]);
     std::borrow::Cow::Owned(result)
 }
 

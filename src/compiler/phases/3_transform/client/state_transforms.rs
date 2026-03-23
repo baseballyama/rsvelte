@@ -169,7 +169,8 @@ pub(super) fn body_references_identifier(body: &str, identifier: &str) -> bool {
 /// a template literal won't match the variable name `circle`.
 pub(super) fn strip_string_literal_text(code: &str) -> String {
     // Fast path: if no string delimiters exist, return as-is
-    if !code.contains('\'') && !code.contains('"') && !code.contains('`') {
+    // Uses memchr3 for SIMD-accelerated search of all three delimiters at once
+    if memchr::memchr3(b'\'', b'"', b'`', code.as_bytes()).is_none() {
         return code.to_string();
     }
 

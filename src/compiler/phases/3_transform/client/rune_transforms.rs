@@ -86,14 +86,20 @@ pub(super) fn transform_client_runes_with_skip_and_state(
     let effect_is_store_sub = store_sub_vars.iter().any(|s| s == "$effect");
     let derived_is_store_sub = store_sub_vars.iter().any(|s| s == "$derived");
 
-    // Also check if rune names appear as function parameters in this statement.
+    // Lazily check if rune names appear as function parameters in this statement.
+    // is_function_parameter_in_statement is expensive (scans the entire line), so
+    // only call it when we actually need it (i.e., the rune is not a store sub).
     // When a function declares `function bar($derived, $effect)`, those names shadow
     // the runes within the function body, so rune transforms should be skipped.
-    // Note: This applies to the entire statement because the statement is the whole
-    // function body including the parameter list.
-    let state_is_func_param = is_function_parameter_in_statement(line, "$state");
-    let effect_is_func_param = is_function_parameter_in_statement(line, "$effect");
-    let derived_is_func_param = is_function_parameter_in_statement(line, "$derived");
+    let state_is_func_param = !state_is_store_sub
+        && line.contains("$state")
+        && is_function_parameter_in_statement(line, "$state");
+    let effect_is_func_param = !effect_is_store_sub
+        && line.contains("$effect")
+        && is_function_parameter_in_statement(line, "$effect");
+    let derived_is_func_param = !derived_is_store_sub
+        && line.contains("$derived")
+        && is_function_parameter_in_statement(line, "$derived");
 
     // Skip all $state rune transforms if $state is actually a store subscription or function param
     if !state_is_store_sub && !state_is_func_param {
@@ -570,30 +576,13 @@ pub(super) fn transform_client_runes_with_skip_and_state(
 
     // Skip all $effect rune transforms if $effect is actually a store subscription or function param
     if !effect_is_store_sub && !effect_is_func_param {
-        // Transform $effect.pending() to $.eager($.pending) - MUST be before $effect transformation
-        if result.contains("$effect.pending()") {
-            result = result.replace("$effect.pending()", "$.eager($.pending)");
-        }
-
-        // Transform $effect.pre(x) to $.user_pre_effect(x) - MUST be before $effect transformation
-        if result.contains("$effect.pre(") {
-            result = result.replace("$effect.pre(", "$.user_pre_effect(");
-        }
-
-        // Transform $effect.root(x) to $.effect_root(x)
-        if result.contains("$effect.root(") {
-            result = result.replace("$effect.root(", "$.effect_root(");
-        }
-
-        // Transform $effect.tracking() to $.effect_tracking()
-        if result.contains("$effect.tracking()") {
-            result = result.replace("$effect.tracking()", "$.effect_tracking()");
-        }
-
-        // Transform $effect(x) to $.user_effect(x)
-        if result.contains("$effect(") {
-            result = result.replace("$effect(", "$.user_effect(");
-        }
+        // Single-pass replacement of all $effect patterns:
+        //   $effect.pending() -> $.eager($.pending)
+        //   $effect.pre( -> $.user_pre_effect(
+        //   $effect.root( -> $.effect_root(
+        //   $effect.tracking() -> $.effect_tracking()
+        //   $effect( -> $.user_effect(
+        result = replace_effect_patterns(&result);
     } // end if !effect_is_store_sub
 
     // Transform $props.id() to $.props_id()
@@ -1544,28 +1533,86 @@ pub(super) fn extract_operand_forward(s: &str) -> (String, usize) {
 /// Apply $effect-related rune transforms to a string.
 /// This is used to ensure that early returns from `transform_client_runes_with_skip_and_state`
 /// still get $effect transforms applied.
-pub(super) fn apply_effect_rune_transforms(mut result: String) -> String {
-    // Transform $effect.pending() to $.eager($.pending)
-    if result.contains("$effect.pending()") {
-        result = result.replace("$effect.pending()", "$.eager($.pending)");
+pub(super) fn apply_effect_rune_transforms(result: String) -> String {
+    // Single-pass scan for all $effect patterns.
+    // This replaces 5 separate contains()+replace() calls (10 scans) with one pass.
+    // Patterns are checked longest-first to avoid partial matches:
+    //   $effect.pending() -> $.eager($.pending)
+    //   $effect.tracking() -> $.effect_tracking()
+    //   $effect.root( -> $.effect_root(
+    //   $effect.pre( -> $.user_pre_effect(
+    //   $effect( -> $.user_effect(
+    replace_effect_patterns(&result)
+}
+
+/// Single-pass replacement of all $effect rune patterns in a string.
+/// Scans the string once looking for '$effect' and then determines which
+/// specific pattern matched, building the output in one allocation.
+fn replace_effect_patterns(input: &str) -> String {
+    let bytes = input.as_bytes();
+    let len = bytes.len();
+    // Quick check: if no '$' present, return early
+    if memchr::memchr(b'$', bytes).is_none() {
+        return input.to_string();
     }
-    // Transform $effect.pre(x) to $.user_pre_effect(x)
-    if result.contains("$effect.pre(") {
-        result = result.replace("$effect.pre(", "$.user_pre_effect(");
+    // Quick check: if "$effect" doesn't appear, return early
+    if !input.contains("$effect") {
+        return input.to_string();
     }
-    // Transform $effect.root(x) to $.effect_root(x)
-    if result.contains("$effect.root(") {
-        result = result.replace("$effect.root(", "$.effect_root(");
+
+    let mut out = String::with_capacity(input.len() + 32);
+    let mut last_copied = 0; // byte index of start of not-yet-copied region
+
+    let mut i = 0;
+    while i < len {
+        if bytes[i] == b'$' && i + 7 <= len && &bytes[i..i + 7] == b"$effect" {
+            let after = i + 7;
+            if after < len && bytes[after] == b'.' {
+                // $effect.XXX patterns
+                if input[after..].starts_with(".pending()") {
+                    out.push_str(&input[last_copied..i]);
+                    out.push_str("$.eager($.pending)");
+                    i = after + 10; // skip ".pending()"
+                    last_copied = i;
+                    continue;
+                } else if input[after..].starts_with(".tracking()") {
+                    out.push_str(&input[last_copied..i]);
+                    out.push_str("$.effect_tracking()");
+                    i = after + 11; // skip ".tracking()"
+                    last_copied = i;
+                    continue;
+                } else if input[after..].starts_with(".root(") {
+                    out.push_str(&input[last_copied..i]);
+                    out.push_str("$.effect_root(");
+                    i = after + 6; // skip ".root("
+                    last_copied = i;
+                    continue;
+                } else if input[after..].starts_with(".pre(") {
+                    out.push_str(&input[last_copied..i]);
+                    out.push_str("$.user_pre_effect(");
+                    i = after + 5; // skip ".pre("
+                    last_copied = i;
+                    continue;
+                }
+            } else if after < len && bytes[after] == b'(' {
+                // $effect( -> $.user_effect(
+                out.push_str(&input[last_copied..i]);
+                out.push_str("$.user_effect(");
+                i = after + 1; // skip "("
+                last_copied = i;
+                continue;
+            }
+        }
+        i += 1;
     }
-    // Transform $effect.tracking() to $.effect_tracking()
-    if result.contains("$effect.tracking()") {
-        result = result.replace("$effect.tracking()", "$.effect_tracking()");
+
+    // If no replacements were made, return original
+    if last_copied == 0 {
+        return input.to_string();
     }
-    // Transform $effect(x) to $.user_effect(x)
-    if result.contains("$effect(") {
-        result = result.replace("$effect(", "$.user_effect(");
-    }
-    result
+    // Append remaining tail
+    out.push_str(&input[last_copied..]);
+    out
 }
 
 /// Transform `export let x = value` to `let x = $.prop($$props, 'x', 12, value)`.
