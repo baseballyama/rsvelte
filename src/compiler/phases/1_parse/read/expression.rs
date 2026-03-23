@@ -4308,75 +4308,46 @@ pub fn parse_program(
         // OXC stores all comments at the program level, so we distribute them here.
         let all_comments: Vec<_> = result.program.comments.iter().collect();
         let mut comment_idx = 0;
+        let has_comments = !all_comments.is_empty();
 
-        let mut body: Vec<Value> = Vec::new();
+        let mut body: Vec<Value> = Vec::with_capacity(program.body.len());
         for stmt in program.body.iter() {
             if let Some(stmt_node) = convert_statement_for_program(stmt, offset, line_offsets) {
-                let stmt_start = stmt.span().start;
+                if has_comments {
+                    let stmt_start = stmt.span().start;
 
-                // Collect comments that appear before this statement
-                let mut leading = Vec::new();
-                while comment_idx < all_comments.len()
-                    && all_comments[comment_idx].span.end <= stmt_start
-                {
-                    let comment = all_comments[comment_idx];
-                    let comment_start = offset + comment.span.start as usize;
-                    let comment_end = offset + comment.span.end as usize;
-                    let comment_type = match comment.kind {
-                        oxc_ast::ast::CommentKind::Line => "Line",
-                        oxc_ast::ast::CommentKind::SingleLineBlock
-                        | oxc_ast::ast::CommentKind::MultiLineBlock => "Block",
-                    };
-                    let comment_text = if comment_end <= offset + content.len() {
-                        let raw = &content[comment.span.start as usize..comment.span.end as usize];
-                        match comment.kind {
-                            oxc_ast::ast::CommentKind::Line => {
-                                raw.strip_prefix("//").unwrap_or(raw).to_string()
-                            }
-                            oxc_ast::ast::CommentKind::SingleLineBlock
-                            | oxc_ast::ast::CommentKind::MultiLineBlock => raw
-                                .strip_prefix("/*")
-                                .and_then(|s| s.strip_suffix("*/"))
-                                .unwrap_or(raw)
-                                .to_string(),
+                    // Collect comments that appear before this statement
+                    let mut leading = Vec::new();
+                    while comment_idx < all_comments.len()
+                        && all_comments[comment_idx].span.end <= stmt_start
+                    {
+                        let comment = all_comments[comment_idx];
+                        leading.push(build_comment_value(comment, content, offset));
+                        comment_idx += 1;
+                    }
+
+                    // Skip comments that are inside the statement
+                    while comment_idx < all_comments.len()
+                        && all_comments[comment_idx].span.start < stmt.span().end
+                    {
+                        comment_idx += 1;
+                    }
+
+                    if !leading.is_empty() {
+                        // Only convert to Value when we need to attach comments
+                        let mut stmt_value = stmt_node.to_value();
+                        if let Value::Object(ref mut obj) = stmt_value {
+                            obj.insert("leadingComments".to_string(), Value::Array(leading));
                         }
+                        body.push(stmt_value);
                     } else {
-                        String::new()
-                    };
-
-                    let mut comment_obj = Map::new();
-                    comment_obj.insert("type".to_string(), Value::String(comment_type.to_string()));
-                    comment_obj.insert("value".to_string(), Value::String(comment_text));
-                    comment_obj.insert(
-                        "start".to_string(),
-                        Value::Number((comment_start as i64).into()),
-                    );
-                    comment_obj.insert(
-                        "end".to_string(),
-                        Value::Number((comment_end as i64).into()),
-                    );
-                    leading.push(Value::Object(comment_obj));
-                    comment_idx += 1;
+                        // No comments - still need Value for the body array
+                        body.push(stmt_node.to_value());
+                    }
+                } else {
+                    // No comments at all in the program - fast path
+                    body.push(stmt_node.to_value());
                 }
-
-                // Skip comments that are inside the statement
-                while comment_idx < all_comments.len()
-                    && all_comments[comment_idx].span.start < stmt.span().end
-                {
-                    comment_idx += 1;
-                }
-
-                // Convert JsNode to Value for comment attachment and body array
-                let mut stmt_value = stmt_node.to_value();
-
-                // Attach leading comments to the statement
-                if !leading.is_empty()
-                    && let Value::Object(ref mut obj) = stmt_value
-                {
-                    obj.insert("leadingComments".to_string(), Value::Array(leading));
-                }
-
-                body.push(stmt_value);
             }
         }
         obj.insert("body".to_string(), Value::Array(body));
@@ -4387,50 +4358,10 @@ pub fn parse_program(
         );
 
         // Store all comments on the Program as trailingComments (for backward compat)
-        if !result.program.comments.is_empty() {
-            let comments: Vec<Value> = result
-                .program
-                .comments
+        if has_comments {
+            let comments: Vec<Value> = all_comments
                 .iter()
-                .map(|comment| {
-                    let mut comment_obj = Map::new();
-                    let comment_type = match comment.kind {
-                        oxc_ast::ast::CommentKind::Line => "Line",
-                        oxc_ast::ast::CommentKind::SingleLineBlock
-                        | oxc_ast::ast::CommentKind::MultiLineBlock => "Block",
-                    };
-                    comment_obj.insert("type".to_string(), Value::String(comment_type.to_string()));
-
-                    let comment_start = offset + comment.span.start as usize;
-                    let comment_end = offset + comment.span.end as usize;
-                    let comment_text = if comment_end <= offset + content.len() {
-                        let raw = &content[comment.span.start as usize..comment.span.end as usize];
-                        match comment.kind {
-                            oxc_ast::ast::CommentKind::Line => {
-                                raw.strip_prefix("//").unwrap_or(raw).to_string()
-                            }
-                            oxc_ast::ast::CommentKind::SingleLineBlock
-                            | oxc_ast::ast::CommentKind::MultiLineBlock => raw
-                                .strip_prefix("/*")
-                                .and_then(|s| s.strip_suffix("*/"))
-                                .unwrap_or(raw)
-                                .to_string(),
-                        }
-                    } else {
-                        String::new()
-                    };
-
-                    comment_obj.insert("value".to_string(), Value::String(comment_text));
-                    comment_obj.insert(
-                        "start".to_string(),
-                        Value::Number((comment_start as i64).into()),
-                    );
-                    comment_obj.insert(
-                        "end".to_string(),
-                        Value::Number((comment_end as i64).into()),
-                    );
-                    Value::Object(comment_obj)
-                })
+                .map(|comment| build_comment_value(comment, content, offset))
                 .collect();
             obj.insert("trailingComments".to_string(), Value::Array(comments));
         }
@@ -4465,6 +4396,45 @@ pub fn parse_program(
     })
 }
 
+/// Build a comment JSON value from an OXC comment.
+fn build_comment_value(comment: &oxc_ast::ast::Comment, content: &str, offset: usize) -> Value {
+    let comment_start = offset + comment.span.start as usize;
+    let comment_end = offset + comment.span.end as usize;
+    let comment_type = match comment.kind {
+        oxc_ast::ast::CommentKind::Line => "Line",
+        oxc_ast::ast::CommentKind::SingleLineBlock | oxc_ast::ast::CommentKind::MultiLineBlock => {
+            "Block"
+        }
+    };
+    let comment_text = if comment_end <= offset + content.len() {
+        let raw = &content[comment.span.start as usize..comment.span.end as usize];
+        match comment.kind {
+            oxc_ast::ast::CommentKind::Line => raw.strip_prefix("//").unwrap_or(raw).to_string(),
+            oxc_ast::ast::CommentKind::SingleLineBlock
+            | oxc_ast::ast::CommentKind::MultiLineBlock => raw
+                .strip_prefix("/*")
+                .and_then(|s| s.strip_suffix("*/"))
+                .unwrap_or(raw)
+                .to_string(),
+        }
+    } else {
+        String::new()
+    };
+
+    let mut comment_obj = Map::new();
+    comment_obj.insert("type".to_string(), Value::String(comment_type.to_string()));
+    comment_obj.insert("value".to_string(), Value::String(comment_text));
+    comment_obj.insert(
+        "start".to_string(),
+        Value::Number((comment_start as i64).into()),
+    );
+    comment_obj.insert(
+        "end".to_string(),
+        Value::Number((comment_end as i64).into()),
+    );
+    Value::Object(comment_obj)
+}
+
 /// Recursively distribute comments to nested statement bodies.
 ///
 /// OXC stores all comments at the program level. The main distribution loop
@@ -4477,47 +4447,15 @@ fn distribute_comments_to_nested_bodies(
     content: &str,
     offset: usize,
 ) {
-    // Build a list of all comment JSON values with their OXC start positions
-    // (relative to script content, not document)
+    // Build a list of all comment JSON values with their document-offset end positions
     let comment_values: Vec<(u32, Value)> = all_comments
         .iter()
         .map(|comment| {
-            let comment_start = offset + comment.span.start as usize;
             let comment_end = offset + comment.span.end as usize;
-            let comment_type = match comment.kind {
-                oxc_ast::ast::CommentKind::Line => "Line",
-                oxc_ast::ast::CommentKind::SingleLineBlock
-                | oxc_ast::ast::CommentKind::MultiLineBlock => "Block",
-            };
-            let comment_text = if comment_end <= offset + content.len() {
-                let raw = &content[comment.span.start as usize..comment.span.end as usize];
-                match comment.kind {
-                    oxc_ast::ast::CommentKind::Line => {
-                        raw.strip_prefix("//").unwrap_or(raw).to_string()
-                    }
-                    oxc_ast::ast::CommentKind::SingleLineBlock
-                    | oxc_ast::ast::CommentKind::MultiLineBlock => raw
-                        .strip_prefix("/*")
-                        .and_then(|s| s.strip_suffix("*/"))
-                        .unwrap_or(raw)
-                        .to_string(),
-                }
-            } else {
-                String::new()
-            };
-
-            let mut comment_obj = Map::new();
-            comment_obj.insert("type".to_string(), Value::String(comment_type.to_string()));
-            comment_obj.insert("value".to_string(), Value::String(comment_text));
-            comment_obj.insert(
-                "start".to_string(),
-                Value::Number((comment_start as i64).into()),
-            );
-            comment_obj.insert(
-                "end".to_string(),
-                Value::Number((comment_end as i64).into()),
-            );
-            (comment_end as u32, Value::Object(comment_obj))
+            (
+                comment_end as u32,
+                build_comment_value(comment, content, offset),
+            )
         })
         .collect();
 
@@ -4744,185 +4682,144 @@ fn convert_statement_for_program(
         oxc_ast::ast::Statement::ExportNamedDeclaration(export_decl) => {
             let start = offset + export_decl.span.start as usize;
             let end = offset + export_decl.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("ExportNamedDeclaration".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
             // Handle declaration if present (e.g., export let x;)
-            if let Some(decl) = &export_decl.declaration {
+            let declaration = export_decl.declaration.as_ref().map(|decl| {
                 let decl_value = convert_declaration_for_program(decl, offset, line_offsets);
-                obj.insert("declaration".to_string(), decl_value);
-            } else {
-                obj.insert("declaration".to_string(), Value::Null);
-            }
+                Box::new(JsNode::Raw(decl_value))
+            });
 
             // Handle specifiers
-            let specifiers: Vec<Value> = export_decl
+            let specifiers: Vec<JsNode> = export_decl
                 .specifiers
                 .iter()
                 .map(|spec| {
                     let spec_start = offset + spec.span.start as usize;
                     let spec_end = offset + spec.span.end as usize;
-                    let mut spec_obj = Map::new();
-                    spec_obj.insert(
-                        "type".to_string(),
-                        Value::String("ExportSpecifier".to_string()),
-                    );
-                    spec_obj.insert(
-                        "start".to_string(),
-                        Value::Number((spec_start as i64).into()),
-                    );
-                    spec_obj.insert("end".to_string(), Value::Number((spec_end as i64).into()));
-                    if let Some(loc) = create_loc(spec_start, spec_end, line_offsets) {
-                        spec_obj.insert("loc".to_string(), loc);
-                    }
+                    let spec_loc = create_typed_loc(spec_start, spec_end, line_offsets);
 
-                    // local
                     let local_start = offset + spec.local.span().start as usize;
                     let local_end = offset + spec.local.span().end as usize;
                     let local_name = spec.local.name().as_str();
-                    spec_obj.insert(
-                        "local".to_string(),
-                        create_identifier(local_name, local_start, local_end, line_offsets)
-                            .as_json()
-                            .clone(),
-                    );
+                    let local = expr_to_node(create_identifier(
+                        local_name,
+                        local_start,
+                        local_end,
+                        line_offsets,
+                    ));
 
-                    // exported
                     let exported_start = offset + spec.exported.span().start as usize;
                     let exported_end = offset + spec.exported.span().end as usize;
                     let exported_name = spec.exported.name().as_str();
-                    spec_obj.insert(
-                        "exported".to_string(),
-                        create_identifier(
-                            exported_name,
-                            exported_start,
-                            exported_end,
-                            line_offsets,
-                        )
-                        .as_json()
-                        .clone(),
-                    );
+                    let exported = expr_to_node(create_identifier(
+                        exported_name,
+                        exported_start,
+                        exported_end,
+                        line_offsets,
+                    ));
 
-                    // exportKind on specifier (only for type-only specifiers: `export { type Foo }`)
-                    // Acorn (official Svelte) only emits this field for TypeScript type exports
-                    if spec.export_kind == oxc_ast::ast::ImportOrExportKind::Type {
-                        spec_obj
-                            .insert("exportKind".to_string(), Value::String("type".to_string()));
+                    let export_kind = if spec.export_kind == oxc_ast::ast::ImportOrExportKind::Type
+                    {
+                        Some(CompactString::from("type"))
+                    } else {
+                        None
+                    };
+
+                    JsNode::ExportSpecifier {
+                        start: spec_start as u32,
+                        end: spec_end as u32,
+                        loc: spec_loc,
+                        local: Box::new(local),
+                        exported: Box::new(exported),
+                        export_kind,
                     }
-
-                    Value::Object(spec_obj)
                 })
                 .collect();
-            obj.insert("specifiers".to_string(), Value::Array(specifiers));
 
-            // Handle exportKind (only for TypeScript type-only exports: `export type { ... }`)
-            // Acorn (official Svelte) only emits this field for TypeScript type exports
-            if export_decl.export_kind == oxc_ast::ast::ImportOrExportKind::Type {
-                obj.insert("exportKind".to_string(), Value::String("type".to_string()));
-            }
+            let export_kind = if export_decl.export_kind == oxc_ast::ast::ImportOrExportKind::Type {
+                Some(CompactString::from("type"))
+            } else {
+                None
+            };
 
-            // Handle source
-            if let Some(source) = &export_decl.source {
+            let source = export_decl.source.as_ref().map(|source| {
                 let source_start = offset + source.span.start as usize;
                 let source_end = offset + source.span.end as usize;
                 let raw = source.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
-                obj.insert(
-                    "source".to_string(),
-                    create_string_literal(
-                        &source.value,
-                        raw,
-                        source_start,
-                        source_end,
-                        line_offsets,
-                    )
-                    .as_json()
-                    .clone(),
-                );
-            } else {
-                obj.insert("source".to_string(), Value::Null);
-            }
+                Box::new(expr_to_node(create_string_literal(
+                    &source.value,
+                    raw,
+                    source_start,
+                    source_end,
+                    line_offsets,
+                )))
+            });
 
-            // attributes (for import attributes)
-            obj.insert("attributes".to_string(), Value::Array(vec![]));
-
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::ExportNamedDeclaration {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                declaration,
+                specifiers,
+                source,
+                export_kind,
+                attributes: vec![],
+            })
         }
         oxc_ast::ast::Statement::ExportDefaultDeclaration(export_decl) => {
             let start = offset + export_decl.span.start as usize;
             let end = offset + export_decl.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("ExportDefaultDeclaration".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
             // Handle declaration (the exported value)
-            let decl_value = match &export_decl.declaration {
+            let declaration = match &export_decl.declaration {
                 oxc_ast::ast::ExportDefaultDeclarationKind::FunctionDeclaration(func_decl) => {
                     let func_start = offset + func_decl.span.start as usize;
                     let func_end = offset + func_decl.span.end as usize;
-                    let mut func_obj = Map::new();
-                    func_obj.insert(
-                        "type".to_string(),
-                        Value::String("FunctionDeclaration".to_string()),
-                    );
-                    func_obj.insert(
-                        "start".to_string(),
-                        Value::Number((func_start as i64).into()),
-                    );
-                    func_obj.insert("end".to_string(), Value::Number((func_end as i64).into()));
-                    if let Some(loc) = create_loc(func_start, func_end, line_offsets) {
-                        func_obj.insert("loc".to_string(), loc);
-                    }
+                    let func_loc = create_typed_loc(func_start, func_end, line_offsets);
 
-                    if let Some(id) = &func_decl.id {
+                    let id_node = func_decl.id.as_ref().map(|id| {
                         let id_start = offset + id.span.start as usize;
                         let id_end = offset + id.span.end as usize;
-                        let id_expr = create_identifier(&id.name, id_start, id_end, line_offsets);
-                        func_obj.insert("id".to_string(), id_expr.as_json().clone());
-                    } else {
-                        func_obj.insert("id".to_string(), Value::Null);
-                    }
+                        Box::new(expr_to_node(create_identifier(
+                            &id.name,
+                            id_start,
+                            id_end,
+                            line_offsets,
+                        )))
+                    });
 
-                    func_obj.insert("generator".to_string(), Value::Bool(func_decl.generator));
-                    func_obj.insert("async".to_string(), Value::Bool(func_decl.r#async));
-
-                    let params: Vec<Value> = func_decl
+                    let params: Vec<JsNode> = func_decl
                         .params
                         .items
                         .iter()
                         .map(|param| {
-                            convert_formal_parameter(param, offset, line_offsets)
-                                .as_json()
-                                .clone()
+                            expr_to_node(convert_formal_parameter(param, offset, line_offsets))
                         })
                         .collect();
-                    func_obj.insert("params".to_string(), Value::Array(params));
 
-                    if let Some(body) = &func_decl.body {
-                        let body_value =
-                            convert_function_body_for_program(body, offset, line_offsets);
-                        func_obj.insert("body".to_string(), body_value);
-                    } else {
-                        func_obj.insert("body".to_string(), Value::Null);
+                    let body_node = func_decl.body.as_ref().map(|body| {
+                        Box::new(convert_function_body_for_program_as_node(
+                            body,
+                            offset,
+                            line_offsets,
+                        ))
+                    });
+
+                    JsNode::FunctionDeclaration {
+                        start: func_start as u32,
+                        end: func_end as u32,
+                        loc: func_loc,
+                        id: id_node,
+                        params,
+                        body: body_node,
+                        generator: func_decl.generator,
+                        r#async: func_decl.r#async,
                     }
-
-                    Value::Object(func_obj)
                 }
                 oxc_ast::ast::ExportDefaultDeclarationKind::ClassDeclaration(class_decl) => {
+                    // Class declarations in export default are complex, use Raw fallback
                     let class_start = offset + class_decl.span.start as usize;
                     let class_end = offset + class_decl.span.end as usize;
                     let mut class_obj = Map::new();
@@ -4948,7 +4845,6 @@ fn convert_statement_for_program(
                         class_obj.insert("id".to_string(), Value::Null);
                     }
 
-                    // Add superClass if present
                     if let Some(super_class) = &class_decl.super_class {
                         let super_expr =
                             convert_expression_for_program(super_class, offset, line_offsets);
@@ -4957,48 +4853,37 @@ fn convert_statement_for_program(
                         class_obj.insert("superClass".to_string(), Value::Null);
                     }
 
-                    // Add class body
                     let body =
                         convert_class_body_for_program(&class_decl.body, offset, line_offsets);
                     class_obj.insert("body".to_string(), body);
 
-                    Value::Object(class_obj)
+                    JsNode::Raw(Value::Object(class_obj))
                 }
                 oxc_ast::ast::ExportDefaultDeclarationKind::TSInterfaceDeclaration(_) => {
-                    // TypeScript interface - this would have been removed by TypeScript stripping
-                    Value::Null
+                    JsNode::Null
                 }
                 _ => {
-                    // Expression (e.g., export default 42; or export default foo;)
                     if let Some(expr) = export_decl.declaration.as_expression() {
-                        convert_expression_for_program(expr, offset, line_offsets)
-                            .as_json()
-                            .clone()
+                        expr_to_node(convert_expression_for_program(expr, offset, line_offsets))
                     } else {
-                        Value::Null
+                        JsNode::Null
                     }
                 }
             };
-            obj.insert("declaration".to_string(), decl_value);
 
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::ExportDefaultDeclaration {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                declaration: Box::new(declaration),
+            })
         }
         oxc_ast::ast::Statement::ImportDeclaration(import_decl) => {
             let start = offset + import_decl.span.start as usize;
             let end = offset + import_decl.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("ImportDeclaration".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
-            // Handle specifiers
-            let specifiers: Vec<Value> = import_decl
+            let specifiers: Vec<JsNode> = import_decl
                 .specifiers
                 .as_ref()
                 .map(|specs| {
@@ -5008,91 +4893,74 @@ fn convert_statement_for_program(
                         .collect()
                 })
                 .unwrap_or_default();
-            obj.insert("specifiers".to_string(), Value::Array(specifiers));
 
-            // Source
-            let source = &import_decl.source;
-            let source_start = offset + source.span.start as usize;
-            let source_end = offset + source.span.end as usize;
-            let raw = source.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
-            obj.insert(
-                "source".to_string(),
-                create_string_literal(&source.value, raw, source_start, source_end, line_offsets)
-                    .as_json()
-                    .clone(),
-            );
+            let source_lit = &import_decl.source;
+            let source_start = offset + source_lit.span.start as usize;
+            let source_end = offset + source_lit.span.end as usize;
+            let raw = source_lit.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
+            let source = expr_to_node(create_string_literal(
+                &source_lit.value,
+                raw,
+                source_start,
+                source_end,
+                line_offsets,
+            ));
 
-            // Handle importKind (only for TypeScript type-only imports: `import type { ... }`)
-            // Acorn (official Svelte) only emits this field for TypeScript type imports
-            if import_decl.import_kind == oxc_ast::ast::ImportOrExportKind::Type {
-                obj.insert("importKind".to_string(), Value::String("type".to_string()));
-            }
+            let import_kind = if import_decl.import_kind == oxc_ast::ast::ImportOrExportKind::Type {
+                Some(CompactString::from("type"))
+            } else {
+                None
+            };
 
-            // attributes (for import attributes)
-            obj.insert("attributes".to_string(), Value::Array(vec![]));
-
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::ImportDeclaration {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                specifiers,
+                source: Box::new(source),
+                import_kind,
+                attributes: vec![],
+            })
         }
         oxc_ast::ast::Statement::IfStatement(if_stmt) => {
             let start = offset + if_stmt.span.start as usize;
             let end = offset + if_stmt.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert("type".to_string(), Value::String("IfStatement".to_string()));
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
-            // test
             let test = convert_expression_for_program(&if_stmt.test, offset, line_offsets);
-            obj.insert("test".to_string(), test.as_json().clone());
-
-            // consequent
             let consequent =
                 convert_statement_for_program(&if_stmt.consequent, offset, line_offsets);
-            obj.insert(
-                "consequent".to_string(),
-                consequent.map(|n| n.to_value()).unwrap_or(Value::Null),
-            );
+            let alternate = if_stmt
+                .alternate
+                .as_ref()
+                .and_then(|alt| convert_statement_for_program(alt, offset, line_offsets));
 
-            // alternate
-            if let Some(ref alternate) = if_stmt.alternate {
-                let alt = convert_statement_for_program(alternate, offset, line_offsets);
-                obj.insert(
-                    "alternate".to_string(),
-                    alt.map(|n| n.to_value()).unwrap_or(Value::Null),
-                );
-            } else {
-                obj.insert("alternate".to_string(), Value::Null);
-            }
-
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::IfStatement {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                test: Box::new(expr_to_node(test)),
+                consequent: Box::new(consequent.unwrap_or(JsNode::Null)),
+                alternate: alternate.map(Box::new),
+            })
         }
         oxc_ast::ast::Statement::BlockStatement(block_stmt) => {
             let start = offset + block_stmt.span.start as usize;
             let end = offset + block_stmt.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("BlockStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
-            // body
-            let body: Vec<Value> = block_stmt
+            let body: Vec<JsNode> = block_stmt
                 .body
                 .iter()
                 .filter_map(|stmt| convert_statement_for_program(stmt, offset, line_offsets))
-                .map(|n| n.to_value())
                 .collect();
-            obj.insert("body".to_string(), Value::Array(body));
 
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::BlockStatement {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                body,
+            })
         }
         oxc_ast::ast::Statement::ClassDeclaration(class_decl) => {
             let start = offset + class_decl.span.start as usize;
@@ -5175,616 +5043,475 @@ fn convert_statement_for_program(
         oxc_ast::ast::Statement::ReturnStatement(ret_stmt) => {
             let start = offset + ret_stmt.span.start as usize;
             let end = offset + ret_stmt.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("ReturnStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
-            // argument
-            if let Some(arg) = &ret_stmt.argument {
-                let arg_value = convert_expression_for_program(arg, offset, line_offsets);
-                obj.insert("argument".to_string(), arg_value.as_json().clone());
-            } else {
-                obj.insert("argument".to_string(), Value::Null);
-            }
+            let argument = ret_stmt.argument.as_ref().map(|arg| {
+                Box::new(expr_to_node(convert_expression_for_program(
+                    arg,
+                    offset,
+                    line_offsets,
+                )))
+            });
 
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::ReturnStatement {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                argument,
+            })
         }
         oxc_ast::ast::Statement::ForStatement(for_stmt) => {
             let start = offset + for_stmt.span.start as usize;
             let end = offset + for_stmt.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("ForStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
-            // init
-            if let Some(init) = &for_stmt.init {
-                let init_value = match init {
-                    oxc_ast::ast::ForStatementInit::VariableDeclaration(vd) => {
-                        convert_variable_declaration_directly(vd, offset, line_offsets)
+            let init = for_stmt.init.as_ref().map(|init| match init {
+                oxc_ast::ast::ForStatementInit::VariableDeclaration(vd) => Box::new(
+                    convert_variable_declaration_as_node(vd, offset, line_offsets),
+                ),
+                _ => {
+                    if let Some(expr) = init.as_expression() {
+                        Box::new(expr_to_node(convert_expression_for_program(
+                            expr,
+                            offset,
+                            line_offsets,
+                        )))
+                    } else {
+                        Box::new(JsNode::Null)
                     }
-                    _ => {
-                        if let Some(expr) = init.as_expression() {
-                            convert_expression_for_program(expr, offset, line_offsets)
-                                .as_json()
-                                .clone()
-                        } else {
-                            Value::Null
-                        }
-                    }
-                };
-                obj.insert("init".to_string(), init_value);
-            } else {
-                obj.insert("init".to_string(), Value::Null);
-            }
+                }
+            });
 
-            // test
-            if let Some(test) = &for_stmt.test {
-                let test_value = convert_expression_for_program(test, offset, line_offsets);
-                obj.insert("test".to_string(), test_value.as_json().clone());
-            } else {
-                obj.insert("test".to_string(), Value::Null);
-            }
+            let test = for_stmt.test.as_ref().map(|test| {
+                Box::new(expr_to_node(convert_expression_for_program(
+                    test,
+                    offset,
+                    line_offsets,
+                )))
+            });
 
-            // update
-            if let Some(update) = &for_stmt.update {
-                let update_value = convert_expression_for_program(update, offset, line_offsets);
-                obj.insert("update".to_string(), update_value.as_json().clone());
-            } else {
-                obj.insert("update".to_string(), Value::Null);
-            }
+            let update = for_stmt.update.as_ref().map(|update| {
+                Box::new(expr_to_node(convert_expression_for_program(
+                    update,
+                    offset,
+                    line_offsets,
+                )))
+            });
 
-            // body
-            if let Some(body_node) =
-                convert_statement_for_program(&for_stmt.body, offset, line_offsets)
-            {
-                obj.insert("body".to_string(), body_node.to_value());
-            } else {
-                obj.insert("body".to_string(), Value::Null);
-            }
+            let body = convert_statement_for_program(&for_stmt.body, offset, line_offsets)
+                .unwrap_or(JsNode::Null);
 
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::ForStatement {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                init,
+                test,
+                update,
+                body: Box::new(body),
+            })
         }
         oxc_ast::ast::Statement::ForOfStatement(for_of_stmt) => {
             let start = offset + for_of_stmt.span.start as usize;
             let end = offset + for_of_stmt.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("ForOfStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
-            obj.insert("await".to_string(), Value::Bool(for_of_stmt.r#await));
+            let loc = create_typed_loc(start, end, line_offsets);
 
-            // left
-            let left_value = match &for_of_stmt.left {
+            let left = match &for_of_stmt.left {
                 oxc_ast::ast::ForStatementLeft::VariableDeclaration(vd) => {
-                    convert_variable_declaration_directly(vd, offset, line_offsets)
+                    convert_variable_declaration_as_node(vd, offset, line_offsets)
                 }
-                _ => Value::Null,
+                _ => JsNode::Null,
             };
-            obj.insert("left".to_string(), left_value);
 
-            // right
-            let right_value =
-                convert_expression_for_program(&for_of_stmt.right, offset, line_offsets);
-            obj.insert("right".to_string(), right_value.as_json().clone());
+            let right = expr_to_node(convert_expression_for_program(
+                &for_of_stmt.right,
+                offset,
+                line_offsets,
+            ));
 
-            // body
-            if let Some(body_node) =
-                convert_statement_for_program(&for_of_stmt.body, offset, line_offsets)
-            {
-                obj.insert("body".to_string(), body_node.to_value());
-            } else {
-                obj.insert("body".to_string(), Value::Null);
-            }
+            let body = convert_statement_for_program(&for_of_stmt.body, offset, line_offsets)
+                .unwrap_or(JsNode::Null);
 
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::ForOfStatement {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                r#await: for_of_stmt.r#await,
+                left: Box::new(left),
+                right: Box::new(right),
+                body: Box::new(body),
+            })
         }
         oxc_ast::ast::Statement::ForInStatement(for_in_stmt) => {
             let start = offset + for_in_stmt.span.start as usize;
             let end = offset + for_in_stmt.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("ForInStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
-            // left
-            let left_value = match &for_in_stmt.left {
+            let left = match &for_in_stmt.left {
                 oxc_ast::ast::ForStatementLeft::VariableDeclaration(vd) => {
-                    convert_variable_declaration_directly(vd, offset, line_offsets)
+                    convert_variable_declaration_as_node(vd, offset, line_offsets)
                 }
-                _ => Value::Null,
+                _ => JsNode::Null,
             };
-            obj.insert("left".to_string(), left_value);
 
-            // right
-            let right_value =
-                convert_expression_for_program(&for_in_stmt.right, offset, line_offsets);
-            obj.insert("right".to_string(), right_value.as_json().clone());
+            let right = expr_to_node(convert_expression_for_program(
+                &for_in_stmt.right,
+                offset,
+                line_offsets,
+            ));
 
-            // body
-            if let Some(body_node) =
-                convert_statement_for_program(&for_in_stmt.body, offset, line_offsets)
-            {
-                obj.insert("body".to_string(), body_node.to_value());
-            } else {
-                obj.insert("body".to_string(), Value::Null);
-            }
+            let body = convert_statement_for_program(&for_in_stmt.body, offset, line_offsets)
+                .unwrap_or(JsNode::Null);
 
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::ForInStatement {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                left: Box::new(left),
+                right: Box::new(right),
+                body: Box::new(body),
+            })
         }
         oxc_ast::ast::Statement::WhileStatement(while_stmt) => {
             let start = offset + while_stmt.span.start as usize;
             let end = offset + while_stmt.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("WhileStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
-            // test
-            let test_value = convert_expression_for_program(&while_stmt.test, offset, line_offsets);
-            obj.insert("test".to_string(), test_value.as_json().clone());
+            let test = expr_to_node(convert_expression_for_program(
+                &while_stmt.test,
+                offset,
+                line_offsets,
+            ));
 
-            // body
-            if let Some(body_node) =
-                convert_statement_for_program(&while_stmt.body, offset, line_offsets)
-            {
-                obj.insert("body".to_string(), body_node.to_value());
-            } else {
-                obj.insert("body".to_string(), Value::Null);
-            }
+            let body = convert_statement_for_program(&while_stmt.body, offset, line_offsets)
+                .unwrap_or(JsNode::Null);
 
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::WhileStatement {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                test: Box::new(test),
+                body: Box::new(body),
+            })
         }
         oxc_ast::ast::Statement::TryStatement(try_stmt) => {
             let start = offset + try_stmt.span.start as usize;
             let end = offset + try_stmt.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("TryStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
             // block
             let block_start = offset + try_stmt.block.span.start as usize;
             let block_end = offset + try_stmt.block.span.end as usize;
-            let mut block_obj = Map::new();
-            block_obj.insert(
-                "type".to_string(),
-                Value::String("BlockStatement".to_string()),
-            );
-            block_obj.insert(
-                "start".to_string(),
-                Value::Number((block_start as i64).into()),
-            );
-            block_obj.insert("end".to_string(), Value::Number((block_end as i64).into()));
-            if let Some(loc) = create_loc(block_start, block_end, line_offsets) {
-                block_obj.insert("loc".to_string(), loc);
-            }
-            let body: Vec<Value> = try_stmt
+            let block_loc = create_typed_loc(block_start, block_end, line_offsets);
+            let block_body: Vec<JsNode> = try_stmt
                 .block
                 .body
                 .iter()
                 .filter_map(|stmt| convert_statement_for_program(stmt, offset, line_offsets))
-                .map(|n| n.to_value())
                 .collect();
-            block_obj.insert("body".to_string(), Value::Array(body));
-            obj.insert("block".to_string(), Value::Object(block_obj));
+            let block = JsNode::BlockStatement {
+                start: block_start as u32,
+                end: block_end as u32,
+                loc: block_loc,
+                body: block_body,
+            };
 
             // handler
-            if let Some(handler) = &try_stmt.handler {
+            let handler = try_stmt.handler.as_ref().map(|handler| {
                 let handler_start = offset + handler.span.start as usize;
                 let handler_end = offset + handler.span.end as usize;
-                let mut handler_obj = Map::new();
-                handler_obj.insert("type".to_string(), Value::String("CatchClause".to_string()));
-                handler_obj.insert(
-                    "start".to_string(),
-                    Value::Number((handler_start as i64).into()),
-                );
-                handler_obj.insert(
-                    "end".to_string(),
-                    Value::Number((handler_end as i64).into()),
-                );
-                if let Some(loc) = create_loc(handler_start, handler_end, line_offsets) {
-                    handler_obj.insert("loc".to_string(), loc);
-                }
+                let handler_loc = create_typed_loc(handler_start, handler_end, line_offsets);
 
-                // param
-                if let Some(param) = &handler.param {
+                let param = handler.param.as_ref().map(|param| {
                     let param_value = convert_binding_pattern(&param.pattern, offset, line_offsets);
-                    handler_obj.insert("param".to_string(), param_value);
-                } else {
-                    handler_obj.insert("param".to_string(), Value::Null);
-                }
+                    Box::new(JsNode::Raw(param_value))
+                });
 
-                // body
                 let body_start = offset + handler.body.span.start as usize;
                 let body_end = offset + handler.body.span.end as usize;
-                let mut body_obj = Map::new();
-                body_obj.insert(
-                    "type".to_string(),
-                    Value::String("BlockStatement".to_string()),
-                );
-                body_obj.insert(
-                    "start".to_string(),
-                    Value::Number((body_start as i64).into()),
-                );
-                body_obj.insert("end".to_string(), Value::Number((body_end as i64).into()));
-                if let Some(loc) = create_loc(body_start, body_end, line_offsets) {
-                    body_obj.insert("loc".to_string(), loc);
-                }
-                let body: Vec<Value> = handler
+                let body_loc = create_typed_loc(body_start, body_end, line_offsets);
+                let body_stmts: Vec<JsNode> = handler
                     .body
                     .body
                     .iter()
                     .filter_map(|stmt| convert_statement_for_program(stmt, offset, line_offsets))
-                    .map(|n| n.to_value())
                     .collect();
-                body_obj.insert("body".to_string(), Value::Array(body));
-                handler_obj.insert("body".to_string(), Value::Object(body_obj));
+                let body = JsNode::BlockStatement {
+                    start: body_start as u32,
+                    end: body_end as u32,
+                    loc: body_loc,
+                    body: body_stmts,
+                };
 
-                obj.insert("handler".to_string(), Value::Object(handler_obj));
-            } else {
-                obj.insert("handler".to_string(), Value::Null);
-            }
+                Box::new(JsNode::CatchClause {
+                    start: handler_start as u32,
+                    end: handler_end as u32,
+                    loc: handler_loc,
+                    param,
+                    body: Box::new(body),
+                })
+            });
 
             // finalizer
-            if let Some(finalizer) = &try_stmt.finalizer {
+            let finalizer = try_stmt.finalizer.as_ref().map(|finalizer| {
                 let finalizer_start = offset + finalizer.span.start as usize;
                 let finalizer_end = offset + finalizer.span.end as usize;
-                let mut finalizer_obj = Map::new();
-                finalizer_obj.insert(
-                    "type".to_string(),
-                    Value::String("BlockStatement".to_string()),
-                );
-                finalizer_obj.insert(
-                    "start".to_string(),
-                    Value::Number((finalizer_start as i64).into()),
-                );
-                finalizer_obj.insert(
-                    "end".to_string(),
-                    Value::Number((finalizer_end as i64).into()),
-                );
-                if let Some(loc) = create_loc(finalizer_start, finalizer_end, line_offsets) {
-                    finalizer_obj.insert("loc".to_string(), loc);
-                }
-                let body: Vec<Value> = finalizer
+                let finalizer_loc = create_typed_loc(finalizer_start, finalizer_end, line_offsets);
+                let body_stmts: Vec<JsNode> = finalizer
                     .body
                     .iter()
                     .filter_map(|stmt| convert_statement_for_program(stmt, offset, line_offsets))
-                    .map(|n| n.to_value())
                     .collect();
-                finalizer_obj.insert("body".to_string(), Value::Array(body));
-                obj.insert("finalizer".to_string(), Value::Object(finalizer_obj));
-            } else {
-                obj.insert("finalizer".to_string(), Value::Null);
-            }
+                Box::new(JsNode::BlockStatement {
+                    start: finalizer_start as u32,
+                    end: finalizer_end as u32,
+                    loc: finalizer_loc,
+                    body: body_stmts,
+                })
+            });
 
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::TryStatement {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                block: Box::new(block),
+                handler,
+                finalizer,
+            })
         }
         oxc_ast::ast::Statement::ThrowStatement(throw_stmt) => {
             let start = offset + throw_stmt.span.start as usize;
             let end = offset + throw_stmt.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("ThrowStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
-            let argument_value =
-                convert_expression_for_program(&throw_stmt.argument, offset, line_offsets);
-            obj.insert("argument".to_string(), argument_value.as_json().clone());
+            let argument = expr_to_node(convert_expression_for_program(
+                &throw_stmt.argument,
+                offset,
+                line_offsets,
+            ));
 
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::ThrowStatement {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                argument: Box::new(argument),
+            })
         }
         oxc_ast::ast::Statement::BreakStatement(break_stmt) => {
             let start = offset + break_stmt.span.start as usize;
             let end = offset + break_stmt.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("BreakStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
-            if let Some(label) = &break_stmt.label {
+            let label = break_stmt.label.as_ref().map(|label| {
                 let label_start = offset + label.span.start as usize;
                 let label_end = offset + label.span.end as usize;
-                let label_expr =
-                    create_identifier(&label.name, label_start, label_end, line_offsets);
-                obj.insert("label".to_string(), label_expr.as_json().clone());
-            } else {
-                obj.insert("label".to_string(), Value::Null);
-            }
+                Box::new(expr_to_node(create_identifier(
+                    &label.name,
+                    label_start,
+                    label_end,
+                    line_offsets,
+                )))
+            });
 
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::BreakStatement {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                label,
+            })
         }
         oxc_ast::ast::Statement::ContinueStatement(continue_stmt) => {
             let start = offset + continue_stmt.span.start as usize;
             let end = offset + continue_stmt.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("ContinueStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
-            if let Some(label) = &continue_stmt.label {
+            let label = continue_stmt.label.as_ref().map(|label| {
                 let label_start = offset + label.span.start as usize;
                 let label_end = offset + label.span.end as usize;
-                let label_expr =
-                    create_identifier(&label.name, label_start, label_end, line_offsets);
-                obj.insert("label".to_string(), label_expr.as_json().clone());
-            } else {
-                obj.insert("label".to_string(), Value::Null);
-            }
+                Box::new(expr_to_node(create_identifier(
+                    &label.name,
+                    label_start,
+                    label_end,
+                    line_offsets,
+                )))
+            });
 
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::ContinueStatement {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                label,
+            })
         }
         oxc_ast::ast::Statement::SwitchStatement(switch_stmt) => {
             let start = offset + switch_stmt.span.start as usize;
             let end = offset + switch_stmt.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("SwitchStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
-            // Convert discriminant
-            let discriminant_value =
-                convert_expression(&switch_stmt.discriminant, offset, line_offsets);
-            obj.insert(
-                "discriminant".to_string(),
-                discriminant_value.as_json().clone(),
-            );
+            let discriminant = expr_to_node(convert_expression(
+                &switch_stmt.discriminant,
+                offset,
+                line_offsets,
+            ));
 
-            // Convert cases
-            let cases: Vec<Value> = switch_stmt
+            let cases: Vec<JsNode> = switch_stmt
                 .cases
                 .iter()
                 .map(|case| {
                     let case_start = offset + case.span.start as usize;
                     let case_end = offset + case.span.end as usize;
-                    let mut case_obj = Map::new();
-                    case_obj.insert("type".to_string(), Value::String("SwitchCase".to_string()));
-                    case_obj.insert(
-                        "start".to_string(),
-                        Value::Number((case_start as i64).into()),
-                    );
-                    case_obj.insert("end".to_string(), Value::Number((case_end as i64).into()));
-                    if let Some(loc) = create_loc(case_start, case_end, line_offsets) {
-                        case_obj.insert("loc".to_string(), loc);
-                    }
+                    let case_loc = create_typed_loc(case_start, case_end, line_offsets);
 
-                    // test is null for default case
-                    if let Some(test) = &case.test {
-                        let test_value = convert_expression(test, offset, line_offsets);
-                        case_obj.insert("test".to_string(), test_value.as_json().clone());
-                    } else {
-                        case_obj.insert("test".to_string(), Value::Null);
-                    }
+                    let test = case.test.as_ref().map(|test| {
+                        Box::new(expr_to_node(convert_expression(test, offset, line_offsets)))
+                    });
 
-                    // Convert consequent statements
-                    let consequent: Vec<Value> = case
+                    let consequent: Vec<JsNode> = case
                         .consequent
                         .iter()
                         .filter_map(|stmt| {
                             convert_statement_for_program(stmt, offset, line_offsets)
                         })
-                        .map(|n| n.to_value())
                         .collect();
-                    case_obj.insert("consequent".to_string(), Value::Array(consequent));
 
-                    Value::Object(case_obj)
+                    JsNode::SwitchCase {
+                        start: case_start as u32,
+                        end: case_end as u32,
+                        loc: case_loc,
+                        test,
+                        consequent,
+                    }
                 })
                 .collect();
-            obj.insert("cases".to_string(), Value::Array(cases));
 
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::SwitchStatement {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                discriminant: Box::new(discriminant),
+                cases,
+            })
         }
         oxc_ast::ast::Statement::DoWhileStatement(do_while_stmt) => {
             let start = offset + do_while_stmt.span.start as usize;
             let end = offset + do_while_stmt.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("DoWhileStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
-            // Convert test
-            let test_value = convert_expression(&do_while_stmt.test, offset, line_offsets);
-            obj.insert("test".to_string(), test_value.as_json().clone());
+            let test = expr_to_node(convert_expression(
+                &do_while_stmt.test,
+                offset,
+                line_offsets,
+            ));
 
-            // Convert body
-            if let Some(body_node) =
-                convert_statement_for_program(&do_while_stmt.body, offset, line_offsets)
-            {
-                obj.insert("body".to_string(), body_node.to_value());
-            }
+            let body = convert_statement_for_program(&do_while_stmt.body, offset, line_offsets)
+                .unwrap_or(JsNode::Null);
 
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::DoWhileStatement {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                test: Box::new(test),
+                body: Box::new(body),
+            })
         }
         oxc_ast::ast::Statement::LabeledStatement(labeled_stmt) => {
             let start = offset + labeled_stmt.span.start as usize;
             let end = offset + labeled_stmt.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("LabeledStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
-            // Convert label
             let label_start = offset + labeled_stmt.label.span.start as usize;
             let label_end = offset + labeled_stmt.label.span.end as usize;
-            let label_expr = create_identifier(
+            let label = expr_to_node(create_identifier(
                 &labeled_stmt.label.name,
                 label_start,
                 label_end,
                 line_offsets,
-            );
-            obj.insert("label".to_string(), label_expr.as_json().clone());
+            ));
 
-            // Convert body
-            if let Some(body_node) =
-                convert_statement_for_program(&labeled_stmt.body, offset, line_offsets)
-            {
-                obj.insert("body".to_string(), body_node.to_value());
-            }
+            let body = convert_statement_for_program(&labeled_stmt.body, offset, line_offsets)
+                .unwrap_or(JsNode::Null);
 
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::LabeledStatement {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                label: Box::new(label),
+                body: Box::new(body),
+            })
         }
         oxc_ast::ast::Statement::EmptyStatement(empty_stmt) => {
             let start = offset + empty_stmt.span.start as usize;
             let end = offset + empty_stmt.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("EmptyStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::EmptyStatement {
+                start: start as u32,
+                end: end as u32,
+                loc,
+            })
         }
         oxc_ast::ast::Statement::DebuggerStatement(debugger_stmt) => {
             let start = offset + debugger_stmt.span.start as usize;
             let end = offset + debugger_stmt.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("DebuggerStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::DebuggerStatement {
+                start: start as u32,
+                end: end as u32,
+                loc,
+            })
         }
         // TypeScript enum declarations - emit as TSEnumDeclaration so remove_typescript_nodes can detect them
         oxc_ast::ast::Statement::TSEnumDeclaration(enum_decl) => {
             let start = offset + enum_decl.span.start as usize;
             let end = offset + enum_decl.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("TSEnumDeclaration".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
-            Some(JsNode::Raw(Value::Object(obj)))
+            let loc = create_typed_loc(start, end, line_offsets);
+            Some(JsNode::TSEnumDeclaration {
+                start: start as u32,
+                end: end as u32,
+                loc,
+            })
         }
 
         // TypeScript module/namespace declarations - emit so remove_typescript_nodes can detect them
         oxc_ast::ast::Statement::TSModuleDeclaration(module_decl) => {
             let start = offset + module_decl.span.start as usize;
             let end = offset + module_decl.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("TSModuleDeclaration".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
             // Include body so remove_typescript_nodes can check for non-type nodes
-            // Structure: node.body = { body: [...statements...] }
-            // This matches what remove_typescript_nodes expects at node.get("body").and_then(|b| b.get("body"))
-            if let Some(ref body) = module_decl.body {
+            let body = module_decl.body.as_ref().and_then(|body| {
                 match body {
                     oxc_ast::ast::TSModuleDeclarationBody::TSModuleBlock(block) => {
-                        let block_body: Vec<Value> = block
+                        let block_body: Vec<JsNode> = block
                             .body
                             .iter()
                             .filter_map(|stmt| {
                                 convert_statement_for_program(stmt, offset, line_offsets)
                             })
-                            .map(|n| n.to_value())
                             .collect();
-                        let mut block_obj = Map::new();
-                        block_obj.insert("body".to_string(), Value::Array(block_body));
-                        obj.insert("body".to_string(), Value::Object(block_obj));
+                        // Structure: node.body = { body: [...statements...] }
+                        // TSModuleDeclaration body is a wrapper with inner body
+                        Some(Box::new(JsNode::BlockStatement {
+                            start: start as u32,
+                            end: end as u32,
+                            loc: loc.clone(),
+                            body: block_body,
+                        }))
                     }
                     oxc_ast::ast::TSModuleDeclarationBody::TSModuleDeclaration(_inner) => {
                         // Nested module declaration - just include empty body
+                        None
                     }
                 }
-            }
+            });
 
-            Some(JsNode::Raw(Value::Object(obj)))
+            Some(JsNode::TSModuleDeclaration {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                body,
+            })
         }
 
         // Add more statement types as needed
@@ -6008,143 +5735,108 @@ fn convert_import_specifier(
     spec: &oxc_ast::ast::ImportDeclarationSpecifier,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     match spec {
         oxc_ast::ast::ImportDeclarationSpecifier::ImportSpecifier(import_spec) => {
             let start = offset + import_spec.span.start as usize;
             let end = offset + import_spec.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("ImportSpecifier".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
-            // imported
             let imported_start = offset + import_spec.imported.span().start as usize;
             let imported_end = offset + import_spec.imported.span().end as usize;
             let imported_name = import_spec.imported.name().as_str();
-            obj.insert(
-                "imported".to_string(),
-                create_identifier(imported_name, imported_start, imported_end, line_offsets)
-                    .as_json()
-                    .clone(),
-            );
+            let imported = expr_to_node(create_identifier(
+                imported_name,
+                imported_start,
+                imported_end,
+                line_offsets,
+            ));
 
-            // local
             let local_start = offset + import_spec.local.span.start as usize;
             let local_end = offset + import_spec.local.span.end as usize;
-            obj.insert(
-                "local".to_string(),
-                create_identifier(
-                    &import_spec.local.name,
-                    local_start,
-                    local_end,
-                    line_offsets,
-                )
-                .as_json()
-                .clone(),
-            );
+            let local = expr_to_node(create_identifier(
+                &import_spec.local.name,
+                local_start,
+                local_end,
+                line_offsets,
+            ));
 
-            // importKind on specifier (only for type-only specifiers: `import { type Foo }`)
-            // Acorn (official Svelte) only emits this field for TypeScript type imports
-            if import_spec.import_kind == oxc_ast::ast::ImportOrExportKind::Type {
-                obj.insert("importKind".to_string(), Value::String("type".to_string()));
+            let import_kind = if import_spec.import_kind == oxc_ast::ast::ImportOrExportKind::Type {
+                Some(CompactString::from("type"))
+            } else {
+                None
+            };
+
+            JsNode::ImportSpecifier {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                imported: Box::new(imported),
+                local: Box::new(local),
+                import_kind,
             }
-
-            Value::Object(obj)
         }
         oxc_ast::ast::ImportDeclarationSpecifier::ImportDefaultSpecifier(default_spec) => {
             let start = offset + default_spec.span.start as usize;
             let end = offset + default_spec.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("ImportDefaultSpecifier".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
             let local_start = offset + default_spec.local.span.start as usize;
             let local_end = offset + default_spec.local.span.end as usize;
-            obj.insert(
-                "local".to_string(),
-                create_identifier(
-                    &default_spec.local.name,
-                    local_start,
-                    local_end,
-                    line_offsets,
-                )
-                .as_json()
-                .clone(),
-            );
+            let local = expr_to_node(create_identifier(
+                &default_spec.local.name,
+                local_start,
+                local_end,
+                line_offsets,
+            ));
 
-            Value::Object(obj)
+            JsNode::ImportDefaultSpecifier {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                local: Box::new(local),
+            }
         }
         oxc_ast::ast::ImportDeclarationSpecifier::ImportNamespaceSpecifier(ns_spec) => {
             let start = offset + ns_spec.span.start as usize;
             let end = offset + ns_spec.span.end as usize;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("ImportNamespaceSpecifier".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+            let loc = create_typed_loc(start, end, line_offsets);
 
             let local_start = offset + ns_spec.local.span.start as usize;
             let local_end = offset + ns_spec.local.span.end as usize;
-            obj.insert(
-                "local".to_string(),
-                create_identifier(&ns_spec.local.name, local_start, local_end, line_offsets)
-                    .as_json()
-                    .clone(),
-            );
+            let local = expr_to_node(create_identifier(
+                &ns_spec.local.name,
+                local_start,
+                local_end,
+                line_offsets,
+            ));
 
-            Value::Object(obj)
+            JsNode::ImportNamespaceSpecifier {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                local: Box::new(local),
+            }
         }
     }
 }
 
-/// Helper function to convert a VariableDeclaration directly from OXC type.
-/// Used by ForStatement, ForOfStatement, ForInStatement.
-fn convert_variable_declaration_directly(
+/// Convert a VariableDeclaration to JsNode directly (for ForStatement/ForOfStatement/ForInStatement).
+fn convert_variable_declaration_as_node(
     vd: &oxc_ast::ast::VariableDeclaration,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     let var_start = offset + vd.span.start as usize;
     let var_end = offset + vd.span.end as usize;
-    let mut var_obj = Map::new();
-    var_obj.insert(
-        "type".to_string(),
-        Value::String("VariableDeclaration".to_string()),
-    );
-    var_obj.insert(
-        "start".to_string(),
-        Value::Number((var_start as i64).into()),
-    );
-    var_obj.insert("end".to_string(), Value::Number((var_end as i64).into()));
-    if let Some(loc) = create_loc(var_start, var_end, line_offsets) {
-        var_obj.insert("loc".to_string(), loc);
-    }
-    let declarations: Vec<Value> = vd
+    let loc = create_typed_loc(var_start, var_end, line_offsets);
+
+    let declarations: Vec<JsNode> = vd
         .declarations
         .iter()
         .filter_map(|d| convert_variable_declarator_for_program(d, offset, line_offsets))
-        .map(|n| n.to_value())
         .collect();
-    var_obj.insert("declarations".to_string(), Value::Array(declarations));
+
     let kind = match vd.kind {
         oxc_ast::ast::VariableDeclarationKind::Var => "var",
         oxc_ast::ast::VariableDeclarationKind::Let => "let",
@@ -6152,8 +5844,15 @@ fn convert_variable_declaration_directly(
         oxc_ast::ast::VariableDeclarationKind::Using => "using",
         oxc_ast::ast::VariableDeclarationKind::AwaitUsing => "using",
     };
-    var_obj.insert("kind".to_string(), Value::String(kind.to_string()));
-    Value::Object(var_obj)
+
+    JsNode::VariableDeclaration {
+        start: var_start as u32,
+        end: var_end as u32,
+        loc,
+        declarations,
+        kind: CompactString::from(kind),
+        declare: vd.declare,
+    }
 }
 
 /// Convert a variable declarator to JsNode (for program context, no -1 offset adjustment).
