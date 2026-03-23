@@ -2576,6 +2576,10 @@ fn transform_instance_script_for_visitors(
         })
         .collect();
 
+    // Pre-filter state_vars to only include variables that actually appear in the script.
+    // This avoids O(M*N) scanning in downstream transforms for variables that can't match.
+    state_vars.retain(|v| script_rest.contains(v.as_str()));
+
     // Ensure reactive import names are included in state_vars for $.get()/$.mutate() wrapping.
     // The post-processing step will convert these to $$_import_X() patterns.
     // This is needed because not all reactive import bindings are promoted to State
