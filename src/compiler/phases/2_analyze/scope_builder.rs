@@ -267,7 +267,7 @@ impl<'a> ScopeBuilder<'a> {
                 function_scope_map: self.function_scope_map,
                 each_block_collection_infos,
                 template_scope_map: self.template_scope_map,
-                conflicts,
+                conflicts: std::rc::Rc::new(std::cell::RefCell::new(conflicts)),
             },
             self.validation_errors,
         )

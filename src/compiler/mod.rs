@@ -580,47 +580,61 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
             map: c.map,
             has_global: analysis.css.has_global,
         }),
-        warnings: transform_result
-            .warnings
-            .into_iter()
-            .map(|w| {
-                let start_pos = w
-                    .start
-                    .map(|offset| byte_offset_to_position(source, offset as usize));
-                let end_pos = w
-                    .end
-                    .map(|offset| byte_offset_to_position(source, offset as usize));
-                let frame = start_pos
-                    .as_ref()
-                    .map(|sp| generate_frame(source, sp, end_pos.as_ref()));
-                // Make filename relative to rootDir, matching the official compiler behavior
-                // (svelte/packages/svelte/src/compiler/state.js L137-139)
-                let warning_filename = options.filename.as_ref().map(|f| {
-                    let f = f.replace('\\', "/");
-                    if let Some(ref root) = options.root_dir {
-                        let root = root.replace('\\', "/");
-                        if f.starts_with(&root) {
-                            return f[root.len()..].trim_start_matches('/').to_string();
-                        }
-                    }
-                    f
-                });
-                let url_suffix = format!("\nhttps://svelte.dev/e/{}", w.code);
-                let message_with_url = if w.message.contains(&url_suffix) {
-                    w.message
+        warnings: {
+            // Pre-compute warning filename once (shared across all warnings)
+            let warning_filename = options.filename.as_ref().map(|f| {
+                // Only allocate if backslashes are present
+                let f_owned;
+                let f_normalized: &str = if f.contains('\\') {
+                    f_owned = f.replace('\\', "/");
+                    &f_owned
                 } else {
-                    format!("{}{}", w.message, url_suffix)
+                    f
                 };
-                Warning {
-                    code: w.code,
-                    message: message_with_url,
-                    filename: warning_filename,
-                    start: start_pos,
-                    end: end_pos,
-                    frame,
+                if let Some(ref root) = options.root_dir {
+                    let root_owned;
+                    let root_normalized: &str = if root.contains('\\') {
+                        root_owned = root.replace('\\', "/");
+                        &root_owned
+                    } else {
+                        root
+                    };
+                    if let Some(stripped) = f_normalized.strip_prefix(root_normalized) {
+                        return stripped.trim_start_matches('/').to_string();
+                    }
                 }
-            })
-            .collect(),
+                f_normalized.to_string()
+            });
+            transform_result
+                .warnings
+                .into_iter()
+                .map(|w| {
+                    let start_pos = w
+                        .start
+                        .map(|offset| byte_offset_to_position(source, offset as usize));
+                    let end_pos = w
+                        .end
+                        .map(|offset| byte_offset_to_position(source, offset as usize));
+                    let frame = start_pos
+                        .as_ref()
+                        .map(|sp| generate_frame(source, sp, end_pos.as_ref()));
+                    let url_suffix = format!("\nhttps://svelte.dev/e/{}", w.code);
+                    let message_with_url = if w.message.contains(&url_suffix) {
+                        w.message
+                    } else {
+                        format!("{}{}", w.message, url_suffix)
+                    };
+                    Warning {
+                        code: w.code,
+                        message: message_with_url,
+                        filename: warning_filename.clone(),
+                        start: start_pos,
+                        end: end_pos,
+                        frame,
+                    }
+                })
+                .collect()
+        },
         metadata: CompileMetadata { runes: runes_mode },
         ast: None, // TODO: Return AST if options.modern_ast is true
     })

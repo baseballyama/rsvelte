@@ -1354,14 +1354,28 @@ impl ComponentAnalysis {
             .as_ref()
             .filter(|f| *f != "(unknown)")
             .map(|f| {
-                let mut fname = f.replace('\\', "/");
+                // Only allocate if backslashes are present
+                let fname_owned;
+                let fname: &str = if f.contains('\\') {
+                    fname_owned = f.replace('\\', "/");
+                    &fname_owned
+                } else {
+                    f
+                };
                 if let Some(ref root_dir) = options.root_dir {
-                    let rd = root_dir.replace('\\', "/");
-                    if fname.starts_with(&rd) {
-                        fname = fname[rd.len()..].trim_start_matches('/').to_string();
+                    // Only allocate if backslashes are present in root_dir
+                    let rd_owned;
+                    let rd: &str = if root_dir.contains('\\') {
+                        rd_owned = root_dir.replace('\\', "/");
+                        &rd_owned
+                    } else {
+                        root_dir
+                    };
+                    if let Some(stripped) = fname.strip_prefix(rd) {
+                        return stripped.trim_start_matches('/').to_string();
                     }
                 }
-                fname
+                fname.to_string()
             })
             .unwrap_or_else(|| "main.svelte".to_string());
         let filename_hash = crate::compiler::phases::phase3_transform::css::generate_raw_hash(
@@ -1591,13 +1605,16 @@ impl ComponentAnalysis {
 /// Derive component name from filename.
 /// Matches Svelte's get_component_name() in phases/2-analyze/index.js
 fn derive_component_name(filename: &str) -> String {
-    // Split by path separators (like JS: filename.split(/[/\\]/))
-    let parts: Vec<&str> = filename.split(['/', '\\']).collect();
-    let basename = parts.last().unwrap_or(&"Component");
-    let last_dir = if parts.len() > 1 {
-        parts.get(parts.len() - 2).copied()
-    } else {
-        None
+    // Find basename and parent dir without allocating a Vec
+    let basename = filename.rsplit(['/', '\\']).next().unwrap_or("Component");
+    let last_dir = {
+        let without_basename = &filename[..filename.len() - basename.len()];
+        let without_sep = without_basename.trim_end_matches(['/', '\\']);
+        if without_sep.is_empty() {
+            None
+        } else {
+            without_sep.rsplit(['/', '\\']).next()
+        }
     };
 
     // Remove .svelte extension

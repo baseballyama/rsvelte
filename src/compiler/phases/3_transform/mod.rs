@@ -93,7 +93,7 @@ pub fn transform_component(
             let mut result = client::transform_client(analysis, ast, source, options)?;
             // Strip unnecessary parens around arrow functions (e.g., (() => { ... }) → () => { ... })
             // matching the official Svelte compiler's AST printer behavior.
-            result.code = server::transform_script::strip_arrow_function_parens(&result.code);
+            result.code = server::transform_script::strip_arrow_function_parens(result.code);
 
             if options.enable_sourcemap {
                 // Merge codegen-tracked mappings with full token-level mappings.

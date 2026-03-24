@@ -178,7 +178,7 @@ fn transform_script_content_inner(
 
     // Strip unnecessary parens around arrow functions: (() => { ... }) → () => { ... }
     // when they're not part of an IIFE call.
-    result = strip_arrow_function_parens(&result);
+    result = strip_arrow_function_parens(result);
 
     // In legacy mode (non-module, non-runes), reorder $: reactive statements
     // to appear after function declarations (to match official Svelte SSR behavior)
@@ -3524,7 +3524,13 @@ fn try_normalize_iife(chars: &[char], start: usize) -> Option<(usize, String)> {
 /// The official Svelte compiler's AST representation doesn't include
 /// ParenthesizedExpression nodes (acorn strips them), so when it reprints
 /// the AST, arrow functions never have unnecessary wrapping parens.
-pub(crate) fn strip_arrow_function_parens(s: &str) -> String {
+pub(crate) fn strip_arrow_function_parens(s: String) -> String {
+    // Fast path: if the string doesn't contain "(() =>" there's nothing to strip.
+    // Returns the original String without any allocation.
+    if !s.contains("(() =>") {
+        return s;
+    }
+
     let chars: Vec<char> = s.chars().collect();
     let len = chars.len();
     let mut result = String::with_capacity(s.len());

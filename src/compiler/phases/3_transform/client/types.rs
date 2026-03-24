@@ -48,8 +48,7 @@ impl<'a> ComponentContext<'a> {
     ) -> Self {
         Self {
             state,
-            // Pre-allocate path for typical template depth
-            path: Vec::with_capacity(16),
+            path: Vec::new(),
             visit,
         }
     }
@@ -1999,12 +1998,12 @@ impl<'a> ComponentClientTransformState<'a> {
             analysis,
             scope_root,
             options,
-            hoisted: Vec::with_capacity(4),
+            hoisted: Vec::new(),
             template: Template::new(),
-            init: Vec::with_capacity(8),
-            update: Vec::with_capacity(4),
-            after_update: Vec::with_capacity(2),
-            consts: Vec::with_capacity(4),
+            init: Vec::new(),
+            update: Vec::new(),
+            after_update: Vec::new(),
+            consts: Vec::new(),
             async_consts: None,
             let_directives: Vec::new(),
             node,
@@ -2524,15 +2523,13 @@ impl Memoizer {
         _scope: &crate::compiler::phases::phase2_analyze::scope::Scope,
         scope_root: &crate::compiler::phases::phase2_analyze::scope::ScopeRoot,
     ) -> Self {
-        // Use the comprehensive conflicts set from ScopeRoot which contains
-        // all declaration names from all scopes (mirrors scope.root.conflicts
-        // in the official Svelte compiler).
-        let conflicts = scope_root.conflicts.clone();
-
+        // Share the conflicts set from ScopeRoot directly via Rc::clone
+        // (avoids cloning the entire FxHashSet). This mirrors scope.root.conflicts
+        // in the official Svelte compiler.
         Self {
             counter: 0,
             memos: FxHashMap::default(),
-            conflicts: Rc::new(RefCell::new(conflicts)),
+            conflicts: Rc::clone(&scope_root.conflicts),
             sync: Vec::new(),
             async_entries: Vec::new(),
             next_suffix: Rc::new(RefCell::new(FxHashMap::default())),

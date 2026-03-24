@@ -6011,15 +6011,13 @@ fn get_selector_text(node: &Value) -> String {
 /// Generate a raw hash string (matches Svelte's hash() function in utils.js).
 /// This is the base hash without the "svelte-" prefix.
 pub fn generate_raw_hash(source: &str) -> String {
-    // Remove carriage returns like Svelte does
-    let source = source.replace('\r', "");
-
+    // Collect chars in reverse, skipping \r (avoids allocating a replacement string)
     let mut hash: i32 = 5381;
-    let bytes: Vec<char> = source.chars().collect();
+    let chars: Vec<char> = source.chars().filter(|&c| c != '\r').collect();
 
     // Iterate backwards like Svelte does
-    for i in (0..bytes.len()).rev() {
-        hash = ((hash << 5).wrapping_sub(hash)) ^ (bytes[i] as i32);
+    for i in (0..chars.len()).rev() {
+        hash = ((hash << 5).wrapping_sub(hash)) ^ (chars[i] as i32);
     }
 
     // Convert to unsigned and then to base-36

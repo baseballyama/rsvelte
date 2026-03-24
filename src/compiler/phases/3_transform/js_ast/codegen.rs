@@ -73,8 +73,16 @@ pub fn generate_with_sourcemap(program: &JsProgram, source: &str) -> Result<Code
 }
 
 /// Generate JavaScript source code for a single expression.
+/// Uses a smaller buffer than full program generation since expressions are typically short.
 pub fn generate_expr(expr: &super::nodes::JsExpr) -> String {
-    let mut codegen = JsCodegen::new();
+    let mut codegen = JsCodegen {
+        output: String::with_capacity(128),
+        indent_level: 0,
+        needs_semicolon: false,
+        track_mappings: false,
+        raw_spans: Vec::new(),
+        source_code: None,
+    };
     codegen.emit_expression(expr);
     codegen.output
 }
@@ -95,7 +103,7 @@ struct JsCodegen<'a> {
 impl<'a> JsCodegen<'a> {
     fn new() -> Self {
         Self {
-            output: String::with_capacity(32768),
+            output: String::with_capacity(4096),
             indent_level: 0,
             needs_semicolon: false,
             track_mappings: false,
