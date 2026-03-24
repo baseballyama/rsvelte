@@ -1236,18 +1236,48 @@ pub(super) fn transform_state_vars_ast(
         return None;
     }
 
-    // Quick check: if none of the variable names appear in the text at all, skip
-    let has_any_match = (has_state && state_vars.iter().any(|v| script.contains(v.as_str())))
+    // Quick check: if none of the variable names appear as identifiers in the text, skip.
+    // Uses O(text_len) identifier extraction instead of O(N*text_len) substring searches.
+    let script_ids = {
+        let bytes = script.as_bytes();
+        let len = bytes.len();
+        let mut set = FxHashSet::default();
+        let mut i = 0;
+        while i < len {
+            let b = bytes[i];
+            if !(b.is_ascii_alphabetic() || b == b'_' || b == b'$') {
+                i += 1;
+                continue;
+            }
+            let start = i;
+            i += 1;
+            while i < len
+                && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_' || bytes[i] == b'$')
+            {
+                i += 1;
+            }
+            let word = unsafe { std::str::from_utf8_unchecked(&bytes[start..i]) };
+            set.insert(word);
+        }
+        set
+    };
+    let has_any_match = (has_state && state_vars.iter().any(|v| script_ids.contains(v.as_str())))
         || (has_props
             && prop_assignment_transform_vars
                 .iter()
-                .any(|v| script.contains(v.as_str())))
-        || (has_stores && store_sub_vars.iter().any(|v| script.contains(v.as_str())))
+                .any(|v| script_ids.contains(v.as_str())))
+        || (has_stores
+            && store_sub_vars
+                .iter()
+                .any(|v| script_ids.contains(v.as_str())))
         || (has_read_only
             && read_only_props
                 .iter()
-                .any(|(n, _)| script.contains(n.as_str())))
-        || (has_rest && rest_prop_vars.iter().any(|v| script.contains(v.as_str())));
+                .any(|(n, _)| script_ids.contains(n.as_str())))
+        || (has_rest
+            && rest_prop_vars
+                .iter()
+                .any(|v| script_ids.contains(v.as_str())));
 
     if !has_any_match {
         return None;

@@ -170,21 +170,15 @@ pub fn visit_regular_element(
         context.state.template.contains_script_tag = true;
     }
 
-    // Categorize attributes - pre-allocate based on total attribute count
+    // Categorize attributes in a single pass - also detect spread/use directives
     let attr_count = node.attributes.len();
     let mut attributes: Vec<&Attribute> = Vec::with_capacity(attr_count);
     let mut class_directives: Vec<&ClassDirective> = Vec::with_capacity(4);
     let mut style_directives: Vec<&StyleDirective> = Vec::with_capacity(4);
     let mut element_let_directives: Vec<&LetDirective> = Vec::new();
     let mut bindings: FxHashMap<String, &BindDirective> = FxHashMap::default();
-    let has_spread = node
-        .attributes
-        .iter()
-        .any(|attr| matches!(attr, Attribute::SpreadAttribute(_)));
-    let has_use = node
-        .attributes
-        .iter()
-        .any(|attr| matches!(attr, Attribute::UseDirective(_)));
+    let mut has_spread = false;
+    let mut has_use = false;
 
     for attribute in &node.attributes {
         match attribute {
@@ -220,12 +214,16 @@ pub fn visit_regular_element(
                 bindings.insert(dir.name.to_string(), dir);
             }
             Attribute::SpreadAttribute(_) => {
+                has_spread = true;
                 attributes.push(attribute);
             }
             Attribute::LetDirective(dir) => {
                 element_let_directives.push(dir);
             }
-            // OnDirective, TransitionDirective, AnimateDirective, UseDirective, AttachTag
+            Attribute::UseDirective(_) => {
+                has_use = true;
+            }
+            // OnDirective, TransitionDirective, AnimateDirective, AttachTag
             // are processed in source order in the directive loop below
             _ => {}
         }

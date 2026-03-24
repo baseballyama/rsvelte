@@ -197,8 +197,8 @@ pub fn is_static_element(node: &TemplateNode, _state: &ComponentClientTransformS
                         }
 
                         // Special handling for input/textarea value and checked
-                        if ["input", "textarea"].contains(&elem.name.as_str())
-                            && ["value", "checked"].contains(&attr.name.as_str())
+                        if (elem.name == "input" || elem.name == "textarea")
+                            && (attr.name == "value" || attr.name == "checked")
                         {
                             return false;
                         }

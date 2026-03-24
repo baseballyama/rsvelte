@@ -1,5 +1,7 @@
 //! Destructuring assignment transformations and IIFE generation.
 
+use rustc_hash::FxHashSet;
+
 use super::{SCRIPT_ARRAY_COUNTER, is_identifier_char};
 
 pub(super) fn unthunk_string(expr: &str) -> String {
@@ -1544,13 +1546,18 @@ pub(super) fn transform_member_mutations(
         return line.to_string();
     }
 
-    // Quick pre-check: if none of the state variable names appear in the line, skip expensive transforms
-    if !state_vars.iter().any(|v| {
-        !non_reactive_state_vars.contains(v)
-            && !raw_state_vars.contains(v)
-            && line.contains(v.as_str())
-    }) {
-        return line.to_string();
+    // Quick pre-check: if none of the reactive state variable names appear as identifiers
+    // in the line, skip expensive transforms.
+    // Uses O(text_len) identifier extraction instead of O(N*text_len) substring search.
+    {
+        let reactive_vars: FxHashSet<&str> = state_vars
+            .iter()
+            .filter(|v| !non_reactive_state_vars.contains(v) && !raw_state_vars.contains(v))
+            .map(|v| v.as_str())
+            .collect();
+        if !super::utils::text_contains_any_identifier(line, &reactive_vars) {
+            return line.to_string();
+        }
     }
 
     // Use the character-scanning approach from transform_state_member_mutations

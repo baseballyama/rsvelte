@@ -1,6 +1,7 @@
 //! State and prop assignment transformations, identifier analysis, and legacy transforms.
 
 use memchr::memmem;
+use rustc_hash::FxHashSet;
 
 use super::expression_utils::{
     byte_pos_to_char_index, find_assignment_expr_end, find_statement_end_client,
@@ -1402,7 +1403,11 @@ pub(super) fn transform_state_assignments(
     is_runes: bool,
     non_proxy_vars: &[String],
 ) -> String {
-    if state_vars.is_empty() || !state_vars.iter().any(|v| line.contains(v.as_str())) {
+    if state_vars.is_empty() {
+        return line.to_string();
+    }
+    let var_set: FxHashSet<&str> = state_vars.iter().map(|v| v.as_str()).collect();
+    if !super::utils::text_contains_any_identifier(line, &var_set) {
         return line.to_string();
     }
 
@@ -1894,8 +1899,9 @@ pub(super) fn transform_prop_assignments(
         return line.to_string();
     }
 
-    // Quick pre-check: if none of the prop vars appear in the line, skip expensive transforms
-    if !prop_vars.iter().any(|v| line.contains(v.as_str())) {
+    // Quick pre-check: if none of the prop vars appear as identifiers, skip expensive transforms
+    let var_set: FxHashSet<&str> = prop_vars.iter().map(|v| v.as_str()).collect();
+    if !super::utils::text_contains_any_identifier(line, &var_set) {
         return line.to_string();
     }
 

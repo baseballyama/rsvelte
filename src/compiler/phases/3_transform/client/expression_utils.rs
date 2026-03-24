@@ -1937,13 +1937,15 @@ pub(super) fn transform_state_in_expr(
         return expr.to_string();
     }
 
-    // Quick pre-check: if none of the state var names appear in the text at all,
-    // skip the expensive char-by-char scan entirely
-    if !effective_state_vars
-        .iter()
-        .any(|v| expr.contains(v.as_str()))
+    // Quick pre-check: if none of the state var names appear as identifiers in the text,
+    // skip the expensive char-by-char scan entirely.
+    // Uses O(text_len) identifier extraction instead of O(N*text_len) substring search.
     {
-        return expr.to_string();
+        let var_check_set: FxHashSet<&str> =
+            effective_state_vars.iter().map(|v| v.as_str()).collect();
+        if !super::utils::text_contains_any_identifier(expr, &var_check_set) {
+            return expr.to_string();
+        }
     }
 
     // Build a HashSet for O(1) variable lookup

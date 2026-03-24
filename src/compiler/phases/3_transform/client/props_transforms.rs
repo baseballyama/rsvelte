@@ -1,6 +1,7 @@
 //! Props, exports, and component property transformations.
 
 use memchr::memmem;
+use rustc_hash::FxHashSet;
 
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
@@ -21,8 +22,9 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
         return expr.to_string();
     }
 
-    // Quick pre-check: if none of the prop vars appear in the expression, skip expensive transforms
-    if !prop_vars.iter().any(|v| expr.contains(v.as_str())) {
+    // Quick pre-check: if none of the prop vars appear as identifiers, skip expensive transforms
+    let var_set: FxHashSet<&str> = prop_vars.iter().map(|v| v.as_str()).collect();
+    if !super::utils::text_contains_any_identifier(expr, &var_set) {
         return expr.to_string();
     }
 
@@ -248,8 +250,9 @@ pub(super) fn wrap_prop_source_reads(
         return expr.to_string();
     }
 
-    // Quick pre-check: if none of the prop vars appear in the expression, skip expensive transforms
-    if !prop_vars.iter().any(|v| expr.contains(v.as_str())) {
+    // Quick pre-check: if none of the prop vars appear as identifiers, skip expensive transforms
+    let var_set: FxHashSet<&str> = prop_vars.iter().map(|v| v.as_str()).collect();
+    if !super::utils::text_contains_any_identifier(expr, &var_set) {
         return expr.to_string();
     }
 

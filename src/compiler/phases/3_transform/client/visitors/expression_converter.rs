@@ -141,11 +141,9 @@ pub fn convert_expression(expr: &Expression, context: &mut ComponentContext) -> 
 fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
     match node {
         JsNode::Identifier { name, .. } => {
-            let name_str = name.to_string();
-
             // Check if this is a prop that needs special handling
             if context.state.analysis.runes
-                && let Some(binding) = context.state.get_binding(&name_str)
+                && let Some(binding) = context.state.get_binding(name.as_str())
                 && matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp)
             {
                 let is_source =
@@ -158,15 +156,11 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                     .analysis
                     .exports
                     .iter()
-                    .any(|e| e.name == name_str);
+                    .any(|e| e.name == name.as_str());
 
                 if !is_source && !is_exported {
-                    let prop_name = binding
-                        .prop_alias
-                        .as_deref()
-                        .unwrap_or(&name_str)
-                        .to_string();
-                    let needs_bracket = !is_valid_js_identifier(&prop_name);
+                    let prop_name = binding.prop_alias.as_deref().unwrap_or(name.as_str());
+                    let needs_bracket = !is_valid_js_identifier(prop_name);
                     return JsExpr::Member(JsMemberExpression {
                         object: Box::new(JsExpr::Identifier("$$props".into())),
                         property: if needs_bracket {
@@ -182,7 +176,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 }
             }
 
-            JsExpr::Identifier(name_str.into())
+            JsExpr::Identifier(name.clone())
         }
 
         JsNode::Literal {
