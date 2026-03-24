@@ -1286,8 +1286,16 @@ impl<'a> ServerCodeGenerator<'a> {
                         AttributeValuePart::Text(text) => {
                             // Normalize whitespace for class attributes
                             if is_class_attr {
-                                let normalized: String =
-                                    text.data.split_whitespace().collect::<Vec<_>>().join(" ");
+                                let normalized: String = text.data.split_whitespace().fold(
+                                    String::new(),
+                                    |mut acc, word| {
+                                        if !acc.is_empty() {
+                                            acc.push(' ');
+                                        }
+                                        acc.push_str(word);
+                                        acc
+                                    },
+                                );
                                 value.push_str(&normalized);
                             } else {
                                 value.push_str(&text.data);
@@ -1982,7 +1990,16 @@ impl<'a> ServerCodeGenerator<'a> {
                         }
                     }
                     // Normalize whitespace for class attribute
-                    let normalized: String = value.split_whitespace().collect::<Vec<_>>().join(" ");
+                    let normalized: String =
+                        value
+                            .split_whitespace()
+                            .fold(String::new(), |mut acc, word| {
+                                if !acc.is_empty() {
+                                    acc.push(' ');
+                                }
+                                acc.push_str(word);
+                                acc
+                            });
                     // Append CSS hash
                     let final_value = if let Some(hash) = css_hash {
                         if normalized.is_empty() {
@@ -2044,8 +2061,16 @@ impl<'a> ServerCodeGenerator<'a> {
                         AttributeValuePart::Text(text) => {
                             // Normalize whitespace for class attributes while preserving
                             // leading/trailing spaces that separate parts
-                            let trimmed: String =
-                                text.data.split_whitespace().collect::<Vec<_>>().join(" ");
+                            let trimmed: String = text.data.split_whitespace().fold(
+                                String::new(),
+                                |mut acc, word| {
+                                    if !acc.is_empty() {
+                                        acc.push(' ');
+                                    }
+                                    acc.push_str(word);
+                                    acc
+                                },
+                            );
 
                             // Check if original text had leading whitespace (important for parts after expressions)
                             let has_leading_ws = text.data.starts_with(char::is_whitespace);

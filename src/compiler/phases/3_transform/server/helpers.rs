@@ -6,6 +6,7 @@
 
 use super::types::{ConstantFoldResult, OutputPart};
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, Script, TemplateNode};
+use memchr::memmem;
 use rustc_hash::FxHashMap;
 
 // Re-export from sibling modules for backward compatibility
@@ -1188,8 +1189,8 @@ pub(crate) fn detect_props_spread_pattern(script: &str) -> bool {
     for line in script.lines() {
         let trimmed = line.trim();
         if (trimmed.starts_with("let ") || trimmed.starts_with("const "))
-            && trimmed.contains("= $props()")
-            && let Some(props_idx) = trimmed.find("= $props()")
+            && memmem::find(trimmed.as_bytes(), b"= $props()").is_some()
+            && let Some(props_idx) = memmem::find(trimmed.as_bytes(), b"= $props()")
         {
             let left = &trimmed[..props_idx].trim();
             let pattern = left
@@ -1211,15 +1212,20 @@ pub(crate) fn detect_props_spread_pattern(script: &str) -> bool {
     }
 
     // Multi-line check: collapse newlines and check again
-    if script.contains("$props()") && script.contains("...") {
+    let script_bytes = script.as_bytes();
+    if memmem::find(script_bytes, b"$props()").is_some()
+        && memmem::find(script_bytes, b"...").is_some()
+    {
         let collapsed: String = script
             .chars()
             .map(|c| if c == '\n' || c == '\r' { ' ' } else { c })
             .collect();
         let collapsed = collapsed.replace("  ", " ");
-        if (collapsed.contains("let {") || collapsed.contains("const {"))
-            && collapsed.contains("} = $props()")
-            && collapsed.contains("...")
+        let collapsed_bytes = collapsed.as_bytes();
+        if (memmem::find(collapsed_bytes, b"let {").is_some()
+            || memmem::find(collapsed_bytes, b"const {").is_some())
+            && memmem::find(collapsed_bytes, b"} = $props()").is_some()
+            && memmem::find(collapsed_bytes, b"...").is_some()
         {
             return true;
         }
@@ -1295,11 +1301,12 @@ pub(crate) fn transform_props_spread_ex(
     for line in script.lines() {
         let trimmed = line.trim();
 
+        let tb = trimmed.as_bytes();
         if (trimmed.starts_with("let ") || trimmed.starts_with("const "))
             && (trimmed.ends_with("= $$props")
                 || trimmed.ends_with("= $$props;")
-                || trimmed.contains("= $$props "))
-            && let Some(props_idx) = trimmed.find("= $$props")
+                || memmem::find(tb, b"= $$props ").is_some())
+            && let Some(props_idx) = memmem::find(tb, b"= $$props")
         {
             let left = trimmed[..props_idx].trim();
             let (decl_keyword, pattern) = if let Some(stripped) = left.strip_prefix("let ") {
@@ -1650,7 +1657,10 @@ pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMa
 
         // Skip lines with $state, $derived, or $props - these are reactive and
         // require proper scope analysis to constant-fold safely
-        if trimmed.contains("$state") || trimmed.contains("$derived") || trimmed.contains("$props")
+        let tb = trimmed.as_bytes();
+        if memmem::find(tb, b"$state").is_some()
+            || memmem::find(tb, b"$derived").is_some()
+            || memmem::find(tb, b"$props").is_some()
         {
             continue;
         }
@@ -1815,7 +1825,7 @@ fn extract_imports_with_options(script: &str, strip_exports: bool) -> (Vec<Strin
             let trimmed = line.trim();
             if trimmed.starts_with("import ") || trimmed.starts_with("import{") {
                 if trimmed.contains(';')
-                    || (trimmed.contains(" from ")
+                    || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
                         && (trimmed.ends_with('\'')
                             || trimmed.ends_with('"')
                             || trimmed.ends_with('`')))
@@ -2187,7 +2197,7 @@ fn try_extract_clsx_with_await(
     decls: &mut Vec<(String, String)>,
 ) -> Option<String> {
     // Look for $.clsx( pattern
-    if let Some(clsx_pos) = expr.find("$.clsx(") {
+    if let Some(clsx_pos) = memmem::find(expr.as_bytes(), b"$.clsx(") {
         let inner_start = clsx_pos + 7; // after "$.clsx("
         let bytes = expr.as_bytes();
         let mut depth = 1;

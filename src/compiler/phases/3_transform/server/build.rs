@@ -10,6 +10,7 @@ use super::types::{
     ComponentBinding, ComponentPropItem, OutputPart, collect_all_props, has_spreads,
 };
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+use memchr::memmem;
 
 /// A segment of an HTML string, either static (no blockers) or blocked.
 enum HtmlSegment {
@@ -143,7 +144,10 @@ impl<'a> ServerCodeGenerator<'a> {
                 .map(|s| {
                     let t = s.trim().to_string();
                     if !t.ends_with(';') {
-                        format!("{};", t)
+                        let mut with_semi = String::with_capacity(t.len() + 1);
+                        with_semi.push_str(&t);
+                        with_semi.push(';');
+                        with_semi
                     } else {
                         t
                     }
@@ -154,11 +158,12 @@ impl<'a> ServerCodeGenerator<'a> {
             // Remove $effect(), $effect.pre(), $effect.root(), $inspect(), $inspect.trace() blocks
             // These are client-side only and should not appear in SSR output.
             // This must be done for module scripts too (e.g., class constructors using $effect.root).
-            let rest = if rest.contains("$effect(")
-                || rest.contains("$effect.pre(")
-                || rest.contains("$effect.root(")
-                || rest.contains("$inspect(")
-                || rest.contains("$inspect.trace(")
+            let rest_bytes = rest.as_bytes();
+            let rest = if memmem::find(rest_bytes, b"$effect(").is_some()
+                || memmem::find(rest_bytes, b"$effect.pre(").is_some()
+                || memmem::find(rest_bytes, b"$effect.root(").is_some()
+                || memmem::find(rest_bytes, b"$inspect(").is_some()
+                || memmem::find(rest_bytes, b"$inspect.trace(").is_some()
             {
                 super::transform_script::remove_effect_blocks(&rest, false, self.dev)
             } else {
@@ -238,17 +243,18 @@ impl<'a> ServerCodeGenerator<'a> {
                     )
                 })
             });
-            let uses_props = raw_script.contains("$props()")
-                || raw_script.contains("export let ")
-                || raw_script.contains("export var ")
+            let raw_bytes = raw_script.as_bytes();
+            let uses_props = memmem::find(raw_bytes, b"$props()").is_some()
+                || memmem::find(raw_bytes, b"export let ").is_some()
+                || memmem::find(raw_bytes, b"export var ").is_some()
                 || has_bindable_props;
 
             // Check if class fields use $state, $state.raw, or $derived runes
             // This requires $$props and $$renderer.component() wrapper
-            let class_state_fields = raw_script.contains("class ")
-                && (raw_script.contains("= $state(")
-                    || raw_script.contains("= $state.raw(")
-                    || raw_script.contains("= $derived("));
+            let class_state_fields = memmem::find(raw_bytes, b"class ").is_some()
+                && (memmem::find(raw_bytes, b"= $state(").is_some()
+                    || memmem::find(raw_bytes, b"= $state.raw(").is_some()
+                    || memmem::find(raw_bytes, b"= $derived(").is_some());
 
             // Check if uses spread pattern: let props = $props() or let xxx = $props()
             // This requires $$renderer.component() wrapper with destructuring
@@ -270,7 +276,10 @@ impl<'a> ServerCodeGenerator<'a> {
                 .map(|s| {
                     let t = s.trim().to_string();
                     if !t.ends_with(';') {
-                        format!("{};", t)
+                        let mut with_semi = String::with_capacity(t.len() + 1);
+                        with_semi.push_str(&t);
+                        with_semi.push(';');
+                        with_semi
                     } else {
                         t
                     }
@@ -324,7 +333,7 @@ impl<'a> ServerCodeGenerator<'a> {
             // Collect (local_name, prop_name) pairs for `export { x as y }` patterns.
             // prop_name is the exported/public name (the alias if any, otherwise same as local).
             let reexported_props: Vec<(String, String)> = if has_bindable_props
-                && !raw_script.contains("$props()")
+                && memmem::find(raw_bytes, b"$props()").is_none()
             {
                 self.analysis
                     .map(|a| {
@@ -4778,7 +4787,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     // await expressions into const variables.
                     // This corresponds to the official compiler's PromiseOptimiser
                     // which wraps async slot props in child_block.
-                    if props_expr.contains("await ") {
+                    if memmem::find(props_expr.as_bytes(), b"await ").is_some() {
                         let inner_indent = format!("{}\t", indent);
                         body_code.push_str(&format!(
                             "{}$$renderer.child_block(async ($$renderer) => {{\n",
@@ -5894,23 +5903,26 @@ fn extract_await_from_slot_props(props_expr: &str) -> (Vec<String>, String) {
 /// - `/* $$async_void_noop */` (placeholder for removed $effect statements)
 /// - `/* $$async_hole:` (placeholder for removed $inspect statements in async mode)
 fn strip_async_placeholders(s: &str) -> String {
-    s.lines()
-        .filter(|line| {
-            let trimmed = line.trim();
-            !trimmed.contains("/* $$async_void_noop */")
-        })
-        .map(|line| {
-            let trimmed = line.trim();
-            if trimmed.contains("/* $$async_hole:") {
-                // $inspect() calls should emit ;; (two empty statements) to match
-                // the official Svelte compiler's server-side output
-                ";;"
-            } else {
-                line
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
+    let mut result = String::with_capacity(s.len());
+    let mut first = true;
+    for line in s.lines() {
+        let trimmed = line.trim();
+        if memmem::find(trimmed.as_bytes(), b"/* $$async_void_noop */").is_some() {
+            continue;
+        }
+        if !first {
+            result.push('\n');
+        }
+        first = false;
+        if memmem::find(trimmed.as_bytes(), b"/* $$async_hole:").is_some() {
+            // $inspect() calls should emit ;; (two empty statements) to match
+            // the official Svelte compiler's server-side output
+            result.push_str(";;");
+        } else {
+            result.push_str(line);
+        }
+    }
+    result
 }
 
 /// Strip trailing semicolons after function declaration closing braces.

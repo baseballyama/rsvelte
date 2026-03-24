@@ -210,18 +210,32 @@ pub(super) fn collapse_to_single_line(content: &str) -> String {
     let inner = &trimmed[1..trimmed.len() - 1];
 
     // Collapse whitespace: replace newlines and leading whitespace with single space
-    let collapsed_inner: String = inner
-        .split('\n')
-        .map(|line| line.trim())
-        .filter(|line| !line.is_empty())
-        .collect::<Vec<_>>()
-        .join(" ");
+    let mut collapsed_inner = String::new();
+    for line in inner.split('\n') {
+        let trimmed_line = line.trim();
+        if !trimmed_line.is_empty() {
+            if !collapsed_inner.is_empty() {
+                collapsed_inner.push(' ');
+            }
+            collapsed_inner.push_str(trimmed_line);
+        }
+    }
 
     // Build the collapsed form
     let collapsed = if is_object {
-        format!("{} {} {}", open, collapsed_inner, close)
+        let mut s = String::with_capacity(1 + 1 + collapsed_inner.len() + 1 + 1);
+        s.push(open);
+        s.push(' ');
+        s.push_str(&collapsed_inner);
+        s.push(' ');
+        s.push(close);
+        s
     } else {
-        format!("{}{}{}", open, collapsed_inner, close)
+        let mut s = String::with_capacity(1 + collapsed_inner.len() + 1);
+        s.push(open);
+        s.push_str(&collapsed_inner);
+        s.push(close);
+        s
     };
 
     // Only use collapsed form if it fits within the 60-char threshold

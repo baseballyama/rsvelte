@@ -20,6 +20,7 @@ use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 use helpers::*;
+use memchr::memmem;
 use types::{OutputPart, SnippetDef};
 
 use rustc_hash::FxHashMap;
@@ -155,14 +156,16 @@ pub fn transform_server_module(
 
     for import_line in &script_imports {
         let trimmed = import_line.trim();
-        if !trimmed.contains("svelte/internal/") {
+        if memmem::find(trimmed.as_bytes(), b"svelte/internal/").is_none() {
             // Ensure import statements end with semicolons, matching esrap behavior.
-            let with_semi = if !trimmed.ends_with(';') {
-                format!("{};", trimmed)
+            if !trimmed.ends_with(';') {
+                let mut with_semi = String::with_capacity(trimmed.len() + 1);
+                with_semi.push_str(trimmed);
+                with_semi.push(';');
+                parts.push(with_semi);
             } else {
-                trimmed.to_string()
+                parts.push(trimmed.to_string());
             };
-            parts.push(with_semi);
         }
     }
 
@@ -784,20 +787,28 @@ fn strip_effects_from_source(source: &str) -> String {
     use super::client::find_matching_paren;
     let mut result = source.to_string();
 
+    let finder_root = memmem::Finder::new(b"$effect.root(");
+    let finder_pre = memmem::Finder::new(b"$effect.pre(");
+    let finder_effect = memmem::Finder::new(b"$effect(");
+
     // Replace $effect.root(() => { ... }) with () => {} (a no-op cleanup function)
     // $effect.root returns a cleanup function, so we need to provide one.
-    while let Some(pos) = result.find("$effect.root(") {
+    while let Some(pos) = finder_root.find(result.as_bytes()) {
         let call_start = pos + 13; // after "$effect.root("
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
             let expr_end = call_start + content_end + 1; // after closing paren
-            result = format!("{}() => {{}}{}", &result[..pos], &result[expr_end..]);
+            let mut new_result = String::with_capacity(pos + 7 + result.len() - expr_end);
+            new_result.push_str(&result[..pos]);
+            new_result.push_str("() => {}");
+            new_result.push_str(&result[expr_end..]);
+            result = new_result;
         } else {
             break;
         }
     }
 
     // Strip $effect.pre(() => { ... }) blocks
-    while let Some(pos) = result.find("$effect.pre(") {
+    while let Some(pos) = finder_pre.find(result.as_bytes()) {
         let call_start = pos + 12;
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
             let expr_end = call_start + content_end + 1;
@@ -808,14 +819,17 @@ fn strip_effects_from_source(source: &str) -> String {
             if end < result.len() && result.as_bytes()[end] == b';' {
                 end += 1;
             }
-            result = format!("{}{}", &result[..pos], &result[end..]);
+            let mut new_result = String::with_capacity(pos + result.len() - end);
+            new_result.push_str(&result[..pos]);
+            new_result.push_str(&result[end..]);
+            result = new_result;
         } else {
             break;
         }
     }
 
     // Strip $effect(() => { ... }) blocks (but not $effect.root/$effect.pre which were already handled)
-    while let Some(pos) = result.find("$effect(") {
+    while let Some(pos) = finder_effect.find(result.as_bytes()) {
         // Make sure this is not $effect.something (should already be handled above)
         if pos + 8 < result.len() && result.as_bytes()[pos + 7] == b'.' {
             break; // shouldn't happen since $effect.root and $effect.pre are already handled
@@ -830,7 +844,10 @@ fn strip_effects_from_source(source: &str) -> String {
             if end < result.len() && result.as_bytes()[end] == b';' {
                 end += 1;
             }
-            result = format!("{}{}", &result[..pos], &result[end..]);
+            let mut new_result = String::with_capacity(pos + result.len() - end);
+            new_result.push_str(&result[..pos]);
+            new_result.push_str(&result[end..]);
+            result = new_result;
         } else {
             break;
         }
@@ -845,19 +862,41 @@ fn post_process_for_server(source: &str) -> String {
     use super::client::find_matching_paren;
     let mut result = source.to_string();
 
+    let finder_effect_root = memmem::Finder::new(b"$.effect_root(");
+    let finder_user_effect = memmem::Finder::new(b"$.user_effect(");
+    let finder_proxy = memmem::Finder::new(b"$.proxy(");
+    let finder_get = memmem::Finder::new(b"$.get(");
+    let finder_set = memmem::Finder::new(b"$.set(");
+    let finder_update = memmem::Finder::new(b"$.update(");
+    let finder_update_pre = memmem::Finder::new(b"$.update_pre(");
+    let finder_state = memmem::Finder::new(b"$.state(");
+
+    // Helper: splice result string efficiently without format!
+    macro_rules! splice {
+        ($result:expr, $before_end:expr, $middle:expr, $after_start:expr) => {{
+            let before = &$result[..$before_end];
+            let after = &$result[$after_start..];
+            let mut new = String::with_capacity(before.len() + $middle.len() + after.len());
+            new.push_str(before);
+            new.push_str($middle);
+            new.push_str(after);
+            new
+        }};
+    }
+
     // Replace $.effect_root(...) with () => {} (no-op cleanup)
-    while let Some(pos) = result.find("$.effect_root(") {
+    while let Some(pos) = finder_effect_root.find(result.as_bytes()) {
         let call_start = pos + 14;
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
             let expr_end = call_start + content_end + 1;
-            result = format!("{}() => {{}}{}", &result[..pos], &result[expr_end..]);
+            result = splice!(result, pos, "() => {}", expr_end);
         } else {
             break;
         }
     }
 
     // Remove $.user_effect(...) calls
-    while let Some(pos) = result.find("$.user_effect(") {
+    while let Some(pos) = finder_user_effect.find(result.as_bytes()) {
         let call_start = pos + 14;
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
             let expr_end = call_start + content_end + 1;
@@ -868,23 +907,18 @@ fn post_process_for_server(source: &str) -> String {
             if end < result.len() && result.as_bytes()[end] == b';' {
                 end += 1;
             }
-            result = format!("{}{}", &result[..pos], &result[end..]);
+            result = splice!(result, pos, "", end);
         } else {
             break;
         }
     }
 
     // Replace $.proxy(x) with just x (no proxying on server)
-    while let Some(pos) = result.find("$.proxy(") {
+    while let Some(pos) = finder_proxy.find(result.as_bytes()) {
         let call_start = pos + 8;
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
             let content = result[call_start..call_start + content_end].to_string();
-            result = format!(
-                "{}{}{}",
-                &result[..pos],
-                content,
-                &result[call_start + content_end + 1..]
-            );
+            result = splice!(result, pos, &content, call_start + content_end + 1);
         } else {
             break;
         }
@@ -893,29 +927,22 @@ fn post_process_for_server(source: &str) -> String {
     // Replace $.get(x) for server modules:
     // - Simple identifiers: $.get(x) -> x (plain variable)
     // - Member expressions (this.#x): $.get(this.#x) -> this.#x() (callable signal in class)
-    while let Some(pos) = result.find("$.get(") {
+    while let Some(pos) = finder_get.find(result.as_bytes()) {
         let call_start = pos + 6;
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
             let content = result[call_start..call_start + content_end]
                 .trim()
                 .to_string();
             // Check if it's a member expression (contains '.')
-            if content.contains('.') {
+            if memchr::memchr(b'.', content.as_bytes()).is_some() {
                 // Member expression: keep as function call
-                result = format!(
-                    "{}{}(){}",
-                    &result[..pos],
-                    content,
-                    &result[call_start + content_end + 1..]
-                );
+                let mut replacement = String::with_capacity(content.len() + 2);
+                replacement.push_str(&content);
+                replacement.push_str("()");
+                result = splice!(result, pos, &replacement, call_start + content_end + 1);
             } else {
                 // Simple identifier: just the variable name
-                result = format!(
-                    "{}{}{}",
-                    &result[..pos],
-                    content,
-                    &result[call_start + content_end + 1..]
-                );
+                result = splice!(result, pos, &content, call_start + content_end + 1);
             }
         } else {
             break;
@@ -925,7 +952,7 @@ fn post_process_for_server(source: &str) -> String {
     // Replace $.set(x, v[, flag]) for server modules:
     // - Simple identifiers: $.set(x, v) -> x = v
     // - Member expressions: $.set(this.#x, v) -> this.#x(v)
-    while let Some(pos) = result.find("$.set(") {
+    while let Some(pos) = finder_set.find(result.as_bytes()) {
         let call_start = pos + 6;
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
             let content = result[call_start..call_start + content_end].to_string();
@@ -938,24 +965,21 @@ fn post_process_for_server(source: &str) -> String {
                 } else {
                     rest
                 };
-                if signal.contains('.') {
+                if memchr::memchr(b'.', signal.as_bytes()).is_some() {
                     // Member expression: function call form
-                    result = format!(
-                        "{}{}({}){}",
-                        &result[..pos],
-                        signal,
-                        value,
-                        &result[call_start + content_end + 1..]
-                    );
+                    let mut replacement = String::with_capacity(signal.len() + 1 + value.len() + 1);
+                    replacement.push_str(signal);
+                    replacement.push('(');
+                    replacement.push_str(value);
+                    replacement.push(')');
+                    result = splice!(result, pos, &replacement, call_start + content_end + 1);
                 } else {
                     // Simple identifier: assignment form
-                    result = format!(
-                        "{}{} = {}{}",
-                        &result[..pos],
-                        signal,
-                        value,
-                        &result[call_start + content_end + 1..]
-                    );
+                    let mut replacement = String::with_capacity(signal.len() + 3 + value.len());
+                    replacement.push_str(signal);
+                    replacement.push_str(" = ");
+                    replacement.push_str(value);
+                    result = splice!(result, pos, &replacement, call_start + content_end + 1);
                 }
             } else {
                 break;
@@ -965,37 +989,30 @@ fn post_process_for_server(source: &str) -> String {
         }
     }
 
-    // Replace $.update(x) with x++ for server modules
-    while let Some(pos) = result.find("$.update(") {
-        let call_start = pos + 9;
+    // Replace $.update_pre(x) with ++x for server modules
+    // IMPORTANT: Process $.update_pre BEFORE $.update to avoid prefix matching issues
+    while let Some(pos) = finder_update_pre.find(result.as_bytes()) {
+        let call_start = pos + 13;
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
-            let content = result[call_start..call_start + content_end]
-                .trim()
-                .to_string();
-            result = format!(
-                "{}{}++{}",
-                &result[..pos],
-                content,
-                &result[call_start + content_end + 1..]
-            );
+            let content = result[call_start..call_start + content_end].trim();
+            let mut replacement = String::with_capacity(content.len() + 2);
+            replacement.push_str("++");
+            replacement.push_str(content);
+            result = splice!(result, pos, &replacement, call_start + content_end + 1);
         } else {
             break;
         }
     }
 
-    // Replace $.update_pre(x) with ++x for server modules
-    while let Some(pos) = result.find("$.update_pre(") {
-        let call_start = pos + 13;
+    // Replace $.update(x) with x++ for server modules
+    while let Some(pos) = finder_update.find(result.as_bytes()) {
+        let call_start = pos + 9;
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
-            let content = result[call_start..call_start + content_end]
-                .trim()
-                .to_string();
-            result = format!(
-                "{}++{}{}",
-                &result[..pos],
-                content,
-                &result[call_start + content_end + 1..]
-            );
+            let content = result[call_start..call_start + content_end].trim();
+            let mut replacement = String::with_capacity(content.len() + 2);
+            replacement.push_str(content);
+            replacement.push_str("++");
+            result = splice!(result, pos, &replacement, call_start + content_end + 1);
         } else {
             break;
         }
@@ -1003,13 +1020,18 @@ fn post_process_for_server(source: &str) -> String {
 
     // Replace $.derived(() => expr) with just expr for module-level (non-class) derived
     // In class contexts, $.derived is kept as-is (server runtime has $.derived for classes)
-    for pattern in &["$.derived(", "$.derived_safe_equal("] {
-        while let Some(pos) = result.find(pattern) {
+    let derived_patterns: &[(&[u8], usize)] = &[
+        (b"$.derived(" as &[u8], 10),
+        (b"$.derived_safe_equal(" as &[u8], 21),
+    ];
+    for &(pattern_bytes, pattern_len) in derived_patterns {
+        let finder = memmem::Finder::new(pattern_bytes);
+        while let Some(pos) = finder.find(result.as_bytes()) {
             // Check if this is inside a class body by looking for preceding class-like context
             // If it's a class field assignment (e.g., #field = $.derived(...)), skip it
             let before = &result[..pos];
             let trimmed_before = before.trim_end();
-            let is_class_field = trimmed_before.ends_with("=") && {
+            let is_class_field = trimmed_before.ends_with('=') && {
                 // Check if the line starts with # or this. (class field/constructor)
                 let line_start = before.rfind('\n').map(|p| p + 1).unwrap_or(0);
                 let line = before[line_start..].trim_start();
@@ -1021,7 +1043,7 @@ fn post_process_for_server(source: &str) -> String {
                 break; // Can't easily skip since positions change; just stop processing
             }
 
-            let call_start = pos + pattern.len();
+            let call_start = pos + pattern_len;
             if let Some(content_end) = find_matching_paren(&result[call_start..]) {
                 let content = result[call_start..call_start + content_end]
                     .trim()
@@ -1032,12 +1054,7 @@ fn post_process_for_server(source: &str) -> String {
                 } else {
                     content
                 };
-                result = format!(
-                    "{}{}{}",
-                    &result[..pos],
-                    value,
-                    &result[call_start + content_end + 1..]
-                );
+                result = splice!(result, pos, &value, call_start + content_end + 1);
             } else {
                 break;
             }
@@ -1045,7 +1062,7 @@ fn post_process_for_server(source: &str) -> String {
     }
 
     // Replace $.state(x) with just x (no signals on server)
-    while let Some(pos) = result.find("$.state(") {
+    while let Some(pos) = finder_state.find(result.as_bytes()) {
         let call_start = pos + 8;
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
             let content = result[call_start..call_start + content_end].to_string();
@@ -1055,12 +1072,7 @@ fn post_process_for_server(source: &str) -> String {
             } else {
                 trimmed
             };
-            result = format!(
-                "{}{}{}",
-                &result[..pos],
-                value,
-                &result[call_start + content_end + 1..]
-            );
+            result = splice!(result, pos, value, call_start + content_end + 1);
         } else {
             break;
         }
@@ -1243,7 +1255,10 @@ impl<'a> ServerCodeGenerator<'a> {
                 let script_content = &source[start..end];
                 for line in script_content.lines() {
                     let trimmed = line.trim();
-                    if !trimmed.contains("$derived(") || trimmed.contains("$derived.by(") {
+                    let tb = trimmed.as_bytes();
+                    if memmem::find(tb, b"$derived(").is_none()
+                        || memmem::find(tb, b"$derived.by(").is_some()
+                    {
                         continue;
                     }
                     let decl_trimmed = if let Some(rest) = trimmed.strip_prefix("export ") {
@@ -1464,7 +1479,7 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         // Replace $$props with $$sanitized_props if uses_props is set
-        if analysis.uses_props && expr.contains("$$props") {
+        if analysis.uses_props && memmem::find(expr.as_bytes(), b"$$props").is_some() {
             return replace_identifier_in_expr(expr, "$$props", "$$sanitized_props");
         }
 
@@ -1477,30 +1492,31 @@ impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn transform_rune_in_template_expr(expr: &str) -> String {
         use crate::compiler::phases::phase3_transform::server::transform_script::remove_effect_blocks;
 
+        let result_bytes = expr.as_bytes();
         let mut result = expr.to_string();
         // $state.eager(x) -> x (unwrap the rune call)
-        if result.contains("$state.eager(") {
+        if memmem::find(result_bytes, b"$state.eager(").is_some() {
             result = transform_rune_call_simple(&result, "$state.eager(");
         }
         // $state.snapshot(x) -> $.snapshot(x)
-        if result.contains("$state.snapshot(") {
+        if memmem::find(result.as_bytes(), b"$state.snapshot(").is_some() {
             result = result.replace("$state.snapshot(", "$.snapshot(");
         }
         // $effect.tracking() -> false
-        if result.contains("$effect.tracking()") {
+        if memmem::find(result.as_bytes(), b"$effect.tracking()").is_some() {
             result = result.replace("$effect.tracking()", "false");
         }
         // $effect.pending() -> 0 (number, matching official compiler)
-        if result.contains("$effect.pending()") {
+        if memmem::find(result.as_bytes(), b"$effect.pending()").is_some() {
             result = result.replace("$effect.pending()", "0");
         }
         // Remove $effect(), $effect.pre(), $effect.root(), $inspect(), $inspect.trace() blocks
         // These are client-side only and should be stripped in SSR template expressions too
-        if result.contains("$effect(")
-            || result.contains("$effect.pre(")
-            || result.contains("$effect.root(")
-            || result.contains("$inspect(")
-            || result.contains("$inspect.trace(")
+        if memmem::find(result.as_bytes(), b"$effect(").is_some()
+            || memmem::find(result.as_bytes(), b"$effect.pre(").is_some()
+            || memmem::find(result.as_bytes(), b"$effect.root(").is_some()
+            || memmem::find(result.as_bytes(), b"$inspect(").is_some()
+            || memmem::find(result.as_bytes(), b"$inspect.trace(").is_some()
         {
             result = remove_effect_blocks(&result, false, false);
         }

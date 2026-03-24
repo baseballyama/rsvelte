@@ -4,6 +4,8 @@
 //! for server-side code generation, including `export let` declarations, reactive
 //! `$:` statements, and related helper utilities.
 
+use memchr::memmem;
+
 /// Check if the declaration string contains a semicolon at depth 0 (not inside braces/parens/brackets).
 /// This is used to determine if an export let declaration is complete.
 fn has_top_level_semicolon(s: &str) -> bool {
@@ -1314,10 +1316,11 @@ fn extract_reactive_lhs_vars(stmt: &str) -> Vec<String> {
 /// Extract store subscription variable names from `$.store_set(name, ...)` patterns.
 /// Adds `$name` to the vars list for each store_set call found.
 fn extract_store_set_targets(code: &str, vars: &mut Vec<String>) {
+    let finder = memmem::Finder::new(b"$.store_set(");
     let mut search_from = 0;
-    while let Some(pos) = code[search_from..].find("$.store_set(") {
+    while let Some(pos) = finder.find(&code.as_bytes()[search_from..]) {
         let abs_pos = search_from + pos;
-        let after_call = abs_pos + "$.store_set(".len();
+        let after_call = abs_pos + 12; // "$.store_set(".len()
         // Read the first argument (store name)
         let mut j = after_call;
         let chars: Vec<char> = code.chars().collect();
@@ -1525,11 +1528,12 @@ fn extract_reactive_rhs_identifiers(stmt: &str) -> Vec<String> {
     // `$.store_get($$store_subs ??= {}, '$b', b)` means this statement uses `$b`.
     let mut store_deps = Vec::new();
     {
+        let finder_store_get = memmem::Finder::new(b"$.store_get(");
         let mut search_from = 0;
-        while let Some(pos) = after_dollar[search_from..].find("$.store_get(") {
+        while let Some(pos) = finder_store_get.find(&after_dollar.as_bytes()[search_from..]) {
             let abs_pos = search_from + pos;
             // Find the second argument (the '$name' string literal)
-            let after_call = abs_pos + "$.store_get(".len();
+            let after_call = abs_pos + 12; // "$.store_get(".len()
             // Skip first arg ($$store_subs ??= {})
             if let Some(comma_pos) = after_dollar[after_call..].find(',') {
                 let after_first_comma = after_call + comma_pos + 1;

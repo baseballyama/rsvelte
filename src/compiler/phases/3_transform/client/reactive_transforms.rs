@@ -731,17 +731,16 @@ pub(super) fn transform_reactive_statement(
     if is_block {
         // Body was a block statement; inner_body has dedented content
         // The inner content lines should be indented one level for the callback body
-        let indented = inner_body
-            .lines()
-            .map(|line| {
-                if line.trim().is_empty() {
-                    String::new()
-                } else {
-                    format!("\t{}", line)
-                }
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
+        let mut indented = String::with_capacity(inner_body.len() + inner_body.lines().count());
+        for (i, line) in inner_body.lines().enumerate() {
+            if i > 0 {
+                indented.push('\n');
+            }
+            if !line.trim().is_empty() {
+                indented.push('\t');
+                indented.push_str(line);
+            }
+        }
         format!(
             "$.legacy_pre_effect({}, () => {{\n{}\n}});",
             deps_thunk, indented
@@ -837,11 +836,13 @@ pub(super) fn unwrap_block_statement_owned(body: &str) -> (String, bool) {
                             let inner = inner.strip_prefix('\n').unwrap_or(inner);
                             let inner = inner.strip_suffix('\n').unwrap_or(inner);
                             // Remove one level of tab indentation from all non-empty lines
-                            let dedented = inner
-                                .lines()
-                                .map(|line| line.strip_prefix('\t').unwrap_or(line).to_string())
-                                .collect::<Vec<_>>()
-                                .join("\n");
+                            let mut dedented = String::with_capacity(inner.len());
+                            for (i, line) in inner.lines().enumerate() {
+                                if i > 0 {
+                                    dedented.push('\n');
+                                }
+                                dedented.push_str(line.strip_prefix('\t').unwrap_or(line));
+                            }
                             return (dedented, true);
                         } else {
                             // There's more content after the }, not a simple block

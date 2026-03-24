@@ -9,6 +9,7 @@ use super::transform_legacy::transform_export_let_declarations;
 use super::transform_store::{
     transform_store_assignments, transform_store_destructure_assignments,
 };
+use memchr::memmem;
 
 /// Transform script content for server-side rendering.
 #[allow(dead_code)]
@@ -77,7 +78,7 @@ fn transform_script_content_inner(
     let script = script.replace("$effect.tracking()", "false");
     // Replace $props.id() with $.props_id($$renderer) and upgrade let to const
     // (matches official compiler behavior)
-    let script = if script.contains("$props.id()") {
+    let script = if memmem::find(script.as_bytes(), b"$props.id()").is_some() {
         let s = script.replace("$props.id()", "$.props_id($$renderer)");
         // Convert "let id = $.props_id($$renderer)" to "const id = ..."
         s.replace(
@@ -138,10 +139,9 @@ fn transform_script_content_inner(
         script
     };
 
-    let mut result = String::new();
-    let lines: Vec<&str> = script.lines().collect();
+    let mut result = String::with_capacity(script.len());
 
-    for line in lines {
+    for line in script.lines() {
         let trimmed = line.trim();
 
         if result.is_empty() && trimmed.is_empty() {
@@ -886,7 +886,7 @@ fn has_svelte_ignore_before(before: &str, code: &str) -> bool {
         if trimmed.is_empty() {
             continue;
         }
-        if trimmed.contains("svelte-ignore") && trimmed.contains(code) {
+        if memmem::find(trimmed.as_bytes(), b"svelte-ignore").is_some() && trimmed.contains(code) {
             return true;
         }
         // Stop at the first non-empty, non-comment line
@@ -1485,16 +1485,17 @@ fn add_statement_semicolon(line: &str) -> String {
 
 /// Transform class fields with $derived runes for server-side.
 pub(crate) fn transform_class_fields_server(script: &str) -> String {
-    if !script.contains("class ")
-        || (!script.contains("$derived(")
-            && !script.contains("$derived.by(")
-            && !script.contains("$state(")
-            && !script.contains("$state.raw("))
+    let script_bytes = script.as_bytes();
+    if memmem::find(script_bytes, b"class ").is_none()
+        || (memmem::find(script_bytes, b"$derived(").is_none()
+            && memmem::find(script_bytes, b"$derived.by(").is_none()
+            && memmem::find(script_bytes, b"$state(").is_none()
+            && memmem::find(script_bytes, b"$state.raw(").is_none())
     {
         return script.to_string();
     }
 
-    let Some(class_pos) = script.find("class ") else {
+    let Some(class_pos) = memmem::find(script_bytes, b"class ") else {
         return script.to_string();
     };
 
@@ -1644,7 +1645,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             continue;
         }
 
-        if trimmed.contains("constructor(") && !trimmed.contains('=') {
+        if memmem::find(trimmed.as_bytes(), b"constructor(").is_some() && !trimmed.contains('=') {
             in_block = true;
             block_is_arrow_fn = false;
             block_depth = 0;
@@ -1667,11 +1668,12 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             continue;
         }
 
+        let trimmed_bytes = trimmed.as_bytes();
         let is_arrow_fn_start = trimmed.contains('=')
-            && trimmed.contains("=>")
+            && memmem::find(trimmed_bytes, b"=>").is_some()
             && trimmed.contains('{')
-            && !trimmed.contains("$derived")
-            && !trimmed.contains("$state");
+            && memmem::find(trimmed_bytes, b"$derived").is_none()
+            && memmem::find(trimmed_bytes, b"$state").is_none();
 
         if is_arrow_fn_start {
             in_block = true;
@@ -1724,22 +1726,23 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             continue;
         }
 
-        let is_derived_field = trimmed.contains("= $derived(")
-            || trimmed.contains("=$derived(")
-            || trimmed.contains("= $derived.by(")
-            || trimmed.contains("=$derived.by(");
+        let is_derived_field = memmem::find(trimmed_bytes, b"= $derived(").is_some()
+            || memmem::find(trimmed_bytes, b"=$derived(").is_some()
+            || memmem::find(trimmed_bytes, b"= $derived.by(").is_some()
+            || memmem::find(trimmed_bytes, b"=$derived.by(").is_some();
         if is_derived_field {
             let is_private = trimmed.starts_with('#');
             if let Some(eq_pos) = trimmed.find('=') {
                 let name = trimmed[..eq_pos].trim().trim_start_matches('#').to_string();
 
-                let (derived_pattern, is_derived_by) = if trimmed.contains("$derived.by(") {
-                    ("$derived.by(", true)
-                } else {
-                    ("$derived(", false)
-                };
+                let (derived_pattern, is_derived_by) =
+                    if memmem::find(trimmed_bytes, b"$derived.by(").is_some() {
+                        ("$derived.by(", true)
+                    } else {
+                        ("$derived(", false)
+                    };
 
-                if let Some(derived_pos) = trimmed.find(derived_pattern) {
+                if let Some(derived_pos) = memmem::find(trimmed_bytes, derived_pattern.as_bytes()) {
                     let value_start = derived_pos + derived_pattern.len();
                     let after_paren = &trimmed[value_start..];
 
@@ -1790,19 +1793,20 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             }
         }
 
-        let is_state_field = trimmed.contains("= $state(")
-            || trimmed.contains("=$state(")
-            || trimmed.contains("= $state.raw(")
-            || trimmed.contains("=$state.raw(");
+        let is_state_field = memmem::find(trimmed_bytes, b"= $state(").is_some()
+            || memmem::find(trimmed_bytes, b"=$state(").is_some()
+            || memmem::find(trimmed_bytes, b"= $state.raw(").is_some()
+            || memmem::find(trimmed_bytes, b"=$state.raw(").is_some();
         if is_state_field && let Some(eq_pos) = trimmed.find('=') {
-            let (state_pattern, state_pos) = if let Some(pos) = trimmed.find("$state.raw(") {
-                ("$state.raw(", pos)
-            } else if let Some(pos) = trimmed.find("$state(") {
-                ("$state(", pos)
-            } else {
-                members.push(ClassMember::Field(trimmed.to_string()));
-                continue;
-            };
+            let (state_pattern, state_pos) =
+                if let Some(pos) = memmem::find(trimmed_bytes, b"$state.raw(") {
+                    ("$state.raw(", pos)
+                } else if let Some(pos) = memmem::find(trimmed_bytes, b"$state(") {
+                    ("$state(", pos)
+                } else {
+                    members.push(ClassMember::Field(trimmed.to_string()));
+                    continue;
+                };
             let field_name = trimmed[..eq_pos].trim();
             let value_start = state_pos + state_pattern.len();
             let after_paren = &trimmed[value_start..];
@@ -1827,33 +1831,35 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         if let ClassMember::Method(lines) = member
             && lines
                 .first()
-                .is_some_and(|l| l.trim().contains("constructor("))
+                .is_some_and(|l| memmem::find(l.trim().as_bytes(), b"constructor(").is_some())
         {
             let mut new_lines: Vec<String> = Vec::new();
             for line in lines.iter() {
                 let trimmed = line.trim();
+                let tb = trimmed.as_bytes();
                 // Preserve original indentation prefix
                 let indent_prefix: String =
                     line.chars().take_while(|c| c.is_whitespace()).collect();
 
                 if trimmed.starts_with("this.")
-                    && (trimmed.contains("= $derived(")
-                        || trimmed.contains("=$derived(")
-                        || trimmed.contains("= $derived.by(")
-                        || trimmed.contains("=$derived.by("))
+                    && (memmem::find(tb, b"= $derived(").is_some()
+                        || memmem::find(tb, b"=$derived(").is_some()
+                        || memmem::find(tb, b"= $derived.by(").is_some()
+                        || memmem::find(tb, b"=$derived.by(").is_some())
                     && let Some(eq_pos) = trimmed.find('=')
                 {
                     let lhs = trimmed[5..eq_pos].trim();
                     let is_private = lhs.starts_with('#');
                     let name = lhs.trim_start_matches('#').to_string();
 
-                    let (derived_pattern, is_derived_by) = if trimmed.contains("$derived.by(") {
-                        ("$derived.by(", true)
-                    } else {
-                        ("$derived(", false)
-                    };
+                    let (derived_pattern, is_derived_by) =
+                        if memmem::find(tb, b"$derived.by(").is_some() {
+                            ("$derived.by(", true)
+                        } else {
+                            ("$derived(", false)
+                        };
 
-                    if let Some(derived_pos) = trimmed.find(derived_pattern) {
+                    if let Some(derived_pos) = memmem::find(tb, derived_pattern.as_bytes()) {
                         let value_start = derived_pos + derived_pattern.len();
                         let after_paren = &trimmed[value_start..];
 
@@ -1889,23 +1895,23 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                 }
 
                 if trimmed.starts_with("this.")
-                    && (trimmed.contains("= $state(")
-                        || trimmed.contains("=$state(")
-                        || trimmed.contains("= $state.raw(")
-                        || trimmed.contains("=$state.raw("))
+                    && (memmem::find(tb, b"= $state(").is_some()
+                        || memmem::find(tb, b"=$state(").is_some()
+                        || memmem::find(tb, b"= $state.raw(").is_some()
+                        || memmem::find(tb, b"=$state.raw(").is_some())
                     && let Some(eq_pos) = trimmed.find('=')
                 {
                     let lhs = trimmed[5..eq_pos].trim();
 
-                    let (state_pattern, state_pos) = if let Some(pos) = trimmed.find("$state.raw(")
-                    {
-                        ("$state.raw(", pos)
-                    } else if let Some(pos) = trimmed.find("$state(") {
-                        ("$state(", pos)
-                    } else {
-                        new_lines.push(line.to_string());
-                        continue;
-                    };
+                    let (state_pattern, state_pos) =
+                        if let Some(pos) = memmem::find(tb, b"$state.raw(") {
+                            ("$state.raw(", pos)
+                        } else if let Some(pos) = memmem::find(tb, b"$state(") {
+                            ("$state(", pos)
+                        } else {
+                            new_lines.push(line.to_string());
+                            continue;
+                        };
 
                     let value_start = state_pos + state_pattern.len();
                     let after_paren = &trimmed[value_start..];
@@ -2024,7 +2030,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             ClassMember::Method(lines) => {
                 let is_constructor = lines
                     .first()
-                    .is_some_and(|l| l.trim().contains("constructor("));
+                    .is_some_and(|l| memmem::find(l.trim().as_bytes(), b"constructor(").is_some());
 
                 let method_text = lines.join("\n");
                 let mut transformed =
@@ -3527,7 +3533,7 @@ fn try_normalize_iife(chars: &[char], start: usize) -> Option<(usize, String)> {
 pub(crate) fn strip_arrow_function_parens(s: String) -> String {
     // Fast path: if the string doesn't contain "(() =>" there's nothing to strip.
     // Returns the original String without any allocation.
-    if !s.contains("(() =>") {
+    if memmem::find(s.as_bytes(), b"(() =>").is_none() {
         return s;
     }
 

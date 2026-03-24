@@ -58,7 +58,9 @@ pub fn on_directive(node: &OnDirective, context: &mut ComponentContext) -> JsExp
     // Apply modifiers
     for modifier in MODIFIERS {
         if node.modifiers.iter().any(|m| m.as_str() == *modifier) {
-            let modifier_fn = format!("$.{}", modifier);
+            let mut modifier_fn = String::with_capacity(2 + modifier.len());
+            modifier_fn.push_str("$.");
+            modifier_fn.push_str(modifier);
             handler = b::call(
                 &context.arena,
                 b::member_path(&context.arena, &modifier_fn),

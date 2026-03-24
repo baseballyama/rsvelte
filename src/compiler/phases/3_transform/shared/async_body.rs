@@ -7,6 +7,8 @@
 //!
 //! Corresponds to `transform_body()` in `svelte/packages/svelte/src/compiler/phases/3-transform/shared/transform-async.js`
 
+use memchr::memmem;
+
 /// Result of the async body transformation.
 pub struct AsyncBodyResult {
     /// The transformed script with sync statements, hoisted var declarations, and $$promises
@@ -120,7 +122,7 @@ pub fn compute_blocker_map(raw_script: &str) -> rustc_hash::FxHashMap<String, us
             // transformation), add it to the blocker_map. The template transform
             // accesses destructured props via $$props.name, so $$props needs a
             // blocker index for the template_effect to wait on.
-            if trimmed_stmt.contains("$$props") {
+            if memmem::find(trimmed_stmt.as_bytes(), b"$$props").is_some() {
                 let should_update = match blocker_map.get("$$props") {
                     None => true,
                     Some(&existing) => current_async_index > existing,
@@ -366,10 +368,12 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
             // Handle async hole placeholder (from $inspect() removed in non-dev mode)
             // Format: /* $$async_hole */ or /* $$async_hole:args */
             // Produces an array hole (empty slot) in the thunk array.
-            if trimmed_stmt.contains("$$async_hole") {
+            if memmem::find(trimmed_stmt.as_bytes(), b"$$async_hole").is_some() {
                 // Extract args if present (for blocker_map tracking)
-                let args = if let Some(colon_pos) = trimmed_stmt.find("$$async_hole:") {
-                    let start = colon_pos + "$$async_hole:".len();
+                let args = if let Some(colon_pos) =
+                    memmem::find(trimmed_stmt.as_bytes(), b"$$async_hole:")
+                {
+                    let start = colon_pos + 13; // "$$async_hole:".len()
                     if let Some(end) = trimmed_stmt[start..].find("*/") {
                         trimmed_stmt[start..start + end].trim().to_string()
                     } else {
@@ -387,7 +391,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
 
             // Handle async void noop placeholder (from $effect() removed on server)
             // Format: /* $$async_void_noop */
-            if trimmed_stmt.contains("$$async_void_noop") {
+            if memmem::find(trimmed_stmt.as_bytes(), b"$$async_void_noop").is_some() {
                 async_stmts.push(AsyncStmt {
                     kind: AsyncStmtKind::VoidNoop,
                     has_await: false,
@@ -397,10 +401,10 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
 
             // Handle async noop placeholder (from $props() that transformed to empty)
             // Format: /* $$async_noop */ or /* $$async_noop:var1,var2 */
-            if trimmed_stmt.contains("$$async_noop") {
+            if memmem::find(trimmed_stmt.as_bytes(), b"$$async_noop").is_some() {
                 // Extract variable names for hoisting if present
-                if let Some(colon_pos) = trimmed_stmt.find("$$async_noop:") {
-                    let start = colon_pos + "$$async_noop:".len();
+                if let Some(colon_pos) = memmem::find(trimmed_stmt.as_bytes(), b"$$async_noop:") {
+                    let start = colon_pos + 13; // "$$async_noop:".len()
                     if let Some(end) = trimmed_stmt[start..].find("*/") {
                         let vars_str = trimmed_stmt[start..start + end].trim();
                         for var in vars_str.split(',') {
@@ -541,7 +545,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                     // transformation), add $$props to the blocker_map. The template
                     // transform accesses destructured props via $$props.name, so
                     // $$props needs a blocker index for the template_effect to wait on.
-                    if init.contains("$$props") {
+                    if memmem::find(init.as_bytes(), b"$$props").is_some() {
                         let should_update = match blocker_map.get("$$props") {
                             None => true,
                             Some(&existing) => idx > existing,
