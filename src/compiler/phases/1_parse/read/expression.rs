@@ -2176,11 +2176,7 @@ fn create_call_expression(
                 oxc_ast::ast::Argument::SpreadElement(_) => None, // Simplified
                 _ => {
                     let expr = arg.to_expression();
-                    Some(JsNode::Raw(
-                        convert_expression(expr, offset, line_offsets)
-                            .as_json()
-                            .clone(),
-                    ))
+                    Some(expr_to_node(convert_expression(expr, offset, line_offsets)))
                 }
             }
         })
@@ -2299,11 +2295,7 @@ fn create_new_expression(
             }
             _ => {
                 let expr = arg.to_expression();
-                JsNode::Raw(
-                    convert_expression(expr, offset, line_offsets)
-                        .as_json()
-                        .clone(),
-                )
+                expr_to_node(convert_expression(expr, offset, line_offsets))
             }
         })
         .collect();
@@ -2328,11 +2320,12 @@ fn create_function_expression(
     let id = func.id.as_ref().map(|id| {
         let id_start = offset + id.span.start as usize - 1;
         let id_end = offset + id.span.end as usize - 1;
-        Box::new(JsNode::Raw(
-            create_identifier(&id.name, id_start, id_end, line_offsets)
-                .as_json()
-                .clone(),
-        ))
+        Box::new(expr_to_node(create_identifier(
+            &id.name,
+            id_start,
+            id_end,
+            line_offsets,
+        )))
     });
 
     // params
@@ -2390,11 +2383,12 @@ fn create_class_expression(
     let id = class_expr.id.as_ref().map(|id| {
         let id_start = offset + id.span.start as usize - 1;
         let id_end = offset + id.span.end as usize - 1;
-        Box::new(JsNode::Raw(
-            create_identifier(&id.name, id_start, id_end, line_offsets)
-                .as_json()
-                .clone(),
-        ))
+        Box::new(expr_to_node(create_identifier(
+            &id.name,
+            id_start,
+            id_end,
+            line_offsets,
+        )))
     });
 
     // superClass
@@ -2531,7 +2525,7 @@ fn convert_class_element_for_expr(
 
             // key
             let key = convert_property_key_for_expr(&method.key, offset, line_offsets);
-            obj.insert("key".to_string(), key);
+            obj.insert("key".to_string(), key.to_value());
 
             // value (function expression)
             let value_start = offset + method.value.span.start as usize - 1;
@@ -2565,7 +2559,7 @@ fn convert_class_element_for_expr(
 
             // key
             let key = convert_property_key_for_expr(&prop.key, offset, line_offsets);
-            obj.insert("key".to_string(), key);
+            obj.insert("key".to_string(), key.to_value());
 
             // value
             if let Some(ref value) = prop.value {
@@ -2626,11 +2620,7 @@ fn create_array_expression(
             oxc_ast::ast::ArrayExpressionElement::Elision(_) => None,
             _ => {
                 let expr = elem.to_expression();
-                Some(JsNode::Raw(
-                    convert_expression(expr, offset, line_offsets)
-                        .as_json()
-                        .clone(),
-                ))
+                Some(expr_to_node(convert_expression(expr, offset, line_offsets)))
             }
         })
         .collect();
@@ -2671,7 +2661,7 @@ fn create_object_expression(
                     start: prop_start as u32,
                     end: prop_end as u32,
                     loc: create_typed_loc(prop_start, prop_end, line_offsets),
-                    key: Box::new(JsNode::Raw(key)),
+                    key: Box::new(key),
                     value: Box::new(expr_to_node(value)),
                     kind: CompactString::from(kind),
                     method: p.method,
@@ -2707,31 +2697,30 @@ fn convert_property_key_for_expr(
     key: &oxc_ast::ast::PropertyKey,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     match key {
         oxc_ast::ast::PropertyKey::StaticIdentifier(id) => {
             let start = offset + id.span.start as usize - 1;
             let end = offset + id.span.end as usize - 1;
-            create_identifier(&id.name, start, end, line_offsets)
-                .as_json()
-                .clone()
+            expr_to_node(create_identifier(&id.name, start, end, line_offsets))
         }
         oxc_ast::ast::PropertyKey::PrivateIdentifier(id) => {
             let start = offset + id.span.start as usize - 1;
             let end = offset + id.span.end as usize - 1;
-            create_private_identifier(&id.name, start, end, line_offsets)
-                .as_json()
-                .clone()
+            expr_to_node(create_private_identifier(
+                &id.name,
+                start,
+                end,
+                line_offsets,
+            ))
         }
         _ => {
             // For computed keys and other expressions
             let expr = key.as_expression();
             if let Some(expr) = expr {
-                convert_expression(expr, offset, line_offsets)
-                    .as_json()
-                    .clone()
+                expr_to_node(convert_expression(expr, offset, line_offsets))
             } else {
-                Value::Null
+                JsNode::Null
             }
         }
     }
@@ -2753,7 +2742,7 @@ fn create_assignment_expression(
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         operator: CompactString::from(operator),
-        left: Box::new(JsNode::Raw(left)),
+        left: Box::new(left),
         right: Box::new(expr_to_node(right)),
     })
 }
@@ -2826,7 +2815,7 @@ fn convert_object_assignment_target(
         }
         rest_obj.insert(
             "argument".to_string(),
-            convert_assignment_target(&rest.target, offset, line_offsets),
+            convert_assignment_target(&rest.target, offset, line_offsets).to_value(),
         );
         properties.push(Value::Object(rest_obj));
     }
@@ -2884,7 +2873,7 @@ fn convert_array_assignment_target(
         }
         rest_obj.insert(
             "argument".to_string(),
-            convert_assignment_target(&rest.target, offset, line_offsets),
+            convert_assignment_target(&rest.target, offset, line_offsets).to_value(),
         );
         elements.push(Value::Object(rest_obj));
     }
@@ -2977,7 +2966,7 @@ fn convert_assignment_target_property(
 
             // Convert key
             let key = convert_property_key_with_offset(&prop_prop.name, offset, line_offsets);
-            obj.insert("key".to_string(), key);
+            obj.insert("key".to_string(), key.to_value());
 
             // Convert value
             let value =
@@ -3015,7 +3004,7 @@ fn convert_assignment_target_maybe_default(
             }
             obj.insert(
                 "left".to_string(),
-                convert_assignment_target(&with_default.binding, offset, line_offsets),
+                convert_assignment_target(&with_default.binding, offset, line_offsets).to_value(),
             );
             obj.insert(
                 "right".to_string(),
@@ -3030,7 +3019,7 @@ fn convert_assignment_target_maybe_default(
         _ => {
             // Convert to AssignmentTarget - need to extract the inner target
             if let Some(inner) = target.as_assignment_target() {
-                convert_assignment_target(inner, offset, line_offsets)
+                convert_assignment_target(inner, offset, line_offsets).to_value()
             } else {
                 Value::Null
             }
@@ -3043,30 +3032,29 @@ fn convert_property_key_with_offset(
     key: &oxc_ast::ast::PropertyKey,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     match key {
         oxc_ast::ast::PropertyKey::StaticIdentifier(id) => {
             let start = offset + id.span.start as usize - 1;
             let end = offset + id.span.end as usize - 1;
-            create_identifier(&id.name, start, end, line_offsets)
-                .as_json()
-                .clone()
+            expr_to_node(create_identifier(&id.name, start, end, line_offsets))
         }
         oxc_ast::ast::PropertyKey::PrivateIdentifier(id) => {
             let start = offset + id.span.start as usize - 1;
             let end = offset + id.span.end as usize - 1;
-            create_private_identifier(&id.name, start, end, line_offsets)
-                .as_json()
-                .clone()
+            expr_to_node(create_private_identifier(
+                &id.name,
+                start,
+                end,
+                line_offsets,
+            ))
         }
         _ => {
             // For computed keys, try to get the expression
             if let Some(expr) = key.as_expression() {
-                convert_expression(expr, offset, line_offsets)
-                    .as_json()
-                    .clone()
+                expr_to_node(convert_expression(expr, offset, line_offsets))
             } else {
-                Value::Null
+                JsNode::Null
             }
         }
     }
@@ -3076,40 +3064,46 @@ fn convert_assignment_target(
     target: &oxc_ast::ast::AssignmentTarget,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     use oxc_ast::ast::AssignmentTarget;
 
     match target {
         AssignmentTarget::AssignmentTargetIdentifier(id) => {
             let start = offset + id.span.start as usize - 1;
             let end = offset + id.span.end as usize - 1;
-            create_identifier(&id.name, start, end, line_offsets)
-                .as_json()
-                .clone()
+            expr_to_node(create_identifier(&id.name, start, end, line_offsets))
         }
         AssignmentTarget::StaticMemberExpression(member) => {
             let start = offset + member.span.start as usize - 1;
             let end = offset + member.span.end as usize - 1;
-            create_static_member_expression(member, start, end, offset, line_offsets)
-                .as_json()
-                .clone()
+            expr_to_node(create_static_member_expression(
+                member,
+                start,
+                end,
+                offset,
+                line_offsets,
+            ))
         }
         AssignmentTarget::ComputedMemberExpression(member) => {
             let start = offset + member.span.start as usize - 1;
             let end = offset + member.span.end as usize - 1;
-            create_computed_member_expression(member, start, end, offset, line_offsets)
-                .as_json()
-                .clone()
+            expr_to_node(create_computed_member_expression(
+                member,
+                start,
+                end,
+                offset,
+                line_offsets,
+            ))
         }
-        AssignmentTarget::ObjectAssignmentTarget(obj_target) => {
-            convert_object_assignment_target(obj_target, offset, line_offsets)
-        }
-        AssignmentTarget::ArrayAssignmentTarget(arr_target) => {
-            convert_array_assignment_target(arr_target, offset, line_offsets)
-        }
+        AssignmentTarget::ObjectAssignmentTarget(obj_target) => JsNode::Raw(
+            convert_object_assignment_target(obj_target, offset, line_offsets),
+        ),
+        AssignmentTarget::ArrayAssignmentTarget(arr_target) => JsNode::Raw(
+            convert_array_assignment_target(arr_target, offset, line_offsets),
+        ),
         _ => {
             // Fallback for other complex patterns (e.g., TSAsExpression, TSNonNullExpression)
-            Value::Null
+            JsNode::Null
         }
     }
 }
@@ -3134,7 +3128,7 @@ fn create_update_expression(
         loc: create_typed_loc(start, end, line_offsets),
         operator: CompactString::from(operator),
         prefix: update.prefix,
-        argument: Box::new(JsNode::Raw(argument)),
+        argument: Box::new(argument),
     })
 }
 
@@ -3148,13 +3142,7 @@ fn create_sequence_expression(
     let expressions: Vec<JsNode> = seq
         .expressions
         .iter()
-        .map(|expr| {
-            JsNode::Raw(
-                convert_expression(expr, offset, line_offsets)
-                    .as_json()
-                    .clone(),
-            )
-        })
+        .map(|expr| expr_to_node(convert_expression(expr, offset, line_offsets)))
         .collect();
 
     Expression::from_node(JsNode::SequenceExpression {
@@ -3169,32 +3157,38 @@ fn convert_simple_assignment_target(
     target: &oxc_ast::ast::SimpleAssignmentTarget,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     use oxc_ast::ast::SimpleAssignmentTarget;
 
     match target {
         SimpleAssignmentTarget::AssignmentTargetIdentifier(id) => {
             let start = offset + id.span.start as usize - 1;
             let end = offset + id.span.end as usize - 1;
-            create_identifier(&id.name, start, end, line_offsets)
-                .as_json()
-                .clone()
+            expr_to_node(create_identifier(&id.name, start, end, line_offsets))
         }
         SimpleAssignmentTarget::StaticMemberExpression(member) => {
             let start = offset + member.span.start as usize - 1;
             let end = offset + member.span.end as usize - 1;
-            create_static_member_expression(member, start, end, offset, line_offsets)
-                .as_json()
-                .clone()
+            expr_to_node(create_static_member_expression(
+                member,
+                start,
+                end,
+                offset,
+                line_offsets,
+            ))
         }
         SimpleAssignmentTarget::ComputedMemberExpression(member) => {
             let start = offset + member.span.start as usize - 1;
             let end = offset + member.span.end as usize - 1;
-            create_computed_member_expression(member, start, end, offset, line_offsets)
-                .as_json()
-                .clone()
+            expr_to_node(create_computed_member_expression(
+                member,
+                start,
+                end,
+                offset,
+                line_offsets,
+            ))
         }
-        _ => Value::Null,
+        _ => JsNode::Null,
     }
 }
 
@@ -3210,28 +3204,24 @@ fn create_arrow_function(
         .params
         .items
         .iter()
-        .map(|param| {
-            JsNode::Raw(
-                convert_formal_parameter(param, offset - 1, line_offsets)
-                    .as_json()
-                    .clone(),
-            )
-        })
+        .map(|param| expr_to_node(convert_formal_parameter(param, offset - 1, line_offsets)))
         .collect();
 
     // Convert body - check if this is an expression body or block body
-    let body = if arrow.expression {
+    let body_node = if arrow.expression {
         if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
             arrow.body.statements.first()
         {
-            convert_expression(&expr_stmt.expression, offset, line_offsets)
-                .as_json()
-                .clone()
+            expr_to_node(convert_expression(
+                &expr_stmt.expression,
+                offset,
+                line_offsets,
+            ))
         } else {
-            convert_arrow_body(&arrow.body, offset, line_offsets)
+            JsNode::Raw(convert_arrow_body(&arrow.body, offset, line_offsets))
         }
     } else {
-        convert_arrow_body(&arrow.body, offset, line_offsets)
+        JsNode::Raw(convert_arrow_body(&arrow.body, offset, line_offsets))
     };
 
     Expression::from_node(JsNode::ArrowFunctionExpression {
@@ -3240,7 +3230,7 @@ fn create_arrow_function(
         loc: create_typed_loc(start, end, line_offsets),
         id: None,
         params,
-        body: Box::new(JsNode::Raw(body)),
+        body: Box::new(body_node),
         expression: arrow.expression,
         generator: false,
         r#async: arrow.r#async,
@@ -3808,13 +3798,7 @@ fn create_template_literal(
     let expressions: Vec<JsNode> = template
         .expressions
         .iter()
-        .map(|expr| {
-            JsNode::Raw(
-                convert_expression(expr, offset, line_offsets)
-                    .as_json()
-                    .clone(),
-            )
-        })
+        .map(|expr| expr_to_node(convert_expression(expr, offset, line_offsets)))
         .collect();
 
     Expression::from_node(JsNode::TemplateLiteral {
@@ -6069,7 +6053,7 @@ fn convert_expression_for_program(
                             method: p.method,
                             shorthand: p.shorthand,
                             computed: p.computed,
-                            key: Box::new(JsNode::Raw(key)),
+                            key: Box::new(key),
                             value: Box::new(expr_to_node(value)),
                             kind: CompactString::from(kind),
                         }
@@ -6196,7 +6180,7 @@ fn convert_expression_for_program(
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 operator: CompactString::from(operator),
-                left: Box::new(JsNode::Raw(left)),
+                left: Box::new(left),
                 right: Box::new(expr_to_node(right)),
             })
         }
@@ -6394,7 +6378,7 @@ fn convert_expression_for_program(
                 loc: create_typed_loc(start, end, line_offsets),
                 operator: CompactString::from(operator),
                 prefix: update.prefix,
-                argument: Box::new(JsNode::Raw(argument)),
+                argument: Box::new(argument),
             })
         }
         OxcExpression::AwaitExpression(await_expr) => {
@@ -6742,7 +6726,7 @@ fn convert_class_element_for_program(
 
             // key
             let key = convert_property_key(&method.key, offset, line_offsets);
-            obj.insert("key".to_string(), key);
+            obj.insert("key".to_string(), key.to_value());
 
             // value (function expression)
             let value =
@@ -6773,7 +6757,7 @@ fn convert_class_element_for_program(
 
             // key
             let key = convert_property_key(&prop.key, offset, line_offsets);
-            obj.insert("key".to_string(), key);
+            obj.insert("key".to_string(), key.to_value());
 
             // value
             if let Some(ref value) = prop.value {
@@ -6810,7 +6794,7 @@ fn convert_class_element_for_program(
             obj.insert("computed".to_string(), Value::Bool(prop.computed));
 
             let key = convert_property_key(&prop.key, offset, line_offsets);
-            obj.insert("key".to_string(), key);
+            obj.insert("key".to_string(), key.to_value());
 
             if let Some(ref value) = prop.value {
                 let val = convert_expression_for_program(value, offset, line_offsets);
@@ -7102,16 +7086,14 @@ fn convert_assignment_target_for_program(
     target: &oxc_ast::ast::AssignmentTarget,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     use oxc_ast::ast::AssignmentTarget;
 
     match target {
         AssignmentTarget::AssignmentTargetIdentifier(id) => {
             let start = offset + id.span.start as usize;
             let end = offset + id.span.end as usize;
-            create_identifier(&id.name, start, end, line_offsets)
-                .as_json()
-                .clone()
+            expr_to_node(create_identifier(&id.name, start, end, line_offsets))
         }
         AssignmentTarget::StaticMemberExpression(member) => {
             let start = offset + member.span.start as usize;
@@ -7125,22 +7107,15 @@ fn convert_assignment_target_for_program(
                 line_offsets,
             );
 
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("MemberExpression".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
+            JsNode::MemberExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                object: Box::new(expr_to_node(object)),
+                property: Box::new(expr_to_node(property)),
+                computed: false,
+                optional: member.optional,
             }
-            obj.insert("object".to_string(), object.as_json().clone());
-            obj.insert("property".to_string(), property.as_json().clone());
-            obj.insert("computed".to_string(), Value::Bool(false));
-            obj.insert("optional".to_string(), Value::Bool(member.optional));
-
-            Value::Object(obj)
         }
         AssignmentTarget::ComputedMemberExpression(member) => {
             let start = offset + member.span.start as usize;
@@ -7149,32 +7124,25 @@ fn convert_assignment_target_for_program(
             let object = convert_expression_for_program(&member.object, offset, line_offsets);
             let property = convert_expression_for_program(&member.expression, offset, line_offsets);
 
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("MemberExpression".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
+            JsNode::MemberExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                object: Box::new(expr_to_node(object)),
+                property: Box::new(expr_to_node(property)),
+                computed: true,
+                optional: member.optional,
             }
-            obj.insert("object".to_string(), object.as_json().clone());
-            obj.insert("property".to_string(), property.as_json().clone());
-            obj.insert("computed".to_string(), Value::Bool(true));
-            obj.insert("optional".to_string(), Value::Bool(member.optional));
-
-            Value::Object(obj)
         }
-        AssignmentTarget::ObjectAssignmentTarget(obj_target) => {
-            convert_object_assignment_target_for_program(obj_target, offset, line_offsets)
-        }
-        AssignmentTarget::ArrayAssignmentTarget(arr_target) => {
-            convert_array_assignment_target_for_program(arr_target, offset, line_offsets)
-        }
+        AssignmentTarget::ObjectAssignmentTarget(obj_target) => JsNode::Raw(
+            convert_object_assignment_target_for_program(obj_target, offset, line_offsets),
+        ),
+        AssignmentTarget::ArrayAssignmentTarget(arr_target) => JsNode::Raw(
+            convert_array_assignment_target_for_program(arr_target, offset, line_offsets),
+        ),
         _ => {
             // For other complex patterns (e.g., TSAsExpression, TSNonNullExpression)
-            Value::Null
+            JsNode::Null
         }
     }
 }
@@ -7222,7 +7190,7 @@ fn convert_object_assignment_target_for_program(
         }
         rest_obj.insert(
             "argument".to_string(),
-            convert_assignment_target_for_program(&rest.target, offset, line_offsets),
+            convert_assignment_target_for_program(&rest.target, offset, line_offsets).to_value(),
         );
         properties.push(Value::Object(rest_obj));
     }
@@ -7280,7 +7248,7 @@ fn convert_array_assignment_target_for_program(
         }
         rest_obj.insert(
             "argument".to_string(),
-            convert_assignment_target_for_program(&rest.target, offset, line_offsets),
+            convert_assignment_target_for_program(&rest.target, offset, line_offsets).to_value(),
         );
         elements.push(Value::Object(rest_obj));
     }
@@ -7367,7 +7335,7 @@ fn convert_assignment_target_property_for_program(
             obj.insert("kind".to_string(), Value::String("init".to_string()));
 
             let key = convert_property_key(&prop_prop.name, offset, line_offsets);
-            obj.insert("key".to_string(), key);
+            obj.insert("key".to_string(), key.to_value());
 
             let value = convert_assignment_target_maybe_default_for_program(
                 &prop_prop.binding,
@@ -7381,22 +7349,20 @@ fn convert_assignment_target_property_for_program(
     }
 }
 
-/// Convert a SimpleAssignmentTarget to JSON (no -1 offset adjustment).
+/// Convert a SimpleAssignmentTarget to JsNode (no -1 offset adjustment).
 #[allow(dead_code)]
 fn convert_simple_assignment_target_for_program(
     target: &oxc_ast::ast::SimpleAssignmentTarget,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     use oxc_ast::ast::SimpleAssignmentTarget;
 
     match target {
         SimpleAssignmentTarget::AssignmentTargetIdentifier(id) => {
             let start = offset + id.span.start as usize;
             let end = offset + id.span.end as usize;
-            create_identifier(&id.name, start, end, line_offsets)
-                .as_json()
-                .clone()
+            expr_to_node(create_identifier(&id.name, start, end, line_offsets))
         }
         SimpleAssignmentTarget::StaticMemberExpression(member) => {
             let start = offset + member.span.start as usize;
@@ -7410,22 +7376,15 @@ fn convert_simple_assignment_target_for_program(
                 line_offsets,
             );
 
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("MemberExpression".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
+            JsNode::MemberExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                object: Box::new(expr_to_node(object)),
+                property: Box::new(expr_to_node(property)),
+                computed: false,
+                optional: member.optional,
             }
-            obj.insert("object".to_string(), object.as_json().clone());
-            obj.insert("property".to_string(), property.as_json().clone());
-            obj.insert("computed".to_string(), Value::Bool(false));
-            obj.insert("optional".to_string(), Value::Bool(member.optional));
-
-            Value::Object(obj)
         }
         SimpleAssignmentTarget::ComputedMemberExpression(member) => {
             let start = offset + member.span.start as usize;
@@ -7434,24 +7393,17 @@ fn convert_simple_assignment_target_for_program(
             let object = convert_expression_for_program(&member.object, offset, line_offsets);
             let property = convert_expression_for_program(&member.expression, offset, line_offsets);
 
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("MemberExpression".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
+            JsNode::MemberExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                object: Box::new(expr_to_node(object)),
+                property: Box::new(expr_to_node(property)),
+                computed: true,
+                optional: member.optional,
             }
-            obj.insert("object".to_string(), object.as_json().clone());
-            obj.insert("property".to_string(), property.as_json().clone());
-            obj.insert("computed".to_string(), Value::Bool(true));
-            obj.insert("optional".to_string(), Value::Bool(member.optional));
-
-            Value::Object(obj)
         }
-        _ => Value::Null,
+        _ => JsNode::Null,
     }
 }
 
@@ -7480,7 +7432,8 @@ fn convert_assignment_target_maybe_default_for_program(
             }
             obj.insert(
                 "left".to_string(),
-                convert_assignment_target_for_program(&with_default.binding, offset, line_offsets),
+                convert_assignment_target_for_program(&with_default.binding, offset, line_offsets)
+                    .to_value(),
             );
             obj.insert(
                 "right".to_string(),
@@ -7493,7 +7446,7 @@ fn convert_assignment_target_maybe_default_for_program(
         }
         _ => {
             if let Some(inner) = target.as_assignment_target() {
-                convert_assignment_target_for_program(inner, offset, line_offsets)
+                convert_assignment_target_for_program(inner, offset, line_offsets).to_value()
             } else {
                 Value::Null
             }
@@ -7524,7 +7477,7 @@ fn convert_binding_property(
 
     // Convert key
     let key = convert_property_key(&prop.key, offset, line_offsets);
-    obj.insert("key".to_string(), key);
+    obj.insert("key".to_string(), key.to_value());
 
     // Convert value
     let value = convert_binding_pattern(&prop.value, offset, line_offsets);
@@ -7538,30 +7491,29 @@ fn convert_property_key(
     key: &oxc_ast::ast::PropertyKey,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     match key {
         oxc_ast::ast::PropertyKey::StaticIdentifier(id) => {
             let start = offset + id.span.start as usize;
             let end = offset + id.span.end as usize;
-            create_identifier(&id.name, start, end, line_offsets)
-                .as_json()
-                .clone()
+            expr_to_node(create_identifier(&id.name, start, end, line_offsets))
         }
         oxc_ast::ast::PropertyKey::PrivateIdentifier(id) => {
             let start = offset + id.span.start as usize;
             let end = offset + id.span.end as usize;
-            create_private_identifier(&id.name, start, end, line_offsets)
-                .as_json()
-                .clone()
+            expr_to_node(create_private_identifier(
+                &id.name,
+                start,
+                end,
+                line_offsets,
+            ))
         }
         _ => {
             // For computed keys, try to get the expression
             if let Some(expr) = key.as_expression() {
-                convert_expression(expr, offset, line_offsets)
-                    .as_json()
-                    .clone()
+                expr_to_node(convert_expression(expr, offset, line_offsets))
             } else {
-                Value::Null
+                JsNode::Null
             }
         }
     }
