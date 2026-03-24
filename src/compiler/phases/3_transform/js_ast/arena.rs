@@ -171,6 +171,19 @@ impl JsArena {
     }
 }
 
+impl JsArena {
+    /// Clear all stored expressions and statements, keeping the allocated buffer
+    /// for reuse. This is O(n) for dropping stored elements but the next compilation
+    /// benefits from zero allocation (the Vec buffer is already sized).
+    pub fn reset(&self) {
+        // SAFETY: single-threaded, no outstanding references after a compilation
+        unsafe {
+            (*self.exprs.get()).clear();
+            (*self.stmts.get()).clear();
+        }
+    }
+}
+
 impl Default for JsArena {
     fn default() -> Self {
         Self::new()
