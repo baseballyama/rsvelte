@@ -146,12 +146,19 @@ fn extract_pattern_names_to_scope(pattern: &JsPattern, scope: &mut LocalScope) {
 /// Scan a block body for variable declarations and register them in the local scope.
 /// This tracks local `const`/`let`/`var` declarations so that should_proxy() can
 /// check their init expression types when they're referenced in assignments.
-fn register_block_local_vars(block: &[JsStatement], scope: &mut LocalScope) {
+fn register_block_local_vars(
+    block: &[JsStatement],
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    scope: &mut LocalScope,
+) {
     for stmt in block {
         if let JsStatement::VariableDeclaration(var_decl) = stmt {
             for decl in &var_decl.declarations {
                 if let JsPattern::Identifier(name) = &decl.id {
-                    let init_kind = decl.init.as_ref().map(|init_expr| classify_expr(init_expr));
+                    let init_kind = decl
+                        .init
+                        .as_ref()
+                        .map(|init_expr| classify_expr(arena.get_expr(*init_expr)));
                     scope.add_local_var(name.to_string(), init_kind);
                 }
             }
@@ -373,7 +380,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 // Build collection[$$index] access
                 // Note: We do NOT set each_item_assign_or_mutate here - that's only for
                 // writes (assign/mutate). The read transform just redirects to arr[$$index].
-                return build_reassigned_item_read(each_ctx);
+                return build_reassigned_item_read(each_ctx, &context.arena);
             }
             // Check if there's a transform registered for this identifier
             if let Some(transform) = context.state.transform.get(name.as_str()) {
@@ -382,7 +389,12 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 // $.get(computed_const).identifier_name
                 if let Some(ref source_var) = transform.read_source {
                     return b::member(
-                        b::svelte_call("get", vec![JsExpr::Identifier(source_var.clone().into())]),
+                        &context.arena,
+                        b::svelte_call(
+                            &context.arena,
+                            "get",
+                            vec![JsExpr::Identifier(source_var.clone().into())],
+                        ),
                         name.clone(),
                     );
                 }
@@ -394,7 +406,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     } else {
                         JsExpr::Identifier(name.clone())
                     };
-                    return read_fn(input_id);
+                    return read_fn(&context.arena, input_id);
                 }
             }
             expr.clone()
@@ -402,18 +414,22 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
         JsExpr::Member(member) => {
             // Apply transform to the object, but not the property (unless computed)
-            let transformed_object = recurse!(&member.object);
+            let transformed_object = recurse!(context.arena.get_expr(member.object));
 
             let transformed_property = match &member.property {
                 JsMemberProperty::Expression(prop_expr) if member.computed => {
                     // For computed properties, also apply transforms
-                    JsMemberProperty::Expression(Box::new(recurse!(prop_expr)))
+                    JsMemberProperty::Expression(
+                        context
+                            .arena
+                            .alloc_expr(recurse!(context.arena.get_expr(*prop_expr))),
+                    )
                 }
                 _ => member.property.clone(),
             };
 
             JsExpr::Member(JsMemberExpression {
-                object: Box::new(transformed_object),
+                object: context.arena.alloc_expr(transformed_object),
                 property: transformed_property,
                 computed: member.computed,
                 optional: member.optional,
@@ -423,14 +439,21 @@ pub fn apply_transforms_to_expression_with_shadowed(
         JsExpr::Call(call) => {
             // Check if this is a $.set() or $.update() call - these have a state reference
             // as the first argument that should NOT be transformed with $.get()
-            let is_svelte_set_call = is_svelte_runtime_set_call(&call.callee);
+            let is_svelte_set_call =
+                is_svelte_runtime_set_call(context.arena.get_expr(call.callee), &context.arena);
 
             // Check if this is a function that should skip all argument transformations
             // (e.g., $.untrack, $.store_mutate - these have pre-constructed arguments)
-            let skip_args_transform = is_svelte_runtime_skip_args_transform(&call.callee);
+            let skip_args_transform = is_svelte_runtime_skip_args_transform(
+                context.arena.get_expr(call.callee),
+                &context.arena,
+            );
 
             // Check if this is $.update_store/$.update_pre_store - transform first arg only
-            let is_store_update = is_svelte_runtime_store_update_call(&call.callee);
+            let is_store_update = is_svelte_runtime_store_update_call(
+                context.arena.get_expr(call.callee),
+                &context.arena,
+            );
 
             // Check if this is a store subscription SETTER call where the callee should NOT be transformed:
             // - Store setter call: `$store(value)` - callee should stay as `$store`, not `$store()`
@@ -447,7 +470,8 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // For state variables, `read` wraps `x` -> `$.get(x)`, which is different from props/stores
             // that wrap `x` -> `x()`. State variable calls like `saySomething('Tama')` SHOULD become
             // `$.get(saySomething)('Tama')`, not `saySomething('Tama')`.
-            let skip_callee_transform = if let JsExpr::Identifier(name) = call.callee.as_ref()
+            let skip_callee_transform = if let JsExpr::Identifier(name) =
+                context.arena.get_expr(call.callee)
                 && !local_scope.contains(name)
                 && let Some(transform) = context.state.transform.get(name.as_str())
             {
@@ -469,9 +493,9 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // Apply transforms to callee and arguments
             // Skip callee transform for prop getter/setter calls to avoid double transformation
             let transformed_callee = if skip_callee_transform {
-                call.callee.as_ref().clone()
+                context.arena.get_expr(call.callee).clone()
             } else {
-                recurse!(&call.callee)
+                recurse!(context.arena.get_expr(call.callee))
             };
 
             let mut transformed_args: Vec<JsExpr> = Vec::with_capacity(call.arguments.len());
@@ -492,53 +516,53 @@ pub fn apply_transforms_to_expression_with_shadowed(
             }
 
             JsExpr::Call(JsCallExpression {
-                callee: Box::new(transformed_callee),
+                callee: context.arena.alloc_expr(transformed_callee),
                 arguments: transformed_args,
                 optional: call.optional,
             })
         }
 
         JsExpr::Binary(binary) => {
-            let transformed_left = recurse!(&binary.left);
-            let transformed_right = recurse!(&binary.right);
+            let transformed_left = recurse!(context.arena.get_expr(binary.left));
+            let transformed_right = recurse!(context.arena.get_expr(binary.right));
 
             JsExpr::Binary(JsBinaryExpression {
                 operator: binary.operator,
-                left: Box::new(transformed_left),
-                right: Box::new(transformed_right),
+                left: context.arena.alloc_expr(transformed_left),
+                right: context.arena.alloc_expr(transformed_right),
             })
         }
 
         JsExpr::Logical(logical) => {
-            let transformed_left = recurse!(&logical.left);
-            let transformed_right = recurse!(&logical.right);
+            let transformed_left = recurse!(context.arena.get_expr(logical.left));
+            let transformed_right = recurse!(context.arena.get_expr(logical.right));
 
             JsExpr::Logical(JsLogicalExpression {
                 operator: logical.operator,
-                left: Box::new(transformed_left),
-                right: Box::new(transformed_right),
+                left: context.arena.alloc_expr(transformed_left),
+                right: context.arena.alloc_expr(transformed_right),
             })
         }
 
         JsExpr::Unary(unary) => {
-            let transformed_arg = recurse!(&unary.argument);
+            let transformed_arg = recurse!(context.arena.get_expr(unary.argument));
 
             JsExpr::Unary(JsUnaryExpression {
                 operator: unary.operator,
-                argument: Box::new(transformed_arg),
+                argument: context.arena.alloc_expr(transformed_arg),
                 prefix: unary.prefix,
             })
         }
 
         JsExpr::Conditional(cond) => {
-            let transformed_test = recurse!(&cond.test);
-            let transformed_consequent = recurse!(&cond.consequent);
-            let transformed_alternate = recurse!(&cond.alternate);
+            let transformed_test = recurse!(context.arena.get_expr(cond.test));
+            let transformed_consequent = recurse!(context.arena.get_expr(cond.consequent));
+            let transformed_alternate = recurse!(context.arena.get_expr(cond.alternate));
 
             JsExpr::Conditional(JsConditionalExpression {
-                test: Box::new(transformed_test),
-                consequent: Box::new(transformed_consequent),
-                alternate: Box::new(transformed_alternate),
+                test: context.arena.alloc_expr(transformed_test),
+                consequent: context.arena.alloc_expr(transformed_consequent),
+                alternate: context.arena.alloc_expr(transformed_alternate),
             })
         }
 
@@ -560,12 +584,14 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 .iter()
                 .map(|prop| match prop {
                     JsObjectMember::Property(p) => {
-                        let transformed_value = recurse!(&p.value);
+                        let transformed_value = recurse!(context.arena.get_expr(p.value));
 
                         let transformed_key = match &p.key {
-                            JsPropertyKey::Computed(key_expr) => {
-                                JsPropertyKey::Computed(Box::new(recurse!(key_expr)))
-                            }
+                            JsPropertyKey::Computed(key_expr) => JsPropertyKey::Computed(
+                                context
+                                    .arena
+                                    .alloc_expr(recurse!(context.arena.get_expr(*key_expr))),
+                            ),
                             other => other.clone(),
                         };
 
@@ -592,16 +618,18 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
                         JsObjectMember::Property(JsProperty {
                             key: transformed_key,
-                            value: Box::new(transformed_value),
+                            value: context.arena.alloc_expr(transformed_value),
                             kind: p.kind,
                             computed: p.computed,
                             shorthand: is_shorthand,
                             method: p.method,
                         })
                     }
-                    JsObjectMember::SpreadElement(spread_expr) => {
-                        JsObjectMember::SpreadElement(Box::new(recurse!(spread_expr)))
-                    }
+                    JsObjectMember::SpreadElement(spread_expr) => JsObjectMember::SpreadElement(
+                        context
+                            .arena
+                            .alloc_expr(recurse!(context.arena.get_expr(*spread_expr))),
+                    ),
                 })
                 .collect();
 
@@ -619,13 +647,19 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
             // Transform arrow function bodies with updated local scope
             let transformed_body = match &arrow.body {
-                JsArrowBody::Expression(expr_box) => JsArrowBody::Expression(Box::new(
-                    apply_transforms_to_expression_with_shadowed(expr_box, context, &new_scope),
-                )),
+                JsArrowBody::Expression(expr_id) => {
+                    JsArrowBody::Expression(context.arena.alloc_expr(
+                        apply_transforms_to_expression_with_shadowed(
+                            context.arena.get_expr(*expr_id),
+                            context,
+                            &new_scope,
+                        ),
+                    ))
+                }
                 JsArrowBody::Block(block) => {
                     // Scan the block for local variable declarations before transforming
                     // so that should_proxy() can look up their init expression types
-                    register_block_local_vars(&block.body, &mut new_scope);
+                    register_block_local_vars(&block.body, &context.arena, &mut new_scope);
 
                     // Transform statements in the block
                     let transformed_body: Vec<JsStatement> = block
@@ -656,7 +690,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
             }
 
             // Scan the function body for local variable declarations
-            register_block_local_vars(&func.body.body, &mut new_scope);
+            register_block_local_vars(&func.body.body, &context.arena, &mut new_scope);
 
             // Transform function expression bodies with updated local scope
             let transformed_body: Vec<JsStatement> = func
@@ -680,92 +714,107 @@ pub fn apply_transforms_to_expression_with_shadowed(
         JsExpr::Assignment(assign) => {
             // For assignments, check if the left side is a state variable that needs transform
             // Skip if the identifier is in local scope (function parameter or local declaration)
-            if let JsExpr::Identifier(name) = assign.left.as_ref()
+            if let JsExpr::Identifier(name) = context.arena.get_expr(assign.left)
                 && !local_scope.contains(name)
                 && let Some(transform) = context.state.transform.get(name.as_str())
                 && let Some(assign_fn) = transform.assign
             {
                 // Transform the right side first
-                let transformed_right = recurse!(&assign.right);
+                let transformed_right = recurse!(context.arena.get_expr(assign.right));
 
                 // Handle compound assignment operators (+=, -=, etc.)
                 let final_value = match assign.operator {
                     JsAssignmentOp::Assign => transformed_right,
                     JsAssignmentOp::AddAssign => {
                         // count += 1 -> $.set(count, $.get(count) + 1)
-                        let read_fn = transform.read.unwrap_or(|e| e);
-                        let current = read_fn(JsExpr::Identifier(name.clone()));
-                        b::binary(JsBinaryOp::Add, current, transformed_right)
+                        let read_fn = transform.read.unwrap_or(|_arena, e| e);
+                        let current = read_fn(&context.arena, JsExpr::Identifier(name.clone()));
+                        b::binary(&context.arena, JsBinaryOp::Add, current, transformed_right)
                     }
                     JsAssignmentOp::SubAssign => {
-                        let read_fn = transform.read.unwrap_or(|e| e);
-                        let current = read_fn(JsExpr::Identifier(name.clone()));
-                        b::binary(JsBinaryOp::Sub, current, transformed_right)
+                        let read_fn = transform.read.unwrap_or(|_arena, e| e);
+                        let current = read_fn(&context.arena, JsExpr::Identifier(name.clone()));
+                        b::binary(&context.arena, JsBinaryOp::Sub, current, transformed_right)
                     }
                     JsAssignmentOp::MulAssign => {
-                        let read_fn = transform.read.unwrap_or(|e| e);
-                        let current = read_fn(JsExpr::Identifier(name.clone()));
-                        b::binary(JsBinaryOp::Mul, current, transformed_right)
+                        let read_fn = transform.read.unwrap_or(|_arena, e| e);
+                        let current = read_fn(&context.arena, JsExpr::Identifier(name.clone()));
+                        b::binary(&context.arena, JsBinaryOp::Mul, current, transformed_right)
                     }
                     JsAssignmentOp::DivAssign => {
-                        let read_fn = transform.read.unwrap_or(|e| e);
-                        let current = read_fn(JsExpr::Identifier(name.clone()));
-                        b::binary(JsBinaryOp::Div, current, transformed_right)
+                        let read_fn = transform.read.unwrap_or(|_arena, e| e);
+                        let current = read_fn(&context.arena, JsExpr::Identifier(name.clone()));
+                        b::binary(&context.arena, JsBinaryOp::Div, current, transformed_right)
                     }
                     JsAssignmentOp::ModAssign => {
-                        let read_fn = transform.read.unwrap_or(|e| e);
-                        let current = read_fn(JsExpr::Identifier(name.clone()));
-                        b::binary(JsBinaryOp::Mod, current, transformed_right)
+                        let read_fn = transform.read.unwrap_or(|_arena, e| e);
+                        let current = read_fn(&context.arena, JsExpr::Identifier(name.clone()));
+                        b::binary(&context.arena, JsBinaryOp::Mod, current, transformed_right)
                     }
                     JsAssignmentOp::PowAssign => {
-                        let read_fn = transform.read.unwrap_or(|e| e);
-                        let current = read_fn(JsExpr::Identifier(name.clone()));
-                        b::binary(JsBinaryOp::Pow, current, transformed_right)
+                        let read_fn = transform.read.unwrap_or(|_arena, e| e);
+                        let current = read_fn(&context.arena, JsExpr::Identifier(name.clone()));
+                        b::binary(&context.arena, JsBinaryOp::Pow, current, transformed_right)
                     }
                     JsAssignmentOp::BitAndAssign => {
-                        let read_fn = transform.read.unwrap_or(|e| e);
-                        let current = read_fn(JsExpr::Identifier(name.clone()));
-                        b::binary(JsBinaryOp::BitAnd, current, transformed_right)
+                        let read_fn = transform.read.unwrap_or(|_arena, e| e);
+                        let current = read_fn(&context.arena, JsExpr::Identifier(name.clone()));
+                        b::binary(
+                            &context.arena,
+                            JsBinaryOp::BitAnd,
+                            current,
+                            transformed_right,
+                        )
                     }
                     JsAssignmentOp::BitOrAssign => {
-                        let read_fn = transform.read.unwrap_or(|e| e);
-                        let current = read_fn(JsExpr::Identifier(name.clone()));
-                        b::binary(JsBinaryOp::BitOr, current, transformed_right)
+                        let read_fn = transform.read.unwrap_or(|_arena, e| e);
+                        let current = read_fn(&context.arena, JsExpr::Identifier(name.clone()));
+                        b::binary(
+                            &context.arena,
+                            JsBinaryOp::BitOr,
+                            current,
+                            transformed_right,
+                        )
                     }
                     JsAssignmentOp::BitXorAssign => {
-                        let read_fn = transform.read.unwrap_or(|e| e);
-                        let current = read_fn(JsExpr::Identifier(name.clone()));
-                        b::binary(JsBinaryOp::BitXor, current, transformed_right)
+                        let read_fn = transform.read.unwrap_or(|_arena, e| e);
+                        let current = read_fn(&context.arena, JsExpr::Identifier(name.clone()));
+                        b::binary(
+                            &context.arena,
+                            JsBinaryOp::BitXor,
+                            current,
+                            transformed_right,
+                        )
                     }
                     JsAssignmentOp::ShlAssign => {
-                        let read_fn = transform.read.unwrap_or(|e| e);
-                        let current = read_fn(JsExpr::Identifier(name.clone()));
-                        b::binary(JsBinaryOp::Shl, current, transformed_right)
+                        let read_fn = transform.read.unwrap_or(|_arena, e| e);
+                        let current = read_fn(&context.arena, JsExpr::Identifier(name.clone()));
+                        b::binary(&context.arena, JsBinaryOp::Shl, current, transformed_right)
                     }
                     JsAssignmentOp::ShrAssign => {
-                        let read_fn = transform.read.unwrap_or(|e| e);
-                        let current = read_fn(JsExpr::Identifier(name.clone()));
-                        b::binary(JsBinaryOp::Shr, current, transformed_right)
+                        let read_fn = transform.read.unwrap_or(|_arena, e| e);
+                        let current = read_fn(&context.arena, JsExpr::Identifier(name.clone()));
+                        b::binary(&context.arena, JsBinaryOp::Shr, current, transformed_right)
                     }
                     JsAssignmentOp::UShrAssign => {
-                        let read_fn = transform.read.unwrap_or(|e| e);
-                        let current = read_fn(JsExpr::Identifier(name.clone()));
-                        b::binary(JsBinaryOp::UShr, current, transformed_right)
+                        let read_fn = transform.read.unwrap_or(|_arena, e| e);
+                        let current = read_fn(&context.arena, JsExpr::Identifier(name.clone()));
+                        b::binary(&context.arena, JsBinaryOp::UShr, current, transformed_right)
                     }
                     JsAssignmentOp::OrAssign => {
-                        let read_fn = transform.read.unwrap_or(|e| e);
-                        let current = read_fn(JsExpr::Identifier(name.clone()));
-                        b::or(current, transformed_right)
+                        let read_fn = transform.read.unwrap_or(|_arena, e| e);
+                        let current = read_fn(&context.arena, JsExpr::Identifier(name.clone()));
+                        b::or(&context.arena, current, transformed_right)
                     }
                     JsAssignmentOp::AndAssign => {
-                        let read_fn = transform.read.unwrap_or(|e| e);
-                        let current = read_fn(JsExpr::Identifier(name.clone()));
-                        b::and(current, transformed_right)
+                        let read_fn = transform.read.unwrap_or(|_arena, e| e);
+                        let current = read_fn(&context.arena, JsExpr::Identifier(name.clone()));
+                        b::and(&context.arena, current, transformed_right)
                     }
                     JsAssignmentOp::NullishAssign => {
-                        let read_fn = transform.read.unwrap_or(|e| e);
-                        let current = read_fn(JsExpr::Identifier(name.clone()));
-                        b::nullish(current, transformed_right)
+                        let read_fn = transform.read.unwrap_or(|_arena, e| e);
+                        let current = read_fn(&context.arena, JsExpr::Identifier(name.clone()));
+                        b::nullish(&context.arena, current, transformed_right)
                     }
                 };
 
@@ -812,9 +861,18 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     && !binding_kind_excludes_proxy
                     && context.state.analysis.runes
                     && is_non_coercive
-                    && should_proxy_with_context(&assign.right, context, local_scope);
+                    && should_proxy_with_context(
+                        context.arena.get_expr(assign.right),
+                        context,
+                        local_scope,
+                    );
 
-                return assign_fn(JsExpr::Identifier(name.clone()), final_value, needs_proxy);
+                return assign_fn(
+                    &context.arena,
+                    JsExpr::Identifier(name.clone()),
+                    final_value,
+                    needs_proxy,
+                );
             }
 
             // Track each item assignment for uses_index detection.
@@ -830,7 +888,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
             //     const left = b.member(collection, index, true);
             //     return b.sequence([b.assignment('=', left, value), ...sequence]);
             //   }
-            if let JsExpr::Identifier(name) = assign.left.as_ref()
+            if let JsExpr::Identifier(name) = context.arena.get_expr(assign.left)
                 && !local_scope.contains(name)
                 && context.state.each_item_names.contains(name)
             {
@@ -847,12 +905,12 @@ pub fn apply_transforms_to_expression_with_shadowed(
                         .find(|ctx| ctx.item_name == *name)
                         .cloned()
                 {
-                    let collection_access = build_reassigned_item_read(&each_ctx);
+                    let collection_access = build_reassigned_item_read(&each_ctx, &context.arena);
 
                     // Build the assignment value. For compound operators (o *= 2),
                     // we need to expand to: collection[$$index] = collection[$$index] * 2
                     // For simple assignment (o = 5), just use the right side.
-                    let transformed_right = recurse!(&assign.right);
+                    let transformed_right = recurse!(context.arena.get_expr(assign.right));
                     let assign_value = if matches!(assign.operator, JsAssignmentOp::Assign) {
                         transformed_right
                     } else {
@@ -877,9 +935,9 @@ pub fn apply_transforms_to_expression_with_shadowed(
                             _ => "=",
                         };
                         // Generate: collection[$$index] OP right
-                        let collection_read = build_reassigned_item_read(&each_ctx);
-                        let collection_str = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(&collection_read);
-                        let right_str = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(&transformed_right);
+                        let collection_read = build_reassigned_item_read(&each_ctx, &context.arena);
+                        let collection_str = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(&collection_read, &context.arena);
+                        let right_str = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(&transformed_right, &context.arena);
                         JsExpr::Raw(
                             format!("{} {} {}", collection_str, binary_op, right_str).into(),
                         )
@@ -888,22 +946,24 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     // Build: collection[$$index] = value
                     let assignment = JsExpr::Assignment(JsAssignmentExpression {
                         operator: JsAssignmentOp::Assign,
-                        left: Box::new(collection_access),
-                        right: Box::new(assign_value),
+                        left: context.arena.alloc_expr(collection_access),
+                        right: context.arena.alloc_expr(assign_value),
                     });
 
                     // Build the invalidation sequence
                     let invalidation_exprs = each_ctx.invalidation_exprs.clone();
                     let mut seq_exprs = vec![assignment];
                     if !invalidation_exprs.is_empty() {
-                        let invalidate_inner = build_invalidate_inner_signals(&invalidation_exprs);
+                        let invalidate_inner =
+                            build_invalidate_inner_signals(&invalidation_exprs, &context.arena);
                         seq_exprs.push(invalidate_inner);
                     }
 
                     // Add store invalidation if needed
                     if let Some(ref store_name) = each_ctx.store_to_invalidate {
                         seq_exprs.push(b::call(
-                            b::member_path("$.invalidate_store"),
+                            &context.arena,
+                            b::member_path(&context.arena, "$.invalidate_store"),
                             vec![b::id("$$stores"), b::string(store_name)],
                         ));
                     }
@@ -915,9 +975,10 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // Check for mutation case: when assigning to a member expression where
             // the base object has a mutate transform (e.g., $store.prop = value)
             // This corresponds to the mutation case in AssignmentExpression.js
-            if let JsExpr::Member(_) = assign.left.as_ref() {
+            if let JsExpr::Member(_) = context.arena.get_expr(assign.left) {
                 // Find the base object of the member expression
-                let base_object = get_base_object(assign.left.as_ref());
+                let base_object =
+                    get_base_object(context.arena.get_expr(assign.left), &context.arena);
 
                 // Track each item mutation for uses_index detection.
                 // Also handle legacy mode each item mutation: append $.invalidate_inner_signals()
@@ -944,22 +1005,24 @@ pub fn apply_transforms_to_expression_with_shadowed(
                         && !each_ctx.invalidation_exprs.is_empty()
                     {
                         // Transform the full assignment (apply read transforms to both sides)
-                        let transformed_left = recurse!(&assign.left);
-                        let transformed_right = recurse!(&assign.right);
+                        let transformed_left = recurse!(context.arena.get_expr(assign.left));
+                        let transformed_right = recurse!(context.arena.get_expr(assign.right));
                         let mutation = JsExpr::Assignment(JsAssignmentExpression {
                             operator: assign.operator,
-                            left: Box::new(transformed_left),
-                            right: Box::new(transformed_right),
+                            left: context.arena.alloc_expr(transformed_left),
+                            right: context.arena.alloc_expr(transformed_right),
                         });
 
                         let invalidation_exprs = each_ctx.invalidation_exprs.clone();
                         let mut seq_exprs = vec![mutation];
-                        let invalidate_inner = build_invalidate_inner_signals(&invalidation_exprs);
+                        let invalidate_inner =
+                            build_invalidate_inner_signals(&invalidation_exprs, &context.arena);
                         seq_exprs.push(invalidate_inner);
 
                         if let Some(ref store_name) = each_ctx.store_to_invalidate {
                             seq_exprs.push(b::call(
-                                b::member_path("$.invalidate_store"),
+                                &context.arena,
+                                b::member_path(&context.arena, "$.invalidate_store"),
                                 vec![b::id("$$stores"), b::string(store_name)],
                             ));
                         }
@@ -974,12 +1037,12 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 // by try_transform_assignment. We must NOT recurse into the left side again
                 // (which would double-apply read transforms), and must NOT mutation-wrap again.
                 // Just transform the right side and return.
-                if has_call_in_base_chain(assign.left.as_ref()) {
-                    let transformed_right = recurse!(&assign.right);
+                if has_call_in_base_chain(context.arena.get_expr(assign.left), &context.arena) {
+                    let transformed_right = recurse!(context.arena.get_expr(assign.right));
                     return JsExpr::Assignment(JsAssignmentExpression {
                         operator: assign.operator,
-                        left: assign.left.clone(),
-                        right: Box::new(transformed_right),
+                        left: assign.left,
+                        right: context.arena.alloc_expr(transformed_right),
                     });
                 }
 
@@ -988,7 +1051,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     && let Some(transform) = context.state.transform.get(name.as_str())
                     && let Some(mutate_fn) = transform.mutate
                 {
-                    let transformed_right = recurse!(&assign.right);
+                    let transformed_right = recurse!(context.arena.get_expr(assign.right));
 
                     // For prop bindings (Prop/BindableProp), we need to apply read transforms
                     // to the left side so that prop calls appear in the mutation expression.
@@ -1025,19 +1088,21 @@ pub fn apply_transforms_to_expression_with_shadowed(
                         // the base read transform is applied.
                         // e.g., `selected[0] = $$value` -> `selected(selected()[0] = $$value, true)`
                         // e.g., `handler.value = log_b` -> `$$_import_handler($$_import_handler().value = log_b)`
-                        Box::new(recurse!(&assign.left))
+                        context
+                            .arena
+                            .alloc_expr(recurse!(context.arena.get_expr(assign.left)))
                     } else if is_store_sub {
                         // Store subscriptions: keep original left side for store_sub_mutate to handle
                         // Recursing would turn `$store` into `$store()` which is wrong
-                        assign.left.clone()
+                        assign.left
                     } else {
                         // State/mutable source bindings: transform computed property indices
                         // so that reactive each-item variables inside brackets get $.get() wrappers.
                         // e.g., `list[key] = $$value` → mutation_left = `list[$.get(key)] = $$value`
                         // then mutate_value_legacy replaces `list` → `$.get(list)` to get:
                         //   `$.get(list)[$.get(key)] = $$value`
-                        Box::new(transform_computed_indices_only(
-                            &assign.left,
+                        context.arena.alloc_expr(transform_computed_indices_only(
+                            context.arena.get_expr(assign.left),
                             context,
                             local_scope,
                         ))
@@ -1046,7 +1111,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     let full_assignment = JsExpr::Assignment(JsAssignmentExpression {
                         operator: assign.operator,
                         left: mutation_left,
-                        right: Box::new(transformed_right),
+                        right: context.arena.alloc_expr(transformed_right),
                     });
 
                     // Apply the mutate transform
@@ -1059,40 +1124,44 @@ pub fn apply_transforms_to_expression_with_shadowed(
                         JsExpr::Identifier(name.clone())
                     };
 
-                    return mutate_fn(mutate_target, full_assignment);
+                    return mutate_fn(&context.arena, mutate_target, full_assignment);
                 }
             }
 
             // For non-state variables, transform the right side
-            let transformed_right = recurse!(&assign.right);
+            let transformed_right = recurse!(context.arena.get_expr(assign.right));
 
             // For the left side, only transform if it's a member expression object
-            let transformed_left = match assign.left.as_ref() {
+            let transformed_left = match context.arena.get_expr(assign.left) {
                 JsExpr::Member(member) => {
-                    let transformed_object = recurse!(&member.object);
+                    let transformed_object = recurse!(context.arena.get_expr(member.object));
 
                     let transformed_property = match &member.property {
                         JsMemberProperty::Expression(prop_expr) if member.computed => {
-                            JsMemberProperty::Expression(Box::new(recurse!(prop_expr)))
+                            JsMemberProperty::Expression(
+                                context
+                                    .arena
+                                    .alloc_expr(recurse!(context.arena.get_expr(*prop_expr))),
+                            )
                         }
                         _ => member.property.clone(),
                     };
 
                     JsExpr::Member(JsMemberExpression {
-                        object: Box::new(transformed_object),
+                        object: context.arena.alloc_expr(transformed_object),
                         property: transformed_property,
                         computed: member.computed,
                         optional: member.optional,
                     })
                 }
                 // Don't transform identifier on the left side of assignment
-                _ => assign.left.as_ref().clone(),
+                _ => context.arena.get_expr(assign.left).clone(),
             };
 
             JsExpr::Assignment(JsAssignmentExpression {
                 operator: assign.operator,
-                left: Box::new(transformed_left),
-                right: Box::new(transformed_right),
+                left: context.arena.alloc_expr(transformed_left),
+                right: context.arena.alloc_expr(transformed_right),
             })
         }
 
@@ -1106,26 +1175,27 @@ pub fn apply_transforms_to_expression_with_shadowed(
         }
 
         JsExpr::New(new_expr) => {
-            let transformed_callee = recurse!(&new_expr.callee);
+            let transformed_callee = recurse!(context.arena.get_expr(new_expr.callee));
             let transformed_args: Vec<JsExpr> =
                 new_expr.arguments.iter().map(|arg| recurse!(arg)).collect();
 
             JsExpr::New(JsNewExpression {
-                callee: Box::new(transformed_callee),
+                callee: context.arena.alloc_expr(transformed_callee),
                 arguments: transformed_args,
             })
         }
 
         JsExpr::Await(inner) => {
-            let transformed = recurse!(inner);
-            JsExpr::Await(Box::new(transformed))
+            let transformed = recurse!(context.arena.get_expr(*inner));
+            JsExpr::Await(context.arena.alloc_expr(transformed))
         }
 
         JsExpr::Yield(yield_expr) => {
-            let transformed_arg = yield_expr
-                .argument
-                .as_ref()
-                .map(|arg| Box::new(recurse!(arg)));
+            let transformed_arg = yield_expr.argument.as_ref().map(|arg| {
+                context
+                    .arena
+                    .alloc_expr(recurse!(context.arena.get_expr(*arg)))
+            });
 
             JsExpr::Yield(JsYieldExpression {
                 argument: transformed_arg,
@@ -1134,19 +1204,20 @@ pub fn apply_transforms_to_expression_with_shadowed(
         }
 
         JsExpr::Spread(inner) => {
-            let transformed = recurse!(inner);
-            JsExpr::Spread(Box::new(transformed))
+            let transformed = recurse!(context.arena.get_expr(*inner));
+            JsExpr::Spread(context.arena.alloc_expr(transformed))
         }
 
         JsExpr::Update(update) => {
             // For update expressions, check if the argument has an update transform
             // Skip if the identifier is in local scope
-            if let JsExpr::Identifier(name) = update.argument.as_ref()
+            if let JsExpr::Identifier(name) = context.arena.get_expr(update.argument)
                 && !local_scope.contains(name)
                 && let Some(transform) = context.state.transform.get(name.as_str())
                 && let Some(update_fn) = transform.update
             {
                 return update_fn(
+                    &context.arena,
                     update.operator,
                     JsExpr::Identifier(name.clone()),
                     update.prefix,
@@ -1161,7 +1232,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
             //     uses_index = true;
             //     return b.sequence([mutation, ...sequence]);
             //   }
-            if let JsExpr::Identifier(name) = update.argument.as_ref()
+            if let JsExpr::Identifier(name) = context.arena.get_expr(update.argument)
                 && !local_scope.contains(name)
                 && context.state.each_item_names.contains(name)
             {
@@ -1175,14 +1246,20 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     && let Some(each_ctx) = context.state.each_binding_context.last()
                     && each_ctx.item_name == *name
                 {
-                    let collection_access = build_reassigned_item_read(each_ctx);
-                    let update_expr = b::update(update.operator, collection_access, update.prefix);
+                    let collection_access = build_reassigned_item_read(each_ctx, &context.arena);
+                    let update_expr = b::update(
+                        &context.arena,
+                        update.operator,
+                        collection_access,
+                        update.prefix,
+                    );
 
                     // Build the invalidation sequence expressions
                     let invalidation_exprs = each_ctx.invalidation_exprs.clone();
                     let mut seq_exprs = vec![update_expr];
                     if !invalidation_exprs.is_empty() {
-                        let invalidate_inner = build_invalidate_inner_signals(&invalidation_exprs);
+                        let invalidate_inner =
+                            build_invalidate_inner_signals(&invalidation_exprs, &context.arena);
                         seq_exprs.push(invalidate_inner);
                     }
                     return b::sequence(seq_exprs);
@@ -1195,8 +1272,9 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // - Store subscriptions: $store[0].value++ -> $.store_mutate(...)
             // - Legacy state: name.value++ -> $.mutate(name, $.get(name).value++)
             // - Runes state: name.value++ -> $.get(name).value++
-            if let JsExpr::Member(_) = update.argument.as_ref() {
-                let base_object = get_base_object(update.argument.as_ref());
+            if let JsExpr::Member(_) = context.arena.get_expr(update.argument) {
+                let base_object =
+                    get_base_object(context.arena.get_expr(update.argument), &context.arena);
 
                 // Track each item member update for uses_index detection.
                 // Also handle legacy mode each item mutation: append $.invalidate_inner_signals()
@@ -1218,21 +1296,23 @@ pub fn apply_transforms_to_expression_with_shadowed(
                         && !each_ctx.invalidation_exprs.is_empty()
                     {
                         // Transform the update expression (apply read transforms)
-                        let transformed_arg = recurse!(&update.argument);
+                        let transformed_arg = recurse!(context.arena.get_expr(update.argument));
                         let mutation = JsExpr::Update(JsUpdateExpression {
                             operator: update.operator,
-                            argument: Box::new(transformed_arg),
+                            argument: context.arena.alloc_expr(transformed_arg),
                             prefix: update.prefix,
                         });
 
                         let invalidation_exprs = each_ctx.invalidation_exprs.clone();
                         let mut seq_exprs = vec![mutation];
-                        let invalidate_inner = build_invalidate_inner_signals(&invalidation_exprs);
+                        let invalidate_inner =
+                            build_invalidate_inner_signals(&invalidation_exprs, &context.arena);
                         seq_exprs.push(invalidate_inner);
 
                         if let Some(ref store_name) = each_ctx.store_to_invalidate {
                             seq_exprs.push(b::call(
-                                b::member_path("$.invalidate_store"),
+                                &context.arena,
+                                b::member_path(&context.arena, "$.invalidate_store"),
                                 vec![b::id("$$stores"), b::string(store_name)],
                             ));
                         }
@@ -1249,15 +1329,15 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     // (e.g., count().a from a prop read transform), the mutation wrapping
                     // was already applied by expression_converter.rs. Skip to avoid
                     // double-wrapping (which would generate count(count(count().a++, true), true)).
-                    && !has_call_in_base_chain(update.argument.as_ref())
+                    && !has_call_in_base_chain(context.arena.get_expr(update.argument), &context.arena)
                 {
                     // Transform the argument so that reactive reads inside the
                     // update expression get wrapped properly, e.g. `global.value.count++`
                     // becomes `$$_import_global().value.count++` for reactive imports.
-                    let transformed_arg = recurse!(&update.argument);
+                    let transformed_arg = recurse!(context.arena.get_expr(update.argument));
                     let full_update = JsExpr::Update(JsUpdateExpression {
                         operator: update.operator,
-                        argument: Box::new(transformed_arg),
+                        argument: context.arena.alloc_expr(transformed_arg),
                         prefix: update.prefix,
                     });
 
@@ -1268,16 +1348,16 @@ pub fn apply_transforms_to_expression_with_shadowed(
                         JsExpr::Identifier(name.clone())
                     };
 
-                    return mutate_fn(mutate_target, full_update);
+                    return mutate_fn(&context.arena, mutate_target, full_update);
                 }
             }
 
             // Otherwise just transform the argument
-            let transformed_arg = recurse!(&update.argument);
+            let transformed_arg = recurse!(context.arena.get_expr(update.argument));
 
             JsExpr::Update(JsUpdateExpression {
                 operator: update.operator,
-                argument: Box::new(transformed_arg),
+                argument: context.arena.alloc_expr(transformed_arg),
                 prefix: update.prefix,
             })
         }
@@ -1294,7 +1374,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
         JsExpr::TaggedTemplate(tagged) => {
             // Transform both the tag and the expressions in the quasi
-            let transformed_tag = recurse!(&tagged.tag);
+            let transformed_tag = recurse!(context.arena.get_expr(tagged.tag));
             let transformed_exprs: Vec<JsExpr> = tagged
                 .quasi
                 .expressions
@@ -1303,7 +1383,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 .collect();
 
             JsExpr::TaggedTemplate(JsTaggedTemplate {
-                tag: Box::new(transformed_tag),
+                tag: context.arena.alloc_expr(transformed_tag),
                 quasi: JsTemplateLiteral {
                     quasis: tagged.quasi.quasis.clone(),
                     expressions: transformed_exprs,
@@ -1321,9 +1401,12 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
         // Spanned expressions: transform the inner expression, preserving the span
         JsExpr::Spanned(inner, start, end) => {
-            let transformed =
-                apply_transforms_to_expression_with_shadowed(inner, context, local_scope);
-            JsExpr::Spanned(Box::new(transformed), *start, *end)
+            let transformed = apply_transforms_to_expression_with_shadowed(
+                context.arena.get_expr(*inner),
+                context,
+                local_scope,
+            );
+            JsExpr::Spanned(context.arena.alloc_expr(transformed), *start, *end)
         }
     }
 }
@@ -1333,12 +1416,15 @@ pub fn apply_transforms_to_expression_with_shadowed(
 ///
 /// These functions should NOT have their first argument transformed with $.get()
 /// because they expect the raw state reference, not the value.
-fn is_svelte_runtime_set_call(callee: &JsExpr) -> bool {
+fn is_svelte_runtime_set_call(
+    callee: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> bool {
     // Check for $.set, $.update, $.update_pre, $.get, $.safe_get, $.mutate patterns
     // These all take a state reference as the first argument that should NOT be
     // wrapped with $.get()
     if let JsExpr::Member(member) = callee
-        && let JsExpr::Identifier(obj_name) = member.object.as_ref()
+        && let JsExpr::Identifier(obj_name) = arena.get_expr(member.object)
         && obj_name == "$"
         && let JsMemberProperty::Identifier(prop_name) = &member.property
     {
@@ -1362,9 +1448,12 @@ fn is_svelte_runtime_set_call(callee: &JsExpr) -> bool {
 ///
 /// - `$.untrack()` takes a getter function that should not be invoked
 /// - `$.store_mutate()` has pre-constructed arguments with $.untrack() calls
-fn is_svelte_runtime_skip_args_transform(callee: &JsExpr) -> bool {
+fn is_svelte_runtime_skip_args_transform(
+    callee: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> bool {
     if let JsExpr::Member(member) = callee
-        && let JsExpr::Identifier(obj_name) = member.object.as_ref()
+        && let JsExpr::Identifier(obj_name) = arena.get_expr(member.object)
         && obj_name == "$"
         && let JsMemberProperty::Identifier(prop_name) = &member.property
     {
@@ -1376,9 +1465,12 @@ fn is_svelte_runtime_skip_args_transform(callee: &JsExpr) -> bool {
 /// Check if a callee expression represents $.update_store or $.update_pre_store.
 /// These calls should transform the first argument (store reference which may need $.get())
 /// but skip the second argument onwards ($store() call that's already constructed).
-fn is_svelte_runtime_store_update_call(callee: &JsExpr) -> bool {
+fn is_svelte_runtime_store_update_call(
+    callee: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> bool {
     if let JsExpr::Member(member) = callee
-        && let JsExpr::Identifier(obj_name) = member.object.as_ref()
+        && let JsExpr::Identifier(obj_name) = arena.get_expr(member.object)
         && obj_name == "$"
         && let JsMemberProperty::Identifier(prop_name) = &member.property
     {
@@ -1401,11 +1493,12 @@ fn is_svelte_runtime_store_update_call(callee: &JsExpr) -> bool {
 /// ```
 fn build_reassigned_item_read(
     each_ctx: &crate::compiler::phases::phase3_transform::client::types::EachBindingContext,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 ) -> JsExpr {
     // Build the collection expression (either $$array() or the collection itself)
     let collection_expr = if let Some(ref coll_id) = each_ctx.collection_id {
         // Computed: $$array()
-        b::call(b::id(coll_id), vec![])
+        b::call(arena, b::id(coll_id), vec![])
     } else {
         // Raw collection expression string (already has transforms applied, e.g., $.get(arr))
         JsExpr::Raw(each_ctx.collection_expr.clone().into())
@@ -1413,20 +1506,27 @@ fn build_reassigned_item_read(
 
     // Build the index expression (either $.get($$index) for reactive or just $$index)
     let index_expr = if each_ctx.index_reactive {
-        b::call(b::member_path("$.get"), vec![b::id(&each_ctx.index_name)])
+        b::call(
+            arena,
+            b::member_path(arena, "$.get"),
+            vec![b::id(&each_ctx.index_name)],
+        )
     } else {
         b::id(&each_ctx.index_name)
     };
 
     // Build the computed member expression: collection[index]
-    b::member_computed(collection_expr, index_expr)
+    b::member_computed(arena, collection_expr, index_expr)
 }
 
 /// Build a `$.invalidate_inner_signals(() => (expr1, expr2, ...))` call.
 ///
 /// This mirrors the invalidation sequence used by the official Svelte compiler
 /// when mutating each block items in legacy mode.
-fn build_invalidate_inner_signals(invalidation_exprs: &[String]) -> JsExpr {
+fn build_invalidate_inner_signals(
+    invalidation_exprs: &[String],
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> JsExpr {
     let exprs: Vec<JsExpr> = invalidation_exprs
         .iter()
         .map(|s| JsExpr::Raw(s.clone().into()))
@@ -1437,8 +1537,9 @@ fn build_invalidate_inner_signals(invalidation_exprs: &[String]) -> JsExpr {
     let inner = b::sequence(exprs);
 
     b::call(
-        b::member_path("$.invalidate_inner_signals"),
-        vec![b::thunk(inner)],
+        arena,
+        b::member_path(arena, "$.invalidate_inner_signals"),
+        vec![b::thunk(arena, inner)],
     )
 }
 
@@ -1447,10 +1548,13 @@ fn build_invalidate_inner_signals(invalidation_exprs: &[String]) -> JsExpr {
 /// For example, for `a.b.c.d`, returns `a`.
 /// For nested member expressions like `$store().users['gary'].value`,
 /// returns `$store`.
-fn get_base_object(expr: &JsExpr) -> JsExpr {
+fn get_base_object(
+    expr: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> JsExpr {
     match expr {
-        JsExpr::Member(member) => get_base_object(&member.object),
-        JsExpr::Call(call) => get_base_object(&call.callee),
+        JsExpr::Member(member) => get_base_object(arena.get_expr(member.object), arena),
+        JsExpr::Call(call) => get_base_object(arena.get_expr(call.callee), arena),
         _ => expr.clone(),
     }
 }
@@ -1463,13 +1567,16 @@ fn get_base_object(expr: &JsExpr) -> JsExpr {
 /// Only detects calls where the callee is a simple Identifier (e.g., `items()`),
 /// which indicates a prop read transform. Method calls like `list.at(-1)` where
 /// the callee is a Member expression are NOT considered read transforms.
-fn has_call_in_base_chain(expr: &JsExpr) -> bool {
+fn has_call_in_base_chain(
+    expr: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> bool {
     match expr {
-        JsExpr::Member(member) => has_call_in_base_chain(&member.object),
+        JsExpr::Member(member) => has_call_in_base_chain(arena.get_expr(member.object), arena),
         JsExpr::Call(call) => {
             // Only consider it a read-transform if the callee is a simple Identifier.
             // Method calls like `list.at()` have a Member callee and should not count.
-            matches!(call.callee.as_ref(), JsExpr::Identifier(_))
+            matches!(arena.get_expr(call.callee), JsExpr::Identifier(_))
         }
         _ => false,
     }
@@ -1490,15 +1597,18 @@ fn transform_computed_indices_only(
     match expr {
         JsExpr::Member(member) => {
             // Recurse into object (but still only transform computed indices there too)
-            let transformed_object =
-                transform_computed_indices_only(&member.object, context, local_scope);
+            let transformed_object = transform_computed_indices_only(
+                context.arena.get_expr(member.object),
+                context,
+                local_scope,
+            );
 
             // For computed properties, apply full transforms to the index expression
             let transformed_property = match &member.property {
                 JsMemberProperty::Expression(prop_expr) if member.computed => {
-                    JsMemberProperty::Expression(Box::new(
+                    JsMemberProperty::Expression(context.arena.alloc_expr(
                         apply_transforms_to_expression_with_shadowed(
-                            prop_expr,
+                            context.arena.get_expr(*prop_expr),
                             context,
                             local_scope,
                         ),
@@ -1508,7 +1618,7 @@ fn transform_computed_indices_only(
             };
 
             JsExpr::Member(JsMemberExpression {
-                object: Box::new(transformed_object),
+                object: context.arena.alloc_expr(transformed_object),
                 property: transformed_property,
                 computed: member.computed,
                 optional: member.optional,
@@ -1544,14 +1654,17 @@ fn apply_transforms_to_statement_with_shadowed(
 
     match stmt {
         JsStatement::Expression(expr_stmt) => JsStatement::Expression(JsExpressionStatement {
-            expression: Box::new(transform_expr(&expr_stmt.expression)),
+            expression: context
+                .arena
+                .alloc_expr(transform_expr(context.arena.get_expr(expr_stmt.expression))),
         }),
 
         JsStatement::Return(ret_stmt) => JsStatement::Return(JsReturnStatement {
-            argument: ret_stmt
-                .argument
-                .as_ref()
-                .map(|arg| Box::new(transform_expr(arg))),
+            argument: ret_stmt.argument.map(|arg| {
+                context
+                    .arena
+                    .alloc_expr(transform_expr(context.arena.get_expr(arg)))
+            }),
         }),
 
         JsStatement::VariableDeclaration(var_decl) => {
@@ -1560,10 +1673,11 @@ fn apply_transforms_to_statement_with_shadowed(
                 .iter()
                 .map(|decl| JsVariableDeclarator {
                     id: decl.id.clone(),
-                    init: decl
-                        .init
-                        .as_ref()
-                        .map(|init| Box::new(transform_expr(init))),
+                    init: decl.init.map(|init| {
+                        context
+                            .arena
+                            .alloc_expr(transform_expr(context.arena.get_expr(init)))
+                    }),
                 })
                 .collect();
 
@@ -1574,12 +1688,17 @@ fn apply_transforms_to_statement_with_shadowed(
         }
 
         JsStatement::If(if_stmt) => JsStatement::If(JsIfStatement {
-            test: Box::new(transform_expr(&if_stmt.test)),
-            consequent: Box::new(transform_stmt(&if_stmt.consequent)),
-            alternate: if_stmt
-                .alternate
-                .as_ref()
-                .map(|alt| Box::new(transform_stmt(alt))),
+            test: context
+                .arena
+                .alloc_expr(transform_expr(context.arena.get_expr(if_stmt.test))),
+            consequent: {
+                let s = context.arena.get_stmt(if_stmt.consequent).clone();
+                context.arena.alloc_stmt(transform_stmt(&s))
+            },
+            alternate: if_stmt.alternate.map(|alt| {
+                let s = context.arena.get_stmt(alt).clone();
+                context.arena.alloc_stmt(transform_stmt(&s))
+            }),
         }),
 
         JsStatement::Block(block) => {
@@ -1615,14 +1734,18 @@ fn apply_transforms_to_statement_with_shadowed(
                         .iter()
                         .map(|d| JsVariableDeclarator {
                             id: d.id.clone(),
-                            init: d.init.as_ref().map(|e| {
+                            init: d.init.map(|e| {
                                 // Init expressions in the for-loop header are evaluated in
                                 // the OUTER scope (before the loop var is in scope), but for
                                 // simplicity we use for_scope here since the init variable
                                 // shadowing itself in its own initializer is a no-op anyway.
-                                Box::new(apply_transforms_to_expression_with_shadowed(
-                                    e, context, &for_scope,
-                                ))
+                                context.arena.alloc_expr(
+                                    apply_transforms_to_expression_with_shadowed(
+                                        context.arena.get_expr(e),
+                                        context,
+                                        &for_scope,
+                                    ),
+                                )
                             }),
                         })
                         .collect();
@@ -1631,25 +1754,40 @@ fn apply_transforms_to_statement_with_shadowed(
                         declarations: transformed_decls,
                     })
                 }
-                JsForInit::Expression(expr) => JsForInit::Expression(Box::new(
-                    apply_transforms_to_expression_with_shadowed(expr, context, &for_scope),
+                JsForInit::Expression(expr_id) => JsForInit::Expression(context.arena.alloc_expr(
+                    apply_transforms_to_expression_with_shadowed(
+                        context.arena.get_expr(*expr_id),
+                        context,
+                        &for_scope,
+                    ),
                 )),
             });
-            let transformed_test = for_stmt.test.as_ref().map(|t| {
-                Box::new(apply_transforms_to_expression_with_shadowed(
-                    t, context, &for_scope,
-                ))
+            let transformed_test = for_stmt.test.map(|t| {
+                context
+                    .arena
+                    .alloc_expr(apply_transforms_to_expression_with_shadowed(
+                        context.arena.get_expr(t),
+                        context,
+                        &for_scope,
+                    ))
             });
-            let transformed_update = for_stmt.update.as_ref().map(|u| {
-                Box::new(apply_transforms_to_expression_with_shadowed(
-                    u, context, &for_scope,
-                ))
+            let transformed_update = for_stmt.update.map(|u| {
+                context
+                    .arena
+                    .alloc_expr(apply_transforms_to_expression_with_shadowed(
+                        context.arena.get_expr(u),
+                        context,
+                        &for_scope,
+                    ))
             });
-            let transformed_body = Box::new(apply_transforms_to_statement_with_shadowed(
-                &for_stmt.body,
-                context,
-                &for_scope,
-            ));
+            let transformed_body = {
+                let s = context.arena.get_stmt(for_stmt.body).clone();
+                context
+                    .arena
+                    .alloc_stmt(apply_transforms_to_statement_with_shadowed(
+                        &s, context, &for_scope,
+                    ))
+            };
             JsStatement::For(JsForStatement {
                 init: transformed_init,
                 test: transformed_test,
@@ -1659,16 +1797,30 @@ fn apply_transforms_to_statement_with_shadowed(
         }
 
         JsStatement::While(while_stmt) => JsStatement::While(JsWhileStatement {
-            test: Box::new(transform_expr(&while_stmt.test)),
-            body: Box::new(transform_stmt(&while_stmt.body)),
+            test: context
+                .arena
+                .alloc_expr(transform_expr(context.arena.get_expr(while_stmt.test))),
+            body: {
+                let s = context.arena.get_stmt(while_stmt.body).clone();
+                context.arena.alloc_stmt(transform_stmt(&s))
+            },
         }),
 
         JsStatement::DoWhile(do_while) => JsStatement::DoWhile(JsDoWhileStatement {
-            body: Box::new(transform_stmt(&do_while.body)),
-            test: Box::new(transform_expr(&do_while.test)),
+            body: {
+                let s = context.arena.get_stmt(do_while.body).clone();
+                context.arena.alloc_stmt(transform_stmt(&s))
+            },
+            test: context
+                .arena
+                .alloc_expr(transform_expr(context.arena.get_expr(do_while.test))),
         }),
 
-        JsStatement::Throw(expr) => JsStatement::Throw(Box::new(transform_expr(expr))),
+        JsStatement::Throw(expr_id) => JsStatement::Throw(
+            context
+                .arena
+                .alloc_expr(transform_expr(context.arena.get_expr(*expr_id))),
+        ),
 
         // Statements that don't need transformation
         JsStatement::Empty
@@ -1752,8 +1904,12 @@ pub fn build_expression(
     // matching the official Svelte compiler behavior in build_expression:
     // sequence.expressions.push(b.call('$.untrack', b.thunk(value)));
     // return sequence;
-    let thunk = b::thunk(value.clone());
-    let untracked = b::call(b::member_path("$.untrack"), vec![thunk]);
+    let thunk = b::thunk(&context.arena, value.clone());
+    let untracked = b::call(
+        &context.arena,
+        b::member_path(&context.arena, "$.untrack"),
+        vec![thunk],
+    );
 
     // Add the untracked value as the last expression in the sequence
     sequence_exprs.push(untracked);
@@ -1768,12 +1924,16 @@ pub fn build_expression(
 /// This walks the expression tree and collects any `$.get(x)` calls,
 /// which represent reads of reactive state variables.
 #[allow(dead_code)]
-fn collect_state_getters(expr: &JsExpr, getters: &mut Vec<JsExpr>) {
+fn collect_state_getters(
+    expr: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    getters: &mut Vec<JsExpr>,
+) {
     match expr {
         JsExpr::Call(call) => {
             // Check if this is a $.get() call
-            if let JsExpr::Member(member) = call.callee.as_ref()
-                && let JsExpr::Identifier(obj) = member.object.as_ref()
+            if let JsExpr::Member(member) = arena.get_expr(call.callee)
+                && let JsExpr::Identifier(obj) = arena.get_expr(member.object)
                 && obj == "$"
                 && let JsMemberProperty::Identifier(prop) = &member.property
                 && prop == "get"
@@ -1784,65 +1944,65 @@ fn collect_state_getters(expr: &JsExpr, getters: &mut Vec<JsExpr>) {
             }
             // Recurse into call arguments
             for arg in &call.arguments {
-                collect_state_getters(arg, getters);
+                collect_state_getters(arg, arena, getters);
             }
             // Recurse into callee
-            collect_state_getters(call.callee.as_ref(), getters);
+            collect_state_getters(arena.get_expr(call.callee), arena, getters);
         }
         JsExpr::Member(member) => {
-            collect_state_getters(&member.object, getters);
+            collect_state_getters(arena.get_expr(member.object), arena, getters);
             if let JsMemberProperty::Expression(prop) = &member.property {
-                collect_state_getters(prop, getters);
+                collect_state_getters(arena.get_expr(*prop), arena, getters);
             }
         }
         JsExpr::Binary(binary) => {
-            collect_state_getters(&binary.left, getters);
-            collect_state_getters(&binary.right, getters);
+            collect_state_getters(arena.get_expr(binary.left), arena, getters);
+            collect_state_getters(arena.get_expr(binary.right), arena, getters);
         }
         JsExpr::Logical(logical) => {
-            collect_state_getters(&logical.left, getters);
-            collect_state_getters(&logical.right, getters);
+            collect_state_getters(arena.get_expr(logical.left), arena, getters);
+            collect_state_getters(arena.get_expr(logical.right), arena, getters);
         }
         JsExpr::Conditional(cond) => {
-            collect_state_getters(&cond.test, getters);
-            collect_state_getters(&cond.consequent, getters);
-            collect_state_getters(&cond.alternate, getters);
+            collect_state_getters(arena.get_expr(cond.test), arena, getters);
+            collect_state_getters(arena.get_expr(cond.consequent), arena, getters);
+            collect_state_getters(arena.get_expr(cond.alternate), arena, getters);
         }
         JsExpr::Array(arr) => {
             for e in arr.elements.iter().flatten() {
-                collect_state_getters(e, getters);
+                collect_state_getters(e, arena, getters);
             }
         }
         JsExpr::Object(obj) => {
             for prop in &obj.properties {
                 match prop {
                     JsObjectMember::Property(p) => {
-                        collect_state_getters(&p.value, getters);
+                        collect_state_getters(arena.get_expr(p.value), arena, getters);
                     }
                     JsObjectMember::SpreadElement(s) => {
-                        collect_state_getters(s, getters);
+                        collect_state_getters(arena.get_expr(*s), arena, getters);
                     }
                 }
             }
         }
         JsExpr::Assignment(assign) => {
-            collect_state_getters(&assign.left, getters);
-            collect_state_getters(&assign.right, getters);
+            collect_state_getters(arena.get_expr(assign.left), arena, getters);
+            collect_state_getters(arena.get_expr(assign.right), arena, getters);
         }
         JsExpr::Unary(unary) => {
-            collect_state_getters(&unary.argument, getters);
+            collect_state_getters(arena.get_expr(unary.argument), arena, getters);
         }
         JsExpr::Update(update) => {
-            collect_state_getters(&update.argument, getters);
+            collect_state_getters(arena.get_expr(update.argument), arena, getters);
         }
         JsExpr::Sequence(seq) => {
             for expr in &seq.expressions {
-                collect_state_getters(expr, getters);
+                collect_state_getters(expr, arena, getters);
             }
         }
         JsExpr::TemplateLiteral(template) => {
             for expr in &template.expressions {
-                collect_state_getters(expr, getters);
+                collect_state_getters(expr, arena, getters);
             }
         }
         JsExpr::Arrow(_) | JsExpr::Function(_) => {
@@ -1862,7 +2022,7 @@ fn collect_state_getters(expr: &JsExpr, getters: &mut Vec<JsExpr>) {
         | JsExpr::Chain(_)
         | JsExpr::Void(_) => {}
         JsExpr::Spanned(inner, _, _) => {
-            collect_state_getters(inner, getters);
+            collect_state_getters(arena.get_expr(*inner), arena, getters);
         }
     }
 }
@@ -1913,7 +2073,7 @@ fn collect_reactive_references_from_metadata(
                 .iter()
                 .find(|ctx| ctx.item_name == *name && ctx.item_reassigned)
         {
-            let reassigned_read = build_reassigned_item_read(each_ctx);
+            let reassigned_read = build_reassigned_item_read(each_ctx, &context.arena);
             getters.push(reassigned_read);
             continue;
         }
@@ -1925,7 +2085,12 @@ fn collect_reactive_references_from_metadata(
                 // read_source is set for destructured @const and let directive bindings.
                 // The getter should be $.get(read_source).name instead of $.get(name).
                 b::member(
-                    b::call(b::member_path("$.get"), vec![b::id(read_source)]),
+                    &context.arena,
+                    b::call(
+                        &context.arena,
+                        b::member_path(&context.arena, "$.get"),
+                        vec![b::id(read_source)],
+                    ),
                     name,
                 )
             } else if let Some(read_fn) = transform.read {
@@ -1934,7 +2099,7 @@ fn collect_reactive_references_from_metadata(
                 } else {
                     JsExpr::Identifier(name.clone().into())
                 };
-                read_fn(input_id)
+                read_fn(&context.arena, input_id)
             } else {
                 JsExpr::Identifier(name.clone().into())
             }
@@ -1973,7 +2138,7 @@ fn collect_reactive_references_from_metadata(
         };
 
         let final_getter = if needs_deep_read {
-            b::svelte_call("deep_read_state", vec![getter])
+            b::svelte_call(&context.arena, "deep_read_state", vec![getter])
         } else {
             getter
         };
@@ -2080,7 +2245,7 @@ fn collect_reactive_references_inner(
                     .iter()
                     .find(|ctx| ctx.item_name == *name && ctx.item_reassigned)
             {
-                let reassigned_read = build_reassigned_item_read(each_ctx);
+                let reassigned_read = build_reassigned_item_read(each_ctx, &context.arena);
                 getters.push(reassigned_read);
                 return;
             }
@@ -2097,7 +2262,12 @@ fn collect_reactive_references_inner(
                     // read_source is set for destructured @const and let directive bindings.
                     // The getter should be $.get(read_source).name instead of $.get(name).
                     b::member(
-                        b::call(b::member_path("$.get"), vec![b::id(read_source)]),
+                        &context.arena,
+                        b::call(
+                            &context.arena,
+                            b::member_path(&context.arena, "$.get"),
+                            vec![b::id(read_source)],
+                        ),
                         name.clone(),
                     )
                 } else if let Some(read_fn) = transform.read {
@@ -2108,7 +2278,7 @@ fn collect_reactive_references_inner(
                     } else {
                         JsExpr::Identifier(name.clone())
                     };
-                    read_fn(input_id)
+                    read_fn(&context.arena, input_id)
                 } else {
                     JsExpr::Identifier(name.clone())
                 }
@@ -2153,7 +2323,7 @@ fn collect_reactive_references_inner(
             };
 
             let final_getter = if needs_deep_read {
-                b::svelte_call("deep_read_state", vec![getter])
+                b::svelte_call(&context.arena, "deep_read_state", vec![getter])
             } else {
                 getter
             };
@@ -2163,33 +2333,83 @@ fn collect_reactive_references_inner(
 
         JsExpr::Call(call) => {
             // Recurse into callee and arguments
-            collect_reactive_references_inner(&call.callee, context, getters, seen);
+            collect_reactive_references_inner(
+                context.arena.get_expr(call.callee),
+                context,
+                getters,
+                seen,
+            );
             for arg in &call.arguments {
                 collect_reactive_references_inner(arg, context, getters, seen);
             }
         }
 
         JsExpr::Member(member) => {
-            collect_reactive_references_inner(&member.object, context, getters, seen);
+            collect_reactive_references_inner(
+                context.arena.get_expr(member.object),
+                context,
+                getters,
+                seen,
+            );
             if let JsMemberProperty::Expression(prop) = &member.property {
-                collect_reactive_references_inner(prop, context, getters, seen);
+                collect_reactive_references_inner(
+                    context.arena.get_expr(*prop),
+                    context,
+                    getters,
+                    seen,
+                );
             }
         }
 
         JsExpr::Binary(binary) => {
-            collect_reactive_references_inner(&binary.left, context, getters, seen);
-            collect_reactive_references_inner(&binary.right, context, getters, seen);
+            collect_reactive_references_inner(
+                context.arena.get_expr(binary.left),
+                context,
+                getters,
+                seen,
+            );
+            collect_reactive_references_inner(
+                context.arena.get_expr(binary.right),
+                context,
+                getters,
+                seen,
+            );
         }
 
         JsExpr::Logical(logical) => {
-            collect_reactive_references_inner(&logical.left, context, getters, seen);
-            collect_reactive_references_inner(&logical.right, context, getters, seen);
+            collect_reactive_references_inner(
+                context.arena.get_expr(logical.left),
+                context,
+                getters,
+                seen,
+            );
+            collect_reactive_references_inner(
+                context.arena.get_expr(logical.right),
+                context,
+                getters,
+                seen,
+            );
         }
 
         JsExpr::Conditional(cond) => {
-            collect_reactive_references_inner(&cond.test, context, getters, seen);
-            collect_reactive_references_inner(&cond.consequent, context, getters, seen);
-            collect_reactive_references_inner(&cond.alternate, context, getters, seen);
+            collect_reactive_references_inner(
+                context.arena.get_expr(cond.test),
+                context,
+                getters,
+                seen,
+            );
+            collect_reactive_references_inner(
+                context.arena.get_expr(cond.consequent),
+                context,
+                getters,
+                seen,
+            );
+            collect_reactive_references_inner(
+                context.arena.get_expr(cond.alternate),
+                context,
+                getters,
+                seen,
+            );
         }
 
         JsExpr::Array(arr) => {
@@ -2202,26 +2422,56 @@ fn collect_reactive_references_inner(
             for prop in &obj.properties {
                 match prop {
                     JsObjectMember::Property(p) => {
-                        collect_reactive_references_inner(&p.value, context, getters, seen);
+                        collect_reactive_references_inner(
+                            context.arena.get_expr(p.value),
+                            context,
+                            getters,
+                            seen,
+                        );
                     }
                     JsObjectMember::SpreadElement(s) => {
-                        collect_reactive_references_inner(s, context, getters, seen);
+                        collect_reactive_references_inner(
+                            context.arena.get_expr(*s),
+                            context,
+                            getters,
+                            seen,
+                        );
                     }
                 }
             }
         }
 
         JsExpr::Assignment(assign) => {
-            collect_reactive_references_inner(&assign.left, context, getters, seen);
-            collect_reactive_references_inner(&assign.right, context, getters, seen);
+            collect_reactive_references_inner(
+                context.arena.get_expr(assign.left),
+                context,
+                getters,
+                seen,
+            );
+            collect_reactive_references_inner(
+                context.arena.get_expr(assign.right),
+                context,
+                getters,
+                seen,
+            );
         }
 
         JsExpr::Unary(unary) => {
-            collect_reactive_references_inner(&unary.argument, context, getters, seen);
+            collect_reactive_references_inner(
+                context.arena.get_expr(unary.argument),
+                context,
+                getters,
+                seen,
+            );
         }
 
         JsExpr::Update(update) => {
-            collect_reactive_references_inner(&update.argument, context, getters, seen);
+            collect_reactive_references_inner(
+                context.arena.get_expr(update.argument),
+                context,
+                getters,
+                seen,
+            );
         }
 
         JsExpr::Sequence(seq) => {
@@ -2252,7 +2502,12 @@ fn collect_reactive_references_inner(
             }
             match &arrow.body {
                 JsArrowBody::Expression(body_expr) => {
-                    collect_reactive_references_inner(body_expr, context, getters, seen);
+                    collect_reactive_references_inner(
+                        context.arena.get_expr(*body_expr),
+                        context,
+                        getters,
+                        seen,
+                    );
                 }
                 JsArrowBody::Block(block) => {
                     for stmt in &block.body {
@@ -2296,7 +2551,12 @@ fn collect_reactive_references_inner(
         | JsExpr::Chain(_)
         | JsExpr::Void(_) => {}
         JsExpr::Spanned(inner, _, _) => {
-            collect_reactive_references_inner(inner, context, getters, seen);
+            collect_reactive_references_inner(
+                context.arena.get_expr(*inner),
+                context,
+                getters,
+                seen,
+            );
         }
     }
 }
@@ -2310,25 +2570,55 @@ fn collect_reactive_references_from_statement(
 ) {
     match stmt {
         JsStatement::Expression(expr_stmt) => {
-            collect_reactive_references_inner(&expr_stmt.expression, context, getters, seen);
+            collect_reactive_references_inner(
+                context.arena.get_expr(expr_stmt.expression),
+                context,
+                getters,
+                seen,
+            );
         }
         JsStatement::Return(ret_stmt) => {
-            if let Some(arg) = &ret_stmt.argument {
-                collect_reactive_references_inner(arg, context, getters, seen);
+            if let Some(arg) = ret_stmt.argument {
+                collect_reactive_references_inner(
+                    context.arena.get_expr(arg),
+                    context,
+                    getters,
+                    seen,
+                );
             }
         }
         JsStatement::VariableDeclaration(var_decl) => {
             for decl in &var_decl.declarations {
-                if let Some(init) = &decl.init {
-                    collect_reactive_references_inner(init, context, getters, seen);
+                if let Some(init) = decl.init {
+                    collect_reactive_references_inner(
+                        context.arena.get_expr(init),
+                        context,
+                        getters,
+                        seen,
+                    );
                 }
             }
         }
         JsStatement::If(if_stmt) => {
-            collect_reactive_references_inner(&if_stmt.test, context, getters, seen);
-            collect_reactive_references_from_statement(&if_stmt.consequent, context, getters, seen);
-            if let Some(alt) = &if_stmt.alternate {
-                collect_reactive_references_from_statement(alt, context, getters, seen);
+            collect_reactive_references_inner(
+                context.arena.get_expr(if_stmt.test),
+                context,
+                getters,
+                seen,
+            );
+            collect_reactive_references_from_statement(
+                context.arena.get_stmt(if_stmt.consequent),
+                context,
+                getters,
+                seen,
+            );
+            if let Some(alt) = if_stmt.alternate {
+                collect_reactive_references_from_statement(
+                    context.arena.get_stmt(alt),
+                    context,
+                    getters,
+                    seen,
+                );
             }
         }
         JsStatement::Block(block) => {
@@ -2356,25 +2646,33 @@ fn collect_reactive_references_from_statement(
 pub fn build_bind_this(
     expression: BindExpression,
     value: JsExpr,
-    _context: &mut ComponentContext,
+    context: &mut ComponentContext,
 ) -> JsExpr {
     match expression {
         BindExpression::Simple(expr) => {
             // Simple identifier: just pass it as both getter and setter
             // $.bind_this(value, () => expr, (v) => { expr = v })
-            let getter = b::arrow(vec![], expr.clone());
+            let getter = b::arrow(&context.arena, vec![], expr.clone());
             let setter = b::arrow_block(
                 vec![b::id_pattern("$$value")],
-                vec![b::stmt(b::assign(expr, b::id("$$value")))],
+                vec![b::stmt(
+                    &context.arena,
+                    b::assign(&context.arena, expr, b::id("$$value")),
+                )],
             );
 
-            b::call(b::member_path("$.bind_this"), vec![value, getter, setter])
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.bind_this"),
+                vec![value, getter, setter],
+            )
         }
 
         BindExpression::Sequence(getter_expr, setter_expr) => {
             // Already have getter/setter pair
             b::call(
-                b::member_path("$.bind_this"),
+                &context.arena,
+                b::member_path(&context.arena, "$.bind_this"),
                 vec![value, getter_expr, setter_expr],
             )
         }
@@ -2406,9 +2704,12 @@ pub fn validate_binding(
 /// The dev mode metadata parameters have been removed to avoid unnecessary
 /// template node cloning. These will be re-added when dev mode is implemented.
 #[inline]
-pub fn add_svelte_meta(expression: JsExpr) -> JsStatement {
+pub fn add_svelte_meta(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    expression: JsExpr,
+) -> JsStatement {
     // Non-dev mode or when called without meta info: just wrap in statement
-    b::stmt(expression)
+    b::stmt(arena, expression)
 }
 
 /// Add svelte meta wrapper for dev mode with source location and type info.
@@ -2416,7 +2717,9 @@ pub fn add_svelte_meta(expression: JsExpr) -> JsStatement {
 /// and ownership tracking.
 ///
 /// Reference: utils.js add_svelte_meta function
+#[allow(clippy::too_many_arguments)]
 pub fn add_svelte_meta_dev(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     expression: JsExpr,
     meta_type: &str,
     component_name: &str,
@@ -2426,11 +2729,11 @@ pub fn add_svelte_meta_dev(
     dev: bool,
 ) -> JsStatement {
     if !dev {
-        return b::stmt(expression);
+        return b::stmt(arena, expression);
     }
 
     let mut args: Vec<JsExpr> = vec![
-        b::arrow(vec![], expression),
+        b::arrow(arena, vec![], expression),
         b::string(meta_type),
         b::id(component_name),
         b::literal_number(line as f64),
@@ -2438,11 +2741,17 @@ pub fn add_svelte_meta_dev(
     ];
 
     if let Some(entries) = additional {
-        let props: Vec<JsObjectMember> = entries.into_iter().map(|(k, v)| b::prop(&k, v)).collect();
+        let props: Vec<JsObjectMember> = entries
+            .into_iter()
+            .map(|(k, v)| b::prop(arena, &k, v))
+            .collect();
         args.push(b::object(props));
     }
 
-    b::stmt(b::call(b::member_path("$.add_svelte_meta"), args))
+    b::stmt(
+        arena,
+        b::call(arena, b::member_path(arena, "$.add_svelte_meta"), args),
+    )
 }
 
 /// Build a template effect.
@@ -2458,6 +2767,7 @@ pub fn add_svelte_meta_dev(
 ///
 /// Returns a call to `$.template_effect()` or `$.template_effect_with_values()`.
 pub fn build_template_effect(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     statements: Vec<JsStatement>,
     dependencies: Option<Vec<JsExpr>>,
 ) -> JsStatement {
@@ -2465,23 +2775,31 @@ pub fn build_template_effect(
     let effect_fn = if statements.len() == 1
         && let JsStatement::Expression(expr_stmt) = &statements[0]
     {
-        b::arrow(vec![], (*expr_stmt.expression).clone())
+        b::arrow(arena, vec![], arena.get_expr(expr_stmt.expression).clone())
     } else {
         b::arrow_block(vec![], statements)
     };
 
     if let Some(deps) = dependencies {
         // $.template_effect_with_values(() => { ... }, [deps])
-        b::stmt(b::call(
-            b::member_path("$.template_effect_with_values"),
-            vec![effect_fn, b::array(deps)],
-        ))
+        b::stmt(
+            arena,
+            b::call(
+                arena,
+                b::member_path(arena, "$.template_effect_with_values"),
+                vec![effect_fn, b::array(deps)],
+            ),
+        )
     } else {
         // $.template_effect(() => expr) or $.template_effect(() => { stmts })
-        b::stmt(b::call(
-            b::member_path("$.template_effect"),
-            vec![effect_fn],
-        ))
+        b::stmt(
+            arena,
+            b::call(
+                arena,
+                b::member_path(arena, "$.template_effect"),
+                vec![effect_fn],
+            ),
+        )
     }
 }
 
@@ -2499,8 +2817,11 @@ pub fn build_template_effect(
 /// # Returns
 ///
 /// Returns a call to `$.template_effect(() => { ... })`
-pub fn build_render_statement(statements: Vec<JsStatement>) -> JsExpr {
-    build_render_statement_with_memoizer(statements, vec![], None, None, None)
+pub fn build_render_statement(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    statements: Vec<JsStatement>,
+) -> JsExpr {
+    build_render_statement_with_memoizer(arena, statements, vec![], None, None, None)
 }
 
 /// Build a render statement with memoization support.
@@ -2519,6 +2840,7 @@ pub fn build_render_statement(statements: Vec<JsStatement>) -> JsExpr {
 ///
 /// Returns a call to `$.template_effect(...)` with appropriate parameters.
 pub fn build_render_statement_with_memoizer(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     statements: Vec<JsStatement>,
     params: Vec<JsExpr>,
     sync_values: Option<JsExpr>,
@@ -2542,7 +2864,11 @@ pub fn build_render_statement_with_memoizer(
         && let JsStatement::Expression(expr_stmt) = &statements[0]
     {
         // Single expression - use expression body
-        b::arrow(param_patterns, (*expr_stmt.expression).clone())
+        b::arrow(
+            arena,
+            param_patterns,
+            arena.get_expr(expr_stmt.expression).clone(),
+        )
     } else {
         // Multiple statements - use block body
         b::arrow_block(param_patterns, statements)
@@ -2556,14 +2882,14 @@ pub fn build_render_statement_with_memoizer(
         args.push(sync);
     } else if async_values.is_some() || blockers.is_some() {
         // Need placeholder if we have async_values or blockers
-        args.push(b::undefined());
+        args.push(b::undefined(arena));
     }
 
     // Add async values if present
     if let Some(async_vals) = async_values {
         args.push(async_vals);
     } else if blockers.is_some() {
-        args.push(b::undefined());
+        args.push(b::undefined(arena));
     }
 
     // Add blockers if present
@@ -2571,7 +2897,7 @@ pub fn build_render_statement_with_memoizer(
         args.push(block);
     }
 
-    b::call(b::member_path("$.template_effect"), args)
+    b::call(arena, b::member_path(arena, "$.template_effect"), args)
 }
 
 /// Bind expression types.
@@ -2612,7 +2938,10 @@ pub struct BindDirective {
 /// # Returns
 ///
 /// Returns a member expression or identifier.
-pub fn parse_directive_name(name: &str) -> JsExpr {
+pub fn parse_directive_name(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    name: &str,
+) -> JsExpr {
     let parts: Vec<&str> = name.split('.').collect();
 
     if parts.is_empty() {
@@ -2632,9 +2961,9 @@ pub fn parse_directive_name(name: &str) -> JsExpr {
         let computed = !is_valid_identifier(part);
 
         if computed {
-            expression = b::member_computed(expression, b::string(*part));
+            expression = b::member_computed(arena, expression, b::string(*part));
         } else {
-            expression = b::member(expression, *part);
+            expression = b::member(arena, expression, *part);
         }
     }
 
@@ -2740,13 +3069,13 @@ pub fn validate_mutation(
     }
 
     // Only validate member expressions
-    let member_expr = match node.left.as_ref() {
+    let member_expr = match context.arena.get_expr(node.left) {
         JsExpr::Member(m) => m,
         _ => return expression,
     };
 
     // Get the root object of the member expression
-    let root_name = match get_root_object(member_expr) {
+    let root_name = match get_root_object(member_expr, &context.arena) {
         Some(name) => name,
         None => return expression,
     };
@@ -2780,15 +3109,22 @@ pub fn validate_mutation(
 
     // TODO: Add source location (line, column) when original AST positions are available
 
-    b::call(b::member_path("$$ownership_validator.mutation"), args)
+    b::call(
+        &context.arena,
+        b::member_path(&context.arena, "$$ownership_validator.mutation"),
+        args,
+    )
 }
 
 /// Get the root object identifier from a member expression chain.
 ///
 /// For example, `obj.foo.bar` returns `"obj"`.
-fn get_root_object(mut expr: &JsMemberExpression) -> Option<String> {
+fn get_root_object<'a>(
+    mut expr: &'a JsMemberExpression,
+    arena: &'a crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> Option<String> {
     loop {
-        match expr.object.as_ref() {
+        match arena.get_expr(expr.object) {
             JsExpr::Identifier(name) => return Some(name.to_string()),
             JsExpr::Member(m) => expr = m,
             _ => return None,
@@ -2799,7 +3135,12 @@ fn get_root_object(mut expr: &JsMemberExpression) -> Option<String> {
 /// Build the property path for a member expression.
 ///
 /// Returns a list of property accessors (as strings or expressions).
-fn build_member_path(mut expr: &JsMemberExpression, context: &ComponentContext) -> Vec<JsExpr> {
+fn build_member_path(member: &JsMemberExpression, context: &ComponentContext) -> Vec<JsExpr> {
+    // SAFETY: Extract arena reference to break the borrow chain between
+    // arena.get_expr() results and the loop variable.
+    let _arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena =
+        unsafe { &*(&context.arena as *const _) };
+    let mut expr: &JsMemberExpression = member;
     let mut path = Vec::new();
 
     loop {
@@ -2813,7 +3154,7 @@ fn build_member_path(mut expr: &JsMemberExpression, context: &ComponentContext) 
                     // Computed property: use the transform's read if available
                     if let Some(t) = transform {
                         if let Some(read_fn) = t.read {
-                            path.push(read_fn(JsExpr::Identifier(name.clone())));
+                            path.push(read_fn(&context.arena, JsExpr::Identifier(name.clone())));
                         } else {
                             path.push(JsExpr::Identifier(name.clone()));
                         }
@@ -2826,7 +3167,7 @@ fn build_member_path(mut expr: &JsMemberExpression, context: &ComponentContext) 
                 }
             }
             JsMemberProperty::Expression(expr_box) => {
-                match expr_box.as_ref() {
+                match context.arena.get_expr(*expr_box) {
                     JsExpr::Literal(lit) => {
                         path.push(JsExpr::Literal(lit.clone()));
                     }
@@ -2843,7 +3184,7 @@ fn build_member_path(mut expr: &JsMemberExpression, context: &ComponentContext) 
         }
 
         // Move to the parent object
-        match expr.object.as_ref() {
+        match context.arena.get_expr(expr.object) {
             JsExpr::Member(m) => expr = m,
             _ => break,
         }
@@ -3051,14 +3392,14 @@ pub fn build_template_chunk(
                         }
                     } else {
                         // Value was transformed. Check the built expression.
-                        is_js_expr_defined(&value)
+                        is_js_expr_defined(&value, &context.arena)
                     };
 
                     // Add ?? '' where necessary (only if not guaranteed to be defined)
                     let final_value = if is_defined {
                         value
                     } else {
-                        b::logical_str("??", value, b::string(""))
+                        b::logical_str(&context.arena, "??", value, b::string(""))
                     };
 
                     expressions.push(final_value);
@@ -3518,7 +3859,10 @@ fn get_literal_value_complex(
 /// the official Svelte compiler's `scope.evaluate(value).is_defined` behavior.
 /// Function calls (like `$.get(index)`) are NOT considered defined because they
 /// could theoretically return undefined.
-pub(crate) fn is_js_expr_defined(expr: &JsExpr) -> bool {
+pub(crate) fn is_js_expr_defined(
+    expr: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> bool {
     match expr {
         JsExpr::Literal(lit) => match lit {
             JsLiteral::Null | JsLiteral::Undefined => false,
@@ -3531,10 +3875,12 @@ pub(crate) fn is_js_expr_defined(expr: &JsExpr) -> bool {
         JsExpr::Unary(u) => !matches!(u.operator, JsUnaryOp::Void),
         JsExpr::Logical(log) => {
             // Check both sides
-            is_js_expr_defined(&log.left) && is_js_expr_defined(&log.right)
+            is_js_expr_defined(arena.get_expr(log.left), arena)
+                && is_js_expr_defined(arena.get_expr(log.right), arena)
         }
         JsExpr::Conditional(cond) => {
-            is_js_expr_defined(&cond.consequent) && is_js_expr_defined(&cond.alternate)
+            is_js_expr_defined(arena.get_expr(cond.consequent), arena)
+                && is_js_expr_defined(arena.get_expr(cond.alternate), arena)
         }
         JsExpr::Raw(s) => {
             // Raw expressions that are string/number literals are defined.
@@ -3548,7 +3894,9 @@ pub(crate) fn is_js_expr_defined(expr: &JsExpr) -> bool {
         }
         JsExpr::Sequence(seq) => {
             // A sequence expression evaluates to its last element
-            seq.expressions.last().is_some_and(is_js_expr_defined)
+            seq.expressions
+                .last()
+                .is_some_and(|e| is_js_expr_defined(e, arena))
         }
         _ => false,
     }
@@ -5168,10 +5516,12 @@ fn sanitize_template_string(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
 
     #[test]
     fn test_parse_directive_name_simple() {
-        let expr = parse_directive_name("fade");
+        let arena = JsArena::new();
+        let expr = parse_directive_name(&arena, "fade");
         match expr {
             JsExpr::Identifier(name) => assert_eq!(name, "fade"),
             _ => panic!("Expected identifier"),
@@ -5180,7 +5530,8 @@ mod tests {
 
     #[test]
     fn test_parse_directive_name_member() {
-        let expr = parse_directive_name("custom.animation");
+        let arena = JsArena::new();
+        let expr = parse_directive_name(&arena, "custom.animation");
         match expr {
             JsExpr::Member(_) => {
                 // Success - generated a member expression
@@ -5202,18 +5553,19 @@ mod tests {
 
     #[test]
     fn test_build_template_effect_simple() {
-        let statements = vec![b::stmt(b::call(
-            b::id("console.log"),
-            vec![b::string("test")],
-        ))];
+        let arena = JsArena::new();
+        let statements = vec![b::stmt(
+            &arena,
+            b::call(&arena, b::id("console.log"), vec![b::string("test")]),
+        )];
 
-        let effect = build_template_effect(statements, None);
+        let effect = build_template_effect(&arena, statements, None);
 
         // Should generate $.template_effect(() => { ... })
         match effect {
             JsStatement::Expression(expr) => {
                 let JsExpressionStatement { expression } = expr;
-                match *expression {
+                match arena.get_expr(expression) {
                     JsExpr::Call(_) => {
                         // Success - generated a call expression
                     }
@@ -5226,17 +5578,21 @@ mod tests {
 
     #[test]
     fn test_build_template_effect_with_deps() {
-        let statements = vec![b::stmt(b::call(b::id("console.log"), vec![b::id("count")]))];
+        let arena = JsArena::new();
+        let statements = vec![b::stmt(
+            &arena,
+            b::call(&arena, b::id("console.log"), vec![b::id("count")]),
+        )];
 
         let deps = vec![b::id("count")];
 
-        let effect = build_template_effect(statements, Some(deps));
+        let effect = build_template_effect(&arena, statements, Some(deps));
 
         // Should generate $.template_effect_with_values(() => { ... }, [count])
         match effect {
             JsStatement::Expression(expr) => {
                 let JsExpressionStatement { expression } = expr;
-                match *expression {
+                match arena.get_expr(expression) {
                     JsExpr::Call(_) => {
                         // Success - generated a call expression
                     }

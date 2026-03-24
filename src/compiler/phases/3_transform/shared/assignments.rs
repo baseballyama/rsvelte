@@ -30,8 +30,10 @@ where
     F: Fn(&str, &JsExpr, &JsExpr, &mut ComponentContext) -> Option<JsExpr>,
 {
     // Call the build_assignment function
-    if let Some(transformed) =
-        build_assignment(&node.operator.to_string(), &node.left, &node.right, context)
+    // node.left and node.right are ExprIds - resolve through arena
+    let left = context.arena.get_expr(node.left).clone();
+    let right = context.arena.get_expr(node.right).clone();
+    if let Some(transformed) = build_assignment(&node.operator.to_string(), &left, &right, context)
     {
         return transformed;
     }

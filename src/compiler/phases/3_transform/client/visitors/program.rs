@@ -119,10 +119,12 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
 
             // Generate: var $$_import_X = $.reactive_import(() => X)
             let stmt = b::var_decl(
+                &context.arena,
                 &import_id,
                 Some(b::call(
-                    b::member_path("$.reactive_import"),
-                    vec![b::arrow(vec![], b::id(&name))],
+                    &context.arena,
+                    b::member_path(&context.arena, "$.reactive_import"),
+                    vec![b::arrow(&context.arena, vec![], b::id(&name))],
                 )),
             );
             context.state.legacy_reactive_imports.push(stmt);
@@ -291,8 +293,11 @@ fn is_prop_source_binding(
 /// const $store = () => $.store_get(store, '$store', $$stores);
 /// ```
 /// So reading `$store` becomes `$store()`.
-fn store_sub_read(node: JsExpr) -> JsExpr {
-    b::call(node, vec![])
+fn store_sub_read(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    node: JsExpr,
+) -> JsExpr {
+    b::call(arena, node, vec![])
 }
 
 /// Transform a store subscription assignment.
@@ -304,7 +309,12 @@ fn store_sub_read(node: JsExpr) -> JsExpr {
 /// * `node` - The store subscription identifier (e.g., `$store`)
 /// * `value` - The value being assigned
 /// * `_needs_proxy` - Whether the value needs to be proxified (not used for stores)
-fn store_sub_assign(node: JsExpr, value: JsExpr, _needs_proxy: bool) -> JsExpr {
+fn store_sub_assign(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    node: JsExpr,
+    value: JsExpr,
+    _needs_proxy: bool,
+) -> JsExpr {
     // Extract store name from $store → store
     let store_name = if let JsExpr::Identifier(ref name) = node {
         name.strip_prefix('$').unwrap_or(name).to_string()
@@ -313,7 +323,8 @@ fn store_sub_assign(node: JsExpr, value: JsExpr, _needs_proxy: bool) -> JsExpr {
     };
 
     b::call(
-        b::member_path("$.store_set"),
+        arena,
+        b::member_path(arena, "$.store_set"),
         vec![b::id(&store_name), value],
     )
 }
@@ -333,7 +344,11 @@ fn store_sub_assign(node: JsExpr, value: JsExpr, _needs_proxy: bool) -> JsExpr {
 ///
 /// * `node` - The store subscription identifier (e.g., `$store`)
 /// * `mutation` - The mutation expression (e.g., `$store.prop = value`)
-fn store_sub_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
+fn store_sub_mutate(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    node: JsExpr,
+    mutation: JsExpr,
+) -> JsExpr {
     // Extract store name from $store → store
     let store_name = if let JsExpr::Identifier(ref name) = node {
         name.strip_prefix('$').unwrap_or(name).to_string()
@@ -342,14 +357,19 @@ fn store_sub_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
     };
 
     // We need to untrack the store read, for consistency with Svelte 4
-    let untracked = b::call(b::member_path("$.untrack"), vec![node.clone()]);
+    let untracked = b::call(
+        arena,
+        b::member_path(arena, "$.untrack"),
+        vec![node.clone()],
+    );
 
     // Replace $store with $.untrack($store) in the mutation expression
     // This follows the official Svelte compiler's replace() function
-    let transformed_mutation = replace_store_with_untracked(&mutation, &untracked);
+    let transformed_mutation = replace_store_with_untracked(arena, &mutation, &untracked);
 
     b::call(
-        b::member_path("$.store_mutate"),
+        arena,
+        b::member_path(arena, "$.store_mutate"),
         vec![b::id(&store_name), transformed_mutation, untracked],
     )
 }
@@ -361,22 +381,28 @@ fn store_sub_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
 ///
 /// Corresponds to the `replace()` function in the official Svelte compiler's
 /// `Program.js` store_sub mutate transform.
-fn replace_store_with_untracked(expr: &JsExpr, untracked: &JsExpr) -> JsExpr {
+fn replace_store_with_untracked(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    expr: &JsExpr,
+    untracked: &JsExpr,
+) -> JsExpr {
     match expr {
         JsExpr::Assignment(assign) => {
             // For assignment expressions, we need to replace the store ref in the left side
-            let transformed_left = replace_store_with_untracked(assign.left.as_ref(), untracked);
+            let transformed_left =
+                replace_store_with_untracked(arena, arena.get_expr(assign.left), untracked);
             JsExpr::Assignment(JsAssignmentExpression {
                 operator: assign.operator,
-                left: Box::new(transformed_left),
-                right: assign.right.clone(),
+                left: arena.alloc_expr(transformed_left),
+                right: assign.right,
             })
         }
         JsExpr::Member(member) => {
             // Recursively replace in the object part of the member expression
-            let transformed_object = replace_store_with_untracked(&member.object, untracked);
+            let transformed_object =
+                replace_store_with_untracked(arena, arena.get_expr(member.object), untracked);
             JsExpr::Member(JsMemberExpression {
-                object: Box::new(transformed_object),
+                object: arena.alloc_expr(transformed_object),
                 property: member.property.clone(),
                 computed: member.computed,
                 optional: member.optional,
@@ -384,10 +410,11 @@ fn replace_store_with_untracked(expr: &JsExpr, untracked: &JsExpr) -> JsExpr {
         }
         JsExpr::Update(update) => {
             // For update expressions like ++$store.prop
-            let transformed_argument = replace_store_with_untracked(&update.argument, untracked);
+            let transformed_argument =
+                replace_store_with_untracked(arena, arena.get_expr(update.argument), untracked);
             JsExpr::Update(JsUpdateExpression {
                 operator: update.operator,
-                argument: Box::new(transformed_argument),
+                argument: arena.alloc_expr(transformed_argument),
                 prefix: update.prefix,
             })
         }
@@ -408,7 +435,12 @@ fn replace_store_with_untracked(expr: &JsExpr, untracked: &JsExpr) -> JsExpr {
 /// * `operator` - The update operator (++ or --)
 /// * `argument` - The store subscription identifier (e.g., `$store`)
 /// * `prefix` - Whether the operator is prefix (++$store) or postfix ($store++)
-fn store_sub_update(operator: JsUpdateOp, argument: JsExpr, prefix: bool) -> JsExpr {
+fn store_sub_update(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    operator: JsUpdateOp,
+    argument: JsExpr,
+    prefix: bool,
+) -> JsExpr {
     // Extract store name from $store → store
     let store_name = if let JsExpr::Identifier(ref name) = argument {
         name.strip_prefix('$').unwrap_or(name).to_string()
@@ -423,7 +455,7 @@ fn store_sub_update(operator: JsUpdateOp, argument: JsExpr, prefix: bool) -> JsE
     };
 
     // Build the current value accessor: $store()
-    let current_value = b::call(argument, vec![]);
+    let current_value = b::call(arena, argument, vec![]);
 
     let mut args = vec![b::id(&store_name), current_value];
 
@@ -432,7 +464,7 @@ fn store_sub_update(operator: JsUpdateOp, argument: JsExpr, prefix: bool) -> JsE
         args.push(b::number(-1.0));
     }
 
-    b::call(b::member_path(method), args)
+    b::call(arena, b::member_path(arena, method), args)
 }
 
 // ============================================================================
@@ -450,12 +482,15 @@ fn store_sub_update(operator: JsUpdateOp, argument: JsExpr, prefix: bool) -> JsE
 ///     read: (node) => b.member(b.id('$$props'), node)
 /// };
 /// ```
-fn non_source_prop_read(node: JsExpr) -> JsExpr {
+fn non_source_prop_read(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    node: JsExpr,
+) -> JsExpr {
     JsExpr::Member(JsMemberExpression {
-        object: Box::new(b::id("$$props")),
+        object: arena.alloc_expr(b::id("$$props")),
         property: match &node {
             JsExpr::Identifier(name) => JsMemberProperty::Identifier(name.clone()),
-            _ => JsMemberProperty::Expression(Box::new(node)),
+            _ => JsMemberProperty::Expression(arena.alloc_expr(node)),
         },
         computed: false,
         optional: false,
@@ -468,8 +503,11 @@ fn non_source_prop_read(node: JsExpr) -> JsExpr {
 /// via `$.prop()`. Reading them calls the getter: `foo` → `foo()`.
 ///
 /// This is equivalent to `b.call` in the official compiler's transform.
-fn prop_read(node: JsExpr) -> JsExpr {
-    b::call(node, vec![])
+fn prop_read(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    node: JsExpr,
+) -> JsExpr {
+    b::call(arena, node, vec![])
 }
 
 /// Transform a prop assignment.
@@ -482,21 +520,31 @@ fn prop_read(node: JsExpr) -> JsExpr {
 /// * `node` - The prop identifier (e.g., `foo`)
 /// * `value` - The value being assigned
 /// * `_needs_proxy` - Whether the value needs to be proxified (not used for props)
-fn prop_assign(node: JsExpr, value: JsExpr, _needs_proxy: bool) -> JsExpr {
+fn prop_assign(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    node: JsExpr,
+    value: JsExpr,
+    _needs_proxy: bool,
+) -> JsExpr {
     // Use Raw callee to prevent apply_transforms_to_expression from applying
     // the prop read transform (which would turn `items(value)` into `items()(value)`).
     let callee = match node {
         JsExpr::Identifier(ref name) => JsExpr::Raw(name.clone()),
         _ => node,
     };
-    b::call(callee, vec![value])
+    b::call(arena, callee, vec![value])
 }
 
 /// Transform a prop update expression (++ or --).
 ///
 /// Transforms `x++` to `$.update_prop(x)` or `++x` to `$.update_pre_prop(x)`.
 /// Transforms `x--` to `$.update_prop(x, -1)` or `--x` to `$.update_pre_prop(x, -1)`.
-fn prop_update(operator: JsUpdateOp, argument: JsExpr, prefix: bool) -> JsExpr {
+fn prop_update(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    operator: JsUpdateOp,
+    argument: JsExpr,
+    prefix: bool,
+) -> JsExpr {
     let method = if prefix {
         "update_pre_prop"
     } else {
@@ -510,7 +558,7 @@ fn prop_update(operator: JsUpdateOp, argument: JsExpr, prefix: bool) -> JsExpr {
         args.push(b::number(-1.0));
     }
 
-    b::svelte_call(method, args)
+    b::svelte_call(arena, method, args)
 }
 
 /// Transform a regular prop mutation (passthrough).
@@ -529,7 +577,11 @@ fn prop_update(operator: JsUpdateOp, argument: JsExpr, prefix: bool) -> JsExpr {
 ///
 /// * `_node` - The prop identifier (unused for passthrough)
 /// * `mutation` - The mutation expression (returned as-is)
-fn prop_mutate(_node: JsExpr, mutation: JsExpr) -> JsExpr {
+fn prop_mutate(
+    _arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    _node: JsExpr,
+    mutation: JsExpr,
+) -> JsExpr {
     mutation
 }
 
@@ -550,7 +602,11 @@ fn prop_mutate(_node: JsExpr, mutation: JsExpr) -> JsExpr {
 ///
 /// * `node` - The prop identifier (e.g., `foo`)
 /// * `mutation` - The mutation expression (e.g., `foo()[0] = value`)
-fn prop_bindable_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
+fn prop_bindable_mutate(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    node: JsExpr,
+    mutation: JsExpr,
+) -> JsExpr {
     // Use Raw callee to prevent apply_transforms_to_expression from applying
     // the prop read transform (which would turn `items(mutation, true)` into
     // `items()(mutation, true)`).
@@ -558,7 +614,7 @@ fn prop_bindable_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
         JsExpr::Identifier(ref name) => JsExpr::Raw(name.clone()),
         _ => node,
     };
-    b::call(callee, vec![mutation, b::boolean(true)])
+    b::call(arena, callee, vec![mutation, b::boolean(true)])
 }
 
 // ============================================================================
@@ -575,8 +631,11 @@ fn prop_bindable_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
 /// ```js
 /// read: (_) => b.call(id)
 /// ```
-fn reactive_import_read(node: JsExpr) -> JsExpr {
-    b::call(node, vec![])
+fn reactive_import_read(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    node: JsExpr,
+) -> JsExpr {
+    b::call(arena, node, vec![])
 }
 
 /// Transform a reactive import mutation.
@@ -589,8 +648,12 @@ fn reactive_import_read(node: JsExpr) -> JsExpr {
 /// ```js
 /// mutate: (_, mutation) => b.call(id, mutation)
 /// ```
-fn reactive_import_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
-    b::call(node, vec![mutation])
+fn reactive_import_mutate(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    node: JsExpr,
+    mutation: JsExpr,
+) -> JsExpr {
+    b::call(arena, node, vec![mutation])
 }
 
 /// Transform $$props reads to $$sanitized_props in legacy mode.
@@ -604,7 +667,10 @@ fn reactive_import_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
 ///     read: (node) => ({ ...node, name: '$$sanitized_props' })
 /// };
 /// ```
-fn sanitized_props_read(_node: JsExpr) -> JsExpr {
+fn sanitized_props_read(
+    _arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    _node: JsExpr,
+) -> JsExpr {
     JsExpr::Identifier("$$sanitized_props".into())
 }
 

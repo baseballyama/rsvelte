@@ -58,6 +58,7 @@ use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::TransformError;
+use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
@@ -85,6 +86,8 @@ pub fn client_component(
     analysis: &ComponentAnalysis,
     options: &CompileOptions,
 ) -> Result<JsProgram, TransformError> {
+    let arena = JsArena::new();
+
     // Determine if we need to inject context ($.push/$.pop)
     // Reference: transform-client.js lines 280-306, 366-370
     // Only count exports that need getter/setter (reactive exports)
@@ -149,21 +152,25 @@ pub fn client_component(
     if should_inject_context {
         // $.push($$props, runes)
         // Reference: transform-client.js lines 434
-        component_body.push(b::stmt(b::call(
-            b::member_path("$.push"),
-            vec![b::id("$$props"), b::boolean(analysis.runes)],
-        )));
+        component_body.push(b::stmt(
+            &arena,
+            b::call(
+                &arena,
+                b::member_path(&arena, "$.push"),
+                vec![b::id("$$props"), b::boolean(analysis.runes)],
+            ),
+        ));
     }
 
     // Add store setup: const [$$stores, $$cleanup] = $.setup_stores()
     // This must be added after $.push but before store getter definitions
     if needs_store_cleanup {
-        component_body.push(build_store_init());
+        component_body.push(build_store_init(&arena));
     }
 
     // Add store getter functions: const $store = () => $.store_get(store, '$store', $$stores)
     for store_name in &store_bindings {
-        component_body.push(build_store_getter(store_name));
+        component_body.push(build_store_getter(&arena, store_name));
     }
 
     // Add $.pop at the end if injecting context
@@ -173,10 +180,16 @@ pub fn client_component(
         if reactive_export_count > 0 && needs_store_cleanup {
             // var $$pop = $.pop($$exports)
             // Then later return $$pop after cleanup
-            component_body.push(b::stmt(b::call(b::member_path("$.pop"), vec![])));
+            component_body.push(b::stmt(
+                &arena,
+                b::call(&arena, b::member_path(&arena, "$.pop"), vec![]),
+            ));
         } else {
             // $.pop()
-            component_body.push(b::stmt(b::call(b::member_path("$.pop"), vec![])));
+            component_body.push(b::stmt(
+                &arena,
+                b::call(&arena, b::member_path(&arena, "$.pop"), vec![]),
+            ));
         }
     }
 
@@ -184,7 +197,7 @@ pub fn client_component(
     // Reference: transform-client.js lines 448-454
     // The cleanup function should run as the very last thing
     if needs_store_cleanup {
-        component_body.push(b::stmt(b::call(b::id("$$cleanup"), vec![])));
+        component_body.push(b::stmt(&arena, b::call(&arena, b::id("$$cleanup"), vec![])));
     }
 
     // Build component function parameters
@@ -261,15 +274,20 @@ fn collect_store_bindings(analysis: &ComponentAnalysis) -> Vec<String> {
 /// Generates: `const [$$stores, $$cleanup] = $.setup_stores()`
 ///
 /// Reference: transform-client.js lines 232-235
-fn build_store_init() -> JsStatement {
+fn build_store_init(arena: &JsArena) -> JsStatement {
     // const [$$stores, $$cleanup] = $.setup_stores()
     b::var_decl_pattern(
+        arena,
         JsVariableKind::Const,
         b::array_pattern(vec![
             Some(b::id_pattern("$$stores")),
             Some(b::id_pattern("$$cleanup")),
         ]),
-        Some(b::call(b::member_path("$.setup_stores"), vec![])),
+        Some(b::call(
+            arena,
+            b::member_path(arena, "$.setup_stores"),
+            vec![],
+        )),
     )
 }
 
@@ -282,13 +300,14 @@ fn build_store_init() -> JsStatement {
 /// * `store_sub_name` - The store subscription name (e.g., "$count")
 ///
 /// Reference: transform-client.js lines 238-253
-fn build_store_getter(store_sub_name: &str) -> JsStatement {
+fn build_store_getter(arena: &JsArena, store_sub_name: &str) -> JsStatement {
     // Extract the underlying store name: "$count" -> "count"
     let store_name = store_sub_name.strip_prefix('$').unwrap_or(store_sub_name);
 
     // Build: $.store_get(store, '$store', $$stores)
     let store_get = b::call(
-        b::member_path("$.store_get"),
+        arena,
+        b::member_path(arena, "$.store_get"),
         vec![
             b::id(store_name),         // The store reference
             b::string(store_sub_name), // The subscription name for debugging
@@ -298,7 +317,7 @@ fn build_store_getter(store_sub_name: &str) -> JsStatement {
 
     // Build: const $store = () => $.store_get(...)
     // We wrap in a thunk (arrow function) for lazy evaluation
-    b::const_decl(store_sub_name, b::thunk(store_get))
+    b::const_decl(arena, store_sub_name, b::thunk(arena, store_get))
 }
 
 /// Transform a module (no template, just script) for client-side execution.
@@ -348,8 +367,9 @@ mod tests {
 
     #[test]
     fn test_build_store_init() {
-        let stmt = build_store_init();
-        let code = generate_raw_statement(&stmt);
+        let arena = JsArena::new();
+        let stmt = build_store_init(&arena);
+        let code = generate_raw_statement(&stmt, &arena);
 
         assert!(code.contains("$$stores"));
         assert!(code.contains("$$cleanup"));
@@ -358,8 +378,9 @@ mod tests {
 
     #[test]
     fn test_build_store_getter() {
-        let stmt = build_store_getter("$count");
-        let code = generate_raw_statement(&stmt);
+        let arena = JsArena::new();
+        let stmt = build_store_getter(&arena, "$count");
+        let code = generate_raw_statement(&stmt, &arena);
 
         assert!(code.contains("$count"));
         assert!(code.contains("$.store_get"));
@@ -369,9 +390,10 @@ mod tests {
 
     #[test]
     fn test_build_store_getter_extracts_name() {
+        let arena = JsArena::new();
         // Test that the store name is correctly extracted from $name
-        let stmt = build_store_getter("$user");
-        let code = generate_raw_statement(&stmt);
+        let stmt = build_store_getter(&arena, "$user");
+        let code = generate_raw_statement(&stmt, &arena);
 
         // Should reference the underlying 'user' store
         assert!(code.contains("user"));
@@ -380,11 +402,11 @@ mod tests {
     }
 
     /// Helper to generate JS code from a statement for testing
-    fn generate_raw_statement(stmt: &JsStatement) -> String {
+    fn generate_raw_statement(stmt: &JsStatement, arena: &JsArena) -> String {
         let program = JsProgram {
             body: vec![stmt.clone()],
         };
-        generate(&program).unwrap()
+        generate(&program, arena).unwrap()
     }
 
     #[test]
@@ -398,15 +420,16 @@ mod tests {
 
     #[test]
     fn test_store_init_and_getters_combined() {
+        let arena = JsArena::new();
         // Test that store init and getters can be generated together
-        let init = build_store_init();
-        let getter1 = build_store_getter("$count");
-        let getter2 = build_store_getter("$user");
+        let init = build_store_init(&arena);
+        let getter1 = build_store_getter(&arena, "$count");
+        let getter2 = build_store_getter(&arena, "$user");
 
         let program = JsProgram {
             body: vec![init, getter1, getter2],
         };
-        let code = generate(&program).unwrap();
+        let code = generate(&program, &arena).unwrap();
 
         // Should contain all the necessary pieces
         assert!(code.contains("$.setup_stores()"));

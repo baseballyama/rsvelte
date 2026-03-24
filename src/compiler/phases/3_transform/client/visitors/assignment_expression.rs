@@ -104,7 +104,7 @@ fn build_assignment(
             && let Some(field) = context.state.state_fields.get(&field_name)
         {
             // Build the assignment value (expand compound operators)
-            let value = build_assignment_value(operator, left, right);
+            let value = build_assignment_value(&context.arena, operator, left, right);
 
             // Check if proxy is needed
             let needs_proxy = field.field_type == "$state"
@@ -117,7 +117,7 @@ fn build_assignment(
                 args.push(b::boolean(true));
             }
 
-            return Some(b::call(b::id("$.set"), args));
+            return Some(b::call(&context.arena, b::id("$.set"), args));
         }
     }
 
@@ -128,7 +128,7 @@ fn build_assignment(
         && let Some(assign_fn) = t.assign
     {
         // Build the assignment value (expand compound operators)
-        let value = build_assignment_value(operator, left, right);
+        let value = build_assignment_value(&context.arena, operator, left, right);
 
         // Determine if proxy is needed based on:
         // 1. Not skipped (not $state.raw)
@@ -164,7 +164,12 @@ fn build_assignment(
             && is_non_coercive_operator(operator)
             && should_proxy_js_expr(right);
 
-        return Some(assign_fn(object.clone(), value, needs_proxy));
+        return Some(assign_fn(
+            &context.arena,
+            object.clone(),
+            value,
+            needs_proxy,
+        ));
     }
 
     // Case 4: Mutation (object !== left)
@@ -178,7 +183,7 @@ fn build_assignment(
         // `$.mutate(object, $.get(object)[key] = [])`.
         let visited_left = apply_transforms_to_expression(left, context);
         let visited_right = apply_transforms_to_expression(right, context);
-        let mutation_expr = b::assign_op(operator, visited_left, visited_right);
+        let mutation_expr = b::assign_op(&context.arena, operator, visited_left, visited_right);
 
         // Use replacement_id if set (e.g., reactive imports: global -> $$_import_global)
         let mutate_target = if let Some(ref replacement) = t.replacement_id {
@@ -187,7 +192,7 @@ fn build_assignment(
             object.clone()
         };
 
-        return Some(mutate_fn(mutate_target, mutation_expr));
+        return Some(mutate_fn(&context.arena, mutate_target, mutation_expr));
     }
 
     // Case 5: Proxified assignments in dev mode
@@ -203,7 +208,7 @@ fn build_assignment(
         let property_expr = match &member.property {
             JsMemberProperty::Identifier(name) => b::string(name.clone()),
             JsMemberProperty::PrivateIdentifier(name) => b::string(name.clone()),
-            JsMemberProperty::Expression(expr) => (**expr).clone(),
+            JsMemberProperty::Expression(expr) => context.arena.get_expr(*expr).clone(),
         };
 
         // TODO: Visit the right side
@@ -211,13 +216,13 @@ fn build_assignment(
 
         let loc = locate_node(&JsAssignmentExpression {
             operator: JsAssignmentOp::Assign,
-            left: Box::new(left.clone()),
-            right: Box::new(right.clone()),
+            left: context.arena.alloc_expr(left.clone()),
+            right: context.arena.alloc_expr(right.clone()),
         });
 
         // For now, just return a placeholder
-        // return Some(b::call(
-        //     b::member_path(callee),
+        // return Some(b::call(&context.arena,
+        //     b::member_path(&context.arena, callee),
         //     vec![
         //         (*member.object).clone(),
         //         property_expr,
@@ -250,7 +255,7 @@ fn get_assignment_root<'a>(
     context: &'a ComponentContext,
 ) -> Option<(JsExpr, Option<&'a IdentifierTransform>)> {
     // Extract the root identifier by recursively walking the expression
-    let root_name = extract_root_identifier(expr)?;
+    let root_name = extract_root_identifier(expr, &context.arena)?;
 
     // Look up the transform for this identifier
     let transform = context.state.transform.get(&root_name);
@@ -263,20 +268,19 @@ fn get_assignment_root<'a>(
 ///
 /// Recursively walks down member expressions, computed member expressions,
 /// and optional chaining to find the leftmost identifier.
-fn extract_root_identifier(expr: &JsExpr) -> Option<String> {
+fn extract_root_identifier(
+    expr: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> Option<String> {
     match expr {
         // Base case: identifier
         JsExpr::Identifier(name) => Some(name.to_string()),
 
         // Member expression: obj.prop or obj[prop]
-        JsExpr::Member(member) => extract_root_identifier(&member.object),
+        JsExpr::Member(member) => extract_root_identifier(arena.get_expr(member.object), arena),
 
         // Optional chaining: obj?.prop
-        JsExpr::Chain(chain) => {
-            // Chain expressions wrap the underlying expression
-            // Recursively extract from the wrapped expression
-            extract_root_identifier(&chain.expression)
-        }
+        JsExpr::Chain(chain) => extract_root_identifier(arena.get_expr(chain.expression), arena),
 
         // Assignment to other expressions (literals, calls, etc.) doesn't have a root identifier
         _ => None,
@@ -294,83 +298,94 @@ fn is_same_identifier(a: &JsExpr, b: &JsExpr) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
 
     #[test]
     fn test_extract_root_identifier_simple() {
+        let arena = JsArena::new();
         let expr = JsExpr::Identifier("x".into());
-        let root = extract_root_identifier(&expr);
+        let root = extract_root_identifier(&expr, &arena);
         assert_eq!(root, Some("x".to_string()));
     }
 
     #[test]
     fn test_extract_root_identifier_member() {
+        let arena = JsArena::new();
         // x.y -> x
         let expr = JsExpr::Member(JsMemberExpression {
-            object: Box::new(JsExpr::Identifier("x".into())),
+            object: arena.alloc_expr(JsExpr::Identifier("x".into())),
             property: JsMemberProperty::Identifier("y".into()),
             computed: false,
             optional: false,
         });
-        let root = extract_root_identifier(&expr);
+        let root = extract_root_identifier(&expr, &arena);
         assert_eq!(root, Some("x".to_string()));
     }
 
     #[test]
     fn test_extract_root_identifier_nested_member() {
+        let arena = JsArena::new();
         // x.y.z -> x
+        let inner = JsExpr::Member(JsMemberExpression {
+            object: arena.alloc_expr(JsExpr::Identifier("x".into())),
+            property: JsMemberProperty::Identifier("y".into()),
+            computed: false,
+            optional: false,
+        });
         let expr = JsExpr::Member(JsMemberExpression {
-            object: Box::new(JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("x".into())),
-                property: JsMemberProperty::Identifier("y".into()),
-                computed: false,
-                optional: false,
-            })),
+            object: arena.alloc_expr(inner),
             property: JsMemberProperty::Identifier("z".into()),
             computed: false,
             optional: false,
         });
-        let root = extract_root_identifier(&expr);
+        let root = extract_root_identifier(&expr, &arena);
         assert_eq!(root, Some("x".to_string()));
     }
 
     #[test]
     fn test_extract_root_identifier_computed() {
+        let arena = JsArena::new();
         // x[y] -> x
         let expr = JsExpr::Member(JsMemberExpression {
-            object: Box::new(JsExpr::Identifier("x".into())),
-            property: JsMemberProperty::Expression(Box::new(JsExpr::Identifier("y".into()))),
+            object: arena.alloc_expr(JsExpr::Identifier("x".into())),
+            property: JsMemberProperty::Expression(
+                arena.alloc_expr(JsExpr::Identifier("y".into())),
+            ),
             computed: true,
             optional: false,
         });
-        let root = extract_root_identifier(&expr);
+        let root = extract_root_identifier(&expr, &arena);
         assert_eq!(root, Some("x".to_string()));
     }
 
     #[test]
     fn test_extract_root_identifier_chain() {
+        let arena = JsArena::new();
         // x?.y -> x
-        let expr = JsExpr::Chain(JsChainExpression {
-            expression: Box::new(JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("x".into())),
-                property: JsMemberProperty::Identifier("y".into()),
-                computed: false,
-                optional: true,
-            })),
+        let member = JsExpr::Member(JsMemberExpression {
+            object: arena.alloc_expr(JsExpr::Identifier("x".into())),
+            property: JsMemberProperty::Identifier("y".into()),
+            computed: false,
+            optional: true,
         });
-        let root = extract_root_identifier(&expr);
+        let expr = JsExpr::Chain(JsChainExpression {
+            expression: arena.alloc_expr(member),
+        });
+        let root = extract_root_identifier(&expr, &arena);
         assert_eq!(root, Some("x".to_string()));
     }
 
     #[test]
     fn test_extract_root_identifier_non_identifier() {
+        let arena = JsArena::new();
         // 42.toString() -> None (literal, not identifier)
         let expr = JsExpr::Member(JsMemberExpression {
-            object: Box::new(JsExpr::Literal(JsLiteral::Number(42.0))),
+            object: arena.alloc_expr(JsExpr::Literal(JsLiteral::Number(42.0))),
             property: JsMemberProperty::Identifier("toString".into()),
             computed: false,
             optional: false,
         });
-        let root = extract_root_identifier(&expr);
+        let root = extract_root_identifier(&expr, &arena);
         assert_eq!(root, None);
     }
 

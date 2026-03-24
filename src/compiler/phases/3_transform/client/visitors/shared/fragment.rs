@@ -259,6 +259,12 @@ pub fn process_children<F>(
     // Sequence of Text/ExpressionTag nodes - pre-allocate with a reasonable capacity
     let mut sequence: Vec<TextOrExpr> = Vec::with_capacity(4);
 
+    // SAFETY: Extract a reference to the arena that outlives the closures.
+    // The arena uses UnsafeCell internally and only appends, so holding a
+    // shared reference while mutating other parts of context is safe.
+    let arena_ref: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena =
+        unsafe { &*(&context.arena as *const _) };
+
     // Helper: get node with proper sibling navigation
     let get_node = |is_text: bool,
                     prev_fn: &mut Box<dyn FnMut(bool) -> JsExpr>,
@@ -279,7 +285,7 @@ pub fn process_children<F>(
             args.push(b::boolean(true));
         }
 
-        b::call(b::member_path("$.sibling"), args)
+        b::call(arena_ref, b::member_path(arena_ref, "$.sibling"), args)
     };
 
     // Helper: flush a single node
@@ -299,7 +305,9 @@ pub fn process_children<F>(
             // Generate a unique identifier
             let id_name = ctx.state.memoizer.generate_id(name);
             id = b::id(&id_name);
-            ctx.state.init.push(b::var_decl(&id_name, Some(expression)));
+            ctx.state
+                .init
+                .push(b::var_decl(arena_ref, &id_name, Some(expression)));
         }
 
         // Update prev to return this id
@@ -358,17 +366,26 @@ pub fn process_children<F>(
         let is_text = seq.len() == 1;
         let id = flush_node(is_text, "text", None, prev_fn, skip_count, ctx);
 
-        let update = b::stmt(b::call(
-            b::member_path("$.set_text"),
-            vec![id.clone(), result.value.clone()],
-        ));
+        let update = b::stmt(
+            arena_ref,
+            b::call(
+                arena_ref,
+                b::member_path(arena_ref, "$.set_text"),
+                vec![id.clone(), result.value.clone()],
+            ),
+        );
 
         if result.has_state && !within_bound_contenteditable {
             ctx.state.update.push(update);
         } else {
-            ctx.state
-                .init
-                .push(b::stmt(b::assign(b::member(id, "nodeValue"), result.value)));
+            ctx.state.init.push(b::stmt(
+                arena_ref,
+                b::assign(
+                    arena_ref,
+                    b::member(arena_ref, id, "nodeValue"),
+                    result.value,
+                ),
+            ));
         }
     };
 
@@ -499,10 +516,14 @@ pub fn process_children<F>(
         if skipped != 1 {
             args.push(b::number(skipped as f64));
         }
-        context
-            .state
-            .init
-            .push(b::stmt(b::call(b::member_path("$.next"), args)));
+        context.state.init.push(b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.next"),
+                args,
+            ),
+        ));
     }
 }
 

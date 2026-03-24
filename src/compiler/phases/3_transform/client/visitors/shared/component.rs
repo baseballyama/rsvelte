@@ -73,6 +73,10 @@ pub fn build_component(
 ) -> JsStatement {
     use crate::compiler::phases::phase3_transform::client::types::Memoizer;
 
+    // SAFETY: Extract arena reference that can coexist with mutable context borrows.
+    // The arena uses UnsafeCell internally and is append-only, so this is safe.
+    let arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena =
+        unsafe { &*(&context.arena as *const _) };
     let anchor = context.state.node.clone();
 
     let mut props_and_spreads: Vec<PropsEntry> = Vec::new();
@@ -150,7 +154,9 @@ pub fn build_component(
             context.state.transform.insert(
                 name.clone(),
                 crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
-                    read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
+                    read: Some(|arena, node| {
+                        b::call(arena, b::member_path(arena, "$.get"), vec![node])
+                    }),
                     read_source: read_source.clone(),
                     assign: None,
                     mutate: None,
@@ -246,14 +252,17 @@ pub fn build_component(
                     // Use method shorthand for function expression handlers
                     // e.g., `foo($$arg) { ... }` instead of `foo: function($$arg) { ... }`
                     if let JsExpr::Function(ref func) = value {
-                        b::prop_method(name, func.params.to_vec(), func.body.body.clone())
+                        b::prop_method(arena, name, func.params.to_vec(), func.body.body.clone())
                     } else {
-                        b::prop(name, value)
+                        b::prop(arena, name, value)
                     }
                 })
                 .collect(),
         );
-        push_prop_immediate(&mut props_and_spreads, b::prop("$$events", events_obj));
+        push_prop_immediate(
+            &mut props_and_spreads,
+            b::prop(arena, "$$events", events_obj),
+        );
     }
 
     // Group children by slot and process snippets
@@ -280,6 +289,7 @@ pub fn build_component(
     // Serialize each slot
     for (slot_name, slot_children) in children {
         let slot_fn = build_slot_function(
+            arena,
             &slot_children,
             &slot_name,
             slot_scope_applies_to_itself,
@@ -299,28 +309,36 @@ pub fn build_component(
 
                 if needs_slots_default {
                     // Use $$slots.default
-                    serialized_slots.push(b::prop(&slot_name, fn_expr));
+                    serialized_slots.push(b::prop(arena, &slot_name, fn_expr));
                     // Add children prop that errors
                     push_prop_immediate(
                         &mut props_and_spreads,
-                        b::prop("children", b::member_path("$.invalid_default_snippet")),
+                        b::prop(
+                            arena,
+                            "children",
+                            b::member_path(arena, "$.invalid_default_snippet"),
+                        ),
                     );
                 } else {
                     // Use children prop
                     let wrapped_fn = if context.state.dev {
                         b::call(
-                            b::member_path("$.wrap_snippet"),
+                            arena,
+                            b::member_path(arena, "$.wrap_snippet"),
                             vec![b::id(&context.state.analysis.name), fn_expr],
                         )
                     } else {
                         fn_expr
                     };
-                    push_prop_immediate(&mut props_and_spreads, b::prop("children", wrapped_fn));
+                    push_prop_immediate(
+                        &mut props_and_spreads,
+                        b::prop(arena, "children", wrapped_fn),
+                    );
                     // Add $$slots.default: true
-                    serialized_slots.push(b::prop(&slot_name, b::boolean(true)));
+                    serialized_slots.push(b::prop(arena, &slot_name, b::boolean(true)));
                 }
             } else {
-                serialized_slots.push(b::prop(&slot_name, fn_expr));
+                serialized_slots.push(b::prop(arena, &slot_name, fn_expr));
             }
         }
     }
@@ -329,7 +347,7 @@ pub fn build_component(
     if !serialized_slots.is_empty() {
         push_prop_immediate(
             &mut props_and_spreads,
-            b::prop("$$slots", b::object(serialized_slots)),
+            b::prop(arena, "$$slots", b::object(serialized_slots)),
         );
     }
 
@@ -341,19 +359,19 @@ pub fn build_component(
     {
         push_prop_immediate(
             &mut props_and_spreads,
-            b::prop("$$legacy", b::boolean(true)),
+            b::prop(arena, "$$legacy", b::boolean(true)),
         );
     }
 
     // Build props expression
-    let props_expression = build_props_expression(props_and_spreads);
+    let props_expression = build_props_expression(arena, props_and_spreads);
 
     // Build the component call
     let mut statements: Vec<JsStatement> = Vec::new();
     statements.extend(snippet_declarations);
 
     // Add memoized deriveds (let $0 = $.derived(() => ...) statements)
-    statements.extend(memoizer.deriveds(context.state.analysis.runes));
+    statements.extend(memoizer.deriveds(arena, context.state.analysis.runes));
 
     // Create the component call function
     // This follows the official Svelte pattern where a closure `fn` is progressively wrapped
@@ -378,25 +396,25 @@ pub fn build_component(
                 if let Some(transform) = ctx.state.transform.get(base_name) {
                     if let Some(read_fn) = transform.read {
                         // Apply the read transform to the base identifier
-                        let base_expr = read_fn(b::id(base_name));
+                        let base_expr = read_fn(arena, b::id(base_name));
                         // Build member chain: $.get(LazyWidget).Tooltip
                         let mut expr = base_expr;
                         for part in &parts[1..] {
-                            expr = b::member(expr, part.to_string());
+                            expr = b::member(arena, expr, part.to_string());
                         }
                         expr
                     } else {
-                        b::member_path(component_name)
+                        b::member_path(arena, component_name)
                     }
                 } else {
-                    b::member_path(component_name)
+                    b::member_path(arena, component_name)
                 }
             } else {
-                b::member_path(component_name)
+                b::member_path(arena, component_name)
             }
         };
 
-        let call = b::call(callee, vec![anchor_expr, props.clone()]);
+        let call = b::call(arena, callee, vec![anchor_expr, props.clone()]);
 
         if let Some(bind_expr) = bind {
             build_bind_this_call(bind_expr, call, ctx)
@@ -431,16 +449,20 @@ pub fn build_component(
             context.state.template.pop_element();
 
             // Add CSS props call
-            statements.push(b::stmt(b::call(
-                b::member_path("$.css_props"),
-                vec![
-                    anchor.clone(),
-                    b::thunk(b::object(custom_css_props.clone())),
-                ],
-            )));
+            statements.push(b::stmt(
+                arena,
+                b::call(
+                    arena,
+                    b::member_path(arena, "$.css_props"),
+                    vec![
+                        anchor.clone(),
+                        b::thunk(arena, b::object(custom_css_props.clone())),
+                    ],
+                ),
+            ));
 
             // Build the inner component call that will be inside $.component()
-            let component_anchor = b::member(anchor.clone(), "lastChild");
+            let component_anchor = b::member(arena, anchor.clone(), "lastChild");
             let inner_call = build_call_for_anchor(
                 b::id("$$anchor"),
                 &props_expression,
@@ -452,24 +474,32 @@ pub fn build_component(
             );
 
             let dynamic_call = b::call(
-                b::member_path("$.component"),
+                arena,
+                b::member_path(arena, "$.component"),
                 vec![
                     component_anchor,
-                    b::thunk(build_component_expression(&node, &component_name, context)),
+                    b::thunk(
+                        arena,
+                        build_component_expression(&node, &component_name, context),
+                    ),
                     b::arrow_block(
                         vec![b::id_pattern("$$anchor"), b::id_pattern(&intermediate_name)],
-                        vec![b::stmt(inner_call)],
+                        vec![b::stmt(arena, inner_call)],
                     ),
                 ],
             );
 
-            statements.push(b::stmt(dynamic_call));
+            statements.push(b::stmt(arena, dynamic_call));
 
             // Add reset call
-            statements.push(b::stmt(b::call(
-                b::member_path("$.reset"),
-                vec![anchor.clone()],
-            )));
+            statements.push(b::stmt(
+                arena,
+                b::call(
+                    arena,
+                    b::member_path(arena, "$.reset"),
+                    vec![anchor.clone()],
+                ),
+            ));
         } else {
             // Normal dynamic component without CSS props
             context.state.template.push_comment(None);
@@ -485,18 +515,23 @@ pub fn build_component(
             );
 
             let dynamic_call = b::call(
-                b::member_path("$.component"),
+                arena,
+                b::member_path(arena, "$.component"),
                 vec![
                     anchor.clone(),
-                    b::thunk(build_component_expression(&node, &component_name, context)),
+                    b::thunk(
+                        arena,
+                        build_component_expression(&node, &component_name, context),
+                    ),
                     b::arrow_block(
                         vec![b::id_pattern("$$anchor"), b::id_pattern(&intermediate_name)],
-                        vec![b::stmt(inner_call)],
+                        vec![b::stmt(arena, inner_call)],
                     ),
                 ],
             );
 
             let meta_stmt = build_component_meta_stmt(
+                arena,
                 dynamic_call,
                 &node,
                 &context.state.analysis.name,
@@ -539,6 +574,7 @@ pub fn build_component(
             );
 
             let meta_stmt = build_component_meta_stmt(
+                arena,
                 component_call,
                 &node,
                 &context.state.analysis.name,
@@ -565,7 +601,7 @@ pub fn build_component(
 
     // Wrap in $.async() if there are async memoized expressions or blockers
     // This corresponds to the official Svelte compiler's async wrapping in component.js lines 514-533
-    let async_values = memoizer.async_values();
+    let async_values = memoizer.async_values(arena);
     let component_blockers = {
         let blocker_map = context.state.blocker_map.borrow();
         if blocker_map.is_empty() {
@@ -579,6 +615,7 @@ pub fn build_component(
             for stmt in &statements {
                 super::super::fragment::collect_identifiers_from_statement_props(
                     stmt,
+                    arena,
                     &mut component_names,
                 );
             }
@@ -596,12 +633,13 @@ pub fn build_component(
                         for declarator in &decl.declarations {
                             if let JsPattern::Identifier(name) = &declarator.id
                                 && bind_vars.contains(name)
-                                && let Some(init_expr) = &declarator.init
+                                && let Some(init_expr) = declarator.init
                             {
                                 super::super::fragment::collect_identifiers_from_statement_deep(
                                     &JsStatement::Expression(JsExpressionStatement {
-                                        expression: init_expr.clone(),
+                                        expression: init_expr,
                                     }),
+                                    arena,
                                     &mut component_names,
                                 );
                             }
@@ -624,7 +662,9 @@ pub fn build_component(
                 Some(b::array(
                     blocker_indices
                         .into_iter()
-                        .map(|idx| b::member_computed(b::id("$$promises"), b::number(idx as f64)))
+                        .map(|idx| {
+                            b::member_computed(arena, b::id("$$promises"), b::number(idx as f64))
+                        })
                         .collect(),
                 ))
             }
@@ -632,8 +672,8 @@ pub fn build_component(
     };
 
     if async_values.is_some() || component_blockers.is_some() {
-        let blockers_expr = component_blockers.unwrap_or_else(b::undefined);
-        let async_values_expr = async_values.unwrap_or_else(b::undefined);
+        let blockers_expr = component_blockers.unwrap_or_else(|| b::undefined(arena));
+        let async_values_expr = async_values.unwrap_or_else(|| b::undefined(arena));
 
         // Build the arrow function parameters: [$$anchor, ...async_ids]
         let mut arrow_params = vec![b::id_pattern("$$anchor")];
@@ -644,7 +684,8 @@ pub fn build_component(
         }
 
         let async_call = b::call(
-            b::member_path("$.async"),
+            arena,
+            b::member_path(arena, "$.async"),
             vec![
                 anchor.clone(),
                 blockers_expr,
@@ -654,13 +695,16 @@ pub fn build_component(
         );
 
         // Replace statements with the $.async() wrapped version
-        statements = vec![b::stmt(async_call)];
+        statements = vec![b::stmt(arena, async_call)];
 
         // When the fragment is standalone (single component without template wrapper),
         // add $.next() after $.async() to advance the cursor past the async block.
         // Corresponds to official compiler component.js lines 530-532.
         if context.state.is_standalone {
-            statements.push(b::stmt(b::call(b::member_path("$.next"), vec![])));
+            statements.push(b::stmt(
+                arena,
+                b::call(arena, b::member_path(arena, "$.next"), vec![]),
+            ));
         }
     }
 
@@ -764,13 +808,15 @@ fn process_let_directive(
         };
 
         lets.push(b::const_decl(
+            &context.arena,
             &name,
             b::call(
-                b::member_path(derived_fn),
-                vec![b::thunk(b::member(
-                    b::id("$$slotProps"),
-                    prop_name.to_string(),
-                ))],
+                &context.arena,
+                b::member_path(&context.arena, derived_fn),
+                vec![b::thunk(
+                    &context.arena,
+                    b::member(&context.arena, b::id("$$slotProps"), prop_name.to_string()),
+                )],
             ),
         ));
     } else {
@@ -868,21 +914,28 @@ fn process_let_directive(
                     let return_obj_expr = b::object(
                         binding_names
                             .iter()
-                            .map(|n| b::prop(n.clone(), b::id(n.clone())))
+                            .map(|n| b::prop(&context.arena, n.clone(), b::id(n.clone())))
                             .collect(),
                     );
 
                     // Note: destructured case always uses $.derived (not $.derived_safe_equal)
                     let inner_let = b::var_decl_pattern(
+                        &context.arena,
                         JsVariableKind::Let,
                         destructuring_pat,
-                        Some(b::member(b::id("$$slotProps"), prop_name.to_string())),
+                        Some(b::member(
+                            &context.arena,
+                            b::id("$$slotProps"),
+                            prop_name.to_string(),
+                        )),
                     );
-                    let inner_return = b::return_value(return_obj_expr);
+                    let inner_return = b::return_value(&context.arena, return_obj_expr);
                     lets.push(b::const_decl(
+                        &context.arena,
                         &derived_name,
                         b::call(
-                            b::member_path("$.derived"),
+                            &context.arena,
+                            b::member_path(&context.arena, "$.derived"),
                             vec![b::arrow_block(vec![], vec![inner_let, inner_return])],
                         ),
                     ));
@@ -902,11 +955,21 @@ fn process_on_directive(
     // This is handled via build_event_handler which sets needs_props_from_events
 
     // Build base event handler
-    let mut handler = build_event_handler(on_directive.expression.as_ref(), on_directive, context);
+    let arena_local = unsafe { &*(&context.arena as *const _) };
+    let mut handler = build_event_handler(
+        arena_local,
+        on_directive.expression.as_ref(),
+        on_directive,
+        context,
+    );
 
     // Apply once modifier
     if on_directive.modifiers.iter().any(|m| m.as_str() == "once") {
-        handler = b::call(b::member_path("$.once"), vec![handler]);
+        handler = b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.once"),
+            vec![handler],
+        );
     }
 
     // Add to events map
@@ -936,8 +999,10 @@ fn process_spread_attribute(
     //   }
     let has_state = super::utils::expression_has_reactive_state(&spread.expression, context);
     let has_call = super::utils::expression_has_call(&spread.expression, context);
-    let has_await =
-        crate::compiler::phases::phase3_transform::js_ast::builders::js_expr_has_await(&expression);
+    let has_await = crate::compiler::phases::phase3_transform::js_ast::builders::js_expr_has_await(
+        &context.arena,
+        &expression,
+    );
 
     if has_state {
         // Apply transforms to get the proper reactive expression (e.g., state -> $.get(state))
@@ -961,13 +1026,17 @@ fn process_spread_attribute(
 
         if is_memoized {
             // Wrap in thunk with $.get()
-            props_and_spreads.push(PropsEntry::Spread(b::thunk(b::call(
-                b::member_path("$.get"),
-                vec![memo_id],
-            ))));
+            props_and_spreads.push(PropsEntry::Spread(b::thunk(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.get"),
+                    vec![memo_id],
+                ),
+            )));
         } else {
             // Wrap in thunk for reactivity tracking
-            props_and_spreads.push(PropsEntry::Spread(b::thunk(transformed)));
+            props_and_spreads.push(PropsEntry::Spread(b::thunk(&context.arena, transformed)));
         }
     } else {
         // No reactive state - push the expression directly without thunk wrapping
@@ -1012,7 +1081,11 @@ fn process_regular_attribute(
             // If memoization happened (memo_id is $N), wrap in $.get()
             if let JsExpr::Identifier(name) = &memo_id {
                 if name.starts_with('$') && name.chars().skip(1).all(|c| c.is_ascii_digit()) {
-                    b::call(b::member_path("$.get"), vec![memo_id])
+                    b::call(
+                        &context.arena,
+                        b::member_path(&context.arena, "$.get"),
+                        vec![memo_id],
+                    )
                 } else {
                     result.value
                 }
@@ -1023,7 +1096,7 @@ fn process_regular_attribute(
             result.value
         };
 
-        custom_css_props.push(b::prop(attr.name.as_str(), final_value));
+        custom_css_props.push(b::prop(&context.arena, attr.name.as_str(), final_value));
         return;
     }
 
@@ -1048,6 +1121,7 @@ fn process_regular_attribute(
     let has_call =
         super::utils::expression_has_call(&get_original_expression(&attr.value), context);
     let has_await = crate::compiler::phases::phase3_transform::js_ast::builders::js_expr_has_await(
+        &context.arena,
         &transformed_value,
     );
     let should_memoize =
@@ -1067,7 +1141,11 @@ fn process_regular_attribute(
         // If memoization happened, wrap in $.get()
         if let JsExpr::Identifier(name) = &memo_id {
             if name.starts_with('$') && name.chars().skip(1).all(|c| c.is_ascii_digit()) {
-                b::call(b::member_path("$.get"), vec![memo_id])
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.get"),
+                    vec![memo_id],
+                )
             } else {
                 memo_id
             }
@@ -1089,11 +1167,18 @@ fn process_regular_attribute(
         // Use getter for reactive values and snippet references
         push_prop_immediate(
             props_and_spreads,
-            b::getter(attr.name.as_str(), vec![b::return_value(final_value)]),
+            b::getter(
+                &context.arena,
+                attr.name.as_str(),
+                vec![b::return_value(&context.arena, final_value)],
+            ),
         );
     } else {
         // Use init for static values
-        push_prop_immediate(props_and_spreads, b::prop(attr.name.as_str(), final_value));
+        push_prop_immediate(
+            props_and_spreads,
+            b::prop(&context.arena, attr.name.as_str(), final_value),
+        );
     }
 }
 
@@ -1257,20 +1342,20 @@ fn process_bind_directive(
                 use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr;
                 match &arrow.body {
                     crate::compiler::phases::phase3_transform::js_ast::nodes::JsArrowBody::Expression(body) => {
-                        generate_expr(body)
+                        generate_expr(context.arena.get_expr(*body), &context.arena)
                     }
                     crate::compiler::phases::phase3_transform::js_ast::nodes::JsArrowBody::Block(_) => {
-                        generate_expr(&get_expr)
+                        generate_expr(&get_expr, &context.arena)
                     }
                 }
             } else {
                 // For non-raw exprs, just use them directly
                 use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr;
-                generate_expr(&get_expr)
+                generate_expr(&get_expr, &context.arena)
             };
-            let getter = b::getter(
+            let getter = b::getter(&context.arena,
                 bind.name.as_str(),
-                vec![b::return_value(JsExpr::Raw(get_body_str.into()))],
+                vec![b::return_value(&context.arena, JsExpr::Raw(get_body_str.into()))],
             );
 
             if let Some(set_fn) = set_expr {
@@ -1292,12 +1377,12 @@ fn process_bind_directive(
                     }
                 } else {
                     use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr;
-                    format!("({})($$value)", generate_expr(&set_fn))
+                    format!("({})($$value)", generate_expr(&set_fn, &context.arena))
                 };
-                let setter = b::setter(
+                let setter = b::setter(&context.arena,
                     bind.name.as_str(),
                     "$$value",
-                    vec![b::stmt(JsExpr::Raw(set_body_str.into()))],
+                    vec![b::stmt(&context.arena, JsExpr::Raw(set_body_str.into()))],
                 );
                 delayed_props.push(DelayedProp { prop: getter });
                 delayed_props.push(DelayedProp { prop: setter });
@@ -1317,23 +1402,37 @@ fn process_bind_directive(
         let get_id = b::id(context.state.memoizer.generate_id("bind_get"));
         let set_id = b::id(context.state.memoizer.generate_id("bind_set"));
 
-        context.state.init.push(b::var_decl("bind_get", Some(get)));
-        context.state.init.push(b::var_decl("bind_set", Some(set)));
+        context
+            .state
+            .init
+            .push(b::var_decl(&context.arena, "bind_get", Some(get)));
+        context
+            .state
+            .init
+            .push(b::var_decl(&context.arena, "bind_set", Some(set)));
 
         // Add getter
         delayed_props.push(DelayedProp {
             prop: b::getter(
+                &context.arena,
                 bind.name.as_str(),
-                vec![b::return_value(b::call(get_id.clone(), vec![]))],
+                vec![b::return_value(
+                    &context.arena,
+                    b::call(&context.arena, get_id.clone(), vec![]),
+                )],
             ),
         });
 
         // Add setter
         delayed_props.push(DelayedProp {
             prop: b::setter(
+                &context.arena,
                 bind.name.as_str(),
                 "$$value",
-                vec![b::stmt(b::call(set_id, vec![b::id("$$value")]))],
+                vec![b::stmt(
+                    &context.arena,
+                    b::call(&context.arena, set_id, vec![b::id("$$value")]),
+                )],
             ),
         });
 
@@ -1382,21 +1481,35 @@ fn process_bind_directive(
     // which already has $store -> $store() applied
     let getter_body = if is_store_sub {
         vec![
-            b::stmt(b::call(b::member_path("$.mark_store_binding"), vec![])),
-            b::return_value(transformed_expression.clone()),
+            b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.mark_store_binding"),
+                    vec![],
+                ),
+            ),
+            b::return_value(&context.arena, transformed_expression.clone()),
         ]
     } else if is_state_binding {
         // For state bindings, use $.get()
-        vec![b::return_value(b::call(
-            b::member_path("$.get"),
-            vec![raw_expression.clone()],
-        ))]
+        vec![b::return_value(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.get"),
+                vec![raw_expression.clone()],
+            ),
+        )]
     } else {
         // Use transformed expression for other cases (includes store member expressions)
-        vec![b::return_value(transformed_expression.clone())]
+        vec![b::return_value(
+            &context.arena,
+            transformed_expression.clone(),
+        )]
     };
 
-    let getter = b::getter(bind.name.as_str(), getter_body);
+    let getter = b::getter(&context.arena, bind.name.as_str(), getter_body);
 
     // Create setter
     // For store member expressions, we need to use $.store_mutate
@@ -1430,7 +1543,14 @@ fn process_bind_directive(
         if needs_proxy {
             set_args.push(b::boolean(true));
         }
-        vec![b::stmt(b::call(b::member_path("$.set"), set_args))]
+        vec![b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.set"),
+                set_args,
+            ),
+        )]
     } else if is_store_sub {
         // For direct store subscriptions, use $.store_set(store, $$value)
         // $store = value -> $.store_set(store, value)
@@ -1439,33 +1559,56 @@ fn process_bind_directive(
         } else {
             "unknown".to_string()
         };
-        vec![b::stmt(b::call(
-            b::member_path("$.store_set"),
-            vec![b::id(&store_name), b::id("$$value")],
-        ))]
+        vec![b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.store_set"),
+                vec![b::id(&store_name), b::id("$$value")],
+            ),
+        )]
     } else if is_prop_binding {
         // For prop source bindings, call the prop function with the value
         // prop($$value) instead of prop = $$value
-        vec![b::stmt(b::call(
-            raw_expression.clone(),
-            vec![b::id("$$value")],
-        ))]
+        vec![b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                raw_expression.clone(),
+                vec![b::id("$$value")],
+            ),
+        )]
     } else if is_store_member {
         // For store member expressions like $store.value, we need:
         // $.store_mutate(store, $.untrack($store).value = $$value, $.untrack($store))
         let store_info = get_store_info_from_member(&bind.expression);
         if let Some((store_name, store_prefix)) = store_info {
-            let untrack_call = b::call(b::member_path("$.untrack"), vec![b::id(&store_prefix)]);
+            let untrack_call = b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.untrack"),
+                vec![b::id(&store_prefix)],
+            );
             // Build the assignment with $.untrack($store) as the base
-            let assignment_expr =
-                build_store_member_assignment(&raw_expression, &store_prefix, b::id("$$value"));
-            vec![b::stmt(b::call(
-                b::member_path("$.store_mutate"),
-                vec![b::id(&store_name), assignment_expr, untrack_call],
-            ))]
+            let assignment_expr = build_store_member_assignment(
+                &context.arena,
+                &raw_expression,
+                &store_prefix,
+                b::id("$$value"),
+            );
+            vec![b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.store_mutate"),
+                    vec![b::id(&store_name), assignment_expr, untrack_call],
+                ),
+            )]
         } else {
             // Fallback to simple assignment
-            vec![b::stmt(b::assign(raw_expression.clone(), b::id("$$value")))]
+            vec![b::stmt(
+                &context.arena,
+                b::assign(&context.arena, raw_expression.clone(), b::id("$$value")),
+            )]
         }
     } else {
         // Check if this is a member expression binding where the root is a prop or state
@@ -1473,7 +1616,7 @@ fn process_bind_directive(
             // Extract the root identifier from the member expression
             let mut root = &raw_expression;
             while let JsExpr::Member(m) = root {
-                root = &m.object;
+                root = context.arena.get_expr(m.object);
             }
             if let JsExpr::Identifier(name) = root {
                 context.state.get_binding(name).map(|binding| {
@@ -1504,14 +1647,21 @@ fn process_bind_directive(
             let is_reactive_import = transform.is_some_and(|t| t.replacement_id.is_some());
 
             if is_reactive_import {
-                let assignment = b::assign(transformed_expression.clone(), b::id("$$value"));
+                let assignment = b::assign(
+                    &context.arena,
+                    transformed_expression.clone(),
+                    b::id("$$value"),
+                );
                 if let Some(t) = transform
                     && let Some(mutate_fn) = t.mutate
                     && let Some(ref replacement) = t.replacement_id
                 {
-                    vec![b::stmt(mutate_fn(b::id(replacement), assignment))]
+                    vec![b::stmt(
+                        &context.arena,
+                        mutate_fn(&context.arena, b::id(replacement), assignment),
+                    )]
                 } else {
-                    vec![b::stmt(assignment)]
+                    vec![b::stmt(&context.arena, assignment)]
                 }
             } else if is_prop {
                 // For prop member bindings in legacy mode (e.g., bind:value={values[field]}),
@@ -1519,42 +1669,72 @@ fn process_bind_directive(
                 // values(values()[field] = $$value, true)
                 // This notifies the parent component that the prop was mutated.
                 // Reference: Program.js mutate handler and AssignmentExpression visitor
-                let assignment = b::assign(transformed_expression.clone(), b::id("$$value"));
-                vec![b::stmt(b::call(
-                    b::id(root_name.clone()),
-                    vec![assignment, b::boolean(true)],
-                ))]
+                let assignment = b::assign(
+                    &context.arena,
+                    transformed_expression.clone(),
+                    b::id("$$value"),
+                );
+                vec![b::stmt(
+                    &context.arena,
+                    b::call(
+                        &context.arena,
+                        b::id(root_name.clone()),
+                        vec![assignment, b::boolean(true)],
+                    ),
+                )]
             } else if is_state {
                 if context.state.analysis.runes {
                     // In runes mode, replace the root with $.get(root) in the assignment:
                     // $.get(value).a = $$value
-                    let assignment = b::assign(transformed_expression.clone(), b::id("$$value"));
-                    vec![b::stmt(assignment)]
+                    let assignment = b::assign(
+                        &context.arena,
+                        transformed_expression.clone(),
+                        b::id("$$value"),
+                    );
+                    vec![b::stmt(&context.arena, assignment)]
                 } else {
                     // In legacy mode, wrap in $.mutate():
                     // $.mutate(value, $.get(value).a = $$value)
-                    let assignment = b::assign(transformed_expression.clone(), b::id("$$value"));
-                    vec![b::stmt(b::call(
-                        b::member_path("$.mutate"),
-                        vec![b::id(root_name.clone()), assignment],
-                    ))]
+                    let assignment = b::assign(
+                        &context.arena,
+                        transformed_expression.clone(),
+                        b::id("$$value"),
+                    );
+                    vec![b::stmt(
+                        &context.arena,
+                        b::call(
+                            &context.arena,
+                            b::member_path(&context.arena, "$.mutate"),
+                            vec![b::id(root_name.clone()), assignment],
+                        ),
+                    )]
                 }
             } else {
                 // Root is not state or prop - check if it has a transform
                 let has_transform = transform.is_some_and(|t| t.read.is_some());
                 if has_transform {
-                    let assignment = b::assign(transformed_expression.clone(), b::id("$$value"));
-                    vec![b::stmt(assignment)]
+                    let assignment = b::assign(
+                        &context.arena,
+                        transformed_expression.clone(),
+                        b::id("$$value"),
+                    );
+                    vec![b::stmt(&context.arena, assignment)]
                 } else {
-                    vec![b::stmt(b::assign(raw_expression.clone(), b::id("$$value")))]
+                    vec![b::stmt(
+                        &context.arena,
+                        b::assign(&context.arena, raw_expression.clone(), b::id("$$value")),
+                    )]
                 }
             }
         } else {
-            vec![b::stmt(b::assign(raw_expression.clone(), b::id("$$value")))]
+            vec![b::stmt(
+                &context.arena,
+                b::assign(&context.arena, raw_expression.clone(), b::id("$$value")),
+            )]
         }
     };
 
-    let setter = b::setter(bind.name.as_str(), "$$value", setter_body);
+    let setter = b::setter(&context.arena, bind.name.as_str(), "$$value", setter_body);
 
     // Add as delayed props (bindings come at the end)
     delayed_props.push(DelayedProp { prop: getter });
@@ -1584,14 +1764,18 @@ fn process_bind_directive(
                     } else {
                         component_name
                     };
-                    binding_initializers.push(b::stmt(b::call(
-                        b::member_path("$$ownership_validator.binding"),
-                        vec![
-                            b::string(&binding.name),
-                            b::id(comp_name),
-                            b::thunk(transformed_expression.clone()),
-                        ],
-                    )));
+                    binding_initializers.push(b::stmt(
+                        &context.arena,
+                        b::call(
+                            &context.arena,
+                            b::member_path(&context.arena, "$$ownership_validator.binding"),
+                            vec![
+                                b::string(&binding.name),
+                                b::id(comp_name),
+                                b::thunk(&context.arena, transformed_expression.clone()),
+                            ],
+                        ),
+                    ));
                 }
             }
         }
@@ -1655,22 +1839,34 @@ fn get_store_info_from_member(expr: &Expression) -> Option<(String, String)> {
 
 /// Build an assignment expression for store member mutation.
 /// Replaces the store prefix ($store) with $.untrack($store) in the member expression.
-fn build_store_member_assignment(expr: &JsExpr, store_prefix: &str, value: JsExpr) -> JsExpr {
+fn build_store_member_assignment(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    expr: &JsExpr,
+    store_prefix: &str,
+    value: JsExpr,
+) -> JsExpr {
     // Build the left side by replacing $store with $.untrack($store)
-    let left = replace_store_with_untrack(expr, store_prefix);
-    b::assign(left, value)
+    let left = replace_store_with_untrack(arena, expr, store_prefix);
+    b::assign(arena, left, value)
 }
 
 /// Replace the store identifier in an expression with $.untrack($store).
-fn replace_store_with_untrack(expr: &JsExpr, store_prefix: &str) -> JsExpr {
+fn replace_store_with_untrack(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    expr: &JsExpr,
+    store_prefix: &str,
+) -> JsExpr {
     match expr {
-        JsExpr::Identifier(name) if name == store_prefix => {
-            b::call(b::member_path("$.untrack"), vec![b::id(store_prefix)])
-        }
+        JsExpr::Identifier(name) if name == store_prefix => b::call(
+            arena,
+            b::member_path(arena, "$.untrack"),
+            vec![b::id(store_prefix)],
+        ),
         JsExpr::Member(member) => {
-            let new_object = replace_store_with_untrack(&member.object, store_prefix);
+            let new_object =
+                replace_store_with_untrack(arena, arena.get_expr(member.object), store_prefix);
             JsExpr::Member(JsMemberExpression {
-                object: Box::new(new_object),
+                object: arena.alloc_expr(new_object),
                 property: member.property.clone(),
                 computed: member.computed,
                 optional: member.optional,
@@ -1704,9 +1900,16 @@ fn process_attach_tag(
         // The structure is: ($$node) => (expression || $.noop)($$node)
         // The logical OR wraps the expression, and the result is called with $$node
         b::arrow(
+            &context.arena,
             vec![b::id_pattern("$$node")],
             b::call(
-                b::logical(JsLogicalOp::Or, transformed, b::member_path("$.noop")),
+                &context.arena,
+                b::logical(
+                    &context.arena,
+                    JsLogicalOp::Or,
+                    transformed,
+                    b::member_path(&context.arena, "$.noop"),
+                ),
                 vec![b::id("$$node")],
             ),
         )
@@ -1718,8 +1921,12 @@ fn process_attach_tag(
     push_prop_immediate(
         props_and_spreads,
         JsObjectMember::Property(JsProperty {
-            key: JsPropertyKey::Computed(Box::new(b::call(b::member_path("$.attachment"), vec![]))),
-            value: Box::new(final_expr),
+            key: JsPropertyKey::Computed(context.arena.alloc_expr(b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.attachment"),
+                vec![],
+            ))),
+            value: context.arena.alloc_expr(final_expr),
             kind: JsPropertyKind::Init,
             computed: true,
             shorthand: false,
@@ -1777,7 +1984,7 @@ fn process_snippet_block(
     // Add the snippet as a prop to the component
     push_prop_immediate(
         props_and_spreads,
-        b::prop(&snippet_name, b::id(&snippet_name)),
+        b::prop(&context.arena, &snippet_name, b::id(&snippet_name)),
     );
 
     // Add to serialized slots for $$slots object
@@ -1786,7 +1993,7 @@ fn process_snippet_block(
     } else {
         snippet_name
     };
-    serialized_slots.push(b::prop(&slot_name, b::boolean(true)));
+    serialized_slots.push(b::prop(&context.arena, &slot_name, b::boolean(true)));
 }
 
 /// Build a slot function for children.
@@ -1795,6 +2002,8 @@ fn process_snippet_block(
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/component.js`
 /// (lines 354-383).
 fn build_slot_function(
+    _arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+
     children: &[&TemplateNode],
     slot_name: &str,
     slot_scope_applies_to_itself: bool,
@@ -1834,7 +2043,9 @@ fn build_slot_function(
             context.state.transform.insert(
                 name.clone(),
                 crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
-                    read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
+                    read: Some(|arena, node| {
+                        b::call(arena, b::member_path(arena, "$.get"), vec![node])
+                    }),
                     read_source: read_source.clone(),
                     assign: None,
                     mutate: None,
@@ -1916,6 +2127,9 @@ fn visit_slot_children(
 ) -> Vec<JsStatement> {
     use crate::compiler::phases::phase3_transform::client::transform_template::Namespace;
     use crate::compiler::phases::phase3_transform::utils::clean_nodes;
+
+    let arena_local2: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena =
+        unsafe { &*(&context.arena as *const _) };
 
     // Convert &[&TemplateNode] to Vec<TemplateNode> for clean_nodes
     let nodes: Vec<TemplateNode> = children.iter().map(|n| (*n).clone()).collect();
@@ -2015,27 +2229,37 @@ fn visit_slot_children(
             // Build the template expression using transform_template
             // which handles dev mode $.add_locations wrapping
             let template_expr = crate::compiler::phases::phase3_transform::client::transform_template::transform_template(
+                &context.arena,
                 &mut context.state,
                 namespace,
                 None,
                 None,
             );
-            context
-                .state
-                .hoisted
-                .push(b::var_decl(&template_name, Some(template_expr)));
+            context.state.hoisted.push(b::var_decl(
+                &context.arena,
+                &template_name,
+                Some(template_expr),
+            ));
 
             // Add: var id = template_name();
             context.state.init.insert(
                 0,
-                b::var_decl(&id_name, Some(b::call(b::id(&template_name), vec![]))),
+                b::var_decl(
+                    &context.arena,
+                    &id_name,
+                    Some(b::call(&context.arena, b::id(&template_name), vec![])),
+                ),
             );
 
             // Track $.append as close statement (added after after_update)
-            close_statement = Some(b::stmt(b::call(
-                b::member_path("$.append"),
-                vec![b::id("$$anchor"), b::id(&id_name)],
-            )));
+            close_statement = Some(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.append"),
+                    vec![b::id("$$anchor"), b::id(&id_name)],
+                ),
+            ));
         }
     } else if cleaned.trimmed.len() == 1
         && matches!(
@@ -2084,28 +2308,38 @@ fn visit_slot_children(
         if let TemplateNode::Text(text) = &*cleaned.trimmed[0] {
             // Add $.next() to skip the comment marker
             // This is because is_text_first is true for single text nodes in slot context
-            context
-                .state
-                .init
-                .push(b::stmt(b::call(b::member_path("$.next"), vec![])));
+            context.state.init.push(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.next"),
+                    vec![],
+                ),
+            ));
 
             // Generate unique id for the text node
             let id_name = context.state.memoizer.generate_id("text");
 
             // Create: var text = $.text('data')
             context.state.init.push(b::var_decl(
+                &context.arena,
                 &id_name,
                 Some(b::call(
-                    b::member_path("$.text"),
+                    &context.arena,
+                    b::member_path(&context.arena, "$.text"),
                     vec![b::string(text.data.to_string())],
                 )),
             ));
 
             // Create: $.append($$anchor, text)
-            context.state.init.push(b::stmt(b::call(
-                b::member_path("$.append"),
-                vec![b::id("$$anchor"), b::id(&id_name)],
-            )));
+            context.state.init.push(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.append"),
+                    vec![b::id("$$anchor"), b::id(&id_name)],
+                ),
+            ));
         }
     } else {
         // For non-standalone cases, follow Fragment.js pattern:
@@ -2148,24 +2382,40 @@ fn visit_slot_children(
             // Add $.next() before var text = $.text() when is_text_first is true
             // This skips over the comment marker inserted during SSR for hydration
             if cleaned.is_text_first {
-                context
-                    .state
-                    .init
-                    .insert(0, b::stmt(b::call(b::member_path("$.next"), vec![])));
+                context.state.init.insert(
+                    0,
+                    b::stmt(
+                        &context.arena,
+                        b::call(
+                            &context.arena,
+                            b::member_path(&context.arena, "$.next"),
+                            vec![],
+                        ),
+                    ),
+                );
             }
 
             context.state.init.insert(
                 if cleaned.is_text_first { 1 } else { 0 },
                 b::var_decl(
+                    &context.arena,
                     &text_id_name,
-                    Some(b::call(b::member_path("$.text"), vec![])),
+                    Some(b::call(
+                        &context.arena,
+                        b::member_path(&context.arena, "$.text"),
+                        vec![],
+                    )),
                 ),
             );
 
-            close_statement = Some(b::stmt(b::call(
-                b::member_path("$.append"),
-                vec![b::id("$$anchor"), text_id],
-            )));
+            close_statement = Some(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.append"),
+                    vec![b::id("$$anchor"), text_id],
+                ),
+            ));
         } else {
             // Standard case: use fragment with $.first_child pattern
             //
@@ -2177,7 +2427,8 @@ fn visit_slot_children(
                 move |is_text: bool| {
                     if is_text {
                         b::call(
-                            b::member_path("$.first_child"),
+                            arena_local2,
+                            b::member_path(arena_local2, "$.first_child"),
                             vec![
                                 fragment_id_for_closure.clone(),
                                 b::literal(JsLiteral::Boolean(true)),
@@ -2185,7 +2436,8 @@ fn visit_slot_children(
                         )
                     } else {
                         b::call(
-                            b::member_path("$.first_child"),
+                            arena_local2,
+                            b::member_path(arena_local2, "$.first_child"),
                             vec![fragment_id_for_closure.clone()],
                         )
                     }
@@ -2205,8 +2457,13 @@ fn visit_slot_children(
                 context.state.init.insert(
                     0,
                     b::var_decl(
+                        &context.arena,
                         &fragment_id_name,
-                        Some(b::call(b::member_path("$.comment"), vec![])),
+                        Some(b::call(
+                            &context.arena,
+                            b::member_path(&context.arena, "$.comment"),
+                            vec![],
+                        )),
                     ),
                 );
             } else {
@@ -2234,21 +2491,24 @@ fn visit_slot_children(
                 }
 
                 let template_expr = crate::compiler::phases::phase3_transform::client::transform_template::transform_template(
+                    &context.arena,
                     &mut context.state,
                     namespace,
                     Some(flags),
                     None,
                 );
-                context
-                    .state
-                    .hoisted
-                    .push(b::var_decl(&template_name, Some(template_expr)));
+                context.state.hoisted.push(b::var_decl(
+                    &context.arena,
+                    &template_name,
+                    Some(template_expr),
+                ));
 
                 context.state.init.insert(
                     0,
                     b::var_decl(
+                        &context.arena,
                         &fragment_id_name,
-                        Some(b::call(b::id(&template_name), vec![])),
+                        Some(b::call(&context.arena, b::id(&template_name), vec![])),
                     ),
                 );
             }
@@ -2257,23 +2517,34 @@ fn visit_slot_children(
             // This mirrors Fragment.js: if (is_text_first) body.push(b.stmt(b.call('$.next')));
             // $.next() must come BEFORE the fragment declaration so we insert at position 0.
             if cleaned.is_text_first {
-                context
-                    .state
-                    .init
-                    .insert(0, b::stmt(b::call(b::member_path("$.next"), vec![])));
+                context.state.init.insert(
+                    0,
+                    b::stmt(
+                        &context.arena,
+                        b::call(
+                            &context.arena,
+                            b::member_path(&context.arena, "$.next"),
+                            vec![],
+                        ),
+                    ),
+                );
             }
 
-            close_statement = Some(b::stmt(b::call(
-                b::member_path("$.append"),
-                vec![b::id("$$anchor"), fragment_id],
-            )));
+            close_statement = Some(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.append"),
+                    vec![b::id("$$anchor"), fragment_id],
+                ),
+            ));
         }
     }
 
     // Collect results following Fragment.js ordering:
     // body.push(...state.snippets, ...state.let_directives, ...state.consts);
     // body.push(...state.init);
-    // if (state.update.length > 0) body.push(build_render_statement(state));
+    // if (state.update.length > 0) body.push(build_render_statement(&context.arena, state));
     // body.push(...state.after_update);
     // body.push(close);
 
@@ -2290,9 +2561,11 @@ fn visit_slot_children(
         && !async_consts.thunks.is_empty()
     {
         result.push(b::var_decl(
+            &context.arena,
             "__async_consts",
             Some(b::call(
-                b::member_path("$.run"),
+                &context.arena,
+                b::member_path(&context.arena, "$.run"),
                 vec![b::array(async_consts.thunks)],
             )),
         ));
@@ -2315,11 +2588,10 @@ fn visit_slot_children(
             // Use memoized dependency hoisting:
             // $.template_effect(($0, $1) => { ... }, [() => expr1, () => expr2])
             let params = slot_memoizer.get_params();
-            let sync_values = slot_memoizer.sync_values();
-            let async_values = slot_memoizer.async_values();
-            result.push(b::stmt(
-                crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_render_statement_with_memoizer(
-                    update_stmts,
+            let sync_values = slot_memoizer.sync_values(&context.arena);
+            let async_values = slot_memoizer.async_values(&context.arena);
+            result.push(b::stmt(&context.arena,
+                crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_render_statement_with_memoizer(&context.arena, update_stmts,
                     params,
                     sync_values,
                     async_values,
@@ -2332,7 +2604,11 @@ fn visit_slot_children(
                 && matches!(update_stmts[0], JsStatement::Expression(_))
             {
                 if let JsStatement::Expression(expr_stmt) = &update_stmts[0] {
-                    b::arrow(vec![], (*expr_stmt.expression).clone())
+                    b::arrow(
+                        &context.arena,
+                        vec![],
+                        context.arena.get_expr(expr_stmt.expression).clone(),
+                    )
                 } else {
                     b::arrow_block(vec![], update_stmts)
                 }
@@ -2340,10 +2616,14 @@ fn visit_slot_children(
                 b::arrow_block(vec![], update_stmts)
             };
 
-            result.push(b::stmt(b::call(
-                b::member_path("$.template_effect"),
-                vec![arrow_fn],
-            )));
+            result.push(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.template_effect"),
+                    vec![arrow_fn],
+                ),
+            ));
         }
     }
 
@@ -2410,10 +2690,14 @@ fn build_component_call(
     let callee = if is_component_dynamic {
         b::id(intermediate_name)
     } else {
-        b::member_path(component_name)
+        b::member_path(&context.arena, component_name)
     };
 
-    let call = b::call(callee, vec![anchor.clone(), props_expression.clone()]);
+    let call = b::call(
+        &context.arena,
+        callee,
+        vec![anchor.clone(), props_expression.clone()],
+    );
 
     if let Some(bind_expr) = bind_this {
         build_bind_this_call(bind_expr, call, context)
@@ -2472,16 +2756,20 @@ fn build_with_css_props(
     context.state.template.pop_element();
 
     // Add CSS props call
-    statements.push(b::stmt(b::call(
-        b::member_path("$.css_props"),
-        vec![
-            anchor.clone(),
-            b::thunk(b::object(custom_css_props.to_vec())),
-        ],
-    )));
+    statements.push(b::stmt(
+        &context.arena,
+        b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.css_props"),
+            vec![
+                anchor.clone(),
+                b::thunk(&context.arena, b::object(custom_css_props.to_vec())),
+            ],
+        ),
+    ));
 
     // Add component call using anchor.lastChild
-    let component_anchor = b::member(anchor.clone(), "lastChild");
+    let component_anchor = b::member(&context.arena, anchor.clone(), "lastChild");
     let component_call = build_component_call(
         &component_anchor,
         component_name,
@@ -2493,13 +2781,17 @@ fn build_with_css_props(
     );
 
     statements.extend(binding_initializers.iter().cloned());
-    statements.push(b::stmt(component_call));
+    statements.push(b::stmt(&context.arena, component_call));
 
     // Add reset call
-    statements.push(b::stmt(b::call(
-        b::member_path("$.reset"),
-        vec![anchor.clone()],
-    )));
+    statements.push(b::stmt(
+        &context.arena,
+        b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.reset"),
+            vec![anchor.clone()],
+        ),
+    ));
 }
 
 /// Push a property immediately to the props list.
@@ -2513,7 +2805,10 @@ fn push_prop_immediate(props: &mut Vec<PropsEntry>, prop: JsObjectMember) {
 }
 
 /// Build the final props expression from props and spreads.
-fn build_props_expression(props_and_spreads: Vec<PropsEntry>) -> JsExpr {
+fn build_props_expression(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    props_and_spreads: Vec<PropsEntry>,
+) -> JsExpr {
     if props_and_spreads.is_empty() {
         return b::object(vec![]);
     }
@@ -2562,7 +2857,7 @@ fn build_props_expression(props_and_spreads: Vec<PropsEntry>) -> JsExpr {
     }
 
     // Always use $.spread_props when spreads are involved
-    b::call(b::member_path("$.spread_props"), groups)
+    b::call(arena, b::member_path(arena, "$.spread_props"), groups)
 }
 
 /// Add Svelte metadata wrapper for dev mode.
@@ -2571,6 +2866,8 @@ fn build_props_expression(props_and_spreads: Vec<PropsEntry>) -> JsExpr {
 /// Build a component instantiation statement with dev-mode metadata.
 /// In dev mode, wraps with $.add_svelte_meta() for ownership tracking.
 fn build_component_meta_stmt(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+
     expression: JsExpr,
     node: &ComponentNode,
     analysis_name: &str,
@@ -2578,7 +2875,7 @@ fn build_component_meta_stmt(
     source: &str,
 ) -> JsStatement {
     if !dev {
-        return b::stmt(expression);
+        return b::stmt(arena, expression);
     }
 
     let (start, tag_name) = match node {
@@ -2590,6 +2887,7 @@ fn build_component_meta_stmt(
     let (line, col) = super::super::attribute::locate_in_source(source, start as usize);
 
     super::utils::add_svelte_meta_dev(
+        arena,
         expression,
         "component",
         analysis_name,
@@ -2645,10 +2943,12 @@ fn is_store_subscription(expr: &Expression, context: &ComponentContext) -> bool 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
 
     #[test]
     fn test_build_props_expression_empty() {
-        let props = build_props_expression(vec![]);
+        let arena = JsArena::new();
+        let props = build_props_expression(&arena, vec![]);
 
         match props {
             JsExpr::Object(obj) => {
@@ -2660,9 +2960,10 @@ mod tests {
 
     #[test]
     fn test_build_props_expression_single_prop() {
-        let props = vec![PropsEntry::Prop(b::prop("foo", b::string("bar")))];
+        let arena = JsArena::new();
+        let props = vec![PropsEntry::Prop(b::prop(&arena, "foo", b::string("bar")))];
 
-        let result = build_props_expression(props);
+        let result = build_props_expression(&arena, props);
 
         match result {
             JsExpr::Object(obj) => {
@@ -2674,13 +2975,14 @@ mod tests {
 
     #[test]
     fn test_build_props_expression_with_spread() {
+        let arena = JsArena::new();
         let props = vec![
-            PropsEntry::Prop(b::prop("foo", b::string("bar"))),
+            PropsEntry::Prop(b::prop(&arena, "foo", b::string("bar"))),
             PropsEntry::Spread(b::id("spread")),
-            PropsEntry::Prop(b::prop("baz", b::string("qux"))),
+            PropsEntry::Prop(b::prop(&arena, "baz", b::string("qux"))),
         ];
 
-        let result = build_props_expression(props);
+        let result = build_props_expression(&arena, props);
 
         match result {
             JsExpr::Call(_) => {

@@ -6,6 +6,7 @@
 use super::fix_attribute_casing::fix_attribute_casing;
 use super::types::{Comment, Element, Node, TextNode};
 use crate::ast::template::Text;
+use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 use crate::compiler::phases::phase3_transform::shared::template::{escape_attr, is_void_element};
@@ -179,7 +180,7 @@ impl Template {
     }
 
     /// Convert template to tree array expression.
-    pub fn as_tree(&mut self) -> JsExpr {
+    pub fn as_tree(&mut self, arena: &JsArena) -> JsExpr {
         // If the first item is a comment we need to add another comment for effect.start
         if let Some(Node::Comment(_)) = self.nodes.first() {
             self.nodes.insert(
@@ -191,7 +192,11 @@ impl Template {
             );
         }
 
-        let elements: Vec<JsExpr> = self.nodes.iter().filter_map(objectify).collect();
+        let elements: Vec<JsExpr> = self
+            .nodes
+            .iter()
+            .filter_map(|n| objectify(arena, n))
+            .collect();
 
         b::array(elements)
     }
@@ -262,7 +267,7 @@ fn stringify(item: &Node) -> String {
 }
 
 /// Convert a node to a JavaScript expression for tree building.
-fn objectify(item: &Node) -> Option<JsExpr> {
+fn objectify(arena: &JsArena, item: &Node) -> Option<JsExpr> {
     match item {
         Node::Text(text) => {
             let data = text
@@ -287,10 +292,10 @@ fn objectify(item: &Node) -> Option<JsExpr> {
                 let fixed_key = fix_attribute_casing(key);
                 let prop_value = match value {
                     Some(v) => b::string(v.clone()),
-                    None => b::undefined(),
+                    None => b::undefined(arena),
                 };
 
-                attributes_props.push(b::prop(fixed_key, prop_value));
+                attributes_props.push(b::prop(arena, fixed_key, prop_value));
             }
 
             let has_attributes = !attributes_props.is_empty();
@@ -305,7 +310,11 @@ fn objectify(item: &Node) -> Option<JsExpr> {
             }
 
             if !element.children.is_empty() {
-                let children: Vec<JsExpr> = element.children.iter().filter_map(objectify).collect();
+                let children: Vec<JsExpr> = element
+                    .children
+                    .iter()
+                    .filter_map(|n| objectify(arena, n))
+                    .collect();
 
                 // Special case — strip leading newline from `<pre>` and `<textarea>`
                 if (element.name == "pre" || element.name == "textarea") && !children.is_empty()

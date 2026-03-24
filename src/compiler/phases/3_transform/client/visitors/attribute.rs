@@ -221,19 +221,27 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
     };
 
     let statement = if delegated {
-        b::stmt(build_delegated_event_assignment(
-            event_name,
-            &context.state.node,
-            handler,
-        ))
+        b::stmt(
+            &context.arena,
+            build_delegated_event_assignment(
+                &context.arena,
+                event_name,
+                &context.state.node,
+                handler,
+            ),
+        )
     } else {
-        b::stmt(build_event(
-            event_name,
-            &context.state.node,
-            handler,
-            capture,
-            if passive == Some(true) { passive } else { None },
-        ))
+        b::stmt(
+            &context.arena,
+            build_event(
+                &context.arena,
+                event_name,
+                &context.state.node,
+                handler,
+                capture,
+                if passive == Some(true) { passive } else { None },
+            ),
+        )
     };
 
     // Check if the parent is a special element (svelte:window, svelte:document, svelte:body)
@@ -348,16 +356,25 @@ pub fn build_event_handler(
         let handler_name = context.state.memoizer.generate_id("event_handler");
 
         // Create $.derived(thunk(handler)) - thunk optimizes () => fn() to fn
-        let derived_arg = b::thunk(js_expr.clone());
-        let derived_call = b::call(b::member_path("$.derived"), vec![derived_arg]);
+        let derived_arg = b::thunk(&context.arena, js_expr.clone());
+        let derived_call = b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.derived"),
+            vec![derived_arg],
+        );
 
-        context
-            .state
-            .init
-            .push(b::var_decl(&handler_name, Some(derived_call)));
+        context.state.init.push(b::var_decl(
+            &context.arena,
+            &handler_name,
+            Some(derived_call),
+        ));
 
         // Use $.get(handler_id) to get the current value - this becomes the new handler
-        js_expr = b::call(b::member_path("$.get"), vec![b::id(&handler_name)]);
+        js_expr = b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.get"),
+            vec![b::id(&handler_name)],
+        );
     }
 
     // Wrap in a function that applies the expression
@@ -375,7 +392,7 @@ pub fn build_event_handler(
         let remove_parens = expression_is_removable_call(&expr_tag.expression);
 
         let mut apply_args = vec![
-            b::thunk(js_expr),
+            b::thunk(&context.arena, js_expr),
             b::this(),
             b::id("$$args"),
             b::id(&context.state.analysis.name),
@@ -387,17 +404,22 @@ pub fn build_event_handler(
             apply_args.push(if side_effects {
                 b::boolean(true)
             } else {
-                b::undefined()
+                b::undefined(&context.arena)
             });
         }
         if remove_parens {
             apply_args.push(b::boolean(true));
         }
 
-        b::call(b::member_path("$.apply"), apply_args)
+        b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.apply"),
+            apply_args,
+        )
     } else {
         b::call(
-            b::optional_member(js_expr, "apply"),
+            &context.arena,
+            b::optional_member(&context.arena, js_expr, "apply"),
             vec![b::this(), b::id("$$args")],
         )
     };
@@ -405,7 +427,7 @@ pub fn build_event_handler(
     b::function_expr(
         None,
         vec![b::rest_pattern(b::id_pattern("$$args"))],
-        vec![b::stmt(apply_call)],
+        vec![b::stmt(&context.arena, apply_call)],
     )
 }
 

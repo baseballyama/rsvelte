@@ -3,6 +3,7 @@
 //! These types represent JavaScript/ESTree AST nodes that can be
 //! serialized to JavaScript source code.
 
+use super::arena::{ExprId, StmtId};
 use compact_str::CompactString;
 use smallvec::SmallVec;
 use std::fmt;
@@ -73,7 +74,7 @@ pub enum JsStatement {
     /// Continue statement
     Continue(Option<CompactString>),
     /// Throw statement
-    Throw(Box<JsExpr>),
+    Throw(ExprId),
     /// Try statement
     Try(JsTryStatement),
     /// Raw JavaScript code (as a statement, output verbatim)
@@ -120,7 +121,7 @@ pub struct JsExportDefault {
 #[derive(Debug, Clone)]
 pub enum JsExportDefaultDeclaration {
     Function(JsFunctionDeclaration),
-    Expression(Box<JsExpr>),
+    Expression(ExprId),
 }
 
 /// Export named declaration.
@@ -173,7 +174,7 @@ impl fmt::Display for JsVariableKind {
 #[derive(Debug, Clone)]
 pub struct JsVariableDeclarator {
     pub id: JsPattern,
-    pub init: Option<Box<JsExpr>>,
+    pub init: Option<ExprId>,
 }
 
 /// Function declaration.
@@ -189,45 +190,45 @@ pub struct JsFunctionDeclaration {
 /// Expression statement.
 #[derive(Debug, Clone)]
 pub struct JsExpressionStatement {
-    pub expression: Box<JsExpr>,
+    pub expression: ExprId,
 }
 
 /// Return statement.
 #[derive(Debug, Clone)]
 pub struct JsReturnStatement {
-    pub argument: Option<Box<JsExpr>>,
+    pub argument: Option<ExprId>,
 }
 
 /// If statement.
 #[derive(Debug, Clone)]
 pub struct JsIfStatement {
-    pub test: Box<JsExpr>,
-    pub consequent: Box<JsStatement>,
-    pub alternate: Option<Box<JsStatement>>,
+    pub test: ExprId,
+    pub consequent: StmtId,
+    pub alternate: Option<StmtId>,
 }
 
 /// For statement.
 #[derive(Debug, Clone)]
 pub struct JsForStatement {
     pub init: Option<JsForInit>,
-    pub test: Option<Box<JsExpr>>,
-    pub update: Option<Box<JsExpr>>,
-    pub body: Box<JsStatement>,
+    pub test: Option<ExprId>,
+    pub update: Option<ExprId>,
+    pub body: StmtId,
 }
 
 /// For loop initializer.
 #[derive(Debug, Clone)]
 pub enum JsForInit {
     Variable(JsVariableDeclaration),
-    Expression(Box<JsExpr>),
+    Expression(ExprId),
 }
 
 /// For-of statement.
 #[derive(Debug, Clone)]
 pub struct JsForOfStatement {
     pub left: JsForOfLeft,
-    pub right: Box<JsExpr>,
-    pub body: Box<JsStatement>,
+    pub right: ExprId,
+    pub body: StmtId,
     pub is_await: bool,
 }
 
@@ -241,15 +242,15 @@ pub enum JsForOfLeft {
 /// While statement.
 #[derive(Debug, Clone)]
 pub struct JsWhileStatement {
-    pub test: Box<JsExpr>,
-    pub body: Box<JsStatement>,
+    pub test: ExprId,
+    pub body: StmtId,
 }
 
 /// Do-while statement.
 #[derive(Debug, Clone)]
 pub struct JsDoWhileStatement {
-    pub test: Box<JsExpr>,
-    pub body: Box<JsStatement>,
+    pub test: ExprId,
+    pub body: StmtId,
 }
 
 /// Block statement.
@@ -282,7 +283,7 @@ impl Default for JsBlockStatement {
 #[derive(Debug, Clone)]
 pub struct JsLabeledStatement {
     pub label: CompactString,
-    pub body: Box<JsStatement>,
+    pub body: StmtId,
 }
 
 /// Try statement.
@@ -340,11 +341,11 @@ pub enum JsExpr {
     /// Sequence expression (comma operator)
     Sequence(JsSequenceExpression),
     /// Spread element (...expr)
-    Spread(Box<JsExpr>),
+    Spread(ExprId),
     /// This expression
     This,
     /// Await expression
-    Await(Box<JsExpr>),
+    Await(ExprId),
     /// Yield expression
     Yield(JsYieldExpression),
     /// Class expression
@@ -352,13 +353,13 @@ pub enum JsExpr {
     /// Chain expression (optional chaining)
     Chain(JsChainExpression),
     /// Void expression
-    Void(Box<JsExpr>),
+    Void(ExprId),
     /// Raw JavaScript code (as a string)
     Raw(CompactString),
     /// Expression with source span (start, end byte offsets in original source).
     /// Used for source map generation. The codegen emits the inner expression
     /// and records start/end mappings.
-    Spanned(Box<JsExpr>, u32, u32),
+    Spanned(ExprId, u32, u32),
 }
 
 /// Literal value.
@@ -386,7 +387,7 @@ pub struct JsTemplateLiteral {
 /// Example: css`color: red;`
 #[derive(Debug, Clone)]
 pub struct JsTaggedTemplate {
-    pub tag: Box<JsExpr>,
+    pub tag: ExprId,
     pub quasi: JsTemplateLiteral,
 }
 
@@ -414,14 +415,14 @@ pub struct JsObjectExpression {
 #[derive(Debug, Clone)]
 pub enum JsObjectMember {
     Property(JsProperty),
-    SpreadElement(Box<JsExpr>),
+    SpreadElement(ExprId),
 }
 
 /// Object property.
 #[derive(Debug, Clone)]
 pub struct JsProperty {
     pub key: JsPropertyKey,
-    pub value: Box<JsExpr>,
+    pub value: ExprId,
     pub kind: JsPropertyKind,
     pub computed: bool,
     pub shorthand: bool,
@@ -435,7 +436,7 @@ pub struct JsProperty {
 pub enum JsPropertyKey {
     Identifier(CompactString),
     Literal(JsLiteral),
-    Computed(Box<JsExpr>),
+    Computed(ExprId),
 }
 
 /// Property kind.
@@ -467,14 +468,14 @@ pub struct JsArrowFunction {
 /// Arrow function body.
 #[derive(Debug, Clone)]
 pub enum JsArrowBody {
-    Expression(Box<JsExpr>),
+    Expression(ExprId),
     Block(JsBlockStatement),
 }
 
 /// Call expression.
 #[derive(Debug, Clone)]
 pub struct JsCallExpression {
-    pub callee: Box<JsExpr>,
+    pub callee: ExprId,
     pub arguments: Vec<JsExpr>,
     pub optional: bool,
 }
@@ -482,14 +483,14 @@ pub struct JsCallExpression {
 /// New expression.
 #[derive(Debug, Clone)]
 pub struct JsNewExpression {
-    pub callee: Box<JsExpr>,
+    pub callee: ExprId,
     pub arguments: Vec<JsExpr>,
 }
 
 /// Member expression.
 #[derive(Debug, Clone)]
 pub struct JsMemberExpression {
-    pub object: Box<JsExpr>,
+    pub object: ExprId,
     pub property: JsMemberProperty,
     pub computed: bool,
     pub optional: bool,
@@ -499,7 +500,7 @@ pub struct JsMemberExpression {
 #[derive(Debug, Clone)]
 pub enum JsMemberProperty {
     Identifier(CompactString),
-    Expression(Box<JsExpr>),
+    Expression(ExprId),
     PrivateIdentifier(CompactString),
 }
 
@@ -507,8 +508,8 @@ pub enum JsMemberProperty {
 #[derive(Debug, Clone)]
 pub struct JsBinaryExpression {
     pub operator: JsBinaryOp,
-    pub left: Box<JsExpr>,
-    pub right: Box<JsExpr>,
+    pub left: ExprId,
+    pub right: ExprId,
 }
 
 /// Binary operator.
@@ -582,8 +583,8 @@ impl fmt::Display for JsBinaryOp {
 #[derive(Debug, Clone)]
 pub struct JsLogicalExpression {
     pub operator: JsLogicalOp,
-    pub left: Box<JsExpr>,
-    pub right: Box<JsExpr>,
+    pub left: ExprId,
+    pub right: ExprId,
 }
 
 /// Logical operator.
@@ -615,7 +616,7 @@ impl fmt::Display for JsLogicalOp {
 #[derive(Debug, Clone)]
 pub struct JsUnaryExpression {
     pub operator: JsUnaryOp,
-    pub argument: Box<JsExpr>,
+    pub argument: ExprId,
     pub prefix: bool,
 }
 
@@ -656,7 +657,7 @@ impl fmt::Display for JsUnaryOp {
 #[derive(Debug, Clone)]
 pub struct JsUpdateExpression {
     pub operator: JsUpdateOp,
-    pub argument: Box<JsExpr>,
+    pub argument: ExprId,
     pub prefix: bool,
 }
 
@@ -687,8 +688,8 @@ impl fmt::Display for JsUpdateOp {
 #[derive(Debug, Clone)]
 pub struct JsAssignmentExpression {
     pub operator: JsAssignmentOp,
-    pub left: Box<JsExpr>,
-    pub right: Box<JsExpr>,
+    pub left: ExprId,
+    pub right: ExprId,
 }
 
 /// Assignment operator.
@@ -745,9 +746,9 @@ impl fmt::Display for JsAssignmentOp {
 /// Conditional expression (ternary).
 #[derive(Debug, Clone)]
 pub struct JsConditionalExpression {
-    pub test: Box<JsExpr>,
-    pub consequent: Box<JsExpr>,
-    pub alternate: Box<JsExpr>,
+    pub test: ExprId,
+    pub consequent: ExprId,
+    pub alternate: ExprId,
 }
 
 /// Sequence expression.
@@ -759,7 +760,7 @@ pub struct JsSequenceExpression {
 /// Yield expression.
 #[derive(Debug, Clone)]
 pub struct JsYieldExpression {
-    pub argument: Option<Box<JsExpr>>,
+    pub argument: Option<ExprId>,
     pub delegate: bool,
 }
 
@@ -767,7 +768,7 @@ pub struct JsYieldExpression {
 #[derive(Debug, Clone)]
 pub struct JsClassExpression {
     pub id: Option<CompactString>,
-    pub super_class: Option<Box<JsExpr>>,
+    pub super_class: Option<ExprId>,
     pub body: JsClassBody,
 }
 
@@ -808,7 +809,7 @@ pub enum JsMethodKind {
 #[derive(Debug, Clone)]
 pub struct JsPropertyDefinition {
     pub key: JsPropertyKey,
-    pub value: Option<Box<JsExpr>>,
+    pub value: Option<ExprId>,
     pub computed: bool,
     pub is_static: bool,
 }
@@ -816,7 +817,7 @@ pub struct JsPropertyDefinition {
 /// Chain expression (optional chaining).
 #[derive(Debug, Clone)]
 pub struct JsChainExpression {
-    pub expression: Box<JsExpr>,
+    pub expression: ExprId,
 }
 
 /// Pattern (for destructuring and function params).
@@ -862,5 +863,5 @@ pub enum JsObjectPatternProperty {
 #[derive(Debug, Clone)]
 pub struct JsAssignmentPattern {
     pub left: Box<JsPattern>,
-    pub right: Box<JsExpr>,
+    pub right: ExprId,
 }

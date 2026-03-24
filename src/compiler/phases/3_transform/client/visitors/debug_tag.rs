@@ -53,32 +53,45 @@ pub fn debug_tag(node: &DebugTag, context: &mut ComponentContext) {
             let visited = apply_transforms_to_expression(&converted, context);
 
             // Wrap with $.snapshot()
-            let snapshot_call = b::call(b::member_path("$.snapshot"), vec![visited]);
+            let snapshot_call = b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.snapshot"),
+                vec![visited],
+            );
 
             // In non-runes mode, additionally wrap with $.untrack(b.thunk(...))
             let value = if context.state.analysis.runes {
                 snapshot_call
             } else {
-                b::call(b::member_path("$.untrack"), vec![b::thunk(snapshot_call)])
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.untrack"),
+                    vec![b::thunk(&context.arena, snapshot_call)],
+                )
             };
 
-            b::prop(name, value)
+            b::prop(&context.arena, name, value)
         })
         .collect();
 
     let object = b::object(properties);
 
     // Create console.log(object)
-    let call = b::call(b::member_path("console.log"), vec![object]);
+    let call = b::call(
+        &context.arena,
+        b::member_path(&context.arena, "console.log"),
+        vec![object],
+    );
 
     // Wrap in $.template_effect(() => { console.log({...}); debugger; })
-    let effect_body = vec![b::stmt(call), b::debugger()];
+    let effect_body = vec![b::stmt(&context.arena, call), b::debugger()];
     let effect = b::call(
-        b::member_path("$.template_effect"),
+        &context.arena,
+        b::member_path(&context.arena, "$.template_effect"),
         vec![b::thunk_block(effect_body)],
     );
 
-    context.state.init.push(b::stmt(effect));
+    context.state.init.push(b::stmt(&context.arena, effect));
 }
 
 /// Get the name of an identifier expression.

@@ -45,12 +45,18 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
     let built_expression = build_expression(context, &expression, &metadata);
 
     // Check blocker_map for blocked identifiers referenced in the built expression
-    let blocker_exprs_for_html = context.state.get_blockers_for_expr(&built_expression);
+    let blocker_exprs_for_html = context
+        .state
+        .get_blockers_for_expr(&built_expression, &context.arena);
     let has_blockers = !blocker_exprs_for_html.is_empty();
 
     // When has_await, the html uses $.get($$html) instead of the original expression
     let html_expr = if has_await {
-        b::call(b::member_path("$.get"), vec![b::id("$$html")])
+        b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.get"),
+            vec![b::id("$$html")],
+        )
     } else {
         built_expression.clone()
     };
@@ -60,7 +66,7 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
     let is_mathml = context.state.metadata.namespace == "mathml";
 
     // Create thunk and apply unthunk optimization
-    let thunked = b::thunk(html_expr);
+    let thunked = b::thunk(&context.arena, html_expr);
 
     // Check for hydration_html_changed ignore (only in dev mode, matching official compiler)
     let ignore_hydration = context.state.options.dev
@@ -77,21 +83,28 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
         html_args.push(if is_svg {
             b::boolean(true)
         } else {
-            b::undefined()
+            b::undefined(&context.arena)
         });
     }
     if is_mathml || ignore_hydration {
         html_args.push(if is_mathml {
             b::boolean(true)
         } else {
-            b::undefined()
+            b::undefined(&context.arena)
         });
     }
     if ignore_hydration {
         html_args.push(b::boolean(true));
     }
 
-    let html_statement = b::stmt(b::call(b::member_path("$.html"), html_args));
+    let html_statement = b::stmt(
+        &context.arena,
+        b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.html"),
+            html_args,
+        ),
+    );
 
     // If the expression has await or blockers, wrap in $.async()
     if has_await || has_blockers {
@@ -105,9 +118,12 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
         let async_values = if has_await {
             // Strip the top-level await from the expression since $.async handles
             // the awaiting internally. The expression becomes a thunk returning the Promise.
-            b::array(vec![b::thunk(b::strip_await(built_expression))])
+            b::array(vec![b::thunk(
+                &context.arena,
+                b::strip_await(&context.arena, built_expression),
+            )])
         } else {
-            b::undefined()
+            b::undefined(&context.arena)
         };
 
         // Callback params: (node, $$html) when has_await, (node) when only blockers
@@ -122,15 +138,19 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
 
         let callback = b::arrow_block(callback_params, vec![html_statement]);
 
-        b::stmt(b::call(
-            b::member_path("$.async"),
-            vec![
-                context.state.node.clone(),
-                blockers_expr,
-                async_values,
-                callback,
-            ],
-        ))
+        b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.async"),
+                vec![
+                    context.state.node.clone(),
+                    blockers_expr,
+                    async_values,
+                    callback,
+                ],
+            ),
+        )
     } else {
         html_statement
     }

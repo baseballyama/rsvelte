@@ -52,13 +52,18 @@ pub fn on_directive(node: &OnDirective, context: &mut ComponentContext) -> JsExp
     // The needs_props_from_events flag is set in build_event_handler when expression is None
 
     // Build the event handler
-    let mut handler = build_event_handler(node.expression.as_ref(), node, context);
+    let arena_ref = unsafe { &*(&context.arena as *const _) };
+    let mut handler = build_event_handler(arena_ref, node.expression.as_ref(), node, context);
 
     // Apply modifiers
     for modifier in MODIFIERS {
         if node.modifiers.iter().any(|m| m.as_str() == *modifier) {
             let modifier_fn = format!("$.{}", modifier);
-            handler = b::call(b::member_path(&modifier_fn), vec![handler]);
+            handler = b::call(
+                &context.arena,
+                b::member_path(&context.arena, &modifier_fn),
+                vec![handler],
+            );
         }
     }
 
@@ -81,5 +86,12 @@ pub fn on_directive(node: &OnDirective, context: &mut ComponentContext) -> JsExp
     };
 
     // Build the $.event() call
-    build_event(&node.name, &context.state.node, handler, capture, passive)
+    build_event(
+        &context.arena,
+        &node.name,
+        &context.state.node,
+        handler,
+        capture,
+        passive,
+    )
 }

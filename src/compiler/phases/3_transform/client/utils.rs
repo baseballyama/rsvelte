@@ -263,6 +263,7 @@ pub fn build_getter(
         String,
         crate::compiler::phases::phase3_transform::client::types::IdentifierTransform,
     >,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 ) -> crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr {
     use crate::compiler::phases::phase3_transform::js_ast::builders as b;
     use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
@@ -272,7 +273,7 @@ pub fn build_getter(
         && let Some(read_fn) = t.read
     {
         // Apply the transform
-        return read_fn(JsExpr::Identifier(name.into()));
+        return read_fn(arena, JsExpr::Identifier(name.into()));
     }
 
     // No transform - return the identifier as-is

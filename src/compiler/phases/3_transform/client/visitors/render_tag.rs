@@ -81,29 +81,48 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
                 // Generate async value id like $0, $1, etc.
                 let id_name = format!("${}", async_values.len());
                 // Strip the top-level await since $.async handles the awaiting
-                let stripped = b::strip_await(built);
+                let stripped = b::strip_await(&context.arena, built);
                 // If the stripped expression still contains awaits, use async thunk
-                let thunked = if b::js_expr_has_await(&stripped) {
-                    b::async_thunk(stripped)
+                let thunked = if b::js_expr_has_await(&context.arena, &stripped) {
+                    b::async_thunk(&context.arena, stripped)
                 } else {
-                    b::thunk(stripped)
+                    b::thunk(&context.arena, stripped)
                 };
                 async_values.push(thunked);
                 async_ids.push(id_name.clone().into());
                 // Return: () => $.get($N)
-                b::thunk(b::call(b::member_path("$.get"), vec![b::id(&id_name)]))
+                b::thunk(
+                    &context.arena,
+                    b::call(
+                        &context.arena,
+                        b::member_path(&context.arena, "$.get"),
+                        vec![b::id(&id_name)],
+                    ),
+                )
             } else {
                 // If the argument expression has a call, we need to memoize it with $.derived()
                 let has_call_from_expr = render_tag_has_call(arg);
                 if template_metadata.has_call() || has_call_from_expr {
                     let id_name = context.state.memoizer.generate_id("$0");
                     derived_decls.push(b::let_decl(
+                        &context.arena,
                         &id_name,
-                        Some(b::call(b::member_path("$.derived"), vec![b::thunk(built)])),
+                        Some(b::call(
+                            &context.arena,
+                            b::member_path(&context.arena, "$.derived"),
+                            vec![b::thunk(&context.arena, built)],
+                        )),
                     ));
-                    b::thunk(b::call(b::member_path("$.get"), vec![b::id(&id_name)]))
+                    b::thunk(
+                        &context.arena,
+                        b::call(
+                            &context.arena,
+                            b::member_path(&context.arena, "$.get"),
+                            vec![b::id(&id_name)],
+                        ),
+                    )
                 } else {
-                    b::thunk(built)
+                    b::thunk(&context.arena, built)
                 }
             }
         })
@@ -128,18 +147,30 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
     let call = if node.metadata.dynamic {
         // Dynamic snippet: use $.snippet() helper
         let snippet_fn = if is_chain_expression {
-            b::logical_str("??", snippet_function, b::member_path("$.noop"))
+            b::logical_str(
+                &context.arena,
+                "??",
+                snippet_function,
+                b::member_path(&context.arena, "$.noop"),
+            )
         } else {
             snippet_function
         };
-        let mut call_args = vec![context.state.node.clone(), b::thunk(snippet_fn)];
+        let mut call_args = vec![
+            context.state.node.clone(),
+            b::thunk(&context.arena, snippet_fn),
+        ];
         call_args.extend(args);
-        b::call(b::member_path("$.snippet"), call_args)
+        b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.snippet"),
+            call_args,
+        )
     } else {
         // Static snippet: direct call
         let mut call_args = vec![context.state.node.clone()];
         call_args.extend(args);
-        b::call(snippet_function, call_args)
+        b::call(&context.arena, snippet_function, call_args)
     };
 
     // Build the statements list (derived decls + call)
@@ -149,6 +180,7 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
         use crate::compiler::phases::phase3_transform::client::visitors::attribute::locate_in_source;
         let (line, col) = locate_in_source(&context.state.analysis.source, node.start as usize);
         statements.push(super::shared::utils::add_svelte_meta_dev(
+            &context.arena,
             call,
             "render",
             &context.state.analysis.name,
@@ -158,7 +190,7 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
             true,
         ));
     } else {
-        statements.push(b::stmt(call));
+        statements.push(b::stmt(&context.arena, call));
     }
 
     // Check for blockers from the blocker_map by scanning the call for identifiers.
@@ -169,11 +201,12 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
     let mut all_blocker_exprs: Vec<JsExpr> = Vec::new();
     for stmt in &statements {
         let mut names = Vec::new();
-        super::fragment::collect_identifiers_from_statement_deep(stmt, &mut names);
+        super::fragment::collect_identifiers_from_statement_deep(stmt, &context.arena, &mut names);
         let map = context.state.blocker_map.borrow();
         for name in &names {
             if let Some(&idx) = map.get(name.as_str()) {
-                let blocker = b::member_computed(b::id("$$promises"), b::number(idx as f64));
+                let blocker =
+                    b::member_computed(&context.arena, b::id("$$promises"), b::number(idx as f64));
                 let blocker_str = format!("{:?}", blocker);
                 if !all_blocker_exprs
                     .iter()
@@ -206,30 +239,41 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
         let blockers_arg = if has_blockers {
             b::array(all_blocker_exprs)
         } else {
-            b::undefined()
+            b::undefined(&context.arena)
         };
 
         // Build async_values argument
         let async_values_arg = if any_has_await {
             b::array(async_values)
         } else {
-            b::undefined()
+            b::undefined(&context.arena)
         };
 
-        let result = b::stmt(b::call(
-            b::member_path("$.async"),
-            vec![
-                context.state.node.clone(),
-                blockers_arg,
-                async_values_arg,
-                callback,
-            ],
-        ));
+        let result = b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.async"),
+                vec![
+                    context.state.node.clone(),
+                    blockers_arg,
+                    async_values_arg,
+                    callback,
+                ],
+            ),
+        );
 
         // If standalone, push $.async() to init and add $.next() after
         if context.state.is_standalone {
             context.state.init.push(result);
-            return b::stmt(b::call(b::member_path("$.next"), vec![]));
+            return b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.next"),
+                    vec![],
+                ),
+            );
         }
 
         result

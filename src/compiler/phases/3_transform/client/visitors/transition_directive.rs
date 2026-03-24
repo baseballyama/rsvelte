@@ -48,7 +48,7 @@ pub const TRANSITION_GLOBAL: u32 = 1 << 2; // 4
 ///     const args = [
 ///         b.literal(flags),
 ///         context.state.node,
-///         b.thunk(context.visit(parse_directive_name(node.name)))
+///         b.thunk(context.visit(parse_directive_name(&context.arena, node.name)))
 ///     ];
 ///
 ///     if (node.expression) {
@@ -91,14 +91,14 @@ pub fn transition_directive(node: &TransitionDirective, context: &mut ComponentC
     // Parse the directive name (e.g., "fade" or "custom.transition")
     // Apply transforms (equivalent to context.visit() in JS) to handle
     // state/derived variable wrapping, e.g., $.get(derived)
-    let name_expr = parse_directive_name(&node.name);
+    let name_expr = parse_directive_name(&context.arena, &node.name);
     let visited_name = apply_transforms_to_expression(&name_expr, context);
 
     // Build arguments: [flags, node, () => name, (() => expression)?]
     let mut args = vec![
         b::number(flags as f64),
         context.state.node.clone(),
-        b::thunk(visited_name.clone()),
+        b::thunk(&context.arena, visited_name.clone()),
     ];
 
     // If expression is provided, add it as a thunk
@@ -109,13 +109,20 @@ pub fn transition_directive(node: &TransitionDirective, context: &mut ComponentC
         let visited_expr = convert_expression(expr, context);
         let transformed_expr = apply_transforms_to_expression(&visited_expr, context);
         expr_for_blockers = Some(transformed_expr.clone());
-        args.push(b::thunk(transformed_expr));
+        args.push(b::thunk(&context.arena, transformed_expr));
     } else {
         expr_for_blockers = None;
     }
 
     // Build the transition call: $.transition(flags, node, () => name, (() => expr)?)
-    let mut statement = b::stmt(b::call(b::member_path("$.transition"), args));
+    let mut statement = b::stmt(
+        &context.arena,
+        b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.transition"),
+            args,
+        ),
+    );
 
     // Check if any referenced variables are blocked by async promises.
     // We check both the directive name and expression for blocker references.
@@ -127,10 +134,14 @@ pub fn transition_directive(node: &TransitionDirective, context: &mut ComponentC
 
     if !blocker_exprs.is_empty() {
         let blockers_array = b::array(blocker_exprs);
-        statement = b::stmt(b::call(
-            b::member_path("$.run_after_blockers"),
-            vec![blockers_array, b::arrow_block(vec![], vec![statement])],
-        ));
+        statement = b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.run_after_blockers"),
+                vec![blockers_array, b::arrow_block(vec![], vec![statement])],
+            ),
+        );
     }
 
     // Add to after_update to ensure it runs after bind:this
@@ -146,7 +157,7 @@ pub fn get_blockers_for_exprs(exprs: &[&JsExpr], context: &ComponentContext) -> 
     // Collect all identifiers from all expressions
     let mut all_names: Vec<compact_str::CompactString> = Vec::new();
     for expr in exprs {
-        let names = collect_expr_identifiers(expr);
+        let names = collect_expr_identifiers(expr, &context.arena);
         for name in names {
             if !all_names.contains(&name) {
                 all_names.push(name);
@@ -154,18 +165,27 @@ pub fn get_blockers_for_exprs(exprs: &[&JsExpr], context: &ComponentContext) -> 
         }
     }
     let name_refs: Vec<&str> = all_names.iter().map(|s| s.as_str()).collect();
-    context.state.get_blockers_for_names(&name_refs)
+    context
+        .state
+        .get_blockers_for_names(&name_refs, &context.arena)
 }
 
 /// Collect all identifier names from a JsExpr without crossing function boundaries.
 /// This is used to find which variables a directive references for blocker checking.
-fn collect_expr_identifiers(expr: &JsExpr) -> Vec<compact_str::CompactString> {
+fn collect_expr_identifiers(
+    expr: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> Vec<compact_str::CompactString> {
     let mut names = Vec::new();
-    collect_expr_identifiers_recursive(expr, &mut names);
+    collect_expr_identifiers_recursive(expr, arena, &mut names);
     names
 }
 
-fn collect_expr_identifiers_recursive(expr: &JsExpr, names: &mut Vec<compact_str::CompactString>) {
+fn collect_expr_identifiers_recursive(
+    expr: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    names: &mut Vec<compact_str::CompactString>,
+) {
     use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
     match expr {
         JsExpr::Identifier(name) => {
@@ -174,50 +194,50 @@ fn collect_expr_identifiers_recursive(expr: &JsExpr, names: &mut Vec<compact_str
             }
         }
         JsExpr::Call(call) => {
-            collect_expr_identifiers_recursive(&call.callee, names);
+            collect_expr_identifiers_recursive(arena.get_expr(call.callee), arena, names);
             for arg in &call.arguments {
-                collect_expr_identifiers_recursive(arg, names);
+                collect_expr_identifiers_recursive(arg, arena, names);
             }
         }
         JsExpr::Member(member) => {
-            collect_expr_identifiers_recursive(&member.object, names);
+            collect_expr_identifiers_recursive(arena.get_expr(member.object), arena, names);
             if member.computed
                 && let JsMemberProperty::Expression(prop_expr) = &member.property
             {
-                collect_expr_identifiers_recursive(prop_expr, names);
+                collect_expr_identifiers_recursive(arena.get_expr(*prop_expr), arena, names);
             }
         }
         JsExpr::Binary(bin) => {
-            collect_expr_identifiers_recursive(&bin.left, names);
-            collect_expr_identifiers_recursive(&bin.right, names);
+            collect_expr_identifiers_recursive(arena.get_expr(bin.left), arena, names);
+            collect_expr_identifiers_recursive(arena.get_expr(bin.right), arena, names);
         }
         JsExpr::Logical(log) => {
-            collect_expr_identifiers_recursive(&log.left, names);
-            collect_expr_identifiers_recursive(&log.right, names);
+            collect_expr_identifiers_recursive(arena.get_expr(log.left), arena, names);
+            collect_expr_identifiers_recursive(arena.get_expr(log.right), arena, names);
         }
         JsExpr::Unary(un) => {
-            collect_expr_identifiers_recursive(&un.argument, names);
+            collect_expr_identifiers_recursive(arena.get_expr(un.argument), arena, names);
         }
         JsExpr::Conditional(cond) => {
-            collect_expr_identifiers_recursive(&cond.test, names);
-            collect_expr_identifiers_recursive(&cond.consequent, names);
-            collect_expr_identifiers_recursive(&cond.alternate, names);
+            collect_expr_identifiers_recursive(arena.get_expr(cond.test), arena, names);
+            collect_expr_identifiers_recursive(arena.get_expr(cond.consequent), arena, names);
+            collect_expr_identifiers_recursive(arena.get_expr(cond.alternate), arena, names);
         }
         JsExpr::Sequence(seq) => {
             for e in &seq.expressions {
-                collect_expr_identifiers_recursive(e, names);
+                collect_expr_identifiers_recursive(e, arena, names);
             }
         }
         JsExpr::Array(arr) => {
             for e in arr.elements.iter().flatten() {
-                collect_expr_identifiers_recursive(e, names);
+                collect_expr_identifiers_recursive(e, arena, names);
             }
         }
         JsExpr::Assignment(assign) => {
-            collect_expr_identifiers_recursive(&assign.right, names);
+            collect_expr_identifiers_recursive(arena.get_expr(assign.right), arena, names);
         }
         JsExpr::Spread(inner) => {
-            collect_expr_identifiers_recursive(inner, names);
+            collect_expr_identifiers_recursive(arena.get_expr(*inner), arena, names);
         }
         // Don't cross function boundaries
         JsExpr::Arrow(_) | JsExpr::Function(_) => {}

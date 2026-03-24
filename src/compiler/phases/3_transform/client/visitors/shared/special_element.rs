@@ -48,7 +48,7 @@ pub fn visit_special_element(
                 // OnDirective: visit and add to state.init as a statement
                 let result = visit_on_directive(on_directive, &new_state, context);
                 if let TransformResult::Expression(expr) = result {
-                    new_state.init.push(b::stmt(expr));
+                    new_state.init.push(b::stmt(&context.arena, expr));
                 }
             }
             _ => {

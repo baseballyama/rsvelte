@@ -113,7 +113,9 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
 
     // Check if the expression has blockers (references variables assigned after await)
     // Check both instance-level blocker_map and const-tag-level const_blocker_map.
-    let blocker_exprs = context.state.get_all_blockers_for_expr(&expression);
+    let blocker_exprs = context
+        .state
+        .get_all_blockers_for_expr(&expression, &context.arena);
     let has_blockers = !blocker_exprs.is_empty();
 
     // Collect all flattened if/elseif branches
@@ -140,6 +142,7 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
 
         // var consequent_n = ($$anchor) => { ... }
         statements.push(b::var_decl(
+            &context.arena,
             &consequent_id_name,
             Some(b::arrow_block(
                 vec![b::id_pattern("$$anchor")],
@@ -150,7 +153,11 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
         // Build the test expression for this branch
         let test = if branch.metadata.expression.has_await() {
             // Await is resolved by the $.async wrapper — use $$condition
-            b::call(b::member_path("$.get"), vec![b::id("$$condition")])
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.get"),
+                vec![b::id("$$condition")],
+            )
         } else {
             let converted = convert_expression(&branch.test, context);
             let meta = ExpressionMetadata::from_template_metadata(&branch.metadata.expression);
@@ -161,13 +168,19 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
                 let derived_id_name = context.state.memoizer.generate_id("d");
                 let derived_id = b::id(&derived_id_name);
                 statements.push(b::var_decl(
+                    &context.arena,
                     &derived_id_name,
                     Some(b::call(
-                        b::member_path("$.derived"),
-                        vec![b::arrow(vec![], expr)],
+                        &context.arena,
+                        b::member_path(&context.arena, "$.derived"),
+                        vec![b::arrow(&context.arena, vec![], expr)],
                     )),
                 ));
-                b::call(b::member_path("$.get"), vec![derived_id])
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.get"),
+                    vec![derived_id],
+                )
             } else {
                 expr
             }
@@ -175,12 +188,19 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
 
         // $$render(consequent_n) or $$render(consequent_n, index) for elseif branches
         let render_stmt = if index == 0 {
-            b::stmt(b::call(b::id("$$render"), vec![consequent_id]))
+            b::stmt(
+                &context.arena,
+                b::call(&context.arena, b::id("$$render"), vec![consequent_id]),
+            )
         } else {
-            b::stmt(b::call(
-                b::id("$$render"),
-                vec![consequent_id, b::number(index as f64)],
-            ))
+            b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::id("$$render"),
+                    vec![consequent_id, b::number(index as f64)],
+                ),
+            )
         };
 
         branch_data.push(BranchData { test, render_stmt });
@@ -198,6 +218,7 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
 
         // var alternate = ($$anchor) => { ... }
         statements.push(b::var_decl(
+            &context.arena,
             &alternate_id_name,
             Some(b::arrow_block(
                 vec![b::id_pattern("$$anchor")],
@@ -206,10 +227,14 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
         ));
 
         // $$render(alternate, false)
-        Some(b::stmt(b::call(
-            b::id("$$render"),
-            vec![alternate_id, b::boolean(false)],
-        )))
+        Some(b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::id("$$render"),
+                vec![alternate_id, b::boolean(false)],
+            ),
+        ))
     } else {
         None
     };
@@ -217,7 +242,7 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
     // Build the flat if/else-if/else chain from right to left
     let mut if_chain: Option<JsStatement> = final_alt_stmt;
     for data in branch_data.into_iter().rev() {
-        let new_if = b::if_stmt(data.test, data.render_stmt, if_chain);
+        let new_if = b::if_stmt(&context.arena, data.test, data.render_stmt, if_chain);
         if_chain = Some(new_if);
     }
 
@@ -239,11 +264,12 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
         args.push(b::boolean(true));
     }
 
-    let if_call = b::call(b::member_path("$.if"), args);
+    let if_call = b::call(&context.arena, b::member_path(&context.arena, "$.if"), args);
     let if_statement = if context.state.dev {
         use crate::compiler::phases::phase3_transform::client::visitors::attribute::locate_in_source;
         let (line, col) = locate_in_source(&context.state.analysis.source, node.start as usize);
         super::shared::utils::add_svelte_meta_dev(
+            &context.arena,
             if_call,
             "if",
             &context.state.analysis.name,
@@ -253,7 +279,7 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
             true,
         )
     } else {
-        add_svelte_meta(if_call)
+        add_svelte_meta(&context.arena, if_call)
     };
     statements.push(if_statement);
 
@@ -268,9 +294,9 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
 
         // Async values: only present when has_await
         let async_values = if has_await {
-            b::array(vec![b::async_thunk(expression)])
+            b::array(vec![b::async_thunk(&context.arena, expression)])
         } else {
-            b::undefined()
+            b::undefined(&context.arena)
         };
 
         // Callback params: include $$condition only when has_await
@@ -286,7 +312,8 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
         };
 
         let async_call = b::call(
-            b::member_path("$.async"),
+            &context.arena,
+            b::member_path(&context.arena, "$.async"),
             vec![
                 context.state.node.clone(),
                 blockers,
@@ -295,7 +322,7 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
             ],
         );
 
-        context.state.init.push(b::stmt(async_call));
+        context.state.init.push(b::stmt(&context.arena, async_call));
     } else {
         context.state.init.push(b::block(statements));
     }

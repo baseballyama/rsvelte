@@ -96,7 +96,9 @@ where
             // Also check if the expression references variables that are blocked by async promises.
             // In the official compiler, this is handled via binding.blocker and is_async(),
             // which causes has_state to include blocked variables.
-            let has_blockers = context.state.has_blockers_for_expr(&transformed);
+            let has_blockers = context
+                .state
+                .has_blockers_for_expr(&transformed, &context.arena);
             let has_state = has_reactive_state || has_call || has_blockers;
 
             // Update metadata with correct has_state value
@@ -134,7 +136,9 @@ where
                     let transformed = build_expression(context, &expression, &metadata);
 
                     // Also check for blocked async variables
-                    let has_blockers = context.state.has_blockers_for_expr(&transformed);
+                    let has_blockers = context
+                        .state
+                        .has_blockers_for_expr(&transformed, &context.arena);
                     let has_state = has_reactive_state || has_call || has_blockers;
 
                     // Update metadata with correct has_state value
@@ -222,12 +226,12 @@ where
                 let is_defined = if let JsExpr::Identifier(_) = &memoized {
                     super::utils::is_expression_defined(&expr_tag.expression, context)
                 } else {
-                    super::utils::is_js_expr_defined(&memoized)
+                    super::utils::is_js_expr_defined(&memoized, &context.arena)
                 };
                 let final_value = if is_defined {
                     memoized
                 } else {
-                    b::logical_str("??", memoized, b::string(""))
+                    b::logical_str(&context.arena, "??", memoized, b::string(""))
                 };
 
                 expressions.push(final_value);
@@ -403,11 +407,20 @@ fn is_literal_value(val: &serde_json::Value) -> bool {
 /// Build attribute setter.
 ///
 /// Creates a call to set an attribute on an element.
-pub fn build_set_attribute(element: JsExpr, name: &str, value: JsExpr) -> JsStatement {
-    b::stmt(b::call(
-        b::member_path("$.set_attribute"),
-        vec![element, b::string(name), value],
-    ))
+pub fn build_set_attribute(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    element: JsExpr,
+    name: &str,
+    value: JsExpr,
+) -> JsStatement {
+    b::stmt(
+        arena,
+        b::call(
+            arena,
+            b::member_path(arena, "$.set_attribute"),
+            vec![element, b::string(name), value],
+        ),
+    )
 }
 
 /// Build an object from class directives.
@@ -473,7 +486,11 @@ pub fn build_class_directives_object_with_memoizer(
         // This ensures props are called as functions: { foo: foo() } instead of { foo }
         let expression = super::utils::apply_transforms_to_expression(&expression, context);
 
-        properties.push(b::prop(directive.name.to_string(), expression));
+        properties.push(b::prop(
+            &context.arena,
+            directive.name.to_string(),
+            expression,
+        ));
     }
 
     let directives_obj = b::object(properties);
@@ -559,9 +576,17 @@ pub fn build_style_directives_object_with_memoizer(
             .any(|m| m.as_str() == "important");
 
         if is_important {
-            important_properties.push(b::prop(directive.name.to_string(), expression));
+            important_properties.push(b::prop(
+                &context.arena,
+                directive.name.to_string(),
+                expression,
+            ));
         } else {
-            normal_properties.push(b::prop(directive.name.to_string(), expression));
+            normal_properties.push(b::prop(
+                &context.arena,
+                directive.name.to_string(),
+                expression,
+            ));
         }
     }
 
@@ -654,6 +679,7 @@ pub fn build_set_class(
         let mut memoizer = std::mem::take(&mut context.state.memoizer);
         let mut any_has_call = false;
         let mut any_has_await = false;
+        let arena_ref_elem = unsafe { &*(&context.arena as *const _) };
         let result = build_attribute_value(attr_value, context, |expr, metadata| {
             let has_call = metadata.has_call();
             let has_await = metadata.has_await();
@@ -669,7 +695,11 @@ pub fn build_set_class(
             // callback, so the memoized array contains `() => $.clsx(expr)` and the callback
             // parameter `$0` already has the clsx'd value.
             let expr_to_memoize = if should_clsx {
-                b::call(b::member_path("$.clsx"), vec![expr])
+                b::call(
+                    arena_ref_elem,
+                    b::member_path(arena_ref_elem, "$.clsx"),
+                    vec![expr],
+                )
             } else {
                 expr
             };
@@ -707,7 +737,10 @@ pub fn build_set_class(
         if has_state {
             let id = context.state.memoizer.generate_id("classes");
             // Add variable declaration: let classes;
-            context.state.init.push(b::let_decl(&id, None));
+            context
+                .state
+                .init
+                .push(b::let_decl(&context.arena, &id, None));
             prev = Some(b::id(&id));
             previous_id = Some(id);
         } else {
@@ -756,29 +789,36 @@ pub fn build_set_class(
     let node_expr = b::id(node_id);
 
     let set_class_call = b::call_trimmed(
-        b::member_path("$.set_class"),
+        &context.arena,
+        b::member_path(&context.arena, "$.set_class"),
         vec![
             node_expr,
             flags,
             class_value,
-            css_hash_expr.unwrap_or_else(b::undefined),
-            prev.unwrap_or_else(b::undefined),
-            next.unwrap_or_else(b::undefined),
+            css_hash_expr.unwrap_or_else(|| b::undefined(&context.arena)),
+            prev.unwrap_or_else(|| b::undefined(&context.arena)),
+            next.unwrap_or_else(|| b::undefined(&context.arena)),
         ],
     );
 
     // Wrap in assignment if we have a previous_id
     let set_class_expr = if let Some(ref id) = previous_id {
-        b::assign(b::id(id), set_class_call)
+        b::assign(&context.arena, b::id(id), set_class_call)
     } else {
         set_class_call
     };
 
     // Push to either update (has_state) or init (static)
     if has_state {
-        context.state.update.push(b::stmt(set_class_expr));
+        context
+            .state
+            .update
+            .push(b::stmt(&context.arena, set_class_expr));
     } else {
-        context.state.init.push(b::stmt(set_class_expr));
+        context
+            .state
+            .init
+            .push(b::stmt(&context.arena, set_class_expr));
     }
 }
 
@@ -823,7 +863,8 @@ pub fn build_set_class_call(
 
     // $.set_class(element, flags, class_attr, css_hash, prev, next)
     b::call(
-        b::member_path("$.set_class"),
+        &context.arena,
+        b::member_path(&context.arena, "$.set_class"),
         vec![
             b::id(node_id.clone()),
             flags,
@@ -860,7 +901,8 @@ pub fn build_set_style_call(
 
     // $.set_style(element, style_attr, prev, next)
     b::call(
-        b::member_path("$.set_style"),
+        &context.arena,
+        b::member_path(&context.arena, "$.set_style"),
         vec![node_expr, style_attr, prev, style_obj],
     )
 }
@@ -926,7 +968,10 @@ pub fn build_set_style(
                 let result = build_attribute_value(&directive.value, context, |expr, _| expr);
                 result.value
             };
-            if context.state.has_blockers_for_expr(&js_expr) {
+            if context
+                .state
+                .has_blockers_for_expr(&js_expr, &context.arena)
+            {
                 has_state = true;
                 break;
             }
@@ -934,7 +979,10 @@ pub fn build_set_style(
 
         if has_state {
             let id = context.state.memoizer.generate_id("styles");
-            context.state.init.push(b::let_decl(&id, None));
+            context
+                .state
+                .init
+                .push(b::let_decl(&context.arena, &id, None));
             prev = b::id(&id);
             previous_id = Some(id);
         }
@@ -949,20 +997,30 @@ pub fn build_set_style(
         args.push(next_obj);
     }
 
-    let set_style = b::call(b::member_path("$.set_style"), args);
+    let set_style = b::call(
+        &context.arena,
+        b::member_path(&context.arena, "$.set_style"),
+        args,
+    );
 
     // Wrap in assignment if we have a previous_id
     let set_style_expr = if let Some(ref id) = previous_id {
-        b::assign(b::id(id), set_style)
+        b::assign(&context.arena, b::id(id), set_style)
     } else {
         set_style
     };
 
     // Push to either update (has_state) or init (static)
     if has_state {
-        context.state.update.push(b::stmt(set_style_expr));
+        context
+            .state
+            .update
+            .push(b::stmt(&context.arena, set_style_expr));
     } else {
-        context.state.init.push(b::stmt(set_style_expr));
+        context
+            .state
+            .init
+            .push(b::stmt(&context.arena, set_style_expr));
     }
 }
 
@@ -1104,7 +1162,8 @@ fn build_style_attribute_value_with_memoization(
                         );
 
                         // Add ?? '' for non-defined values
-                        let final_value = b::logical_str("??", value, b::string(""));
+                        let final_value =
+                            b::logical_str(&context.arena, "??", value, b::string(""));
                         expressions.push(final_value);
 
                         if has_call || expr_has_state {
@@ -1229,13 +1288,25 @@ pub fn build_attribute_effect(
                     if is_function_expression(&transformed_value) {
                         // Give the event handler a stable ID so it isn't removed and readded on every update
                         let id = context.state.memoizer.generate_id("event_handler");
-                        event_handler_decls.push(b::var_decl(&id, Some(transformed_value)));
-                        properties.push(b::prop(attr.name.to_string(), b::id(&id)));
+                        event_handler_decls.push(b::var_decl(
+                            &context.arena,
+                            &id,
+                            Some(transformed_value),
+                        ));
+                        properties.push(b::prop(&context.arena, attr.name.to_string(), b::id(&id)));
                     } else {
-                        properties.push(b::prop(attr.name.to_string(), transformed_value));
+                        properties.push(b::prop(
+                            &context.arena,
+                            attr.name.to_string(),
+                            transformed_value,
+                        ));
                     }
                 } else {
-                    properties.push(b::prop(attr.name.to_string(), transformed_value));
+                    properties.push(b::prop(
+                        &context.arena,
+                        attr.name.to_string(),
+                        transformed_value,
+                    ));
                 }
             }
             Attribute::SpreadAttribute(spread) => {
@@ -1263,7 +1334,7 @@ pub fn build_attribute_effect(
                     has_state,
                 );
 
-                properties.push(b::spread(memoized_expr));
+                properties.push(b::spread(&context.arena, memoized_expr));
             }
             _ => {}
         }
@@ -1277,7 +1348,11 @@ pub fn build_attribute_effect(
             Some(&mut local_memoizer),
         );
         // Use $.CLASS as the key - using computed property
-        properties.push(b::prop_computed(b::member_path("$.CLASS"), class_obj));
+        properties.push(b::prop_computed(
+            &context.arena,
+            b::member_path(&context.arena, "$.CLASS"),
+            class_obj,
+        ));
     }
 
     // Add style directives (using the local memoizer, matching official compiler)
@@ -1288,7 +1363,11 @@ pub fn build_attribute_effect(
             Some(&mut local_memoizer),
         );
         // Use $.STYLE as the key - using computed property
-        properties.push(b::prop_computed(b::member_path("$.STYLE"), style_obj));
+        properties.push(b::prop_computed(
+            &context.arena,
+            b::member_path(&context.arena, "$.STYLE"),
+            style_obj,
+        ));
     }
 
     // Add event handler declarations first
@@ -1298,13 +1377,13 @@ pub fn build_attribute_effect(
 
     // Get memoizer parameters ($0, $1, etc.) and sync/async values
     let params = local_memoizer.apply();
-    let sync_values = local_memoizer.sync_values();
-    let async_values = local_memoizer.async_values();
+    let sync_values = local_memoizer.sync_values(&context.arena);
+    let async_values = local_memoizer.async_values(&context.arena);
 
     // Get blockers from expression metadata
     let blocker_exprs = context
         .state
-        .get_blockers_for_expr(&b::object(properties.clone()));
+        .get_blockers_for_expr(&b::object(properties.clone()), &context.arena);
     let blockers = if !blocker_exprs.is_empty() {
         Some(b::array(blocker_exprs))
     } else {
@@ -1326,7 +1405,7 @@ pub fn build_attribute_effect(
     // Build the attribute effect call
     // $.attribute_effect(element, ($0, $1...) => ({ ...attrs }), sync_values?, async_values?, blockers?, css_hash?, should_remove_defaults?, ignore_hydration?)
     let obj = b::object(properties);
-    let arrow = b::arrow(param_patterns, obj);
+    let arrow = b::arrow(&context.arena, param_patterns, obj);
 
     let mut args = vec![element_id, arrow];
 
@@ -1344,7 +1423,7 @@ pub fn build_attribute_effect(
         || ignore_hydration
     {
         // Add sync_values (or undefined if none)
-        args.push(sync_values.unwrap_or_else(b::undefined));
+        args.push(sync_values.unwrap_or_else(|| b::undefined(&context.arena)));
 
         // Add async_values if present
         if has_async
@@ -1353,26 +1432,26 @@ pub fn build_attribute_effect(
             || should_remove_defaults
             || ignore_hydration
         {
-            args.push(async_values.unwrap_or_else(b::undefined));
+            args.push(async_values.unwrap_or_else(|| b::undefined(&context.arena)));
         }
 
         // Add blockers if present
         if has_blockers || !css_hash.is_empty() || should_remove_defaults || ignore_hydration {
-            args.push(blockers.unwrap_or_else(b::undefined));
+            args.push(blockers.unwrap_or_else(|| b::undefined(&context.arena)));
         }
 
         // Add CSS hash if present, or undefined if we need should_remove_defaults or ignore_hydration
         if !css_hash.is_empty() {
             args.push(b::string(css_hash));
         } else if should_remove_defaults || ignore_hydration {
-            args.push(b::undefined());
+            args.push(b::undefined(&context.arena));
         }
 
         // Add should_remove_defaults if true, or undefined if ignore_hydration needs to be added
         if should_remove_defaults {
             args.push(b::boolean(true));
         } else if ignore_hydration {
-            args.push(b::undefined());
+            args.push(b::undefined(&context.arena));
         }
 
         // Add ignore_hydration if true
@@ -1381,10 +1460,14 @@ pub fn build_attribute_effect(
         }
     }
 
-    context.state.init.push(b::stmt(b::call_trimmed(
-        b::member_path("$.attribute_effect"),
-        args,
-    )));
+    context.state.init.push(b::stmt(
+        &context.arena,
+        b::call_trimmed(
+            &context.arena,
+            b::member_path(&context.arena, "$.attribute_effect"),
+            args,
+        ),
+    ));
 }
 
 /// Check if an attribute node is an event attribute (starts with "on").

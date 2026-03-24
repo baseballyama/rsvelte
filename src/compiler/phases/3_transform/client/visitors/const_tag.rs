@@ -87,7 +87,8 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
         // Reference: ConstTag.js lines 24-26
         if context.state.options.dev {
             derived_expr = b::call(
-                b::member(b::id("$"), "tag"),
+                &context.arena,
+                b::member(&context.arena, b::id("$"), "tag"),
                 vec![derived_expr, b::string(&id_name)],
             );
         }
@@ -181,18 +182,24 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
         // not in the return expression, so await expressions need $.save() wrapping.
         let is_async = node.metadata.expression.has_await();
         let init_for_const = if is_async {
-            b::apply_save_wrapping_non_tail(built_init)
+            b::apply_save_wrapping_non_tail(&context.arena, built_init)
         } else {
             built_init
         };
         let const_stmt = if let Some(pat) = pattern {
-            b::var_decl_pattern(JsVariableKind::Const, pat, Some(init_for_const.clone()))
+            b::var_decl_pattern(
+                &context.arena,
+                JsVariableKind::Const,
+                pat,
+                Some(init_for_const.clone()),
+            )
         } else {
             // Fallback: generate raw destructuring statement
             let pattern_str = render_pattern_as_string(&pattern_json);
             let init_str =
                 crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
                     &init_for_const,
+                    &context.arena,
                 );
             JsStatement::Raw(format!("const {} = {};", pattern_str, init_str).into())
         };
@@ -201,10 +208,10 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
         // Using shorthand properties: prop("x", id("x")) which auto-detects shorthand
         let return_props: Vec<JsObjectMember> = identifiers
             .iter()
-            .map(|name| b::prop(name.clone(), b::id(name)))
+            .map(|name| b::prop(&context.arena, name.clone(), b::id(name)))
             .collect();
         let return_obj = b::object(return_props);
-        let return_stmt = b::return_stmt(Some(return_obj));
+        let return_stmt = b::return_stmt(&context.arena, Some(return_obj));
 
         // Create the block expression as a thunk with block body: () => { const {...} = init; return {...}; }
         // We use thunk_block directly instead of create_derived + arrow_block to avoid
@@ -220,18 +227,22 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
         // Create derived expression wrapping the block thunk
         let mut derived_expr = if is_async {
             // Wrap with save(): (await $.save($.async_derived(thunk)))()
-            b::save(b::svelte_call("async_derived", vec![block_thunk]))
+            b::save(
+                &context.arena,
+                b::svelte_call(&context.arena, "async_derived", vec![block_thunk]),
+            )
         } else if context.state.analysis.runes {
-            b::svelte_call("derived", vec![block_thunk])
+            b::svelte_call(&context.arena, "derived", vec![block_thunk])
         } else {
-            b::svelte_call("derived_safe_equal", vec![block_thunk])
+            b::svelte_call(&context.arena, "derived_safe_equal", vec![block_thunk])
         };
 
         // In dev mode, wrap with $.tag(expression, '[@const]')
         // Reference: ConstTag.js lines 69-71
         if context.state.options.dev {
             derived_expr = b::call(
-                b::member(b::id("$"), "tag"),
+                &context.arena,
+                b::member(&context.arena, b::id("$"), "tag"),
                 vec![derived_expr, b::string("[@const]")],
             );
         }
@@ -466,20 +477,26 @@ fn create_derived(context: &ComponentContext, expression: JsExpr, is_async: bool
         // For ConstTag, ALL awaits must be save-wrapped (non-tail position)
         // because is_last_evaluated_expression returns false for ConstTag parent.
         // Use apply_save_wrapping_non_tail instead of async_thunk's apply_save_wrapping.
-        let saved_expr = b::apply_save_wrapping_non_tail(expression);
-        b::unthunk(b::async_arrow(vec![], saved_expr))
+        let saved_expr = b::apply_save_wrapping_non_tail(&context.arena, expression);
+        b::unthunk(
+            &context.arena,
+            b::async_arrow(&context.arena, vec![], saved_expr),
+        )
     } else {
-        b::thunk(expression)
+        b::thunk(&context.arena, expression)
     };
 
     if is_async {
         // Wrap with save(): (await $.save($.async_derived(thunk)))()
         // Matches official: save(b.call('$.async_derived', thunk))
-        b::save(b::svelte_call("async_derived", vec![thunk]))
+        b::save(
+            &context.arena,
+            b::svelte_call(&context.arena, "async_derived", vec![thunk]),
+        )
     } else if context.state.analysis.runes {
-        b::svelte_call("derived", vec![thunk])
+        b::svelte_call(&context.arena, "derived", vec![thunk])
     } else {
-        b::svelte_call("derived_safe_equal", vec![thunk])
+        b::svelte_call(&context.arena, "derived_safe_equal", vec![thunk])
     }
 }
 
@@ -528,7 +545,8 @@ fn add_const_declaration(
                 // Filter out blockers that point to the current async_consts group
                 // (matching official: b.object !== state.async_consts?.id)
                 let should_include = match blocker_expr {
-                    JsExpr::Member(member_expr) => match member_expr.object.as_ref() {
+                    JsExpr::Member(member_expr) => match context.arena.get_expr(member_expr.object)
+                    {
                         JsExpr::Identifier(obj_name) => {
                             current_async_consts_id.as_deref() != Some(obj_name.as_str())
                         }
@@ -561,33 +579,47 @@ fn add_const_declaration(
         });
 
         // Add let declaration
-        context.state.consts.push(b::let_decl(id_name, None));
+        context
+            .state
+            .consts
+            .push(b::let_decl(&context.arena, id_name, None));
 
         // Add blocker wait thunks before the assignment thunk.
         // Official: if (blockers.length === 1) run.thunks.push(b.thunk(b.member(blockers[0], 'promise')))
         //           else if (blockers.length > 0) run.thunks.push(b.thunk(b.call('$.wait', b.array(blockers))))
         if blockers.len() == 1 {
             // Single blocker: () => blocker.promise
-            let blocker_promise = b::member(blockers.into_iter().next().unwrap(), "promise");
-            async_consts.thunks.push(b::thunk(blocker_promise));
-        } else if blockers.len() > 1 {
-            // Multiple blockers: () => $.wait([blocker1, blocker2])
+            let blocker_promise = b::member(
+                &context.arena,
+                blockers.into_iter().next().unwrap(),
+                "promise",
+            );
             async_consts
                 .thunks
-                .push(b::thunk(b::svelte_call("wait", vec![b::array(blockers)])));
+                .push(b::thunk(&context.arena, blocker_promise));
+        } else if blockers.len() > 1 {
+            // Multiple blockers: () => $.wait([blocker1, blocker2])
+            async_consts.thunks.push(b::thunk(
+                &context.arena,
+                b::svelte_call(&context.arena, "wait", vec![b::array(blockers)]),
+            ));
         }
 
         // Create assignment expression
-        let assignment = b::assign(b::id(id_name), expression);
+        let assignment = b::assign(&context.arena, b::id(id_name), expression);
 
         // Add thunk to async_consts
         // Note: We use a plain async arrow (not async_thunk) because the expression
         // from create_derived already has $.save() wrapping applied internally.
         // Using async_thunk would apply save wrapping again, causing double-save.
         if has_await {
-            async_consts.thunks.push(b::async_arrow(vec![], assignment));
+            async_consts
+                .thunks
+                .push(b::async_arrow(&context.arena, vec![], assignment));
         } else {
-            async_consts.thunks.push(b::thunk(assignment));
+            async_consts
+                .thunks
+                .push(b::thunk(&context.arena, assignment));
         }
 
         // Register the blocker for this binding in const_blocker_map.
@@ -595,7 +627,11 @@ fn add_const_declaration(
         //           for (const binding of bindings) { binding.blocker = blocker; }
         let thunk_index = async_consts.thunks.len() - 1;
         let async_consts_id = async_consts.id.clone();
-        let blocker_expr = b::member_computed(async_consts_id, b::number(thunk_index as f64));
+        let blocker_expr = b::member_computed(
+            &context.arena,
+            async_consts_id,
+            b::number(thunk_index as f64),
+        );
         context
             .state
             .const_blocker_map
@@ -606,16 +642,16 @@ fn add_const_declaration(
         context
             .state
             .consts
-            .push(b::const_decl(id_name, expression));
+            .push(b::const_decl(&context.arena, id_name, expression));
 
         // In dev mode, add an eager $.get(id) call after the const declaration.
         // This ensures "Cannot access x before initialization" errors are hit immediately.
         // Reference: ConstTag.js line 99
         if context.state.options.dev {
-            context
-                .state
-                .consts
-                .push(b::stmt(b::svelte_call("get", vec![b::id(id_name)])));
+            context.state.consts.push(b::stmt(
+                &context.arena,
+                b::svelte_call(&context.arena, "get", vec![b::id(id_name)]),
+            ));
         }
     }
 }

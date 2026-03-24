@@ -45,7 +45,7 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 ///         b.call(
 ///             '$.animation',
 ///             context.state.node,
-///             b.thunk(/** @type {Expression} */ (context.visit(parse_directive_name(node.name)))),
+///             b.thunk(/** @type {Expression} */ (context.visit(parse_directive_name(&context.arena, node.name)))),
 ///             expression
 ///         )
 ///     );
@@ -72,7 +72,7 @@ pub fn animate_directive(node: &AnimateDirective, context: &mut ComponentContext
         let visited_expr = convert_expression(expr, context);
         let transformed_expr = apply_transforms_to_expression(&visited_expr, context);
         expr_for_blockers = Some(transformed_expr.clone());
-        b::thunk(transformed_expr)
+        b::thunk(&context.arena, transformed_expr)
     } else {
         expr_for_blockers = None;
         b::null()
@@ -80,17 +80,22 @@ pub fn animate_directive(node: &AnimateDirective, context: &mut ComponentContext
 
     // Parse the directive name (e.g., "fade" or "custom.animation")
     // Apply transforms so that $state/$derived references get $.get() wrapping
-    let name_expr = apply_transforms_to_expression(&parse_directive_name(&node.name), context);
+    let name_expr =
+        apply_transforms_to_expression(&parse_directive_name(&context.arena, &node.name), context);
 
     // Build the animation call: $.animation(node, () => name, expression)
-    let mut statement = b::stmt(b::call(
-        b::member_path("$.animation"),
-        vec![
-            context.state.node.clone(),
-            b::thunk(name_expr.clone()),
-            expression,
-        ],
-    ));
+    let mut statement = b::stmt(
+        &context.arena,
+        b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.animation"),
+            vec![
+                context.state.node.clone(),
+                b::thunk(&context.arena, name_expr.clone()),
+                expression,
+            ],
+        ),
+    );
 
     // Check if any referenced variables are blocked by async promises.
     let mut blocker_check_exprs: Vec<&JsExpr> = vec![&name_expr];
@@ -101,10 +106,14 @@ pub fn animate_directive(node: &AnimateDirective, context: &mut ComponentContext
 
     if !blocker_exprs.is_empty() {
         let blockers_array = b::array(blocker_exprs);
-        statement = b::stmt(b::call(
-            b::member_path("$.run_after_blockers"),
-            vec![blockers_array, b::arrow_block(vec![], vec![statement])],
-        ));
+        statement = b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.run_after_blockers"),
+                vec![blockers_array, b::arrow_block(vec![], vec![statement])],
+            ),
+        );
     }
 
     // Add to after_update to ensure it runs after bind:this

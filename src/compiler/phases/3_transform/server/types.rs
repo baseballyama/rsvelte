@@ -89,6 +89,9 @@ pub struct ComponentServerTransformState<'a> {
 
     /// Whether the component uses TypeScript
     pub is_typescript: bool,
+
+    /// Arena allocator for JS AST nodes
+    pub arena: crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 }
 
 impl<'a> ComponentServerTransformState<'a> {
@@ -111,6 +114,7 @@ impl<'a> ComponentServerTransformState<'a> {
             async_consts: None,
             legacy_reactive_statements: FxHashMap::default(),
             is_typescript: false,
+            arena: crate::compiler::phases::phase3_transform::js_ast::arena::JsArena::new(),
         }
     }
 }

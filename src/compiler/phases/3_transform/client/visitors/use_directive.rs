@@ -38,7 +38,7 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::{
 ///         b.arrow(
 ///             params,
 ///             b.maybe_call(
-///                 context.visit(parse_directive_name(node.name)),
+///                 context.visit(parse_directive_name(&context.arena, node.name)),
 ///                 ...params
 ///             )
 ///         )
@@ -77,8 +77,8 @@ pub fn use_directive(node: &UseDirective, context: &mut ComponentContext) -> JsS
 
     // Parse the directive name to get the action function reference
     // For example, "action" becomes `action`, "custom.action" becomes `custom.action`
-    // Then apply transforms (equivalent to context.visit(parse_directive_name(node.name)) in JS)
-    let parsed_name = parse_directive_name(&node.name);
+    // Then apply transforms (equivalent to context.visit(parse_directive_name(&context.arena, node.name)) in JS)
+    let parsed_name = parse_directive_name(&context.arena, &node.name);
 
     // Apply registered transforms (e.g., $.get() for state/derived variables)
     let mut action_name = apply_transforms_to_expression(&parsed_name, context);
@@ -102,7 +102,9 @@ pub fn use_directive(node: &UseDirective, context: &mut ComponentContext) -> JsS
             .any(|e| e.name == *name);
         if !is_source && !is_exported {
             action_name = JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("$$props".into())),
+                object: context
+                    .arena
+                    .alloc_expr(JsExpr::Identifier("$$props".into())),
                 property: JsMemberProperty::Identifier(name.clone()),
                 computed: false,
                 optional: false,
@@ -112,10 +114,10 @@ pub fn use_directive(node: &UseDirective, context: &mut ComponentContext) -> JsS
 
     // Build the maybe_call: action?.($$node) or action?.($$node, $$action_arg)
     // This is equivalent to b.maybe_call() in the JS builder
-    let maybe_call = b::optional_call(action_name.clone(), arrow_args);
+    let maybe_call = b::optional_call(&context.arena, action_name.clone(), arrow_args);
 
     // Build the arrow function: ($$node, $$action_arg) => action?.($$node, $$action_arg)
-    let action_callback = b::arrow(params, maybe_call);
+    let action_callback = b::arrow(&context.arena, params, maybe_call);
 
     // Build the arguments for $.action()
     let mut action_args = vec![context.state.node.clone(), action_callback];
@@ -138,15 +140,19 @@ pub fn use_directive(node: &UseDirective, context: &mut ComponentContext) -> JsS
         expr_for_blockers = Some(built_expr.clone());
 
         // Wrap in a thunk: () => expression
-        action_args.push(b::thunk(built_expr));
+        action_args.push(b::thunk(&context.arena, built_expr));
     } else {
         expr_for_blockers = None;
     }
 
     // Build the $.action() call
-    let action_call = b::call(b::member_path("$.action"), action_args);
+    let action_call = b::call(
+        &context.arena,
+        b::member_path(&context.arena, "$.action"),
+        action_args,
+    );
 
-    let mut statement = b::stmt(action_call);
+    let mut statement = b::stmt(&context.arena, action_call);
 
     // Check if any referenced variables are blocked by async promises.
     // We check both the directive name and expression for blocker references.
@@ -158,10 +164,14 @@ pub fn use_directive(node: &UseDirective, context: &mut ComponentContext) -> JsS
 
     if !blocker_exprs.is_empty() {
         let blockers_array = b::array(blocker_exprs);
-        statement = b::stmt(b::call(
-            b::member_path("$.run_after_blockers"),
-            vec![blockers_array, b::arrow_block(vec![], vec![statement])],
-        ));
+        statement = b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.run_after_blockers"),
+                vec![blockers_array, b::arrow_block(vec![], vec![statement])],
+            ),
+        );
     }
 
     statement

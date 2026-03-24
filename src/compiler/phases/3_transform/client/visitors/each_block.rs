@@ -258,7 +258,10 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
         format!("{}()", coll_id)
     } else {
         // Generate the collection expression as a string
-        crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(&collection)
+        crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
+            &collection,
+            &context.arena,
+        )
     };
 
     // Compute invalidation expressions from transitive deps
@@ -301,7 +304,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
                     // it still needs to be included in $.invalidate_inner_signals().
                     let expr = if let Some(transform) = context.state.transform.get(&binding.name) {
                         if let Some(read_fn) = &transform.read {
-                            read_fn(b::id(&binding.name))
+                            read_fn(&context.arena, b::id(&binding.name))
                         } else {
                             // Transform exists but no read fn - use raw identifier
                             b::id(&binding.name)
@@ -313,7 +316,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
                         // used as each block collections).
                         b::id(&binding.name)
                     };
-                    let expr_str = generate_expr(&expr);
+                    let expr_str = generate_expr(&expr, &context.arena);
                     if !invalidation_exprs.contains(&expr_str) {
                         invalidation_exprs.push(expr_str);
                     }
@@ -470,15 +473,17 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // Handle async expressions
     let has_await = node.metadata.expression.has_await();
     // Check for blockers from both blocker_map and const_blocker_map (variables assigned after await)
-    let blocker_exprs = context.state.get_all_blockers_for_expr(&collection);
+    let blocker_exprs = context
+        .state
+        .get_all_blockers_for_expr(&collection, &context.arena);
     let has_blockers = !blocker_exprs.is_empty();
     let is_async = has_await || has_blockers;
 
     // Build the collection thunk
     let get_collection = if has_await {
-        b::async_thunk(collection.clone())
+        b::async_thunk(&context.arena, collection.clone())
     } else {
-        b::thunk(collection.clone())
+        b::thunk(&context.arena, collection.clone())
     };
 
     // When has_await, the collection is passed as an async value and resolved
@@ -486,10 +491,14 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // When only has_blockers (no literal await), use the regular collection thunk.
     // Reference: has_await ? b.thunk(b.call('$.get', b.id('$$collection'))) : get_collection
     let thunk = if has_await {
-        b::thunk(b::call(
-            b::member_path("$.get"),
-            vec![b::id("$$collection")],
-        ))
+        b::thunk(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.get"),
+                vec![b::id("$$collection")],
+            ),
+        )
     } else {
         get_collection.clone()
     };
@@ -511,13 +520,18 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     }
 
     // Build the $.each() call
-    let each_call = b::call(b::member_path("$.each"), each_args);
+    let each_call = b::call(
+        &context.arena,
+        b::member_path(&context.arena, "$.each"),
+        each_args,
+    );
 
     // Add svelte metadata
     let each_statement = if context.state.dev {
         use crate::compiler::phases::phase3_transform::client::visitors::attribute::locate_in_source;
         let (line, col) = locate_in_source(&context.state.analysis.source, node.start as usize);
         super::shared::utils::add_svelte_meta_dev(
+            &context.arena,
             each_call,
             "each",
             &context.state.analysis.name,
@@ -527,7 +541,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
             true,
         )
     } else {
-        add_svelte_meta(each_call)
+        add_svelte_meta(&context.arena, each_call)
     };
 
     // Build statements to add to init
@@ -550,7 +564,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
         let async_values = if has_await {
             b::array(vec![get_collection])
         } else {
-            b::undefined()
+            b::undefined(&context.arena)
         };
 
         // Extract anchor parameter
@@ -569,7 +583,8 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
 
         // Create $.async() call
         let async_call = b::call(
-            b::member_path("$.async"),
+            &context.arena,
+            b::member_path(&context.arena, "$.async"),
             vec![
                 context.state.node.clone(),
                 blockers,
@@ -578,7 +593,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
             ],
         );
 
-        context.state.init.push(b::stmt(async_call));
+        context.state.init.push(b::stmt(&context.arena, async_call));
     } else {
         // Not async - add statements directly
         for stmt in statements {
@@ -866,7 +881,8 @@ fn build_declarations(
     // Build the invalidate_store call if needed
     let invalidate_store = store_to_invalidate.as_ref().map(|store_name| {
         b::call(
-            b::member_path("$.invalidate_store"),
+            &context.arena,
+            b::member_path(&context.arena, "$.invalidate_store"),
             vec![b::id("$$stores"), b::string(store_name)],
         )
     });
@@ -879,14 +895,14 @@ fn build_declarations(
         let mut transitive_deps: Vec<JsExpr> = Vec::new();
 
         if let Some(coll_id) = collection_id {
-            transitive_deps.push(b::call(b::id(coll_id), vec![]));
+            transitive_deps.push(b::call(&context.arena, b::id(coll_id), vec![]));
         } else {
             for binding_idx in &node.metadata.transitive_deps {
                 if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
                     // Apply transforms (e.g., $.get() for state variables)
                     let expr = if let Some(transform) = context.state.transform.get(&binding.name) {
                         if let Some(read_fn) = &transform.read {
-                            read_fn(b::id(&binding.name))
+                            read_fn(&context.arena, b::id(&binding.name))
                         } else {
                             b::id(&binding.name)
                         }
@@ -906,7 +922,7 @@ fn build_declarations(
                         let expr =
                             if let Some(transform) = context.state.transform.get(&binding.name) {
                                 if let Some(read_fn) = &transform.read {
-                                    read_fn(b::id(&binding.name))
+                                    read_fn(&context.arena, b::id(&binding.name))
                                 } else {
                                     b::id(&binding.name)
                                 }
@@ -921,8 +937,9 @@ fn build_declarations(
 
         if !transitive_deps.is_empty() {
             let invalidate_call = b::call(
-                b::member_path("$.invalidate_inner_signals"),
-                vec![b::thunk(b::sequence(transitive_deps))],
+                &context.arena,
+                b::member_path(&context.arena, "$.invalidate_inner_signals"),
+                vec![b::thunk(&context.arena, b::sequence(transitive_deps))],
             );
             sequence.push(invalidate_call);
         }
@@ -942,7 +959,7 @@ fn build_declarations(
             IdentifierTransform {
                 read_source: None,
                 read: if index_reactive {
-                    Some(|node| b::call(b::member_path("$.get"), vec![node]))
+                    Some(|arena, node| b::call(arena, b::member_path(arena, "$.get"), vec![node]))
                 } else {
                     None
                 },
@@ -968,7 +985,9 @@ fn build_declarations(
                 name.to_string(),
                 IdentifierTransform {
                     read_source: None,
-                    read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
+                    read: Some(|arena, node| {
+                        b::call(arena, b::member_path(arena, "$.get"), vec![node])
+                    }),
                     assign: None,
                     mutate: None,
                     update: None,
@@ -986,7 +1005,11 @@ fn build_declarations(
             && let Some(original_index) = &node.index
             && idx_name != original_index.as_str()
         {
-            declarations.push(b::let_decl(original_index.as_str(), Some(index.clone())));
+            declarations.push(b::let_decl(
+                &context.arena,
+                original_index.as_str(),
+                Some(index.clone()),
+            ));
         }
     }
 
@@ -1020,10 +1043,12 @@ fn build_declarations(
                 // This corresponds to lines 256-262 in the official EachBlock.js
                 for insert in &inserts {
                     declarations.push(b::var_decl(
+                        &context.arena,
                         &insert.id,
                         Some(b::call(
-                            b::member_path("$.derived"),
-                            vec![b::thunk(b::raw(&insert.value))],
+                            &context.arena,
+                            b::member_path(&context.arena, "$.derived"),
+                            vec![b::thunk(&context.arena, b::raw(&insert.value))],
                         )),
                     ));
 
@@ -1031,7 +1056,9 @@ fn build_declarations(
                         insert.id.clone(),
                         IdentifierTransform {
                             read_source: None,
-                            read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
+                            read: Some(|arena, node| {
+                                b::call(arena, b::member_path(arena, "$.get"), vec![node])
+                            }),
                             assign: None,
                             mutate: None,
                             update: None,
@@ -1054,7 +1081,7 @@ fn build_declarations(
                         let key_expr = convert_expression(&Expression::Value(key_json), context);
                         // Apply transforms so identifiers like `length` become `length()`
                         let transformed_key = apply_transforms_to_expression(&key_expr, context);
-                        let key_str = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(&transformed_key);
+                        let key_str = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(&transformed_key, &context.arena);
                         let new_expr = format!("{}[{}]", base_expr, key_str);
                         path.expression = new_expr.clone();
                         path.update_expression = new_expr;
@@ -1071,10 +1098,12 @@ fn build_declarations(
                             context,
                         );
                         declarations.push(b::let_decl(
+                            &context.arena,
                             &path.name,
                             Some(b::call(
-                                b::member_path("$.derived_safe_equal"),
-                                vec![b::thunk(b::raw(fallback_expr))],
+                                &context.arena,
+                                b::member_path(&context.arena, "$.derived_safe_equal"),
+                                vec![b::thunk(&context.arena, b::raw(fallback_expr))],
                             )),
                         ));
 
@@ -1082,7 +1111,9 @@ fn build_declarations(
                             path.name.clone(),
                             IdentifierTransform {
                                 read_source: None,
-                                read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
+                                read: Some(|arena, node| {
+                                    b::call(arena, b::member_path(arena, "$.get"), vec![node])
+                                }),
                                 assign: None,
                                 mutate: None,
                                 update: None,
@@ -1096,22 +1127,27 @@ fn build_declarations(
                         // In dev mode, eagerly evaluate to hit TDZ errors
                         // Reference: EachBlock.js line 283-285
                         if context.state.dev {
-                            declarations.push(b::stmt(b::call(
-                                b::member_path("$.get"),
-                                vec![b::id(&path.name)],
-                            )));
+                            declarations.push(b::stmt(
+                                &context.arena,
+                                b::call(
+                                    &context.arena,
+                                    b::member_path(&context.arena, "$.get"),
+                                    vec![b::id(&path.name)],
+                                ),
+                            ));
                         }
                     } else {
                         declarations.push(b::let_decl(
+                            &context.arena,
                             &path.name,
-                            Some(b::thunk(b::raw(&path.expression))),
+                            Some(b::thunk(&context.arena, b::raw(&path.expression))),
                         ));
 
                         context.state.transform.insert(
                             path.name.clone(),
                             IdentifierTransform {
                                 read_source: None,
-                                read: Some(|node| b::call(node, vec![])),
+                                read: Some(|arena, node| b::call(arena, node, vec![])),
                                 assign: None,
                                 mutate: None,
                                 update: None,
@@ -1125,7 +1161,10 @@ fn build_declarations(
                         // In dev mode, eagerly evaluate to hit TDZ errors
                         // Reference: EachBlock.js line 283-285
                         if context.state.dev {
-                            declarations.push(b::stmt(b::call(b::id(&path.name), vec![])));
+                            declarations.push(b::stmt(
+                                &context.arena,
+                                b::call(&context.arena, b::id(&path.name), vec![]),
+                            ));
                         }
                     }
                 }
@@ -1670,6 +1709,7 @@ fn build_fallback_expression(
             let default_str =
                 crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
                     &default_expr,
+                    &context.arena,
                 );
             format!("$.fallback({}, {})", expression, default_str)
         } else if let Some(obj) = default_val.as_object()
@@ -1689,6 +1729,7 @@ fn build_fallback_expression(
             let callee_str =
                 crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
                     &callee_expr,
+                    &context.arena,
                 );
             format!("$.fallback({}, {}, true)", expression, callee_str)
         } else {
@@ -1697,6 +1738,7 @@ fn build_fallback_expression(
             let default_str =
                 crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
                     &default_expr,
+                    &context.arena,
                 );
             format!("$.fallback({}, () => {}, true)", expression, default_str)
         }
@@ -1748,7 +1790,7 @@ fn build_key_function(
         let key_expr = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&key_expr, context);
 
         if let Some(context_expr) = &node.context {
-            let pattern = convert_expression_to_pattern(context_expr);
+            let pattern = convert_expression_to_pattern(&context.arena, context_expr);
 
             let params = if key_uses_index {
                 vec![pattern, convert_expr_to_pattern(index)]
@@ -1756,11 +1798,11 @@ fn build_key_function(
                 vec![pattern]
             };
 
-            return b::arrow(params, key_expr);
+            return b::arrow(&context.arena, params, key_expr);
         }
     }
 
-    b::member_path("$.index")
+    b::member_path(&context.arena, "$.index")
 }
 
 /// Check if an expression references an identifier with the given name.
@@ -1827,7 +1869,11 @@ fn visit_fragment(fragment: &Fragment, context: &mut ComponentContext) -> JsBloc
 }
 
 /// Convert an AST Expression to a JsPattern.
-fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
+#[allow(clippy::only_used_in_recursion)]
+fn convert_expression_to_pattern(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    expr: &Expression,
+) -> JsPattern {
     let val = expr.as_json();
     if let serde_json::Value::Object(obj) = val {
         match obj.get("type").and_then(|v| v.as_str()) {
@@ -1847,7 +1893,10 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
                             let value = prop_obj.get("value")?;
 
                             let value_pattern = if value.is_object() {
-                                convert_expression_to_pattern(&Expression::Value(value.clone()))
+                                convert_expression_to_pattern(
+                                    arena,
+                                    &Expression::Value(value.clone()),
+                                )
                             } else {
                                 JsPattern::Identifier(key_name.into())
                             };
@@ -1877,9 +1926,10 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
                             if elem.is_null() {
                                 None
                             } else {
-                                Some(convert_expression_to_pattern(&Expression::Value(
-                                    elem.clone(),
-                                )))
+                                Some(convert_expression_to_pattern(
+                                    arena,
+                                    &Expression::Value(elem.clone()),
+                                ))
                             }
                         })
                         .collect();
@@ -1889,7 +1939,8 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
             }
             Some("RestElement") => {
                 if let Some(arg) = obj.get("argument") {
-                    let inner = convert_expression_to_pattern(&Expression::Value(arg.clone()));
+                    let inner =
+                        convert_expression_to_pattern(arena, &Expression::Value(arg.clone()));
                     return JsPattern::Rest(Box::new(inner));
                 }
             }
@@ -1897,7 +1948,7 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
                 #[allow(unused_variables)]
                 if let (Some(left), Some(_right)) = (obj.get("left"), obj.get("right")) {
                     let left_pattern =
-                        convert_expression_to_pattern(&Expression::Value(left.clone()));
+                        convert_expression_to_pattern(arena, &Expression::Value(left.clone()));
                     return left_pattern;
                 }
             }
@@ -2054,12 +2105,13 @@ mod tests {
 
     #[test]
     fn test_convert_simple_pattern() {
+        let arena = crate::compiler::phases::phase3_transform::js_ast::arena::JsArena::new();
         let expr = Expression::Value(serde_json::json!({
             "type": "Identifier",
             "name": "item"
         }));
 
-        let pattern = convert_expression_to_pattern(&expr);
+        let pattern = convert_expression_to_pattern(&arena, &expr);
         match pattern {
             JsPattern::Identifier(name) => assert_eq!(name, "item"),
             _ => panic!("Expected identifier pattern"),

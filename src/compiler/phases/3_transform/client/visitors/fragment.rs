@@ -224,24 +224,38 @@ pub fn fragment(
             };
 
             // Transform template
-            let template_expr =
-                transform_template(&mut context.state, parse_namespace(&namespace), flags, None);
-            context
-                .state
-                .hoisted
-                .push(b::var_decl(&template_name, Some(template_expr)));
+            let template_expr = transform_template(
+                &context.arena,
+                &mut context.state,
+                parse_namespace(&namespace),
+                flags,
+                None,
+            );
+            context.state.hoisted.push(b::var_decl(
+                &context.arena,
+                &template_name,
+                Some(template_expr),
+            ));
 
             // Initialize element
             context.state.init.insert(
                 0,
-                b::var_decl(&id_name, Some(b::call(b::id(&template_name), vec![]))),
+                b::var_decl(
+                    &context.arena,
+                    &id_name,
+                    Some(b::call(&context.arena, b::id(&template_name), vec![])),
+                ),
             );
 
             // Append to anchor
-            close = Some(b::stmt(b::call(
-                b::member_path("$.append"),
-                vec![b::id("$$anchor"), id],
-            )));
+            close = Some(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.append"),
+                    vec![b::id("$$anchor"), id],
+                ),
+            ));
         }
     } else if is_single_child_not_needing_template {
         // Single child not needing template (SvelteFragment or TitleElement)
@@ -255,18 +269,24 @@ pub fn fragment(
             context.state.init.insert(
                 0,
                 b::var_decl(
+                    &context.arena,
                     &id_name,
                     Some(b::call(
-                        b::member_path("$.text"),
+                        &context.arena,
+                        b::member_path(&context.arena, "$.text"),
                         vec![b::string(text.data.to_string())],
                     )),
                 ),
             );
 
-            close = Some(b::stmt(b::call(
-                b::member_path("$.append"),
-                vec![b::id("$$anchor"), id],
-            )));
+            close = Some(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.append"),
+                    vec![b::id("$$anchor"), id],
+                ),
+            ));
         }
     } else if !cleaned.trimmed.is_empty() {
         // Multiple nodes case (also handles single non-Text nodes like IfBlock)
@@ -301,15 +321,24 @@ pub fn fragment(
             context.state.init.insert(
                 0,
                 b::var_decl(
+                    &context.arena,
                     &text_id_name,
-                    Some(b::call(b::member_path("$.text"), vec![])),
+                    Some(b::call(
+                        &context.arena,
+                        b::member_path(&context.arena, "$.text"),
+                        vec![],
+                    )),
                 ),
             );
 
-            close = Some(b::stmt(b::call(
-                b::member_path("$.append"),
-                vec![b::id("$$anchor"), text_id],
-            )));
+            close = Some(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.append"),
+                    vec![b::id("$$anchor"), text_id],
+                ),
+            ));
         } else if cleaned.is_standalone && !context.state.options.hmr {
             // No need to create a template, we can just use the existing block's anchor.
             // When HMR is enabled, we always need a fragment wrapper because $.hmr()
@@ -327,17 +356,22 @@ pub fn fragment(
         } else {
             // Standard case with template
             let id_for_closure = id.clone();
+            // SAFETY: Extract arena ref before the closure to avoid moving context
+            let arena_ref: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena =
+                unsafe { &*(&context.arena as *const _) };
             process_children(
                 &cleaned.trimmed,
                 move |is_text: bool| {
                     if is_text {
                         b::call(
-                            b::member_path("$.first_child"),
+                            arena_ref,
+                            b::member_path(arena_ref, "$.first_child"),
                             vec![id_for_closure.clone(), b::literal(JsLiteral::Boolean(true))],
                         )
                     } else {
                         b::call(
-                            b::member_path("$.first_child"),
+                            arena_ref,
+                            b::member_path(arena_ref, "$.first_child"),
                             vec![id_for_closure.clone()],
                         )
                     }
@@ -362,30 +396,48 @@ pub fn fragment(
                 // Special case — we can use `$.comment` instead of creating a unique template
                 context.state.init.insert(
                     0,
-                    b::var_decl(&id_name, Some(b::call(b::member_path("$.comment"), vec![]))),
+                    b::var_decl(
+                        &context.arena,
+                        &id_name,
+                        Some(b::call(
+                            &context.arena,
+                            b::member_path(&context.arena, "$.comment"),
+                            vec![],
+                        )),
+                    ),
                 );
             } else {
                 // Standard template case
                 let template_expr = transform_template(
+                    &context.arena,
                     &mut context.state,
                     parse_namespace(&namespace),
                     Some(flags),
                     None,
                 );
-                context
-                    .state
-                    .hoisted
-                    .push(b::var_decl(&template_name, Some(template_expr)));
+                context.state.hoisted.push(b::var_decl(
+                    &context.arena,
+                    &template_name,
+                    Some(template_expr),
+                ));
                 context.state.init.insert(
                     0,
-                    b::var_decl(&id_name, Some(b::call(b::id(&template_name), vec![]))),
+                    b::var_decl(
+                        &context.arena,
+                        &id_name,
+                        Some(b::call(&context.arena, b::id(&template_name), vec![])),
+                    ),
                 );
             }
 
-            close = Some(b::stmt(b::call(
-                b::member_path("$.append"),
-                vec![b::id("$$anchor"), id],
-            )));
+            close = Some(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.append"),
+                    vec![b::id("$$anchor"), id],
+                ),
+            ));
         }
     }
 
@@ -414,9 +466,11 @@ pub fn fragment(
             _ => "promises".into(),
         };
         body.push(b::var_decl(
+            &context.arena,
             id_name.clone(),
             Some(b::call(
-                b::member_path("$.run"),
+                &context.arena,
+                b::member_path(&context.arena, "$.run"),
                 vec![b::array(async_consts.thunks)],
             )),
         ));
@@ -426,7 +480,14 @@ pub fn fragment(
     // Nested fragments like IfBlock consequent/alternate don't need $.next()
     // because they handle their own templates independently.
     if is_root_fragment && cleaned.is_text_first {
-        body.push(b::stmt(b::call(b::member_path("$.next"), vec![])));
+        body.push(b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.next"),
+                vec![],
+            ),
+        ));
     }
 
     body.extend(state.init);
@@ -451,13 +512,13 @@ pub fn fragment(
             } else {
                 let mut all_names = Vec::new();
                 for stmt in &state.update {
-                    collect_identifiers_from_statement(stmt, &mut all_names);
+                    collect_identifiers_from_statement(stmt, &context.arena, &mut all_names);
                 }
                 // Also scan memoized expressions for blocked identifiers.
                 // Memoized values like `[() => checkedFactory()()]` are not in
                 // state.update but still reference blocked variables.
                 for memo_expr in state.memoizer.all_expressions() {
-                    collect_ids_from_expr(&memo_expr, &mut all_names);
+                    collect_ids_from_expr(&memo_expr, &context.arena, &mut all_names);
                 }
 
                 // Collect instance-level blocker indices from blocker_map
@@ -494,7 +555,13 @@ pub fn fragment(
                 // Combine instance-level and const-tag-level blockers
                 let mut all_blocker_exprs: Vec<JsExpr> = indices
                     .into_iter()
-                    .map(|idx| b::member_computed(b::id("$$promises"), b::number(idx as f64)))
+                    .map(|idx| {
+                        b::member_computed(
+                            &context.arena,
+                            b::id("$$promises"),
+                            b::number(idx as f64),
+                        )
+                    })
                     .collect();
                 all_blocker_exprs.extend(const_blocker_exprs);
 
@@ -509,25 +576,36 @@ pub fn fragment(
         // Check if we have memoized expressions
         if state.memoizer.has_memoized() {
             let params = state.memoizer.get_params();
-            let sync_values = state.memoizer.sync_values();
-            let async_values = state.memoizer.async_values();
-            body.push(b::stmt(build_render_statement_with_memoizer(
-                state.update,
-                params,
-                sync_values,
-                async_values,
-                blockers,
-            )));
+            let sync_values = state.memoizer.sync_values(&context.arena);
+            let async_values = state.memoizer.async_values(&context.arena);
+            body.push(b::stmt(
+                &context.arena,
+                build_render_statement_with_memoizer(
+                    &context.arena,
+                    state.update,
+                    params,
+                    sync_values,
+                    async_values,
+                    blockers,
+                ),
+            ));
         } else if blockers.is_some() {
-            body.push(b::stmt(build_render_statement_with_memoizer(
-                state.update,
-                vec![],
-                None,
-                None,
-                blockers,
-            )));
+            body.push(b::stmt(
+                &context.arena,
+                build_render_statement_with_memoizer(
+                    &context.arena,
+                    state.update,
+                    vec![],
+                    None,
+                    None,
+                    blockers,
+                ),
+            ));
         } else {
-            body.push(b::stmt(build_render_statement(state.update)));
+            body.push(b::stmt(
+                &context.arena,
+                build_render_statement(&context.arena, state.update),
+            ));
         }
     }
 
@@ -564,34 +642,35 @@ pub fn fragment(
 /// Used for finding blocked variable references in template_effect callbacks.
 pub fn collect_identifiers_from_statement(
     stmt: &JsStatement,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     names: &mut Vec<compact_str::CompactString>,
 ) {
     match stmt {
         JsStatement::Expression(expr_stmt) => {
-            collect_ids_from_expr(&expr_stmt.expression, names);
+            collect_ids_from_expr(arena.get_expr(expr_stmt.expression), arena, names);
         }
         JsStatement::Block(block_stmt) => {
             for s in &block_stmt.body {
-                collect_identifiers_from_statement(s, names);
+                collect_identifiers_from_statement(s, arena, names);
             }
         }
         JsStatement::VariableDeclaration(decl) => {
             for declarator in &decl.declarations {
-                if let Some(init) = &declarator.init {
-                    collect_ids_from_expr(init, names);
+                if let Some(init) = declarator.init {
+                    collect_ids_from_expr(arena.get_expr(init), arena, names);
                 }
             }
         }
         JsStatement::Return(ret) => {
-            if let Some(expr) = &ret.argument {
-                collect_ids_from_expr(expr, names);
+            if let Some(expr) = ret.argument {
+                collect_ids_from_expr(arena.get_expr(expr), arena, names);
             }
         }
         JsStatement::If(if_stmt) => {
-            collect_ids_from_expr(&if_stmt.test, names);
-            collect_identifiers_from_statement(&if_stmt.consequent, names);
-            if let Some(alt) = &if_stmt.alternate {
-                collect_identifiers_from_statement(alt, names);
+            collect_ids_from_expr(arena.get_expr(if_stmt.test), arena, names);
+            collect_identifiers_from_statement(arena.get_stmt(if_stmt.consequent), arena, names);
+            if let Some(alt) = if_stmt.alternate {
+                collect_identifiers_from_statement(arena.get_stmt(alt), arena, names);
             }
         }
         JsStatement::Raw(raw) => {
@@ -615,7 +694,11 @@ pub fn collect_identifiers_from_statement(
 }
 
 /// Collect identifiers from an expression (non-recursive across function boundaries).
-fn collect_ids_from_expr(expr: &JsExpr, names: &mut Vec<compact_str::CompactString>) {
+fn collect_ids_from_expr(
+    expr: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    names: &mut Vec<compact_str::CompactString>,
+) {
     match expr {
         JsExpr::Identifier(name) => {
             if !names.contains(name) {
@@ -623,17 +706,17 @@ fn collect_ids_from_expr(expr: &JsExpr, names: &mut Vec<compact_str::CompactStri
             }
         }
         JsExpr::Call(call) => {
-            collect_ids_from_expr(&call.callee, names);
+            collect_ids_from_expr(arena.get_expr(call.callee), arena, names);
             for arg in &call.arguments {
-                collect_ids_from_expr(arg, names);
+                collect_ids_from_expr(arg, arena, names);
             }
         }
         JsExpr::Member(member) => {
-            collect_ids_from_expr(&member.object, names);
+            collect_ids_from_expr(arena.get_expr(member.object), arena, names);
             match &member.property {
                 JsMemberProperty::Expression(prop) => {
                     if member.computed {
-                        collect_ids_from_expr(prop, names);
+                        collect_ids_from_expr(arena.get_expr(*prop), arena, names);
                     }
                 }
                 JsMemberProperty::Identifier(id) => {
@@ -641,7 +724,7 @@ fn collect_ids_from_expr(expr: &JsExpr, names: &mut Vec<compact_str::CompactStri
                     // (e.g., $$props.name -> "name") since those are actual variable references.
                     // Don't collect general property accesses like `obj.length` as they
                     // are not variable references and would cause false blocker matches.
-                    if let JsExpr::Identifier(obj_name) = &*member.object {
+                    if let JsExpr::Identifier(obj_name) = arena.get_expr(member.object) {
                         if obj_name == "$$props" && !names.contains(id) {
                             names.push(id.clone());
                         }
@@ -651,59 +734,59 @@ fn collect_ids_from_expr(expr: &JsExpr, names: &mut Vec<compact_str::CompactStri
             }
         }
         JsExpr::Binary(bin) => {
-            collect_ids_from_expr(&bin.left, names);
-            collect_ids_from_expr(&bin.right, names);
+            collect_ids_from_expr(arena.get_expr(bin.left), arena, names);
+            collect_ids_from_expr(arena.get_expr(bin.right), arena, names);
         }
         JsExpr::Logical(log) => {
-            collect_ids_from_expr(&log.left, names);
-            collect_ids_from_expr(&log.right, names);
+            collect_ids_from_expr(arena.get_expr(log.left), arena, names);
+            collect_ids_from_expr(arena.get_expr(log.right), arena, names);
         }
         JsExpr::Unary(un) => {
-            collect_ids_from_expr(&un.argument, names);
+            collect_ids_from_expr(arena.get_expr(un.argument), arena, names);
         }
         JsExpr::Conditional(cond) => {
-            collect_ids_from_expr(&cond.test, names);
-            collect_ids_from_expr(&cond.consequent, names);
-            collect_ids_from_expr(&cond.alternate, names);
+            collect_ids_from_expr(arena.get_expr(cond.test), arena, names);
+            collect_ids_from_expr(arena.get_expr(cond.consequent), arena, names);
+            collect_ids_from_expr(arena.get_expr(cond.alternate), arena, names);
         }
         JsExpr::TemplateLiteral(tl) => {
             for e in &tl.expressions {
-                collect_ids_from_expr(e, names);
+                collect_ids_from_expr(e, arena, names);
             }
         }
         JsExpr::Sequence(seq) => {
             for e in &seq.expressions {
-                collect_ids_from_expr(e, names);
+                collect_ids_from_expr(e, arena, names);
             }
         }
         JsExpr::Array(arr) => {
             for e in arr.elements.iter().flatten() {
-                collect_ids_from_expr(e, names);
+                collect_ids_from_expr(e, arena, names);
             }
         }
         JsExpr::Object(obj) => {
             for member in &obj.properties {
                 match member {
                     JsObjectMember::Property(prop) => {
-                        collect_ids_from_expr(&prop.value, names);
+                        collect_ids_from_expr(arena.get_expr(prop.value), arena, names);
                     }
                     JsObjectMember::SpreadElement(spread) => {
-                        collect_ids_from_expr(spread, names);
+                        collect_ids_from_expr(arena.get_expr(*spread), arena, names);
                     }
                 }
             }
         }
         JsExpr::Assignment(assign) => {
-            collect_ids_from_expr(&assign.right, names);
+            collect_ids_from_expr(arena.get_expr(assign.right), arena, names);
         }
         JsExpr::Update(up) => {
-            collect_ids_from_expr(&up.argument, names);
+            collect_ids_from_expr(arena.get_expr(up.argument), arena, names);
         }
         JsExpr::Await(inner) => {
-            collect_ids_from_expr(inner, names);
+            collect_ids_from_expr(arena.get_expr(*inner), arena, names);
         }
         JsExpr::Spread(inner) | JsExpr::Void(inner) => {
-            collect_ids_from_expr(inner, names);
+            collect_ids_from_expr(arena.get_expr(*inner), arena, names);
         }
         // Don't cross function boundaries
         JsExpr::Arrow(_) | JsExpr::Function(_) => {}
@@ -719,34 +802,39 @@ fn collect_ids_from_expr(expr: &JsExpr, names: &mut Vec<compact_str::CompactStri
 /// which only tracks blockers from direct prop expressions.
 pub fn collect_identifiers_from_statement_props(
     stmt: &JsStatement,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     names: &mut Vec<compact_str::CompactString>,
 ) {
     match stmt {
         JsStatement::Expression(expr_stmt) => {
-            collect_ids_from_expr_props(&expr_stmt.expression, names);
+            collect_ids_from_expr_props(arena.get_expr(expr_stmt.expression), arena, names);
         }
         JsStatement::Block(block_stmt) => {
             for s in &block_stmt.body {
-                collect_identifiers_from_statement_props(s, names);
+                collect_identifiers_from_statement_props(s, arena, names);
             }
         }
         JsStatement::VariableDeclaration(decl) => {
             for declarator in &decl.declarations {
-                if let Some(init) = &declarator.init {
-                    collect_ids_from_expr_props(init, names);
+                if let Some(init) = declarator.init {
+                    collect_ids_from_expr_props(arena.get_expr(init), arena, names);
                 }
             }
         }
         JsStatement::Return(ret) => {
-            if let Some(expr) = &ret.argument {
-                collect_ids_from_expr_props(expr, names);
+            if let Some(expr) = ret.argument {
+                collect_ids_from_expr_props(arena.get_expr(expr), arena, names);
             }
         }
         JsStatement::If(if_stmt) => {
-            collect_ids_from_expr_props(&if_stmt.test, names);
-            collect_identifiers_from_statement_props(&if_stmt.consequent, names);
-            if let Some(alt) = &if_stmt.alternate {
-                collect_identifiers_from_statement_props(alt, names);
+            collect_ids_from_expr_props(arena.get_expr(if_stmt.test), arena, names);
+            collect_identifiers_from_statement_props(
+                arena.get_stmt(if_stmt.consequent),
+                arena,
+                names,
+            );
+            if let Some(alt) = if_stmt.alternate {
+                collect_identifiers_from_statement_props(arena.get_stmt(alt), arena, names);
             }
         }
         JsStatement::Raw(raw) => {
@@ -771,7 +859,11 @@ pub fn collect_identifiers_from_statement_props(
 /// but skips arrow functions that are the value of `children` or `$$slots` properties.
 /// This mirrors the official Svelte compiler's memoizer which tracks blockers from
 /// direct prop expressions but not from children callbacks.
-fn collect_ids_from_expr_props(expr: &JsExpr, names: &mut Vec<compact_str::CompactString>) {
+fn collect_ids_from_expr_props(
+    expr: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    names: &mut Vec<compact_str::CompactString>,
+) {
     match expr {
         JsExpr::Identifier(name) => {
             if !names.contains(name) {
@@ -779,17 +871,17 @@ fn collect_ids_from_expr_props(expr: &JsExpr, names: &mut Vec<compact_str::Compa
             }
         }
         JsExpr::Call(call) => {
-            collect_ids_from_expr_props(&call.callee, names);
+            collect_ids_from_expr_props(arena.get_expr(call.callee), arena, names);
             for arg in &call.arguments {
-                collect_ids_from_expr_props(arg, names);
+                collect_ids_from_expr_props(arg, arena, names);
             }
         }
         JsExpr::Member(member) => {
-            collect_ids_from_expr_props(&member.object, names);
+            collect_ids_from_expr_props(arena.get_expr(member.object), arena, names);
             match &member.property {
                 JsMemberProperty::Expression(prop) => {
                     if member.computed {
-                        collect_ids_from_expr_props(prop, names);
+                        collect_ids_from_expr_props(arena.get_expr(*prop), arena, names);
                     }
                 }
                 JsMemberProperty::Identifier(id) => {
@@ -801,34 +893,34 @@ fn collect_ids_from_expr_props(expr: &JsExpr, names: &mut Vec<compact_str::Compa
             }
         }
         JsExpr::Binary(bin) => {
-            collect_ids_from_expr_props(&bin.left, names);
-            collect_ids_from_expr_props(&bin.right, names);
+            collect_ids_from_expr_props(arena.get_expr(bin.left), arena, names);
+            collect_ids_from_expr_props(arena.get_expr(bin.right), arena, names);
         }
         JsExpr::Logical(log) => {
-            collect_ids_from_expr_props(&log.left, names);
-            collect_ids_from_expr_props(&log.right, names);
+            collect_ids_from_expr_props(arena.get_expr(log.left), arena, names);
+            collect_ids_from_expr_props(arena.get_expr(log.right), arena, names);
         }
         JsExpr::Unary(un) => {
-            collect_ids_from_expr_props(&un.argument, names);
+            collect_ids_from_expr_props(arena.get_expr(un.argument), arena, names);
         }
         JsExpr::Conditional(cond) => {
-            collect_ids_from_expr_props(&cond.test, names);
-            collect_ids_from_expr_props(&cond.consequent, names);
-            collect_ids_from_expr_props(&cond.alternate, names);
+            collect_ids_from_expr_props(arena.get_expr(cond.test), arena, names);
+            collect_ids_from_expr_props(arena.get_expr(cond.consequent), arena, names);
+            collect_ids_from_expr_props(arena.get_expr(cond.alternate), arena, names);
         }
         JsExpr::TemplateLiteral(tl) => {
             for e in &tl.expressions {
-                collect_ids_from_expr_props(e, names);
+                collect_ids_from_expr_props(e, arena, names);
             }
         }
         JsExpr::Sequence(seq) => {
             for e in &seq.expressions {
-                collect_ids_from_expr_props(e, names);
+                collect_ids_from_expr_props(e, arena, names);
             }
         }
         JsExpr::Array(arr) => {
             for e in arr.elements.iter().flatten() {
-                collect_ids_from_expr_props(e, names);
+                collect_ids_from_expr_props(e, arena, names);
             }
         }
         JsExpr::Object(obj) => {
@@ -848,48 +940,48 @@ fn collect_ids_from_expr_props(expr: &JsExpr, names: &mut Vec<compact_str::Compa
                             // Skip children/$$slots callback values entirely
                         } else if matches!(prop.kind, JsPropertyKind::Get | JsPropertyKind::Set) {
                             // For getters/setters, enter the function body to find references
-                            if let JsExpr::Function(func) = &*prop.value {
+                            if let JsExpr::Function(func) = arena.get_expr(prop.value) {
                                 for stmt in &func.body.body {
-                                    collect_identifiers_from_statement_props(stmt, names);
+                                    collect_identifiers_from_statement_props(stmt, arena, names);
                                 }
                             }
                         } else {
                             // For regular properties, recurse (entering arrow bodies)
-                            collect_ids_from_expr_props(&prop.value, names);
+                            collect_ids_from_expr_props(arena.get_expr(prop.value), arena, names);
                         }
                     }
                     JsObjectMember::SpreadElement(spread) => {
-                        collect_ids_from_expr_props(spread, names);
+                        collect_ids_from_expr_props(arena.get_expr(*spread), arena, names);
                     }
                 }
             }
         }
         JsExpr::Assignment(assign) => {
-            collect_ids_from_expr_props(&assign.right, names);
+            collect_ids_from_expr_props(arena.get_expr(assign.right), arena, names);
         }
         JsExpr::Update(up) => {
-            collect_ids_from_expr_props(&up.argument, names);
+            collect_ids_from_expr_props(arena.get_expr(up.argument), arena, names);
         }
         JsExpr::Await(inner) => {
-            collect_ids_from_expr_props(inner, names);
+            collect_ids_from_expr_props(arena.get_expr(*inner), arena, names);
         }
         JsExpr::Spread(inner) | JsExpr::Void(inner) => {
-            collect_ids_from_expr_props(inner, names);
+            collect_ids_from_expr_props(arena.get_expr(*inner), arena, names);
         }
         // Enter arrow and function bodies (unlike the shallow version)
         JsExpr::Arrow(arrow) => match &arrow.body {
             JsArrowBody::Expression(body_expr) => {
-                collect_ids_from_expr_props(body_expr, names);
+                collect_ids_from_expr_props(arena.get_expr(*body_expr), arena, names);
             }
             JsArrowBody::Block(block) => {
                 for s in &block.body {
-                    collect_identifiers_from_statement_props(s, names);
+                    collect_identifiers_from_statement_props(s, arena, names);
                 }
             }
         },
         JsExpr::Function(func) => {
             for s in &func.body.body {
-                collect_identifiers_from_statement_props(s, names);
+                collect_identifiers_from_statement_props(s, arena, names);
             }
         }
         _ => {}
@@ -903,34 +995,39 @@ fn collect_ids_from_expr_props(expr: &JsExpr, names: &mut Vec<compact_str::Compa
 /// async wrapping where blocked variables appear inside patterns like `() => $.get(X)`.
 pub fn collect_identifiers_from_statement_deep(
     stmt: &JsStatement,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     names: &mut Vec<compact_str::CompactString>,
 ) {
     match stmt {
         JsStatement::Expression(expr_stmt) => {
-            collect_ids_from_expr_deep(&expr_stmt.expression, names);
+            collect_ids_from_expr_deep(arena.get_expr(expr_stmt.expression), arena, names);
         }
         JsStatement::Block(block_stmt) => {
             for s in &block_stmt.body {
-                collect_identifiers_from_statement_deep(s, names);
+                collect_identifiers_from_statement_deep(s, arena, names);
             }
         }
         JsStatement::VariableDeclaration(decl) => {
             for declarator in &decl.declarations {
-                if let Some(init) = &declarator.init {
-                    collect_ids_from_expr_deep(init, names);
+                if let Some(init) = declarator.init {
+                    collect_ids_from_expr_deep(arena.get_expr(init), arena, names);
                 }
             }
         }
         JsStatement::Return(ret) => {
-            if let Some(expr) = &ret.argument {
-                collect_ids_from_expr_deep(expr, names);
+            if let Some(expr) = ret.argument {
+                collect_ids_from_expr_deep(arena.get_expr(expr), arena, names);
             }
         }
         JsStatement::If(if_stmt) => {
-            collect_ids_from_expr_deep(&if_stmt.test, names);
-            collect_identifiers_from_statement_deep(&if_stmt.consequent, names);
-            if let Some(alt) = &if_stmt.alternate {
-                collect_identifiers_from_statement_deep(alt, names);
+            collect_ids_from_expr_deep(arena.get_expr(if_stmt.test), arena, names);
+            collect_identifiers_from_statement_deep(
+                arena.get_stmt(if_stmt.consequent),
+                arena,
+                names,
+            );
+            if let Some(alt) = if_stmt.alternate {
+                collect_identifiers_from_statement_deep(arena.get_stmt(alt), arena, names);
             }
         }
         JsStatement::Raw(raw) => {
@@ -951,7 +1048,11 @@ pub fn collect_identifiers_from_statement_deep(
 }
 
 /// Collect identifiers from an expression, crossing into arrow/function bodies.
-fn collect_ids_from_expr_deep(expr: &JsExpr, names: &mut Vec<compact_str::CompactString>) {
+fn collect_ids_from_expr_deep(
+    expr: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    names: &mut Vec<compact_str::CompactString>,
+) {
     match expr {
         JsExpr::Identifier(name) => {
             if !names.contains(name) {
@@ -959,17 +1060,17 @@ fn collect_ids_from_expr_deep(expr: &JsExpr, names: &mut Vec<compact_str::Compac
             }
         }
         JsExpr::Call(call) => {
-            collect_ids_from_expr_deep(&call.callee, names);
+            collect_ids_from_expr_deep(arena.get_expr(call.callee), arena, names);
             for arg in &call.arguments {
-                collect_ids_from_expr_deep(arg, names);
+                collect_ids_from_expr_deep(arg, arena, names);
             }
         }
         JsExpr::Member(member) => {
-            collect_ids_from_expr_deep(&member.object, names);
+            collect_ids_from_expr_deep(arena.get_expr(member.object), arena, names);
             match &member.property {
                 JsMemberProperty::Expression(prop) => {
                     if member.computed {
-                        collect_ids_from_expr_deep(prop, names);
+                        collect_ids_from_expr_deep(arena.get_expr(*prop), arena, names);
                     }
                 }
                 JsMemberProperty::Identifier(id) => {
@@ -981,74 +1082,74 @@ fn collect_ids_from_expr_deep(expr: &JsExpr, names: &mut Vec<compact_str::Compac
             }
         }
         JsExpr::Binary(bin) => {
-            collect_ids_from_expr_deep(&bin.left, names);
-            collect_ids_from_expr_deep(&bin.right, names);
+            collect_ids_from_expr_deep(arena.get_expr(bin.left), arena, names);
+            collect_ids_from_expr_deep(arena.get_expr(bin.right), arena, names);
         }
         JsExpr::Logical(log) => {
-            collect_ids_from_expr_deep(&log.left, names);
-            collect_ids_from_expr_deep(&log.right, names);
+            collect_ids_from_expr_deep(arena.get_expr(log.left), arena, names);
+            collect_ids_from_expr_deep(arena.get_expr(log.right), arena, names);
         }
         JsExpr::Unary(un) => {
-            collect_ids_from_expr_deep(&un.argument, names);
+            collect_ids_from_expr_deep(arena.get_expr(un.argument), arena, names);
         }
         JsExpr::Conditional(cond) => {
-            collect_ids_from_expr_deep(&cond.test, names);
-            collect_ids_from_expr_deep(&cond.consequent, names);
-            collect_ids_from_expr_deep(&cond.alternate, names);
+            collect_ids_from_expr_deep(arena.get_expr(cond.test), arena, names);
+            collect_ids_from_expr_deep(arena.get_expr(cond.consequent), arena, names);
+            collect_ids_from_expr_deep(arena.get_expr(cond.alternate), arena, names);
         }
         JsExpr::TemplateLiteral(tl) => {
             for e in &tl.expressions {
-                collect_ids_from_expr_deep(e, names);
+                collect_ids_from_expr_deep(e, arena, names);
             }
         }
         JsExpr::Sequence(seq) => {
             for e in &seq.expressions {
-                collect_ids_from_expr_deep(e, names);
+                collect_ids_from_expr_deep(e, arena, names);
             }
         }
         JsExpr::Array(arr) => {
             for e in arr.elements.iter().flatten() {
-                collect_ids_from_expr_deep(e, names);
+                collect_ids_from_expr_deep(e, arena, names);
             }
         }
         JsExpr::Object(obj) => {
             for member in &obj.properties {
                 match member {
                     JsObjectMember::Property(prop) => {
-                        collect_ids_from_expr_deep(&prop.value, names);
+                        collect_ids_from_expr_deep(arena.get_expr(prop.value), arena, names);
                     }
                     JsObjectMember::SpreadElement(spread) => {
-                        collect_ids_from_expr_deep(spread, names);
+                        collect_ids_from_expr_deep(arena.get_expr(*spread), arena, names);
                     }
                 }
             }
         }
         JsExpr::Assignment(assign) => {
-            collect_ids_from_expr_deep(&assign.right, names);
+            collect_ids_from_expr_deep(arena.get_expr(assign.right), arena, names);
         }
         JsExpr::Update(up) => {
-            collect_ids_from_expr_deep(&up.argument, names);
+            collect_ids_from_expr_deep(arena.get_expr(up.argument), arena, names);
         }
         JsExpr::Await(inner) => {
-            collect_ids_from_expr_deep(inner, names);
+            collect_ids_from_expr_deep(arena.get_expr(*inner), arena, names);
         }
         JsExpr::Spread(inner) | JsExpr::Void(inner) => {
-            collect_ids_from_expr_deep(inner, names);
+            collect_ids_from_expr_deep(arena.get_expr(*inner), arena, names);
         }
         // Cross into arrow and function bodies
         JsExpr::Arrow(arrow) => match &arrow.body {
             JsArrowBody::Expression(body_expr) => {
-                collect_ids_from_expr_deep(body_expr, names);
+                collect_ids_from_expr_deep(arena.get_expr(*body_expr), arena, names);
             }
             JsArrowBody::Block(block) => {
                 for s in &block.body {
-                    collect_identifiers_from_statement_deep(s, names);
+                    collect_identifiers_from_statement_deep(s, arena, names);
                 }
             }
         },
         JsExpr::Function(func) => {
             for s in &func.body.body {
-                collect_identifiers_from_statement_deep(s, names);
+                collect_identifiers_from_statement_deep(s, arena, names);
             }
         }
         _ => {}
@@ -1064,34 +1165,39 @@ fn collect_ids_from_expr_deep(expr: &JsExpr, names: &mut Vec<compact_str::Compac
 /// patterns and should not be treated as blockers.
 pub fn collect_get_arg_identifiers_from_statement(
     stmt: &JsStatement,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     names: &mut Vec<compact_str::CompactString>,
 ) {
     match stmt {
         JsStatement::Expression(expr_stmt) => {
-            collect_get_arg_ids_from_expr(&expr_stmt.expression, names);
+            collect_get_arg_ids_from_expr(arena.get_expr(expr_stmt.expression), arena, names);
         }
         JsStatement::Block(block_stmt) => {
             for s in &block_stmt.body {
-                collect_get_arg_identifiers_from_statement(s, names);
+                collect_get_arg_identifiers_from_statement(s, arena, names);
             }
         }
         JsStatement::VariableDeclaration(decl) => {
             for declarator in &decl.declarations {
                 if let Some(init) = &declarator.init {
-                    collect_get_arg_ids_from_expr(init, names);
+                    collect_get_arg_ids_from_expr(arena.get_expr(*init), arena, names);
                 }
             }
         }
         JsStatement::Return(ret) => {
             if let Some(expr) = &ret.argument {
-                collect_get_arg_ids_from_expr(expr, names);
+                collect_get_arg_ids_from_expr(arena.get_expr(*expr), arena, names);
             }
         }
         JsStatement::If(if_stmt) => {
-            collect_get_arg_ids_from_expr(&if_stmt.test, names);
-            collect_get_arg_identifiers_from_statement(&if_stmt.consequent, names);
-            if let Some(alt) = &if_stmt.alternate {
-                collect_get_arg_identifiers_from_statement(alt, names);
+            collect_get_arg_ids_from_expr(arena.get_expr(if_stmt.test), arena, names);
+            collect_get_arg_identifiers_from_statement(
+                arena.get_stmt(if_stmt.consequent),
+                arena,
+                names,
+            );
+            if let Some(alt) = if_stmt.alternate {
+                collect_get_arg_identifiers_from_statement(arena.get_stmt(alt), arena, names);
             }
         }
         _ => {}
@@ -1099,11 +1205,15 @@ pub fn collect_get_arg_identifiers_from_statement(
 }
 
 /// Collect identifiers from `$.get(name)` call patterns in an expression.
-fn collect_get_arg_ids_from_expr(expr: &JsExpr, names: &mut Vec<compact_str::CompactString>) {
+fn collect_get_arg_ids_from_expr(
+    expr: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    names: &mut Vec<compact_str::CompactString>,
+) {
     match expr {
         JsExpr::Call(call) => {
             // Check if this is a $.get(name) call
-            if is_dollar_get_call(call) {
+            if is_dollar_get_call(call, arena) {
                 if let Some(JsExpr::Identifier(arg_name)) = call.arguments.first() {
                     if !names.contains(arg_name) {
                         names.push(arg_name.clone());
@@ -1111,62 +1221,62 @@ fn collect_get_arg_ids_from_expr(expr: &JsExpr, names: &mut Vec<compact_str::Com
                 }
             }
             // Always recurse into callee and arguments to find nested $.get() calls
-            collect_get_arg_ids_from_expr(&call.callee, names);
+            collect_get_arg_ids_from_expr(arena.get_expr(call.callee), arena, names);
             for arg in &call.arguments {
-                collect_get_arg_ids_from_expr(arg, names);
+                collect_get_arg_ids_from_expr(arg, arena, names);
             }
         }
         JsExpr::Binary(bin) => {
-            collect_get_arg_ids_from_expr(&bin.left, names);
-            collect_get_arg_ids_from_expr(&bin.right, names);
+            collect_get_arg_ids_from_expr(arena.get_expr(bin.left), arena, names);
+            collect_get_arg_ids_from_expr(arena.get_expr(bin.right), arena, names);
         }
         JsExpr::Logical(log) => {
-            collect_get_arg_ids_from_expr(&log.left, names);
-            collect_get_arg_ids_from_expr(&log.right, names);
+            collect_get_arg_ids_from_expr(arena.get_expr(log.left), arena, names);
+            collect_get_arg_ids_from_expr(arena.get_expr(log.right), arena, names);
         }
         JsExpr::Unary(un) => {
-            collect_get_arg_ids_from_expr(&un.argument, names);
+            collect_get_arg_ids_from_expr(arena.get_expr(un.argument), arena, names);
         }
         JsExpr::Conditional(cond) => {
-            collect_get_arg_ids_from_expr(&cond.test, names);
-            collect_get_arg_ids_from_expr(&cond.consequent, names);
-            collect_get_arg_ids_from_expr(&cond.alternate, names);
+            collect_get_arg_ids_from_expr(arena.get_expr(cond.test), arena, names);
+            collect_get_arg_ids_from_expr(arena.get_expr(cond.consequent), arena, names);
+            collect_get_arg_ids_from_expr(arena.get_expr(cond.alternate), arena, names);
         }
         JsExpr::TemplateLiteral(tl) => {
             for e in &tl.expressions {
-                collect_get_arg_ids_from_expr(e, names);
+                collect_get_arg_ids_from_expr(e, arena, names);
             }
         }
         JsExpr::Sequence(seq) => {
             for e in &seq.expressions {
-                collect_get_arg_ids_from_expr(e, names);
+                collect_get_arg_ids_from_expr(e, arena, names);
             }
         }
         JsExpr::Array(arr) => {
             for e in arr.elements.iter().flatten() {
-                collect_get_arg_ids_from_expr(e, names);
+                collect_get_arg_ids_from_expr(e, arena, names);
             }
         }
         JsExpr::Object(obj) => {
             for member in &obj.properties {
                 match member {
                     JsObjectMember::Property(prop) => {
-                        collect_get_arg_ids_from_expr(&prop.value, names);
+                        collect_get_arg_ids_from_expr(arena.get_expr(prop.value), arena, names);
                     }
                     JsObjectMember::SpreadElement(spread) => {
-                        collect_get_arg_ids_from_expr(spread, names);
+                        collect_get_arg_ids_from_expr(arena.get_expr(*spread), arena, names);
                     }
                 }
             }
         }
         JsExpr::Member(member) => {
-            collect_get_arg_ids_from_expr(&member.object, names);
+            collect_get_arg_ids_from_expr(arena.get_expr(member.object), arena, names);
         }
         JsExpr::Assignment(assign) => {
-            collect_get_arg_ids_from_expr(&assign.right, names);
+            collect_get_arg_ids_from_expr(arena.get_expr(assign.right), arena, names);
         }
         JsExpr::Spread(inner) | JsExpr::Void(inner) => {
-            collect_get_arg_ids_from_expr(inner, names);
+            collect_get_arg_ids_from_expr(arena.get_expr(*inner), arena, names);
         }
         // Don't cross function boundaries
         JsExpr::Arrow(_) | JsExpr::Function(_) => {}
@@ -1175,9 +1285,12 @@ fn collect_get_arg_ids_from_expr(expr: &JsExpr, names: &mut Vec<compact_str::Com
 }
 
 /// Check if a call expression is a `$.get(...)` call.
-fn is_dollar_get_call(call: &JsCallExpression) -> bool {
-    if let JsExpr::Member(member) = &*call.callee {
-        if let JsExpr::Identifier(obj) = &*member.object {
+fn is_dollar_get_call(
+    call: &JsCallExpression,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> bool {
+    if let JsExpr::Member(member) = arena.get_expr(call.callee) {
+        if let JsExpr::Identifier(obj) = arena.get_expr(member.object) {
             if obj == "$" {
                 if let JsMemberProperty::Identifier(prop) = &member.property {
                     return prop == "get";
@@ -1194,34 +1307,43 @@ fn is_dollar_get_call(call: &JsCallExpression) -> bool {
 /// For example, `$$props.name` yields "name" which can be checked against the blocker_map.
 pub fn collect_props_member_names_from_statement(
     stmt: &JsStatement,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     names: &mut Vec<compact_str::CompactString>,
 ) {
     match stmt {
         JsStatement::Expression(expr_stmt) => {
-            collect_props_member_names_from_expr(&expr_stmt.expression, names);
+            collect_props_member_names_from_expr(
+                arena.get_expr(expr_stmt.expression),
+                arena,
+                names,
+            );
         }
         JsStatement::Block(block_stmt) => {
             for s in &block_stmt.body {
-                collect_props_member_names_from_statement(s, names);
+                collect_props_member_names_from_statement(s, arena, names);
             }
         }
         JsStatement::VariableDeclaration(decl) => {
             for declarator in &decl.declarations {
                 if let Some(init) = &declarator.init {
-                    collect_props_member_names_from_expr(init, names);
+                    collect_props_member_names_from_expr(arena.get_expr(*init), arena, names);
                 }
             }
         }
         JsStatement::Return(ret) => {
             if let Some(expr) = &ret.argument {
-                collect_props_member_names_from_expr(expr, names);
+                collect_props_member_names_from_expr(arena.get_expr(*expr), arena, names);
             }
         }
         JsStatement::If(if_stmt) => {
-            collect_props_member_names_from_expr(&if_stmt.test, names);
-            collect_props_member_names_from_statement(&if_stmt.consequent, names);
-            if let Some(alt) = &if_stmt.alternate {
-                collect_props_member_names_from_statement(alt, names);
+            collect_props_member_names_from_expr(arena.get_expr(if_stmt.test), arena, names);
+            collect_props_member_names_from_statement(
+                arena.get_stmt(if_stmt.consequent),
+                arena,
+                names,
+            );
+            if let Some(alt) = if_stmt.alternate {
+                collect_props_member_names_from_statement(arena.get_stmt(alt), arena, names);
             }
         }
         _ => {}
@@ -1231,12 +1353,13 @@ pub fn collect_props_member_names_from_statement(
 /// Collect property names from `$$props.XXX` member access patterns in an expression.
 fn collect_props_member_names_from_expr(
     expr: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     names: &mut Vec<compact_str::CompactString>,
 ) {
     match expr {
         JsExpr::Member(member) => {
             // Check if this is $$props.XXX
-            if let JsExpr::Identifier(obj) = &*member.object {
+            if let JsExpr::Identifier(obj) = arena.get_expr(member.object) {
                 if obj == "$$props" {
                     if let JsMemberProperty::Identifier(prop_name) = &member.property {
                         if !names.contains(prop_name) {
@@ -1246,67 +1369,71 @@ fn collect_props_member_names_from_expr(
                 }
             }
             // Recurse into object
-            collect_props_member_names_from_expr(&member.object, names);
+            collect_props_member_names_from_expr(arena.get_expr(member.object), arena, names);
             if let JsMemberProperty::Expression(prop_expr) = &member.property {
                 if member.computed {
-                    collect_props_member_names_from_expr(prop_expr, names);
+                    collect_props_member_names_from_expr(arena.get_expr(*prop_expr), arena, names);
                 }
             }
         }
         JsExpr::Call(call) => {
-            collect_props_member_names_from_expr(&call.callee, names);
+            collect_props_member_names_from_expr(arena.get_expr(call.callee), arena, names);
             for arg in &call.arguments {
-                collect_props_member_names_from_expr(arg, names);
+                collect_props_member_names_from_expr(arg, arena, names);
             }
         }
         JsExpr::Binary(bin) => {
-            collect_props_member_names_from_expr(&bin.left, names);
-            collect_props_member_names_from_expr(&bin.right, names);
+            collect_props_member_names_from_expr(arena.get_expr(bin.left), arena, names);
+            collect_props_member_names_from_expr(arena.get_expr(bin.right), arena, names);
         }
         JsExpr::Logical(log) => {
-            collect_props_member_names_from_expr(&log.left, names);
-            collect_props_member_names_from_expr(&log.right, names);
+            collect_props_member_names_from_expr(arena.get_expr(log.left), arena, names);
+            collect_props_member_names_from_expr(arena.get_expr(log.right), arena, names);
         }
         JsExpr::Unary(un) => {
-            collect_props_member_names_from_expr(&un.argument, names);
+            collect_props_member_names_from_expr(arena.get_expr(un.argument), arena, names);
         }
         JsExpr::Conditional(cond) => {
-            collect_props_member_names_from_expr(&cond.test, names);
-            collect_props_member_names_from_expr(&cond.consequent, names);
-            collect_props_member_names_from_expr(&cond.alternate, names);
+            collect_props_member_names_from_expr(arena.get_expr(cond.test), arena, names);
+            collect_props_member_names_from_expr(arena.get_expr(cond.consequent), arena, names);
+            collect_props_member_names_from_expr(arena.get_expr(cond.alternate), arena, names);
         }
         JsExpr::TemplateLiteral(tl) => {
             for e in &tl.expressions {
-                collect_props_member_names_from_expr(e, names);
+                collect_props_member_names_from_expr(e, arena, names);
             }
         }
         JsExpr::Sequence(seq) => {
             for e in &seq.expressions {
-                collect_props_member_names_from_expr(e, names);
+                collect_props_member_names_from_expr(e, arena, names);
             }
         }
         JsExpr::Array(arr) => {
             for e in arr.elements.iter().flatten() {
-                collect_props_member_names_from_expr(e, names);
+                collect_props_member_names_from_expr(e, arena, names);
             }
         }
         JsExpr::Object(obj) => {
             for member in &obj.properties {
                 match member {
                     JsObjectMember::Property(prop) => {
-                        collect_props_member_names_from_expr(&prop.value, names);
+                        collect_props_member_names_from_expr(
+                            arena.get_expr(prop.value),
+                            arena,
+                            names,
+                        );
                     }
                     JsObjectMember::SpreadElement(spread) => {
-                        collect_props_member_names_from_expr(spread, names);
+                        collect_props_member_names_from_expr(arena.get_expr(*spread), arena, names);
                     }
                 }
             }
         }
         JsExpr::Assignment(assign) => {
-            collect_props_member_names_from_expr(&assign.right, names);
+            collect_props_member_names_from_expr(arena.get_expr(assign.right), arena, names);
         }
         JsExpr::Spread(inner) | JsExpr::Void(inner) => {
-            collect_props_member_names_from_expr(inner, names);
+            collect_props_member_names_from_expr(arena.get_expr(*inner), arena, names);
         }
         // Don't cross function boundaries
         JsExpr::Arrow(_) | JsExpr::Function(_) => {}

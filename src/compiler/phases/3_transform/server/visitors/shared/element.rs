@@ -102,6 +102,7 @@ pub fn build_element_attributes<F>(
 where
     F: Fn(JsExpr) -> JsExpr + Clone,
 {
+    let arena = &state.arena;
     let mut attributes: Vec<AttributeOrSpread> = Vec::new();
     let mut class_directives: Vec<&ClassDirective> = Vec::new();
     let mut style_directives: Vec<&StyleDirective> = Vec::new();
@@ -117,11 +118,16 @@ where
                 if attr.name == "value" {
                     if node.get_name() == "textarea" {
                         // Textarea value becomes content
-                        let value =
-                            build_attribute_value(&attr.value, transform.clone(), false, false);
+                        let value = build_attribute_value(
+                            &attr.value,
+                            transform.clone(),
+                            false,
+                            false,
+                            arena,
+                        );
                         content = Some(JsExpr::Call(JsCallExpression {
-                            callee: Box::new(JsExpr::Member(JsMemberExpression {
-                                object: Box::new(JsExpr::Identifier("$".into())),
+                            callee: arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                                object: arena.alloc_expr(JsExpr::Identifier("$".into())),
                                 property: JsMemberProperty::Identifier("escape".into()),
                                 computed: false,
                                 optional: false,
@@ -216,7 +222,7 @@ where
                 }
 
                 // Convert bind directive expression to a value
-                let expression = convert_expression_simple(&bind.expression);
+                let expression = convert_expression_simple(&bind.expression, arena);
 
                 // Handle content-editable bindings
                 if matches!(
@@ -226,8 +232,8 @@ where
                     content = Some(expression);
                 } else if bind.name == "value" && node.get_name() == "textarea" {
                     content = Some(JsExpr::Call(JsCallExpression {
-                        callee: Box::new(JsExpr::Member(JsMemberExpression {
-                            object: Box::new(JsExpr::Identifier("$".into())),
+                        callee: arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                            object: arena.alloc_expr(JsExpr::Identifier("$".into())),
                             property: JsMemberProperty::Identifier("escape".into()),
                             computed: false,
                             optional: false,
@@ -248,8 +254,8 @@ where
                         // In non-spread path, generate $.attr() call directly
                         state.template.push(TemplateItem::Expression(JsExpr::Call(
                             JsCallExpression {
-                                callee: Box::new(JsExpr::Member(JsMemberExpression {
-                                    object: Box::new(JsExpr::Identifier("$".into())),
+                                callee: arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                                    object: arena.alloc_expr(JsExpr::Identifier("$".into())),
                                     property: JsMemberProperty::Identifier("attr".into()),
                                     computed: false,
                                     optional: false,
@@ -335,6 +341,7 @@ where
                     transform.clone(),
                     WHITESPACE_INSENSITIVE_ATTRIBUTES.contains(&name.as_str()),
                     false,
+                    arena,
                 ) {
                     match lit {
                         JsLiteral::String(s) => s,
@@ -380,6 +387,7 @@ where
                 transform.clone(),
                 WHITESPACE_INSENSITIVE_ATTRIBUTES.contains(&name.as_str()),
                 false,
+                arena,
             );
 
             // Pre-escape and inline literal attributes
@@ -409,8 +417,8 @@ where
                 // Wrap in $.clsx() if needed (for dynamic class expressions)
                 let class_value = if needs_clsx(&attr.value) {
                     JsExpr::Call(JsCallExpression {
-                        callee: Box::new(JsExpr::Member(JsMemberExpression {
-                            object: Box::new(JsExpr::Identifier("$".into())),
+                        callee: arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                            object: arena.alloc_expr(JsExpr::Identifier("$".into())),
                             property: JsMemberProperty::Identifier("clsx".into()),
                             computed: false,
                             optional: false,
@@ -428,6 +436,7 @@ where
                         class_value,
                         css_hash,
                         transform.clone(),
+                        arena,
                     )));
             } else if name == "style" {
                 state
@@ -436,13 +445,14 @@ where
                         &style_directives,
                         value,
                         transform.clone(),
+                        arena,
                     )));
             } else {
                 state
                     .template
                     .push(TemplateItem::Expression(JsExpr::Call(JsCallExpression {
-                        callee: Box::new(JsExpr::Member(JsMemberExpression {
-                            object: Box::new(JsExpr::Identifier("$".into())),
+                        callee: arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                            object: arena.alloc_expr(JsExpr::Identifier("$".into())),
                             property: JsMemberProperty::Identifier("attr".into()),
                             computed: false,
                             optional: false,
@@ -492,6 +502,7 @@ fn build_element_spread_attributes<F>(
 ) where
     F: Fn(JsExpr) -> JsExpr + Clone,
 {
+    let arena = &state.arena;
     let args = prepare_element_spread(
         element,
         attributes,
@@ -502,8 +513,8 @@ fn build_element_spread_attributes<F>(
     );
 
     let call = JsExpr::Call(JsCallExpression {
-        callee: Box::new(JsExpr::Member(JsMemberExpression {
-            object: Box::new(JsExpr::Identifier("$".into())),
+        callee: arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+            object: arena.alloc_expr(JsExpr::Identifier("$".into())),
             property: JsMemberProperty::Identifier("attributes".into()),
             computed: false,
             optional: false,
@@ -529,6 +540,7 @@ fn prepare_element_spread<F>(
 where
     F: Fn(JsExpr) -> JsExpr + Clone,
 {
+    let arena = &state.arena;
     let mut flags = 0;
 
     // Calculate flags
@@ -551,11 +563,12 @@ where
                     transform.clone(),
                     WHITESPACE_INSENSITIVE_ATTRIBUTES.contains(&name.as_str()),
                     false,
+                    arena,
                 );
 
                 properties.push(JsObjectMember::Property(JsProperty {
                     key: make_property_key(name),
-                    value: Box::new(value),
+                    value: arena.alloc_expr(value),
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
@@ -564,9 +577,11 @@ where
             }
             AttributeOrSpread::Spread(spread) => {
                 // Convert the spread expression to JsExpr and add as spread element
-                let spread_expr = convert_expression_simple(&spread.expression);
+                let spread_expr = convert_expression_simple(&spread.expression, arena);
                 let transformed_expr = transform(spread_expr);
-                properties.push(JsObjectMember::SpreadElement(Box::new(transformed_expr)));
+                properties.push(JsObjectMember::SpreadElement(
+                    arena.alloc_expr(transformed_expr),
+                ));
             }
         }
     }
@@ -592,7 +607,7 @@ where
             .map(|dir| {
                 JsObjectMember::Property(JsProperty {
                     key: JsPropertyKey::Identifier(dir.name.clone()),
-                    value: Box::new(JsExpr::Identifier(dir.name.clone())), // TODO: Visit expression
+                    value: arena.alloc_expr(JsExpr::Identifier(dir.name.clone())), // TODO: Visit expression
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
@@ -614,12 +629,12 @@ where
                 let value = if matches!(dir.value, AttributeValue::True(_)) {
                     JsExpr::Identifier(dir.name.clone())
                 } else {
-                    build_attribute_value(&dir.value, transform.clone(), true, false)
+                    build_attribute_value(&dir.value, transform.clone(), true, false, arena)
                 };
 
                 JsObjectMember::Property(JsProperty {
                     key: make_property_key(dir.name.to_string()),
-                    value: Box::new(value),
+                    value: arena.alloc_expr(value),
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
@@ -647,6 +662,7 @@ fn build_attr_class<F>(
     expression: JsExpr,
     css_hash: Option<&str>,
     _transform: F,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 ) -> JsExpr
 where
     F: Fn(JsExpr) -> JsExpr + Clone,
@@ -657,7 +673,7 @@ where
             .map(|dir| {
                 JsObjectMember::Property(JsProperty {
                     key: JsPropertyKey::Literal(JsLiteral::String(dir.name.clone())),
-                    value: Box::new(JsExpr::Identifier(dir.name.clone())), // TODO: Visit expression
+                    value: arena.alloc_expr(JsExpr::Identifier(dir.name.clone())), // TODO: Visit expression
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
@@ -673,8 +689,8 @@ where
     let css_hash_expr = css_hash.map(|hash| JsExpr::Literal(JsLiteral::String(hash.into())));
 
     JsExpr::Call(JsCallExpression {
-        callee: Box::new(JsExpr::Member(JsMemberExpression {
-            object: Box::new(JsExpr::Identifier("$".into())),
+        callee: arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+            object: arena.alloc_expr(JsExpr::Identifier("$".into())),
             property: JsMemberProperty::Identifier("attr_class".into()),
             computed: false,
             optional: false,
@@ -693,6 +709,7 @@ fn build_attr_style<F>(
     style_directives: &[&StyleDirective],
     expression: JsExpr,
     transform: F,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 ) -> JsExpr
 where
     F: Fn(JsExpr) -> JsExpr + Clone,
@@ -706,7 +723,7 @@ where
             let value = if matches!(dir.value, AttributeValue::True(_)) {
                 JsExpr::Identifier(dir.name.clone())
             } else {
-                build_attribute_value(&dir.value, transform.clone(), true, false)
+                build_attribute_value(&dir.value, transform.clone(), true, false, arena)
             };
 
             let mut name = dir.name.to_string();
@@ -717,7 +734,7 @@ where
 
             let property = JsObjectMember::Property(JsProperty {
                 key: make_property_key(name),
-                value: Box::new(value),
+                value: arena.alloc_expr(value),
                 kind: JsPropertyKind::Init,
                 computed: false,
                 shorthand: false,
@@ -752,8 +769,8 @@ where
     };
 
     JsExpr::Call(JsCallExpression {
-        callee: Box::new(JsExpr::Member(JsMemberExpression {
-            object: Box::new(JsExpr::Identifier("$".into())),
+        callee: arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+            object: arena.alloc_expr(JsExpr::Identifier("$".into())),
             property: JsMemberProperty::Identifier("attr_style".into()),
             computed: false,
             optional: false,

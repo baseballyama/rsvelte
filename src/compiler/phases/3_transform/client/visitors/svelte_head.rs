@@ -45,10 +45,14 @@ pub fn svelte_head(node: &SvelteElement, context: &mut ComponentContext) {
     // Build the head call: $.head('hash', ($$anchor) => { ... })
     let content_fn = b::arrow_block(vec![b::id_pattern("$$anchor")], content_block.body);
 
-    let head_call = b::stmt(b::call(
-        b::member_path("$.head"),
-        vec![b::string(&hash), content_fn],
-    ));
+    let head_call = b::stmt(
+        &context.arena,
+        b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.head"),
+            vec![b::string(&hash), content_fn],
+        ),
+    );
 
     context.state.init.push(head_call);
 }

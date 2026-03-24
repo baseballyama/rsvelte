@@ -41,14 +41,23 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
     let transformed_expression = build_expression(context, &expression, &expr_metadata);
 
     // Check blocker_map for blocked identifiers referenced in the expression
-    let blocker_exprs_for_key = context.state.get_blockers_for_expr(&transformed_expression);
+    let blocker_exprs_for_key = context
+        .state
+        .get_blockers_for_expr(&transformed_expression, &context.arena);
     let has_blockers = !blocker_exprs_for_key.is_empty();
 
     // When has_await, the key uses $.get($$key) instead of the original expression
     let key_expr = if has_await {
-        b::thunk(b::call(b::member_path("$.get"), vec![b::id("$$key")]))
+        b::thunk(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.get"),
+                vec![b::id("$$key")],
+            ),
+        )
     } else {
-        b::thunk(transformed_expression.clone())
+        b::thunk(&context.arena, transformed_expression.clone())
     };
 
     // Visit the fragment - this returns a BlockStatement
@@ -71,13 +80,15 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
 
     // Create the $.key() call statement
     let key_call = b::call(
-        b::member_path("$.key"),
+        &context.arena,
+        b::member_path(&context.arena, "$.key"),
         vec![context.state.node.clone(), key_expr, body],
     );
     let key_call_stmt = if context.state.dev {
         use crate::compiler::phases::phase3_transform::client::visitors::attribute::locate_in_source;
         let (line, col) = locate_in_source(&context.state.analysis.source, node.start as usize);
         super::shared::utils::add_svelte_meta_dev(
+            &context.arena,
             key_call,
             "key",
             &context.state.analysis.name,
@@ -87,7 +98,7 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
             true,
         )
     } else {
-        b::stmt(key_call)
+        b::stmt(&context.arena, key_call)
     };
 
     // If the expression has await or blockers, wrap in $.async()
@@ -100,9 +111,12 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
 
         let async_values = if has_await {
             // Strip the top-level await since $.async handles the awaiting
-            b::array(vec![b::thunk(b::strip_await(transformed_expression))])
+            b::array(vec![b::thunk(
+                &context.arena,
+                b::strip_await(&context.arena, transformed_expression),
+            )])
         } else {
-            b::undefined()
+            b::undefined(&context.arena)
         };
 
         let node_name = match &context.state.node {
@@ -116,15 +130,19 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
 
         let callback = b::arrow_block(callback_params, vec![key_call_stmt]);
 
-        context.state.init.push(b::stmt(b::call(
-            b::member_path("$.async"),
-            vec![
-                context.state.node.clone(),
-                blockers_expr,
-                async_values,
-                callback,
-            ],
-        )));
+        context.state.init.push(b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.async"),
+                vec![
+                    context.state.node.clone(),
+                    blockers_expr,
+                    async_values,
+                    callback,
+                ],
+            ),
+        ));
     } else {
         context.state.init.push(key_call_stmt);
     }

@@ -39,10 +39,17 @@ pub fn attach_tag(node: &AttachTag, context: &mut ComponentContext) -> Transform
     let expression = build_expression(context, &js_expr, &expr_metadata);
 
     // Create the $.attach call: $.attach(node, () => expression)
-    let mut statement = b::stmt(b::call(
-        b::member_path("$.attach"),
-        vec![context.state.node.clone(), b::thunk(expression.clone())],
-    ));
+    let mut statement = b::stmt(
+        &context.arena,
+        b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.attach"),
+            vec![
+                context.state.node.clone(),
+                b::thunk(&context.arena, expression.clone()),
+            ],
+        ),
+    );
 
     // Check if any referenced variables are blocked by async promises.
     let blocker_check_exprs: Vec<&JsExpr> = vec![&expression];
@@ -50,10 +57,14 @@ pub fn attach_tag(node: &AttachTag, context: &mut ComponentContext) -> Transform
 
     if !blocker_exprs.is_empty() {
         let blockers_array = b::array(blocker_exprs);
-        statement = b::stmt(b::call(
-            b::member_path("$.run_after_blockers"),
-            vec![blockers_array, b::arrow_block(vec![], vec![statement])],
-        ));
+        statement = b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.run_after_blockers"),
+                vec![blockers_array, b::arrow_block(vec![], vec![statement])],
+            ),
+        );
     }
 
     context.state.init.push(statement);

@@ -237,7 +237,8 @@ pub fn transform_client_module(
     }
 
     let program = super::js_ast::nodes::JsProgram { body };
-    generate(&program).map_err(TransformError::CodeGen)
+    let arena = super::js_ast::arena::JsArena::new();
+    generate(&program, &arena).map_err(TransformError::CodeGen)
 }
 
 /// Transform module source code for module compilation (shared between client and server).
@@ -552,7 +553,7 @@ fn transform_client_with_visitors(
         // or: const $store = () => $.store_get($.get(store), '$store', $$stores); for derived/state stores
         // or: const $store = () => $.store_get($$_import_store(), '$store', $$stores); for reactive imports
         let store_access = if is_source_prop {
-            b::call(b::id(store_name), vec![])
+            b::call(&context.arena, b::id(store_name), vec![])
         } else if is_prop_store {
             // Non-source prop: access via $$props.store or $$props['alias']
             // prop_alias is always set for $props() destructuring, but it only differs
@@ -563,19 +564,29 @@ fn transform_client_with_visitors(
                 // $$props['alias'] for renamed props
                 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
                 JsExpr::Member(JsMemberExpression {
-                    object: Box::new(b::id("$$props")),
-                    property: JsMemberProperty::Expression(Box::new(b::string(alias))),
+                    object: context.arena.alloc_expr(b::id("$$props")),
+                    property: JsMemberProperty::Expression(
+                        context.arena.alloc_expr(b::string(alias)),
+                    ),
                     computed: true,
                     optional: false,
                 })
             } else {
                 // $$props.store for non-aliased props
-                b::member_path(&format!("$$props.{}", store_name))
+                b::member_path(&context.arena, &format!("$$props.{}", store_name))
             }
         } else if is_reactive_import {
-            b::call(b::id(format!("$$_import_{}", store_name)), vec![])
+            b::call(
+                &context.arena,
+                b::id(format!("$$_import_{}", store_name)),
+                vec![],
+            )
         } else if is_derived_or_state {
-            b::call(b::member_path("$.get"), vec![b::id(store_name)])
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.get"),
+                vec![b::id(store_name)],
+            )
         } else {
             b::id(store_name)
         };
@@ -586,21 +597,28 @@ fn transform_client_with_visitors(
             let store_access_clone = store_access.clone();
             b::sequence(vec![
                 b::call(
-                    b::member_path("$.validate_store"),
+                    &context.arena,
+                    b::member_path(&context.arena, "$.validate_store"),
                     vec![store_access_clone, b::string(store_name)],
                 ),
                 b::call(
-                    b::member_path("$.store_get"),
+                    &context.arena,
+                    b::member_path(&context.arena, "$.store_get"),
                     vec![store_access, b::string(*store_sub_name), b::id("$$stores")],
                 ),
             ])
         } else {
             b::call(
-                b::member_path("$.store_get"),
+                &context.arena,
+                b::member_path(&context.arena, "$.store_get"),
                 vec![store_access, b::string(*store_sub_name), b::id("$$stores")],
             )
         };
-        store_getters.push(b::const_decl(*store_sub_name, b::thunk(store_get_expr)));
+        store_getters.push(b::const_decl(
+            &context.arena,
+            *store_sub_name,
+            b::thunk(&context.arena, store_get_expr),
+        ));
     }
 
     // Build store_setup: getters first, then setup_stores call
@@ -609,12 +627,17 @@ fn transform_client_with_visitors(
     if needs_store_cleanup {
         // const [$$stores, $$cleanup] = $.setup_stores();
         store_setup.push(b::var_decl_pattern(
+            &context.arena,
             JsVariableKind::Const,
             b::array_pattern(vec![
                 Some(b::id_pattern("$$stores")),
                 Some(b::id_pattern("$$cleanup")),
             ]),
-            Some(b::call(b::member_path("$.setup_stores"), vec![])),
+            Some(b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.setup_stores"),
+                vec![],
+            )),
         ));
     }
 
@@ -735,9 +758,11 @@ fn transform_client_with_visitors(
                 to_remove.push(b::string("$$host"));
             }
             component_body.push(b::const_decl(
+                &context.arena,
                 "$$sanitized_props",
                 b::call(
-                    b::member_path("$.legacy_rest_props"),
+                    &context.arena,
+                    b::member_path(&context.arena, "$.legacy_rest_props"),
                     vec![b::id("$$props"), b::array(to_remove)],
                 ),
             ));
@@ -763,9 +788,11 @@ fn transform_client_with_visitors(
             }
 
             component_body.push(b::const_decl(
+                &context.arena,
                 "$$restProps",
                 b::call(
-                    b::member_path("$.legacy_rest_props"),
+                    &context.arena,
+                    b::member_path(&context.arena, "$.legacy_rest_props"),
                     vec![b::id("$$sanitized_props"), b::array(named_props)],
                 ),
             ));
@@ -775,8 +802,13 @@ fn transform_client_with_visitors(
     // $$slots: when uses_slots (applies in both runes and legacy mode)
     if analysis.uses_slots {
         component_body.push(b::const_decl(
+            &context.arena,
             "$$slots",
-            b::call(b::member_path("$.sanitize_slots"), vec![b::id("$$props")]),
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.sanitize_slots"),
+                vec![b::id("$$props")],
+            ),
         ));
     }
 
@@ -785,14 +817,15 @@ fn transform_client_with_visitors(
     if options.compatibility.component_api == crate::compiler::ComponentApi::V4 {
         // if (new.target) return $$_createClassComponent({ component: ComponentName, ...$$anchor });
         component_body.push(JsStatement::If(super::js_ast::nodes::JsIfStatement {
-            test: Box::new(b::id("new.target")),
-            consequent: Box::new(JsStatement::Return(
+            test: context.arena.alloc_expr(b::id("new.target")),
+            consequent: context.arena.alloc_stmt(JsStatement::Return(
                 super::js_ast::nodes::JsReturnStatement {
-                    argument: Some(Box::new(b::call(
+                    argument: Some(context.arena.alloc_expr(b::call(
+                        &context.arena,
                         b::id("$$_createClassComponent"),
                         vec![b::object(vec![
-                            b::prop("component", b::id(&analysis.name)),
-                            b::spread(b::id("$$anchor")),
+                            b::prop(&context.arena, "component", b::id(&analysis.name)),
+                            b::spread(&context.arena, b::id("$$anchor")),
                         ])],
                     ))),
                 },
@@ -800,10 +833,14 @@ fn transform_client_with_visitors(
             alternate: None,
         }));
     } else if options.dev {
-        component_body.push(b::stmt(b::call(
-            b::member_path("$.check_target"),
-            vec![b::id("new.target")],
-        )));
+        component_body.push(b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.check_target"),
+                vec![b::id("new.target")],
+            ),
+        ));
     }
 
     // Add $.push at the start if injecting context
@@ -815,7 +852,14 @@ fn transform_client_with_visitors(
         if options.dev {
             push_args.push(b::id(&analysis.name));
         }
-        component_body.push(b::stmt(b::call(b::member_path("$.push"), push_args)));
+        component_body.push(b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.push"),
+                push_args,
+            ),
+        ));
     }
 
     // Add store setup (getters and setup_stores) right after $.push
@@ -838,8 +882,13 @@ fn transform_client_with_visitors(
                     vec![]
                 };
                 component_body.push(b::const_decl(
+                    &context.arena,
                     &*binding.name,
-                    b::call(b::member_path("$.mutable_source"), args),
+                    b::call(
+                        &context.arena,
+                        b::member_path(&context.arena, "$.mutable_source"),
+                        args,
+                    ),
                 ));
             }
         }
@@ -855,7 +904,7 @@ fn transform_client_with_visitors(
         let mut group_names: Vec<&String> = analysis.binding_groups.values().collect();
         group_names.sort(); // Sort to ensure deterministic output order
         for group_name in group_names {
-            component_body.push(b::const_decl(group_name, b::empty_array()));
+            component_body.push(b::const_decl(&context.arena, group_name, b::empty_array()));
         }
     }
 
@@ -864,18 +913,27 @@ fn transform_client_with_visitors(
     if let Some(ref props_id_name) = analysis.props_id {
         // const id = $.props_id();
         component_body.push(b::const_decl(
+            &context.arena,
             props_id_name,
-            b::call(b::member_path("$.props_id"), vec![]),
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.props_id"),
+                vec![],
+            ),
         ));
     }
 
     // Add CSS styles injection if needed
     if analysis.css.has_css && analysis.inject_styles {
         // $.append_styles($$anchor, $$css)
-        component_body.push(b::stmt(b::call(
-            b::member_path("$.append_styles"),
-            vec![b::id("$$anchor"), b::id("$$css")],
-        )));
+        component_body.push(b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.append_styles"),
+                vec![b::id("$$anchor"), b::id("$$css")],
+            ),
+        ));
     }
 
     // Add instance-level snippets
@@ -991,10 +1049,14 @@ fn transform_client_with_visitors(
     // Add $.legacy_pre_effect_reset() after all reactive statements
     // Reference: transform-client.js - this is called after all legacy_pre_effect() calls
     if has_reactive_statements && !analysis.runes {
-        component_body.push(b::stmt(b::call(
-            b::member_path("$.legacy_pre_effect_reset"),
-            vec![],
-        )));
+        component_body.push(b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.legacy_pre_effect_reset"),
+                vec![],
+            ),
+        ));
     }
 
     // Generate $$exports object (component_returned_object) from analysis.exports
@@ -1031,32 +1093,38 @@ fn transform_client_with_visitors(
                     ) {
                         // let/var: getter + setter
                         exports_members.push(b::getter(
+                            &context.arena,
                             alias,
                             vec![JsStatement::Return(
                                 super::js_ast::nodes::JsReturnStatement {
-                                    argument: Some(Box::new(b::id(name))),
+                                    argument: Some(context.arena.alloc_expr(b::id(name))),
                                 },
                             )],
                         ));
                         exports_members.push(b::setter(
+                            &context.arena,
                             alias,
                             "$$value",
-                            vec![b::stmt(b::assign(b::id(name), b::id("$$value")))],
+                            vec![b::stmt(
+                                &context.arena,
+                                b::assign(&context.arena, b::id(name), b::id("$$value")),
+                            )],
                         ));
                     } else if !options.dev {
                         // const/function/class in non-dev: simple init property
                         if alias == name {
-                            exports_members.push(b::prop_shorthand(name));
+                            exports_members.push(b::prop_shorthand(&context.arena, name));
                         } else {
-                            exports_members.push(b::prop(alias, b::id(name)));
+                            exports_members.push(b::prop(&context.arena, alias, b::id(name)));
                         }
                     } else {
                         // dev mode: getter only
                         exports_members.push(b::getter(
+                            &context.arena,
                             alias,
                             vec![JsStatement::Return(
                                 super::js_ast::nodes::JsReturnStatement {
-                                    argument: Some(Box::new(b::id(name))),
+                                    argument: Some(context.arena.alloc_expr(b::id(name))),
                                 },
                             )],
                         ));
@@ -1086,17 +1154,26 @@ fn transform_client_with_visitors(
                                 exports_members.pop();
                             }
                             exports_members.push(b::getter(
+                                &context.arena,
                                 alias,
                                 vec![JsStatement::Return(
                                     super::js_ast::nodes::JsReturnStatement {
-                                        argument: Some(Box::new(b::call(b::id(name), vec![]))),
+                                        argument: Some(context.arena.alloc_expr(b::call(
+                                            &context.arena,
+                                            b::id(name),
+                                            vec![],
+                                        ))),
                                     },
                                 )],
                             ));
                             exports_members.push(b::setter(
+                                &context.arena,
                                 alias,
                                 "$$value",
-                                vec![b::stmt(b::call(b::id(name), vec![b::id("$$value")]))],
+                                vec![b::stmt(
+                                    &context.arena,
+                                    b::call(&context.arena, b::id(name), vec![b::id("$$value")]),
+                                )],
                             ));
                         }
                     }
@@ -1112,26 +1189,37 @@ fn transform_client_with_visitors(
                             exports_members.pop();
                         }
                         exports_members.push(b::getter(
+                            &context.arena,
                             alias,
                             vec![JsStatement::Return(
                                 super::js_ast::nodes::JsReturnStatement {
-                                    argument: Some(Box::new(b::call(
-                                        b::member_path("$.get"),
+                                    argument: Some(context.arena.alloc_expr(b::call(
+                                        &context.arena,
+                                        b::member_path(&context.arena, "$.get"),
                                         vec![b::id(name)],
                                     ))),
                                 },
                             )],
                         ));
                         exports_members.push(b::setter(
+                            &context.arena,
                             alias,
                             "$$value",
-                            vec![b::stmt(b::call(
-                                b::member_path("$.set"),
-                                vec![
-                                    b::id(name),
-                                    b::call(b::member_path("$.proxy"), vec![b::id("$$value")]),
-                                ],
-                            ))],
+                            vec![b::stmt(
+                                &context.arena,
+                                b::call(
+                                    &context.arena,
+                                    b::member_path(&context.arena, "$.set"),
+                                    vec![
+                                        b::id(name),
+                                        b::call(
+                                            &context.arena,
+                                            b::member_path(&context.arena, "$.proxy"),
+                                            vec![b::id("$$value")],
+                                        ),
+                                    ],
+                                ),
+                            )],
                         ));
                     }
                     BindingKind::RawState => {
@@ -1146,23 +1234,30 @@ fn transform_client_with_visitors(
                             exports_members.pop();
                         }
                         exports_members.push(b::getter(
+                            &context.arena,
                             alias,
                             vec![JsStatement::Return(
                                 super::js_ast::nodes::JsReturnStatement {
-                                    argument: Some(Box::new(b::call(
-                                        b::member_path("$.get"),
+                                    argument: Some(context.arena.alloc_expr(b::call(
+                                        &context.arena,
+                                        b::member_path(&context.arena, "$.get"),
                                         vec![b::id(name)],
                                     ))),
                                 },
                             )],
                         ));
                         exports_members.push(b::setter(
+                            &context.arena,
                             alias,
                             "$$value",
-                            vec![b::stmt(b::call(
-                                b::member_path("$.set"),
-                                vec![b::id(name), b::id("$$value")],
-                            ))],
+                            vec![b::stmt(
+                                &context.arena,
+                                b::call(
+                                    &context.arena,
+                                    b::member_path(&context.arena, "$.set"),
+                                    vec![b::id(name), b::id("$$value")],
+                                ),
+                            )],
                         ));
                     }
                     BindingKind::Derived => {
@@ -1177,11 +1272,13 @@ fn transform_client_with_visitors(
                             exports_members.pop();
                         }
                         exports_members.push(b::getter(
+                            &context.arena,
                             alias,
                             vec![JsStatement::Return(
                                 super::js_ast::nodes::JsReturnStatement {
-                                    argument: Some(Box::new(b::call(
-                                        b::member_path("$.get"),
+                                    argument: Some(context.arena.alloc_expr(b::call(
+                                        &context.arena,
+                                        b::member_path(&context.arena, "$.get"),
                                         vec![b::id(name)],
                                     ))),
                                 },
@@ -1191,9 +1288,9 @@ fn transform_client_with_visitors(
                     _ => {}
                 }
             } else if alias == name {
-                exports_members.push(b::prop_shorthand(name));
+                exports_members.push(b::prop_shorthand(&context.arena, name));
             } else {
-                exports_members.push(b::prop(alias, b::id(name)));
+                exports_members.push(b::prop(&context.arena, alias, b::id(name)));
             }
         }
 
@@ -1210,19 +1307,35 @@ fn transform_client_with_visitors(
                     let name = &binding.name;
                     let alias = binding.prop_alias.as_deref().unwrap_or(name);
                     exports_members.push(b::getter(
+                        &context.arena,
                         alias,
                         vec![JsStatement::Return(
                             super::js_ast::nodes::JsReturnStatement {
-                                argument: Some(Box::new(b::call(b::id(name), vec![]))),
+                                argument: Some(context.arena.alloc_expr(b::call(
+                                    &context.arena,
+                                    b::id(name),
+                                    vec![],
+                                ))),
                             },
                         )],
                     ));
                     exports_members.push(b::setter(
+                        &context.arena,
                         alias,
                         "$$value",
                         vec![
-                            b::stmt(b::call(b::id(name), vec![b::id("$$value")])),
-                            b::stmt(b::call(b::member_path("$.flush"), vec![])),
+                            b::stmt(
+                                &context.arena,
+                                b::call(&context.arena, b::id(name), vec![b::id("$$value")]),
+                            ),
+                            b::stmt(
+                                &context.arena,
+                                b::call(
+                                    &context.arena,
+                                    b::member_path(&context.arena, "$.flush"),
+                                    vec![],
+                                ),
+                            ),
                         ],
                     ));
                 }
@@ -1233,29 +1346,47 @@ fn transform_client_with_visitors(
         // Reference: transform-client.js lines 338-356
         if options.compatibility.component_api == crate::compiler::ComponentApi::V4 {
             // $set: $.update_legacy_props
-            exports_members.push(b::prop("$set", b::member_path("$.update_legacy_props")));
+            exports_members.push(b::prop(
+                &context.arena,
+                "$set",
+                b::member_path(&context.arena, "$.update_legacy_props"),
+            ));
             // $on: ($$event_name, $$event_cb) => $.add_legacy_event_listener($$props, $$event_name, $$event_cb)
             exports_members.push(b::prop(
+                &context.arena,
                 "$on",
                 b::arrow(
+                    &context.arena,
                     vec![
                         JsPattern::Identifier("$$event_name".into()),
                         JsPattern::Identifier("$$event_cb".into()),
                     ],
                     b::call(
-                        b::member_path("$.add_legacy_event_listener"),
+                        &context.arena,
+                        b::member_path(&context.arena, "$.add_legacy_event_listener"),
                         vec![b::id("$$props"), b::id("$$event_name"), b::id("$$event_cb")],
                     ),
                 ),
             ));
         } else if options.dev {
-            exports_members.push(b::spread(b::call(b::member_path("$.legacy_api"), vec![])));
+            exports_members.push(b::spread(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.legacy_api"),
+                    vec![],
+                ),
+            ));
         }
 
         if !exports_members.is_empty() {
             // $$exports comes AFTER instance body (user script code)
             // This matches the official Svelte compiler ordering
-            component_body.push(b::var_decl("$$exports", Some(b::object(exports_members))));
+            component_body.push(b::var_decl(
+                &context.arena,
+                "$$exports",
+                Some(b::object(exports_members)),
+            ));
         }
     }
 
@@ -1268,7 +1399,14 @@ fn transform_client_with_visitors(
         } else {
             vec![]
         };
-        component_body.push(b::stmt(b::call(b::member_path("$.init"), init_args)));
+        component_body.push(b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.init"),
+                init_args,
+            ),
+        ));
     }
 
     // Add template body statements
@@ -1281,9 +1419,11 @@ fn transform_client_with_visitors(
     if context.state.needs_mutation_validation.get() {
         // var $$ownership_validator = $.create_ownership_validator($$props)
         let ownership_decl = b::var_decl(
+            &context.arena,
             "$$ownership_validator",
             Some(b::call(
-                b::member_path("$.create_ownership_validator"),
+                &context.arena,
+                b::member_path(&context.arena, "$.create_ownership_validator"),
                 vec![b::id("$$props")],
             )),
         );
@@ -1309,17 +1449,24 @@ fn transform_client_with_visitors(
             // Apply the read transform if one exists (e.g., $.get() for state variables)
             let getter_expr = if let Some(transform) = context.state.transform.get(&export.name) {
                 if let Some(read_fn) = transform.read {
-                    read_fn(JsExpr::Identifier(export.name.clone().into()))
+                    read_fn(
+                        &context.arena,
+                        JsExpr::Identifier(export.name.clone().into()),
+                    )
                 } else {
                     b::id(&export.name)
                 }
             } else {
                 b::id(&export.name)
             };
-            component_body.push(b::stmt(b::call(
-                b::member_path("$.bind_prop"),
-                vec![b::id("$$props"), b::string(alias), getter_expr],
-            )));
+            component_body.push(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.bind_prop"),
+                    vec![b::id("$$props"), b::string(alias), getter_expr],
+                ),
+            ));
         }
     }
 
@@ -1330,35 +1477,51 @@ fn transform_client_with_visitors(
             if needs_store_cleanup {
                 // var $$pop = $.pop($$exports);
                 component_body.push(b::var_decl(
+                    &context.arena,
                     "$$pop",
-                    Some(b::call(b::member_path("$.pop"), vec![b::id("$$exports")])),
+                    Some(b::call(
+                        &context.arena,
+                        b::member_path(&context.arena, "$.pop"),
+                        vec![b::id("$$exports")],
+                    )),
                 ));
             } else {
                 // return $.pop($$exports)
                 component_body.push(JsStatement::Return(
                     super::js_ast::nodes::JsReturnStatement {
-                        argument: Some(Box::new(b::call(
-                            b::member_path("$.pop"),
+                        argument: Some(context.arena.alloc_expr(b::call(
+                            &context.arena,
+                            b::member_path(&context.arena, "$.pop"),
                             vec![b::id("$$exports")],
                         ))),
                     },
                 ));
             }
         } else {
-            component_body.push(b::stmt(b::call(b::member_path("$.pop"), vec![])));
+            component_body.push(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.pop"),
+                    vec![],
+                ),
+            ));
         }
     }
 
     // Add $$cleanup() at the very end if store subscriptions exist
     // Reference: transform-client.js lines 448-454
     if needs_store_cleanup {
-        component_body.push(b::stmt(b::call(b::id("$$cleanup"), vec![])));
+        component_body.push(b::stmt(
+            &context.arena,
+            b::call(&context.arena, b::id("$$cleanup"), vec![]),
+        ));
 
         if needs_exports {
             // return $$pop;
             component_body.push(JsStatement::Return(
                 super::js_ast::nodes::JsReturnStatement {
-                    argument: Some(Box::new(b::id("$$pop"))),
+                    argument: Some(context.arena.alloc_expr(b::id("$$pop"))),
                 },
             ));
         }
@@ -1445,10 +1608,18 @@ fn transform_client_with_visitors(
         } else {
             fname
         };
-        body.push(b::stmt(b::assign(
-            b::member_computed(b::id(&analysis.name), b::member(b::id("$"), "FILENAME")),
-            b::string(relative_filename),
-        )));
+        body.push(b::stmt(
+            &context.arena,
+            b::assign(
+                &context.arena,
+                b::member_computed(
+                    &context.arena,
+                    b::id(&analysis.name),
+                    b::member(&context.arena, b::id("$"), "FILENAME"),
+                ),
+                b::string(relative_filename),
+            ),
+        ));
     }
 
     // Process module script content - extract imports separately from other content
@@ -1569,11 +1740,12 @@ fn transform_client_with_visitors(
         }
         let code = b::string(css_code);
         body.push(b::const_decl(
+            &context.arena,
             "$$css",
             b::object(vec![
                 super::js_ast::nodes::JsObjectMember::Property(super::js_ast::nodes::JsProperty {
                     key: super::js_ast::nodes::JsPropertyKey::Identifier("hash".into()),
-                    value: Box::new(hash),
+                    value: context.arena.alloc_expr(hash),
                     kind: super::js_ast::nodes::JsPropertyKind::Init,
                     shorthand: false,
                     method: false,
@@ -1581,7 +1753,7 @@ fn transform_client_with_visitors(
                 }),
                 super::js_ast::nodes::JsObjectMember::Property(super::js_ast::nodes::JsProperty {
                     key: super::js_ast::nodes::JsPropertyKey::Identifier("code".into()),
-                    value: Box::new(code),
+                    value: context.arena.alloc_expr(code),
                     kind: super::js_ast::nodes::JsPropertyKind::Init,
                     shorthand: false,
                     method: false,
@@ -1624,10 +1796,14 @@ fn transform_client_with_visitors(
     if !events.is_empty() {
         let event_literals: Vec<super::js_ast::nodes::JsExpr> =
             events.iter().map(|name| b::string(name.clone())).collect();
-        body.push(b::stmt(b::call(
-            b::member_path("$.delegate"),
-            vec![b::array(event_literals)],
-        )));
+        body.push(b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.delegate"),
+                vec![b::array(event_literals)],
+            ),
+        ));
     }
 
     // Add customElements.define() for custom element components
@@ -1659,7 +1835,11 @@ fn transform_client_with_visitors(
         let shadow_root_init = if shadow_mode == "none" {
             None
         } else {
-            Some(b::object(vec![b::prop("mode", b::string(shadow_mode))]))
+            Some(b::object(vec![b::prop(
+                &context.arena,
+                "mode",
+                b::string(shadow_mode),
+            )]))
         };
 
         // $.create_custom_element(Component, props, slots, accessors, shadowRootInit)
@@ -1667,16 +1847,24 @@ fn transform_client_with_visitors(
         if let Some(init) = shadow_root_init {
             create_ce_args.push(init);
         }
-        let create_ce = b::call(b::member_path("$.create_custom_element"), create_ce_args);
+        let create_ce = b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.create_custom_element"),
+            create_ce_args,
+        );
 
         // If tag name is provided, call customElements.define
         if let Some(ref tag) = ce.tag {
-            body.push(b::stmt(b::call(
-                b::member_path("customElements.define"),
-                vec![b::string(tag.clone()), create_ce],
-            )));
+            body.push(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "customElements.define"),
+                    vec![b::string(tag.clone()), create_ce],
+                ),
+            ));
         } else {
-            body.push(b::stmt(create_ce));
+            body.push(b::stmt(&context.arena, create_ce));
         }
     }
 
@@ -1685,9 +1873,9 @@ fn transform_client_with_visitors(
 
     // Generate JavaScript code from the program, optionally with source map data
     if options.enable_sourcemap {
-        generate_with_sourcemap(&program, source).map_err(TransformError::CodeGen)
+        generate_with_sourcemap(&program, source, &context.arena).map_err(TransformError::CodeGen)
     } else {
-        let code = generate(&program).map_err(TransformError::CodeGen)?;
+        let code = generate(&program, &context.arena).map_err(TransformError::CodeGen)?;
         Ok(CodegenResult {
             code,
             mappings: vec![],

@@ -49,20 +49,25 @@ pub fn visit_text(node: &Text, context: &mut ComponentContext) -> TransformResul
 
     // Create the text node: const text = $.text("data")
     let text_call = b::call(
-        b::member_path("$.text"),
+        &context.arena,
+        b::member_path(&context.arena, "$.text"),
         vec![b::string(node.data.to_string())],
     );
 
-    let var_stmt = b::var_decl(&id_name, Some(text_call));
+    let var_stmt = b::var_decl(&context.arena, &id_name, Some(text_call));
 
     // Add to initialization statements
     context.state.init.push(var_stmt);
 
     // Append to anchor: $.append($$anchor, text)
-    let append_stmt = b::stmt(b::call(
-        b::member_path("$.append"),
-        vec![b::id("$$anchor"), id],
-    ));
+    let append_stmt = b::stmt(
+        &context.arena,
+        b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.append"),
+            vec![b::id("$$anchor"), id],
+        ),
+    );
 
     TransformResult::Statement(append_stmt)
 }

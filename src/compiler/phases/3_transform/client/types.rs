@@ -11,6 +11,7 @@ use crate::ast::template::TemplateNode;
 use crate::compiler::phases::phase2_analyze::scope::{Binding, Scope, ScopeRoot};
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::client::transform_template::Template;
+use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use im::{HashMap as ImHashMap, HashSet as ImHashSet};
 use indexmap::IndexSet;
@@ -27,6 +28,10 @@ use std::rc::Rc;
 pub struct ComponentContext<'a> {
     /// The current transformation state
     pub state: ComponentClientTransformState<'a>,
+
+    /// Arena allocator for JavaScript AST expressions and statements.
+    /// Uses interior mutability (UnsafeCell) so allocation only needs `&self`.
+    pub arena: JsArena,
 
     /// The path of nodes being visited (for parent access)
     pub path: Vec<&'a TemplateNode>,
@@ -48,6 +53,7 @@ impl<'a> ComponentContext<'a> {
     ) -> Self {
         Self {
             state,
+            arena: JsArena::new(),
             path: Vec::new(),
             visit,
         }
@@ -269,12 +275,16 @@ impl<'a> ComponentContext<'a> {
             if let TransformResult::Expression(event_call) = self.visit_on_directive(on_directive) {
                 if has_use {
                     // If there's a use: directive, wrap in $.effect
-                    inner_init.push(b::stmt(b::call(
-                        b::member_path("$.effect"),
-                        vec![b::thunk(event_call)],
-                    )));
+                    inner_init.push(b::stmt(
+                        &self.arena,
+                        b::call(
+                            &self.arena,
+                            b::member_path(&self.arena, "$.effect"),
+                            vec![b::thunk(&self.arena, event_call)],
+                        ),
+                    ));
                 } else {
-                    inner_after_update.push(b::stmt(event_call));
+                    inner_after_update.push(b::stmt(&self.arena, event_call));
                 }
             }
 
@@ -432,14 +442,15 @@ impl<'a> ComponentContext<'a> {
 
                     // $.set_class(element_id, is_html ? 1 : 0, class_value)
                     let set_class_call = b::call(
-                        b::member_path("$.set_class"),
+                        &self.arena,
+                        b::member_path(&self.arena, "$.set_class"),
                         vec![
                             b::id(&element_id_name),
                             b::number(0.0), // is_html=false for svelte:element
                             b::string(class_str),
                         ],
                     );
-                    self.state.init.push(b::stmt(set_class_call));
+                    self.state.init.push(b::stmt(&self.arena, set_class_call));
                 }
             } else if is_single_text_class {
                 // Single text class attribute WITH class directives -> build_set_class
@@ -534,14 +545,15 @@ impl<'a> ComponentContext<'a> {
             let css_hash = self.state.analysis.css.hash.clone();
             if elem.metadata.scoped && !css_hash.is_empty() {
                 let set_class_call = b::call(
-                    b::member_path("$.set_class"),
+                    &self.arena,
+                    b::member_path(&self.arena, "$.set_class"),
                     vec![
                         b::id(&element_id_name),
                         b::number(0.0), // is_html=false for svelte:element
                         b::string(css_hash),
                     ],
                 );
-                inner_init.push(b::stmt(set_class_call));
+                inner_init.push(b::stmt(&self.arena, set_class_call));
             }
         }
 
@@ -556,17 +568,25 @@ impl<'a> ComponentContext<'a> {
             // (matches official compiler's `() => expr` vs `() => { stmts }`)
             let callback = if inner_update.len() == 1 {
                 if let JsStatement::Expression(ref expr_stmt) = inner_update[0] {
-                    b::arrow(vec![], *expr_stmt.expression.clone())
+                    b::arrow(
+                        &self.arena,
+                        vec![],
+                        self.arena.get_expr(expr_stmt.expression).clone(),
+                    )
                 } else {
                     b::arrow_block(vec![], inner_update)
                 }
             } else {
                 b::arrow_block(vec![], inner_update)
             };
-            callback_body.push(b::stmt(b::call(
-                b::member_path("$.template_effect"),
-                vec![callback],
-            )));
+            callback_body.push(b::stmt(
+                &self.arena,
+                b::call(
+                    &self.arena,
+                    b::member_path(&self.arena, "$.template_effect"),
+                    vec![callback],
+                ),
+            ));
         }
 
         callback_body.extend(inner_after_update);
@@ -622,9 +642,16 @@ impl<'a> ComponentContext<'a> {
 
         // When has_await, use $.get($$tag) instead of the original tag expression
         let get_tag = if has_await {
-            b::thunk(b::call(b::member_path("$.get"), vec![b::id("$$tag")]))
+            b::thunk(
+                &self.arena,
+                b::call(
+                    &self.arena,
+                    b::member_path(&self.arena, "$.get"),
+                    vec![b::id("$$tag")],
+                ),
+            )
         } else {
-            b::thunk(tag_expr.clone())
+            b::thunk(&self.arena, tag_expr.clone())
         };
 
         // Build $.element(...) call
@@ -658,7 +685,7 @@ impl<'a> ComponentContext<'a> {
             } else {
                 // Need a placeholder for callback if only namespace is present
                 // undefined is used as a falsy placeholder
-                element_args.push(b::undefined());
+                element_args.push(b::undefined(&self.arena));
             }
         }
 
@@ -666,7 +693,7 @@ impl<'a> ComponentContext<'a> {
         if let Some(ns_value) = dynamic_namespace {
             use crate::compiler::phases::phase3_transform::client::visitors::shared::element::build_attribute_value;
             let ns_result = build_attribute_value(&ns_value, self, |expr, _| expr);
-            element_args.push(b::thunk(ns_result.value));
+            element_args.push(b::thunk(&self.arena, ns_result.value));
         }
 
         // Dev mode: add location [line, column] as the last argument
@@ -679,7 +706,7 @@ impl<'a> ComponentContext<'a> {
             let current_len = element_args.len();
             // We need at least 5 args before location (node, tag, svg_or_mathml, callback, namespace)
             while element_args.len() < 5 {
-                element_args.push(b::undefined());
+                element_args.push(b::undefined(&self.arena));
             }
             // Restore length if we added too many
             let _ = current_len;
@@ -689,7 +716,14 @@ impl<'a> ComponentContext<'a> {
             ]));
         }
 
-        let element_call_stmt = b::stmt(b::call(b::member_path("$.element"), element_args));
+        let element_call_stmt = b::stmt(
+            &self.arena,
+            b::call(
+                &self.arena,
+                b::member_path(&self.arena, "$.element"),
+                element_args,
+            ),
+        );
 
         // Handle LetDirectives by wrapping in ExpressionStatements
         let mut statements = Vec::new();
@@ -699,15 +733,23 @@ impl<'a> ComponentContext<'a> {
 
         // Dev mode: add validation calls (matches official SvelteElement.js lines 120-125)
         if let Some(get_tag_dev) = get_tag_for_validate {
-            statements.push(b::stmt(b::call(
-                b::member_path("$.validate_dynamic_element_tag"),
-                vec![get_tag_dev.clone()],
-            )));
+            statements.push(b::stmt(
+                &self.arena,
+                b::call(
+                    &self.arena,
+                    b::member_path(&self.arena, "$.validate_dynamic_element_tag"),
+                    vec![get_tag_dev.clone()],
+                ),
+            ));
             if !elem.fragment.nodes.is_empty() {
-                statements.push(b::stmt(b::call(
-                    b::member_path("$.validate_void_dynamic_element"),
-                    vec![get_tag_dev],
-                )));
+                statements.push(b::stmt(
+                    &self.arena,
+                    b::call(
+                        &self.arena,
+                        b::member_path(&self.arena, "$.validate_void_dynamic_element"),
+                        vec![get_tag_dev],
+                    ),
+                ));
             }
         }
 
@@ -724,9 +766,12 @@ impl<'a> ComponentContext<'a> {
 
             let async_values = if has_await {
                 // Strip the top-level await since $.async handles the awaiting
-                b::array(vec![b::thunk(b::strip_await(tag_expr))])
+                b::array(vec![b::thunk(
+                    &self.arena,
+                    b::strip_await(&self.arena, tag_expr),
+                )])
             } else {
-                b::undefined()
+                b::undefined(&self.arena)
             };
 
             let node_name = match &self.state.node {
@@ -740,15 +785,19 @@ impl<'a> ComponentContext<'a> {
 
             let callback = b::arrow_block(callback_params, statements);
 
-            self.state.init.push(b::stmt(b::call(
-                b::member_path("$.async"),
-                vec![
-                    self.state.node.clone(),
-                    blockers_expr,
-                    async_values,
-                    callback,
-                ],
-            )));
+            self.state.init.push(b::stmt(
+                &self.arena,
+                b::call(
+                    &self.arena,
+                    b::member_path(&self.arena, "$.async"),
+                    vec![
+                        self.state.node.clone(),
+                        blockers_expr,
+                        async_values,
+                        callback,
+                    ],
+                ),
+            ));
         } else if statements.len() == 1 {
             self.state.init.push(statements.into_iter().next().unwrap());
         } else {
@@ -921,13 +970,15 @@ impl<'a> ComponentContext<'a> {
                     };
 
                     lets.push(b::const_decl(
+                        &self.arena,
                         &binding_name,
                         b::call(
-                            b::member_path(derived_fn),
-                            vec![b::thunk(b::member(
-                                b::id("$$slotProps"),
-                                prop_name.to_string(),
-                            ))],
+                            &self.arena,
+                            b::member_path(&self.arena, derived_fn),
+                            vec![b::thunk(
+                                &self.arena,
+                                b::member(&self.arena, b::id("$$slotProps"), prop_name.to_string()),
+                            )],
                         ),
                     ));
 
@@ -955,7 +1006,9 @@ impl<'a> ComponentContext<'a> {
             self.state.transform.insert(
                 binding_name.clone(),
                 crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
-                    read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
+                    read: Some(|arena, node| {
+                        b::call(arena, b::member_path(arena, "$.get"), vec![node])
+                    }),
                     read_source: None,
                     assign: None,
                     mutate: None,
@@ -986,12 +1039,13 @@ impl<'a> ComponentContext<'a> {
                     let transformed = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(
                         &expression, self,
                     );
-                    spreads.push(b::thunk(transformed));
+                    spreads.push(b::thunk(&self.arena, transformed));
                 }
                 Attribute::Attribute(attr) => {
                     // Use the memoizer callback: if expression has_call or has_await,
                     // memoize it and replace with $.get($N)
                     let memo_idx_start = memo_entries.len();
+                    let arena_ref = unsafe { &*(&self.arena as *const _) };
                     let result = build_attribute_value(&attr.value, self, |value, metadata| {
                         let has_call = metadata.has_call();
                         let has_await = metadata.has_await();
@@ -1004,7 +1058,11 @@ impl<'a> ComponentContext<'a> {
                                 is_async: has_await,
                             });
                             let param_id = b::id(format!("${idx}"));
-                            b::call(b::member_path("$.get"), vec![param_id])
+                            b::call(
+                                arena_ref,
+                                b::member_path(arena_ref, "$.get"),
+                                vec![param_id],
+                            )
                         } else {
                             value
                         }
@@ -1015,11 +1073,12 @@ impl<'a> ComponentContext<'a> {
                     } else if attr.name.as_str() != "slot" {
                         if result.has_state {
                             props.push(b::getter(
+                                &self.arena,
                                 attr.name.as_str(),
-                                vec![b::return_value(result.value)],
+                                vec![b::return_value(&self.arena, result.value)],
                             ));
                         } else {
-                            props.push(b::prop(attr.name.as_str(), result.value));
+                            props.push(b::prop(&self.arena, attr.name.as_str(), result.value));
                         }
                     }
                 }
@@ -1036,7 +1095,11 @@ impl<'a> ComponentContext<'a> {
         } else {
             let mut args = vec![b::object(props)];
             args.extend(spreads);
-            b::call(b::member_path("$.spread_props"), args)
+            b::call(
+                &self.arena,
+                b::member_path(&self.arena, "$.spread_props"),
+                args,
+            )
         };
 
         // Build fallback function
@@ -1073,7 +1136,8 @@ impl<'a> ComponentContext<'a> {
 
         // Generate: $.slot(node, $$props, name, props_expression, fallback)
         let slot_call = b::call(
-            b::member_path("$.slot"),
+            &self.arena,
+            b::member_path(&self.arena, "$.slot"),
             vec![
                 self.state.node.clone(),
                 b::id("$$props"),
@@ -1111,22 +1175,24 @@ impl<'a> ComponentContext<'a> {
             };
             for (idx, entry) in &sync_entries {
                 statements.push(b::let_decl(
+                    &self.arena,
                     format!("${idx}"),
                     Some(b::call(
-                        b::member_path(derived_fn),
-                        vec![b::thunk(entry.expression.clone())],
+                        &self.arena,
+                        b::member_path(&self.arena, derived_fn),
+                        vec![b::thunk(&self.arena, entry.expression.clone())],
                     )),
                 ));
             }
 
             // Add the slot call
-            statements.push(b::stmt(slot_call));
+            statements.push(b::stmt(&self.arena, slot_call));
 
             // Build async_values array: [thunk1, thunk2]
             let async_values = b::array(
                 async_entries
                     .iter()
-                    .map(|(_, entry)| build_slot_async_thunk(&entry.expression))
+                    .map(|(_, entry)| build_slot_async_thunk(&entry.expression, &self.arena))
                     .collect(),
             );
 
@@ -1142,16 +1208,17 @@ impl<'a> ComponentContext<'a> {
 
             // Generate: $.async(node, void 0, async_values, (node, $0) => { statements })
             let async_call = b::call(
-                b::member_path("$.async"),
+                &self.arena,
+                b::member_path(&self.arena, "$.async"),
                 vec![
                     self.state.node.clone(),
-                    b::undefined(), // blockers
-                    async_values,   // async_values
+                    b::undefined(&self.arena), // blockers
+                    async_values,              // async_values
                     b::arrow_block(params, statements),
                 ],
             );
 
-            self.state.init.push(b::stmt(async_call));
+            self.state.init.push(b::stmt(&self.arena, async_call));
         } else if !memo_entries.is_empty() {
             // Non-async case but with memoized entries:
             // Wrap in a block scope with derived declarations
@@ -1166,24 +1233,30 @@ impl<'a> ComponentContext<'a> {
                     // In legacy mode, add $.deep_read_state(deps) for reactive tracking
                     // followed by $.untrack(() => expr)
                     b::call(
-                        b::member_path(derived_fn),
-                        vec![b::thunk(entry.expression.clone())],
+                        &self.arena,
+                        b::member_path(&self.arena, derived_fn),
+                        vec![b::thunk(&self.arena, entry.expression.clone())],
                     )
                 } else {
                     b::call(
-                        b::member_path(derived_fn),
-                        vec![b::thunk(entry.expression.clone())],
+                        &self.arena,
+                        b::member_path(&self.arena, derived_fn),
+                        vec![b::thunk(&self.arena, entry.expression.clone())],
                     )
                 };
-                statements.push(b::let_decl(format!("${idx}"), Some(deep_read_expr)));
+                statements.push(b::let_decl(
+                    &self.arena,
+                    format!("${idx}"),
+                    Some(deep_read_expr),
+                ));
             }
-            statements.push(b::stmt(slot_call));
+            statements.push(b::stmt(&self.arena, slot_call));
             // Wrap in block scope so $0, $1, etc. don't leak
             self.state.init.push(JsStatement::Block(
                 crate::compiler::phases::phase3_transform::js_ast::nodes::JsBlockStatement::with_body(statements)
             ));
         } else {
-            self.state.init.push(b::stmt(slot_call));
+            self.state.init.push(b::stmt(&self.arena, slot_call));
         }
 
         TransformResult::None
@@ -1244,13 +1317,15 @@ impl<'a> ComponentContext<'a> {
                     };
 
                     let_stmts.push(b::const_decl(
+                        &self.arena,
                         &name,
                         b::call(
-                            b::member_path(derived_fn),
-                            vec![b::thunk(b::member(
-                                b::id("$$slotProps"),
-                                prop_name.to_string(),
-                            ))],
+                            &self.arena,
+                            b::member_path(&self.arena, derived_fn),
+                            vec![b::thunk(
+                                &self.arena,
+                                b::member(&self.arena, b::id("$$slotProps"), prop_name.to_string()),
+                            )],
                         ),
                     ));
 
@@ -1261,7 +1336,9 @@ impl<'a> ComponentContext<'a> {
                     self.state.transform.insert(
                         name.clone(),
                         IdentifierTransform {
-                            read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
+                            read: Some(|arena, node| {
+                                b::call(arena, b::member_path(arena, "$.get"), vec![node])
+                            }),
                             read_source: None,
                             assign: None,
                             mutate: None,
@@ -1365,13 +1442,17 @@ impl<'a> ComponentContext<'a> {
                                     self.state.transform.insert(
                                         binding_name.to_string(),
                                         IdentifierTransform {
-                                            read: Some(|node| {
+                                            read: Some(|arena, node| {
                                                 // The node is the identifier (e.g., `num`)
                                                 // We need to produce: $.get(derived_name).num
                                                 // But we can't capture derived_name in a fn pointer.
                                                 // Instead we use read_source which is checked
                                                 // in apply_transforms_to_expression.
-                                                b::call(b::member_path("$.get"), vec![node])
+                                                b::call(
+                                                    arena,
+                                                    b::member_path(arena, "$.get"),
+                                                    vec![node],
+                                                )
                                             }),
                                             read_source: Some(derived_name_clone),
                                             assign: None,
@@ -1411,7 +1492,7 @@ impl<'a> ComponentContext<'a> {
                                 let return_obj_expr = b::object(
                                     binding_names
                                         .iter()
-                                        .map(|n| b::prop(n.clone(), b::id(n.clone())))
+                                        .map(|n| b::prop(&self.arena, n.clone(), b::id(n.clone())))
                                         .collect(),
                                 );
 
@@ -1421,15 +1502,22 @@ impl<'a> ComponentContext<'a> {
                                 // })
                                 // Note: destructured case always uses $.derived (not $.derived_safe_equal)
                                 let inner_let = b::var_decl_pattern(
+                                    &self.arena,
                                     JsVariableKind::Let,
                                     destructuring_pat,
-                                    Some(b::member(b::id("$$slotProps"), prop_name.to_string())),
+                                    Some(b::member(
+                                        &self.arena,
+                                        b::id("$$slotProps"),
+                                        prop_name.to_string(),
+                                    )),
                                 );
-                                let inner_return = b::return_value(return_obj_expr);
+                                let inner_return = b::return_value(&self.arena, return_obj_expr);
                                 let_stmts.push(b::const_decl(
+                                    &self.arena,
                                     &derived_name,
                                     b::call(
-                                        b::member_path("$.derived"),
+                                        &self.arena,
+                                        b::member_path(&self.arena, "$.derived"),
                                         vec![b::arrow_block(vec![], vec![inner_let, inner_return])],
                                     ),
                                 ));
@@ -1503,7 +1591,7 @@ impl<'a> ComponentContext<'a> {
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
         // Save the current node and set it to the special element's reference
-        let old_node = std::mem::replace(&mut self.state.node, b::member_path(id));
+        let old_node = std::mem::replace(&mut self.state.node, b::member_path(&self.arena, id));
 
         // Process all attributes on the element
         for attribute in &element.attributes {
@@ -1516,7 +1604,7 @@ impl<'a> ComponentContext<'a> {
                 Attribute::OnDirective(on_dir) => {
                     // Handle on: directives on special elements
                     if let TransformResult::Expression(expr) = self.visit_on_directive(on_dir) {
-                        self.state.init.push(b::stmt(expr));
+                        self.state.init.push(b::stmt(&self.arena, expr));
                     }
                 }
                 Attribute::BindDirective(bind_dir) => {
@@ -1557,9 +1645,15 @@ impl<'a> ComponentContext<'a> {
                             } else {
                                 handler
                             };
-                        let event_call =
-                            build_event(event_name, &self.state.node, handler, capture, passive);
-                        self.state.init.push(b::stmt(event_call));
+                        let event_call = build_event(
+                            &self.arena,
+                            event_name,
+                            &self.state.node,
+                            handler,
+                            capture,
+                            passive,
+                        );
+                        self.state.init.push(b::stmt(&self.arena, event_call));
                     }
                 }
                 // Other directive types are not typically used on special elements
@@ -2097,7 +2191,7 @@ impl<'a> ComponentClientTransformState<'a> {
     /// Get the blocker expressions for the given variable names.
     /// Returns a list of unique `$$promises[N]` expressions for variables
     /// that are blocked by async promises.
-    pub fn get_blockers_for_names(&self, names: &[&str]) -> Vec<JsExpr> {
+    pub fn get_blockers_for_names(&self, names: &[&str], arena: &JsArena) -> Vec<JsExpr> {
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
         let map = self.blocker_map.borrow();
         let mut indices: Vec<usize> = Vec::new();
@@ -2111,7 +2205,7 @@ impl<'a> ComponentClientTransformState<'a> {
         indices.sort();
         indices
             .into_iter()
-            .map(|idx| b::member_computed(b::id("$$promises"), b::number(idx as f64)))
+            .map(|idx| b::member_computed(arena, b::id("$$promises"), b::number(idx as f64)))
             .collect()
     }
 
@@ -2119,7 +2213,11 @@ impl<'a> ComponentClientTransformState<'a> {
     /// Each variable reference contributes its own blocker entry even if multiple
     /// variables map to the same promise index. This matches the official Svelte
     /// compiler's behavior for `run_after_blockers` arrays.
-    pub fn get_blockers_for_names_with_duplicates(&self, names: &[&str]) -> Vec<JsExpr> {
+    pub fn get_blockers_for_names_with_duplicates(
+        &self,
+        names: &[&str],
+        arena: &JsArena,
+    ) -> Vec<JsExpr> {
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
         let map = self.blocker_map.borrow();
         let mut indices: Vec<usize> = Vec::new();
@@ -2131,7 +2229,7 @@ impl<'a> ComponentClientTransformState<'a> {
         indices.sort();
         indices
             .into_iter()
-            .map(|idx| b::member_computed(b::id("$$promises"), b::number(idx as f64)))
+            .map(|idx| b::member_computed(arena, b::id("$$promises"), b::number(idx as f64)))
             .collect()
     }
 
@@ -2144,23 +2242,23 @@ impl<'a> ComponentClientTransformState<'a> {
     /// Get blocker expressions for all identifiers referenced in a JS expression.
     /// Walks the expression tree to find all identifier references and checks
     /// if any have blockers.
-    pub fn get_blockers_for_expr(&self, expr: &JsExpr) -> Vec<JsExpr> {
-        let names = collect_identifiers_from_expr(expr);
+    pub fn get_blockers_for_expr(&self, expr: &JsExpr, arena: &JsArena) -> Vec<JsExpr> {
+        let names = collect_identifiers_from_expr(expr, arena);
         let name_refs: Vec<&str> = names.iter().map(|s| s.as_str()).collect();
-        self.get_blockers_for_names(&name_refs)
+        self.get_blockers_for_names(&name_refs, arena)
     }
 
     /// Check if a JS expression references any blocked variables.
-    pub fn has_blockers_for_expr(&self, expr: &JsExpr) -> bool {
-        let names = collect_identifiers_from_expr(expr);
+    pub fn has_blockers_for_expr(&self, expr: &JsExpr, arena: &JsArena) -> bool {
+        let names = collect_identifiers_from_expr(expr, arena);
         let name_refs: Vec<&str> = names.iter().map(|s| s.as_str()).collect();
         self.has_blockers_for_names(&name_refs)
     }
 
     /// Get blocker expressions from the const_blocker_map for identifiers in a JS expression.
     /// Returns const-tag-level blocker expressions (e.g., `promises_1[0]`).
-    pub fn get_const_blockers_for_expr(&self, expr: &JsExpr) -> Vec<JsExpr> {
-        let names = collect_identifiers_from_expr(expr);
+    pub fn get_const_blockers_for_expr(&self, expr: &JsExpr, arena: &JsArena) -> Vec<JsExpr> {
+        let names = collect_identifiers_from_expr(expr, arena);
         let const_map = self.const_blocker_map.borrow();
         let mut exprs: Vec<JsExpr> = Vec::new();
         for name in &names {
@@ -2178,22 +2276,40 @@ impl<'a> ComponentClientTransformState<'a> {
 
     /// Get all blocker expressions (both instance-level and const-tag-level)
     /// for identifiers referenced in a JS expression.
-    pub fn get_all_blockers_for_expr(&self, expr: &JsExpr) -> Vec<JsExpr> {
-        let mut blockers = self.get_blockers_for_expr(expr);
-        blockers.extend(self.get_const_blockers_for_expr(expr));
+    pub fn get_all_blockers_for_expr(&self, expr: &JsExpr, arena: &JsArena) -> Vec<JsExpr> {
+        let mut blockers = self.get_blockers_for_expr(expr, arena);
+        let names = collect_identifiers_from_expr(expr, arena);
+        let const_map = self.const_blocker_map.borrow();
+        for name in &names {
+            if let Some(blocker_expr) = const_map.get(name.as_str()) {
+                if !blockers
+                    .iter()
+                    .any(|b| format!("{:?}", b) == format!("{:?}", blocker_expr))
+                {
+                    blockers.push(blocker_expr.clone());
+                }
+            }
+        }
         blockers
     }
 }
 
 /// Collect all identifier names referenced in a JS expression.
 /// Does not cross function boundaries (arrows, function expressions).
-pub fn collect_identifiers_from_expr(expr: &JsExpr) -> Vec<compact_str::CompactString> {
+pub fn collect_identifiers_from_expr(
+    expr: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> Vec<compact_str::CompactString> {
     let mut names = Vec::new();
-    collect_identifiers_recursive(expr, &mut names);
+    collect_identifiers_recursive(expr, arena, &mut names);
     names
 }
 
-fn collect_identifiers_recursive(expr: &JsExpr, names: &mut Vec<compact_str::CompactString>) {
+fn collect_identifiers_recursive(
+    expr: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    names: &mut Vec<compact_str::CompactString>,
+) {
     use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
     match expr {
         JsExpr::Identifier(name) => {
@@ -2202,21 +2318,21 @@ fn collect_identifiers_recursive(expr: &JsExpr, names: &mut Vec<compact_str::Com
             }
         }
         JsExpr::Call(call) => {
-            collect_identifiers_recursive(&call.callee, names);
+            collect_identifiers_recursive(arena.get_expr(call.callee), arena, names);
             for arg in &call.arguments {
-                collect_identifiers_recursive(arg, names);
+                collect_identifiers_recursive(arg, arena, names);
             }
         }
         JsExpr::Member(member) => {
-            collect_identifiers_recursive(&member.object, names);
+            collect_identifiers_recursive(arena.get_expr(member.object), arena, names);
             if member.computed {
                 if let JsMemberProperty::Expression(prop_expr) = &member.property {
-                    collect_identifiers_recursive(prop_expr, names);
+                    collect_identifiers_recursive(arena.get_expr(*prop_expr), arena, names);
                 }
             } else {
                 // Also collect non-computed property names on $$props (e.g., $$props.name)
                 // This is needed for blocker detection of props destructured after await
-                if let JsExpr::Identifier(obj) = &*member.object {
+                if let JsExpr::Identifier(obj) = arena.get_expr(member.object) {
                     if obj == "$$props" {
                         if let JsMemberProperty::Identifier(prop_name) = &member.property {
                             if !names.contains(prop_name) {
@@ -2228,77 +2344,77 @@ fn collect_identifiers_recursive(expr: &JsExpr, names: &mut Vec<compact_str::Com
             }
         }
         JsExpr::Binary(bin) => {
-            collect_identifiers_recursive(&bin.left, names);
-            collect_identifiers_recursive(&bin.right, names);
+            collect_identifiers_recursive(arena.get_expr(bin.left), arena, names);
+            collect_identifiers_recursive(arena.get_expr(bin.right), arena, names);
         }
         JsExpr::Logical(log) => {
-            collect_identifiers_recursive(&log.left, names);
-            collect_identifiers_recursive(&log.right, names);
+            collect_identifiers_recursive(arena.get_expr(log.left), arena, names);
+            collect_identifiers_recursive(arena.get_expr(log.right), arena, names);
         }
         JsExpr::Unary(un) => {
-            collect_identifiers_recursive(&un.argument, names);
+            collect_identifiers_recursive(arena.get_expr(un.argument), arena, names);
         }
         JsExpr::Conditional(cond) => {
-            collect_identifiers_recursive(&cond.test, names);
-            collect_identifiers_recursive(&cond.consequent, names);
-            collect_identifiers_recursive(&cond.alternate, names);
+            collect_identifiers_recursive(arena.get_expr(cond.test), arena, names);
+            collect_identifiers_recursive(arena.get_expr(cond.consequent), arena, names);
+            collect_identifiers_recursive(arena.get_expr(cond.alternate), arena, names);
         }
         JsExpr::TemplateLiteral(tl) => {
             for e in &tl.expressions {
-                collect_identifiers_recursive(e, names);
+                collect_identifiers_recursive(e, arena, names);
             }
         }
         JsExpr::Sequence(seq) => {
             for e in &seq.expressions {
-                collect_identifiers_recursive(e, names);
+                collect_identifiers_recursive(e, arena, names);
             }
         }
         JsExpr::Array(arr) => {
             for e in arr.elements.iter().flatten() {
-                collect_identifiers_recursive(e, names);
+                collect_identifiers_recursive(e, arena, names);
             }
         }
         JsExpr::Object(obj) => {
             for member in &obj.properties {
                 match member {
                     JsObjectMember::Property(prop) => {
-                        collect_identifiers_recursive(&prop.value, names);
+                        collect_identifiers_recursive(arena.get_expr(prop.value), arena, names);
                     }
                     JsObjectMember::SpreadElement(spread) => {
-                        collect_identifiers_recursive(spread, names);
+                        collect_identifiers_recursive(arena.get_expr(*spread), arena, names);
                     }
                 }
             }
         }
         JsExpr::Assignment(assign) => {
-            collect_identifiers_recursive(&assign.right, names);
+            collect_identifiers_recursive(arena.get_expr(assign.right), arena, names);
         }
         JsExpr::Await(inner) => {
-            collect_identifiers_recursive(inner, names);
+            collect_identifiers_recursive(arena.get_expr(*inner), arena, names);
         }
         JsExpr::Update(up) => {
-            collect_identifiers_recursive(&up.argument, names);
+            collect_identifiers_recursive(arena.get_expr(up.argument), arena, names);
         }
         JsExpr::Spread(inner) => {
-            collect_identifiers_recursive(inner, names);
+            collect_identifiers_recursive(arena.get_expr(*inner), arena, names);
         }
         JsExpr::Void(inner) => {
-            collect_identifiers_recursive(inner, names);
+            collect_identifiers_recursive(arena.get_expr(*inner), arena, names);
         }
         JsExpr::New(new_expr) => {
-            collect_identifiers_recursive(&new_expr.callee, names);
+            collect_identifiers_recursive(arena.get_expr(new_expr.callee), arena, names);
             for arg in &new_expr.arguments {
-                collect_identifiers_recursive(arg, names);
+                collect_identifiers_recursive(arg, arena, names);
             }
         }
         JsExpr::TaggedTemplate(tt) => {
-            collect_identifiers_recursive(&tt.tag, names);
+            collect_identifiers_recursive(arena.get_expr(tt.tag), arena, names);
             for e in &tt.quasi.expressions {
-                collect_identifiers_recursive(e, names);
+                collect_identifiers_recursive(e, arena, names);
             }
         }
         JsExpr::Chain(chain) => {
-            collect_identifiers_recursive(&chain.expression, names);
+            collect_identifiers_recursive(arena.get_expr(chain.expression), arena, names);
         }
         // Don't cross function boundaries
         JsExpr::Arrow(_) | JsExpr::Function(_) => {}
@@ -2311,7 +2427,7 @@ fn collect_identifiers_recursive(expr: &JsExpr, names: &mut Vec<compact_str::Com
 #[derive(Debug, Clone)]
 pub struct IdentifierTransform {
     /// How to read the identifier
-    pub read: Option<fn(JsExpr) -> JsExpr>,
+    pub read: Option<fn(&JsArena, JsExpr) -> JsExpr>,
 
     /// Optional source variable for @const destructuring reads.
     ///
@@ -2326,25 +2442,30 @@ pub struct IdentifierTransform {
     /// How to assign to the identifier
     ///
     /// Parameters:
+    /// - arena: The JS arena allocator
     /// - identifier: The identifier being assigned to
     /// - value: The value being assigned
     /// - needs_proxy: Whether the value needs to be proxified
-    pub assign: Option<fn(JsExpr, JsExpr, bool) -> JsExpr>,
+    #[allow(clippy::type_complexity)]
+    pub assign: Option<fn(&JsArena, JsExpr, JsExpr, bool) -> JsExpr>,
 
     /// How to handle mutations to the identifier
     ///
     /// Parameters:
+    /// - arena: The JS arena allocator
     /// - identifier: The identifier being mutated
     /// - mutation_expr: The mutation expression (e.g., `obj.prop = value`)
-    pub mutate: Option<fn(JsExpr, JsExpr) -> JsExpr>,
+    pub mutate: Option<fn(&JsArena, JsExpr, JsExpr) -> JsExpr>,
 
     /// How to handle update expressions (++ or --)
     ///
     /// Parameters:
+    /// - arena: The JS arena allocator
     /// - operator: The update operator (++ or --)
     /// - argument: The identifier being updated
     /// - prefix: Whether the operator is prefix (++x) or postfix (x++)
-    pub update: Option<fn(JsUpdateOp, JsExpr, bool) -> JsExpr>,
+    #[allow(clippy::type_complexity)]
+    pub update: Option<fn(&JsArena, JsUpdateOp, JsExpr, bool) -> JsExpr>,
 
     /// Whether to skip proxy wrapping for this variable (e.g., $state.raw)
     /// When true, needs_proxy will always be false for assignments
@@ -2624,7 +2745,11 @@ impl Memoizer {
     /// # Returns
     ///
     /// Returns a vector of `let $N = $.derived(() => expr)` statements.
-    pub fn deriveds(&self, runes: bool) -> Vec<JsStatement> {
+    pub fn deriveds(
+        &self,
+        arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+        runes: bool,
+    ) -> Vec<JsStatement> {
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
         self.sync
@@ -2641,10 +2766,12 @@ impl Memoizer {
                     _ => "$memo".into(),
                 };
                 b::let_decl(
+                    arena,
                     name.clone(),
                     Some(b::call(
-                        b::member_path(derived_fn),
-                        vec![b::thunk(memo.expression.clone())],
+                        arena,
+                        b::member_path(arena, derived_fn),
+                        vec![b::thunk(arena, memo.expression.clone())],
                     )),
                 )
             })
@@ -2735,7 +2862,7 @@ impl Memoizer {
     ///
     /// Returns an array of thunked expressions: `[() => expr1, () => expr2]`
     /// Returns `None` if there are no sync expressions.
-    pub fn sync_values(&self) -> Option<JsExpr> {
+    pub fn sync_values(&self, arena: &JsArena) -> Option<JsExpr> {
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
         if self.sync.is_empty() {
@@ -2745,7 +2872,7 @@ impl Memoizer {
         let thunks: Vec<JsExpr> = self
             .sync
             .iter()
-            .map(|memo| b::thunk(memo.expression.clone()))
+            .map(|memo| b::thunk(arena, memo.expression.clone()))
             .collect();
 
         Some(b::array(thunks))
@@ -2757,7 +2884,7 @@ impl Memoizer {
     /// The `$.save()` wrapping is handled internally by `async_thunk()`.
     ///
     /// Returns `None` if there are no async expressions.
-    pub fn async_values(&self) -> Option<JsExpr> {
+    pub fn async_values(&self, arena: &JsArena) -> Option<JsExpr> {
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
         if self.async_entries.is_empty() {
@@ -2767,7 +2894,7 @@ impl Memoizer {
         let thunks: Vec<JsExpr> = self
             .async_entries
             .iter()
-            .map(|memo| b::async_thunk(memo.expression.clone()))
+            .map(|memo| b::async_thunk(arena, memo.expression.clone()))
             .collect();
 
         Some(b::array(thunks))
@@ -3142,31 +3269,34 @@ pub struct StateField {
 /// Optimizes `async () => await expr` patterns:
 /// - `async () => await func()` → `func` (if func is a simple identifier call with no args)
 /// - Other cases: `async () => expr` or the stripped await argument
-fn build_slot_async_thunk(expression: &JsExpr) -> JsExpr {
+fn build_slot_async_thunk(
+    expression: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> JsExpr {
     use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
     match expression {
         JsExpr::Await(inner) => {
             // Strip the await and optimize
-            match &**inner {
+            match arena.get_expr(*inner) {
                 JsExpr::Call(call) if call.arguments.is_empty() => {
-                    if let JsExpr::Identifier(_) = &*call.callee {
+                    if let JsExpr::Identifier(_) = arena.get_expr(call.callee) {
                         // `async () => await func()` → `func`
-                        (*call.callee).clone()
+                        arena.get_expr(call.callee).clone()
                     } else {
                         // `async () => await complex()` → `() => complex()`
-                        b::thunk((**inner).clone())
+                        b::thunk(arena, arena.get_expr(*inner).clone())
                     }
                 }
                 _ => {
                     // For simple expressions like `await 'hello'`, create `() => 'hello'`
-                    b::thunk((**inner).clone())
+                    b::thunk(arena, arena.get_expr(*inner).clone())
                 }
             }
         }
         _ => {
             // Not an await expression, wrap as async thunk
-            b::async_thunk(expression.clone())
+            b::async_thunk(arena, expression.clone())
         }
     }
 }
@@ -3222,7 +3352,8 @@ mod tests {
         }
 
         // Check that deriveds() produces the correct output
-        let deriveds = memoizer.deriveds(true);
+        let arena = crate::compiler::phases::phase3_transform::js_ast::arena::JsArena::new();
+        let deriveds = memoizer.deriveds(&arena, true);
         assert_eq!(deriveds.len(), 1);
     }
 

@@ -117,7 +117,8 @@ pub fn build_inline_component<F>(
             }
             Attribute::SpreadAttribute(spread) => {
                 // Convert the spread expression to a JsExpr and add to props_and_spreads
-                let spread_expr = super::utils::convert_expression_simple(&spread.expression);
+                let spread_expr =
+                    super::utils::convert_expression_simple(&spread.expression, &state.arena);
                 props_and_spreads.push(PropsOrSpread::Spread(transform(spread_expr)));
             }
             Attribute::Attribute(attr) => {
@@ -127,13 +128,14 @@ pub fn build_inline_component<F>(
                     transform,
                     false,
                     true, /* is_component */
+                    &state.arena,
                 );
 
                 // Check for custom CSS properties
                 if attr.name.starts_with("--") {
                     custom_css_props.push(JsObjectMember::Property(JsProperty {
                         key: JsPropertyKey::Identifier(attr.name.clone()),
-                        value: Box::new(value),
+                        value: state.arena.alloc_expr(value),
                         kind: JsPropertyKind::Init,
                         computed: false,
                         shorthand: false,
@@ -161,7 +163,7 @@ pub fn build_inline_component<F>(
 
                 props.push(JsObjectMember::Property(JsProperty {
                     key: JsPropertyKey::Identifier(attr.name.clone()),
-                    value: Box::new(value),
+                    value: state.arena.alloc_expr(value),
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
@@ -200,7 +202,9 @@ pub fn build_inline_component<F>(
                     } else {
                         snippet_name.into()
                     }),
-                    value: Box::new(JsExpr::Literal(JsLiteral::Boolean(true))),
+                    value: state
+                        .arena
+                        .alloc_expr(JsExpr::Literal(JsLiteral::Boolean(true))),
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
@@ -276,7 +280,7 @@ pub fn build_inline_component<F>(
 
                 props.push(JsObjectMember::Property(JsProperty {
                     key: JsPropertyKey::Identifier("children".into()),
-                    value: Box::new(slot_fn),
+                    value: state.arena.alloc_expr(slot_fn),
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
@@ -285,7 +289,9 @@ pub fn build_inline_component<F>(
 
                 serialized_slots.push(JsObjectMember::Property(JsProperty {
                     key: JsPropertyKey::Identifier(slot_name.clone().into()),
-                    value: Box::new(JsExpr::Literal(JsLiteral::Boolean(true))),
+                    value: state
+                        .arena
+                        .alloc_expr(JsExpr::Literal(JsLiteral::Boolean(true))),
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
@@ -307,8 +313,8 @@ pub fn build_inline_component<F>(
 
                 props.push(JsObjectMember::Property(JsProperty {
                     key: JsPropertyKey::Identifier("children".into()),
-                    value: Box::new(JsExpr::Member(JsMemberExpression {
-                        object: Box::new(JsExpr::Identifier("$".into())),
+                    value: state.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                        object: state.arena.alloc_expr(JsExpr::Identifier("$".into())),
                         property: JsMemberProperty::Identifier("invalid_default_snippet".into()),
                         computed: false,
                         optional: false,
@@ -321,7 +327,7 @@ pub fn build_inline_component<F>(
 
                 serialized_slots.push(JsObjectMember::Property(JsProperty {
                     key: JsPropertyKey::Identifier(slot_name.clone().into()),
-                    value: Box::new(slot_fn),
+                    value: state.arena.alloc_expr(slot_fn),
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
@@ -331,7 +337,7 @@ pub fn build_inline_component<F>(
         } else {
             serialized_slots.push(JsObjectMember::Property(JsProperty {
                 key: JsPropertyKey::Identifier(slot_name.clone().into()),
-                value: Box::new(slot_fn),
+                value: state.arena.alloc_expr(slot_fn),
                 kind: JsPropertyKind::Init,
                 computed: false,
                 shorthand: false,
@@ -356,7 +362,7 @@ pub fn build_inline_component<F>(
 
         props.push(JsObjectMember::Property(JsProperty {
             key: JsPropertyKey::Identifier("$$slots".into()),
-            value: Box::new(JsExpr::Object(JsObjectExpression {
+            value: state.arena.alloc_expr(JsExpr::Object(JsObjectExpression {
                 properties: serialized_slots,
             })),
             kind: JsPropertyKind::Init,
@@ -390,8 +396,8 @@ pub fn build_inline_component<F>(
             .collect();
 
         JsExpr::Call(JsCallExpression {
-            callee: Box::new(JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("$".into())),
+            callee: state.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                object: state.arena.alloc_expr(JsExpr::Identifier("$".into())),
                 property: JsMemberProperty::Identifier("spread_props".into()),
                 computed: false,
                 optional: false,
@@ -407,8 +413,8 @@ pub fn build_inline_component<F>(
     let component_call = if node.is_svelte_component() {
         // SvelteComponent uses maybe_call
         JsExpr::Call(JsCallExpression {
-            callee: Box::new(JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("$".into())),
+            callee: state.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                object: state.arena.alloc_expr(JsExpr::Identifier("$".into())),
                 property: JsMemberProperty::Identifier("maybe_call".into()),
                 computed: false,
                 optional: false,
@@ -422,14 +428,14 @@ pub fn build_inline_component<F>(
         })
     } else {
         JsExpr::Call(JsCallExpression {
-            callee: Box::new(expression),
+            callee: state.arena.alloc_expr(expression),
             arguments: vec![JsExpr::Identifier("$$renderer".into()), props_expression],
             optional: false,
         })
     };
 
     let mut statement = JsStatement::Expression(JsExpressionStatement {
-        expression: Box::new(component_call),
+        expression: state.arena.alloc_expr(component_call),
     });
 
     // Wrap with snippet declarations if needed
@@ -446,9 +452,9 @@ pub fn build_inline_component<F>(
         let is_dynamic = node.is_svelte_component() || node.is_dynamic();
 
         statement = JsStatement::Expression(JsExpressionStatement {
-            expression: Box::new(JsExpr::Call(JsCallExpression {
-                callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".into())),
+            expression: state.arena.alloc_expr(JsExpr::Call(JsCallExpression {
+                callee: state.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                    object: state.arena.alloc_expr(JsExpr::Identifier("$".into())),
                     property: JsMemberProperty::Identifier("css_props".into()),
                     computed: false,
                     optional: false,
@@ -484,6 +490,7 @@ pub fn build_inline_component<F>(
         // Wrap in async block
         // TODO: Get blockers from PromiseOptimiser
         statement = create_async_block(
+            &state.arena,
             JsBlockStatement {
                 body: vec![statement],
             },

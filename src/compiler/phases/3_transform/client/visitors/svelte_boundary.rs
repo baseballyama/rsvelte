@@ -62,12 +62,13 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
                 if has_state {
                     // Use getter for reactive values: get onerror() { return $.get(onerror); }
                     props.push(b::getter(
+                        &context.arena,
                         attr.name.as_str(),
-                        vec![b::return_value(transformed)],
+                        vec![b::return_value(&context.arena, transformed)],
                     ));
                 } else {
                     // Use init for static values
-                    props.push(b::prop(attr.name.as_str(), transformed));
+                    props.push(b::prop(&context.arena, attr.name.as_str(), transformed));
                 }
             }
         }
@@ -130,7 +131,7 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
                         // Add to props with shorthand: { pending }
                         props.push(JsObjectMember::Property(JsProperty {
                             key: JsPropertyKey::Identifier(snippet_name.clone().into()),
-                            value: Box::new(b::id(&snippet_name)),
+                            value: context.arena.alloc_expr(b::id(&snippet_name)),
                             kind: JsPropertyKind::Init,
                             computed: false,
                             shorthand: true,
@@ -192,10 +193,14 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
 
     let content_fn = b::arrow_block(vec![b::id_pattern("$$anchor")], content_body);
 
-    let boundary_call = b::stmt(b::call(
-        b::member_path("$.boundary"),
-        vec![context.state.node.clone(), props_obj, content_fn],
-    ));
+    let boundary_call = b::stmt(
+        &context.arena,
+        b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.boundary"),
+            vec![context.state.node.clone(), props_obj, content_fn],
+        ),
+    );
 
     // Add a comment node to the template
     context.state.template.push_comment(None);

@@ -32,6 +32,8 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 /// }
 /// ```
 pub fn build_event(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+
     event_name: &str,
     node: &JsExpr,
     handler: JsExpr,
@@ -51,18 +53,21 @@ pub fn build_event(
         args.push(b::boolean(passive_val));
     }
 
-    b::call(b::member_path("$.event"), args)
+    b::call(arena, b::member_path(arena, "$.event"), args)
 }
 
 /// Build a delegated event assignment: `element.__eventname = handler`
 /// Reference: events.js lines 34-42 in the official compiler
 pub fn build_delegated_event_assignment(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+
     event_name: &str,
     node: &JsExpr,
     handler: JsExpr,
 ) -> JsExpr {
     b::call(
-        b::member_path("$.delegated"),
+        arena,
+        b::member_path(arena, "$.delegated"),
         vec![b::string(event_name), node.clone(), handler],
     )
 }
@@ -226,6 +231,8 @@ fn json_value_has_call(value: &serde_json::Value) -> bool {
 ///
 /// Returns a function expression that will be used as the event handler.
 pub fn build_event_handler(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+
     expression: Option<&Expression>,
     _node: &OnDirective,
     context: &mut ComponentContext,
@@ -241,10 +248,14 @@ pub fn build_event_handler(
         return b::function_expr(
             None,
             vec![b::id_pattern("$$arg")],
-            vec![b::stmt(b::call(
-                b::member_path("$.bubble_event.call"),
-                vec![b::this(), b::id("$$props"), b::id("$$arg")],
-            ))],
+            vec![b::stmt(
+                arena,
+                b::call(
+                    arena,
+                    b::member_path(arena, "$.bubble_event.call"),
+                    vec![b::this(), b::id("$$props"), b::id("$$arg")],
+                ),
+            )],
         );
     }
 
@@ -294,29 +305,32 @@ pub fn build_event_handler(
 
         // Create: var event_handler = $.derived(() => handler);
         context.state.init.push(b::var_decl(
+            arena,
             &id_name,
             Some(b::call(
-                b::member_path("$.derived"),
-                vec![b::thunk(handler)],
+                arena,
+                b::member_path(arena, "$.derived"),
+                vec![b::thunk(arena, handler)],
             )),
         ));
 
         // Now handler becomes: $.get(event_handler)
-        handler = b::call(b::member_path("$.get"), vec![b::id(&id_name)]);
+        handler = b::call(arena, b::member_path(arena, "$.get"), vec![b::id(&id_name)]);
     }
 
     // For complex expressions, wrap in a function that calls the expression
     // This handles cases like: onclick={obj.method} or onclick={expr()}
     // handler?.apply(this, $$args) - use optional chaining for safety
     let call_expr = b::call(
-        b::optional_member(handler, "apply"),
+        arena,
+        b::optional_member(arena, handler, "apply"),
         vec![b::this(), b::id("$$args")],
     );
 
     b::function_expr(
         None,
         vec![JsPattern::Rest(Box::new(b::id_pattern("$$args")))],
-        vec![b::stmt(call_expr)],
+        vec![b::stmt(arena, call_expr)],
     )
 }
 
@@ -335,6 +349,8 @@ pub fn build_event_handler(
 ///
 /// Returns a statement that attaches the event listener.
 pub fn build_event_listener(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+
     element: JsExpr,
     event_name: &str,
     handler: JsExpr,
@@ -345,27 +361,35 @@ pub fn build_event_listener(
         let mut props = Vec::new();
 
         if opts.capture {
-            props.push(b::prop("capture", b::boolean(true)));
+            props.push(b::prop(arena, "capture", b::boolean(true)));
         }
         if opts.passive {
-            props.push(b::prop("passive", b::boolean(true)));
+            props.push(b::prop(arena, "passive", b::boolean(true)));
         }
         if opts.once {
-            props.push(b::prop("once", b::boolean(true)));
+            props.push(b::prop(arena, "once", b::boolean(true)));
         }
 
         let options_obj = b::object(props);
 
-        b::stmt(b::call(
-            b::member_path("$.listen"),
-            vec![element, b::string(event_name), handler, options_obj],
-        ))
+        b::stmt(
+            arena,
+            b::call(
+                arena,
+                b::member_path(arena, "$.listen"),
+                vec![element, b::string(event_name), handler, options_obj],
+            ),
+        )
     } else {
         // No options
-        b::stmt(b::call(
-            b::member_path("$.listen"),
-            vec![element, b::string(event_name), handler],
-        ))
+        b::stmt(
+            arena,
+            b::call(
+                arena,
+                b::member_path(arena, "$.listen"),
+                vec![element, b::string(event_name), handler],
+            ),
+        )
     }
 }
 
@@ -411,11 +435,18 @@ impl EventListenerOptions {
 ///
 /// For events that can be delegated (like click), this creates
 /// the delegation setup code.
-pub fn build_delegated_event(event_name: &str) -> JsStatement {
-    b::stmt(b::call(
-        b::member_path("$.delegate"),
-        vec![b::string(event_name)],
-    ))
+pub fn build_delegated_event(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    event_name: &str,
+) -> JsStatement {
+    b::stmt(
+        arena,
+        b::call(
+            arena,
+            b::member_path(arena, "$.delegate"),
+            vec![b::string(event_name)],
+        ),
+    )
 }
 
 #[cfg(test)]
@@ -454,7 +485,8 @@ mod tests {
         );
         let mut context = ComponentContext::new(state, |_, _, _| TransformResult::None);
 
-        let handler = build_event_handler(None, &on_directive, &mut context);
+        let arena = crate::compiler::phases::phase3_transform::js_ast::arena::JsArena::new();
+        let handler = build_event_handler(&arena, None, &on_directive, &mut context);
 
         // Should generate a bubble event handler (regular function, not arrow,
         // so that `this` is correctly bound for $.bubble_event.call(this, ...))
@@ -470,10 +502,11 @@ mod tests {
 
     #[test]
     fn test_build_event_listener_simple() {
+        let arena = crate::compiler::phases::phase3_transform::js_ast::arena::JsArena::new();
         let element = b::id("button");
         let handler = b::id("handleClick");
 
-        let stmt = build_event_listener(element, "click", handler, None);
+        let stmt = build_event_listener(&arena, element, "click", handler, None);
 
         // Should generate $.listen(button, "click", handleClick)
         match stmt {
@@ -486,13 +519,14 @@ mod tests {
 
     #[test]
     fn test_build_event_listener_with_options() {
+        let arena = crate::compiler::phases::phase3_transform::js_ast::arena::JsArena::new();
         let element = b::id("button");
         let handler = b::id("handleClick");
         let options = EventListenerOptions::new()
             .with_capture(true)
             .with_once(true);
 
-        let stmt = build_event_listener(element, "click", handler, Some(options));
+        let stmt = build_event_listener(&arena, element, "click", handler, Some(options));
 
         // Should generate $.listen(button, "click", handleClick, { capture: true, once: true })
         match stmt {

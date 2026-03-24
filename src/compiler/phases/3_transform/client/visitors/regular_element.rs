@@ -59,6 +59,8 @@ struct LetDirectiveResult {
 }
 
 fn process_element_let_directives(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+
     let_directives: &[&LetDirective],
     context: &mut ComponentContext,
 ) -> LetDirectiveResult {
@@ -92,20 +94,24 @@ fn process_element_let_directives(
             };
 
             context.state.init.push(b::const_decl(
+                arena,
                 &name,
                 b::call(
-                    b::member_path(derived_fn),
-                    vec![b::thunk(b::member(
-                        b::id("$$slotProps"),
-                        prop_name.to_string(),
-                    ))],
+                    arena,
+                    b::member_path(arena, derived_fn),
+                    vec![b::thunk(
+                        arena,
+                        b::member(arena, b::id("$$slotProps"), prop_name.to_string()),
+                    )],
                 ),
             ));
 
             context.state.transform.insert(
                 name.clone(),
                 crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
-                    read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
+                    read: Some(|arena, node| {
+                        b::call(arena, b::member_path(arena, "$.get"), vec![node])
+                    }),
                     read_source: None,
                     assign: None,
                     mutate: None,
@@ -230,7 +236,9 @@ pub fn visit_regular_element(
     }
 
     // Process let directives (mirrors RegularElement.js line 207)
-    let let_directive_result = process_element_let_directives(&element_let_directives, context);
+    let arena_ref = unsafe { &*(&context.arena as *const _) };
+    let let_directive_result =
+        process_element_let_directives(arena_ref, &element_let_directives, context);
 
     // Check if value attribute needs special handling (option, select, or bindings)
     let needs_special_value_handling = node.name == "option"
@@ -257,12 +265,16 @@ pub fn visit_regular_element(
                     context.visit_on_directive(on_directive)
                 {
                     if has_use {
-                        element_state_init.push(b::stmt(b::call(
-                            b::member_path("$.effect"),
-                            vec![b::thunk(event_call)],
-                        )));
+                        element_state_init.push(b::stmt(
+                            &context.arena,
+                            b::call(
+                                &context.arena,
+                                b::member_path(&context.arena, "$.effect"),
+                                vec![b::thunk(&context.arena, event_call)],
+                            ),
+                        ));
                     } else {
-                        element_state_after_update.push(b::stmt(event_call));
+                        element_state_after_update.push(b::stmt(&context.arena, event_call));
                     }
                 }
             }
@@ -326,8 +338,7 @@ pub fn visit_regular_element(
             }))
     {
         let node_id = extract_node_id(&context.state.node);
-        element_state_after_update.push(b::stmt(b::call(
-            b::member_path("$.replay_events"),
+        element_state_after_update.push(b::stmt(&context.arena, b::call(&context.arena, b::member_path(&context.arena, "$.replay_events"),
             vec![b::id(&node_id)],
         )));
     }
@@ -372,10 +383,14 @@ pub fn visit_regular_element(
 
         if should_remove_defaults && !has_spread {
             // When has_spread, remove_input_defaults will be called inside set_attributes
-            context.state.init.push(b::stmt(b::call(
-                b::member_path("$.remove_input_defaults"),
-                vec![context.state.node.clone()],
-            )));
+            context.state.init.push(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.remove_input_defaults"),
+                    vec![context.state.node.clone()],
+                ),
+            ));
         }
     }
 
@@ -395,10 +410,14 @@ pub fn visit_regular_element(
         let needs_content_reset = value_attr.is_some_and(|attr| !is_text_attribute(attr));
 
         if has_spread || bindings.contains_key("value") || needs_content_reset {
-            context.state.init.push(b::stmt(b::call(
-                b::member_path("$.remove_textarea_child"),
-                vec![context.state.node.clone()],
-            )));
+            context.state.init.push(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.remove_textarea_child"),
+                    vec![context.state.node.clone()],
+                ),
+            ));
         }
     }
 
@@ -555,10 +574,14 @@ pub fn visit_regular_element(
                     let result =
                         build_attribute_value(&attr.value, context, |expr, _metadata| expr);
                     let node_id = extract_node_id(&context.state.node);
-                    context.state.init.push(b::stmt(b::call(
-                        b::member_path("$.autofocus"),
-                        vec![b::id(&node_id), result.value],
-                    )));
+                    context.state.init.push(b::stmt(
+                        &context.arena,
+                        b::call(
+                            &context.arena,
+                            b::member_path(&context.arena, "$.autofocus"),
+                            vec![b::id(&node_id), result.value],
+                        ),
+                    ));
                 } else if name == "class" {
                     // Dynamic class attribute without class directives
                     let is_html = context.state.metadata.namespace == "html" && node.name != "svg";
@@ -584,7 +607,8 @@ pub fn visit_regular_element(
                         build_attribute_value(&attr.value, context, |expr, _metadata| expr);
                     let node_id = extract_node_id(&context.state.node);
                     let call = b::call(
-                        b::member_path("$.set_custom_element_data"),
+                        &context.arena,
+                        b::member_path(&context.arena, "$.set_custom_element_data"),
                         vec![
                             b::id(&node_id),
                             b::string(attr.name.to_string()),
@@ -594,12 +618,16 @@ pub fn visit_regular_element(
 
                     if result.has_state {
                         // For reactive values, wrap in template_effect
-                        context.state.init.push(b::stmt(b::call(
-                            b::member_path("$.template_effect"),
-                            vec![b::thunk(call)],
-                        )));
+                        context.state.init.push(b::stmt(
+                            &context.arena,
+                            b::call(
+                                &context.arena,
+                                b::member_path(&context.arena, "$.template_effect"),
+                                vec![b::thunk(&context.arena, call)],
+                            ),
+                        ));
                     } else {
-                        context.state.init.push(b::stmt(call));
+                        context.state.init.push(b::stmt(&context.arena, call));
                     }
                 } else {
                     // Dynamic attribute - needs runtime handling.
@@ -627,6 +655,7 @@ pub fn visit_regular_element(
                     );
 
                     let update = build_element_attribute_update(
+                        &context.arena,
                         node,
                         &extract_node_id(&context.state.node),
                         &name,
@@ -639,9 +668,9 @@ pub fn visit_regular_element(
                     // or was memoized (has_call/has_await means value is a $N parameter
                     // that only exists inside template_effect).
                     if result.has_state || meta_has_call || meta_has_await {
-                        context.state.update.push(b::stmt(update));
+                        context.state.update.push(b::stmt(&context.arena, update));
                     } else {
-                        context.state.init.push(b::stmt(update));
+                        context.state.init.push(b::stmt(&context.arena, update));
                     }
                 }
             }
@@ -662,10 +691,14 @@ pub fn visit_regular_element(
                     } else {
                         b::number(0.0)
                     };
-                    context.state.init.push(b::stmt(b::call(
-                        b::member_path("$.set_class"),
-                        vec![b::id(&node_id), flags, b::string(hash)],
-                    )));
+                    context.state.init.push(b::stmt(
+                        &context.arena,
+                        b::call(
+                            &context.arena,
+                            b::member_path(&context.arena, "$.set_class"),
+                            vec![b::id(&node_id), flags, b::string(hash)],
+                        ),
+                    ));
                 } else {
                     // Regular elements: bake hash into template HTML
                     context
@@ -836,10 +869,14 @@ pub fn visit_regular_element(
 
         if !is_empty_string {
             // Set element.textContent = value
-            context.state.init.push(b::stmt(b::assign(
-                b::member(context.state.node.clone(), "textContent"),
-                result.value,
-            )));
+            context.state.init.push(b::stmt(
+                &context.arena,
+                b::assign(
+                    &context.arena,
+                    b::member(&context.arena, context.state.node.clone(), "textContent"),
+                    result.value,
+                ),
+            ));
         }
         // No need for $.reset() since we didn't descend into children
     } else if is_customizable_select_element(node) {
@@ -876,6 +913,7 @@ pub fn visit_regular_element(
         let saved_after_update = std::mem::take(&mut context.state.after_update);
 
         // Process children with the new template
+        let arena_ref2 = unsafe { &*(&context.arena as *const _) };
         process_children(
             &cleaned.trimmed,
             |is_text| {
@@ -883,7 +921,11 @@ pub fn visit_regular_element(
                 if is_text {
                     args.push(b::boolean(true));
                 }
-                b::call(b::member_path("$.first_child"), args)
+                b::call(
+                    arena_ref2,
+                    b::member_path(arena_ref2, "$.first_child"),
+                    args,
+                )
             },
             false, // Not an element - we're processing into a fragment
             context,
@@ -904,29 +946,34 @@ pub fn visit_regular_element(
         // We need to generate the template expression here
         let template_html = select_template.as_html();
         let template_call = b::call(
-            b::member_path("$.from_html"),
+            &context.arena,
+            b::member_path(&context.arena, "$.from_html"),
             vec![template_html, b::number(1.0)],
         );
 
         // Add the template declaration to hoisted
-        context
-            .state
-            .hoisted
-            .push(b::var_decl(&template_name, Some(template_call)));
+        context.state.hoisted.push(b::var_decl(
+            &context.arena,
+            &template_name,
+            Some(template_call),
+        ));
 
         // Build the rich content function body
         // The anchor is the child of the element (a hydration marker during hydration)
         let mut body_stmts = vec![
             b::var_decl(
+                &context.arena,
                 &anchor_id_name,
                 Some(b::call(
-                    b::member_path("$.child"),
+                    &context.arena,
+                    b::member_path(&context.arena, "$.child"),
                     vec![element_node.clone()],
                 )),
             ),
             b::var_decl(
+                &context.arena,
                 &fragment_id_name,
-                Some(b::call(b::id(&template_name), vec![])),
+                Some(b::call(&context.arena, b::id(&template_name), vec![])),
             ),
         ];
         body_stmts.extend(child_init);
@@ -936,32 +983,48 @@ pub fn visit_regular_element(
             // Use expression body for single expression statements, block body otherwise
             let effect_fn = if child_update.len() == 1 {
                 if let JsStatement::Expression(expr_stmt) = &child_update[0] {
-                    b::arrow(vec![], (*expr_stmt.expression).clone())
+                    b::arrow(
+                        &context.arena,
+                        vec![],
+                        context.arena.get_expr(expr_stmt.expression).clone(),
+                    )
                 } else {
                     b::arrow_block(vec![], child_update)
                 }
             } else {
                 b::arrow_block(vec![], child_update)
             };
-            body_stmts.push(b::stmt(b::call(
-                b::member_path("$.template_effect"),
-                vec![effect_fn],
-            )));
+            body_stmts.push(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.template_effect"),
+                    vec![effect_fn],
+                ),
+            ));
         }
 
         body_stmts.extend(child_after_update);
-        body_stmts.push(b::stmt(b::call(
-            b::member_path("$.append"),
-            vec![anchor_id.clone(), fragment_id.clone()],
-        )));
+        body_stmts.push(b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.append"),
+                vec![anchor_id.clone(), fragment_id.clone()],
+            ),
+        ));
 
         // Create the $.customizable_select() call
         let customizable_select_call = b::call(
-            b::member_path("$.customizable_select"),
+            &context.arena,
+            b::member_path(&context.arena, "$.customizable_select"),
             vec![element_node, b::arrow_block(vec![], body_stmts)],
         );
 
-        context.state.init.push(b::stmt(customizable_select_call));
+        context
+            .state
+            .init
+            .push(b::stmt(&context.arena, customizable_select_call));
         force_merge_child_init = true;
     } else {
         // Process trimmed child nodes
@@ -973,13 +1036,18 @@ pub fn visit_regular_element(
         // Reference: RegularElement.js lines 414-418
         let is_template_element = node.name == "template";
         if is_template_element {
-            context.state.init.push(b::stmt(b::call(
-                b::member_path("$.hydrate_template"),
-                vec![current_node.clone()],
-            )));
-            current_node = b::member(current_node, "content");
+            context.state.init.push(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.hydrate_template"),
+                    vec![current_node.clone()],
+                ),
+            ));
+            current_node = b::member(&context.arena, current_node, "content");
         }
 
+        let arena_ref3 = unsafe { &*(&context.arena as *const _) };
         process_children(
             &cleaned.trimmed,
             |is_text| {
@@ -988,7 +1056,7 @@ pub fn visit_regular_element(
                 if is_text {
                     args.push(b::boolean(true));
                 }
-                b::call(b::member_path("$.child"), args)
+                b::call(arena_ref3, b::member_path(arena_ref3, "$.child"), args)
             },
             true, // is_element
             context,
@@ -1005,10 +1073,14 @@ pub fn visit_regular_element(
             });
 
         if needs_reset {
-            context.state.init.push(b::stmt(b::call(
-                b::member_path("$.reset"),
-                vec![context.state.node.clone()],
-            )));
+            context.state.init.push(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.reset"),
+                    vec![context.state.node.clone()],
+                ),
+            ));
         }
     }
 
@@ -1037,10 +1109,14 @@ pub fn visit_regular_element(
 
         // Add template_effect for update statements
         if !child_update.is_empty() {
-            block_body.push(b::stmt(b::call(
-                b::member_path("$.template_effect"),
-                vec![b::arrow_block(vec![], child_update)],
-            )));
+            block_body.push(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.template_effect"),
+                    vec![b::arrow_block(vec![], child_update)],
+                ),
+            ));
         }
 
         block_body.extend(child_after_update);
@@ -1076,16 +1152,21 @@ pub fn visit_regular_element(
     if node.name == "selectedcontent" {
         let node_id = extract_node_id(&context.state.node);
         // $.selectedcontent(node_id, ($$element) => node_id = $$element)
-        context.state.init.push(b::stmt(b::call(
-            b::member_path("$.selectedcontent"),
-            vec![
-                b::id(&node_id),
-                b::arrow(
-                    vec![JsPattern::Identifier("$$element".into())],
-                    b::assign(b::id(&node_id), b::id("$$element")),
-                ),
-            ],
-        )));
+        context.state.init.push(b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.selectedcontent"),
+                vec![
+                    b::id(&node_id),
+                    b::arrow(
+                        &context.arena,
+                        vec![JsPattern::Identifier("$$element".into())],
+                        b::assign(&context.arena, b::id(&node_id), b::id("$$element")),
+                    ),
+                ],
+            ),
+        ));
     }
 
     // Handle special value attribute for option/select
@@ -1170,10 +1251,14 @@ pub fn visit_regular_element(
 
                     // For select elements with value, add $.init_select(node)
                     if is_select_with_value {
-                        context.state.init.push(b::stmt(b::call(
-                            b::member(b::id("$"), "init_select"),
-                            vec![b::id(&node_id)],
-                        )));
+                        context.state.init.push(b::stmt(
+                            &context.arena,
+                            b::call(
+                                &context.arena,
+                                b::member(&context.arena, b::id("$"), "init_select"),
+                                vec![b::id(&node_id)],
+                            ),
+                        ));
                     }
 
                     break;
@@ -1192,11 +1277,11 @@ pub fn visit_regular_element(
         .any(|attr| matches!(attr, Attribute::Attribute(a) if a.name == "dir"));
     if has_dir_attribute {
         let node_id = extract_node_id(&context.state.node);
-        let dir_member = b::member(b::id(&node_id), "dir");
-        context
-            .state
-            .update
-            .push(b::stmt(b::assign(dir_member.clone(), dir_member)));
+        let dir_member = b::member(&context.arena, b::id(&node_id), "dir");
+        context.state.update.push(b::stmt(
+            &context.arena,
+            b::assign(&context.arena, dir_member.clone(), dir_member),
+        ));
     }
 
     // Decrement nesting level (we incremented it before processing hoisted nodes)
@@ -1468,6 +1553,8 @@ fn extract_node_id(expr: &JsExpr) -> String {
 /// Build element attribute update expression.
 /// The `name` parameter should already be normalized via `get_attribute_name()`.
 fn build_element_attribute_update(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+
     element: &RegularElementNode,
     node_id: &str,
     name: &str,
@@ -1477,23 +1564,32 @@ fn build_element_attribute_update(
 ) -> JsExpr {
     // Special case: muted (Firefox needs property assignment)
     if name == "muted" {
-        return b::assign(b::member(b::id(node_id), "muted"), value);
+        return b::assign(arena, b::member(arena, b::id(node_id), "muted"), value);
     }
 
     // Special case: value
     if name == "value" {
-        return b::call(b::member_path("$.set_value"), vec![b::id(node_id), value]);
+        return b::call(
+            arena,
+            b::member_path(arena, "$.set_value"),
+            vec![b::id(node_id), value],
+        );
     }
 
     // Special case: checked
     if name == "checked" {
-        return b::call(b::member_path("$.set_checked"), vec![b::id(node_id), value]);
+        return b::call(
+            arena,
+            b::member_path(arena, "$.set_checked"),
+            vec![b::id(node_id), value],
+        );
     }
 
     // Special case: selected
     if name == "selected" {
         return b::call(
-            b::member_path("$.set_selected"),
+            arena,
+            b::member_path(arena, "$.set_selected"),
             vec![b::id(node_id), value],
         );
     }
@@ -1510,7 +1606,8 @@ fn build_element_attribute_update(
 
         if has_value_attr || (element.name == "textarea" && !element.fragment.nodes.is_empty()) {
             return b::call(
-                b::member_path("$.set_default_value"),
+                arena,
+                b::member_path(arena, "$.set_default_value"),
                 vec![b::id(node_id), value],
             );
         }
@@ -1528,7 +1625,8 @@ fn build_element_attribute_update(
 
         if has_checked_attr {
             return b::call(
-                b::member_path("$.set_default_checked"),
+                arena,
+                b::member_path(arena, "$.set_default_checked"),
                 vec![b::id(node_id), value],
             );
         }
@@ -1536,7 +1634,7 @@ fn build_element_attribute_update(
 
     // DOM property (name is already normalized, e.g., "async", "defer", "required")
     if is_dom_property(name) {
-        return b::assign(b::member(b::id(node_id), name), value);
+        return b::assign(arena, b::member(arena, b::id(node_id), name), value);
     }
 
     // Regular attribute (use normalized name for HTML attribute)
@@ -1557,7 +1655,7 @@ fn build_element_attribute_update(
         args.push(b::boolean(true));
     }
 
-    b::call(b::member_path(set_fn), args)
+    b::call(arena, b::member_path(arena, set_fn), args)
 }
 
 /// Checks if a <select>, <optgroup>, or <option> element has rich content that requires
@@ -1774,7 +1872,8 @@ fn build_element_special_value_attribute(
 
     // node.__value = transformed_value
     let assignment = b::assign(
-        b::member(b::id(node_id), "__value"),
+        &context.arena,
+        b::member(&context.arena, b::id(node_id), "__value"),
         transformed_value.clone(),
     );
 
@@ -1788,24 +1887,32 @@ fn build_element_special_value_attribute(
             assignment.clone()
         } else {
             // Wrap with ?? '' for potentially undefined values
-            b::nullish(assignment.clone(), b::string(""))
+            b::nullish(&context.arena, assignment.clone(), b::string(""))
         };
-        b::assign(b::member(b::id(node_id), "value"), inner)
+        b::assign(
+            &context.arena,
+            b::member(&context.arena, b::id(node_id), "value"),
+            inner,
+        )
     };
 
     // For select elements with value, wrap in sequence: (set_value_assignment, $.select_option(node, value))
     let update = if is_select_with_value {
-        b::stmt(b::sequence(vec![
-            set_value_assignment,
-            b::call(
-                b::member_path("$.select_option"),
-                vec![b::id(node_id), transformed_value.clone()],
-            ),
-        ]))
+        b::stmt(
+            &context.arena,
+            b::sequence(vec![
+                set_value_assignment,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.select_option"),
+                    vec![b::id(node_id), transformed_value.clone()],
+                ),
+            ]),
+        )
     } else if synthetic {
-        b::stmt(assignment)
+        b::stmt(&context.arena, assignment)
     } else {
-        b::stmt(set_value_assignment)
+        b::stmt(&context.arena, set_value_assignment)
     };
 
     if has_state {
@@ -1828,18 +1935,22 @@ fn build_element_special_value_attribute(
         };
 
         // Add variable declaration: var node_value = {} (for option) or var node_value (for others)
-        context.state.init.push(b::var_decl(&value_id, init_value));
+        context
+            .state
+            .init
+            .push(b::var_decl(&context.arena, &value_id, init_value));
 
         // Create the comparison: value_id !== (value_id = transformed_value)
         let comparison = b::binary_str(
+            &context.arena,
             "!==",
             b::id(&value_id),
-            b::assign(b::id(&value_id), transformed_value.clone()),
+            b::assign(&context.arena, b::id(&value_id), transformed_value.clone()),
         );
 
         // Create the if statement: if (comparison) { update }
         // b::if_stmt takes (test, consequent, alternate)
-        let if_statement = b::if_stmt(comparison, b::block(vec![update]), None);
+        let if_statement = b::if_stmt(&context.arena, comparison, b::block(vec![update]), None);
 
         context.state.update.push(if_statement);
     } else {

@@ -19,6 +19,7 @@ use crate::ast::js::Expression;
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, BindDirective};
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+use crate::compiler::phases::phase3_transform::js_ast::JsArena;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
@@ -97,7 +98,7 @@ pub fn unified_build_bind_this(
     let setter_raw = if let Some(ref s) = setter_expr {
         s.clone()
     } else {
-        b::assign(raw_expr.clone(), b::id("$$value"))
+        b::assign(&context.arena, raw_expr.clone(), b::id("$$value"))
     };
 
     // For bind:this on regular elements, the value being assigned is always a DOM element
@@ -145,7 +146,7 @@ pub fn unified_build_bind_this(
     // Expected output: ($$value, item) => (item.ref = $$value, $.invalidate_inner_signals(() => (items())))
     if !context.state.analysis.runes && !each_ids.is_empty() {
         // Check if the bind:this expression's root object is an each item variable
-        let expr_root = get_expression_root_identifier(&raw_expr);
+        let expr_root = get_expression_root_identifier(&raw_expr, &context.arena);
         if let Some(ref root_name) = expr_root
             && let Some(each_ctx) = context
                 .state
@@ -170,8 +171,9 @@ pub fn unified_build_bind_this(
                 .collect();
             let inner = b::sequence(invalidation_inner_exprs);
             let invalidate_call = b::call(
-                b::member_path("$.invalidate_inner_signals"),
-                vec![b::thunk(inner)],
+                &context.arena,
+                b::member_path(&context.arena, "$.invalidate_inner_signals"),
+                vec![b::thunk(&context.arena, inner)],
             );
             set = b::sequence(vec![set, invalidate_call]);
         }
@@ -189,13 +191,18 @@ pub fn unified_build_bind_this(
 
     // Apply optional chaining to getter MemberExpression nodes only
     if let JsExpr::Member(_) = &get {
-        fn make_optional(expr: &mut JsExpr) {
+        fn make_optional(
+            arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+            expr: &mut JsExpr,
+        ) {
             if let JsExpr::Member(member) = expr {
                 member.optional = true;
-                make_optional(&mut member.object);
+                let mut inner = arena.take_expr(member.object);
+                make_optional(arena, &mut inner);
+                member.object = arena.alloc_expr(inner);
             }
         }
-        make_optional(&mut get);
+        make_optional(&context.arena, &mut get);
     }
 
     let id_params: Vec<JsPattern> = each_ids.iter().map(|id| b::id_pattern(&id.name)).collect();
@@ -215,7 +222,7 @@ pub fn unified_build_bind_this(
             if getter_expr.is_some() {
                 other
             } else {
-                b::arrow(id_params.clone(), other)
+                b::arrow(&context.arena, id_params.clone(), other)
             }
         }
     };
@@ -244,7 +251,7 @@ pub fn unified_build_bind_this(
             } else {
                 let mut params = vec![b::id_pattern("$$value")];
                 params.extend(id_params);
-                b::arrow(params, other)
+                b::arrow(&context.arena, params, other)
             }
         }
     };
@@ -253,6 +260,7 @@ pub fn unified_build_bind_this(
 
     if !values.is_empty() {
         let values_thunk = b::arrow(
+            &context.arena,
             vec![],
             JsExpr::Array(JsArrayExpression {
                 elements: values.into_iter().map(Some).collect(),
@@ -261,7 +269,11 @@ pub fn unified_build_bind_this(
         args.push(values_thunk);
     }
 
-    b::call(b::member_path("$.bind_this"), args)
+    b::call(
+        &context.arena,
+        b::member_path(&context.arena, "$.bind_this"),
+        args,
+    )
 }
 
 /// Get binding property configuration for a given binding name.
@@ -433,6 +445,7 @@ fn bind_directive_inner(
         if let Some(event) = prop.event {
             // Use bind_property for bindings with events
             build_bind_property_call(
+                &context.arena,
                 binding_name,
                 event,
                 &context.state.node,
@@ -468,12 +481,16 @@ fn bind_directive_inner(
 
     // Wrap in effect if deferred
     let mut statement = if defer {
-        b::stmt(b::call(
-            b::member_path("$.effect"),
-            vec![b::thunk(call.clone())],
-        ))
+        b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.effect"),
+                vec![b::thunk(&context.arena, call.clone())],
+            ),
+        )
     } else {
-        b::stmt(call.clone())
+        b::stmt(&context.arena, call.clone())
     };
 
     // Check if any referenced variables are blocked by async promises.
@@ -487,14 +504,18 @@ fn bind_directive_inner(
         let name_refs: Vec<&str> = ast_names.iter().map(|s| s.as_str()).collect();
         let blocker_exprs = context
             .state
-            .get_blockers_for_names_with_duplicates(&name_refs);
+            .get_blockers_for_names_with_duplicates(&name_refs, &context.arena);
 
         if !blocker_exprs.is_empty() {
             let blockers_array = b::array(blocker_exprs);
-            statement = b::stmt(b::call(
-                b::member_path("$.run_after_blockers"),
-                vec![blockers_array, b::arrow_block(vec![], vec![statement])],
-            ));
+            statement = b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.run_after_blockers"),
+                    vec![blockers_array, b::arrow_block(vec![], vec![statement])],
+                ),
+            );
         }
     }
 
@@ -524,7 +545,11 @@ fn build_special_binding_call(
 
     match name {
         // Window bindings
-        "online" => b::call(b::member_path("$.bind_online"), vec![set_or_get]),
+        "online" => b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.bind_online"),
+            vec![set_or_get],
+        ),
 
         "scrollX" | "scrollY" => {
             let axis = if name == "scrollX" { "x" } else { "y" };
@@ -532,16 +557,25 @@ fn build_special_binding_call(
             if let Some(s) = set {
                 args.push(s.clone());
             }
-            b::call(b::member_path("$.bind_window_scroll"), args)
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.bind_window_scroll"),
+                args,
+            )
         }
 
         "innerWidth" | "innerHeight" | "outerWidth" | "outerHeight" => b::call(
-            b::member_path("$.bind_window_size"),
+            &context.arena,
+            b::member_path(&context.arena, "$.bind_window_size"),
             vec![b::string(name), set_or_get],
         ),
 
         // Document bindings
-        "activeElement" => b::call(b::member_path("$.bind_active_element"), vec![set_or_get]),
+        "activeElement" => b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.bind_active_element"),
+            vec![set_or_get],
+        ),
 
         // Media bindings
         "muted" => {
@@ -549,7 +583,11 @@ fn build_special_binding_call(
             if let Some(s) = set {
                 args.push(s.clone());
             }
-            b::call(b::member_path("$.bind_muted"), args)
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.bind_muted"),
+                args,
+            )
         }
 
         "paused" => {
@@ -557,7 +595,11 @@ fn build_special_binding_call(
             if let Some(s) = set {
                 args.push(s.clone());
             }
-            b::call(b::member_path("$.bind_paused"), args)
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.bind_paused"),
+                args,
+            )
         }
 
         "volume" => {
@@ -565,7 +607,11 @@ fn build_special_binding_call(
             if let Some(s) = set {
                 args.push(s.clone());
             }
-            b::call(b::member_path("$.bind_volume"), args)
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.bind_volume"),
+                args,
+            )
         }
 
         "playbackRate" => {
@@ -573,7 +619,11 @@ fn build_special_binding_call(
             if let Some(s) = set {
                 args.push(s.clone());
             }
-            b::call(b::member_path("$.bind_playback_rate"), args)
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.bind_playback_rate"),
+                args,
+            )
         }
 
         "currentTime" => {
@@ -581,50 +631,62 @@ fn build_special_binding_call(
             if let Some(s) = set {
                 args.push(s.clone());
             }
-            b::call(b::member_path("$.bind_current_time"), args)
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.bind_current_time"),
+                args,
+            )
         }
 
         "buffered" => b::call(
-            b::member_path("$.bind_buffered"),
+            &context.arena,
+            b::member_path(&context.arena, "$.bind_buffered"),
             vec![node_expr.clone(), set_or_get],
         ),
 
         "played" => b::call(
-            b::member_path("$.bind_played"),
+            &context.arena,
+            b::member_path(&context.arena, "$.bind_played"),
             vec![node_expr.clone(), set_or_get],
         ),
 
         "seekable" => b::call(
-            b::member_path("$.bind_seekable"),
+            &context.arena,
+            b::member_path(&context.arena, "$.bind_seekable"),
             vec![node_expr.clone(), set_or_get],
         ),
 
         "seeking" => b::call(
-            b::member_path("$.bind_seeking"),
+            &context.arena,
+            b::member_path(&context.arena, "$.bind_seeking"),
             vec![node_expr.clone(), set_or_get],
         ),
 
         "ended" => b::call(
-            b::member_path("$.bind_ended"),
+            &context.arena,
+            b::member_path(&context.arena, "$.bind_ended"),
             vec![node_expr.clone(), set_or_get],
         ),
 
         "readyState" => b::call(
-            b::member_path("$.bind_ready_state"),
+            &context.arena,
+            b::member_path(&context.arena, "$.bind_ready_state"),
             vec![node_expr.clone(), set_or_get],
         ),
 
         // Resize observer bindings
         "contentRect" | "contentBoxSize" | "borderBoxSize" | "devicePixelContentBoxSize" => {
             b::call(
-                b::member_path("$.bind_resize_observer"),
+                &context.arena,
+                b::member_path(&context.arena, "$.bind_resize_observer"),
                 vec![node_expr.clone(), b::string(name), set_or_get],
             )
         }
 
         // Element dimensions
         "clientWidth" | "clientHeight" | "offsetWidth" | "offsetHeight" => b::call(
-            b::member_path("$.bind_element_size"),
+            &context.arena,
+            b::member_path(&context.arena, "$.bind_element_size"),
             vec![node_expr.clone(), b::string(name), set_or_get],
         ),
 
@@ -639,24 +701,32 @@ fn build_special_binding_call(
                 let store_name_sel = get_store_to_invalidate_from_context(context);
                 if let Some(s) = set {
                     if let Some(ref sn) = store_name_sel {
-                        args.push(merge_store_invalidation_into_setter(s, sn));
+                        args.push(merge_store_invalidation_into_setter(&context.arena, s, sn));
                     } else {
                         args.push(s.clone());
                     }
                 }
-                b::call(b::member_path("$.bind_select_value"), args)
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.bind_select_value"),
+                    args,
+                )
             } else {
                 let mut args = vec![node_expr.clone(), get.clone()];
                 let store_name = get_store_to_invalidate_from_context(context);
                 if let Some(s) = set {
                     if let Some(ref sn) = store_name {
                         // Merge $.invalidate_store into the setter as a comma expression
-                        args.push(merge_store_invalidation_into_setter(s, sn));
+                        args.push(merge_store_invalidation_into_setter(&context.arena, s, sn));
                     } else {
                         args.push(s.clone());
                     }
                 }
-                b::call(b::member_path("$.bind_value"), args)
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.bind_value"),
+                    args,
+                )
             }
         }
 
@@ -666,7 +736,11 @@ fn build_special_binding_call(
             if let Some(s) = set {
                 args.push(s.clone());
             }
-            b::call(b::member_path("$.bind_files"), args)
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.bind_files"),
+                args,
+            )
         }
 
         // bind:this
@@ -678,7 +752,11 @@ fn build_special_binding_call(
             if let Some(s) = set {
                 args.push(s.clone());
             }
-            b::call(b::member_path("$.bind_content_editable"), args)
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.bind_content_editable"),
+                args,
+            )
         }
 
         // Checkbox checked binding
@@ -687,12 +765,17 @@ fn build_special_binding_call(
             if let Some(s) = set {
                 args.push(s.clone());
             }
-            b::call(b::member_path("$.bind_checked"), args)
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.bind_checked"),
+                args,
+            )
         }
 
         // Focus binding
         "focused" => b::call(
-            b::member_path("$.bind_focused"),
+            &context.arena,
+            b::member_path(&context.arena, "$.bind_focused"),
             vec![node_expr.clone(), set_or_get],
         ),
 
@@ -706,13 +789,19 @@ fn build_special_binding_call(
             if let Some(s) = set {
                 args.push(s.clone());
             }
-            b::call(b::member_path("$.bind_property"), args)
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.bind_property"),
+                args,
+            )
         }
     }
 }
 
 /// Build a bind_property call for bindings with events.
 fn build_bind_property_call(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+
     name: &str,
     event: &str,
     node: &JsExpr,
@@ -731,7 +820,7 @@ fn build_bind_property_call(
         args.push(get.clone());
     }
 
-    b::call(b::member_path("$.bind_property"), args)
+    b::call(arena, b::member_path(arena, "$.bind_property"), args)
 }
 
 /// Build the keypath string for a binding expression.
@@ -863,7 +952,11 @@ fn build_group_binding_call(
                 let idx = b::id(&each_ctx.index_name);
                 if each_ctx.index_reactive {
                     // Keyed block with index: wrap in $.get()
-                    idx_exprs.push(b::call(b::member_path("$.get"), vec![idx]));
+                    idx_exprs.push(b::call(
+                        &context.arena,
+                        b::member_path(&context.arena, "$.get"),
+                        vec![idx],
+                    ));
                 } else {
                     idx_exprs.push(idx);
                 }
@@ -912,20 +1005,24 @@ fn build_group_binding_call(
                 let converted = convert_expression(dir_expr, context);
                 apply_transforms_to_expression(&converted, context)
             } else {
-                unwrap_thunk(get)
+                unwrap_thunk(&context.arena, get)
             };
 
             // Create a getter that first evaluates the value expression (for dependency tracking),
             // then returns the group expression
             // () => { value_expr; return get_expr; }
-            group_getter = b::thunk_block(vec![b::stmt(value_expr), b::return_value(return_expr)]);
+            group_getter = b::thunk_block(vec![
+                b::stmt(&context.arena, value_expr),
+                b::return_value(&context.arena, return_expr),
+            ]);
         }
     }
 
     let set_or_get = set.clone().unwrap_or_else(|| get.clone());
 
     b::call(
-        b::member_path("$.bind_group"),
+        &context.arena,
+        b::member_path(&context.arena, "$.bind_group"),
         vec![
             binding_group_name,
             indexes,
@@ -943,16 +1040,16 @@ fn is_text_attribute_value(value: &AttributeValue) -> bool {
 }
 
 /// Unwrap a thunk expression (arrow function with no params) to get its body expression.
-fn unwrap_thunk(expr: &JsExpr) -> JsExpr {
+fn unwrap_thunk(arena: &JsArena, expr: &JsExpr) -> JsExpr {
     match expr {
         JsExpr::Arrow(arrow) if arrow.params.is_empty() => match &arrow.body {
-            JsArrowBody::Expression(body) => (**body).clone(),
+            JsArrowBody::Expression(body) => arena.get_expr(*body).clone(),
             JsArrowBody::Block(block) => {
                 // If it's a block with a single return statement, extract the value
                 if let Some(JsStatement::Return(ret)) = block.body.first()
                     && let Some(arg) = &ret.argument
                 {
-                    return (**arg).clone();
+                    return arena.get_expr(*arg).clone();
                 }
                 expr.clone()
             }
@@ -1034,7 +1131,7 @@ fn build_value_expression(value: &AttributeValue, context: &mut ComponentContext
                 }
             }
             // Fallback for text-only sequences (shouldn't reach here due to is_text_attribute check)
-            b::undefined()
+            b::undefined(&context.arena)
         }
         AttributeValue::True(_) => b::boolean(true),
     }
@@ -1054,12 +1151,13 @@ struct EachBlockId {
 fn find_each_block_ids_in_expr(expr: &JsExpr, context: &ComponentContext) -> Vec<EachBlockId> {
     let mut result = Vec::new();
     let mut seen = HashSet::new();
-    collect_each_block_ids(expr, context, &mut result, &mut seen);
+    collect_each_block_ids(&context.arena, expr, context, &mut result, &mut seen);
     result
 }
 
 /// Recursively collect each-block identifiers from a JsExpr.
 fn collect_each_block_ids(
+    arena: &JsArena,
     expr: &JsExpr,
     context: &ComponentContext,
     result: &mut Vec<EachBlockId>,
@@ -1106,45 +1204,51 @@ fn collect_each_block_ids(
             }
         }
         JsExpr::Member(member) => {
-            collect_each_block_ids(&member.object, context, result, seen);
+            collect_each_block_ids(arena, arena.get_expr(member.object), context, result, seen);
             if member.computed
                 && let JsMemberProperty::Expression(prop_expr) = &member.property
             {
-                collect_each_block_ids(prop_expr, context, result, seen);
+                collect_each_block_ids(arena, arena.get_expr(*prop_expr), context, result, seen);
             }
         }
         JsExpr::Call(call) => {
-            collect_each_block_ids(&call.callee, context, result, seen);
+            collect_each_block_ids(arena, arena.get_expr(call.callee), context, result, seen);
             for arg in &call.arguments {
-                collect_each_block_ids(arg, context, result, seen);
+                collect_each_block_ids(arena, arg, context, result, seen);
             }
         }
         JsExpr::Assignment(assign) => {
-            collect_each_block_ids(&assign.left, context, result, seen);
-            collect_each_block_ids(&assign.right, context, result, seen);
+            collect_each_block_ids(arena, arena.get_expr(assign.left), context, result, seen);
+            collect_each_block_ids(arena, arena.get_expr(assign.right), context, result, seen);
         }
         JsExpr::Arrow(arrow) => {
             if let JsArrowBody::Expression(body) = &arrow.body {
-                collect_each_block_ids(body, context, result, seen);
+                collect_each_block_ids(arena, arena.get_expr(*body), context, result, seen);
             }
         }
         JsExpr::Binary(binary) => {
-            collect_each_block_ids(&binary.left, context, result, seen);
-            collect_each_block_ids(&binary.right, context, result, seen);
+            collect_each_block_ids(arena, arena.get_expr(binary.left), context, result, seen);
+            collect_each_block_ids(arena, arena.get_expr(binary.right), context, result, seen);
         }
         JsExpr::Array(array) => {
             for e in array.elements.iter().flatten() {
-                collect_each_block_ids(e, context, result, seen);
+                collect_each_block_ids(arena, e, context, result, seen);
             }
         }
         JsExpr::Conditional(cond) => {
-            collect_each_block_ids(&cond.test, context, result, seen);
-            collect_each_block_ids(&cond.consequent, context, result, seen);
-            collect_each_block_ids(&cond.alternate, context, result, seen);
+            collect_each_block_ids(arena, arena.get_expr(cond.test), context, result, seen);
+            collect_each_block_ids(
+                arena,
+                arena.get_expr(cond.consequent),
+                context,
+                result,
+                seen,
+            );
+            collect_each_block_ids(arena, arena.get_expr(cond.alternate), context, result, seen);
         }
         JsExpr::Sequence(seq) => {
             for e in &seq.expressions {
-                collect_each_block_ids(e, context, result, seen);
+                collect_each_block_ids(arena, e, context, result, seen);
             }
         }
         _ => {}
@@ -1152,21 +1256,21 @@ fn collect_each_block_ids(
 }
 
 /// Make all MemberExpression nodes in an expression use optional chaining.
-fn make_optional_chain(expr: &JsExpr) -> JsExpr {
+fn make_optional_chain(arena: &JsArena, expr: &JsExpr) -> JsExpr {
     match expr {
         JsExpr::Member(member) => {
-            let optional_object = make_optional_chain(&member.object);
+            let optional_object = make_optional_chain(arena, arena.get_expr(member.object));
             JsExpr::Member(JsMemberExpression {
-                object: Box::new(optional_object),
+                object: arena.alloc_expr(optional_object),
                 property: member.property.clone(),
                 computed: member.computed,
                 optional: true,
             })
         }
         JsExpr::Call(call) => {
-            let optional_callee = make_optional_chain(&call.callee);
+            let optional_callee = make_optional_chain(arena, arena.get_expr(call.callee));
             JsExpr::Call(JsCallExpression {
-                callee: Box::new(optional_callee),
+                callee: arena.alloc_expr(optional_callee),
                 arguments: call.arguments.clone(),
                 optional: call.optional,
             })
@@ -1176,10 +1280,10 @@ fn make_optional_chain(expr: &JsExpr) -> JsExpr {
 }
 
 /// Extract the body expression from an Arrow function, or return the expression as-is.
-fn extract_arrow_body(expr: &JsExpr) -> &JsExpr {
+fn extract_arrow_body<'a>(arena: &'a JsArena, expr: &'a JsExpr) -> &'a JsExpr {
     match expr {
         JsExpr::Arrow(arrow) => match &arrow.body {
-            JsArrowBody::Expression(body) => body.as_ref(),
+            JsArrowBody::Expression(body) => arena.get_expr(*body),
             _ => expr,
         },
         _ => expr,
@@ -1209,8 +1313,8 @@ fn build_bind_this_with_each_ids(
     let transformed_setter = if let Some(setter) = set {
         apply_transforms_to_expression_with_shadowed(setter, context, &local_scope)
     } else {
-        let raw_expr = extract_arrow_body(get);
-        let set_expr = b::assign(raw_expr.clone(), b::id("$$value"));
+        let raw_expr = extract_arrow_body(&context.arena, get);
+        let set_expr = b::assign(&context.arena, raw_expr.clone(), b::id("$$value"));
         apply_transforms_to_expression_with_shadowed(&set_expr, context, &local_scope)
     };
 
@@ -1219,7 +1323,12 @@ fn build_bind_this_with_each_ids(
         JsExpr::Arrow(arrow) => {
             let optional_body = match arrow.body {
                 JsArrowBody::Expression(body) => {
-                    JsArrowBody::Expression(Box::new(make_optional_chain(&body)))
+                    let body_expr = context.arena.get_expr(body).clone();
+                    JsArrowBody::Expression(
+                        context
+                            .arena
+                            .alloc_expr(make_optional_chain(&context.arena, &body_expr)),
+                    )
                 }
                 other => other,
             };
@@ -1232,8 +1341,8 @@ fn build_bind_this_with_each_ids(
             })
         }
         other => {
-            let optional = make_optional_chain(&other);
-            b::arrow(id_params.clone(), optional)
+            let optional = make_optional_chain(&context.arena, &other);
+            b::arrow(&context.arena, id_params.clone(), optional)
         }
     };
 
@@ -1259,7 +1368,7 @@ fn build_bind_this_with_each_ids(
         other => {
             let mut params = vec![b::id_pattern("$$value")];
             params.extend(id_params);
-            b::arrow(params, other)
+            b::arrow(&context.arena, params, other)
         }
     };
 
@@ -1268,13 +1377,18 @@ fn build_bind_this_with_each_ids(
         .iter()
         .map(|id| {
             if id.reactive {
-                b::call(b::member_path("$.get"), vec![b::id(&id.name)])
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.get"),
+                    vec![b::id(&id.name)],
+                )
             } else {
                 b::id(&id.name)
             }
         })
         .collect();
     let values_thunk = b::arrow(
+        &context.arena,
         vec![],
         JsExpr::Array(JsArrayExpression {
             elements: values.into_iter().map(Some).collect(),
@@ -1282,7 +1396,8 @@ fn build_bind_this_with_each_ids(
     );
 
     b::call(
-        b::member_path("$.bind_this"),
+        &context.arena,
+        b::member_path(&context.arena, "$.bind_this"),
         vec![value.clone(), final_setter, final_getter, values_thunk],
     )
 }
@@ -1314,7 +1429,8 @@ fn build_bind_this_call_for_context(
         let transformed_getter = apply_transforms_to_expression(get, context);
         let transformed_setter = apply_transforms_to_expression(setter, context);
         b::call(
-            b::member_path("$.bind_this"),
+            &context.arena,
+            b::member_path(&context.arena, "$.bind_this"),
             vec![value.clone(), transformed_setter, transformed_getter],
         )
     } else {
@@ -1356,37 +1472,59 @@ fn build_bind_this_call_for_context(
         };
 
         if is_prop {
-            let getter = b::arrow(vec![], b::call(get.clone(), vec![]));
+            let getter = b::arrow(
+                &context.arena,
+                vec![],
+                b::call(&context.arena, get.clone(), vec![]),
+            );
             let setter = b::arrow(
+                &context.arena,
                 vec![b::id_pattern("$$value")],
-                b::call(get.clone(), vec![b::id("$$value")]),
+                b::call(&context.arena, get.clone(), vec![b::id("$$value")]),
             );
             b::call(
-                b::member_path("$.bind_this"),
+                &context.arena,
+                b::member_path(&context.arena, "$.bind_this"),
                 vec![value.clone(), setter, getter],
             )
         } else if has_state_transform {
-            let getter = b::arrow(vec![], b::call(b::member_path("$.get"), vec![get.clone()]));
+            let getter = b::arrow(
+                &context.arena,
+                vec![],
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.get"),
+                    vec![get.clone()],
+                ),
+            );
             let mut set_args = vec![get.clone(), b::id("$$value")];
             if needs_proxy {
                 set_args.push(b::boolean(true));
             }
             let setter = b::arrow(
+                &context.arena,
                 vec![b::id_pattern("$$value")],
-                b::call(b::member_path("$.set"), set_args),
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.set"),
+                    set_args,
+                ),
             );
             b::call(
-                b::member_path("$.bind_this"),
+                &context.arena,
+                b::member_path(&context.arena, "$.bind_this"),
                 vec![value.clone(), setter, getter],
             )
         } else {
-            let getter = b::arrow(vec![], get.clone());
+            let getter = b::arrow(&context.arena, vec![], get.clone());
             let setter = b::arrow(
+                &context.arena,
                 vec![b::id_pattern("$$value")],
-                b::assign(get.clone(), b::id("$$value")),
+                b::assign(&context.arena, get.clone(), b::id("$$value")),
             );
             b::call(
-                b::member_path("$.bind_this"),
+                &context.arena,
+                b::member_path(&context.arena, "$.bind_this"),
                 vec![value.clone(), setter, getter],
             )
         }
@@ -1414,7 +1552,10 @@ fn build_bind_this_each_block(
     }
     let each_ctx = context.state.each_binding_context.last()?;
 
-    let get_str = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(get);
+    let get_str = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
+        get,
+        &context.arena,
+    );
     let item_name = &each_ctx.item_name;
 
     // Check if the getter references the each item
@@ -1460,32 +1601,41 @@ fn build_bind_this_each_block(
     let values_thunk = JsExpr::Raw(format!("() => [$.get({})]", item_name).into());
 
     Some(b::call(
-        b::member_path("$.bind_this"),
+        &context.arena,
+        b::member_path(&context.arena, "$.bind_this"),
         vec![element.clone(), setter, getter, values_thunk],
     ))
 }
 
 /// Build a bind:this call (legacy - without context).
 #[allow(dead_code)]
-fn build_bind_this_call(value: &JsExpr, get: &JsExpr, set: &Option<JsExpr>) -> JsExpr {
+fn build_bind_this_call(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    value: &JsExpr,
+    get: &JsExpr,
+    set: &Option<JsExpr>,
+) -> JsExpr {
     // Check if expression is a sequence (getter/setter pair)
     if let Some(setter) = set {
         // Already have getter/setter pair
         b::call(
-            b::member_path("$.bind_this"),
+            arena,
+            b::member_path(arena, "$.bind_this"),
             vec![value.clone(), setter.clone(), get.clone()],
         )
     } else {
         // Simple identifier: just pass it as both getter and setter
         // $.bind_this(value, (v) => { expr = v }, () => expr)
-        let getter = b::arrow(vec![], get.clone());
+        let getter = b::arrow(arena, vec![], get.clone());
         let setter = b::arrow(
+            arena,
             vec![b::id_pattern("$$value")],
-            b::assign(get.clone(), b::id("$$value")),
+            b::assign(arena, get.clone(), b::id("$$value")),
         );
 
         b::call(
-            b::member_path("$.bind_this"),
+            arena,
+            b::member_path(arena, "$.bind_this"),
             vec![value.clone(), setter, getter],
         )
     }
@@ -1527,25 +1677,34 @@ fn build_getter_setter(
         // For state variables, use $.get() in getter and $.set() in setter
         // get = () => $.get(expr)
         // set = ($$value) => $.set(expr, $$value)
-        let get_call = b::call(b::member_path("$.get"), vec![expr.clone()]);
+        let get_call = b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.get"),
+            vec![expr.clone()],
+        );
         let get = if dev {
-            b::function_expr(Some("get".into()), vec![], vec![b::return_value(get_call)])
+            b::function_expr(
+                Some("get".into()),
+                vec![],
+                vec![b::return_value(&context.arena, get_call)],
+            )
         } else {
-            b::thunk(get_call)
+            b::thunk(&context.arena, get_call)
         };
 
         let set_call = b::call(
-            b::member_path("$.set"),
+            &context.arena,
+            b::member_path(&context.arena, "$.set"),
             vec![expr.clone(), b::id("$$value")],
         );
         let set = if dev {
             b::function_expr(
                 Some("set".into()),
                 vec![b::id_pattern("$$value")],
-                vec![b::stmt(set_call)],
+                vec![b::stmt(&context.arena, set_call)],
             )
         } else {
-            b::arrow(vec![b::id_pattern("$$value")], set_call)
+            b::arrow(&context.arena, vec![b::id_pattern("$$value")], set_call)
         };
 
         (get, Some(set))
@@ -1555,24 +1714,31 @@ fn build_getter_setter(
         // set = ($$value) => prop($$value) -> unthunk -> prop
         // Since both get and set simplify to the same thing (prop), set is omitted
         // This matches the official Svelte compiler behavior where props are getters/setters
-        let get_call = b::call(expr.clone(), vec![]);
+        let get_call = b::call(&context.arena, expr.clone(), vec![]);
         let get = if dev {
-            b::function_expr(Some("get".into()), vec![], vec![b::return_value(get_call)])
+            b::function_expr(
+                Some("get".into()),
+                vec![],
+                vec![b::return_value(&context.arena, get_call)],
+            )
         } else {
             // thunk already applies unthunk, so () => prop() becomes prop
-            b::thunk(get_call)
+            b::thunk(&context.arena, get_call)
         };
 
-        let set_call = b::call(expr.clone(), vec![b::id("$$value")]);
+        let set_call = b::call(&context.arena, expr.clone(), vec![b::id("$$value")]);
         let set = if dev {
             b::function_expr(
                 Some("set".into()),
                 vec![b::id_pattern("$$value")],
-                vec![b::stmt(set_call)],
+                vec![b::stmt(&context.arena, set_call)],
             )
         } else {
             // Apply unthunk to simplify ($$value) => prop($$value) to prop
-            b::unthunk(b::arrow(vec![b::id_pattern("$$value")], set_call))
+            b::unthunk(
+                &context.arena,
+                b::arrow(&context.arena, vec![b::id_pattern("$$value")], set_call),
+            )
         };
 
         // If get and set are the same (both simplified to the prop identifier),
@@ -1608,7 +1774,7 @@ fn build_getter_setter(
         //   $obj.a = $$value -> $.store_mutate(obj, $.untrack($obj).a = $$value, $.untrack($obj))
         // Also applies prop mutation transforms in legacy mode:
         //   selected[0] = $$value -> selected(selected()[0] = $$value, true)
-        let assignment_expr = b::assign(expr.clone(), b::id("$$value"));
+        let assignment_expr = b::assign(&context.arena, expr.clone(), b::id("$$value"));
         let transformed_set = apply_transforms_to_expression(&assignment_expr, context);
 
         // Check if the root identifier has legacy_indirect_bindings.
@@ -1616,7 +1782,7 @@ fn build_getter_setter(
         // This corresponds to AssignmentExpression.js lines 159-173 in the official compiler.
         let transformed_set = if !context.state.analysis.runes {
             // Extract root identifier from the original expression
-            let root_name = get_expression_root_identifier(expr);
+            let root_name = get_expression_root_identifier(expr, &context.arena);
             if let Some(ref root_name) = root_name {
                 // Look up the binding
                 let binding = context.state.get_binding(root_name);
@@ -1630,19 +1796,23 @@ fn build_getter_setter(
                                 context.state.transform.get(indirect_name)
                             {
                                 if let Some(read_fn) = transform.read {
-                                    read_fn(JsExpr::Identifier(indirect_name.clone().into()))
+                                    read_fn(
+                                        &context.arena,
+                                        JsExpr::Identifier(indirect_name.clone().into()),
+                                    )
                                 } else {
                                     JsExpr::Identifier(indirect_name.clone().into())
                                 }
                             } else {
                                 JsExpr::Identifier(indirect_name.clone().into())
                             };
-                            getter_stmts.push(b::stmt(getter));
+                            getter_stmts.push(b::stmt(&context.arena, getter));
                         }
 
                         // Build: $.invalidate_inner_signals(() => { getter1(); getter2(); ... })
                         let invalidate_call = b::call(
-                            b::member_path("$.invalidate_inner_signals"),
+                            &context.arena,
+                            b::member_path(&context.arena, "$.invalidate_inner_signals"),
                             vec![b::arrow_block(vec![], getter_stmts)],
                         );
 
@@ -1688,7 +1858,11 @@ fn build_getter_setter(
                             args.push(b::number(line as f64));
                             args.push(b::number(col as f64));
                         }
-                        b::call(b::member_path("$$ownership_validator.mutation"), args)
+                        b::call(
+                            &context.arena,
+                            b::member_path(&context.arena, "$$ownership_validator.mutation"),
+                            args,
+                        )
                     } else {
                         transformed_set
                     }
@@ -1706,17 +1880,21 @@ fn build_getter_setter(
             let get = b::function_expr(
                 Some("get".into()),
                 vec![],
-                vec![b::return_value(transformed_read)],
+                vec![b::return_value(&context.arena, transformed_read)],
             );
             let set = b::function_expr(
                 Some("set".into()),
                 vec![b::id_pattern("$$value")],
-                vec![b::stmt(transformed_set)],
+                vec![b::stmt(&context.arena, transformed_set)],
             );
             (get, Some(set))
         } else {
-            let get = b::thunk(transformed_read);
-            let set = b::arrow(vec![b::id_pattern("$$value")], transformed_set);
+            let get = b::thunk(&context.arena, transformed_read);
+            let set = b::arrow(
+                &context.arena,
+                vec![b::id_pattern("$$value")],
+                transformed_set,
+            );
 
             // Apply unthunk optimization: if get and set are the same identifier, omit set
             let same_identifier = match (&get, &set) {
@@ -1843,22 +2021,27 @@ pub fn build_each_block_getter_setter(
             // the resulting arrow function (b::thunk requires a structured JsExpr::Arrow).
             let collection_expr = if let Some(ref coll_id) = each_ctx.collection_id {
                 // collection is a prop (function call): selected_array()
-                b::call(b::id(coll_id), vec![])
+                b::call(&context.arena, b::id(coll_id), vec![])
             } else {
                 // collection is a raw expression (e.g., component prop or literal)
                 JsExpr::Raw(each_ctx.collection_expr.clone().into())
             };
             let index_expr = if each_ctx.index_reactive {
-                b::call(b::member_path("$.get"), vec![b::id(&each_ctx.index_name)])
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.get"),
+                    vec![b::id(&each_ctx.index_name)],
+                )
             } else {
                 b::id(&each_ctx.index_name)
             };
 
             // Build collection[index] as a computed member expression
-            let member_expr = b::member_computed(collection_expr.clone(), index_expr.clone());
+            let member_expr =
+                b::member_computed(&context.arena, collection_expr.clone(), index_expr.clone());
 
             // Getter: () => collection[index]  (structured arrow, unwrap_thunk-compatible)
-            let get = b::thunk(member_expr.clone());
+            let get = b::thunk(&context.arena, member_expr.clone());
 
             // Setter: ($$value) => (collection[index] = $$value, invalidation)
             // Build as a raw string since assignment and sequence expressions need special handling
@@ -1902,10 +2085,11 @@ pub fn build_each_block_getter_setter(
                 if let Some(transform) = context.state.transform.get(inner)
                     && let Some(read_fn) = &transform.read
                 {
-                    let transformed = read_fn(b::id(inner));
+                    let transformed = read_fn(&context.arena, b::id(inner));
                     let transformed_str =
                         crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
                             &transformed,
+                            &context.arena,
                         );
                     format!("[{}]", transformed_str)
                 } else {
@@ -1924,7 +2108,7 @@ pub fn build_each_block_getter_setter(
             };
             let get_expr_str = access_prop(&get_base, &transformed_prop_path);
             // Use a proper Arrow expression so that unwrap_thunk can strip the () => prefix
-            let get = b::thunk(JsExpr::Raw(get_expr_str.clone().into()));
+            let get = b::thunk(&context.arena, JsExpr::Raw(get_expr_str.clone().into()));
 
             let setter_body = if let Some(ref inv) = invalidation {
                 format!(
@@ -1948,13 +2132,13 @@ pub fn build_each_block_getter_setter(
         } => {
             // Destructured variable: bind:value={f} where f comes from {#each items as { f }}
             // Getter: apply the read transform to get the proper getter expression,
-            //         then wrap in thunk. b::thunk(f()) => f (via unthunk optimization)
-            //         b::thunk($.get(f)) => () => $.get(f)
+            //         then wrap in thunk. b::thunk(&context.arena, f()) => f (via unthunk optimization)
+            //         b::thunk(&context.arena, $.get(f)) => () => $.get(f)
             // Setter: ($$value) => (update_path = $$value, invalidation)
             let get = if let Some(transform) = context.state.transform.get(&var_name)
                 && let Some(read_fn) = &transform.read
             {
-                b::thunk(read_fn(b::id(&var_name)))
+                b::thunk(&context.arena, read_fn(&context.arena, b::id(&var_name)))
             } else {
                 b::id(&var_name)
             };
@@ -2248,7 +2432,11 @@ fn build_invalidation_expr(
 ///
 /// This matches the official Svelte compiler's behavior where store invalidation
 /// is part of the setter's comma expression, not a separate argument.
-fn merge_store_invalidation_into_setter(setter: &JsExpr, store_name: &str) -> JsExpr {
+fn merge_store_invalidation_into_setter(
+    arena: &JsArena,
+    setter: &JsExpr,
+    store_name: &str,
+) -> JsExpr {
     let invalidation = format!("$.invalidate_store($$stores, '{}')", store_name);
     match setter {
         JsExpr::Arrow(arrow) => {
@@ -2256,11 +2444,14 @@ fn merge_store_invalidation_into_setter(setter: &JsExpr, store_name: &str) -> Js
                 JsArrowBody::Expression(body_expr) => {
                     // Wrap in a sequence expression: (body_expr, $.invalidate_store(...))
                     let seq = JsExpr::Sequence(JsSequenceExpression {
-                        expressions: vec![(**body_expr).clone(), JsExpr::Raw(invalidation.into())],
+                        expressions: vec![
+                            arena.get_expr(*body_expr).clone(),
+                            JsExpr::Raw(invalidation.into()),
+                        ],
                     });
                     JsExpr::Arrow(JsArrowFunction {
                         params: arrow.params.clone(),
-                        body: JsArrowBody::Expression(Box::new(seq)),
+                        body: JsArrowBody::Expression(arena.alloc_expr(seq)),
                         is_async: arrow.is_async,
                     })
                 }
@@ -2293,11 +2484,11 @@ fn merge_store_invalidation_into_setter(setter: &JsExpr, store_name: &str) -> Js
             if let Some(JsStatement::Expression(expr_stmt)) = new_body.body.last_mut() {
                 let seq = JsExpr::Sequence(JsSequenceExpression {
                     expressions: vec![
-                        (*expr_stmt.expression).clone(),
+                        arena.get_expr(expr_stmt.expression).clone(),
                         JsExpr::Raw(invalidation.into()),
                     ],
                 });
-                *expr_stmt.expression = seq;
+                expr_stmt.expression = arena.alloc_expr(seq);
             }
             JsExpr::Function(JsFunctionExpression {
                 id: func.id.clone(),
@@ -2336,10 +2527,12 @@ fn get_store_to_invalidate_from_context(context: &ComponentContext) -> Option<St
 /// For `selected` -> Some("selected"), for `selected.done` -> Some("selected"),
 /// for `items[0]` -> Some("items").
 /// Corresponds to the `object()` function call in the official compiler.
-fn get_expression_root_identifier(expr: &JsExpr) -> Option<String> {
+fn get_expression_root_identifier(expr: &JsExpr, arena: &JsArena) -> Option<String> {
     match expr {
         JsExpr::Identifier(name) => Some(name.to_string()),
-        JsExpr::Member(member) => get_expression_root_identifier(&member.object),
+        JsExpr::Member(member) => {
+            get_expression_root_identifier(arena.get_expr(member.object), arena)
+        }
         _ => None,
     }
 }
@@ -2429,10 +2622,10 @@ pub fn emit_validate_binding(
     // Extract the member expression object and property from the transformed JsExpr
     let (obj_expr, prop_expr) = match expression {
         JsExpr::Member(m) => {
-            let obj = *m.object.clone();
+            let obj = context.arena.get_expr(m.object).clone();
             let prop = if m.computed {
                 match &m.property {
-                    JsMemberProperty::Expression(expr) => *expr.clone(),
+                    JsMemberProperty::Expression(expr) => context.arena.get_expr(*expr).clone(),
                     JsMemberProperty::Identifier(name) => b::id(name.as_str()),
                     JsMemberProperty::PrivateIdentifier(name) => b::string(name.clone()),
                 }
@@ -2440,7 +2633,7 @@ pub fn emit_validate_binding(
                 // Non-computed: property is an identifier, use it as a string literal
                 match &m.property {
                     JsMemberProperty::Identifier(name) => b::string(name.clone()),
-                    JsMemberProperty::Expression(expr) => *expr.clone(),
+                    JsMemberProperty::Expression(expr) => context.arena.get_expr(*expr).clone(),
                     JsMemberProperty::PrivateIdentifier(name) => b::string(name.clone()),
                 }
             };
@@ -2464,26 +2657,37 @@ pub fn emit_validate_binding(
         .and_then(|ctx| ctx.store_to_invalidate.as_ref())
         .is_some();
     let obj_thunk = if has_store_to_invalidate {
-        b::thunk(b::sequence(vec![
-            b::call(b::member_path("$.mark_store_binding"), vec![]),
-            obj_expr,
-        ]))
+        b::thunk(
+            &context.arena,
+            b::sequence(vec![
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.mark_store_binding"),
+                    vec![],
+                ),
+                obj_expr,
+            ]),
+        )
     } else {
-        b::thunk(obj_expr)
+        b::thunk(&context.arena, obj_expr)
     };
 
     // Emit: $.validate_binding('bind:value={pojo.value}', [], () => pojo, () => 'value', line, col)
-    let stmt = b::stmt(b::call(
-        b::member_path("$.validate_binding"),
-        vec![
-            b::string(&binding_text),
-            b::array(vec![]), // blockers - typically empty
-            obj_thunk,
-            b::thunk(prop_expr),
-            b::literal_number(line as f64),
-            b::literal_number(col as f64),
-        ],
-    ));
+    let stmt = b::stmt(
+        &context.arena,
+        b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.validate_binding"),
+            vec![
+                b::string(&binding_text),
+                b::array(vec![]), // blockers - typically empty
+                obj_thunk,
+                b::thunk(&context.arena, prop_expr),
+                b::literal_number(line as f64),
+                b::literal_number(col as f64),
+            ],
+        ),
+    );
 
     context.state.init.push(stmt);
 }

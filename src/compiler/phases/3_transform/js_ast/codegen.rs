@@ -2,6 +2,7 @@
 //!
 //! This module converts our AST representation to JavaScript source code.
 
+use super::arena::JsArena;
 use super::nodes::*;
 use std::fmt::Write;
 
@@ -41,8 +42,8 @@ pub struct CodegenResult {
 }
 
 /// Generate JavaScript source code from a program AST.
-pub fn generate(program: &JsProgram) -> Result<String, String> {
-    let mut codegen = JsCodegen::new();
+pub fn generate(program: &JsProgram, arena: &JsArena) -> Result<String, String> {
+    let mut codegen = JsCodegen::new(arena);
     codegen.emit_program(program);
     // Trim trailing newline to match esrap behavior (Svelte's codegen)
     // Truncate in-place to avoid allocating a new String.
@@ -52,8 +53,12 @@ pub fn generate(program: &JsProgram) -> Result<String, String> {
 }
 
 /// Generate JavaScript source code from a program AST, with source map data.
-pub fn generate_with_sourcemap(program: &JsProgram, source: &str) -> Result<CodegenResult, String> {
-    let mut codegen = JsCodegen::new();
+pub fn generate_with_sourcemap(
+    program: &JsProgram,
+    source: &str,
+    arena: &JsArena,
+) -> Result<CodegenResult, String> {
+    let mut codegen = JsCodegen::new(arena);
     codegen.track_mappings = true;
     codegen.source_code = Some(source);
     codegen.emit_program(program);
@@ -74,7 +79,7 @@ pub fn generate_with_sourcemap(program: &JsProgram, source: &str) -> Result<Code
 
 /// Generate JavaScript source code for a single expression.
 /// Uses a smaller buffer than full program generation since expressions are typically short.
-pub fn generate_expr(expr: &super::nodes::JsExpr) -> String {
+pub fn generate_expr(expr: &super::nodes::JsExpr, arena: &JsArena) -> String {
     let mut codegen = JsCodegen {
         output: String::with_capacity(128),
         indent_level: 0,
@@ -82,6 +87,7 @@ pub fn generate_expr(expr: &super::nodes::JsExpr) -> String {
         track_mappings: false,
         raw_spans: Vec::new(),
         source_code: None,
+        arena,
     };
     codegen.emit_expression(expr);
     codegen.output
@@ -98,10 +104,12 @@ struct JsCodegen<'a> {
     raw_spans: Vec<RawSpan>,
     /// Original source code (needed for byte offset -> line/col conversion)
     source_code: Option<&'a str>,
+    /// Arena containing all expressions and statements
+    arena: &'a JsArena,
 }
 
 impl<'a> JsCodegen<'a> {
-    fn new() -> Self {
+    fn new(arena: &'a JsArena) -> Self {
         Self {
             output: String::with_capacity(4096),
             indent_level: 0,
@@ -109,6 +117,7 @@ impl<'a> JsCodegen<'a> {
             track_mappings: false,
             raw_spans: Vec::new(),
             source_code: None,
+            arena,
         }
     }
 
@@ -277,14 +286,14 @@ impl<'a> JsCodegen<'a> {
             JsStatement::VariableDeclaration(decl) => self.emit_variable_declaration(decl),
             JsStatement::FunctionDeclaration(decl) => self.emit_function_declaration(decl),
             JsStatement::Expression(expr_stmt) => {
-                self.emit_expression(&expr_stmt.expression);
+                self.emit_expression(self.arena.get_expr(expr_stmt.expression));
                 self.needs_semicolon = true;
             }
             JsStatement::Return(ret) => {
                 self.output.push_str("return");
-                if let Some(ref arg) = ret.argument {
+                if let Some(arg_id) = ret.argument {
                     self.output.push(' ');
-                    self.emit_expression(arg);
+                    self.emit_expression(self.arena.get_expr(arg_id));
                 }
                 self.needs_semicolon = true;
             }
@@ -302,7 +311,7 @@ impl<'a> JsCodegen<'a> {
             JsStatement::Labeled(labeled) => {
                 self.output.push_str(&labeled.label);
                 self.output.push_str(": ");
-                self.emit_statement_inner(&labeled.body);
+                self.emit_statement_inner(self.arena.get_stmt(labeled.body));
             }
             JsStatement::Break(label) => {
                 self.output.push_str("break");
@@ -320,9 +329,9 @@ impl<'a> JsCodegen<'a> {
                 }
                 self.needs_semicolon = true;
             }
-            JsStatement::Throw(expr) => {
+            JsStatement::Throw(expr_id) => {
                 self.output.push_str("throw ");
-                self.emit_expression(expr);
+                self.emit_expression(self.arena.get_expr(*expr_id));
                 self.needs_semicolon = true;
             }
             JsStatement::Try(try_stmt) => self.emit_try_statement(try_stmt),
@@ -488,8 +497,8 @@ impl<'a> JsCodegen<'a> {
             JsExportDefaultDeclaration::Function(func) => {
                 self.emit_function_declaration(func);
             }
-            JsExportDefaultDeclaration::Expression(expr) => {
-                self.emit_expression(expr);
+            JsExportDefaultDeclaration::Expression(expr_id) => {
+                self.emit_expression(self.arena.get_expr(*expr_id));
                 self.needs_semicolon = true;
             }
         }
@@ -527,9 +536,9 @@ impl<'a> JsCodegen<'a> {
                 self.output.push_str(", ");
             }
             self.emit_pattern(&declarator.id);
-            if let Some(ref init) = declarator.init {
+            if let Some(init_id) = declarator.init {
                 self.output.push_str(" = ");
-                self.emit_expression(init);
+                self.emit_expression(self.arena.get_expr(init_id));
             }
         }
         self.needs_semicolon = true;
@@ -555,14 +564,14 @@ impl<'a> JsCodegen<'a> {
 
     fn emit_if_statement(&mut self, if_stmt: &JsIfStatement) {
         self.output.push_str("if (");
-        self.emit_expression(&if_stmt.test);
+        self.emit_expression(self.arena.get_expr(if_stmt.test));
         self.output.push_str(") ");
-        self.emit_if_branch(&if_stmt.consequent);
+        self.emit_if_branch(self.arena.get_stmt(if_stmt.consequent));
 
-        if let Some(ref alt) = if_stmt.alternate {
+        if let Some(alt_id) = if_stmt.alternate {
             self.output.push(' ');
             self.output.push_str("else ");
-            self.emit_if_branch(alt);
+            self.emit_if_branch(self.arena.get_stmt(alt_id));
         }
     }
 
@@ -598,27 +607,29 @@ impl<'a> JsCodegen<'a> {
                             self.output.push_str(", ");
                         }
                         self.emit_pattern(&declarator.id);
-                        if let Some(ref init_expr) = declarator.init {
+                        if let Some(init_id) = declarator.init {
                             self.output.push_str(" = ");
-                            self.emit_expression(init_expr);
+                            self.emit_expression(self.arena.get_expr(init_id));
                         }
                     }
                 }
-                JsForInit::Expression(expr) => self.emit_expression(expr),
+                JsForInit::Expression(expr_id) => {
+                    self.emit_expression(self.arena.get_expr(*expr_id))
+                }
             }
         }
         self.output.push(';');
-        if let Some(ref test) = for_stmt.test {
+        if let Some(test_id) = for_stmt.test {
             self.output.push(' ');
-            self.emit_expression(test);
+            self.emit_expression(self.arena.get_expr(test_id));
         }
         self.output.push(';');
-        if let Some(ref update) = for_stmt.update {
+        if let Some(update_id) = for_stmt.update {
             self.output.push(' ');
-            self.emit_expression(update);
+            self.emit_expression(self.arena.get_expr(update_id));
         }
         self.output.push_str(") ");
-        self.emit_statement_as_block(&for_stmt.body);
+        self.emit_statement_as_block(self.arena.get_stmt(for_stmt.body));
     }
 
     fn emit_for_of_statement(&mut self, for_of: &JsForOfStatement) {
@@ -638,23 +649,23 @@ impl<'a> JsCodegen<'a> {
             JsForOfLeft::Pattern(pattern) => self.emit_pattern(pattern),
         }
         self.output.push_str(" of ");
-        self.emit_expression(&for_of.right);
+        self.emit_expression(self.arena.get_expr(for_of.right));
         self.output.push_str(") ");
-        self.emit_statement_as_block(&for_of.body);
+        self.emit_statement_as_block(self.arena.get_stmt(for_of.body));
     }
 
     fn emit_while_statement(&mut self, while_stmt: &JsWhileStatement) {
         self.output.push_str("while (");
-        self.emit_expression(&while_stmt.test);
+        self.emit_expression(self.arena.get_expr(while_stmt.test));
         self.output.push_str(") ");
-        self.emit_statement_as_block(&while_stmt.body);
+        self.emit_statement_as_block(self.arena.get_stmt(while_stmt.body));
     }
 
     fn emit_do_while_statement(&mut self, do_while: &JsDoWhileStatement) {
         self.output.push_str("do ");
-        self.emit_statement_as_block(&do_while.body);
+        self.emit_statement_as_block(self.arena.get_stmt(do_while.body));
         self.output.push_str(" while (");
-        self.emit_expression(&do_while.test);
+        self.emit_expression(self.arena.get_expr(do_while.test));
         self.output.push(')');
         self.needs_semicolon = true;
     }
@@ -738,38 +749,38 @@ impl<'a> JsCodegen<'a> {
             JsExpr::Assignment(assignment) => self.emit_assignment_expression(assignment),
             JsExpr::Conditional(cond) => self.emit_conditional_expression(cond),
             JsExpr::Sequence(seq) => self.emit_sequence_expression(seq),
-            JsExpr::Spread(inner) => {
+            JsExpr::Spread(inner_id) => {
                 self.output.push_str("...");
-                self.emit_expression(inner);
+                self.emit_expression(self.arena.get_expr(*inner_id));
             }
             JsExpr::This => self.output.push_str("this"),
-            JsExpr::Await(inner) => {
+            JsExpr::Await(inner_id) => {
                 self.output.push_str("await ");
-                self.emit_expression(inner);
+                self.emit_expression(self.arena.get_expr(*inner_id));
             }
             JsExpr::Yield(yield_expr) => {
                 self.output.push_str("yield");
                 if yield_expr.delegate {
                     self.output.push('*');
                 }
-                if let Some(ref arg) = yield_expr.argument {
+                if let Some(arg_id) = yield_expr.argument {
                     self.output.push(' ');
-                    self.emit_expression(arg);
+                    self.emit_expression(self.arena.get_expr(arg_id));
                 }
             }
             JsExpr::Class(class) => self.emit_class_expression(class),
-            JsExpr::Chain(chain) => self.emit_expression(&chain.expression),
-            JsExpr::Void(inner) => {
+            JsExpr::Chain(chain) => self.emit_expression(self.arena.get_expr(chain.expression)),
+            JsExpr::Void(inner_id) => {
                 self.output.push_str("void ");
-                self.emit_expression(inner);
+                self.emit_expression(self.arena.get_expr(*inner_id));
             }
             JsExpr::Raw(code) => {
                 // Emit raw JavaScript code as-is
                 self.output.push_str(code);
             }
-            JsExpr::Spanned(inner, start, end) => {
+            JsExpr::Spanned(inner_id, start, end) => {
                 self.record_span_start(*start, *end);
-                self.emit_expression(inner);
+                self.emit_expression(self.arena.get_expr(*inner_id));
             }
         }
     }
@@ -828,7 +839,7 @@ impl<'a> JsCodegen<'a> {
     }
 
     fn emit_tagged_template(&mut self, tagged: &JsTaggedTemplate) {
-        self.emit_expression(&tagged.tag);
+        self.emit_expression(self.arena.get_expr(tagged.tag));
         self.emit_template_literal(&tagged.quasi);
     }
 
@@ -953,7 +964,7 @@ impl<'a> JsCodegen<'a> {
                 let auto_shorthand = !prop.computed
                     && matches!(prop.kind, JsPropertyKind::Init)
                     && matches!(
-                        (&prop.key, prop.value.as_ref()),
+                        (&prop.key, self.arena.get_expr(prop.value)),
                         (JsPropertyKey::Identifier(k), JsExpr::Identifier(v)) if k == v
                     );
 
@@ -980,7 +991,7 @@ impl<'a> JsCodegen<'a> {
 
                 // Method shorthand: name(params) { body }
                 if prop.method {
-                    if let JsExpr::Function(func) = prop.value.as_ref() {
+                    if let JsExpr::Function(func) = self.arena.get_expr(prop.value) {
                         self.output.push('(');
                         self.emit_params(&func.params);
                         self.output.push_str(") ");
@@ -988,12 +999,12 @@ impl<'a> JsCodegen<'a> {
                     } else {
                         // Fallback: emit as normal property
                         self.output.push_str(": ");
-                        self.emit_expression(&prop.value);
+                        self.emit_expression(self.arena.get_expr(prop.value));
                     }
                 } else {
                     match prop.kind {
                         JsPropertyKind::Get | JsPropertyKind::Set => {
-                            if let JsExpr::Function(func) = prop.value.as_ref() {
+                            if let JsExpr::Function(func) = self.arena.get_expr(prop.value) {
                                 self.output.push('(');
                                 self.emit_params(&func.params);
                                 self.output.push_str(") ");
@@ -1002,14 +1013,14 @@ impl<'a> JsCodegen<'a> {
                         }
                         JsPropertyKind::Init => {
                             self.output.push_str(": ");
-                            self.emit_expression(&prop.value);
+                            self.emit_expression(self.arena.get_expr(prop.value));
                         }
                     }
                 }
             }
-            JsObjectMember::SpreadElement(expr) => {
+            JsObjectMember::SpreadElement(expr_id) => {
                 self.output.push_str("...");
-                self.emit_expression(expr);
+                self.emit_expression(self.arena.get_expr(*expr_id));
             }
         }
     }
@@ -1019,7 +1030,7 @@ impl<'a> JsCodegen<'a> {
         match key {
             JsPropertyKey::Identifier(name) => self.output.push_str(name),
             JsPropertyKey::Literal(lit) => self.emit_literal(lit),
-            JsPropertyKey::Computed(expr) => self.emit_expression(expr),
+            JsPropertyKey::Computed(expr_id) => self.emit_expression(self.arena.get_expr(*expr_id)),
         }
     }
 
@@ -1058,18 +1069,13 @@ impl<'a> JsCodegen<'a> {
         self.output.push_str(" => ");
 
         match &arrow.body {
-            JsArrowBody::Expression(expr) => {
+            JsArrowBody::Expression(expr_id) => {
+                let expr = self.arena.get_expr(*expr_id);
                 // Wrap in parentheses when the arrow body expression could be
                 // ambiguous without them:
-                // - Object literals: `() => ({})` vs `() => {}` (block)
-                // - Assignments with `{` LHS: `() => ({a} = b)` vs `() => {a} = b` (block)
-                // NOTE: Sequence expressions are NOT wrapped here because
-                // emit_sequence_expression already adds its own parentheses.
-                // This matches esrap behavior where `() => (a, b)` has parens
-                // from the SequenceExpression handler, not from the arrow handler.
-                let needs_parens = matches!(expr.as_ref(), JsExpr::Object(_))
-                    || matches!(expr.as_ref(), JsExpr::Assignment(a)
-                        if matches!(a.left.as_ref(), JsExpr::Raw(s) if s.starts_with('{')));
+                let needs_parens = matches!(expr, JsExpr::Object(_))
+                    || matches!(expr, JsExpr::Assignment(a)
+                        if matches!(self.arena.get_expr(a.left), JsExpr::Raw(s) if s.starts_with('{')));
                 if needs_parens {
                     self.output.push('(');
                     self.emit_expression(expr);
@@ -1084,17 +1090,9 @@ impl<'a> JsCodegen<'a> {
 
     #[inline]
     fn emit_call_expression(&mut self, call: &JsCallExpression) {
-        // Need parentheses for callees that have lower precedence than function calls:
-        // - Arrow functions: (() => x)()
-        // - Function expressions: (function() {})()
-        // - Await expressions: (await x)()
-        // - Logical expressions: (a || b)()
-        // - Binary expressions: (a + b)()
-        // - Conditional expressions: (a ? b : c)()
-        // - Assignment expressions: (a = b)()
-        // - Sequence expressions: (a, b)()
+        let callee = self.arena.get_expr(call.callee);
         let needs_parens = matches!(
-            call.callee.as_ref(),
+            callee,
             JsExpr::Arrow(_)
                 | JsExpr::Function(_)
                 | JsExpr::Await(_)
@@ -1107,7 +1105,7 @@ impl<'a> JsCodegen<'a> {
         if needs_parens {
             self.output.push('(');
         }
-        self.emit_expression(&call.callee);
+        self.emit_expression(callee);
         if needs_parens {
             self.output.push(')');
         }
@@ -1121,12 +1119,12 @@ impl<'a> JsCodegen<'a> {
 
     fn emit_new_expression(&mut self, new_expr: &JsNewExpression) {
         self.output.push_str("new ");
-        // Class expressions need parentheses in new expressions: new (class {})()
-        let needs_parens = matches!(new_expr.callee.as_ref(), JsExpr::Class(_));
+        let callee = self.arena.get_expr(new_expr.callee);
+        let needs_parens = matches!(callee, JsExpr::Class(_));
         if needs_parens {
             self.output.push('(');
         }
-        self.emit_expression(&new_expr.callee);
+        self.emit_expression(callee);
         if needs_parens {
             self.output.push(')');
         }
@@ -1137,11 +1135,9 @@ impl<'a> JsCodegen<'a> {
 
     #[inline]
     fn emit_member_expression(&mut self, member: &JsMemberExpression) {
-        // Add parentheses around the object when it has lower precedence than member access.
-        // Member access (.) has very high precedence (18), so most expression types
-        // with lower precedence need parentheses when used as the object.
+        let object = self.arena.get_expr(member.object);
         let needs_parens = matches!(
-            member.object.as_ref(),
+            object,
             JsExpr::Literal(JsLiteral::Number(_))
                 | JsExpr::Literal(JsLiteral::String(_))
                 | JsExpr::Binary(_)
@@ -1155,7 +1151,7 @@ impl<'a> JsCodegen<'a> {
         if needs_parens {
             self.output.push('(');
         }
-        self.emit_expression(&member.object);
+        self.emit_expression(object);
         if needs_parens {
             self.output.push(')');
         }
@@ -1167,7 +1163,9 @@ impl<'a> JsCodegen<'a> {
         if member.computed {
             self.output.push('[');
             match &member.property {
-                JsMemberProperty::Expression(expr) => self.emit_expression(expr),
+                JsMemberProperty::Expression(expr_id) => {
+                    self.emit_expression(self.arena.get_expr(*expr_id))
+                }
                 JsMemberProperty::Identifier(name) => {
                     self.output.push('\'');
                     self.output.push_str(name);
@@ -1189,7 +1187,9 @@ impl<'a> JsCodegen<'a> {
                     self.output.push('#');
                     self.output.push_str(name);
                 }
-                JsMemberProperty::Expression(expr) => self.emit_expression(expr),
+                JsMemberProperty::Expression(expr_id) => {
+                    self.emit_expression(self.arena.get_expr(*expr_id))
+                }
             }
         }
     }
@@ -1198,32 +1198,32 @@ impl<'a> JsCodegen<'a> {
         // Left operand: needs parens only if it has strictly lower precedence,
         // or is a conditional/assignment expression.
         // Same-precedence on the left is fine for left-associative operators.
+        let left = self.arena.get_expr(binary.left);
         let left_needs_parens = self.binary_operand_needs_parens(
-            &binary.left,
+            left,
             &binary.operator,
             true, // is_left
         );
         if left_needs_parens {
             self.output.push('(');
         }
-        self.emit_expression(&binary.left);
+        self.emit_expression(left);
         if left_needs_parens {
             self.output.push(')');
         }
         self.output.push(' ');
         self.output.push_str(binary.operator.as_str());
         self.output.push(' ');
-        // Right operand: needs parens if it has lower or equal precedence
-        // (for left-associative operators) to preserve correct grouping.
+        let right = self.arena.get_expr(binary.right);
         let right_needs_parens = self.binary_operand_needs_parens(
-            &binary.right,
+            right,
             &binary.operator,
             false, // is_left
         );
         if right_needs_parens {
             self.output.push('(');
         }
-        self.emit_expression(&binary.right);
+        self.emit_expression(right);
         if right_needs_parens {
             self.output.push(')');
         }
@@ -1266,25 +1266,24 @@ impl<'a> JsCodegen<'a> {
     }
 
     fn emit_logical_expression(&mut self, logical: &JsLogicalExpression) {
-        // Check if the left operand needs parentheses
-        let left_needs_parens = self.logical_operand_needs_parens(&logical.left, &logical.operator);
+        let left = self.arena.get_expr(logical.left);
+        let left_needs_parens = self.logical_operand_needs_parens(left, &logical.operator);
         if left_needs_parens {
             self.output.push('(');
         }
-        self.emit_expression(&logical.left);
+        self.emit_expression(left);
         if left_needs_parens {
             self.output.push(')');
         }
         self.output.push(' ');
         self.output.push_str(logical.operator.as_str());
         self.output.push(' ');
-        // Check if the right operand needs parentheses
-        let right_needs_parens =
-            self.logical_operand_needs_parens(&logical.right, &logical.operator);
+        let right = self.arena.get_expr(logical.right);
+        let right_needs_parens = self.logical_operand_needs_parens(right, &logical.operator);
         if right_needs_parens {
             self.output.push('(');
         }
-        self.emit_expression(&logical.right);
+        self.emit_expression(right);
         if right_needs_parens {
             self.output.push(')');
         }
@@ -1319,9 +1318,9 @@ impl<'a> JsCodegen<'a> {
             ) {
                 self.output.push(' ');
             }
-            self.emit_expression(&unary.argument);
+            self.emit_expression(self.arena.get_expr(unary.argument));
         } else {
-            self.emit_expression(&unary.argument);
+            self.emit_expression(self.arena.get_expr(unary.argument));
             self.output.push_str(op_str);
         }
     }
@@ -1330,28 +1329,28 @@ impl<'a> JsCodegen<'a> {
     fn emit_update_expression(&mut self, update: &JsUpdateExpression) {
         if update.prefix {
             self.output.push_str(update.operator.as_str());
-            self.emit_expression(&update.argument);
+            self.emit_expression(self.arena.get_expr(update.argument));
         } else {
-            self.emit_expression(&update.argument);
+            self.emit_expression(self.arena.get_expr(update.argument));
             self.output.push_str(update.operator.as_str());
         }
     }
 
     #[inline]
     fn emit_assignment_expression(&mut self, assignment: &JsAssignmentExpression) {
-        self.emit_expression(&assignment.left);
+        self.emit_expression(self.arena.get_expr(assignment.left));
         self.output.push(' ');
         self.output.push_str(assignment.operator.as_str());
         self.output.push(' ');
-        self.emit_expression(&assignment.right);
+        self.emit_expression(self.arena.get_expr(assignment.right));
     }
 
     fn emit_conditional_expression(&mut self, cond: &JsConditionalExpression) {
-        self.emit_expression(&cond.test);
+        self.emit_expression(self.arena.get_expr(cond.test));
         self.output.push_str(" ? ");
-        self.emit_expression(&cond.consequent);
+        self.emit_expression(self.arena.get_expr(cond.consequent));
         self.output.push_str(" : ");
-        self.emit_expression(&cond.alternate);
+        self.emit_expression(self.arena.get_expr(cond.alternate));
     }
 
     fn emit_sequence_expression(&mut self, seq: &JsSequenceExpression) {
@@ -1371,9 +1370,9 @@ impl<'a> JsCodegen<'a> {
             self.output.push(' ');
             self.output.push_str(id);
         }
-        if let Some(ref super_class) = class.super_class {
+        if let Some(super_id) = class.super_class {
             self.output.push_str(" extends ");
-            self.emit_expression(super_class);
+            self.emit_expression(self.arena.get_expr(super_id));
         }
         self.output.push_str(" {");
         // TODO: emit class body
@@ -1462,7 +1461,7 @@ impl<'a> JsCodegen<'a> {
             JsPattern::Assignment(assign) => {
                 self.emit_pattern(&assign.left);
                 self.output.push_str(" = ");
-                self.emit_expression(&assign.right);
+                self.emit_expression(self.arena.get_expr(assign.right));
             }
         }
     }
@@ -1484,7 +1483,9 @@ impl<'a> JsCodegen<'a> {
             // If statement is always multiline
             JsStatement::If(_) => true,
             // Labeled inherits from body
-            JsStatement::Labeled(labeled) => self.is_stmt_multiline(&labeled.body),
+            JsStatement::Labeled(labeled) => {
+                self.is_stmt_multiline(self.arena.get_stmt(labeled.body))
+            }
             // Raw code: check if it contains newlines (memchr is SIMD-accelerated)
             JsStatement::Raw(code) => memchr::memchr(b'\n', code.as_bytes()).is_some(),
             JsStatement::RawMapped { code, .. } => memchr::memchr(b'\n', code.as_bytes()).is_some(),
@@ -1492,14 +1493,14 @@ impl<'a> JsCodegen<'a> {
             JsStatement::VariableDeclaration(decl) => {
                 decl.declarations.len() > 1
                     || decl.declarations.iter().any(|d| {
-                        d.init
-                            .as_ref()
-                            .is_some_and(|init| self.is_expr_likely_multiline(init))
+                        d.init.is_some_and(|init_id| {
+                            self.is_expr_likely_multiline(self.arena.get_expr(init_id))
+                        })
                     })
             }
             // Expression statements: check if the expression is likely multiline
             JsStatement::Expression(expr_stmt) => {
-                self.is_expr_likely_multiline(&expr_stmt.expression)
+                self.is_expr_likely_multiline(self.arena.get_expr(expr_stmt.expression))
             }
             // Simple statements are single-line
             _ => false,
@@ -1524,6 +1525,7 @@ impl<'a> JsCodegen<'a> {
             track_mappings: false,
             raw_spans: Vec::new(),
             source_code: None,
+            arena: self.arena,
         };
         tmp.emit_statement(stmt);
         has_multiple_newlines(tmp.output.as_bytes())
@@ -1538,6 +1540,7 @@ impl<'a> JsCodegen<'a> {
             track_mappings: false,
             raw_spans: Vec::new(),
             source_code: None,
+            arena: self.arena,
         };
         tmp.emit_expression(expr);
         tmp.output
@@ -1552,6 +1555,7 @@ impl<'a> JsCodegen<'a> {
             track_mappings: false,
             raw_spans: Vec::new(),
             source_code: None,
+            arena: self.arena,
         };
         tmp.emit_object_member(member);
         tmp.output
@@ -1587,10 +1591,12 @@ impl<'a> JsCodegen<'a> {
                 .iter()
                 .any(|a| self.is_expr_likely_multiline(a)),
             JsExpr::Conditional(c) => {
-                self.is_expr_likely_multiline(&c.consequent)
-                    || self.is_expr_likely_multiline(&c.alternate)
+                self.is_expr_likely_multiline(self.arena.get_expr(c.consequent))
+                    || self.is_expr_likely_multiline(self.arena.get_expr(c.alternate))
             }
-            JsExpr::Spanned(inner, _, _) => self.is_expr_likely_multiline(inner),
+            JsExpr::Spanned(inner_id, _, _) => {
+                self.is_expr_likely_multiline(self.arena.get_expr(*inner_id))
+            }
             _ => false,
         }
     }
@@ -1600,9 +1606,11 @@ impl<'a> JsCodegen<'a> {
         match member {
             JsObjectMember::Property(p) => {
                 matches!(p.kind, JsPropertyKind::Get | JsPropertyKind::Set)
-                    || self.is_expr_likely_multiline(&p.value)
+                    || self.is_expr_likely_multiline(self.arena.get_expr(p.value))
             }
-            JsObjectMember::SpreadElement(expr) => self.is_expr_likely_multiline(expr),
+            JsObjectMember::SpreadElement(expr_id) => {
+                self.is_expr_likely_multiline(self.arena.get_expr(*expr_id))
+            }
         }
     }
 
@@ -2704,20 +2712,25 @@ mod tests {
 
     #[test]
     fn test_simple_program() {
+        let arena = JsArena::new();
         let prog = program(vec![
             import_namespace("$", "svelte/internal/client"),
-            var_decl("root", Some(svelte_from_html("<h1>Hello</h1>", None))),
+            var_decl(
+                &arena,
+                "root",
+                Some(svelte_from_html(&arena, "<h1>Hello</h1>", None)),
+            ),
             export_default_function(
                 "Test",
                 vec![id_pattern("$$anchor")],
                 vec![
-                    var_decl("h1", Some(call(id("root"), vec![]))),
-                    stmt(svelte_append(id("$$anchor"), id("h1"))),
+                    var_decl(&arena, "h1", Some(call(&arena, id("root"), vec![]))),
+                    stmt(&arena, svelte_append(&arena, id("$$anchor"), id("h1"))),
                 ],
             ),
         ]);
 
-        let code = generate(&prog).unwrap();
+        let code = generate(&prog, &arena).unwrap();
         println!("{}", code);
         assert!(code.contains("import * as $ from"));
         assert!(code.contains("$.from_html"));
@@ -2726,22 +2739,27 @@ mod tests {
 
     #[test]
     fn test_arrow_function() {
+        let arena = JsArena::new();
         let prog = program(vec![const_decl(
+            &arena,
             "add",
             arrow(
+                &arena,
                 vec![id_pattern("a"), id_pattern("b")],
-                binary(JsBinaryOp::Add, id("a"), id("b")),
+                binary(&arena, JsBinaryOp::Add, id("a"), id("b")),
             ),
         )]);
 
-        let code = generate(&prog).unwrap();
+        let code = generate(&prog, &arena).unwrap();
         println!("{}", code);
         assert!(code.contains("const add = (a, b) => a + b"));
     }
 
     #[test]
     fn test_template_literal() {
+        let arena = JsArena::new();
         let prog = program(vec![const_decl(
+            &arena,
             "msg",
             template(
                 vec![quasi("Hello, ", false), quasi("!", true)],
@@ -2749,17 +2767,18 @@ mod tests {
             ),
         )]);
 
-        let code = generate(&prog).unwrap();
+        let code = generate(&prog, &arena).unwrap();
         println!("{}", code);
         assert!(code.contains("`Hello, ${name}!`"));
     }
 
     #[test]
     fn test_apostrophe_escaping() {
+        let arena = JsArena::new();
         // Test that apostrophes are properly escaped when using single quotes
-        let prog = program(vec![const_decl("msg", string("I don't need this"))]);
+        let prog = program(vec![const_decl(&arena, "msg", string("I don't need this"))]);
 
-        let code = generate(&prog).unwrap();
+        let code = generate(&prog, &arena).unwrap();
         println!("Generated code: {}", code);
         // oxc codegen with single_quote: true should escape apostrophes
         // Either it uses double quotes OR escapes the apostrophe
@@ -2772,12 +2791,13 @@ mod tests {
 
     #[test]
     fn test_arrow_function_with_object_literal() {
+        let arena = JsArena::new();
         // Test that arrow functions with object literal bodies are wrapped in parentheses
-        let obj = object(vec![prop("value", number(1.0))]);
-        let arrow_fn = arrow(vec![], obj);
-        let prog = program(vec![const_decl("fn", arrow_fn)]);
+        let obj = object(vec![prop(&arena, "value", number(1.0))]);
+        let arrow_fn = arrow(&arena, vec![], obj);
+        let prog = program(vec![const_decl(&arena, "fn", arrow_fn)]);
 
-        let code = generate(&prog).unwrap();
+        let code = generate(&prog, &arena).unwrap();
         println!("Generated code: {}", code);
         assert!(
             code.contains("() => ({ value: 1 })") || code.contains("() => ({value: 1})"),
@@ -2788,17 +2808,23 @@ mod tests {
 
     #[test]
     fn test_arrow_function_with_getter_setter_object() {
+        let arena = JsArena::new();
         // Test that arrow functions returning objects with getters/setters work correctly
         // This mirrors the `derived-proxy` test case:
         // $derived({ get value() { return count * 2}, set value(c) { count = c / 2 } })
 
         let getter = JsObjectMember::Property(JsProperty {
             key: JsPropertyKey::Identifier("value".into()),
-            value: Box::new(JsExpr::Function(JsFunctionExpression {
+            value: arena.alloc_expr(JsExpr::Function(JsFunctionExpression {
                 id: None,
                 params: smallvec::smallvec![],
                 body: JsBlockStatement::with_body(vec![JsStatement::Return(JsReturnStatement {
-                    argument: Some(Box::new(binary(JsBinaryOp::Mul, id("count"), number(2.0)))),
+                    argument: Some(arena.alloc_expr(binary(
+                        &arena,
+                        JsBinaryOp::Mul,
+                        id("count"),
+                        number(2.0),
+                    ))),
                 })]),
                 is_async: false,
                 is_generator: false,
@@ -2811,15 +2837,20 @@ mod tests {
 
         let setter = JsObjectMember::Property(JsProperty {
             key: JsPropertyKey::Identifier("value".into()),
-            value: Box::new(JsExpr::Function(JsFunctionExpression {
+            value: arena.alloc_expr(JsExpr::Function(JsFunctionExpression {
                 id: None,
                 params: smallvec::smallvec![id_pattern("c")],
                 body: JsBlockStatement::with_body(vec![JsStatement::Expression(
                     JsExpressionStatement {
-                        expression: Box::new(JsExpr::Assignment(JsAssignmentExpression {
+                        expression: arena.alloc_expr(JsExpr::Assignment(JsAssignmentExpression {
                             operator: JsAssignmentOp::Assign,
-                            left: Box::new(id("count")),
-                            right: Box::new(binary(JsBinaryOp::Div, id("c"), number(2.0))),
+                            left: arena.alloc_expr(id("count")),
+                            right: arena.alloc_expr(binary(
+                                &arena,
+                                JsBinaryOp::Div,
+                                id("c"),
+                                number(2.0),
+                            )),
                         })),
                     },
                 )]),
@@ -2836,12 +2867,14 @@ mod tests {
             properties: vec![getter, setter],
         });
 
-        let arrow_fn = arrow(vec![], obj);
+        let arrow_fn = arrow(&arena, vec![], obj);
         let prog = program(vec![const_decl(
+            &arena,
             "double",
             call(
+                &arena,
                 JsExpr::Member(JsMemberExpression {
-                    object: Box::new(id("$")),
+                    object: arena.alloc_expr(id("$")),
                     property: JsMemberProperty::Identifier("derived".into()),
                     computed: false,
                     optional: false,
@@ -2850,7 +2883,7 @@ mod tests {
             ),
         )]);
 
-        let code = generate(&prog).unwrap();
+        let code = generate(&prog, &arena).unwrap();
         println!("Generated code: {}", code);
 
         // The arrow function body should be wrapped in parentheses
@@ -2863,22 +2896,23 @@ mod tests {
 
     #[test]
     fn test_logical_inside_binary_needs_parens() {
+        let arena = JsArena::new();
         // Bug: `(a ?? b) > 0` lost parentheses because binary_operand_needs_parens
         // didn't handle JsExpr::Logical operands.
         // This caused: "Nullish coalescing operator(??) requires parens when mixing
         // with logical operators" at build time.
         let logical = JsExpr::Logical(JsLogicalExpression {
             operator: JsLogicalOp::NullishCoalescing,
-            left: Box::new(id("a")),
-            right: Box::new(number(0.0)),
+            left: arena.alloc_expr(id("a")),
+            right: arena.alloc_expr(number(0.0)),
         });
         let binary_expr = JsExpr::Binary(JsBinaryExpression {
             operator: JsBinaryOp::Gt,
-            left: Box::new(logical),
-            right: Box::new(number(0.0)),
+            left: arena.alloc_expr(logical),
+            right: arena.alloc_expr(number(0.0)),
         });
-        let prog = program(vec![const_decl("x", binary_expr)]);
-        let code = generate(&prog).unwrap();
+        let prog = program(vec![const_decl(&arena, "x", binary_expr)]);
+        let code = generate(&prog, &arena).unwrap();
         println!("Generated code: {}", code);
         assert!(
             code.contains("(a ?? 0) > 0"),
@@ -2889,18 +2923,19 @@ mod tests {
 
     #[test]
     fn test_logical_or_inside_binary_needs_parens() {
+        let arena = JsArena::new();
         let logical = JsExpr::Logical(JsLogicalExpression {
             operator: JsLogicalOp::Or,
-            left: Box::new(id("a")),
-            right: Box::new(id("b")),
+            left: arena.alloc_expr(id("a")),
+            right: arena.alloc_expr(id("b")),
         });
         let binary_expr = JsExpr::Binary(JsBinaryExpression {
             operator: JsBinaryOp::Add,
-            left: Box::new(logical),
-            right: Box::new(number(1.0)),
+            left: arena.alloc_expr(logical),
+            right: arena.alloc_expr(number(1.0)),
         });
-        let prog = program(vec![const_decl("x", binary_expr)]);
-        let code = generate(&prog).unwrap();
+        let prog = program(vec![const_decl(&arena, "x", binary_expr)]);
+        let code = generate(&prog, &arena).unwrap();
         assert!(
             code.contains("(a || b) + 1"),
             "Logical OR inside binary should be wrapped in parens: {}",

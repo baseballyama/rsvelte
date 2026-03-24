@@ -87,7 +87,8 @@ fn build_fallback_expr(
     // Case 1: Simple expression (no thunk needed)
     if json_is_simple_expression(right_json) {
         return b::call(
-            b::member_path("$.fallback"),
+            &context.arena,
+            b::member_path(&context.arena, "$.fallback"),
             vec![expression.clone(), right_converted],
         );
     }
@@ -103,25 +104,34 @@ fn build_fallback_expr(
         && json_is_simple_expression(argument)
     {
         let arg_converted = convert_json_value(argument, context);
-        return b::await_expr(b::call(
-            b::member_path("$.fallback"),
-            vec![expression.clone(), arg_converted],
-        ));
+        return b::await_expr(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.fallback"),
+                vec![expression.clone(), arg_converted],
+            ),
+        );
     }
 
     // Case 3: Expression contains await -> async thunk
     if json_has_await_expression(right_json) {
-        let thunk = b::async_arrow(vec![], right_converted);
-        return b::await_expr(b::call(
-            b::member_path("$.fallback"),
-            vec![expression.clone(), thunk, b::true_literal()],
-        ));
+        let thunk = b::async_arrow(&context.arena, vec![], right_converted);
+        return b::await_expr(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.fallback"),
+                vec![expression.clone(), thunk, b::true_literal()],
+            ),
+        );
     }
 
     // Case 4: Non-simple, no await -> sync thunk
-    let thunk = b::arrow(vec![], right_converted);
+    let thunk = b::arrow(&context.arena, vec![], right_converted);
     b::call(
-        b::member_path("$.fallback"),
+        &context.arena,
+        b::member_path(&context.arena, "$.fallback"),
         vec![expression.clone(), thunk, b::true_literal()],
     )
 }
@@ -162,11 +172,15 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                     let prop_name = binding.prop_alias.as_deref().unwrap_or(name.as_str());
                     let needs_bracket = !is_valid_js_identifier(prop_name);
                     return JsExpr::Member(JsMemberExpression {
-                        object: Box::new(JsExpr::Identifier("$$props".into())),
+                        object: context
+                            .arena
+                            .alloc_expr(JsExpr::Identifier("$$props".into())),
                         property: if needs_bracket {
-                            JsMemberProperty::Expression(Box::new(JsExpr::Literal(
-                                JsLiteral::String(prop_name.into()),
-                            )))
+                            JsMemberProperty::Expression(
+                                context.arena.alloc_expr(JsExpr::Literal(JsLiteral::String(
+                                    prop_name.into(),
+                                ))),
+                            )
                         } else {
                             JsMemberProperty::Identifier(prop_name.into())
                         },
@@ -235,8 +249,8 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 }
 
                 return JsExpr::Call(JsCallExpression {
-                    callee: Box::new(JsExpr::Member(JsMemberExpression {
-                        object: Box::new(JsExpr::Identifier("$".into())),
+                    callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                        object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                         property: JsMemberProperty::Identifier(fn_name.into()),
                         computed: false,
                         optional: false,
@@ -273,8 +287,14 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             };
             JsExpr::Binary(JsBinaryExpression {
                 operator: op,
-                left: Box::new(convert_js_node(left, context)),
-                right: Box::new(convert_js_node(right, context)),
+                left: {
+                    let __tmp = convert_js_node(left, context);
+                    context.arena.alloc_expr(__tmp)
+                },
+                right: {
+                    let __tmp = convert_js_node(right, context);
+                    context.arena.alloc_expr(__tmp)
+                },
             })
         }
 
@@ -292,8 +312,14 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             };
             JsExpr::Logical(JsLogicalExpression {
                 operator: op,
-                left: Box::new(convert_js_node(left, context)),
-                right: Box::new(convert_js_node(right, context)),
+                left: {
+                    let __tmp = convert_js_node(left, context);
+                    context.arena.alloc_expr(__tmp)
+                },
+                right: {
+                    let __tmp = convert_js_node(right, context);
+                    context.arena.alloc_expr(__tmp)
+                },
             })
         }
 
@@ -315,7 +341,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             };
             JsExpr::Unary(JsUnaryExpression {
                 operator: op,
-                argument: Box::new(convert_js_node(argument, context)),
+                argument: {
+                    let __tmp = convert_js_node(argument, context);
+                    context.arena.alloc_expr(__tmp)
+                },
                 prefix: *prefix,
             })
         }
@@ -326,9 +355,18 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             alternate,
             ..
         } => JsExpr::Conditional(JsConditionalExpression {
-            test: Box::new(convert_js_node(test, context)),
-            consequent: Box::new(convert_js_node(consequent, context)),
-            alternate: Box::new(convert_js_node(alternate, context)),
+            test: {
+                let __tmp = convert_js_node(test, context);
+                context.arena.alloc_expr(__tmp)
+            },
+            consequent: {
+                let __tmp = convert_js_node(consequent, context);
+                context.arena.alloc_expr(__tmp)
+            },
+            alternate: {
+                let __tmp = convert_js_node(alternate, context);
+                context.arena.alloc_expr(__tmp)
+            },
         }),
 
         JsNode::ArrayExpression { elements, .. } => {
@@ -349,9 +387,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
         JsNode::ThisExpression { .. } => JsExpr::This,
 
-        JsNode::SpreadElement { argument, .. } => {
-            JsExpr::Spread(Box::new(convert_js_node(argument, context)))
-        }
+        JsNode::SpreadElement { argument, .. } => JsExpr::Spread({
+            let __tmp = convert_js_node(argument, context);
+            context.arena.alloc_expr(__tmp)
+        }),
 
         JsNode::AwaitExpression {
             start, argument, ..
@@ -362,16 +401,32 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             if context.state.analysis.pickled_awaits.contains(start) {
                 // Pickled await: (await $.save(arg))()
                 JsExpr::Call(JsCallExpression {
-                    callee: Box::new(JsExpr::Await(Box::new(JsExpr::Call(JsCallExpression {
-                        callee: Box::new(JsExpr::Member(JsMemberExpression {
-                            object: Box::new(JsExpr::Identifier("$".into())),
-                            property: JsMemberProperty::Identifier("save".into()),
-                            computed: false,
-                            optional: false,
-                        })),
-                        arguments: vec![converted_arg],
-                        optional: false,
-                    })))),
+                    callee: context
+                        .arena
+                        .alloc_expr(JsExpr::Await(context.arena.alloc_expr(
+                            JsExpr::Call(
+                                JsCallExpression {
+                                    callee:
+                                        context.arena.alloc_expr(
+                                            JsExpr::Member(
+                                                JsMemberExpression {
+                                                    object:
+                                                        context.arena.alloc_expr(
+                                                            JsExpr::Identifier("$".into()),
+                                                        ),
+                                                    property: JsMemberProperty::Identifier(
+                                                        "save".into(),
+                                                    ),
+                                                    computed: false,
+                                                    optional: false,
+                                                },
+                                            ),
+                                        ),
+                                    arguments: vec![converted_arg],
+                                    optional: false,
+                                },
+                            ),
+                        ))),
                     arguments: vec![],
                     optional: false,
                 })
@@ -379,21 +434,37 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 // In dev mode, wrap with track_reactivity_loss for non-pickled awaits
                 // (await $.track_reactivity_loss(arg))()
                 JsExpr::Call(JsCallExpression {
-                    callee: Box::new(JsExpr::Await(Box::new(JsExpr::Call(JsCallExpression {
-                        callee: Box::new(JsExpr::Member(JsMemberExpression {
-                            object: Box::new(JsExpr::Identifier("$".into())),
-                            property: JsMemberProperty::Identifier("track_reactivity_loss".into()),
-                            computed: false,
-                            optional: false,
-                        })),
-                        arguments: vec![converted_arg],
-                        optional: false,
-                    })))),
+                    callee: context
+                        .arena
+                        .alloc_expr(JsExpr::Await(context.arena.alloc_expr(
+                            JsExpr::Call(
+                                JsCallExpression {
+                                    callee:
+                                        context.arena.alloc_expr(
+                                            JsExpr::Member(
+                                                JsMemberExpression {
+                                                    object:
+                                                        context.arena.alloc_expr(
+                                                            JsExpr::Identifier("$".into()),
+                                                        ),
+                                                    property: JsMemberProperty::Identifier(
+                                                        "track_reactivity_loss".into(),
+                                                    ),
+                                                    computed: false,
+                                                    optional: false,
+                                                },
+                                            ),
+                                        ),
+                                    arguments: vec![converted_arg],
+                                    optional: false,
+                                },
+                            ),
+                        ))),
                     arguments: vec![],
                     optional: false,
                 })
             } else {
-                JsExpr::Await(Box::new(converted_arg))
+                JsExpr::Await(context.arena.alloc_expr(converted_arg))
             }
         }
 
@@ -401,9 +472,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             delegate, argument, ..
         } => JsExpr::Yield(JsYieldExpression {
             delegate: *delegate,
-            argument: argument
-                .as_ref()
-                .map(|a| Box::new(convert_js_node(a, context))),
+            argument: argument.as_ref().map(|a| {
+                let __tmp = convert_js_node(a, context);
+                context.arena.alloc_expr(__tmp)
+            }),
         }),
 
         JsNode::TemplateLiteral {
@@ -447,7 +519,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 },
             };
             JsExpr::TaggedTemplate(JsTaggedTemplate {
-                tag: Box::new(tag_expr),
+                tag: context.arena.alloc_expr(tag_expr),
                 quasi: quasi_tl,
             })
         }
@@ -495,7 +567,9 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 && !binding.exclude_props.iter().any(|ep| ep == &prop_name)
             {
                 return JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$$props".into())),
+                    object: context
+                        .arena
+                        .alloc_expr(JsExpr::Identifier("$$props".into())),
                     property: JsMemberProperty::Identifier(prop_name.into()),
                     computed: false,
                     optional,
@@ -514,7 +588,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                     .map(|f| (f.field_type.clone(), context.state.in_constructor));
 
                 if let Some((field_type, in_constructor)) = field_info {
-                    let base_object = Box::new(convert_js_node(object, context));
+                    let base_object = {
+                        let __tmp = convert_js_node(object, context);
+                        context.arena.alloc_expr(__tmp)
+                    };
                     let base_member = JsExpr::Member(JsMemberExpression {
                         object: base_object,
                         property: JsMemberProperty::PrivateIdentifier(prop_name.into()),
@@ -524,7 +601,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
                     if in_constructor && (field_type == "$state" || field_type == "$state.raw") {
                         return JsExpr::Member(JsMemberExpression {
-                            object: Box::new(base_member),
+                            object: context.arena.alloc_expr(base_member),
                             property: JsMemberProperty::Identifier("v".into()),
                             computed: false,
                             optional: false,
@@ -535,8 +612,8 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                         || field_type == "$derived.by"
                     {
                         return JsExpr::Call(JsCallExpression {
-                            callee: Box::new(JsExpr::Member(JsMemberExpression {
-                                object: Box::new(JsExpr::Identifier("$".into())),
+                            callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                                object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                                 property: JsMemberProperty::Identifier("get".into()),
                                 computed: false,
                                 optional: false,
@@ -548,10 +625,18 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 }
             }
 
-            let conv_object = { Box::new(convert_js_node(object, context)) };
+            let conv_object = {
+                {
+                    let __tmp = convert_js_node(object, context);
+                    context.arena.alloc_expr(__tmp)
+                }
+            };
 
             let conv_property = if computed {
-                JsMemberProperty::Expression(Box::new(convert_js_node(property, context)))
+                JsMemberProperty::Expression({
+                    let __tmp = convert_js_node(property, context);
+                    context.arena.alloc_expr(__tmp)
+                })
             } else if let Some(prop_name) = get_jsnode_private_identifier_name(property) {
                 JsMemberProperty::PrivateIdentifier(prop_name.into())
             } else if let Some(prop_name) = get_jsnode_identifier_name(property) {
@@ -595,7 +680,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 }
             }
 
-            let conv_callee = Box::new(convert_js_node(callee, context));
+            let conv_callee = {
+                let __tmp = convert_js_node(callee, context);
+                context.arena.alloc_expr(__tmp)
+            };
             let conv_arguments: Vec<JsExpr> = arguments
                 .iter()
                 .map(|arg| convert_js_node(arg, context))
@@ -612,7 +700,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
         JsNode::NewExpression {
             callee, arguments, ..
         } => {
-            let conv_callee = Box::new(convert_js_node(callee, context));
+            let conv_callee = {
+                let __tmp = convert_js_node(callee, context);
+                context.arena.alloc_expr(__tmp)
+            };
             let conv_arguments: Vec<JsExpr> = arguments
                 .iter()
                 .map(|arg| convert_js_node(arg, context))
@@ -687,13 +778,19 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                         if obj.get("type").and_then(|t| t.as_str()) == Some("BlockStatement") {
                             JsArrowBody::Block(convert_block_statement(obj, context))
                         } else {
-                            JsArrowBody::Expression(Box::new(convert_json_value(v, context)))
+                            JsArrowBody::Expression({
+                                let __tmp = convert_json_value(v, context);
+                                context.arena.alloc_expr(__tmp)
+                            })
                         }
                     } else {
                         JsArrowBody::Block(JsBlockStatement::new())
                     }
                 }
-                _ => JsArrowBody::Expression(Box::new(convert_js_node(body, context))),
+                _ => JsArrowBody::Expression({
+                    let __tmp = convert_js_node(body, context);
+                    context.arena.alloc_expr(__tmp)
+                }),
             };
 
             context.state.event_handler_arrow_body_level = saved_arrow_level;
@@ -864,8 +961,8 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
             JsExpr::Assignment(JsAssignmentExpression {
                 operator: assign_op,
-                left: Box::new(conv_left),
-                right: Box::new(conv_right),
+                left: context.arena.alloc_expr(conv_left),
+                right: context.arena.alloc_expr(conv_right),
             })
         }
 
@@ -893,7 +990,12 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                     .get(&name_str)
                     .and_then(|t| t.update)
             {
-                return update_fn(update_op, JsExpr::Identifier(name_str.into()), prefix);
+                return update_fn(
+                    &context.arena,
+                    update_op,
+                    JsExpr::Identifier(name_str.into()),
+                    prefix,
+                );
             }
 
             // Check if the argument is a direct MemberExpression with Identifier object
@@ -904,13 +1006,19 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 context.state.in_direct_assignment_lhs = true;
             }
 
-            let conv_argument = Box::new(convert_js_node(argument, context));
+            let conv_argument = {
+                let __tmp = convert_js_node(argument, context);
+                context.arena.alloc_expr(__tmp)
+            };
 
             context.state.in_direct_assignment_lhs = saved_flag;
 
-            if let Some(transformed) =
-                try_transform_update(update_op, prefix, &conv_argument, context)
-            {
+            if let Some(transformed) = try_transform_update(
+                update_op,
+                prefix,
+                context.arena.get_expr(conv_argument),
+                context,
+            ) {
                 return transformed;
             }
 
@@ -1025,7 +1133,10 @@ fn convert_object_member_from_node(
             ..
         } => {
             let conv_key = convert_property_key_from_node(key, *computed, context);
-            let conv_value = Box::new(convert_js_node(value, context));
+            let conv_value = {
+                let __tmp = convert_js_node(value, context);
+                context.arena.alloc_expr(__tmp)
+            };
 
             let prop_kind = match kind.as_str() {
                 "init" => JsPropertyKind::Init,
@@ -1044,7 +1155,10 @@ fn convert_object_member_from_node(
             }))
         }
         JsNode::SpreadElement { argument, .. } => {
-            let conv_argument = Box::new(convert_js_node(argument, context));
+            let conv_argument = {
+                let __tmp = convert_js_node(argument, context);
+                context.arena.alloc_expr(__tmp)
+            };
             Some(JsObjectMember::SpreadElement(conv_argument))
         }
         // Handle Raw-wrapped property nodes (common from parser)
@@ -1056,8 +1170,13 @@ fn convert_object_member_from_node(
                         let key = convert_property_key(obj, context);
                         let value = obj
                             .get("value")
-                            .map(|v| Box::new(convert_json_value(v, context)))
-                            .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+                            .map(|v| {
+                                let __tmp = convert_json_value(v, context);
+                                context.arena.alloc_expr(__tmp)
+                            })
+                            .unwrap_or_else(|| {
+                                context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null))
+                            });
                         let computed = obj
                             .get("computed")
                             .and_then(|c| c.as_bool())
@@ -1085,8 +1204,13 @@ fn convert_object_member_from_node(
                     "SpreadElement" => {
                         let argument = obj
                             .get("argument")
-                            .map(|a| Box::new(convert_json_value(a, context)))
-                            .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+                            .map(|a| {
+                                let __tmp = convert_json_value(a, context);
+                                context.arena.alloc_expr(__tmp)
+                            })
+                            .unwrap_or_else(|| {
+                                context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null))
+                            });
                         Some(JsObjectMember::SpreadElement(argument))
                     }
                     _ => None,
@@ -1106,7 +1230,10 @@ fn convert_property_key_from_node(
     context: &mut ComponentContext,
 ) -> JsPropertyKey {
     if computed {
-        return JsPropertyKey::Computed(Box::new(convert_js_node(key, context)));
+        return JsPropertyKey::Computed({
+            let __tmp = convert_js_node(key, context);
+            context.arena.alloc_expr(__tmp)
+        });
     }
 
     match key {
@@ -1140,13 +1267,19 @@ fn convert_property_key_from_node(
                             .and_then(|n| n.as_str())
                             .unwrap_or("unknown");
                         if computed {
-                            JsPropertyKey::Computed(Box::new(convert_json_value(value, context)))
+                            JsPropertyKey::Computed({
+                                let __tmp = convert_json_value(value, context);
+                                context.arena.alloc_expr(__tmp)
+                            })
                         } else {
                             JsPropertyKey::Identifier(name.into())
                         }
                     }
                     "Literal" => JsPropertyKey::Literal(convert_literal(obj, context).into()),
-                    _ => JsPropertyKey::Computed(Box::new(convert_json_value(value, context))),
+                    _ => JsPropertyKey::Computed({
+                        let __tmp = convert_json_value(value, context);
+                        context.arena.alloc_expr(__tmp)
+                    }),
                 }
             } else {
                 JsPropertyKey::Identifier("unknown".into())
@@ -1175,7 +1308,7 @@ fn convert_param_pattern_from_node(
             let conv_left = convert_param_pattern_from_node(left, context)?;
             let conv_right = {
                 let expr = convert_js_node(right, context);
-                Box::new(crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&expr, context))
+                context.arena.alloc_expr(crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&expr, context))
             };
             Some(JsPattern::Assignment(JsAssignmentPattern {
                 left: Box::new(conv_left),
@@ -1274,7 +1407,10 @@ fn convert_object_pattern_property_from_node(
                             let key_expr =
                                 convert_json_value(&Value::Object(key_val.clone()), context);
                             let key_expr = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&key_expr, context);
-                            (JsPropertyKey::Computed(Box::new(key_expr)), None)
+                            (
+                                JsPropertyKey::Computed(context.arena.alloc_expr(key_expr)),
+                                None,
+                            )
                         } else {
                             (
                                 JsPropertyKey::Identifier(name.into()),
@@ -1284,7 +1420,10 @@ fn convert_object_pattern_property_from_node(
                     } else {
                         let key_expr = convert_json_value(&Value::Object(key_val.clone()), context);
                         let key_expr = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&key_expr, context);
-                        (JsPropertyKey::Computed(Box::new(key_expr)), None)
+                        (
+                            JsPropertyKey::Computed(context.arena.alloc_expr(key_expr)),
+                            None,
+                        )
                     };
 
                     let value_pat = obj
@@ -1335,7 +1474,10 @@ fn convert_object_pattern_prop_inner(
             if computed {
                 let key_expr = convert_js_node(key, context);
                 let key_expr = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&key_expr, context);
-                (JsPropertyKey::Computed(Box::new(key_expr)), None)
+                (
+                    JsPropertyKey::Computed(context.arena.alloc_expr(key_expr)),
+                    None,
+                )
             } else {
                 (
                     JsPropertyKey::Identifier(name.to_string().into()),
@@ -1362,7 +1504,10 @@ fn convert_object_pattern_prop_inner(
                 } else {
                     let key_expr = convert_json_value(v, context);
                     let key_expr_t = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&key_expr, context);
-                    (JsPropertyKey::Computed(Box::new(key_expr_t)), None)
+                    (
+                        JsPropertyKey::Computed(context.arena.alloc_expr(key_expr_t)),
+                        None,
+                    )
                 }
             } else {
                 return None;
@@ -1371,7 +1516,10 @@ fn convert_object_pattern_prop_inner(
         _ => {
             let key_expr = convert_js_node(key, context);
             let key_expr = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&key_expr, context);
-            (JsPropertyKey::Computed(Box::new(key_expr)), None)
+            (
+                JsPropertyKey::Computed(context.arena.alloc_expr(key_expr)),
+                None,
+            )
         }
     };
 
@@ -1642,11 +1790,15 @@ fn convert_identifier(
             let prop_name = binding.prop_alias.as_deref().unwrap_or(&name).to_string();
             let needs_bracket = !is_valid_js_identifier(&prop_name);
             return JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("$$props".into())),
+                object: context
+                    .arena
+                    .alloc_expr(JsExpr::Identifier("$$props".into())),
                 property: if needs_bracket {
-                    JsMemberProperty::Expression(Box::new(JsExpr::Literal(JsLiteral::String(
-                        prop_name.into(),
-                    ))))
+                    JsMemberProperty::Expression(
+                        context
+                            .arena
+                            .alloc_expr(JsExpr::Literal(JsLiteral::String(prop_name.into()))),
+                    )
                 } else {
                     JsMemberProperty::Identifier(prop_name.into())
                 },
@@ -1752,8 +1904,15 @@ fn convert_member_expression(
             // Build the base member expression (this.#foo)
             let object = obj
                 .get("object")
-                .map(|o| Box::new(convert_json_value(o, context)))
-                .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".into())));
+                .map(|o| {
+                    let __tmp = convert_json_value(o, context);
+                    context.arena.alloc_expr(__tmp)
+                })
+                .unwrap_or_else(|| {
+                    context
+                        .arena
+                        .alloc_expr(JsExpr::Identifier("unknown".into()))
+                });
 
             let base_member = JsExpr::Member(JsMemberExpression {
                 object,
@@ -1765,7 +1924,7 @@ fn convert_member_expression(
             // If in constructor and field is $state or $state.raw, use .v accessor
             if in_constructor && (field_type == "$state" || field_type == "$state.raw") {
                 return JsExpr::Member(JsMemberExpression {
-                    object: Box::new(base_member),
+                    object: context.arena.alloc_expr(base_member),
                     property: JsMemberProperty::Identifier("v".into()),
                     computed: false,
                     optional: false,
@@ -1777,8 +1936,8 @@ fn convert_member_expression(
             {
                 // Outside constructor, use $.get(this.#foo)
                 return JsExpr::Call(JsCallExpression {
-                    callee: Box::new(JsExpr::Member(JsMemberExpression {
-                        object: Box::new(JsExpr::Identifier("$".into())),
+                    callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                        object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                         property: JsMemberProperty::Identifier("get".into()),
                         computed: false,
                         optional: false,
@@ -1819,7 +1978,9 @@ fn convert_member_expression(
     {
         // Replace object with $$props
         return JsExpr::Member(JsMemberExpression {
-            object: Box::new(JsExpr::Identifier("$$props".into())),
+            object: context
+                .arena
+                .alloc_expr(JsExpr::Identifier("$$props".into())),
             property: JsMemberProperty::Identifier(prop_name.into()),
             computed: false,
             optional,
@@ -1828,13 +1989,25 @@ fn convert_member_expression(
 
     let object = {
         obj.get("object")
-            .map(|o| Box::new(convert_json_value(o, context)))
-            .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".into())))
+            .map(|o| {
+                let __tmp = convert_json_value(o, context);
+                context.arena.alloc_expr(__tmp)
+            })
+            .unwrap_or_else(|| {
+                context
+                    .arena
+                    .alloc_expr(JsExpr::Identifier("unknown".into()))
+            })
     };
 
     let property = if computed {
         obj.get("property")
-            .map(|p| JsMemberProperty::Expression(Box::new(convert_json_value(p, context))))
+            .map(|p| {
+                JsMemberProperty::Expression({
+                    let __tmp = convert_json_value(p, context);
+                    context.arena.alloc_expr(__tmp)
+                })
+            })
             .unwrap_or(JsMemberProperty::Identifier("unknown".into()))
     } else {
         // Check if property is a PrivateIdentifier
@@ -1912,8 +2085,15 @@ fn convert_call_expression(
             if has_unknown_arg {
                 let callee = obj
                     .get("callee")
-                    .map(|c| Box::new(convert_json_value(c, context)))
-                    .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".into())));
+                    .map(|c| {
+                        let __tmp = convert_json_value(c, context);
+                        context.arena.alloc_expr(__tmp)
+                    })
+                    .unwrap_or_else(|| {
+                        context
+                            .arena
+                            .alloc_expr(JsExpr::Identifier("unknown".into()))
+                    });
 
                 let mut log_args: Vec<JsExpr> =
                     vec![JsExpr::Literal(JsLiteral::String(console_method.into()))];
@@ -1926,16 +2106,20 @@ fn convert_call_expression(
                 // console.METHOD(...$.log_if_contains_state('METHOD', args...))
                 return JsExpr::Call(JsCallExpression {
                     callee,
-                    arguments: vec![JsExpr::Spread(Box::new(JsExpr::Call(JsCallExpression {
-                        callee: Box::new(JsExpr::Member(JsMemberExpression {
-                            object: Box::new(JsExpr::Identifier("$".into())),
-                            property: JsMemberProperty::Identifier("log_if_contains_state".into()),
-                            computed: false,
+                    arguments: vec![JsExpr::Spread(context.arena.alloc_expr(JsExpr::Call(
+                        JsCallExpression {
+                            callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                                object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
+                                property: JsMemberProperty::Identifier(
+                                    "log_if_contains_state".into(),
+                                ),
+                                computed: false,
+                                optional: false,
+                            })),
+                            arguments: log_args,
                             optional: false,
-                        })),
-                        arguments: log_args,
-                        optional: false,
-                    })))],
+                        },
+                    )))],
                     optional: false,
                 });
             }
@@ -1944,8 +2128,15 @@ fn convert_call_expression(
 
     let callee = obj
         .get("callee")
-        .map(|c| Box::new(convert_json_value(c, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".into())));
+        .map(|c| {
+            let __tmp = convert_json_value(c, context);
+            context.arena.alloc_expr(__tmp)
+        })
+        .unwrap_or_else(|| {
+            context
+                .arena
+                .alloc_expr(JsExpr::Identifier("unknown".into()))
+        });
 
     let arguments = obj
         .get("arguments")
@@ -2149,7 +2340,9 @@ fn transform_rune_call(
         "$host" => {
             // $host() -> $$props.$$host
             JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("$$props".into())),
+                object: context
+                    .arena
+                    .alloc_expr(JsExpr::Identifier("$$props".into())),
                 property: JsMemberProperty::Identifier("$$host".into()),
                 computed: false,
                 optional: false,
@@ -2159,8 +2352,8 @@ fn transform_rune_call(
         "$effect.tracking" => {
             // $effect.tracking() -> $.effect_tracking()
             JsExpr::Call(JsCallExpression {
-                callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".into())),
+                callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                    object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                     property: JsMemberProperty::Identifier("effect_tracking".into()),
                     computed: false,
                     optional: false,
@@ -2188,8 +2381,8 @@ fn transform_rune_call(
                 // For $state (not $state.raw), wrap with $.proxy() if the value is an object/array
                 if rune == "$state" && should_proxy_json(arg_value) {
                     JsExpr::Call(JsCallExpression {
-                        callee: Box::new(JsExpr::Member(JsMemberExpression {
-                            object: Box::new(JsExpr::Identifier("$".into())),
+                        callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                            object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                             property: JsMemberProperty::Identifier("proxy".into()),
                             computed: false,
                             optional: false,
@@ -2227,8 +2420,8 @@ fn transform_rune_call(
             }
 
             JsExpr::Call(JsCallExpression {
-                callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".into())),
+                callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                    object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                     property: JsMemberProperty::Identifier("snapshot".into()),
                     computed: false,
                     optional: false,
@@ -2246,13 +2439,13 @@ fn transform_rune_call(
                 // Wrap in thunk: () => expr
                 let thunk = JsExpr::Arrow(JsArrowFunction {
                     params: vec![].into(),
-                    body: JsArrowBody::Expression(Box::new(converted)),
+                    body: JsArrowBody::Expression(context.arena.alloc_expr(converted)),
                     is_async: false,
                 });
 
                 JsExpr::Call(JsCallExpression {
-                    callee: Box::new(JsExpr::Member(JsMemberExpression {
-                        object: Box::new(JsExpr::Identifier("$".into())),
+                    callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                        object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                         property: JsMemberProperty::Identifier("derived".into()),
                         computed: false,
                         optional: false,
@@ -2263,8 +2456,8 @@ fn transform_rune_call(
             } else {
                 // No argument - just call $.derived()
                 JsExpr::Call(JsCallExpression {
-                    callee: Box::new(JsExpr::Member(JsMemberExpression {
-                        object: Box::new(JsExpr::Identifier("$".into())),
+                    callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                        object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                         property: JsMemberProperty::Identifier("derived".into()),
                         computed: false,
                         optional: false,
@@ -2283,8 +2476,8 @@ fn transform_rune_call(
                 .collect();
 
             JsExpr::Call(JsCallExpression {
-                callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".into())),
+                callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                    object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                     property: JsMemberProperty::Identifier("derived".into()),
                     computed: false,
                     optional: false,
@@ -2309,8 +2502,8 @@ fn transform_rune_call(
                 .collect();
 
             JsExpr::Call(JsCallExpression {
-                callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".into())),
+                callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                    object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                     property: JsMemberProperty::Identifier(callee_name.into()),
                     computed: false,
                     optional: false,
@@ -2328,8 +2521,8 @@ fn transform_rune_call(
                 .collect();
 
             JsExpr::Call(JsCallExpression {
-                callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".into())),
+                callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                    object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                     property: JsMemberProperty::Identifier("effect_root".into()),
                     computed: false,
                     optional: false,
@@ -2342,14 +2535,14 @@ fn transform_rune_call(
         "$effect.pending" => {
             // $effect.pending() -> $.eager($.pending)
             JsExpr::Call(JsCallExpression {
-                callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".into())),
+                callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                    object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                     property: JsMemberProperty::Identifier("eager".into()),
                     computed: false,
                     optional: false,
                 })),
                 arguments: vec![JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".into())),
+                    object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                     property: JsMemberProperty::Identifier("pending".into()),
                     computed: false,
                     optional: false,
@@ -2366,13 +2559,13 @@ fn transform_rune_call(
                 // Wrap in thunk: () => expr
                 let thunk = JsExpr::Arrow(JsArrowFunction {
                     params: vec![].into(),
-                    body: JsArrowBody::Expression(Box::new(converted)),
+                    body: JsArrowBody::Expression(context.arena.alloc_expr(converted)),
                     is_async: false,
                 });
 
                 JsExpr::Call(JsCallExpression {
-                    callee: Box::new(JsExpr::Member(JsMemberExpression {
-                        object: Box::new(JsExpr::Identifier("$".into())),
+                    callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                        object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                         property: JsMemberProperty::Identifier("eager".into()),
                         computed: false,
                         optional: false,
@@ -2382,8 +2575,8 @@ fn transform_rune_call(
                 })
             } else {
                 JsExpr::Call(JsCallExpression {
-                    callee: Box::new(JsExpr::Member(JsMemberExpression {
-                        object: Box::new(JsExpr::Identifier("$".into())),
+                    callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                        object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                         property: JsMemberProperty::Identifier("eager".into()),
                         computed: false,
                         optional: false,
@@ -2421,7 +2614,9 @@ fn transform_rune_call(
 
                 // Default inspector is console.log
                 let console_log = JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("console".into())),
+                    object: context
+                        .arena
+                        .alloc_expr(JsExpr::Identifier("console".into())),
                     property: JsMemberProperty::Identifier("log".into()),
                     computed: false,
                     optional: false,
@@ -2466,16 +2661,16 @@ fn transform_rune_call(
             });
             let args_thunk = JsExpr::Arrow(JsArrowFunction {
                 params: vec![].into(),
-                body: JsArrowBody::Expression(Box::new(args_array)),
+                body: JsArrowBody::Expression(context.arena.alloc_expr(args_array)),
                 is_async: false,
             });
 
             // Build: (...$$args) => inspector(...$$args)
             // This makes the log appear to come from the $inspect callsite
             let args_id = JsExpr::Identifier("$$args".into());
-            let spread_args = JsExpr::Spread(Box::new(args_id.clone()));
+            let spread_args = JsExpr::Spread(context.arena.alloc_expr(args_id.clone()));
             let inspector_call = JsExpr::Call(JsCallExpression {
-                callee: Box::new(inspector),
+                callee: context.arena.alloc_expr(inspector),
                 arguments: vec![spread_args],
                 optional: false,
             });
@@ -2483,7 +2678,7 @@ fn transform_rune_call(
                 params: smallvec::smallvec![JsPattern::Rest(Box::new(JsPattern::Identifier(
                     "$$args".into(),
                 )))],
-                body: JsArrowBody::Expression(Box::new(inspector_call)),
+                body: JsArrowBody::Expression(context.arena.alloc_expr(inspector_call)),
                 is_async: false,
             });
 
@@ -2496,8 +2691,8 @@ fn transform_rune_call(
             }
 
             JsExpr::Call(JsCallExpression {
-                callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".into())),
+                callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                    object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                     property: JsMemberProperty::Identifier("inspect".into()),
                     computed: false,
                     optional: false,
@@ -2511,8 +2706,15 @@ fn transform_rune_call(
             // Unknown rune - pass through as regular call
             let callee = obj
                 .get("callee")
-                .map(|c| Box::new(convert_json_value(c, context)))
-                .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".into())));
+                .map(|c| {
+                    let __tmp = convert_json_value(c, context);
+                    context.arena.alloc_expr(__tmp)
+                })
+                .unwrap_or_else(|| {
+                    context
+                        .arena
+                        .alloc_expr(JsExpr::Identifier("unknown".into()))
+                });
 
             let converted_args: Vec<JsExpr> = arguments
                 .iter()
@@ -2565,8 +2767,8 @@ fn convert_binary_expression(
         }
 
         return JsExpr::Call(JsCallExpression {
-            callee: Box::new(JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("$".into())),
+            callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                 property: JsMemberProperty::Identifier(fn_name.into()),
                 computed: false,
                 optional: false,
@@ -2604,13 +2806,19 @@ fn convert_binary_expression(
 
     let left = obj
         .get("left")
-        .map(|l| Box::new(convert_json_value(l, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+        .map(|l| {
+            let __tmp = convert_json_value(l, context);
+            context.arena.alloc_expr(__tmp)
+        })
+        .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
     let right = obj
         .get("right")
-        .map(|r| Box::new(convert_json_value(r, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+        .map(|r| {
+            let __tmp = convert_json_value(r, context);
+            context.arena.alloc_expr(__tmp)
+        })
+        .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
     JsExpr::Binary(JsBinaryExpression {
         operator,
@@ -2639,8 +2847,11 @@ fn convert_unary_expression(
 
     let argument = obj
         .get("argument")
-        .map(|a| Box::new(convert_json_value(a, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+        .map(|a| {
+            let __tmp = convert_json_value(a, context);
+            context.arena.alloc_expr(__tmp)
+        })
+        .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
     let prefix = obj.get("prefix").and_then(|p| p.as_bool()).unwrap_or(true);
 
@@ -2667,13 +2878,19 @@ fn convert_logical_expression(
 
     let left = obj
         .get("left")
-        .map(|l| Box::new(convert_json_value(l, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+        .map(|l| {
+            let __tmp = convert_json_value(l, context);
+            context.arena.alloc_expr(__tmp)
+        })
+        .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
     let right = obj
         .get("right")
-        .map(|r| Box::new(convert_json_value(r, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+        .map(|r| {
+            let __tmp = convert_json_value(r, context);
+            context.arena.alloc_expr(__tmp)
+        })
+        .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
     JsExpr::Logical(JsLogicalExpression {
         operator,
@@ -2689,18 +2906,27 @@ fn convert_conditional_expression(
 ) -> JsExpr {
     let test = obj
         .get("test")
-        .map(|t| Box::new(convert_json_value(t, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+        .map(|t| {
+            let __tmp = convert_json_value(t, context);
+            context.arena.alloc_expr(__tmp)
+        })
+        .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
     let consequent = obj
         .get("consequent")
-        .map(|c| Box::new(convert_json_value(c, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+        .map(|c| {
+            let __tmp = convert_json_value(c, context);
+            context.arena.alloc_expr(__tmp)
+        })
+        .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
     let alternate = obj
         .get("alternate")
-        .map(|a| Box::new(convert_json_value(a, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+        .map(|a| {
+            let __tmp = convert_json_value(a, context);
+            context.arena.alloc_expr(__tmp)
+        })
+        .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
     JsExpr::Conditional(JsConditionalExpression {
         test,
@@ -2754,8 +2980,13 @@ fn convert_object_expression(
                             let key = convert_property_key(prop_obj, context);
                             let value = prop_obj
                                 .get("value")
-                                .map(|v| Box::new(convert_json_value(v, context)))
-                                .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+                                .map(|v| {
+                                    let __tmp = convert_json_value(v, context);
+                                    context.arena.alloc_expr(__tmp)
+                                })
+                                .unwrap_or_else(|| {
+                                    context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null))
+                                });
 
                             let computed = prop_obj
                                 .get("computed")
@@ -2791,8 +3022,13 @@ fn convert_object_expression(
                         "SpreadElement" => {
                             let argument = prop_obj
                                 .get("argument")
-                                .map(|a| Box::new(convert_json_value(a, context)))
-                                .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+                                .map(|a| {
+                                    let __tmp = convert_json_value(a, context);
+                                    context.arena.alloc_expr(__tmp)
+                                })
+                                .unwrap_or_else(|| {
+                                    context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null))
+                                });
 
                             Some(JsObjectMember::SpreadElement(argument))
                         }
@@ -2818,7 +3054,10 @@ fn convert_property_key(
         .unwrap_or(false);
 
     if computed && let Some(k) = key {
-        return JsPropertyKey::Computed(Box::new(convert_json_value(k, context)));
+        return JsPropertyKey::Computed({
+            let __tmp = convert_json_value(k, context);
+            context.arena.alloc_expr(__tmp)
+        });
     }
 
     if let Some(key_obj) = key.and_then(|k| k.as_object()) {
@@ -2943,10 +3182,8 @@ fn convert_arrow_function(
             if context.state.in_event_attribute_handler && body_is_assignment {
                 context.state.event_handler_arrow_body_level = 1;
             }
-            let result = JsArrowBody::Expression(Box::new(convert_json_value(
-                &Value::Object(body_obj.clone()),
-                context,
-            )));
+            let __tmp = convert_json_value(&Value::Object(body_obj.clone()), context);
+            let result = JsArrowBody::Expression(context.arena.alloc_expr(__tmp));
             context.state.event_handler_arrow_body_level = saved_level;
             result
         }
@@ -3057,9 +3294,9 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                 .map(|r| {
                     let expr = convert_json_value(r, context);
                     // Apply transforms so reactive identifiers in default values get their getter calls
-                    Box::new(crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&expr, context))
+                    context.arena.alloc_expr(crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&expr, context))
                 })
-                .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Undefined)));
+                .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Undefined)));
             Some(JsPattern::Assignment(JsAssignmentPattern {
                 left: Box::new(left),
                 right,
@@ -3133,7 +3370,7 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                                     // Apply transforms so reactive identifiers get their getter calls
                                     // e.g., `dimension` -> `dimension()` in `[`two${dimension()}`]`
                                     let key_expr = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&key_expr, context);
-                                    (JsPropertyKey::Computed(Box::new(key_expr)), None)
+                                    (JsPropertyKey::Computed(context.arena.alloc_expr(key_expr)), None)
                                 };
 
                                 let value_pat = prop_obj
@@ -3303,7 +3540,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                 .get("expression")
                 .map(|e| convert_json_value(e, context))?;
             Some(JsStatement::Expression(JsExpressionStatement {
-                expression: Box::new(expr),
+                expression: context.arena.alloc_expr(expr),
             }))
         }
         "VariableDeclaration" => {
@@ -3333,10 +3570,10 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
 
                             // In ESTree, `init: null` means no initializer (e.g., `let x;`).
                             // We must filter out JSON null so we don't generate `let x = null;`.
-                            let init = decl_obj
-                                .get("init")
-                                .filter(|i| !i.is_null())
-                                .map(|i| Box::new(convert_json_value(i, context)));
+                            let init = decl_obj.get("init").filter(|i| !i.is_null()).map(|i| {
+                                let __tmp = convert_json_value(i, context);
+                                context.arena.alloc_expr(__tmp)
+                            });
                             Some(JsVariableDeclarator { id: pattern, init })
                         })
                         .collect()
@@ -3353,9 +3590,10 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             }))
         }
         "ReturnStatement" => {
-            let argument = obj
-                .get("argument")
-                .map(|a| Box::new(convert_json_value(a, context)));
+            let argument = obj.get("argument").map(|a| {
+                let __tmp = convert_json_value(a, context);
+                context.arena.alloc_expr(__tmp)
+            });
             Some(JsStatement::Return(JsReturnStatement { argument }))
         }
         "BlockStatement" => {
@@ -3365,17 +3603,24 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
         "IfStatement" => {
             let test = obj
                 .get("test")
-                .map(|t| Box::new(convert_json_value(t, context)))
-                .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Boolean(false))));
+                .map(|t| {
+                    let __tmp = convert_json_value(t, context);
+                    context.arena.alloc_expr(__tmp)
+                })
+                .unwrap_or_else(|| {
+                    context
+                        .arena
+                        .alloc_expr(JsExpr::Literal(JsLiteral::Boolean(false)))
+                });
             let consequent = obj
                 .get("consequent")
                 .and_then(|c| convert_statement(c, context))
-                .map(Box::new)
-                .unwrap_or_else(|| Box::new(JsStatement::Empty));
+                .map(|s| context.arena.alloc_stmt(s))
+                .unwrap_or_else(|| context.arena.alloc_stmt(JsStatement::Empty));
             let alternate = obj
                 .get("alternate")
                 .and_then(|a| convert_statement(a, context))
-                .map(Box::new);
+                .map(|s| context.arena.alloc_stmt(s));
             Some(JsStatement::If(JsIfStatement {
                 test,
                 consequent,
@@ -3388,7 +3633,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                 .get("argument")
                 .map(|a| convert_json_value(a, context))
                 .unwrap_or(JsExpr::Literal(JsLiteral::Null));
-            Some(JsStatement::Throw(Box::new(argument)))
+            Some(JsStatement::Throw(context.arena.alloc_expr(argument)))
         }
         "TryStatement" => {
             let block = obj
@@ -3467,9 +3712,10 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                                     let decl_obj = decl.as_object()?;
                                     let id_val = decl_obj.get("id")?;
                                     let pattern = convert_param_pattern(id_val, context)?;
-                                    let init_val = decl_obj
-                                        .get("init")
-                                        .map(|iv| Box::new(convert_json_value(iv, context)));
+                                    let init_val = decl_obj.get("init").map(|iv| {
+                                        let __tmp = convert_json_value(iv, context);
+                                        context.arena.alloc_expr(__tmp)
+                                    });
                                     Some(JsVariableDeclarator {
                                         id: pattern,
                                         init: init_val,
@@ -3487,9 +3733,8 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                         declarations,
                     }))
                 } else {
-                    Some(JsForInit::Expression(Box::new(convert_json_value(
-                        i, context,
-                    ))))
+                    let __tmp = convert_json_value(i, context);
+                    Some(JsForInit::Expression(context.arena.alloc_expr(__tmp)))
                 }
             });
 
@@ -3506,19 +3751,19 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                 None
             };
 
-            let test = obj
-                .get("test")
-                .filter(|t| !t.is_null())
-                .map(|t| Box::new(convert_json_value(t, context)));
-            let update = obj
-                .get("update")
-                .filter(|u| !u.is_null())
-                .map(|u| Box::new(convert_json_value(u, context)));
+            let test = obj.get("test").filter(|t| !t.is_null()).map(|t| {
+                let __tmp = convert_json_value(t, context);
+                context.arena.alloc_expr(__tmp)
+            });
+            let update = obj.get("update").filter(|u| !u.is_null()).map(|u| {
+                let __tmp = convert_json_value(u, context);
+                context.arena.alloc_expr(__tmp)
+            });
             let body = obj
                 .get("body")
                 .and_then(|b| convert_statement(b, context))
-                .map(Box::new)
-                .unwrap_or_else(|| Box::new(JsStatement::Empty));
+                .map(|s| context.arena.alloc_stmt(s))
+                .unwrap_or_else(|| context.arena.alloc_stmt(JsStatement::Empty));
 
             // Restore transforms
             if let Some(saved) = saved_transform {
@@ -3701,16 +3946,22 @@ fn convert_assignment_expression(
 
     let left = obj
         .get("left")
-        .map(|l| Box::new(convert_json_value(l, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+        .map(|l| {
+            let __tmp = convert_json_value(l, context);
+            context.arena.alloc_expr(__tmp)
+        })
+        .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
     // Restore the flag
     context.state.in_direct_assignment_lhs = saved_flag;
 
     let right = obj
         .get("right")
-        .map(|r| Box::new(convert_json_value(r, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+        .map(|r| {
+            let __tmp = convert_json_value(r, context);
+            context.arena.alloc_expr(__tmp)
+        })
+        .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
     // Get the raw right expression for should_proxy check
     let right_json = obj.get("right");
@@ -3737,17 +3988,19 @@ fn convert_assignment_expression(
 
     // Try to apply reactive transformations for state variables
     // This corresponds to the build_assignment logic in the official Svelte compiler
+    let left_expr = context.arena.get_expr(left).clone();
+    let right_expr = context.arena.get_expr(right).clone();
     let result = if let Some(transformed) = try_transform_assignment(
         operator_str,
-        &left,
-        &right,
+        &left_expr,
+        &right_expr,
         right_json,
         original_root_name.as_deref(),
         context,
     ) {
         transformed
     } else if let Some(coercive) =
-        try_coercive_assignment_transform(operator_str, obj, &left, &right, context)
+        try_coercive_assignment_transform(operator_str, obj, &left_expr, &right_expr, context)
     {
         coercive
     } else {
@@ -3767,7 +4020,11 @@ fn convert_assignment_expression(
             args.push(b::literal_number(line as f64));
             args.push(b::literal_number(col as f64));
         }
-        b::call(b::member_path("$$ownership_validator.mutation"), args)
+        b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$$ownership_validator.mutation"),
+            args,
+        )
     } else {
         result
     }
@@ -3971,7 +4228,10 @@ fn build_member_path_from_json(val: &Value, context: &ComponentContext) -> Vec<J
                             // Check if there's a transform for this identifier
                             if let Some(transform) = context.state.transform.get(name) {
                                 if let Some(read_fn) = transform.read {
-                                    path.push(read_fn(JsExpr::Identifier(name.into())));
+                                    path.push(read_fn(
+                                        &context.arena,
+                                        JsExpr::Identifier(name.into()),
+                                    ));
                                 } else {
                                     path.push(b::id(name));
                                 }
@@ -4034,7 +4294,7 @@ fn try_transform_assignment(
     // original JSON-extracted root name. This fallback is needed because
     // convert_json_value applies read transforms (e.g., `rows` -> `rows()`)
     // which makes the root identifier unrecoverable from the converted expression.
-    let root_name = extract_root_identifier_from_expr(left)
+    let root_name = extract_root_identifier_from_expr(&context.arena, left)
         .or_else(|| original_root_name.map(|s| s.to_string()))?;
 
     // Check if there's a transform for this identifier
@@ -4053,7 +4313,7 @@ fn try_transform_assignment(
         // caller also transforms (e.g., `display` -> `display()` -> `display()()`).
         //
         // Build the assignment value (expand compound operators)
-        let value = build_assignment_value(operator, left, right);
+        let value = build_assignment_value(&context.arena, operator, left, right);
 
         // Determine if proxy is needed
         // Check skip_proxy flag on the transform (for $state.raw)
@@ -4087,7 +4347,7 @@ fn try_transform_assignment(
             && is_non_coercive_operator(operator)
             && should_proxy_value(right_json, context);
 
-        let result = assign_fn(b::id(&root_name), value, needs_proxy);
+        let result = assign_fn(&context.arena, b::id(&root_name), value, needs_proxy);
         let result = apply_store_ref_transform(result, &root_name, context);
         return Some(result);
     }
@@ -4128,9 +4388,9 @@ fn try_transform_assignment(
             left.clone()
         };
 
-        let mutation_expr = b::assign_op(operator, visited_left, visited_right);
+        let mutation_expr = b::assign_op(&context.arena, operator, visited_left, visited_right);
 
-        let result = mutate_fn(b::id(&root_name), mutation_expr);
+        let result = mutate_fn(&context.arena, b::id(&root_name), mutation_expr);
         let result = apply_store_ref_transform(result, &root_name, context);
         return Some(result);
     }
@@ -4241,7 +4501,7 @@ fn try_coercive_assignment_transform(
 
     // Get the object expression (already converted with transforms applied)
     let obj_expr = match left {
-        JsExpr::Member(m) => (*m.object).clone(),
+        JsExpr::Member(m) => context.arena.get_expr(m.object).clone(),
         _ => return None,
     };
 
@@ -4255,7 +4515,7 @@ fn try_coercive_assignment_transform(
         // Computed property: use the converted expression
         match left {
             JsExpr::Member(m) => match &m.property {
-                JsMemberProperty::Expression(expr) => (**expr).clone(),
+                JsMemberProperty::Expression(expr) => context.arena.get_expr(*expr).clone(),
                 JsMemberProperty::Identifier(name) => b::id(name.as_str()),
                 JsMemberProperty::PrivateIdentifier(name) => b::string(name.clone()),
             },
@@ -4283,7 +4543,8 @@ fn try_coercive_assignment_transform(
     let location = format!("{}:{line}:{col}", filename.replace('/', "/\u{200b}"));
 
     Some(b::call(
-        b::member_path(callee),
+        &context.arena,
+        b::member_path(&context.arena, callee),
         vec![obj_expr, property_expr, right.clone(), b::string(&location)],
     ))
 }
@@ -4352,7 +4613,7 @@ fn try_destructure_assignment(
         } else {
             // No reactive transform needed - generate a normal assignment
             let target = convert_json_value(&path.node, context);
-            assignments.push(b::assign(target, path.expression.clone()));
+            assignments.push(b::assign(&context.arena, target, path.expression.clone()));
         }
     }
 
@@ -4378,7 +4639,7 @@ fn try_destructure_assignment(
                 kind: JsVariableKind::Var,
                 declarations: vec![JsVariableDeclarator {
                     id: JsPattern::Identifier(insert.id.clone().into()),
-                    init: Some(Box::new(insert.value.clone())),
+                    init: Some(context.arena.alloc_expr(insert.value.clone())),
                 }],
             }));
         }
@@ -4386,7 +4647,7 @@ fn try_destructure_assignment(
         // Add assignment statements
         for assignment in &assignments {
             statements.push(JsStatement::Expression(JsExpressionStatement {
-                expression: Box::new(assignment.clone()),
+                expression: context.arena.alloc_expr(assignment.clone()),
             }));
         }
 
@@ -4397,11 +4658,11 @@ fn try_destructure_assignment(
         // are never standalone. We always add `return $$value;` here.
         // Standalone cases (instance script) go through the text-based pipeline instead.
         statements.push(JsStatement::Return(JsReturnStatement {
-            argument: Some(Box::new(b::id("$$value"))),
+            argument: Some(context.arena.alloc_expr(b::id("$$value"))),
         }));
 
         let arrow = b::arrow_block(vec![JsPattern::Identifier("$$value".into())], statements);
-        return Some(b::call(arrow, vec![rhs_converted]));
+        return Some(b::call(&context.arena, arrow, vec![rhs_converted]));
     }
 
     // No inserts and no cache needed: generate sequence expression
@@ -4490,14 +4751,19 @@ fn extract_destructure_paths(
                                             &Value::Object(key.clone()),
                                             context,
                                         );
-                                        key_literals.push(b::call(b::id("String"), vec![key_expr]));
+                                        key_literals.push(b::call(
+                                            &context.arena,
+                                            b::id("String"),
+                                            vec![key_expr],
+                                        ));
                                     }
                                 }
                             }
                         }
 
                         let rest_expr = b::call(
-                            b::member_path("$.exclude_from_object"),
+                            &context.arena,
+                            b::member_path(&context.arena, "$.exclude_from_object"),
                             vec![expression.clone(), b::array(key_literals)],
                         );
 
@@ -4527,11 +4793,11 @@ fn extract_destructure_paths(
                                     .and_then(|k| k.get("name"))
                                     .and_then(|n| n.as_str())
                                     .unwrap_or("unknown");
-                                b::member(expression.clone(), name)
+                                b::member(&context.arena, expression.clone(), name)
                             } else {
                                 // obj[key] (computed or literal)
                                 let key_expr = convert_json_value(key_val, context);
-                                b::member_computed(expression.clone(), key_expr)
+                                b::member_computed(&context.arena, expression.clone(), key_expr)
                             }
                         } else {
                             expression.clone()
@@ -4571,7 +4837,11 @@ fn extract_destructure_paths(
 
             inserts.push(ArrayInsert {
                 id: array_name.clone(),
-                value: b::call(b::member_path("$.to_array"), to_array_args),
+                value: b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.to_array"),
+                    to_array_args,
+                ),
             });
 
             for (i, element) in elements.iter().enumerate() {
@@ -4588,7 +4858,8 @@ fn extract_destructure_paths(
                 if elem_type == "RestElement" {
                     // ...rest = array.slice(i)
                     let rest_expr = b::call(
-                        b::member(array_id.clone(), "slice"),
+                        &context.arena,
+                        b::member(&context.arena, array_id.clone(), "slice"),
                         vec![b::number(i as f64)],
                     );
 
@@ -4597,7 +4868,8 @@ fn extract_destructure_paths(
                     }
                 } else {
                     // element = array[i]
-                    let index_expr = b::member_computed(array_id.clone(), b::number(i as f64));
+                    let index_expr =
+                        b::member_computed(&context.arena, array_id.clone(), b::number(i as f64));
                     extract_destructure_paths(paths, inserts, element, &index_expr, context);
                 }
             }
@@ -4654,20 +4926,25 @@ fn try_build_single_assignment(
         // Direct identifier assignment: x = value -> $.set(x, value)
         if let Some(assign_fn) = assign_fn {
             // For destructure assignments, we don't need proxy (always using "=" operator)
-            return Some(assign_fn(b::id(&root_name), path.expression.clone(), false));
+            return Some(assign_fn(
+                &context.arena,
+                b::id(&root_name),
+                path.expression.clone(),
+                false,
+            ));
         }
     } else {
         // Member expression assignment: obj.prop = value -> $.mutate(obj, obj.prop = value)
         if let Some(mutate_fn) = mutate_fn {
             let target = convert_json_value(&path.node, context);
-            let mutation_expr = b::assign(target, path.expression.clone());
+            let mutation_expr = b::assign(&context.arena, target, path.expression.clone());
 
             let node_id = if let Some(ref replacement) = replacement_id {
                 b::id(replacement)
             } else {
                 b::id(&root_name)
             };
-            return Some(mutate_fn(node_id, mutation_expr));
+            return Some(mutate_fn(&context.arena, node_id, mutation_expr));
         }
     }
 
@@ -4677,11 +4954,18 @@ fn try_build_single_assignment(
 /// Extract the root identifier name from a JsExpr.
 ///
 /// Recursively walks down member expressions to find the leftmost identifier.
-fn extract_root_identifier_from_expr(expr: &JsExpr) -> Option<String> {
+fn extract_root_identifier_from_expr(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    expr: &JsExpr,
+) -> Option<String> {
     match expr {
         JsExpr::Identifier(name) => Some(name.to_string()),
-        JsExpr::Member(member) => extract_root_identifier_from_expr(&member.object),
-        JsExpr::Chain(chain) => extract_root_identifier_from_expr(&chain.expression),
+        JsExpr::Member(member) => {
+            extract_root_identifier_from_expr(arena, arena.get_expr(member.object))
+        }
+        JsExpr::Chain(chain) => {
+            extract_root_identifier_from_expr(arena, arena.get_expr(chain.expression))
+        }
         _ => None,
     }
 }
@@ -4898,7 +5182,12 @@ fn convert_update_expression(
         && let Some(name) = extract_identifier_name_from_json(arg_val)
         && let Some(update_fn) = context.state.transform.get(&name).and_then(|t| t.update)
     {
-        return update_fn(operator, JsExpr::Identifier(name.into()), prefix);
+        return update_fn(
+            &context.arena,
+            operator,
+            JsExpr::Identifier(name.into()),
+            prefix,
+        );
     }
 
     // Check if the argument is a MemberExpression with a direct Identifier object
@@ -4932,8 +5221,11 @@ fn convert_update_expression(
 
     // Convert the argument
     let argument = argument_value
-        .map(|a| Box::new(convert_json_value(a, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+        .map(|a| {
+            let __tmp = convert_json_value(a, context);
+            context.arena.alloc_expr(__tmp)
+        })
+        .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
     // Restore the flag
     context.state.in_direct_assignment_lhs = saved_flag;
@@ -4951,16 +5243,17 @@ fn convert_update_expression(
     };
 
     // Try to apply reactive transformations for state variables and store subscriptions
-    let result =
-        if let Some(transformed) = try_transform_update(operator, prefix, &argument, context) {
-            transformed
-        } else {
-            JsExpr::Update(JsUpdateExpression {
-                operator,
-                argument,
-                prefix,
-            })
-        };
+    let result = if let Some(transformed) =
+        try_transform_update(operator, prefix, context.arena.get_expr(argument), context)
+    {
+        transformed
+    } else {
+        JsExpr::Update(JsUpdateExpression {
+            operator,
+            argument,
+            prefix,
+        })
+    };
 
     // Wrap with ownership validation if needed
     if let Some((prop_alias, path, source_loc)) = ownership_info {
@@ -4971,7 +5264,11 @@ fn convert_update_expression(
             args.push(b::literal_number(line as f64));
             args.push(b::literal_number(col as f64));
         }
-        b::call(b::member_path("$$ownership_validator.mutation"), args)
+        b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$$ownership_validator.mutation"),
+            args,
+        )
     } else {
         result
     }
@@ -5007,7 +5304,7 @@ fn try_transform_update(
     use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
     // Extract the root identifier from the argument
-    let root_name = extract_root_identifier_from_expr(argument)?;
+    let root_name = extract_root_identifier_from_expr(&context.arena, argument)?;
 
     // Check if there's a transform for this identifier
     let transform = context.state.transform.get(&root_name)?;
@@ -5018,7 +5315,7 @@ fn try_transform_update(
         && name == root_name
         && let Some(update_fn) = transform.update
     {
-        let result = update_fn(operator, argument.clone(), prefix);
+        let result = update_fn(&context.arena, operator, argument.clone(), prefix);
         // For store subscriptions, apply the underlying store's read transform
         // to replace bare `store` with `$$props.store` for non-source props.
         let result = apply_store_ref_transform(result, name, context);
@@ -5051,11 +5348,11 @@ fn try_transform_update(
             // Build the update expression as the mutation
             let update_expr = JsExpr::Update(JsUpdateExpression {
                 operator,
-                argument: Box::new(argument.clone()),
+                argument: context.arena.alloc_expr(argument.clone()),
                 prefix,
             });
 
-            let result = mutate_fn(b::id(&root_name), update_expr);
+            let result = mutate_fn(&context.arena, b::id(&root_name), update_expr);
             let result = apply_store_ref_transform(result, &root_name, context);
             return Some(result);
         }
@@ -5085,7 +5382,7 @@ fn apply_store_ref_transform(
     if let Some(store_transform) = context.state.transform.get(store_name)
         && let Some(read_fn) = store_transform.read
     {
-        let transformed_ref = read_fn(JsExpr::Identifier(store_name.into()));
+        let transformed_ref = read_fn(&context.arena, JsExpr::Identifier(store_name.into()));
         // Only apply for member expressions (non-source props → $$props.X).
         // Call-based transforms (source props → X()) are already handled by
         // apply_transforms_to_expression, so we skip those to avoid double transformation.
@@ -5127,8 +5424,15 @@ fn convert_new_expression(
 ) -> JsExpr {
     let callee = obj
         .get("callee")
-        .map(|c| Box::new(convert_json_value(c, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".into())));
+        .map(|c| {
+            let __tmp = convert_json_value(c, context);
+            context.arena.alloc_expr(__tmp)
+        })
+        .unwrap_or_else(|| {
+            context
+                .arena
+                .alloc_expr(JsExpr::Identifier("unknown".into()))
+        });
 
     let arguments = obj
         .get("arguments")
@@ -5159,16 +5463,20 @@ fn convert_await_expression(
         // Pickled await: wrap argument with $.save()
         // save(argument) returns (await $.save(argument))()
         return JsExpr::Call(JsCallExpression {
-            callee: Box::new(JsExpr::Await(Box::new(JsExpr::Call(JsCallExpression {
-                callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".into())),
-                    property: JsMemberProperty::Identifier("save".into()),
-                    computed: false,
-                    optional: false,
-                })),
-                arguments: vec![argument],
-                optional: false,
-            })))),
+            callee: context
+                .arena
+                .alloc_expr(JsExpr::Await(context.arena.alloc_expr(JsExpr::Call(
+                    JsCallExpression {
+                        callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                            object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
+                            property: JsMemberProperty::Identifier("save".into()),
+                            computed: false,
+                            optional: false,
+                        })),
+                        arguments: vec![argument],
+                        optional: false,
+                    },
+                )))),
             arguments: vec![],
             optional: false,
         });
@@ -5179,22 +5487,26 @@ fn convert_await_expression(
     if context.state.options.dev {
         // (await $.track_reactivity_loss(argument))()
         return JsExpr::Call(JsCallExpression {
-            callee: Box::new(JsExpr::Await(Box::new(JsExpr::Call(JsCallExpression {
-                callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$".into())),
-                    property: JsMemberProperty::Identifier("track_reactivity_loss".into()),
-                    computed: false,
-                    optional: false,
-                })),
-                arguments: vec![argument],
-                optional: false,
-            })))),
+            callee: context
+                .arena
+                .alloc_expr(JsExpr::Await(context.arena.alloc_expr(JsExpr::Call(
+                    JsCallExpression {
+                        callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                            object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
+                            property: JsMemberProperty::Identifier("track_reactivity_loss".into()),
+                            computed: false,
+                            optional: false,
+                        })),
+                        arguments: vec![argument],
+                        optional: false,
+                    },
+                )))),
             arguments: vec![],
             optional: false,
         });
     }
 
-    JsExpr::Await(Box::new(argument))
+    JsExpr::Await(context.arena.alloc_expr(argument))
 }
 
 /// Convert a YieldExpression node.
@@ -5202,9 +5514,12 @@ fn convert_yield_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
 ) -> JsExpr {
-    let argument = obj
-        .get("argument")
-        .map(|a| Some(Box::new(convert_json_value(a, context))));
+    let argument = obj.get("argument").map(|a| {
+        Some({
+            let __tmp = convert_json_value(a, context);
+            context.arena.alloc_expr(__tmp)
+        })
+    });
 
     let delegate = obj
         .get("delegate")
@@ -5224,8 +5539,11 @@ fn convert_spread_element(
 ) -> JsExpr {
     let argument = obj
         .get("argument")
-        .map(|a| Box::new(convert_json_value(a, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+        .map(|a| {
+            let __tmp = convert_json_value(a, context);
+            context.arena.alloc_expr(__tmp)
+        })
+        .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
     JsExpr::Spread(argument)
 }
@@ -5290,8 +5608,15 @@ fn convert_tagged_template_expression(
     // Convert the tag expression
     let tag = obj
         .get("tag")
-        .map(|t| Box::new(convert_json_value(t, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".into())));
+        .map(|t| {
+            let __tmp = convert_json_value(t, context);
+            context.arena.alloc_expr(__tmp)
+        })
+        .unwrap_or_else(|| {
+            context
+                .arena
+                .alloc_expr(JsExpr::Identifier("unknown".into()))
+        });
 
     // Convert the quasi (template literal)
     let quasi = obj

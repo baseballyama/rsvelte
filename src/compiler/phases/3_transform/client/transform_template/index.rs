@@ -7,6 +7,7 @@ use super::types::Node;
 use crate::compiler::phases::phase3_transform::client::types::{
     ComponentClientTransformState, FragmentsMode,
 };
+use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 
@@ -77,6 +78,7 @@ fn build_locations(nodes: &[Node], locator: &Locator) -> JsExpr {
 /// * `flags` - Optional flags for template creation
 /// * `locator` - Optional locator function for dev mode
 pub fn transform_template<'a>(
+    arena: &JsArena,
     state: &mut ComponentClientTransformState<'a>,
     namespace: Namespace,
     flags: Option<u32>,
@@ -86,7 +88,7 @@ pub fn transform_template<'a>(
     let mut current_flags = flags.unwrap_or(0);
 
     let expression = if tree {
-        state.template.as_tree()
+        state.template.as_tree(arena)
     } else {
         state.template.as_html()
     };
@@ -101,22 +103,27 @@ pub fn transform_template<'a>(
     }
 
     let function_name = if tree {
-        b::member(b::id("$"), "from_tree")
+        b::member(arena, b::id("$"), "from_tree")
     } else {
-        b::member(b::id("$"), format!("from_{}", namespace.as_str()))
+        b::member(arena, b::id("$"), format!("from_{}", namespace.as_str()))
     };
 
     let mut call = if current_flags != 0 {
         b::call(
+            arena,
             function_name,
             vec![expression, b::number(current_flags as f64)],
         )
     } else {
-        b::call(function_name, vec![expression])
+        b::call(arena, function_name, vec![expression])
     };
 
     if state.template.contains_script_tag {
-        call = b::call(b::member(b::id("$"), "with_script"), vec![call]);
+        call = b::call(
+            arena,
+            b::member(arena, b::id("$"), "with_script"),
+            vec![call],
+        );
     }
 
     if state.options.dev {
@@ -145,12 +152,14 @@ pub fn transform_template<'a>(
         };
         let locations = build_locations(&state.template.nodes, loc_ref);
         call = b::call(
-            b::member(b::id("$"), "add_locations"),
+            arena,
+            b::member(arena, b::id("$"), "add_locations"),
             vec![
                 call,
                 b::member_computed(
+                    arena,
                     b::id(&state.analysis.name),
-                    b::member(b::id("$"), "FILENAME"),
+                    b::member(arena, b::id("$"), "FILENAME"),
                 ),
                 locations,
             ],

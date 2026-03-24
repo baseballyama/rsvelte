@@ -117,12 +117,16 @@ pub fn process_children<F>(
                             // Expression needs runtime evaluation - emit $.escape() call
                             let expr_str = extract_expression_string(&expr_tag.expression);
                             expressions.push(JsExpr::Call(JsCallExpression {
-                                callee: Box::new(JsExpr::Member(JsMemberExpression {
-                                    object: Box::new(JsExpr::Identifier("$".into())),
-                                    property: JsMemberProperty::Identifier("escape".into()),
-                                    computed: false,
-                                    optional: false,
-                                })),
+                                callee: state.arena.alloc_expr(JsExpr::Member(
+                                    JsMemberExpression {
+                                        object: state
+                                            .arena
+                                            .alloc_expr(JsExpr::Identifier("$".into())),
+                                        property: JsMemberProperty::Identifier("escape".into()),
+                                        computed: false,
+                                        optional: false,
+                                    },
+                                )),
                                 arguments: vec![JsExpr::Identifier(expr_str.into())],
                                 optional: false,
                             }));
@@ -216,7 +220,10 @@ pub fn process_children<F>(
 /// # Returns
 ///
 /// An array of statements for the SSR function
-pub fn build_template(template: &[TemplateItem]) -> Vec<JsStatement> {
+pub fn build_template(
+    template: &[TemplateItem],
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> Vec<JsStatement> {
     let mut strings: Vec<String> = Vec::new();
     let mut expressions: Vec<JsExpr> = Vec::new();
     let mut statements: Vec<JsStatement> = Vec::new();
@@ -244,9 +251,9 @@ pub fn build_template(template: &[TemplateItem]) -> Vec<JsStatement> {
         });
 
         statements.push(JsStatement::Expression(JsExpressionStatement {
-            expression: Box::new(JsExpr::Call(JsCallExpression {
-                callee: Box::new(JsExpr::Member(JsMemberExpression {
-                    object: Box::new(JsExpr::Identifier("$$renderer".into())),
+            expression: arena.alloc_expr(JsExpr::Call(JsCallExpression {
+                callee: arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                    object: arena.alloc_expr(JsExpr::Identifier("$$renderer".into())),
                     property: JsMemberProperty::Identifier("push".into()),
                     computed: false,
                     optional: false,
@@ -339,11 +346,19 @@ pub fn build_attribute_value<F>(
     transform: F,
     trim_whitespace: bool,
     is_component: bool,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 ) -> JsExpr
 where
     F: Fn(JsExpr) -> JsExpr,
 {
-    build_attribute_value_ts(value, transform, trim_whitespace, is_component, false)
+    build_attribute_value_ts(
+        value,
+        transform,
+        trim_whitespace,
+        is_component,
+        false,
+        arena,
+    )
 }
 
 pub fn build_attribute_value_ts<F>(
@@ -352,6 +367,7 @@ pub fn build_attribute_value_ts<F>(
     trim_whitespace: bool,
     is_component: bool,
     is_typescript: bool,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 ) -> JsExpr
 where
     F: Fn(JsExpr) -> JsExpr,
@@ -429,8 +445,8 @@ where
 
                         // Wrap in $.stringify
                         expressions.push(JsExpr::Call(JsCallExpression {
-                            callee: Box::new(JsExpr::Member(JsMemberExpression {
-                                object: Box::new(JsExpr::Identifier("$".into())),
+                            callee: arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                                object: arena.alloc_expr(JsExpr::Identifier("$".into())),
                                 property: JsMemberProperty::Identifier("stringify".into()),
                                 computed: false,
                                 optional: false,
@@ -465,11 +481,15 @@ where
 /// Creates a `$$renderer.child(...)` statement.
 ///
 /// Corresponds to `create_child_block()` in `utils.js`.
-pub fn create_child_block(body: JsBlockStatement, is_async: bool) -> JsStatement {
+pub fn create_child_block(
+    body: JsBlockStatement,
+    is_async: bool,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> JsStatement {
     JsStatement::Expression(JsExpressionStatement {
-        expression: Box::new(JsExpr::Call(JsCallExpression {
-            callee: Box::new(JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("$$renderer".into())),
+        expression: arena.alloc_expr(JsExpr::Call(JsCallExpression {
+            callee: arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                object: arena.alloc_expr(JsExpr::Identifier("$$renderer".into())),
                 property: JsMemberProperty::Identifier("child".into()),
                 computed: false,
                 optional: false,
@@ -488,6 +508,7 @@ pub fn create_child_block(body: JsBlockStatement, is_async: bool) -> JsStatement
 ///
 /// Corresponds to `create_async_block()` in `utils.js`.
 pub fn create_async_block(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     body: JsBlockStatement,
     blockers: Vec<JsExpr>,
     has_await: bool,
@@ -500,9 +521,9 @@ pub fn create_async_block(
     };
 
     JsStatement::Expression(JsExpressionStatement {
-        expression: Box::new(JsExpr::Call(JsCallExpression {
-            callee: Box::new(JsExpr::Member(JsMemberExpression {
-                object: Box::new(JsExpr::Identifier("$$renderer".into())),
+        expression: arena.alloc_expr(JsExpr::Call(JsCallExpression {
+            callee: arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                object: arena.alloc_expr(JsExpr::Identifier("$$renderer".into())),
                 property: JsMemberProperty::Identifier(method_name.into()),
                 computed: false,
                 optional: false,
@@ -769,13 +790,19 @@ fn extract_expression_string(expr: &crate::ast::js::Expression) -> String {
 ///
 /// This is a simplified version of the client-side expression converter
 /// that doesn't need context for basic expression types.
-pub fn convert_expression_simple(expr: &crate::ast::js::Expression) -> JsExpr {
+pub fn convert_expression_simple(
+    expr: &crate::ast::js::Expression,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> JsExpr {
     let json = expr.as_json();
-    convert_json_value_simple(json)
+    convert_json_value_simple(json, arena)
 }
 
 /// Convert a JSON value to JsExpr without context.
-fn convert_json_value_simple(value: &serde_json::Value) -> JsExpr {
+fn convert_json_value_simple(
+    value: &serde_json::Value,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> JsExpr {
     match value {
         serde_json::Value::Object(obj) => {
             let node_type = obj
@@ -792,25 +819,25 @@ fn convert_json_value_simple(value: &serde_json::Value) -> JsExpr {
                         .to_string();
                     JsExpr::Identifier(name.into())
                 }
-                "Literal" => convert_literal_simple(obj),
-                "MemberExpression" => convert_member_expression_simple(obj),
-                "CallExpression" => convert_call_expression_simple(obj),
-                "ObjectExpression" => convert_object_expression_simple(obj),
-                "ArrayExpression" => convert_array_expression_simple(obj),
-                "BinaryExpression" => convert_binary_expression_simple(obj),
-                "UnaryExpression" => convert_unary_expression_simple(obj),
-                "LogicalExpression" => convert_logical_expression_simple(obj),
-                "ConditionalExpression" => convert_conditional_expression_simple(obj),
-                "ArrowFunctionExpression" => convert_arrow_function_simple(obj),
+                "Literal" => convert_literal_simple(obj, arena),
+                "MemberExpression" => convert_member_expression_simple(obj, arena),
+                "CallExpression" => convert_call_expression_simple(obj, arena),
+                "ObjectExpression" => convert_object_expression_simple(obj, arena),
+                "ArrayExpression" => convert_array_expression_simple(obj, arena),
+                "BinaryExpression" => convert_binary_expression_simple(obj, arena),
+                "UnaryExpression" => convert_unary_expression_simple(obj, arena),
+                "LogicalExpression" => convert_logical_expression_simple(obj, arena),
+                "ConditionalExpression" => convert_conditional_expression_simple(obj, arena),
+                "ArrowFunctionExpression" => convert_arrow_function_simple(obj, arena),
                 "ThisExpression" => JsExpr::This,
                 "SpreadElement" => {
                     let argument = obj
                         .get("argument")
-                        .map(convert_json_value_simple)
+                        .map(|v| convert_json_value_simple(v, arena))
                         .unwrap_or(JsExpr::Literal(JsLiteral::Null));
-                    JsExpr::Spread(Box::new(argument))
+                    JsExpr::Spread(arena.alloc_expr(argument))
                 }
-                "TemplateLiteral" => convert_template_literal_simple(obj),
+                "TemplateLiteral" => convert_template_literal_simple(obj, arena),
                 _ => {
                     // For unknown types.into(), try to extract the raw source or use placeholder
                     JsExpr::Raw(format!("/* Unknown: {} */", node_type).into())
@@ -827,7 +854,10 @@ fn convert_json_value_simple(value: &serde_json::Value) -> JsExpr {
     }
 }
 
-fn convert_literal_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+fn convert_literal_simple(
+    obj: &serde_json::Map<String, serde_json::Value>,
+    _arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> JsExpr {
     let value = obj.get("value");
 
     match value {
@@ -860,10 +890,13 @@ fn convert_literal_simple(obj: &serde_json::Map<String, serde_json::Value>) -> J
     }
 }
 
-fn convert_member_expression_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+fn convert_member_expression_simple(
+    obj: &serde_json::Map<String, serde_json::Value>,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> JsExpr {
     let object = obj
         .get("object")
-        .map(convert_json_value_simple)
+        .map(|v| convert_json_value_simple(v, arena))
         .unwrap_or(JsExpr::Identifier("unknown".into()));
 
     let computed = obj
@@ -878,7 +911,7 @@ fn convert_member_expression_simple(obj: &serde_json::Map<String, serde_json::Va
 
     let property = if let Some(prop) = obj.get("property") {
         if computed {
-            JsMemberProperty::Expression(Box::new(convert_json_value_simple(prop)))
+            JsMemberProperty::Expression(arena.alloc_expr(convert_json_value_simple(prop, arena)))
         } else if let Some(prop_obj) = prop.as_object()
             && let Some(name) = prop_obj.get("name").and_then(|n| n.as_str())
         {
@@ -891,23 +924,30 @@ fn convert_member_expression_simple(obj: &serde_json::Map<String, serde_json::Va
     };
 
     JsExpr::Member(JsMemberExpression {
-        object: Box::new(object),
+        object: arena.alloc_expr(object),
         property,
         computed,
         optional,
     })
 }
 
-fn convert_call_expression_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+fn convert_call_expression_simple(
+    obj: &serde_json::Map<String, serde_json::Value>,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> JsExpr {
     let callee = obj
         .get("callee")
-        .map(convert_json_value_simple)
+        .map(|v| convert_json_value_simple(v, arena))
         .unwrap_or(JsExpr::Identifier("unknown".into()));
 
     let arguments = obj
         .get("arguments")
         .and_then(|a| a.as_array())
-        .map(|args| args.iter().map(convert_json_value_simple).collect())
+        .map(|args| {
+            args.iter()
+                .map(|v| convert_json_value_simple(v, arena))
+                .collect()
+        })
         .unwrap_or_default();
 
     let optional = obj
@@ -916,13 +956,16 @@ fn convert_call_expression_simple(obj: &serde_json::Map<String, serde_json::Valu
         .unwrap_or(false);
 
     JsExpr::Call(JsCallExpression {
-        callee: Box::new(callee),
+        callee: arena.alloc_expr(callee),
         arguments,
         optional,
     })
 }
 
-fn convert_object_expression_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+fn convert_object_expression_simple(
+    obj: &serde_json::Map<String, serde_json::Value>,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> JsExpr {
     let properties = obj
         .get("properties")
         .and_then(|p| p.as_array())
@@ -935,11 +978,13 @@ fn convert_object_expression_simple(obj: &serde_json::Map<String, serde_json::Va
 
                     match prop_type {
                         "Property" => {
-                            let key = convert_property_key_simple(prop_obj);
+                            let key = convert_property_key_simple(prop_obj, arena);
                             let value = prop_obj
                                 .get("value")
-                                .map(|v| Box::new(convert_json_value_simple(v)))
-                                .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+                                .map(|v| arena.alloc_expr(convert_json_value_simple(v, arena)))
+                                .unwrap_or_else(|| {
+                                    arena.alloc_expr(JsExpr::Literal(JsLiteral::Null))
+                                });
 
                             let computed = prop_obj
                                 .get("computed")
@@ -975,8 +1020,10 @@ fn convert_object_expression_simple(obj: &serde_json::Map<String, serde_json::Va
                         "SpreadElement" => {
                             let argument = prop_obj
                                 .get("argument")
-                                .map(|a| Box::new(convert_json_value_simple(a)))
-                                .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+                                .map(|a| arena.alloc_expr(convert_json_value_simple(a, arena)))
+                                .unwrap_or_else(|| {
+                                    arena.alloc_expr(JsExpr::Literal(JsLiteral::Null))
+                                });
 
                             Some(JsObjectMember::SpreadElement(argument))
                         }
@@ -990,7 +1037,10 @@ fn convert_object_expression_simple(obj: &serde_json::Map<String, serde_json::Va
     JsExpr::Object(JsObjectExpression { properties })
 }
 
-fn convert_property_key_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsPropertyKey {
+fn convert_property_key_simple(
+    obj: &serde_json::Map<String, serde_json::Value>,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> JsPropertyKey {
     let key = obj.get("key");
     let computed = obj
         .get("computed")
@@ -998,7 +1048,7 @@ fn convert_property_key_simple(obj: &serde_json::Map<String, serde_json::Value>)
         .unwrap_or(false);
 
     if computed && let Some(k) = key {
-        return JsPropertyKey::Computed(Box::new(convert_json_value_simple(k)));
+        return JsPropertyKey::Computed(arena.alloc_expr(convert_json_value_simple(k, arena)));
     }
 
     if let Some(key_obj) = key.and_then(|k| k.as_object()) {
@@ -1008,7 +1058,7 @@ fn convert_property_key_simple(obj: &serde_json::Map<String, serde_json::Value>)
             return JsPropertyKey::Identifier(name.into());
         }
         if let Some("Literal") = key_obj.get("type").and_then(|t| t.as_str()) {
-            let literal = convert_literal_simple(key_obj);
+            let literal = convert_literal_simple(key_obj, arena);
             if let JsExpr::Literal(lit) = literal {
                 return JsPropertyKey::Literal(lit);
             }
@@ -1018,7 +1068,10 @@ fn convert_property_key_simple(obj: &serde_json::Map<String, serde_json::Value>)
     JsPropertyKey::Identifier("unknown".into())
 }
 
-fn convert_array_expression_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+fn convert_array_expression_simple(
+    obj: &serde_json::Map<String, serde_json::Value>,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> JsExpr {
     let elements = obj
         .get("elements")
         .and_then(|e| e.as_array())
@@ -1029,7 +1082,7 @@ fn convert_array_expression_simple(obj: &serde_json::Map<String, serde_json::Val
                     if elem.is_null() {
                         None
                     } else {
-                        Some(convert_json_value_simple(elem))
+                        Some(convert_json_value_simple(elem, arena))
                     }
                 })
                 .collect()
@@ -1039,7 +1092,10 @@ fn convert_array_expression_simple(obj: &serde_json::Map<String, serde_json::Val
     JsExpr::Array(JsArrayExpression { elements })
 }
 
-fn convert_binary_expression_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+fn convert_binary_expression_simple(
+    obj: &serde_json::Map<String, serde_json::Value>,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> JsExpr {
     let operator_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("+");
 
     let operator = match operator_str {
@@ -1070,22 +1126,25 @@ fn convert_binary_expression_simple(obj: &serde_json::Map<String, serde_json::Va
 
     let left = obj
         .get("left")
-        .map(convert_json_value_simple)
+        .map(|v| convert_json_value_simple(v, arena))
         .unwrap_or(JsExpr::Literal(JsLiteral::Null));
 
     let right = obj
         .get("right")
-        .map(convert_json_value_simple)
+        .map(|v| convert_json_value_simple(v, arena))
         .unwrap_or(JsExpr::Literal(JsLiteral::Null));
 
     JsExpr::Binary(JsBinaryExpression {
         operator,
-        left: Box::new(left),
-        right: Box::new(right),
+        left: arena.alloc_expr(left),
+        right: arena.alloc_expr(right),
     })
 }
 
-fn convert_unary_expression_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+fn convert_unary_expression_simple(
+    obj: &serde_json::Map<String, serde_json::Value>,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> JsExpr {
     let operator_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("!");
 
     let operator = match operator_str {
@@ -1103,17 +1162,20 @@ fn convert_unary_expression_simple(obj: &serde_json::Map<String, serde_json::Val
 
     let argument = obj
         .get("argument")
-        .map(convert_json_value_simple)
+        .map(|v| convert_json_value_simple(v, arena))
         .unwrap_or(JsExpr::Literal(JsLiteral::Null));
 
     JsExpr::Unary(JsUnaryExpression {
         operator,
-        argument: Box::new(argument),
+        argument: arena.alloc_expr(argument),
         prefix,
     })
 }
 
-fn convert_logical_expression_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+fn convert_logical_expression_simple(
+    obj: &serde_json::Map<String, serde_json::Value>,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> JsExpr {
     let operator_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("&&");
 
     let operator = match operator_str {
@@ -1125,47 +1187,51 @@ fn convert_logical_expression_simple(obj: &serde_json::Map<String, serde_json::V
 
     let left = obj
         .get("left")
-        .map(convert_json_value_simple)
+        .map(|v| convert_json_value_simple(v, arena))
         .unwrap_or(JsExpr::Literal(JsLiteral::Null));
 
     let right = obj
         .get("right")
-        .map(convert_json_value_simple)
+        .map(|v| convert_json_value_simple(v, arena))
         .unwrap_or(JsExpr::Literal(JsLiteral::Null));
 
     JsExpr::Logical(JsLogicalExpression {
         operator,
-        left: Box::new(left),
-        right: Box::new(right),
+        left: arena.alloc_expr(left),
+        right: arena.alloc_expr(right),
     })
 }
 
 fn convert_conditional_expression_simple(
     obj: &serde_json::Map<String, serde_json::Value>,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 ) -> JsExpr {
     let test = obj
         .get("test")
-        .map(convert_json_value_simple)
+        .map(|v| convert_json_value_simple(v, arena))
         .unwrap_or(JsExpr::Literal(JsLiteral::Null));
 
     let consequent = obj
         .get("consequent")
-        .map(convert_json_value_simple)
+        .map(|v| convert_json_value_simple(v, arena))
         .unwrap_or(JsExpr::Literal(JsLiteral::Null));
 
     let alternate = obj
         .get("alternate")
-        .map(convert_json_value_simple)
+        .map(|v| convert_json_value_simple(v, arena))
         .unwrap_or(JsExpr::Literal(JsLiteral::Null));
 
     JsExpr::Conditional(JsConditionalExpression {
-        test: Box::new(test),
-        consequent: Box::new(consequent),
-        alternate: Box::new(alternate),
+        test: arena.alloc_expr(test),
+        consequent: arena.alloc_expr(consequent),
+        alternate: arena.alloc_expr(alternate),
     })
 }
 
-fn convert_arrow_function_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+fn convert_arrow_function_simple(
+    obj: &serde_json::Map<String, serde_json::Value>,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> JsExpr {
     let is_async = obj.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
 
     let params = obj
@@ -1200,10 +1266,10 @@ fn convert_arrow_function_simple(obj: &serde_json::Map<String, serde_json::Value
             // Block body - for now, just return an empty block
             JsArrowBody::Block(JsBlockStatement { body: vec![] })
         } else {
-            JsArrowBody::Expression(Box::new(convert_json_value_simple(body_val)))
+            JsArrowBody::Expression(arena.alloc_expr(convert_json_value_simple(body_val, arena)))
         }
     } else {
-        JsArrowBody::Expression(Box::new(JsExpr::Literal(JsLiteral::Null)))
+        JsArrowBody::Expression(arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)))
     };
 
     JsExpr::Arrow(JsArrowFunction {
@@ -1213,7 +1279,10 @@ fn convert_arrow_function_simple(obj: &serde_json::Map<String, serde_json::Value
     })
 }
 
-fn convert_template_literal_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+fn convert_template_literal_simple(
+    obj: &serde_json::Map<String, serde_json::Value>,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> JsExpr {
     let quasis = obj
         .get("quasis")
         .and_then(|q| q.as_array())
@@ -1251,7 +1320,12 @@ fn convert_template_literal_simple(obj: &serde_json::Map<String, serde_json::Val
     let expressions = obj
         .get("expressions")
         .and_then(|e| e.as_array())
-        .map(|exprs| exprs.iter().map(convert_json_value_simple).collect())
+        .map(|exprs| {
+            exprs
+                .iter()
+                .map(|v| convert_json_value_simple(v, arena))
+                .collect()
+        })
         .unwrap_or_default();
 
     JsExpr::TemplateLiteral(JsTemplateLiteral {
