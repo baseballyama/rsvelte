@@ -4032,6 +4032,7 @@ pub struct ExpressionProperties {
     pub has_call: bool,
     pub has_member: bool,
     pub has_await: bool,
+    pub has_assignment: bool,
 }
 
 /// Analyze an expression for reactive state, calls, member expressions, and await
@@ -4049,6 +4050,7 @@ pub fn analyze_expression_properties(
         has_call: false,
         has_member: false,
         has_await: false,
+        has_assignment: false,
     };
 
     {
@@ -4069,7 +4071,12 @@ fn analyze_props_json(
     props: &mut ExpressionProperties,
 ) {
     // Short-circuit: if all flags are already true, no need to walk further
-    if props.has_state && props.has_call && props.has_member && props.has_await {
+    if props.has_state
+        && props.has_call
+        && props.has_member
+        && props.has_await
+        && props.has_assignment
+    {
         return;
     }
 
@@ -4209,6 +4216,7 @@ fn analyze_props_json(
             }
         }
         "AssignmentExpression" => {
+            props.has_assignment = true;
             // has_member: check both left and right
             if !props.has_member {
                 for field in ["left", "right"] {
@@ -4268,6 +4276,7 @@ fn analyze_props_json(
         "UpdateExpression" => {
             // has_state: always true (mutations are reactive)
             props.has_state = true;
+            props.has_assignment = true;
         }
         "Literal" | "BooleanLiteral" | "NumericLiteral" | "StringLiteral" | "NullLiteral"
         | "BigIntLiteral" | "RegExpLiteral" => {

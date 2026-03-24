@@ -3089,9 +3089,11 @@ fn sanitize_identifier(name: &str) -> String {
 }
 
 // Bit flags for ExpressionMetadata
-const FLAG_HAS_CALL: u8 = 1 << 0;
-const FLAG_HAS_AWAIT: u8 = 1 << 1;
-const FLAG_HAS_STATE: u8 = 1 << 2;
+// NOTE: Bits 0-4 are intentionally aligned with ast::template::ExpressionMetadata
+// to allow direct flag copy via from_template_metadata.
+const FLAG_HAS_STATE: u8 = 1 << 0;
+const FLAG_HAS_CALL: u8 = 1 << 1;
+const FLAG_HAS_AWAIT: u8 = 1 << 2;
 const FLAG_HAS_MEMBER_EXPRESSION: u8 = 1 << 3;
 const FLAG_HAS_ASSIGNMENT: u8 = 1 << 4;
 const FLAG_DYNAMIC: u8 = 1 << 5;
@@ -3125,15 +3127,17 @@ impl ExpressionMetadata {
 
     /// Create ExpressionMetadata from the template's ExpressionMetadata.
     /// This is a helper to convert from phase 2 metadata to phase 3 metadata.
+    /// Uses direct flag byte copy (bits 0-4 are aligned between the two types).
+    #[inline]
     pub fn from_template_metadata(meta: &crate::ast::template::ExpressionMetadata) -> Self {
-        let mut result = Self::default();
-        result.set_has_call(meta.has_call());
-        result.set_has_await(meta.has_await());
-        result.set_has_state(meta.has_state());
-        result.set_has_member_expression(meta.has_member_expression());
-        result.set_has_assignment(meta.has_assignment());
-        result.references = meta.references.clone();
-        result
+        // Copy bits 0-4 directly (STATE, CALL, AWAIT, MEMBER_EXPRESSION, ASSIGNMENT).
+        // Bit 5 (DYNAMIC) is not present in the template metadata, so it stays 0.
+        let flags = meta.raw_flags() & 0x1F; // mask to bits 0-4
+        Self {
+            flags,
+            blockers: Vec::new(),
+            references: meta.references.clone(),
+        }
     }
 
     /// Whether the expression contains a call

@@ -1678,8 +1678,10 @@ pub fn walk_js_expression(
 
                     let binding = &context.analysis.root.bindings[binding_idx];
 
-                    // Add to references
-                    metadata.references.insert(binding_idx);
+                    // Add to references (skip in runes mode - only used by legacy build_expression)
+                    if !context.analysis.runes {
+                        metadata.references.insert(binding_idx);
+                    }
 
                     // Check if it's state
                     if matches!(
@@ -1985,8 +1987,10 @@ pub fn walk_js_expression(
                 // parent metadata. These represent captured variables from outer scopes.
                 // This mirrors the official compiler's function.js which adds references
                 // for bindings from outer function depths.
-                for ref_idx in &inner_metadata.references {
-                    metadata.references.insert(*ref_idx);
+                if !context.analysis.runes {
+                    for ref_idx in &inner_metadata.references {
+                        metadata.references.insert(*ref_idx);
+                    }
                 }
                 for dep_idx in &inner_metadata.dependencies {
                     metadata.dependencies.insert(*dep_idx);
@@ -2843,7 +2847,10 @@ pub fn walk_js_expression_node(
                 }
 
                 let binding = &context.analysis.root.bindings[binding_idx];
-                metadata.references.insert(binding_idx);
+                // Skip references in runes mode - only used by legacy build_expression
+                if !context.analysis.runes {
+                    metadata.references.insert(binding_idx);
+                }
 
                 if matches!(
                     binding.kind,
@@ -3038,8 +3045,10 @@ pub fn walk_js_expression_node(
             walk_js_expression_node(body, context, &mut inner_metadata)?;
 
             // Propagate references and dependencies
-            for ref_idx in &inner_metadata.references {
-                metadata.references.insert(*ref_idx);
+            if !context.analysis.runes {
+                for ref_idx in &inner_metadata.references {
+                    metadata.references.insert(*ref_idx);
+                }
             }
             for dep_idx in &inner_metadata.dependencies {
                 metadata.dependencies.insert(*dep_idx);

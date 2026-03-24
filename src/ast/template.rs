@@ -1088,6 +1088,13 @@ pub struct ExpressionMetadata {
 }
 
 impl ExpressionMetadata {
+    /// Get raw flags byte for direct copy to Phase 3 ExpressionMetadata.
+    /// Bits 0-4 are: STATE, CALL, AWAIT, MEMBER_EXPRESSION, ASSIGNMENT.
+    #[inline]
+    pub fn raw_flags(&self) -> u8 {
+        self.flags
+    }
+
     /// Whether the expression contains state ($state, $derived, etc.)
     #[inline]
     pub fn has_state(&self) -> bool {
