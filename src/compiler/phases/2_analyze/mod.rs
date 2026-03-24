@@ -155,18 +155,27 @@ pub fn analyze_component(
     // 1. Auto-detecting runes mode (await or rune references imply runes)
     // 2. Marking the component as needing async function wrapper
     //
+    // When runes mode is already explicitly set (options.runes == Some(true) or
+    // <svelte:options runes />), we only need to detect await expressions, not
+    // rune references. This avoids expensive JSON walks for rune detection.
+    let needs_rune_detection = options.runes.is_none() && !analysis.runes;
+
     // We collect store subscription names to exclude them from rune detection.
     // Store auto-subscriptions ($store) look like rune references (dollar prefix)
     // but are NOT runes. If we don't exclude them, a component with $store in the
     // template would be incorrectly detected as being in runes mode, which would
     // then reject `export let` with `legacy_export_invalid` error.
-    let store_sub_names: rustc_hash::FxHashSet<&str> = analysis
-        .root
-        .bindings
-        .iter()
-        .filter(|b| matches!(b.kind, BindingKind::StoreSub))
-        .map(|b| b.name.as_str())
-        .collect();
+    let store_sub_names: rustc_hash::FxHashSet<&str> = if needs_rune_detection {
+        analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|b| matches!(b.kind, BindingKind::StoreSub))
+            .map(|b| b.name.as_str())
+            .collect()
+    } else {
+        rustc_hash::FxHashSet::default()
+    };
 
     // Check the template fragment for both await expressions and rune references
     // in a single traversal (previously done as two separate walks).
@@ -177,31 +186,35 @@ pub fn analyze_component(
     // For script checks, we use an empty set for store_subs (scripts can have both
     // runes and stores, but store_subs are created from template/instance references
     // after scope building, so they are not relevant for script-level rune detection).
-    let empty_store_subs: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
     // TODO: migrate json_check_features to JsNode walker
-    let instance_results = ast
+    let (instance_has_await, instance_has_rune_reference) = ast
         .instance
         .as_ref()
         .map(|inst| {
             let val = inst.content.as_json();
-            json_check_features(val, &empty_store_subs)
+            let empty_subs: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
+            let r = json_check_features(val, &empty_subs);
+            (r.has_await, r.has_rune_reference)
         })
-        .unwrap_or_default();
+        .unwrap_or((false, false));
 
     // Check the module script for rune references (module scripts don't need await check
     // since the original code only checked instance script for await).
     // TODO: migrate json_check_features to JsNode walker
-    let module_has_rune_reference = ast
-        .module
-        .as_ref()
-        .map(|module| {
-            let val = module.content.as_json();
-            json_check_features(val, &empty_store_subs).has_rune_reference
-        })
-        .unwrap_or(false);
+    let module_has_rune_reference = if needs_rune_detection {
+        ast.module
+            .as_ref()
+            .map(|module| {
+                let val = module.content.as_json();
+                let empty_subs: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
+                json_check_features(val, &empty_subs).has_rune_reference
+            })
+            .unwrap_or(false)
+    } else {
+        false
+    };
 
     let fragment_has_await = fragment_results.has_await;
-    let instance_has_await = instance_results.has_await;
 
     // Track whether the component has await (needed for async function wrapper)
     if fragment_has_await || instance_has_await {
@@ -216,8 +229,8 @@ pub fn analyze_component(
     // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L449-451
     // const runes = options.runes ?? (has_await || instance.has_await ||
     //     Array.from(module.scope.references.keys()).some(is_rune));
-    if options.runes.is_none() && !analysis.runes {
-        let has_rune_references = instance_results.has_rune_reference
+    if needs_rune_detection {
+        let has_rune_references = instance_has_rune_reference
             || module_has_rune_reference
             || fragment_results.has_rune_reference;
         if fragment_has_await || instance_has_await || has_rune_references {
@@ -631,20 +644,17 @@ pub fn analyze_component(
     // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L468
     {
         // Collect all names that are used across all scopes (declarations + references)
-        // Use &str references to avoid String allocations
+        // Use &str references to avoid String allocations.
+        // The root scope (analysis.root.scope) already has all declarations from all
+        // child scopes merged, so we only need to iterate it once for declarations.
+        // We still need to iterate all_scopes for references (those are not merged).
         let mut used_names: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
-        // Check root scope
+        // Root scope has all declarations merged from all scopes
         for key in analysis.root.scope.declarations.keys() {
             used_names.insert(key.as_str());
         }
-        for r in &analysis.root.scope.references {
-            used_names.insert(r.name.as_str());
-        }
-        // Check all child scopes
+        // Collect references from all scopes (including root)
         for scope in &analysis.root.all_scopes {
-            for key in scope.declarations.keys() {
-                used_names.insert(key.as_str());
-            }
             for r in &scope.references {
                 used_names.insert(r.name.as_str());
             }
@@ -1017,7 +1027,7 @@ fn cycle_extract_pattern_ids(node: &serde_json::Value, out: &mut Vec<String>) {
     match node.get("type").and_then(|v| v.as_str()) {
         Some("Identifier") => {
             if let Some(name) = node.get("name").and_then(|v| v.as_str())
-                && !out.contains(&name.to_string())
+                && !out.iter().any(|s| s == name)
             {
                 out.push(name.to_string());
             }
@@ -1065,7 +1075,7 @@ fn cycle_collect_js_ids(node: &serde_json::Value, out: &mut Vec<String>) {
     if let Some(node_type) = node.get("type").and_then(|v| v.as_str()) {
         if node_type == "Identifier" {
             if let Some(name) = node.get("name").and_then(|v| v.as_str())
-                && !out.contains(&name.to_string())
+                && !out.iter().any(|s| s == name)
             {
                 out.push(name.to_string());
             }

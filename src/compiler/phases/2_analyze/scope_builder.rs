@@ -84,12 +84,18 @@ pub struct ScopeBuilder<'a> {
 impl<'a> ScopeBuilder<'a> {
     /// Create a new scope builder with runes mode and TypeScript flag.
     pub fn new(source: &'a str, runes_mode: bool, is_typescript: bool) -> Self {
+        // Pre-allocate with reasonable capacities based on typical Svelte components.
+        // Most components have a modest number of scopes, bindings, and updates.
         Self {
-            scopes: vec![Scope::new(None)],
-            bindings: Vec::new(),
+            scopes: {
+                let mut v = Vec::with_capacity(16);
+                v.push(Scope::new(None));
+                v
+            },
+            bindings: Vec::with_capacity(16),
             current_scope: 0,
             source,
-            updates: Vec::new(),
+            updates: Vec::with_capacity(8),
             // Initialize function_depth to 1 to match the official Svelte compiler's scope structure:
             // In the official compiler, scope.function_depth = parent.function_depth + 1 for non-porous
             // scopes. The root scope has depth 0, the instance scope has depth 1. This means:
@@ -235,18 +241,33 @@ impl<'a> ScopeBuilder<'a> {
 
         // Return the root scope with all scopes preserved for proper lookup
         let all_scopes = std::mem::take(&mut self.scopes);
-        let root_scope = all_scopes.first().cloned().unwrap_or_default();
 
         // Build the conflicts set from all declarations in all scopes.
         // This mirrors the official Svelte compiler where every scope.declare()
         // adds the name to scope.root.conflicts.
-        let mut conflicts = rustc_hash::FxHashSet::default();
-        for scope in &all_scopes {
-            for name in scope.declarations.keys() {
+        //
+        // Since the root scope (all_scopes[0]) already has all declarations merged from
+        // all child scopes (done above), we can use its keys directly as the base set.
+        // We only need to add binding names and template expression params on top.
+        //
+        // Pre-calculate capacity: root scope declarations + bindings + template params.
+        // The root scope declarations already include all child scope declarations,
+        // so we don't need to iterate child scopes separately.
+        let root_decl_count = all_scopes
+            .first()
+            .map(|s| s.declarations.len())
+            .unwrap_or(0);
+        let capacity =
+            root_decl_count + self.bindings.len() + self.template_expression_params.len();
+        let mut conflicts =
+            rustc_hash::FxHashSet::with_capacity_and_hasher(capacity, Default::default());
+        // Add all declaration names from the merged root scope
+        if let Some(root) = all_scopes.first() {
+            for name in root.declarations.keys() {
                 conflicts.insert(name.clone());
             }
         }
-        // Also add binding names
+        // Also add binding names (may include names not in any scope's declarations)
         for binding in &self.bindings {
             conflicts.insert(binding.name.clone());
         }
@@ -254,9 +275,20 @@ impl<'a> ScopeBuilder<'a> {
         // Template expressions (event handlers, attach directives, etc.) may contain
         // arrow functions whose parameters need to be in the conflicts set to avoid
         // naming collisions with generated variables.
-        for name in &self.template_expression_params {
-            conflicts.insert(name.clone());
+        // Use into_iter to take ownership and avoid cloning.
+        for name in std::mem::take(&mut self.template_expression_params) {
+            conflicts.insert(name);
         }
+
+        // Clone the root scope (with all merged declarations) for backward compatibility.
+        // We use swap to take ownership of all_scopes[0] and replace it with a clone,
+        // avoiding an extra clone. The ScopeRoot.scope field needs its own copy since
+        // it's accessed separately from all_scopes.
+        let root_scope = if all_scopes.is_empty() {
+            Scope::default()
+        } else {
+            all_scopes[0].clone()
+        };
 
         (
             ScopeRoot {
@@ -1617,15 +1649,19 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Process a template expression (from attributes, event handlers, etc.) to track updates.
     fn process_template_expression(&mut self, expr: &crate::ast::js::Expression) {
-        // Walk the JSON AST directly instead of re-parsing with OXC.
-        // This avoids expensive OXC parse calls for every template expression.
-        // TODO: migrate track_json_expression_updates and collect_arrow_param_names to JsNode walkers
-        let json = expr.as_json();
-        self.track_json_expression_updates(json);
-        // Also collect arrow function parameter names for the conflicts set.
-        // This ensures generated variable names don't collide with parameter names
-        // in template expression arrow functions (e.g., `(node) => ...` in @attach).
-        collect_arrow_param_names(json, &mut self.template_expression_params);
+        use crate::ast::js::Expression;
+        match expr {
+            Expression::Typed(te) => {
+                // Walk the typed JsNode directly - avoids JSON conversion entirely.
+                self.track_node_expression_updates(&te.node);
+                collect_arrow_param_names_node(&te.node, &mut self.template_expression_params);
+            }
+            Expression::Value(json) => {
+                // Legacy fallback: walk JSON AST directly.
+                self.track_json_expression_updates(json);
+                collect_arrow_param_names(json, &mut self.template_expression_params);
+            }
+        }
     }
 
     /// Process a bind expression - the target is marked as reassigned or mutated.
@@ -2227,6 +2263,417 @@ impl<'a> ScopeBuilder<'a> {
                         self.track_json_statement_updates(finalizer);
                     }
                 }
+            }
+            _ => {}
+        }
+    }
+
+    /// Track expression updates by walking a JsNode tree directly.
+    /// This is the typed equivalent of `track_json_expression_updates` and avoids
+    /// the overhead of JSON conversion for template expressions.
+    #[allow(clippy::collapsible_if)]
+    fn track_node_expression_updates(&mut self, node: &JsNode) {
+        match node {
+            JsNode::AssignmentExpression { left, right, .. } => {
+                self.track_node_assignment_target(left);
+                self.track_node_expression_updates(right);
+            }
+            JsNode::UpdateExpression { argument, .. } => {
+                self.track_node_simple_assignment_target(argument);
+            }
+            JsNode::CallExpression {
+                callee, arguments, ..
+            }
+            | JsNode::NewExpression {
+                callee, arguments, ..
+            } => {
+                self.track_node_expression_updates(callee);
+                for arg in arguments {
+                    if let JsNode::SpreadElement { argument, .. } = arg {
+                        self.track_node_expression_updates(argument);
+                    } else {
+                        self.track_node_expression_updates(arg);
+                    }
+                }
+            }
+            JsNode::ArrowFunctionExpression { body, params, .. } => {
+                let old_scope = self.push_function_scope();
+                self.function_depth += 1;
+                // Record function scope mapping
+                if let Some(start) = node_start(body) {
+                    self.function_scope_map.insert(start, self.current_scope);
+                }
+                // Declare parameters
+                for param in params {
+                    self.declare_bindings_from_pattern_node(param, BindingKind::Normal, false);
+                }
+                // Track body updates
+                if let JsNode::BlockStatement { body: stmts, .. } = &**body {
+                    for stmt in stmts {
+                        self.track_node_statement_updates(stmt);
+                    }
+                } else {
+                    self.track_node_expression_updates(body);
+                }
+                self.function_depth -= 1;
+                self.pop_scope(old_scope);
+            }
+            JsNode::FunctionExpression { body, params, .. } => {
+                let old_scope = self.push_function_scope();
+                self.function_depth += 1;
+                if let Some(body) = body {
+                    if let Some(start) = node_start(body) {
+                        self.function_scope_map.insert(start, self.current_scope);
+                    }
+                }
+                for param in params {
+                    self.declare_bindings_from_pattern_node(param, BindingKind::Normal, false);
+                }
+                if let Some(body) = body {
+                    if let JsNode::BlockStatement { body: stmts, .. } = &**body {
+                        for stmt in stmts {
+                            self.track_node_statement_updates(stmt);
+                        }
+                    }
+                }
+                self.function_depth -= 1;
+                self.pop_scope(old_scope);
+            }
+            JsNode::ConditionalExpression {
+                test,
+                consequent,
+                alternate,
+                ..
+            } => {
+                self.track_node_expression_updates(test);
+                self.track_node_expression_updates(consequent);
+                self.track_node_expression_updates(alternate);
+            }
+            JsNode::LogicalExpression { left, right, .. }
+            | JsNode::BinaryExpression { left, right, .. } => {
+                self.track_node_expression_updates(left);
+                self.track_node_expression_updates(right);
+            }
+            JsNode::UnaryExpression { argument, .. } => {
+                self.track_node_expression_updates(argument);
+            }
+            JsNode::SequenceExpression { expressions, .. } => {
+                for expr in expressions {
+                    self.track_node_expression_updates(expr);
+                }
+            }
+            JsNode::ArrayExpression { elements, .. } => {
+                for elem in elements.iter().flatten() {
+                    if let JsNode::SpreadElement { argument, .. } = elem {
+                        self.track_node_expression_updates(argument);
+                    } else {
+                        self.track_node_expression_updates(elem);
+                    }
+                }
+            }
+            JsNode::ObjectExpression { properties, .. } => {
+                for prop in properties {
+                    if let JsNode::SpreadElement { argument, .. } = prop {
+                        self.track_node_expression_updates(argument);
+                    } else if let JsNode::Property { value, .. } = prop {
+                        self.track_node_expression_updates(value);
+                    }
+                }
+            }
+            JsNode::MemberExpression { object, .. } => {
+                self.track_node_expression_updates(object);
+            }
+            JsNode::TemplateLiteral { expressions, .. } => {
+                for expr in expressions {
+                    self.track_node_expression_updates(expr);
+                }
+            }
+            JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
+                self.track_node_expression_updates(tag);
+                if let JsNode::TemplateLiteral { expressions, .. } = &**quasi {
+                    for expr in expressions {
+                        self.track_node_expression_updates(expr);
+                    }
+                }
+            }
+            JsNode::AwaitExpression { argument, .. } => {
+                self.track_node_expression_updates(argument);
+            }
+            JsNode::YieldExpression {
+                argument: Some(argument),
+                ..
+            } => {
+                self.track_node_expression_updates(argument);
+            }
+            JsNode::ChainExpression { expression, .. } => {
+                self.track_node_expression_updates(expression);
+            }
+            JsNode::Identifier { name, .. } => {
+                // Check for store subscription scoping errors
+                if name.starts_with('$')
+                    && !name.starts_with("$$")
+                    && name.len() > 1
+                    && self.function_depth > 0
+                {
+                    let is_rune_name = matches!(
+                        name.as_str(),
+                        "$state"
+                            | "$derived"
+                            | "$props"
+                            | "$bindable"
+                            | "$effect"
+                            | "$inspect"
+                            | "$host"
+                    );
+                    if !is_rune_name {
+                        let store_name = &name.as_str()[1..];
+                        let mut scope_idx = self.current_scope;
+                        loop {
+                            let scope = &self.scopes[scope_idx];
+                            if scope.declarations.contains_key(store_name) {
+                                if scope_idx != 0 && scope_idx != self.instance_scope_index {
+                                    self.validation_errors
+                                        .push(errors::store_invalid_scoped_subscription());
+                                }
+                                break;
+                            }
+                            if let Some(parent) = scope.parent {
+                                scope_idx = parent;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            JsNode::ClassExpression { body, .. } => {
+                // Walk class body looking for method/property updates
+                if let JsNode::ClassBody { body: elements, .. } = &**body {
+                    for elem in elements {
+                        if let JsNode::MethodDefinition { value, .. } = elem {
+                            if let JsNode::FunctionExpression { body, params, .. } = value.as_ref()
+                            {
+                                let old_scope = self.push_function_scope();
+                                self.function_depth += 1;
+                                for param in params {
+                                    self.declare_bindings_from_pattern_node(
+                                        param,
+                                        BindingKind::Normal,
+                                        false,
+                                    );
+                                }
+                                if let Some(body) = body {
+                                    if let JsNode::BlockStatement { body: stmts, .. } = &**body {
+                                        for stmt in stmts {
+                                            self.track_node_statement_updates(stmt);
+                                        }
+                                    }
+                                }
+                                self.function_depth -= 1;
+                                self.pop_scope(old_scope);
+                            }
+                        } else if let JsNode::PropertyDefinition {
+                            value: Some(value), ..
+                        } = elem
+                        {
+                            self.track_node_expression_updates(value);
+                        }
+                    }
+                }
+            }
+            // JsNode::Raw fallback: convert to JSON and use the JSON walker
+            JsNode::Raw(json) => {
+                self.track_json_expression_updates(json);
+            }
+            // Literals and other leaf nodes - no updates to track
+            _ => {}
+        }
+    }
+
+    /// Track an assignment target from JsNode.
+    fn track_node_assignment_target(&mut self, node: &JsNode) {
+        match node {
+            JsNode::Identifier { name, .. } => {
+                // Check for store subscription errors in assignment targets
+                if name.starts_with('$')
+                    && !name.starts_with("$$")
+                    && name.len() > 1
+                    && self.function_depth > 0
+                {
+                    let is_rune_name = matches!(
+                        name.as_str(),
+                        "$state"
+                            | "$derived"
+                            | "$props"
+                            | "$bindable"
+                            | "$effect"
+                            | "$inspect"
+                            | "$host"
+                    );
+                    if !is_rune_name {
+                        let store_name = &name.as_str()[1..];
+                        let mut scope_idx = self.current_scope;
+                        loop {
+                            let scope = &self.scopes[scope_idx];
+                            if scope.declarations.contains_key(store_name) {
+                                if scope_idx != 0 && scope_idx != self.instance_scope_index {
+                                    self.validation_errors
+                                        .push(errors::store_invalid_scoped_subscription());
+                                }
+                                break;
+                            }
+                            if let Some(parent) = scope.parent {
+                                scope_idx = parent;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                }
+                self.updates.push(Update {
+                    name: name.to_string(),
+                    is_direct_assignment: true,
+                    scope_idx: self.current_scope,
+                });
+            }
+            JsNode::MemberExpression { object, .. } => {
+                if let Some(name) = get_node_base_identifier_name(object) {
+                    self.updates.push(Update {
+                        name,
+                        is_direct_assignment: false,
+                        scope_idx: self.current_scope,
+                    });
+                }
+            }
+            JsNode::ArrayPattern { elements, .. } => {
+                for elem in elements.iter().flatten() {
+                    self.track_node_assignment_target(elem);
+                }
+            }
+            JsNode::ObjectPattern { properties, .. } => {
+                for prop in properties {
+                    if let JsNode::RestElement { argument, .. }
+                    | JsNode::SpreadElement { argument, .. } = prop
+                    {
+                        self.track_node_assignment_target(argument);
+                    } else if let JsNode::Property { value, .. } = prop {
+                        self.track_node_assignment_target(value);
+                    }
+                }
+            }
+            JsNode::AssignmentPattern { left, .. } => {
+                self.track_node_assignment_target(left);
+            }
+            JsNode::RestElement { argument, .. } => {
+                self.track_node_assignment_target(argument);
+            }
+            JsNode::Raw(json) => {
+                self.track_json_assignment_target(json);
+            }
+            _ => {}
+        }
+    }
+
+    /// Track a simple assignment target (update expression argument) from JsNode.
+    fn track_node_simple_assignment_target(&mut self, node: &JsNode) {
+        match node {
+            JsNode::Identifier { name, .. } => {
+                self.updates.push(Update {
+                    name: name.to_string(),
+                    is_direct_assignment: true,
+                    scope_idx: self.current_scope,
+                });
+            }
+            JsNode::MemberExpression { object, .. } => {
+                if let Some(name) = get_node_base_identifier_name(object) {
+                    self.updates.push(Update {
+                        name,
+                        is_direct_assignment: false,
+                        scope_idx: self.current_scope,
+                    });
+                }
+            }
+            JsNode::Raw(json) => {
+                self.track_json_simple_assignment_target(json);
+            }
+            _ => {}
+        }
+    }
+
+    /// Track statement updates from JsNode (for arrow/function bodies).
+    #[allow(clippy::collapsible_match)]
+    fn track_node_statement_updates(&mut self, node: &JsNode) {
+        match node {
+            JsNode::ExpressionStatement { expression, .. } => {
+                self.track_node_expression_updates(expression);
+            }
+            JsNode::ReturnStatement {
+                argument: Some(argument),
+                ..
+            } => {
+                self.track_node_expression_updates(argument);
+            }
+            JsNode::VariableDeclaration { declarations, .. } => {
+                for decl in declarations {
+                    if let JsNode::VariableDeclarator {
+                        init: Some(init), ..
+                    } = decl
+                    {
+                        self.track_node_expression_updates(init);
+                    }
+                }
+            }
+            JsNode::IfStatement {
+                test,
+                consequent,
+                alternate,
+                ..
+            } => {
+                self.track_node_expression_updates(test);
+                self.track_node_statement_updates(consequent);
+                if let Some(alternate) = alternate {
+                    self.track_node_statement_updates(alternate);
+                }
+            }
+            JsNode::BlockStatement { body, .. } => {
+                for stmt in body {
+                    self.track_node_statement_updates(stmt);
+                }
+            }
+            JsNode::ForStatement { body, .. }
+            | JsNode::WhileStatement { body, .. }
+            | JsNode::DoWhileStatement { body, .. }
+            | JsNode::ForInStatement { body, .. }
+            | JsNode::ForOfStatement { body, .. } => {
+                self.track_node_statement_updates(body);
+            }
+            JsNode::SwitchStatement { cases, .. } => {
+                for case in cases {
+                    if let JsNode::SwitchCase { consequent, .. } = case {
+                        for stmt in consequent {
+                            self.track_node_statement_updates(stmt);
+                        }
+                    }
+                }
+            }
+            JsNode::TryStatement {
+                block,
+                handler,
+                finalizer,
+                ..
+            } => {
+                self.track_node_statement_updates(block);
+                if let Some(handler) = handler
+                    && let JsNode::CatchClause { body, .. } = &**handler
+                {
+                    self.track_node_statement_updates(body);
+                }
+                if let Some(finalizer) = finalizer {
+                    self.track_node_statement_updates(finalizer);
+                }
+            }
+            JsNode::Raw(json) => {
+                self.track_json_statement_updates(json);
             }
             _ => {}
         }
@@ -2975,5 +3422,236 @@ fn collect_pattern_names(pattern: &serde_json::Value, names: &mut Vec<String>) {
             }
             _ => {}
         }
+    }
+}
+
+/// JsNode version of `collect_arrow_param_names`. Walks the typed JsNode tree
+/// looking for ArrowFunctionExpression and FunctionExpression nodes, then
+/// extracts parameter identifier names. Avoids JSON conversion entirely.
+fn collect_arrow_param_names_node(node: &JsNode, names: &mut Vec<String>) {
+    match node {
+        JsNode::ArrowFunctionExpression { params, body, .. } => {
+            for param in params {
+                collect_pattern_names_node(param, names);
+            }
+            collect_arrow_param_names_node(body, names);
+        }
+        JsNode::FunctionExpression { params, body, .. } => {
+            for param in params {
+                collect_pattern_names_node(param, names);
+            }
+            if let Some(body) = body {
+                collect_arrow_param_names_node(body, names);
+            }
+        }
+        // Recurse into all child nodes
+        JsNode::CallExpression {
+            callee, arguments, ..
+        } => {
+            collect_arrow_param_names_node(callee, names);
+            for arg in arguments {
+                collect_arrow_param_names_node(arg, names);
+            }
+        }
+        JsNode::NewExpression {
+            callee, arguments, ..
+        } => {
+            collect_arrow_param_names_node(callee, names);
+            for arg in arguments {
+                collect_arrow_param_names_node(arg, names);
+            }
+        }
+        JsNode::MemberExpression {
+            object, property, ..
+        } => {
+            collect_arrow_param_names_node(object, names);
+            collect_arrow_param_names_node(property, names);
+        }
+        JsNode::AssignmentExpression { left, right, .. } => {
+            collect_arrow_param_names_node(left, names);
+            collect_arrow_param_names_node(right, names);
+        }
+        JsNode::BinaryExpression { left, right, .. }
+        | JsNode::LogicalExpression { left, right, .. } => {
+            collect_arrow_param_names_node(left, names);
+            collect_arrow_param_names_node(right, names);
+        }
+        JsNode::UnaryExpression { argument, .. }
+        | JsNode::UpdateExpression { argument, .. }
+        | JsNode::SpreadElement { argument, .. }
+        | JsNode::AwaitExpression { argument, .. } => {
+            collect_arrow_param_names_node(argument, names);
+        }
+        JsNode::ConditionalExpression {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => {
+            collect_arrow_param_names_node(test, names);
+            collect_arrow_param_names_node(consequent, names);
+            collect_arrow_param_names_node(alternate, names);
+        }
+        JsNode::SequenceExpression { expressions, .. } => {
+            for expr in expressions {
+                collect_arrow_param_names_node(expr, names);
+            }
+        }
+        JsNode::ArrayExpression { elements, .. } => {
+            for elem in elements.iter().flatten() {
+                collect_arrow_param_names_node(elem, names);
+            }
+        }
+        JsNode::ObjectExpression { properties, .. } => {
+            for prop in properties {
+                collect_arrow_param_names_node(prop, names);
+            }
+        }
+        JsNode::Property { value, .. } => {
+            collect_arrow_param_names_node(value, names);
+        }
+        JsNode::TemplateLiteral { expressions, .. } => {
+            for expr in expressions {
+                collect_arrow_param_names_node(expr, names);
+            }
+        }
+        JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
+            collect_arrow_param_names_node(tag, names);
+            collect_arrow_param_names_node(quasi, names);
+        }
+        JsNode::YieldExpression {
+            argument: Some(argument),
+            ..
+        } => {
+            collect_arrow_param_names_node(argument, names);
+        }
+        JsNode::ChainExpression { expression, .. } => {
+            collect_arrow_param_names_node(expression, names);
+        }
+        JsNode::BlockStatement { body, .. } => {
+            for stmt in body {
+                collect_arrow_param_names_node(stmt, names);
+            }
+        }
+        JsNode::ExpressionStatement { expression, .. } => {
+            collect_arrow_param_names_node(expression, names);
+        }
+        JsNode::ReturnStatement {
+            argument: Some(argument),
+            ..
+        } => {
+            collect_arrow_param_names_node(argument, names);
+        }
+        JsNode::VariableDeclaration { declarations, .. } => {
+            for decl in declarations {
+                collect_arrow_param_names_node(decl, names);
+            }
+        }
+        JsNode::VariableDeclarator {
+            init: Some(init), ..
+        } => {
+            collect_arrow_param_names_node(init, names);
+        }
+        JsNode::IfStatement {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => {
+            collect_arrow_param_names_node(test, names);
+            collect_arrow_param_names_node(consequent, names);
+            if let Some(alternate) = alternate {
+                collect_arrow_param_names_node(alternate, names);
+            }
+        }
+        JsNode::Raw(json) => {
+            collect_arrow_param_names(json, names);
+        }
+        // Leaf nodes or nodes without interesting children
+        _ => {}
+    }
+}
+
+/// JsNode version of `collect_pattern_names`.
+fn collect_pattern_names_node(node: &JsNode, names: &mut Vec<String>) {
+    match node {
+        JsNode::Identifier { name, .. } => {
+            names.push(name.to_string());
+        }
+        JsNode::ObjectPattern { properties, .. } => {
+            for prop in properties {
+                if let JsNode::Property { value, .. } = prop {
+                    collect_pattern_names_node(value, names);
+                } else if let JsNode::RestElement { argument, .. } = prop {
+                    collect_pattern_names_node(argument, names);
+                }
+            }
+        }
+        JsNode::ArrayPattern { elements, .. } => {
+            for elem in elements.iter().flatten() {
+                collect_pattern_names_node(elem, names);
+            }
+        }
+        JsNode::RestElement { argument, .. } => {
+            collect_pattern_names_node(argument, names);
+        }
+        JsNode::AssignmentPattern { left, .. } => {
+            collect_pattern_names_node(left, names);
+        }
+        JsNode::Raw(json) => {
+            collect_pattern_names(json, names);
+        }
+        _ => {}
+    }
+}
+
+/// Get the start position of a JsNode (helper for function_scope_map).
+fn node_start(node: &JsNode) -> Option<u32> {
+    match node {
+        JsNode::BlockStatement { start, .. }
+        | JsNode::ExpressionStatement { start, .. }
+        | JsNode::Identifier { start, .. }
+        | JsNode::CallExpression { start, .. }
+        | JsNode::ArrowFunctionExpression { start, .. }
+        | JsNode::FunctionExpression { start, .. }
+        | JsNode::ObjectExpression { start, .. }
+        | JsNode::ArrayExpression { start, .. }
+        | JsNode::BinaryExpression { start, .. }
+        | JsNode::AssignmentExpression { start, .. }
+        | JsNode::MemberExpression { start, .. }
+        | JsNode::ConditionalExpression { start, .. }
+        | JsNode::Literal { start, .. }
+        | JsNode::SequenceExpression { start, .. }
+        | JsNode::UnaryExpression { start, .. }
+        | JsNode::UpdateExpression { start, .. }
+        | JsNode::LogicalExpression { start, .. }
+        | JsNode::NewExpression { start, .. }
+        | JsNode::TemplateLiteral { start, .. } => Some(*start),
+        JsNode::Raw(json) => json.get("start").and_then(|s| s.as_u64()).map(|s| s as u32),
+        _ => None,
+    }
+}
+
+/// Get the base identifier name from a JsNode (walking through member expressions).
+fn get_node_base_identifier_name(node: &JsNode) -> Option<String> {
+    match node {
+        JsNode::Identifier { name, .. } => Some(name.to_string()),
+        JsNode::MemberExpression { object, .. } => get_node_base_identifier_name(object),
+        JsNode::Raw(json) => {
+            // Fallback to JSON-based extraction
+            let obj = json.as_object()?;
+            match obj.get("type").and_then(|t| t.as_str())? {
+                "Identifier" => obj
+                    .get("name")
+                    .and_then(|n| n.as_str())
+                    .map(|s| s.to_string()),
+                "MemberExpression" => {
+                    let object = obj.get("object")?;
+                    get_node_base_identifier_name(&JsNode::Raw(object.clone()))
+                }
+                _ => None,
+            }
+        }
+        _ => None,
     }
 }
