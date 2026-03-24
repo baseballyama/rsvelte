@@ -3,8 +3,7 @@
 //! Corresponds to utilities in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/utils.js`.
 
-use rustc_hash::FxHashMap;
-use std::collections::HashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::client::types::*;
@@ -103,7 +102,7 @@ fn classify_expr(expr: &JsExpr) -> JsExprKind {
 ///
 /// This is used to find function parameter names that should shadow
 /// outer variable transforms.
-fn extract_pattern_names(pattern: &JsPattern, names: &mut HashSet<String>) {
+fn extract_pattern_names(pattern: &JsPattern, names: &mut FxHashSet<String>) {
     match pattern {
         JsPattern::Identifier(name) => {
             names.insert(name.to_string());
@@ -136,7 +135,7 @@ fn extract_pattern_names(pattern: &JsPattern, names: &mut HashSet<String>) {
 
 /// Extract all identifier names from a pattern and add them to a LocalScope as shadowed.
 fn extract_pattern_names_to_scope(pattern: &JsPattern, scope: &mut LocalScope) {
-    let mut names = HashSet::new();
+    let mut names = FxHashSet::default();
     extract_pattern_names(pattern, &mut names);
     for name in names {
         scope.add_shadowed(name);
@@ -437,23 +436,13 @@ pub fn apply_transforms_to_expression_with_shadowed(
         }
 
         JsExpr::Call(call) => {
-            // Check if this is a $.set() or $.update() call - these have a state reference
-            // as the first argument that should NOT be transformed with $.get()
-            let is_svelte_set_call =
-                is_svelte_runtime_set_call(context.arena.get_expr(call.callee), &context.arena);
-
-            // Check if this is a function that should skip all argument transformations
-            // (e.g., $.untrack, $.store_mutate - these have pre-constructed arguments)
-            let skip_args_transform = is_svelte_runtime_skip_args_transform(
-                context.arena.get_expr(call.callee),
-                &context.arena,
-            );
-
-            // Check if this is $.update_store/$.update_pre_store - transform first arg only
-            let is_store_update = is_svelte_runtime_store_update_call(
-                context.arena.get_expr(call.callee),
-                &context.arena,
-            );
+            // Classify the callee once to determine argument transform behavior.
+            // This replaces three separate function calls that each matched the same callee.
+            let callee_kind =
+                classify_svelte_runtime_callee(context.arena.get_expr(call.callee), &context.arena);
+            let is_svelte_set_call = matches!(callee_kind, SvelteCalleeKind::SetLike);
+            let skip_args_transform = matches!(callee_kind, SvelteCalleeKind::SkipAllArgs);
+            let is_store_update = matches!(callee_kind, SvelteCalleeKind::StoreUpdate);
 
             // Check if this is a store subscription SETTER call where the callee should NOT be transformed:
             // - Store setter call: `$store(value)` - callee should stay as `$store`, not `$store()`
@@ -1411,72 +1400,41 @@ pub fn apply_transforms_to_expression_with_shadowed(
     }
 }
 
-/// Check if a callee expression represents a Svelte runtime function that takes
-/// a state reference as its first argument (e.g., $.set, $.update, $.update_pre, $.get).
-///
-/// These functions should NOT have their first argument transformed with $.get()
-/// because they expect the raw state reference, not the value.
-fn is_svelte_runtime_set_call(
-    callee: &JsExpr,
-    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
-) -> bool {
-    // Check for $.set, $.update, $.update_pre, $.get, $.safe_get, $.mutate patterns
-    // These all take a state reference as the first argument that should NOT be
-    // wrapped with $.get()
-    if let JsExpr::Member(member) = callee
-        && let JsExpr::Identifier(obj_name) = arena.get_expr(member.object)
-        && obj_name == "$"
-        && let JsMemberProperty::Identifier(prop_name) = &member.property
-    {
-        return matches!(
-            prop_name.as_str(),
-            "set"
-                | "update"
-                | "update_pre"
-                | "get"
-                | "safe_get"
-                | "mutate"
-                | "update_prop"
-                | "update_pre_prop"
-        );
-    }
-    false
+/// Classification of Svelte runtime callee for argument transform decisions.
+/// Computed once to avoid triple-matching the callee expression.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SvelteCalleeKind {
+    /// Not a recognized Svelte runtime call; transform normally.
+    Normal,
+    /// $.set, $.update, $.update_pre, $.get, $.safe_get, $.mutate, $.update_prop, $.update_pre_prop
+    /// First argument is a state reference that should NOT be transformed.
+    SetLike,
+    /// $.untrack, $.store_mutate - skip ALL argument transformations.
+    SkipAllArgs,
+    /// $.update_store, $.update_pre_store - transform first arg, skip rest.
+    StoreUpdate,
 }
 
-/// Check if a callee expression represents a Svelte runtime function that should
-/// skip transformation of ALL its arguments (e.g., $.untrack, $.store_mutate).
-///
-/// - `$.untrack()` takes a getter function that should not be invoked
-/// - `$.store_mutate()` has pre-constructed arguments with $.untrack() calls
-fn is_svelte_runtime_skip_args_transform(
+/// Classify a callee expression into a SvelteCalleeKind with a single match.
+#[inline]
+fn classify_svelte_runtime_callee(
     callee: &JsExpr,
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
-) -> bool {
+) -> SvelteCalleeKind {
     if let JsExpr::Member(member) = callee
         && let JsExpr::Identifier(obj_name) = arena.get_expr(member.object)
         && obj_name == "$"
         && let JsMemberProperty::Identifier(prop_name) = &member.property
     {
-        return matches!(prop_name.as_str(), "untrack" | "store_mutate");
+        return match prop_name.as_str() {
+            "set" | "update" | "update_pre" | "get" | "safe_get" | "mutate" | "update_prop"
+            | "update_pre_prop" => SvelteCalleeKind::SetLike,
+            "untrack" | "store_mutate" => SvelteCalleeKind::SkipAllArgs,
+            "update_store" | "update_pre_store" => SvelteCalleeKind::StoreUpdate,
+            _ => SvelteCalleeKind::Normal,
+        };
     }
-    false
-}
-
-/// Check if a callee expression represents $.update_store or $.update_pre_store.
-/// These calls should transform the first argument (store reference which may need $.get())
-/// but skip the second argument onwards ($store() call that's already constructed).
-fn is_svelte_runtime_store_update_call(
-    callee: &JsExpr,
-    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
-) -> bool {
-    if let JsExpr::Member(member) = callee
-        && let JsExpr::Identifier(obj_name) = arena.get_expr(member.object)
-        && obj_name == "$"
-        && let JsMemberProperty::Identifier(prop_name) = &member.property
-    {
-        return matches!(prop_name.as_str(), "update_store" | "update_pre_store");
-    }
-    false
+    SvelteCalleeKind::Normal
 }
 
 /// Build the `collection[$$index]` member expression for a reassigned each item.
@@ -2492,7 +2450,7 @@ fn collect_reactive_references_inner(
             // However, arrow parameter names shadow outer reactive references and must be
             // excluded. For example, in `switches.filter(s => !!s.on)`, the `s` parameter
             // shadows the each-block `s` and should NOT be collected as a dependency.
-            let mut param_names = HashSet::new();
+            let mut param_names = FxHashSet::default();
             for param in &arrow.params {
                 extract_pattern_names(param, &mut param_names);
             }
@@ -2523,7 +2481,7 @@ fn collect_reactive_references_inner(
 
         JsExpr::Function(func) => {
             // Also process function bodies, excluding function parameter names
-            let mut param_names = HashSet::new();
+            let mut param_names = FxHashSet::default();
             for param in &func.params {
                 extract_pattern_names(param, &mut param_names);
             }

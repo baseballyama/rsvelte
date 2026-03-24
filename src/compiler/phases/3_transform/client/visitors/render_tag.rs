@@ -199,21 +199,19 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
     // because render tag arguments are often thunked: `child($$anchor, () => $.get(n))`.
     // The $.get(n) inside the arrow contains the blocker reference.
     let mut all_blocker_exprs: Vec<JsExpr> = Vec::new();
+    let mut seen_indices: Vec<usize> = Vec::new();
     for stmt in &statements {
         let mut names = Vec::new();
         super::fragment::collect_identifiers_from_statement_deep(stmt, &context.arena, &mut names);
         let map = context.state.blocker_map.borrow();
         for name in &names {
-            if let Some(&idx) = map.get(name.as_str()) {
+            if let Some(&idx) = map.get(name.as_str())
+                && !seen_indices.contains(&idx)
+            {
+                seen_indices.push(idx);
                 let blocker =
                     b::member_computed(&context.arena, b::id("$$promises"), b::number(idx as f64));
-                let blocker_str = format!("{:?}", blocker);
-                if !all_blocker_exprs
-                    .iter()
-                    .any(|b| format!("{:?}", b) == blocker_str)
-                {
-                    all_blocker_exprs.push(blocker);
-                }
+                all_blocker_exprs.push(blocker);
             }
         }
     }

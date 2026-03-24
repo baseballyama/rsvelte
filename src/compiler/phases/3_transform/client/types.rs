@@ -2261,12 +2261,13 @@ impl<'a> ComponentClientTransformState<'a> {
         let names = collect_identifiers_from_expr(expr, arena);
         let const_map = self.const_blocker_map.borrow();
         let mut exprs: Vec<JsExpr> = Vec::new();
+        // Deduplicate by pointer identity from the map (same map value = same expression).
+        let mut seen_ptrs: Vec<*const JsExpr> = Vec::new();
         for name in &names {
             if let Some(blocker_expr) = const_map.get(name.as_str()) {
-                if !exprs
-                    .iter()
-                    .any(|b| format!("{:?}", b) == format!("{:?}", blocker_expr))
-                {
+                let ptr = blocker_expr as *const JsExpr;
+                if !seen_ptrs.contains(&ptr) {
+                    seen_ptrs.push(ptr);
                     exprs.push(blocker_expr.clone());
                 }
             }
@@ -2280,12 +2281,13 @@ impl<'a> ComponentClientTransformState<'a> {
         let mut blockers = self.get_blockers_for_expr(expr, arena);
         let names = collect_identifiers_from_expr(expr, arena);
         let const_map = self.const_blocker_map.borrow();
+        // Deduplicate by pointer identity from the map (same map value = same expression).
+        let mut seen_ptrs: Vec<*const JsExpr> = Vec::new();
         for name in &names {
             if let Some(blocker_expr) = const_map.get(name.as_str()) {
-                if !blockers
-                    .iter()
-                    .any(|b| format!("{:?}", b) == format!("{:?}", blocker_expr))
-                {
+                let ptr = blocker_expr as *const JsExpr;
+                if !seen_ptrs.contains(&ptr) {
+                    seen_ptrs.push(ptr);
                     blockers.push(blocker_expr.clone());
                 }
             }

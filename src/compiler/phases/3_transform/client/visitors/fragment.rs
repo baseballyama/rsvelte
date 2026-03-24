@@ -539,14 +539,15 @@ pub fn fragment(
                 }
                 indices.sort();
 
-                // Collect const-tag-level blocker expressions from const_blocker_map
+                // Collect const-tag-level blocker expressions from const_blocker_map.
+                // Use pointer identity to deduplicate (same source pointer = same expression).
                 let mut const_blocker_exprs: Vec<JsExpr> = Vec::new();
+                let mut seen_ptrs: Vec<*const JsExpr> = Vec::new();
                 for name in &all_names {
                     if let Some(blocker_expr) = const_map.get(name.as_str()) {
-                        if !const_blocker_exprs
-                            .iter()
-                            .any(|b| format!("{:?}", b) == format!("{:?}", blocker_expr))
-                        {
+                        let ptr = blocker_expr as *const JsExpr;
+                        if !seen_ptrs.contains(&ptr) {
+                            seen_ptrs.push(ptr);
                             const_blocker_exprs.push(blocker_expr.clone());
                         }
                     }

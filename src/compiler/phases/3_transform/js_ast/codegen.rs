@@ -845,7 +845,10 @@ impl<'a> JsCodegen<'a> {
 
     fn emit_array_expression(&mut self, arr: &JsArrayExpression) {
         self.output.push('[');
-        let items: Vec<Option<&JsExpr>> = arr.elements.iter().map(|e| e.as_ref()).collect();
+        // Build a stack-local SmallVec-style slice to avoid heap allocation for typical arrays.
+        // Most arrays in generated Svelte code have <= 8 elements.
+        let items: smallvec::SmallVec<[Option<&JsExpr>; 8]> =
+            arr.elements.iter().map(|e| e.as_ref()).collect();
         self.emit_sequence_exprs(&items, false);
         self.output.push(']');
     }
@@ -895,23 +898,28 @@ impl<'a> JsCodegen<'a> {
             self.indent_level -= 1;
             self.indent();
         } else {
-            // Small, simple objects: pre-render to measure length
-            let rendered: Vec<String> = obj
-                .properties
-                .iter()
-                .map(|m| self.pre_render_object_member(m))
-                .collect();
+            // Small, simple objects: use a single tmp codegen to measure length
+            // and detect multiline, avoiding per-member String allocations.
+            let mut tmp = self.tmp_codegen();
+            let mut offsets: smallvec::SmallVec<[(usize, usize); 4]> =
+                smallvec::SmallVec::with_capacity(obj.properties.len());
+            for m in &obj.properties {
+                let start = tmp.output.len();
+                tmp.emit_object_member(m);
+                offsets.push((start, tmp.output.len()));
+            }
 
-            let total_len: usize = rendered.iter().map(|r| r.len()).sum::<usize>()
-                + if rendered.len() > 1 {
-                    (rendered.len() - 1) * 2
+            let total_len: usize = offsets.iter().map(|(s, e)| e - s).sum::<usize>()
+                + if offsets.len() > 1 {
+                    (offsets.len() - 1) * 2
                 } else {
                     0
                 };
 
-            let any_multiline = rendered
+            let tmp_bytes = tmp.output.as_bytes();
+            let any_multiline = offsets
                 .iter()
-                .any(|r| memchr::memchr(b'\n', r.as_bytes()).is_some());
+                .any(|(s, e)| memchr::memchr(b'\n', &tmp_bytes[*s..*e]).is_some());
             let multiline = any_multiline || total_len > 60;
 
             if multiline {
@@ -1507,6 +1515,20 @@ impl<'a> JsCodegen<'a> {
         }
     }
 
+    /// Create a lightweight temporary codegen for pre-rendering (no source map tracking).
+    #[inline]
+    fn tmp_codegen(&self) -> JsCodegen<'a> {
+        JsCodegen {
+            output: String::with_capacity(128),
+            indent_level: self.indent_level,
+            needs_semicolon: false,
+            track_mappings: false,
+            raw_spans: Vec::new(),
+            source_code: None,
+            arena: self.arena,
+        }
+    }
+
     /// Pre-render a statement and check if it's multiline.
     /// Used by emit_body to accurately detect multiline status for blank line logic.
     fn pre_render_stmt_is_multiline(&self, stmt: &JsStatement) -> bool {
@@ -1518,46 +1540,17 @@ impl<'a> JsCodegen<'a> {
         // pre-render to check. This handles cases like expression statements
         // or variable declarations with complex initializers (e.g. calls with
         // arrays whose total length exceeds 60 chars).
-        let mut tmp = JsCodegen {
-            output: String::with_capacity(256),
-            indent_level: self.indent_level,
-            needs_semicolon: false,
-            track_mappings: false,
-            raw_spans: Vec::new(),
-            source_code: None,
-            arena: self.arena,
-        };
+        let mut tmp = self.tmp_codegen();
         tmp.emit_statement(stmt);
         has_multiple_newlines(tmp.output.as_bytes())
     }
 
     /// Pre-render an expression to a string without modifying the output.
+    /// Still used by emit_call_args for per-argument multiline check.
+    #[allow(dead_code)]
     fn pre_render_expr(&self, expr: &JsExpr) -> String {
-        let mut tmp = JsCodegen {
-            output: String::with_capacity(256),
-            indent_level: self.indent_level,
-            needs_semicolon: false,
-            track_mappings: false,
-            raw_spans: Vec::new(),
-            source_code: None,
-            arena: self.arena,
-        };
+        let mut tmp = self.tmp_codegen();
         tmp.emit_expression(expr);
-        tmp.output
-    }
-
-    /// Pre-render an object member to a string without modifying the output.
-    fn pre_render_object_member(&self, member: &JsObjectMember) -> String {
-        let mut tmp = JsCodegen {
-            output: String::with_capacity(256),
-            indent_level: self.indent_level,
-            needs_semicolon: false,
-            track_mappings: false,
-            raw_spans: Vec::new(),
-            source_code: None,
-            arena: self.arena,
-        };
-        tmp.emit_object_member(member);
         tmp.output
     }
 
@@ -1684,28 +1677,31 @@ impl<'a> JsCodegen<'a> {
             self.indent_level -= 1;
             self.indent();
         } else {
-            // Small, simple items: pre-render to measure total length
-            let rendered: Vec<String> = items
-                .iter()
-                .map(|item| {
-                    if let Some(expr) = item {
-                        self.pre_render_expr(expr)
-                    } else {
-                        String::new()
-                    }
-                })
-                .collect();
+            // Small, simple items: use a single tmp codegen to measure total length
+            // and detect multiline, avoiding per-item String allocations.
+            let mut tmp = self.tmp_codegen();
+            // Record (start_offset, end_offset) for each rendered item in the tmp buffer.
+            let mut offsets: smallvec::SmallVec<[(usize, usize); 8]> =
+                smallvec::SmallVec::with_capacity(items.len());
+            for item in items.iter() {
+                let start = tmp.output.len();
+                if let Some(expr) = item {
+                    tmp.emit_expression(expr);
+                }
+                offsets.push((start, tmp.output.len()));
+            }
 
-            let total_len: usize = rendered.iter().map(|r| r.len()).sum::<usize>()
-                + if rendered.len() > 1 {
-                    (rendered.len() - 1) * 2
+            let total_len: usize = offsets.iter().map(|(s, e)| e - s).sum::<usize>()
+                + if offsets.len() > 1 {
+                    (offsets.len() - 1) * 2
                 } else {
                     0
                 };
 
-            let any_multiline = rendered
+            let tmp_bytes = tmp.output.as_bytes();
+            let any_multiline = offsets
                 .iter()
-                .any(|r| memchr::memchr(b'\n', r.as_bytes()).is_some());
+                .any(|(s, e)| memchr::memchr(b'\n', &tmp_bytes[*s..*e]).is_some());
             let multiline = any_multiline || total_len > 60;
 
             if multiline {
@@ -1714,7 +1710,7 @@ impl<'a> JsCodegen<'a> {
                 self.indent_level += 1;
                 self.newline();
 
-                for (i, (item, rendered_str)) in items.iter().zip(rendered.iter()).enumerate() {
+                for (i, item) in items.iter().enumerate() {
                     self.indent();
                     if let Some(expr) = item {
                         self.emit_expression(expr);
@@ -1724,9 +1720,11 @@ impl<'a> JsCodegen<'a> {
                     }
 
                     if i < items.len() - 1 {
-                        let next_rendered = &rendered[i + 1];
-                        if memchr::memchr(b'\n', rendered_str.as_bytes()).is_some()
-                            && memchr::memchr(b'\n', next_rendered.as_bytes()).is_some()
+                        let (cs, ce) = offsets[i];
+                        let (ns, ne) = offsets[i + 1];
+                        let tmp_bytes = tmp.output.as_bytes();
+                        if memchr::memchr(b'\n', &tmp_bytes[cs..ce]).is_some()
+                            && memchr::memchr(b'\n', &tmp_bytes[ns..ne]).is_some()
                             && !has_object_or_array_value(item)
                             && !has_object_or_array_value(&items[i + 1])
                         {
@@ -1781,12 +1779,13 @@ impl<'a> JsCodegen<'a> {
         } else if non_final.is_empty() {
             false
         } else {
-            // Pre-render non-final arguments to check actual multiline status.
-            // This only runs when the heuristic says "probably not multiline"
-            // but we need to verify (for edge cases like long expressions).
+            // Pre-render non-final arguments in a single tmp codegen to check actual
+            // multiline status. Reuses one buffer instead of allocating per-argument.
+            let mut tmp = self.tmp_codegen();
             non_final.iter().any(|arg| {
-                let rendered = self.pre_render_expr(arg);
-                memchr::memchr(b'\n', rendered.as_bytes()).is_some()
+                let start = tmp.output.len();
+                tmp.emit_expression(arg);
+                memchr::memchr(b'\n', &tmp.output.as_bytes()[start..]).is_some()
             })
         };
 
@@ -2044,7 +2043,8 @@ struct Token<'a> {
 fn extract_tokens(code: &str) -> Vec<Token<'_>> {
     let bytes = code.as_bytes();
     let len = bytes.len();
-    let mut tokens = Vec::new();
+    // Rough estimate: ~1 token per 5 bytes of code on average
+    let mut tokens = Vec::with_capacity(len / 5);
     let mut i = 0;
 
     while i < len {

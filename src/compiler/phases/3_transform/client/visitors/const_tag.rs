@@ -539,9 +539,15 @@ fn add_const_declaration(
                 });
 
         let mut blocker_list: Vec<JsExpr> = Vec::new();
+        // Deduplicate by pointer identity from the map (same map entry = same expression).
+        let mut seen_ptrs: Vec<*const JsExpr> = Vec::new();
 
         for name in init_refs {
             if let Some(blocker_expr) = const_blocker_map.get(name) {
+                let ptr = blocker_expr as *const JsExpr;
+                if seen_ptrs.contains(&ptr) {
+                    continue;
+                }
                 // Filter out blockers that point to the current async_consts group
                 // (matching official: b.object !== state.async_consts?.id)
                 let should_include = match blocker_expr {
@@ -554,11 +560,8 @@ fn add_const_declaration(
                     },
                     _ => true,
                 };
-                if should_include
-                    && !blocker_list
-                        .iter()
-                        .any(|b| format!("{:?}", b) == format!("{:?}", blocker_expr))
-                {
+                if should_include {
+                    seen_ptrs.push(ptr);
                     blocker_list.push(blocker_expr.clone());
                 }
             }
