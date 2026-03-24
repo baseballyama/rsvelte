@@ -5,6 +5,7 @@
 
 #![allow(dead_code)]
 
+use memchr::memmem;
 use rustc_hash::FxHashMap;
 
 /// Source context for the component being compiled.
@@ -267,7 +268,7 @@ fn collect_read_only_props(script_content: &str) -> Vec<String> {
         let trimmed = line.trim();
 
         // Match patterns like: let { prop1, prop2 } = $props()
-        if trimmed.contains("$props()")
+        if memmem::find(trimmed.as_bytes(), b"$props()").is_some()
             && trimmed.contains('{')
             && let Some(start) = trimmed.find('{')
             && let Some(end) = trimmed.find('}')

@@ -2,6 +2,8 @@
 
 use std::cell::RefCell;
 
+use memchr::memmem;
+
 use oxc_allocator::Allocator;
 
 // Thread-local OXC allocator reused across normalize_js_with_oxc calls to avoid
@@ -261,7 +263,7 @@ pub(super) fn strip_js_single_line_comments(source: &str) -> String {
             }
             // Preserve svelte-ignore comments as they affect subsequent code generation
             let comment_text = &source[comment_start..i];
-            if comment_text.contains("svelte-ignore") {
+            if memmem::find(comment_text.as_bytes(), b"svelte-ignore").is_some() {
                 result.push_str(comment_text);
             }
             copy_start = i;
@@ -303,7 +305,9 @@ pub(super) fn strip_js_single_line_comments(source: &str) -> String {
 /// Used when async body transform returns None (no top-level await).
 pub(super) fn strip_async_noop_placeholders(s: &str) -> String {
     // Fast path: if no $$async markers exist, return early
-    if !s.contains("$$async_noop") && !s.contains("$$async_hole") {
+    if memmem::find(s.as_bytes(), b"$$async_noop").is_none()
+        && memmem::find(s.as_bytes(), b"$$async_hole").is_none()
+    {
         return s.to_string();
     }
 
@@ -316,7 +320,7 @@ pub(super) fn strip_async_noop_placeholders(s: &str) -> String {
         let trimmed = line.trim();
 
         // Filter out $$async_noop lines
-        if trimmed.contains("$$async_noop") {
+        if memmem::find(trimmed.as_bytes(), b"$$async_noop").is_some() {
             continue;
         }
 
@@ -334,7 +338,7 @@ pub(super) fn strip_async_noop_placeholders(s: &str) -> String {
         // When there's no top-level await, $$async_hole markers (from $inspect()
         // removed in non-dev mode) should become two empty statements (;;) to match
         // the official compiler behavior.
-        if trimmed.contains("$$async_hole") {
+        if memmem::find(trimmed.as_bytes(), b"$$async_hole").is_some() {
             // Check if prev content needs a semicolon
             let prev_trimmed = result.trim_end();
             if !prev_trimmed.ends_with(';')
@@ -430,7 +434,9 @@ pub(super) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
     // Fast path: skip OXC parse+codegen for scripts without JSDoc or await.
     // JSDoc comments need OXC to fix indentation (tab+space before *).
     // await scripts go through async_body transform which needs OXC formatting.
-    let needs_oxc = js.contains("/**") || js.contains("*/") || js.contains("await ");
+    let needs_oxc = memmem::find(js.as_bytes(), b"/**").is_some()
+        || memmem::find(js.as_bytes(), b"*/").is_some()
+        || memmem::find(js.as_bytes(), b"await ").is_some();
 
     if !needs_oxc {
         // Skip ALL OXC-specific post-processing since those fix OXC artifacts
@@ -649,7 +655,7 @@ pub(super) fn update_template_literal_state(line: &str, currently_in_template: b
 /// and re-joins them into a single chained declaration.
 pub(super) fn rejoin_tmp_destructure_declarations(code: &str) -> String {
     // Quick pre-check: if there's no `let tmp` pattern, there are no tmp declarations to rejoin
-    if !code.contains("let tmp") {
+    if memmem::find(code.as_bytes(), b"let tmp").is_none() {
         return code.to_string();
     }
 
@@ -854,7 +860,10 @@ pub(super) fn strip_empty_statements_from_js(code: &str) -> String {
     // Quick pre-check: if there's no standalone `;` possibility (no newline followed by
     // optional whitespace and `;`), skip the expensive line-by-line processing.
     // We check for `\n;` or a code that starts with `;` (first line could be bare `;`).
-    if !code.starts_with(';') && !code.contains("\n;") && !code.contains("\n\t;") {
+    if !code.starts_with(';')
+        && memmem::find(code.as_bytes(), b"\n;").is_none()
+        && memmem::find(code.as_bytes(), b"\n\t;").is_none()
+    {
         return code.to_string();
     }
 
@@ -878,7 +887,7 @@ pub(super) fn strip_empty_statements_from_js(code: &str) -> String {
 /// back to `;;` so they survive the empty-statement stripping.
 pub(super) fn rejoin_inspect_empty_stmts(code: &str) -> String {
     // Quick pre-check: if there's no `;\n` pattern, there can't be consecutive `;` lines
-    if !code.contains(";\n") {
+    if memmem::find(code.as_bytes(), b";\n").is_none() {
         return code.to_string();
     }
 
@@ -906,7 +915,7 @@ pub(super) fn rejoin_inspect_empty_stmts(code: &str) -> String {
 /// This function only joins arrays whose elements are simple (no nested brackets/braces).
 pub(super) fn join_oxc_multiline_arrays(code: &str) -> String {
     // Quick pre-check: if there's no `[\n` pattern, there are no multi-line arrays to join
-    if !code.contains("[\n") {
+    if memmem::find(code.as_bytes(), b"[\n").is_none() {
         return code.to_string();
     }
 
@@ -1307,13 +1316,13 @@ pub(super) fn detect_indent_level(js: &str) -> usize {
 /// Fix array holes: OXC normalizes `[a,,]` to `[a, ,]`.
 /// Convert `, ,]` patterns back to `,,]` to match esrap output.
 pub(super) fn fix_array_holes(code: &str) -> String {
-    if !code.contains(", ,]") {
+    if memmem::find(code.as_bytes(), b", ,]").is_none() {
         return code.to_string();
     }
     // Replace patterns like `, ,]` with `,,]`
     // Handle multiple consecutive holes: `, , ,]` -> `,,,]`
     let mut result = code.to_string();
-    while result.contains(", ,") {
+    while memmem::find(result.as_bytes(), b", ,").is_some() {
         result = result.replace(", ,", ",,");
     }
     result
@@ -1326,7 +1335,7 @@ pub(super) fn fix_array_holes(code: &str) -> String {
 pub(super) fn remove_blank_lines_before_closing_braces(code: &str) -> String {
     // Quick pre-check: if there's no blank line followed eventually by `}`,
     // there's nothing to remove. A blank line before `}` requires `\n\n` in the code.
-    if !code.contains("\n\n") {
+    if memmem::find(code.as_bytes(), b"\n\n").is_none() {
         return code.to_string();
     }
 

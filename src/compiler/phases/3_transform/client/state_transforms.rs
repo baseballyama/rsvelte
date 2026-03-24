@@ -1,5 +1,7 @@
 //! State and prop assignment transformations, identifier analysis, and legacy transforms.
 
+use memchr::memmem;
+
 use super::expression_utils::{
     byte_pos_to_char_index, find_assignment_expr_end, find_statement_end_client,
     is_identifier_char, is_incomplete_expression, is_inside_ternary_expression,
@@ -1407,17 +1409,18 @@ pub(super) fn transform_state_assignments(
     let mut result = line.to_string();
 
     // Pre-check: does the line contain any update operators at all?
-    let has_inc_dec = result.contains("++") || result.contains("--");
-    let has_compound_assign = result.contains("+=")
-        || result.contains("-=")
-        || result.contains("*=")
-        || result.contains("/=")
-        || result.contains("%=")
-        || result.contains("**=")
-        || result.contains("??=")
-        || result.contains("&&=")
-        || result.contains("||=");
-    let has_simple_assign = result.contains(" = ");
+    let rb = result.as_bytes();
+    let has_inc_dec = memmem::find(rb, b"++").is_some() || memmem::find(rb, b"--").is_some();
+    let has_compound_assign = memmem::find(rb, b"+=").is_some()
+        || memmem::find(rb, b"-=").is_some()
+        || memmem::find(rb, b"*=").is_some()
+        || memmem::find(rb, b"/=").is_some()
+        || memmem::find(rb, b"%=").is_some()
+        || memmem::find(rb, b"**=").is_some()
+        || memmem::find(rb, b"??=").is_some()
+        || memmem::find(rb, b"&&=").is_some()
+        || memmem::find(rb, b"||=").is_some();
+    let has_simple_assign = memmem::find(rb, b" = ").is_some();
 
     for var in state_vars {
         // Skip variables that don't appear in this line at all
@@ -1747,7 +1750,7 @@ pub(super) fn wrap_store_unsub_for_state_sets(
     }
 
     // Quick pre-check: if `$.set(` doesn't appear in the line, there are no state sets to wrap
-    if !line.contains("$.set(") {
+    if memmem::find(line.as_bytes(), b"$.set(").is_none() {
         return line.to_string();
     }
 
@@ -1885,7 +1888,9 @@ pub(super) fn transform_prop_assignments(
     // In multi-declarator statements like `let foo = $.prop(...),\n\tbar = $.prop(...)`,
     // the subsequent declarators don't have `let` before them, so the simple assignment
     // transform would incorrectly convert `bar = $.prop(...)` to `bar($.prop(...))`.
-    if line.contains("$.prop(") || line.contains("$.rest_props(") {
+    if memmem::find(line.as_bytes(), b"$.prop(").is_some()
+        || memmem::find(line.as_bytes(), b"$.rest_props(").is_some()
+    {
         return line.to_string();
     }
 
@@ -2821,8 +2826,8 @@ pub(super) fn transform_legacy_state_declarations(
     // Split into individual declarations first to handle each one separately.
     // BUT skip declarations produced by transform_legacy_destructure_declarations
     // (which chain `tmp = expr, foo = $.mutable_source(tmp.foo), ...` and must stay chained).
-    let is_destructure_expansion =
-        line.contains("$.mutable_source(tmp") || line.contains("$.mutable_source(tmp_");
+    let is_destructure_expansion = memmem::find(line.as_bytes(), b"$.mutable_source(tmp").is_some()
+        || memmem::find(line.as_bytes(), b"$.mutable_source(tmp_").is_some();
     if !is_destructure_expansion && let Some(split_lines) = split_multi_declarator(line) {
         let transformed_lines: Vec<String> = split_lines
             .iter()

@@ -1,5 +1,6 @@
 //! Expression parsing, shadowing detection, and identifier analysis utilities.
 
+use memchr::memmem;
 use rustc_hash::FxHashSet;
 
 use super::VAR_STATE_VARS;
@@ -3213,13 +3214,13 @@ pub(super) fn extract_trace_call_label<'a>(
     source: &'a str,
 ) -> Option<&'a str> {
     // Look for the $inspect.trace() call in the source to find its context
-    if let Some(trace_pos) = source.find("$inspect.trace(") {
+    if let Some(trace_pos) = memmem::find(source.as_bytes(), b"$inspect.trace(") {
         // Walk backwards to find the enclosing call expression
         let before = &source[..trace_pos];
         // Look for `$effect(` or `$effect.pre(` pattern
         // The arrow function `() => {` immediately precedes the block containing $inspect.trace
         for rune in &["$effect.pre", "$effect"] {
-            if before.contains(rune) {
+            if memmem::find(before.as_bytes(), rune.as_bytes()).is_some() {
                 // Find the position to compute line/col
                 return Some(if *rune == "$effect.pre" {
                     "$effect.pre(...)"
@@ -3239,7 +3240,7 @@ pub(super) fn find_trace_source_location(
     _label: &str,
 ) -> Option<(usize, usize)> {
     // Find $inspect.trace() in source and then find the enclosing function/arrow
-    if let Some(trace_pos) = source.find("$inspect.trace(") {
+    if let Some(trace_pos) = memmem::find(source.as_bytes(), b"$inspect.trace(") {
         let before = &source[..trace_pos];
 
         // Walk backwards past whitespace and the opening { to find the arrow =>

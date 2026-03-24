@@ -1,5 +1,7 @@
 //! Class field transformations for $state and $derived runes.
 
+use memchr::memmem;
+
 use super::REGEX_INVALID_IDENTIFIER_CHARS;
 use super::expression_needs_proxy;
 use super::find_matching_paren;
@@ -63,15 +65,16 @@ pub(super) fn parse_rune_fields_from_section(section: &str) -> (Vec<ClassStateFi
 
             // Skip if checking $state but it's actually $state.raw or $state.frozen
             if rune_type == "$state"
-                && (trimmed.contains("$state.raw(")
-                    || trimmed.contains("$state.frozen(")
-                    || trimmed.contains("$state.frozen("))
+                && (memmem::find(trimmed.as_bytes(), b"$state.raw(").is_some()
+                    || memmem::find(trimmed.as_bytes(), b"$state.frozen(").is_some()
+                    || memmem::find(trimmed.as_bytes(), b"$state.frozen(").is_some())
             {
                 continue;
             }
             // Skip if checking $derived but it's actually $derived.by
             if rune_type == "$derived"
-                && (trimmed.contains("$derived.by(") || trimmed.contains("$derived.by("))
+                && (memmem::find(trimmed.as_bytes(), b"$derived.by(").is_some()
+                    || memmem::find(trimmed.as_bytes(), b"$derived.by(").is_some())
             {
                 continue;
             }
@@ -456,12 +459,15 @@ pub(super) fn transform_constructor_private_reads(
 /// Transform class fields with $state and $derived runes for client-side.
 pub(crate) fn transform_class_fields_client(script: &str) -> String {
     // Check if script contains a class with $state or $derived fields
-    if !script.contains("class ") || (!script.contains("$state") && !script.contains("$derived")) {
+    if memmem::find(script.as_bytes(), b"class ").is_none()
+        || (memmem::find(script.as_bytes(), b"$state").is_none()
+            && memmem::find(script.as_bytes(), b"$derived").is_none())
+    {
         return script.to_string();
     }
 
     // Find the class body
-    let Some(class_pos) = script.find("class ") else {
+    let Some(class_pos) = memmem::find(script.as_bytes(), b"class ") else {
         return script.to_string();
     };
 
@@ -501,7 +507,7 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
     let mut constructor_end: Option<usize> = None;
 
     // Find constructor first
-    if let Some(ctor_pos) = class_body.find("constructor(") {
+    if let Some(ctor_pos) = memmem::find(class_body.as_bytes(), b"constructor(") {
         let after_ctor = &class_body[ctor_pos..];
         // Extract constructor parameters
         if let Some(paren_start) = after_ctor.find('(') {
@@ -624,11 +630,14 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                         continue;
                     }
                     if rune_type == "$state"
-                        && (trimmed.contains("$state.raw(") || trimmed.contains("$state.frozen("))
+                        && (memmem::find(trimmed.as_bytes(), b"$state.raw(").is_some()
+                            || memmem::find(trimmed.as_bytes(), b"$state.frozen(").is_some())
                     {
                         continue;
                     }
-                    if rune_type == "$derived" && trimmed.contains("$derived.by(") {
+                    if rune_type == "$derived"
+                        && memmem::find(trimmed.as_bytes(), b"$derived.by(").is_some()
+                    {
                         continue;
                     }
 
@@ -1506,12 +1515,12 @@ pub(super) fn transform_constructor_assignment(line: &str, fields: &[ClassStateF
     }
 
     // Transform $effect.pre -> $.user_pre_effect
-    if result.contains("$effect.pre(") {
+    if memmem::find(result.as_bytes(), b"$effect.pre(").is_some() {
         result = result.replace("$effect.pre(", "$.user_pre_effect(");
     }
 
     // Transform $effect -> $.user_effect
-    if result.contains("$effect(") {
+    if memmem::find(result.as_bytes(), b"$effect(").is_some() {
         result = result.replace("$effect(", "$.user_effect(");
     }
 

@@ -44,6 +44,7 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::LazyLock;
 
+use memchr::memmem;
 // rustc_hash is used by submodules via their own imports
 
 use regex::Regex;
@@ -222,7 +223,7 @@ pub fn transform_client_module(
     for import_line in &script_imports {
         let trimmed = import_line.trim();
         // Skip svelte internal imports since we already added them
-        if !trimmed.contains("svelte/internal/") {
+        if memmem::find(trimmed.as_bytes(), b"svelte/internal/").is_none() {
             body.push(JsStatement::Raw(trimmed.into()));
         }
     }
@@ -425,8 +426,8 @@ fn transform_client_with_visitors(
             // still references $$props.name and needs to wait on the async context.
             if let Some(raw_script) = analysis.instance_script_content.as_ref()
                 && let (Some(await_pos), Some(props_pos)) = (
-                    raw_script.raw.find("await "),
-                    raw_script.raw.find("$props()"),
+                    memmem::find(raw_script.raw.as_bytes(), b"await "),
+                    memmem::find(raw_script.raw.as_bytes(), b"$props()"),
                 )
                 && props_pos > await_pos
             {
@@ -905,9 +906,9 @@ fn transform_client_with_visitors(
             let lines: Vec<&str> = transformed_script.lines().collect();
             let mut result_lines: Vec<String> = Vec::with_capacity(lines.len());
             for line in lines {
-                if line.contains("$.prop(")
-                    || line.contains("$.bind_prop(")
-                    || line.contains("$.legacy_rest_props(")
+                if memmem::find(line.as_bytes(), b"$.prop(").is_some()
+                    || memmem::find(line.as_bytes(), b"$.bind_prop(").is_some()
+                    || memmem::find(line.as_bytes(), b"$.legacy_rest_props(").is_some()
                 {
                     result_lines.push(line.to_string());
                 } else {
@@ -920,7 +921,12 @@ fn transform_client_with_visitors(
 
         // If the text-based transform added ownership validation, set the flag
         // so that the $$ownership_validator declaration is emitted.
-        if transformed_script.contains("$$ownership_validator.mutation") {
+        if memmem::find(
+            transformed_script.as_bytes(),
+            b"$$ownership_validator.mutation",
+        )
+        .is_some()
+        {
             context.state.needs_mutation_validation.set(true);
         }
 
@@ -1727,7 +1733,7 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
             if trimmed.starts_with("import ") || trimmed.starts_with("import{") {
                 // Check if this import is complete on one line
                 if trimmed.contains(';')
-                    || (trimmed.contains(" from ")
+                    || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
                         && (trimmed.ends_with('\'')
                             || trimmed.ends_with('"')
                             || trimmed.ends_with('`')))
@@ -1806,11 +1812,12 @@ fn extract_shadowed_state_names(script: &str) -> std::collections::HashSet<Strin
             continue;
         }
 
-        let has_rune = trimmed.contains("$state(")
-            || trimmed.contains("$state.raw(")
-            || trimmed.contains("$state.frozen(")
-            || trimmed.contains("$derived(")
-            || trimmed.contains("$derived.by(");
+        let tb = trimmed.as_bytes();
+        let has_rune = memmem::find(tb, b"$state(").is_some()
+            || memmem::find(tb, b"$state.raw(").is_some()
+            || memmem::find(tb, b"$state.frozen(").is_some()
+            || memmem::find(tb, b"$derived(").is_some()
+            || memmem::find(tb, b"$derived.by(").is_some();
 
         // Extract variable name from: let/const/var name = expr
         let after_keyword = if let Some(rest) = trimmed.strip_prefix("let ") {
@@ -2075,7 +2082,7 @@ pub(crate) fn transform_module_script_runes(
 
     // Transform $state.snapshot(x) to $.snapshot(x)
     // Module scripts don't need dev-mode handling for state_snapshot_uncloneable
-    if result.contains("$state.snapshot(") {
+    if memmem::find(result.as_bytes(), b"$state.snapshot(").is_some() {
         result = result.replace("$state.snapshot(", "$.snapshot(");
     }
 
@@ -2084,7 +2091,7 @@ pub(crate) fn transform_module_script_runes(
     // is reassigned.  $state.raw/$state.frozen never use $.proxy(), just the raw value
     // when non-reactive, or $.state(value) when reassigned.
     for rune_call in &["$state.raw(", "$state.frozen("] {
-        while let Some(pos) = result.find(rune_call) {
+        while let Some(pos) = memmem::find(result.as_bytes(), rune_call.as_bytes()) {
             let call_start = pos + rune_call.len(); // position after opening paren
             if let Some(content_end) = find_matching_paren(&result[call_start..]) {
                 let content = result[call_start..call_start + content_end].to_string();
@@ -2125,7 +2132,7 @@ pub(crate) fn transform_module_script_runes(
 
     // Transform $state(x) - handling both reassigned and non-reassigned cases.
     // Non-reassigned vars get $.proxy() only, reassigned vars get $.state($.proxy()).
-    while let Some(pos) = result.find("$state(") {
+    while let Some(pos) = memmem::find(result.as_bytes(), b"$state(") {
         // Make sure this is not $state.something
         if pos + 7 < result.len() && result.as_bytes()[pos + 6] != b'(' {
             break;
@@ -2202,13 +2209,13 @@ pub(crate) fn transform_module_script_runes(
     }
 
     // Transform $derived.by() to $.derived()
-    if result.contains("$derived.by(") {
+    if memmem::find(result.as_bytes(), b"$derived.by(").is_some() {
         result = result.replace("$derived.by(", "$.derived(");
     }
 
     // Transform $derived() to $.derived(() => expr) or $.async_derived() for async
     // Need to wrap state variable references inside the expression with $.get()
-    while let Some(pos) = result.find("$derived(") {
+    while let Some(pos) = memmem::find(result.as_bytes(), b"$derived(") {
         if result[..pos].ends_with('$') {
             // Already transformed to $.derived() - skip
             break;
@@ -2475,8 +2482,10 @@ fn transform_instance_script_for_visitors(
     // Fast path: if the script has no runes, stores, reactive statements, exports,
     // or comma-separated declarations, the text-based transform pipeline has nothing to do.
     let has_dollar = script.contains('$');
-    let has_export = script.contains("export ");
-    let has_comma_decl = script.contains(", ") || script.contains(",\n") || script.contains(",\t");
+    let has_export = memmem::find(script.as_bytes(), b"export ").is_some();
+    let has_comma_decl = memmem::find(script.as_bytes(), b", ").is_some()
+        || memmem::find(script.as_bytes(), b",\n").is_some()
+        || memmem::find(script.as_bytes(), b",\t").is_some();
     if !has_dollar
         && !has_export
         && !has_comma_decl
@@ -2517,8 +2526,9 @@ fn transform_instance_script_for_visitors(
     };
 
     // Transform class fields only if the script contains class definitions with runes
-    let script: std::borrow::Cow<str> = if script.contains("class ")
-        && (script.contains("$state") || script.contains("$derived"))
+    let script: std::borrow::Cow<str> = if memmem::find(script.as_bytes(), b"class ").is_some()
+        && (memmem::find(script.as_bytes(), b"$state").is_some()
+            || memmem::find(script.as_bytes(), b"$derived").is_some())
     {
         std::borrow::Cow::Owned(transform_class_fields_client(&script))
     } else {
@@ -2526,9 +2536,9 @@ fn transform_instance_script_for_visitors(
     };
 
     // Split comma-separated variable declarations only if needed
-    let script: std::borrow::Cow<str> = if script.contains(", ")
-        || script.contains(",\n")
-        || script.contains(",\t")
+    let script: std::borrow::Cow<str> = if memmem::find(script.as_bytes(), b", ").is_some()
+        || memmem::find(script.as_bytes(), b",\n").is_some()
+        || memmem::find(script.as_bytes(), b",\t").is_some()
     {
         std::borrow::Cow::Owned(crate::compiler::phases::phase3_transform::server::transform_script::split_comma_separated_declarations(&script))
     } else {
@@ -3118,7 +3128,7 @@ fn transform_instance_script_for_visitors(
             || first_line_trimmed.starts_with("export async function ")
         {
             // Remove the "export " prefix from the first line
-            if let Some(pos) = statement.find("export ") {
+            if let Some(pos) = memmem::find(statement.as_bytes(), b"export ") {
                 let mut s = String::with_capacity(statement.len() - 7);
                 s.push_str(&statement[..pos]);
                 s.push_str(&statement[pos + 7..]);
@@ -3150,7 +3160,7 @@ fn transform_instance_script_for_visitors(
 
         // In dev mode, if the previous output line has a svelte-ignore state_snapshot_uncloneable
         // comment, add `true` as second argument to $.snapshot() calls to suppress warning
-        if dev && transformed.contains("$.snapshot(") {
+        if dev && memmem::find(transformed.as_bytes(), b"$.snapshot(").is_some() {
             let prev_has_ignore = {
                 let mut found = false;
                 for line in result.lines().rev() {
@@ -3158,8 +3168,8 @@ fn transform_instance_script_for_visitors(
                     if trimmed.is_empty() {
                         continue;
                     }
-                    if trimmed.contains("svelte-ignore")
-                        && trimmed.contains("state_snapshot_uncloneable")
+                    if memmem::find(trimmed.as_bytes(), b"svelte-ignore").is_some()
+                        && memmem::find(trimmed.as_bytes(), b"state_snapshot_uncloneable").is_some()
                     {
                         found = true;
                     }
@@ -3170,7 +3180,7 @@ fn transform_instance_script_for_visitors(
             if prev_has_ignore {
                 let mut new_transformed = String::new();
                 let mut remaining = transformed.as_str();
-                while let Some(pos) = remaining.find("$.snapshot(") {
+                while let Some(pos) = memmem::find(remaining.as_bytes(), b"$.snapshot(") {
                     new_transformed.push_str(&remaining[..pos]);
                     let call_start = pos + "$.snapshot(".len();
                     if let Some(content_end) = find_matching_paren(&remaining[call_start..]) {
@@ -3451,7 +3461,8 @@ fn transform_instance_script_for_visitors(
         }
 
         // Skip $props.id() declarations - they will be added as const declarations in the component body
-        if (trimmed.contains("= $props.id()") || trimmed.contains("= $.props_id()"))
+        if (memmem::find(trimmed.as_bytes(), b"= $props.id()").is_some()
+            || memmem::find(trimmed.as_bytes(), b"= $.props_id()").is_some())
             && (trimmed.starts_with("let ")
                 || trimmed.starts_with("const ")
                 || trimmed.starts_with("var "))
@@ -3688,7 +3699,8 @@ fn transform_shadowed_local_state_vars(script: &str, shadowed_vars: &[String]) -
                     find_enclosing_function_body(&result, decl_pos)
                 {
                     let func_body = &result[func_start..func_end];
-                    let is_state = pattern.contains("$.state(") || pattern.contains("$.state.raw(");
+                    let is_state = memmem::find(pattern.as_bytes(), b"$.state(").is_some()
+                        || memmem::find(pattern.as_bytes(), b"$.state.raw(").is_some();
                     let transformed_body = apply_local_state_transforms(func_body, var, is_state);
 
                     if transformed_body != func_body {

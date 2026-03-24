@@ -1,65 +1,65 @@
 {
-  "generatedAt": "2026-03-23T21:23:25.177Z",
-  "commitSha": "3cd64bf",
+  "generatedAt": "2026-03-24T04:57:34.437Z",
+  "commitSha": "a2c60c8",
   "testFilesCount": 3654,
   "compile-client": {
     "task": "compile-client",
     "taskLabel": "Compile (Client)",
     "javascript": {
-      "durationMs": 654.3563196666668,
-      "throughputFilesPerSec": 5584.1135634807815
+      "durationMs": 694.904861,
+      "throughputFilesPerSec": 5258.273765334907
     },
     "rustSingleThread": {
-      "durationMs": 276.7934666666667,
-      "throughputFilesPerSec": 13201.178640536313
+      "durationMs": 290.5691666666667,
+      "throughputFilesPerSec": 12575.319129409805
     },
     "rustMultiThread": {
-      "durationMs": 42.44846666666667,
-      "throughputFilesPerSec": 86080.84783588571
+      "durationMs": 61.14586666666667,
+      "throughputFilesPerSec": 59758.74084702372
     },
     "speedup": {
-      "singleThreadVsJs": 2.3640598441389034,
-      "multiThreadVsJs": 15.415311106643822
+      "singleThreadVsJs": 2.3915299375077073,
+      "multiThreadVsJs": 11.364707033890543
     }
   },
   "compile-server": {
     "task": "compile-server",
     "taskLabel": "Compile (SSR)",
     "javascript": {
-      "durationMs": 560.609430666654,
-      "throughputFilesPerSec": 6517.906763813822
+      "durationMs": 657.2841946666595,
+      "throughputFilesPerSec": 5559.239107906922
     },
     "rustSingleThread": {
-      "durationMs": 319.9106,
-      "throughputFilesPerSec": 11421.941004768207
+      "durationMs": 311.23269999999997,
+      "throughputFilesPerSec": 11740.411595568205
     },
     "rustMultiThread": {
-      "durationMs": 42.2187,
-      "throughputFilesPerSec": 86549.32529897889
+      "durationMs": 53.85883333333334,
+      "throughputFilesPerSec": 67844.02434760006
     },
     "speedup": {
-      "singleThreadVsJs": 1.7523940459198728,
-      "multiThreadVsJs": 13.278699502037108
+      "singleThreadVsJs": 2.1118738315950076,
+      "multiThreadVsJs": 12.203832760333206
     }
   },
   "parse": {
     "task": "parse",
     "taskLabel": "Parse",
     "javascript": {
-      "durationMs": 144.1718610000098,
-      "throughputFilesPerSec": 25344.751567018695
+      "durationMs": 164.75311100001758,
+      "throughputFilesPerSec": 22178.640377841548
     },
     "rustSingleThread": {
-      "durationMs": 102.60196666666667,
-      "throughputFilesPerSec": 35613.35244061274
+      "durationMs": 104.7219,
+      "throughputFilesPerSec": 34892.41505358478
     },
     "rustMultiThread": {
-      "durationMs": 13.275233333333333,
-      "throughputFilesPerSec": 275249.3992572635
+      "durationMs": 15.424433333333333,
+      "throughputFilesPerSec": 236896.87141396874
     },
     "speedup": {
-      "singleThreadVsJs": 1.4051568959530323,
-      "multiThreadVsJs": 10.860212952943186
+      "singleThreadVsJs": 1.5732440969846573,
+      "multiThreadVsJs": 10.681307211719345
     }
   }
 }

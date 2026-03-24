@@ -1,5 +1,7 @@
 //! Store subscription, assignment, and mutation transformations.
 
+use memchr::memmem;
+
 use super::{find_expression_end, find_matching_paren, find_statement_end_client};
 
 /// Transform store assignments in client-side code.
@@ -158,7 +160,7 @@ pub(super) fn is_function_parameter_in_statement(statement: &str, store_sub: &st
     // Patterns: `function name($store` or `($store` in arrow functions
     // We search for the pattern: `(` ... store_sub ... `,` or `)` without intervening `(`
     let mut search_from = 0;
-    while let Some(func_pos) = statement[search_from..].find("function ") {
+    while let Some(func_pos) = memmem::find(&statement.as_bytes()[search_from..], b"function ") {
         let abs_func_pos = search_from + func_pos;
         // Find the opening paren of the function params
         if let Some(paren_pos) = statement[abs_func_pos..].find('(') {

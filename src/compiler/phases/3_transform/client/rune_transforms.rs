@@ -1,5 +1,7 @@
 //! Rune detection and transformation for $state, $derived, and $effect.
 
+use memchr::memmem;
+
 use super::{
     ARRAY_LOOKUP_COUNTER, SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER,
     contains_direct_await_in_expression, expression_needs_proxy, extract_enclosing_function_name,
@@ -14,7 +16,7 @@ use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 /// already transformed (i.e., preceded by `.` as in `$.state(`).
 pub(super) fn find_unescaped_state_call(s: &str) -> Option<usize> {
     let mut search_from = 0;
-    while let Some(pos) = s[search_from..].find("$state(") {
+    while let Some(pos) = memmem::find(&s.as_bytes()[search_from..], b"$state(") {
         let abs_pos = search_from + pos;
         if abs_pos > 0 && s.as_bytes()[abs_pos - 1] == b'.' {
             search_from = abs_pos + 7;
@@ -28,7 +30,7 @@ pub(super) fn find_unescaped_state_call(s: &str) -> Option<usize> {
 /// Find the position of `$derived.by(` in the string, skipping already-transformed occurrences.
 pub(super) fn find_unescaped_derived_by_call(s: &str) -> Option<usize> {
     let mut search_from = 0;
-    while let Some(pos) = s[search_from..].find("$derived.by(") {
+    while let Some(pos) = memmem::find(&s.as_bytes()[search_from..], b"$derived.by(") {
         let abs_pos = search_from + pos;
         if abs_pos > 0 && s.as_bytes()[abs_pos - 1] == b'.' {
             search_from = abs_pos + 12;
@@ -42,7 +44,7 @@ pub(super) fn find_unescaped_derived_by_call(s: &str) -> Option<usize> {
 /// Find the position of `$derived(` in the string, skipping already-transformed occurrences.
 pub(super) fn find_unescaped_derived_call(s: &str) -> Option<usize> {
     let mut search_from = 0;
-    while let Some(pos) = s[search_from..].find("$derived(") {
+    while let Some(pos) = memmem::find(&s.as_bytes()[search_from..], b"$derived(") {
         let abs_pos = search_from + pos;
         if abs_pos > 0 && s.as_bytes()[abs_pos - 1] == b'.' {
             search_from = abs_pos + 9;
@@ -92,27 +94,26 @@ pub(super) fn transform_client_runes_with_skip_and_state(
     // When a function declares `function bar($derived, $effect)`, those names shadow
     // the runes within the function body, so rune transforms should be skipped.
     let state_is_func_param = !state_is_store_sub
-        && line.contains("$state")
+        && memmem::find(line.as_bytes(), b"$state").is_some()
         && is_function_parameter_in_statement(line, "$state");
     let effect_is_func_param = !effect_is_store_sub
-        && line.contains("$effect")
+        && memmem::find(line.as_bytes(), b"$effect").is_some()
         && is_function_parameter_in_statement(line, "$effect");
     let derived_is_func_param = !derived_is_store_sub
-        && line.contains("$derived")
+        && memmem::find(line.as_bytes(), b"$derived").is_some()
         && is_function_parameter_in_statement(line, "$derived");
 
     // Skip all $state rune transforms if $state is actually a store subscription or function param
     if !state_is_store_sub && !state_is_func_param {
         // Handle destructuring patterns with $state/$state.raw BEFORE other $state transforms.
         // e.g. `let { num } = $state(setup())` -> `let tmp = setup(), num = $.state($.proxy(tmp.num))`
-        if let Some(state_pos) = result
-            .find("$state(")
-            .or_else(|| result.find("$state.raw("))
+        if let Some(state_pos) = memmem::find(result.as_bytes(), b"$state(")
+            .or_else(|| memmem::find(result.as_bytes(), b"$state.raw("))
         {
             let before_state = &result[..state_pos];
-            if (before_state.contains("let ")
-                || before_state.contains("const ")
-                || before_state.contains("var "))
+            if (memmem::find(before_state.as_bytes(), b"let ").is_some()
+                || memmem::find(before_state.as_bytes(), b"const ").is_some()
+                || memmem::find(before_state.as_bytes(), b"var ").is_some())
                 && (before_state.contains('{') || before_state.contains('['))
             {
                 let is_raw = result[state_pos..].starts_with("$state.raw(");
@@ -139,7 +140,7 @@ pub(super) fn transform_client_runes_with_skip_and_state(
         // Transform $state.snapshot(x) to $.snapshot(x)
         // In dev mode, if preceded by svelte-ignore state_snapshot_uncloneable comment,
         // add `true` as second argument to suppress runtime warning
-        if result.contains("$state.snapshot(") {
+        if memmem::find(result.as_bytes(), b"$state.snapshot(").is_some() {
             result = result.replace("$state.snapshot(", "$.snapshot(");
         }
 
@@ -157,13 +158,14 @@ pub(super) fn transform_client_runes_with_skip_and_state(
                     let var_name = {
                         let before = &result[..pos];
                         let mut name = String::new();
-                        if before.contains("let ")
-                            || before.contains("const ")
-                            || before.contains("var ")
+                        if memmem::find(before.as_bytes(), b"let ").is_some()
+                            || memmem::find(before.as_bytes(), b"const ").is_some()
+                            || memmem::find(before.as_bytes(), b"var ").is_some()
                         {
-                            let decl_pattern = if before.contains("let ") {
+                            let decl_pattern = if memmem::find(before.as_bytes(), b"let ").is_some()
+                            {
                                 "let "
-                            } else if before.contains("const ") {
+                            } else if memmem::find(before.as_bytes(), b"const ").is_some() {
                                 "const "
                             } else {
                                 "var "
@@ -220,15 +222,16 @@ pub(super) fn transform_client_runes_with_skip_and_state(
         // (e.g., inside a function body with multiple state declarations)
         while let Some(pos) = find_unescaped_state_call(&result) {
             // Check if this is a declaration
-            if !(result[..pos].contains("let ")
-                || result[..pos].contains("const ")
-                || result[..pos].contains("var "))
+            let before_pos = &result.as_bytes()[..pos];
+            if !(memmem::find(before_pos, b"let ").is_some()
+                || memmem::find(before_pos, b"const ").is_some()
+                || memmem::find(before_pos, b"var ").is_some())
             {
                 break;
             }
 
             // Extract variable name by finding identifier after let/const/var keyword
-            let decl_pattern = if result[..pos].contains("let ") {
+            let decl_pattern = if memmem::find(before_pos, b"let ").is_some() {
                 // Find the closest declaration keyword before this $state call
                 let let_pos = result[..pos].rfind("let ");
                 let const_pos = result[..pos].rfind("const ");
@@ -244,7 +247,7 @@ pub(super) fn transform_client_runes_with_skip_and_state(
                 } else {
                     "var "
                 }
-            } else if result[..pos].contains("const ") {
+            } else if memmem::find(before_pos, b"const ").is_some() {
                 let const_pos = result[..pos].rfind("const ");
                 let var_pos = result[..pos].rfind("var ");
                 if var_pos.is_some() && var_pos > const_pos {
@@ -357,9 +360,10 @@ pub(super) fn transform_client_runes_with_skip_and_state(
         while let Some(pos) = find_unescaped_derived_by_call(&result) {
             // Check if this is a destructuring pattern: let { a, b } = $derived.by(expr)
             let before_derived_by = result[..pos].trim();
-            let has_destructuring_by = (before_derived_by.contains("let ")
-                || before_derived_by.contains("const ")
-                || before_derived_by.contains("var "))
+            let has_destructuring_by = (memmem::find(before_derived_by.as_bytes(), b"let ")
+                .is_some()
+                || memmem::find(before_derived_by.as_bytes(), b"const ").is_some()
+                || memmem::find(before_derived_by.as_bytes(), b"var ").is_some())
                 && (before_derived_by.contains('{') || before_derived_by.contains('['));
 
             if has_destructuring_by {
@@ -424,9 +428,10 @@ pub(super) fn transform_client_runes_with_skip_and_state(
         // Loop to handle multiple $derived() calls in a single statement
         // (e.g., inside a function body with multiple derived declarations)
         while let Some(pos) = find_unescaped_derived_call(&result) {
-            if !(result[..pos].contains("let ")
-                || result[..pos].contains("const ")
-                || result[..pos].contains("var "))
+            let before_pos_bytes = &result.as_bytes()[..pos];
+            if !(memmem::find(before_pos_bytes, b"let ").is_some()
+                || memmem::find(before_pos_bytes, b"const ").is_some()
+                || memmem::find(before_pos_bytes, b"var ").is_some())
             {
                 break;
             }
@@ -558,7 +563,7 @@ pub(super) fn transform_client_runes_with_skip_and_state(
     // Transform $state.eager(x) to $.eager(() => x) - thunk wrapping
     if !state_is_store_sub
         && !state_is_func_param
-        && let Some(pos) = result.find("$state.eager(")
+        && let Some(pos) = memmem::find(result.as_bytes(), b"$state.eager(")
     {
         let eager_start = pos + 13; // after "$state.eager("
         if let Some(content_end) = find_matching_paren(&result[eager_start..]) {
@@ -586,13 +591,13 @@ pub(super) fn transform_client_runes_with_skip_and_state(
     } // end if !effect_is_store_sub
 
     // Transform $props.id() to $.props_id()
-    if result.contains("$props.id()") {
+    if memmem::find(result.as_bytes(), b"$props.id()").is_some() {
         result = result.replace("$props.id()", "$.props_id()");
     }
 
     // Transform $inspect.trace(...) - in non-dev mode, remove the entire statement
     // In dev mode, transform the enclosing block body to wrap remaining statements in $.trace()
-    while let Some(pos) = result.find("$inspect.trace(") {
+    while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect.trace(") {
         let trace_start = pos + 15; // after "$inspect.trace("
         if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
             let trace_arg = result[trace_start..trace_start + content_end]
@@ -723,7 +728,7 @@ pub(super) fn transform_client_runes_with_skip_and_state(
 
     // Transform $inspect(...) - in non-dev mode, remove the entire call
     // In dev mode, transform to $.inspect(() => [args], (...$$args) => console.log(...$$args), true)
-    if let Some(pos) = result.find("$inspect(") {
+    if let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(") {
         if dev {
             // Find the matching closing paren to get the arguments
             let inspect_start = pos + 9; // after "$inspect("
@@ -805,7 +810,7 @@ pub(super) fn transform_client_runes_with_skip_and_state(
     }
 
     // Transform $props() destructuring to $.prop() calls (only for source props)
-    if result.contains("$props()")
+    if memmem::find(result.as_bytes(), b"$props()").is_some()
         && let Some(transformed) = transform_props_destructuring(
             &result,
             prop_source_vars,
@@ -1241,7 +1246,9 @@ pub(super) fn extract_enclosing_class_name(before: &str) -> Option<&str> {
 #[allow(dead_code)]
 pub(super) fn transform_strict_equals(input: &str) -> String {
     // Quick check: if no === or !== present, return as-is
-    if !input.contains("===") && !input.contains("!==") {
+    if memmem::find(input.as_bytes(), b"===").is_none()
+        && memmem::find(input.as_bytes(), b"!==").is_none()
+    {
         return input.to_string();
     }
 
@@ -1556,7 +1563,7 @@ fn replace_effect_patterns(input: &str) -> String {
         return input.to_string();
     }
     // Quick check: if "$effect" doesn't appear, return early
-    if !input.contains("$effect") {
+    if memmem::find(input.as_bytes(), b"$effect").is_none() {
         return input.to_string();
     }
 
