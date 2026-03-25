@@ -2065,7 +2065,7 @@ pub(super) fn extract_local_reactive_vars(script: &str) -> Vec<(String, bool, bo
         if let Some(name) = cap.get(2) {
             // Determine which rune was matched ($state or $derived)
             let full_match = cap.get(0).unwrap().as_str();
-            let is_state = full_match.contains("$state");
+            let is_state = memmem::find(full_match.as_bytes(), b"$state").is_some();
             let rune_name = if is_state { "$state" } else { "$derived" };
 
             // Check if this match is inside a function that has the rune name as a parameter.
@@ -2096,8 +2096,8 @@ fn is_inside_function_with_param(script: &str, pos: usize, param_name: &str) -> 
     let mut search_from = 0;
     while search_from < pos {
         // Find "function " or "function("
-        let func_keyword = "function";
-        if let Some(func_pos) = script[search_from..].find(func_keyword) {
+        let func_keyword = b"function";
+        if let Some(func_pos) = memmem::find(&script.as_bytes()[search_from..], func_keyword) {
             let abs_func_pos = search_from + func_pos;
             if abs_func_pos >= pos {
                 break;
@@ -2170,7 +2170,7 @@ fn extract_proxy_vars(script: &str) -> Vec<String> {
         let trimmed = line.trim();
 
         // Look for patterns like: let/const/var varname = $state({ ... }) or $state([ ... ])
-        if let Some(state_pos) = trimmed.find("$state(") {
+        if let Some(state_pos) = memmem::find(trimmed.as_bytes(), b"$state(") {
             // Check if this is a declaration
             if trimmed.starts_with("let ")
                 || trimmed.starts_with("const ")

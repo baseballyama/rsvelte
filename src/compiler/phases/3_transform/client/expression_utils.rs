@@ -3206,7 +3206,7 @@ pub(super) fn extract_enclosing_function_name(before_block: &str) -> Option<&str
         if let Some(paren_open) = before_paren.rfind('(') {
             let before_params = trimmed[..paren_open].trim_end();
             // Check if this is `function NAME`
-            if let Some(fn_pos) = before_params.rfind("function ") {
+            if let Some(fn_pos) = memchr::memmem::rfind(before_params.as_bytes(), b"function ") {
                 let name_part = before_params[fn_pos + 9..].trim();
                 if !name_part.is_empty()
                     && name_part
@@ -3286,7 +3286,7 @@ pub(super) fn find_trace_source_location(
         }
 
         // Look for `function` keyword
-        if let Some(fn_pos) = trimmed.rfind("function ") {
+        if let Some(fn_pos) = memchr::memmem::rfind(trimmed.as_bytes(), b"function ") {
             let before_pos = &source[..fn_pos];
             let line = before_pos.matches('\n').count() + 1;
             let last_nl = before_pos.rfind('\n').map(|p| p + 1).unwrap_or(0);
@@ -3974,7 +3974,9 @@ pub(super) fn contains_direct_await_in_expression(expr: &str) -> bool {
                 } else {
                     // Single param arrow: async x =>
                     // Look for 'async' before the identifier
-                    if let Some(async_pos) = before_trimmed.rfind("async") {
+                    if let Some(async_pos) =
+                        memchr::memmem::rfind(before_trimmed.as_bytes(), b"async")
+                    {
                         let between = &before_trimmed[async_pos + 5..];
                         // Should be: "async x =>" pattern
                         if between

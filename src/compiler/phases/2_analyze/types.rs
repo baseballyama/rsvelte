@@ -231,7 +231,7 @@ pub fn extract_imported_names(raw: &str) -> std::collections::HashSet<String> {
                 }
                 // Handle "name as alias" - we want "name" (the original import)
                 // but also "alias" since that's what's used in the script
-                if let Some(as_pos) = part.find(" as ") {
+                if let Some(as_pos) = memchr::memmem::find(part.as_bytes(), b" as ") {
                     let original = part[..as_pos].trim();
                     let alias = part[as_pos + 4..].trim();
                     names.insert(original.to_string());
@@ -251,7 +251,7 @@ pub fn extract_imported_names(raw: &str) -> std::collections::HashSet<String> {
             && !after_import.starts_with('"')
         {
             // Default import: "import Name from '...'"
-            if let Some(from_pos) = after_import.find(" from ") {
+            if let Some(from_pos) = memchr::memmem::find(after_import.as_bytes(), b" from ") {
                 let name = after_import[..from_pos].trim();
                 // Could be "Name, { a, b }" - take only the default import part
                 let name = name.split(',').next().unwrap_or(name).trim();
@@ -273,7 +273,7 @@ pub fn extract_imported_names(raw: &str) -> std::collections::HashSet<String> {
 /// Returns the module path without quotes.
 fn extract_import_source(import_line: &str) -> Option<String> {
     // Look for from '...' or from "..."
-    let from_pos = import_line.find(" from ")?;
+    let from_pos = memchr::memmem::find(import_line.as_bytes(), b" from ")?;
     let after_from = import_line[from_pos + 6..].trim();
     let quote_char = after_from.chars().next()?;
     if quote_char != '\'' && quote_char != '"' {
@@ -422,7 +422,7 @@ fn collect_ts_removals_from_class(
     // Remove `abstract` keyword before `class`
     if class.r#abstract && !source.is_empty() {
         let class_source = &source[class.span.start as usize..class.span.end as usize];
-        if let Some(abstract_pos) = class_source.find("abstract") {
+        if let Some(abstract_pos) = memchr::memmem::find(class_source.as_bytes(), b"abstract") {
             let abs_start = class.span.start + abstract_pos as u32;
             let abs_end = abs_start + 8; // "abstract" is 8 chars
             let space_end = if (abs_end as usize) < source.len()
@@ -461,7 +461,7 @@ fn collect_ts_removals_from_class(
 
         if search_start < class.body.span.start as usize {
             let search_source = &source[search_start..class.body.span.start as usize];
-            if let Some(impl_pos) = search_source.find("implements") {
+            if let Some(impl_pos) = memchr::memmem::find(search_source.as_bytes(), b"implements") {
                 let abs_start = search_start as u32 + impl_pos as u32;
                 removals.push((abs_start, last_impl.span.end));
                 if abs_start > 0

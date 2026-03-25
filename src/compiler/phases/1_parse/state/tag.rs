@@ -1298,9 +1298,9 @@ impl Parser<'_> {
 
                 // Check for invalid call patterns (apply, bind, call)
                 let trimmed = expr_content.trim();
-                if trimmed.contains(".apply(")
-                    || trimmed.contains(".bind(")
-                    || trimmed.contains(".call(")
+                if memchr::memmem::find(trimmed.as_bytes(), b".apply(").is_some()
+                    || memchr::memmem::find(trimmed.as_bytes(), b".bind(").is_some()
+                    || memchr::memmem::find(trimmed.as_bytes(), b".call(").is_some()
                 {
                     return Err(crate::error::ParseError::svelte(
                         "render_tag_invalid_call_expression",

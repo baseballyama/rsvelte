@@ -72,10 +72,22 @@ fn transform_script_content_inner(
     // declarations are split, but generated comma patterns (from destructure flattening)
     // are preserved.
 
-    let script = script.replace("$props()", "$$props");
+    let script = if memmem::find(script.as_bytes(), b"$props()").is_some() {
+        script.replace("$props()", "$$props")
+    } else {
+        script.to_string()
+    };
     let script = transform_rune_call_multiline(&script, "$state.eager(");
-    let script = script.replace("$effect.pending()", "0");
-    let script = script.replace("$effect.tracking()", "false");
+    let script = if memmem::find(script.as_bytes(), b"$effect.pending()").is_some() {
+        script.replace("$effect.pending()", "0")
+    } else {
+        script
+    };
+    let script = if memmem::find(script.as_bytes(), b"$effect.tracking()").is_some() {
+        script.replace("$effect.tracking()", "false")
+    } else {
+        script
+    };
     // Replace $props.id() with $.props_id($$renderer) and upgrade let to const
     // (matches official compiler behavior)
     let script = if memmem::find(script.as_bytes(), b"$props.id()").is_some() {

@@ -509,33 +509,34 @@ pub(crate) fn strip_ts_type_annotation(param: &str) -> String {
     // Strategy: extract the identifier name, then check for `= default` after type
 
     // Check for `?:` (optional typed) or `:` (typed)
-    let (ident_end, type_start) = if let Some(qc_pos) = trimmed.find("?:") {
-        // `name?: Type`
-        (qc_pos, Some(qc_pos + 2))
-    } else if let Some(colon_pos) = trimmed.find(':') {
-        let before = trimmed[..colon_pos].trim();
-        if is_valid_js_identifier(before) {
-            (colon_pos, Some(colon_pos + 1))
-        } else {
-            // Not a simple identifier before colon (e.g., destructuring rename)
-            return trimmed.to_string();
-        }
-    } else if let Some(q_pos) = trimmed.find('?') {
-        // `name?` (optional without type) - strip the `?`
-        let before = trimmed[..q_pos].trim();
-        if is_valid_js_identifier(before) {
-            // Check for `= default` after `?`
-            let after = trimmed[q_pos + 1..].trim();
-            if let Some(stripped) = after.strip_prefix('=') {
-                return format!("{} = {}", before, stripped.trim());
+    let (ident_end, type_start) =
+        if let Some(qc_pos) = memchr::memmem::find(trimmed.as_bytes(), b"?:") {
+            // `name?: Type`
+            (qc_pos, Some(qc_pos + 2))
+        } else if let Some(colon_pos) = trimmed.find(':') {
+            let before = trimmed[..colon_pos].trim();
+            if is_valid_js_identifier(before) {
+                (colon_pos, Some(colon_pos + 1))
+            } else {
+                // Not a simple identifier before colon (e.g., destructuring rename)
+                return trimmed.to_string();
             }
-            return before.to_string();
-        }
-        return trimmed.to_string();
-    } else {
-        // No type annotation at all
-        return trimmed.to_string();
-    };
+        } else if let Some(q_pos) = trimmed.find('?') {
+            // `name?` (optional without type) - strip the `?`
+            let before = trimmed[..q_pos].trim();
+            if is_valid_js_identifier(before) {
+                // Check for `= default` after `?`
+                let after = trimmed[q_pos + 1..].trim();
+                if let Some(stripped) = after.strip_prefix('=') {
+                    return format!("{} = {}", before, stripped.trim());
+                }
+                return before.to_string();
+            }
+            return trimmed.to_string();
+        } else {
+            // No type annotation at all
+            return trimmed.to_string();
+        };
 
     let ident = trimmed[..ident_end].trim();
 
@@ -878,7 +879,7 @@ pub(crate) fn try_constant_fold_full(expr: &str) -> ConstantFoldResult {
     }
 
     // Handle && operator: if left is known and falsy, result is left's value
-    if let Some(idx) = trimmed.find("&&") {
+    if let Some(idx) = memchr::memmem::find(trimmed.as_bytes(), b"&&") {
         let left = trimmed[..idx].trim();
         let right = trimmed[idx + 2..].trim();
 
@@ -901,7 +902,7 @@ pub(crate) fn try_constant_fold_full(expr: &str) -> ConstantFoldResult {
     }
 
     // Handle || operator: if left is known and truthy, result is left's value
-    if let Some(idx) = trimmed.find("||") {
+    if let Some(idx) = memchr::memmem::find(trimmed.as_bytes(), b"||") {
         // Make sure it's not inside ?? (e.g., a ?? b || c)
         let left = trimmed[..idx].trim();
         let right = trimmed[idx + 2..].trim();
@@ -923,7 +924,7 @@ pub(crate) fn try_constant_fold_full(expr: &str) -> ConstantFoldResult {
         }
     }
 
-    if let Some(idx) = trimmed.find("??") {
+    if let Some(idx) = memchr::memmem::find(trimmed.as_bytes(), b"??") {
         let left = trimmed[..idx].trim();
         let right = trimmed[idx + 2..].trim();
 
@@ -1220,7 +1221,11 @@ pub(crate) fn detect_props_spread_pattern(script: &str) -> bool {
             .chars()
             .map(|c| if c == '\n' || c == '\r' { ' ' } else { c })
             .collect();
-        let collapsed = collapsed.replace("  ", " ");
+        let collapsed = if memchr::memmem::find(collapsed.as_bytes(), b"  ").is_some() {
+            collapsed.replace("  ", " ")
+        } else {
+            collapsed
+        };
         let collapsed_bytes = collapsed.as_bytes();
         if (memmem::find(collapsed_bytes, b"let {").is_some()
             || memmem::find(collapsed_bytes, b"const {").is_some())
@@ -1330,7 +1335,7 @@ pub(crate) fn transform_props_spread_ex(
             if pattern.starts_with('{') && pattern.ends_with('}') {
                 let inner = &pattern[1..pattern.len() - 1].trim();
 
-                if let Some(rest_idx) = inner.find("...") {
+                if let Some(rest_idx) = memchr::memmem::find(inner.as_bytes(), b"...") {
                     let rest_part = &inner[rest_idx..];
                     let rest_name = rest_part.trim_start_matches("...").trim();
                     let other_props = inner[..rest_idx].trim().trim_end_matches(',').trim();
@@ -1443,7 +1448,7 @@ pub(crate) fn try_evaluate_with_constants(
 
     // Handle binary operators: *, +, -
     // Try * first (higher precedence)
-    if let Some(idx) = trimmed.find(" * ") {
+    if let Some(idx) = memchr::memmem::find(trimmed.as_bytes(), b" * ") {
         let left = trimmed[..idx].trim();
         let right = trimmed[idx + 3..].trim();
         if let (Some(l), Some(r)) = (

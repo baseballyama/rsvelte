@@ -693,13 +693,15 @@ impl<'a> ServerCodeGenerator<'a> {
                         let mut expr = Self::transform_rune_in_template_expr(&expr);
                         // In dev mode, if the parent element has a svelte-ignore
                         // state_snapshot_uncloneable comment, add `true` arg to $.snapshot()
-                        if self.dev && expr.contains("$.snapshot(") {
+                        if self.dev
+                            && memchr::memmem::find(expr.as_bytes(), b"$.snapshot(").is_some()
+                        {
                             let elem_start = element.start as usize;
                             if elem_start <= self.source.len() {
                                 let before = &self.source[..elem_start];
                                 if crate::compiler::phases::phase3_transform::server::transform_script::has_svelte_ignore_before_pub(before, "state_snapshot_uncloneable") {
                                     // Add `, true` before closing paren of $.snapshot()
-                                    if let Some(idx) = expr.find("$.snapshot(") {
+                                    if let Some(idx) = memchr::memmem::find(expr.as_bytes(), b"$.snapshot(") {
                                         let call_start = idx + "$.snapshot(".len();
                                         if let Some(paren_end) = find_matching_paren_simple(&expr[call_start..]) {
                                             let content = &expr[call_start..call_start + paren_end];

@@ -148,7 +148,7 @@ pub(super) fn transform_client_runes_with_skip_and_state(
         // Like $state(), whether we wrap in $.state() depends on whether the
         // variable is reassigned (is_state_source logic).
         for rune_call in &["$state.raw(", "$state.frozen("] {
-            while let Some(pos) = result.find(rune_call) {
+            while let Some(pos) = memmem::find(result.as_bytes(), rune_call.as_bytes()) {
                 let call_start = pos + rune_call.len();
                 if let Some(content_end) = find_matching_paren(&result[call_start..]) {
                     let content = result[call_start..call_start + content_end].to_string();
@@ -170,7 +170,9 @@ pub(super) fn transform_client_runes_with_skip_and_state(
                             } else {
                                 "var "
                             };
-                            if let Some(decl_pos) = before.rfind(decl_pattern) {
+                            if let Some(decl_pos) =
+                                memmem::rfind(before.as_bytes(), decl_pattern.as_bytes())
+                            {
                                 let after_keyword = &before[decl_pos + decl_pattern.len()..];
                                 let before_eq = if let Some(eq_pos) = after_keyword.find('=') {
                                     &after_keyword[..eq_pos]
@@ -233,9 +235,9 @@ pub(super) fn transform_client_runes_with_skip_and_state(
             // Extract variable name by finding identifier after let/const/var keyword
             let decl_pattern = if memmem::find(before_pos, b"let ").is_some() {
                 // Find the closest declaration keyword before this $state call
-                let let_pos = result[..pos].rfind("let ");
-                let const_pos = result[..pos].rfind("const ");
-                let var_pos = result[..pos].rfind("var ");
+                let let_pos = memmem::rfind(&result.as_bytes()[..pos], b"let ");
+                let const_pos = memmem::rfind(&result.as_bytes()[..pos], b"const ");
+                let var_pos = memmem::rfind(&result.as_bytes()[..pos], b"var ");
                 let max_pos = [let_pos, const_pos, var_pos]
                     .iter()
                     .filter_map(|p| *p)
@@ -248,8 +250,8 @@ pub(super) fn transform_client_runes_with_skip_and_state(
                     "var "
                 }
             } else if memmem::find(before_pos, b"const ").is_some() {
-                let const_pos = result[..pos].rfind("const ");
-                let var_pos = result[..pos].rfind("var ");
+                let const_pos = memmem::rfind(&result.as_bytes()[..pos], b"const ");
+                let var_pos = memmem::rfind(&result.as_bytes()[..pos], b"var ");
                 if var_pos.is_some() && var_pos > const_pos {
                     "var "
                 } else {
@@ -259,7 +261,9 @@ pub(super) fn transform_client_runes_with_skip_and_state(
                 "var "
             };
 
-            let var_name = if let Some(decl_pos) = result[..pos].rfind(decl_pattern) {
+            let var_name = if let Some(decl_pos) =
+                memmem::rfind(&result.as_bytes()[..pos], decl_pattern.as_bytes())
+            {
                 let after_keyword = &result[decl_pos + decl_pattern.len()..pos];
                 // Extract valid identifier characters only (before any '=' sign)
                 let before_eq = if let Some(eq_pos) = after_keyword.find('=') {
@@ -739,7 +743,8 @@ pub(super) fn transform_client_runes_with_skip_and_state(
                 let after_inspect = &result[inspect_start + content_end + 1..];
                 if after_inspect.trim_start().starts_with(".with(") {
                     // $inspect(...).with(callback) pattern
-                    let with_start_offset = after_inspect.find(".with(").unwrap();
+                    let with_start_offset =
+                        memmem::find(after_inspect.as_bytes(), b".with(").unwrap();
                     let with_content_start =
                         inspect_start + content_end + 1 + with_start_offset + 6;
                     if let Some(with_end) = find_matching_paren(&result[with_content_start..]) {
@@ -776,7 +781,8 @@ pub(super) fn transform_client_runes_with_skip_and_state(
                 // Check for .with() chaining
                 let after_inspect = &result[inspect_start + content_end + 1..];
                 let total_end = if after_inspect.trim_start().starts_with(".with(") {
-                    let with_start_offset = after_inspect.find(".with(").unwrap();
+                    let with_start_offset =
+                        memmem::find(after_inspect.as_bytes(), b".with(").unwrap();
                     let with_content_start =
                         inspect_start + content_end + 1 + with_start_offset + 6;
                     if let Some(with_end) = find_matching_paren(&result[with_content_start..]) {
@@ -1128,7 +1134,7 @@ pub(super) fn wrap_state_derived_with_tag(input: &str) -> String {
         let mut search_from = 0;
         loop {
             let rest = &result[search_from..];
-            let Some(this_pos) = rest.find("this.") else {
+            let Some(this_pos) = memmem::find(rest.as_bytes(), b"this.") else {
                 break;
             };
             let abs_this_pos = search_from + this_pos;
@@ -1223,7 +1229,7 @@ pub(super) fn wrap_state_derived_with_tag(input: &str) -> String {
 /// Looks for `class NAME` pattern.
 pub(super) fn extract_enclosing_class_name(before: &str) -> Option<&str> {
     // Find the last `class ` before the position
-    let class_pos = before.rfind("class ")?;
+    let class_pos = memmem::rfind(before.as_bytes(), b"class ")?;
     let after_class = &before[class_pos + 6..];
     // Extract the class name
     let name_end = after_class.find(|c: char| !c.is_alphanumeric() && c != '_' && c != '$')?;
@@ -1640,7 +1646,7 @@ pub(super) fn transform_derived_destructuring(
     } else {
         return None;
     };
-    let derived_pos = trimmed.find("$derived(")?;
+    let derived_pos = memmem::find(trimmed.as_bytes(), b"$derived(")?;
     let pattern_start = decl_keyword.len() + 1;
     let eq_pos = trimmed[..derived_pos].rfind('=')?;
     let pattern = trimmed[pattern_start..eq_pos].trim();
@@ -1739,7 +1745,7 @@ pub(super) fn transform_derived_by_destructuring(
     } else {
         return None;
     };
-    let derived_pos = trimmed.find("$derived.by(")?;
+    let derived_pos = memmem::find(trimmed.as_bytes(), b"$derived.by(")?;
     let pattern_start = decl_keyword.len() + 1;
     let eq_pos = trimmed[..derived_pos].rfind('=')?;
     let pattern = trimmed[pattern_start..eq_pos].trim();

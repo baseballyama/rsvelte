@@ -2253,7 +2253,9 @@ impl<'a> ServerCodeGenerator<'a> {
                                 OutputPart::Html(h)
                                 | OutputPart::HtmlWithExclusions { html: h, .. } => {
                                     element_html.push_str(h);
-                                    if h.contains("</") || h.ends_with("/>") {
+                                    if memchr::memmem::find(h.as_bytes(), b"</").is_some()
+                                        || h.ends_with("/>")
+                                    {
                                         j += 1;
                                         break;
                                     }
@@ -2672,7 +2674,9 @@ impl<'a> ServerCodeGenerator<'a> {
                                 | OutputPart::HtmlWithExclusions { html: h, .. } => {
                                     element_html.push_str(h);
                                     // Check if this html part contains the closing tag
-                                    if h.contains("</") || h.contains("/>") {
+                                    if memchr::memmem::find(h.as_bytes(), b"</").is_some()
+                                        || memchr::memmem::find(h.as_bytes(), b"/>").is_some()
+                                    {
                                         found_close = true;
                                         j += 1;
                                         break;

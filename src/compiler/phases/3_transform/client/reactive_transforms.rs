@@ -710,9 +710,14 @@ pub(super) fn transform_reactive_statement(
 
     // Replace `break $;` with `return;` since the reactive block becomes a function callback.
     // Also transform labeled break in the form `break $` (without semicolon at the end of block).
-    let transformed_body = transformed_body
-        .replace("break $;", "return;")
-        .replace("break $\n", "return;\n");
+    let transformed_body =
+        if memchr::memmem::find(transformed_body.as_bytes(), b"break $").is_some() {
+            transformed_body
+                .replace("break $;", "return;")
+                .replace("break $\n", "return;\n")
+        } else {
+            transformed_body
+        };
 
     // Unwrap block statements: if the body is `{ ... }`, extract the inner content
     // to put it directly in the callback (avoiding double-block wrapping).

@@ -4018,8 +4018,12 @@ fn transform_rule_preserving<'a>(
             if rule_end <= css_source.len() && rule_start < rule_end {
                 let original = &css_source[rule_start..rule_end];
                 // Escape any */ in the content
-                let escaped = original.replace("*/", "*\\/");
-                output.push_str(&escaped);
+                if memchr::memmem::find(original.as_bytes(), b"*/").is_some() {
+                    let escaped = original.replace("*/", "*\\/");
+                    output.push_str(&escaped);
+                } else {
+                    output.push_str(original);
+                }
             }
 
             output.push_str("*/");
@@ -4046,8 +4050,12 @@ fn transform_rule_preserving<'a>(
         if rule_end <= css_source.len() && rule_start < rule_end {
             let original = &css_source[rule_start..rule_end];
             // Escape any */ in the content
-            let escaped = original.replace("*/", "*\\/");
-            output.push_str(&escaped);
+            if memchr::memmem::find(original.as_bytes(), b"*/").is_some() {
+                let escaped = original.replace("*/", "*\\/");
+                output.push_str(&escaped);
+            } else {
+                output.push_str(original);
+            }
         }
 
         output.push_str("*/");
@@ -4707,7 +4715,7 @@ fn transform_selector_list(
             if trailing_end <= css_source.len() && trailing_start < trailing_end {
                 let trailing = &css_source[trailing_start..trailing_end];
                 // Only append if there's meaningful content (comments), not just whitespace
-                if trailing.contains("/*") {
+                if memchr::memmem::find(trailing.as_bytes(), b"/*").is_some() {
                     result.push_str(trailing);
                 }
             }
@@ -5939,10 +5947,12 @@ fn strip_bare_global_from_text(
 
         if has_bare_global {
             // Strip " :global" and ":global " patterns
-            let mut result = raw.replace(" :global", "");
-            result = result.replace(":global ", "");
-            result = result.replace(":global", "");
-            return result.trim().to_string();
+            if memchr::memmem::find(raw.as_bytes(), b":global").is_some() {
+                let mut result = raw.replace(" :global", "");
+                result = result.replace(":global ", "");
+                result = result.replace(":global", "");
+                return result.trim().to_string();
+            }
         }
     }
 

@@ -777,7 +777,8 @@ fn is_import_from_svelte_store(name: &str, source: &str) -> bool {
             continue;
         }
         // Check if this import line includes the name and 'svelte/store'
-        if (trimmed.contains("'svelte/store'") || trimmed.contains("\"svelte/store\""))
+        if (memchr::memmem::find(trimmed.as_bytes(), b"'svelte/store'").is_some()
+            || memchr::memmem::find(trimmed.as_bytes(), b"\"svelte/store\"").is_some())
             && trimmed.contains(name)
         {
             return true;

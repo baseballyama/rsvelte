@@ -5275,20 +5275,26 @@ fn is_initial_value_literal_or_known(initial: &Option<String>) -> bool {
     // 2. An AST JSON string containing "Literal" type
 
     // Check for AST JSON format (contains "Literal" type)
-    if s.contains("Literal") && !s.contains("TemplateLiteral") {
+    if memchr::memmem::find(s.as_bytes(), b"Literal").is_some()
+        && memchr::memmem::find(s.as_bytes(), b"TemplateLiteral").is_none()
+    {
         // Literal types (NumericLiteral, StringLiteral, BooleanLiteral, NullLiteral)
         return true;
     }
 
     // Check for `undefined` identifier in AST JSON form:
     // {"type":"Identifier","name":"undefined",...}
-    if s.contains("Identifier") && s.contains("\"undefined\"") {
+    if memchr::memmem::find(s.as_bytes(), b"Identifier").is_some()
+        && memchr::memmem::find(s.as_bytes(), b"\"undefined\"").is_some()
+    {
         return true;
     }
 
     // Check for TemplateLiteral without expressions (pure string template)
     // A TemplateLiteral with no expressions is a known value at compile time
-    if s.contains("TemplateLiteral") && s.contains("\"expressions\":[]") {
+    if memchr::memmem::find(s.as_bytes(), b"TemplateLiteral").is_some()
+        && memchr::memmem::find(s.as_bytes(), b"\"expressions\":[]").is_some()
+    {
         return true;
     }
 
@@ -5313,10 +5319,14 @@ fn is_initial_value_literal_or_known(initial: &Option<String>) -> bool {
     }
 
     // Empty array/object literals from AST format
-    if s.contains("ArrayExpression") || s.contains("ObjectExpression") {
+    if memchr::memmem::find(s.as_bytes(), b"ArrayExpression").is_some()
+        || memchr::memmem::find(s.as_bytes(), b"ObjectExpression").is_some()
+    {
         // These are known but might contain reactive values - be conservative
         // Only treat empty ones as known
-        if s.contains("\"elements\":[]") || s.contains("\"properties\":[]") {
+        if memchr::memmem::find(s.as_bytes(), b"\"elements\":[]").is_some()
+            || memchr::memmem::find(s.as_bytes(), b"\"properties\":[]").is_some()
+        {
             return true;
         }
     }
@@ -5475,9 +5485,16 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
 
 /// Sanitize a template string by escaping special characters.
 fn sanitize_template_string(s: &str) -> String {
-    s.replace('\\', "\\\\")
-        .replace('`', "\\`")
-        .replace("${", "\\${")
+    if !s.contains('\\') && !s.contains('`') && memchr::memmem::find(s.as_bytes(), b"${").is_none()
+    {
+        return s.to_string();
+    }
+    let result = s.replace('\\', "\\\\").replace('`', "\\`");
+    if memchr::memmem::find(result.as_bytes(), b"${").is_some() {
+        result.replace("${", "\\${")
+    } else {
+        result
+    }
 }
 
 #[cfg(test)]

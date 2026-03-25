@@ -1963,7 +1963,7 @@ impl<'a> SelectorParser<'a> {
 
             // Strip trailing comment
             if end_current.ends_with("*/") {
-                if let Some(start_pos) = end_current.rfind("/*") {
+                if let Some(start_pos) = memchr::memmem::rfind(end_current.as_bytes(), b"/*") {
                     end_current = &end_current[..start_pos];
                 } else {
                     break;

@@ -883,7 +883,7 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
 
     if is_new_class {
         // Trim "new" from before_class and wrap the class in (...)()
-        let new_pos = before_class.rfind("new").unwrap();
+        let new_pos = memmem::rfind(before_class.as_bytes(), b"new").unwrap();
         let before_new = &before_class[..new_pos];
         format!(
             "{}new ({}\n{}\t}})(){}",
@@ -997,7 +997,7 @@ pub(super) fn parse_constructor_state_assignment(
 
     let (is_private, name) = if trimmed.starts_with("this.") {
         // Handle `this.name = $state(...)` or `this.#name = $state(...)`
-        let eq_pos = trimmed.find(" = ")?;
+        let eq_pos = memmem::find(trimmed.as_bytes(), b" = ")?;
         let field_part = &trimmed[5..eq_pos];
         let is_priv = field_part.starts_with('#');
         let n = field_part.trim_start_matches('#').to_string();
@@ -1026,7 +1026,7 @@ pub(super) fn parse_constructor_state_assignment(
         return None;
     };
 
-    let eq_pos = trimmed.find(" = ")?;
+    let eq_pos = memmem::find(trimmed.as_bytes(), b" = ")?;
     let rhs = trimmed[eq_pos + 3..].trim();
 
     let already_exists = existing_fields.iter().any(|f| f.name == name);
@@ -1242,9 +1242,13 @@ pub(super) fn transform_class_methods(content: &str, fields: &[ClassStateField])
     }
 
     // Clean up any double wrapping that might have occurred
-    result = result.replace("$.get($.get(", "$.get(");
+    if memmem::find(result.as_bytes(), b"$.get($.get(").is_some() {
+        result = result.replace("$.get($.get(", "$.get(");
+    }
     // Fix optional chaining that got double-wrapped
-    result = result.replace("?.?.", "?.");
+    if memmem::find(result.as_bytes(), b"?.?.").is_some() {
+        result = result.replace("?.?.", "?.");
+    }
 
     result
 }
@@ -1423,8 +1427,12 @@ pub(super) fn transform_class_methods_non_this(
     }
 
     // Clean up
-    result = result.replace("$.get($.get(", "$.get(");
-    result = result.replace("?.?.", "?.");
+    if memmem::find(result.as_bytes(), b"$.get($.get(").is_some() {
+        result = result.replace("$.get($.get(", "$.get(");
+    }
+    if memmem::find(result.as_bytes(), b"?.?.").is_some() {
+        result = result.replace("?.?.", "?.");
+    }
 
     result
 }

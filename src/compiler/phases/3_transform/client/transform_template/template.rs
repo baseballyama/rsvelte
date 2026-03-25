@@ -172,10 +172,19 @@ impl Template {
             .join("");
         // Escape backticks and `${` in the HTML content so they don't break
         // the surrounding JavaScript template literal (backtick string).
-        let escaped = html
-            .replace('\\', "\\\\")
-            .replace('`', "\\`")
-            .replace("${", "\\${");
+        let escaped = if !html.contains('\\')
+            && !html.contains('`')
+            && memchr::memmem::find(html.as_bytes(), b"${").is_none()
+        {
+            html.to_string()
+        } else {
+            let result = html.replace('\\', "\\\\").replace('`', "\\`");
+            if memchr::memmem::find(result.as_bytes(), b"${").is_some() {
+                result.replace("${", "\\${")
+            } else {
+                result
+            }
+        };
         b::template(vec![b::quasi(escaped, true)], vec![])
     }
 

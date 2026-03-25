@@ -374,7 +374,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                     memmem::find(trimmed_stmt.as_bytes(), b"$$async_hole:")
                 {
                     let start = colon_pos + 13; // "$$async_hole:".len()
-                    if let Some(end) = trimmed_stmt[start..].find("*/") {
+                    if let Some(end) = memmem::find(&trimmed_stmt.as_bytes()[start..], b"*/") {
                         trimmed_stmt[start..start + end].trim().to_string()
                     } else {
                         String::new()
@@ -405,7 +405,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                 // Extract variable names for hoisting if present
                 if let Some(colon_pos) = memmem::find(trimmed_stmt.as_bytes(), b"$$async_noop:") {
                     let start = colon_pos + 13; // "$$async_noop:".len()
-                    if let Some(end) = trimmed_stmt[start..].find("*/") {
+                    if let Some(end) = memmem::find(&trimmed_stmt.as_bytes()[start..], b"*/") {
                         let vars_str = trimmed_stmt[start..start + end].trim();
                         for var in vars_str.split(',') {
                             let var = var.trim();

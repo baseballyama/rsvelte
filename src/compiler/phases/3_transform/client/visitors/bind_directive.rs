@@ -2464,7 +2464,7 @@ fn merge_store_invalidation_into_setter(
         JsExpr::Raw(raw) => {
             // For raw expressions like `($$value) => expr`, insert the invalidation
             let raw_str = raw.to_string();
-            if let Some(arrow_pos) = raw_str.find("=>") {
+            if let Some(arrow_pos) = memchr::memmem::find(raw_str.as_bytes(), b"=>") {
                 let after_arrow = raw_str[arrow_pos + 2..].trim();
                 let before_arrow = &raw_str[..arrow_pos + 2];
                 JsExpr::Raw(format!("{} ({}, {})", before_arrow, after_arrow, invalidation).into())

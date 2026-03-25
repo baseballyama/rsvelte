@@ -86,7 +86,7 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         // Handle nullish coalescing with variable lookup
-        if let Some(idx) = trimmed.find("??") {
+        if let Some(idx) = memchr::memmem::find(trimmed.as_bytes(), b"??") {
             let left = trimmed[..idx].trim();
             let right = trimmed[idx + 2..].trim();
 

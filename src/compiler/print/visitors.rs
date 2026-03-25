@@ -1124,7 +1124,7 @@ fn extract_and_reformat_css(source: &str, stylesheet: &StyleSheet) -> Option<Str
     // Find the end of the opening <style...> tag
     let content_start = tag_text.find('>')? + 1;
     // Find the start of the closing </style> tag
-    let content_end = tag_text.rfind("</style>")?;
+    let content_end = memchr::memmem::rfind(tag_text.as_bytes(), b"</style>")?;
 
     let css_content = &tag_text[content_start..content_end];
 

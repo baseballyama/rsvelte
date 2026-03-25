@@ -673,7 +673,7 @@ pub(super) fn rejoin_tmp_destructure_declarations(code: &str) -> String {
 
         if is_tmp_start {
             // Extract the tmp variable name
-            let tmp_name = if let Some(eq_pos) = trimmed.find(" = ") {
+            let tmp_name = if let Some(eq_pos) = memchr::memmem::find(trimmed.as_bytes(), b" = ") {
                 trimmed[4..eq_pos].to_string() // "let ".len() = 4
             } else {
                 result.push(line.to_string());

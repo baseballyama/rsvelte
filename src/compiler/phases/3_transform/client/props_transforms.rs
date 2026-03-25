@@ -1595,7 +1595,10 @@ pub(super) fn is_simple_expression_str(value: &str) -> bool {
 
     // Call expressions are NOT simple (unless it's a no-arg function reference)
     // e.g., foo() is not simple, but foo is simple
-    if trimmed.ends_with(')') && !trimmed.starts_with("function") && !trimmed.contains("=>") {
+    if trimmed.ends_with(')')
+        && !trimmed.starts_with("function")
+        && memchr::memmem::find(trimmed.as_bytes(), b"=>").is_none()
+    {
         // Check if it looks like a call expression
         // Find matching parens
         let mut depth = 0;
@@ -1610,7 +1613,7 @@ pub(super) fn is_simple_expression_str(value: &str) -> bool {
                         // If there's a valid identifier before the paren, it's a call
                         if !before.is_empty()
                             && !before.ends_with("function")
-                            && !before.contains("=>")
+                            && memchr::memmem::find(before.as_bytes(), b"=>").is_none()
                         {
                             return false;
                         }
@@ -1642,7 +1645,7 @@ pub(super) fn is_simple_expression_str(value: &str) -> bool {
 
     // Member expressions (containing dots) are NOT simple
     if !trimmed.starts_with("function")
-        && !trimmed.contains("=>")
+        && memchr::memmem::find(trimmed.as_bytes(), b"=>").is_none()
         && !trimmed.starts_with('"')
         && !trimmed.starts_with('\'')
         && !trimmed.starts_with('`')
@@ -2529,15 +2532,16 @@ pub(super) fn find_prop_mutation_location(source: &str, var_name: &str) -> (usiz
     let pattern_dot = format!("{}.", var_name);
     let pattern_bracket = format!("{}[", var_name);
     // Search for the pattern after the script tag
-    let search_source = if let Some(script_idx) = source.find("<script") {
-        &source[script_idx..]
-    } else {
-        source
-    };
+    let search_source =
+        if let Some(script_idx) = memchr::memmem::find(source.as_bytes(), b"<script") {
+            &source[script_idx..]
+        } else {
+            source
+        };
 
     let relative_offset = match (
-        search_source.find(&pattern_dot),
-        search_source.find(&pattern_bracket),
+        memchr::memmem::find(search_source.as_bytes(), pattern_dot.as_bytes()),
+        memchr::memmem::find(search_source.as_bytes(), pattern_bracket.as_bytes()),
     ) {
         (Some(d), Some(b)) => Some(d.min(b)),
         (Some(d), None) => Some(d),
@@ -2546,7 +2550,7 @@ pub(super) fn find_prop_mutation_location(source: &str, var_name: &str) -> (usiz
     };
 
     if let Some(relative_offset) = relative_offset {
-        let offset = if let Some(script_idx) = source.find("<script") {
+        let offset = if let Some(script_idx) = memchr::memmem::find(source.as_bytes(), b"<script") {
             script_idx + relative_offset
         } else {
             relative_offset

@@ -324,7 +324,8 @@ pub(super) fn transform_store_sub_calls(line: &str, store_sub_vars: &[String]) -
             let is_in_func_params = {
                 // Look back for "function xxx(" pattern where our position is inside the parens
                 let mut in_params = false;
-                if let Some(last_func) = before_text.rfind("function ") {
+                if let Some(last_func) = memchr::memmem::rfind(before_text.as_bytes(), b"function ")
+                {
                     let after_func = &result[last_func..abs_pos];
                     // Count parens to see if we're inside function params
                     let open_count = after_func.chars().filter(|c| *c == '(').count();
@@ -611,7 +612,7 @@ pub(super) fn find_store_member_mutation(line: &str, pattern: &str) -> Option<us
 pub(super) fn is_inside_store_mutate(line: &str, pos: usize) -> bool {
     // Find the nearest $.store_mutate( before this position
     let before = &line[..pos];
-    if let Some(mutate_pos) = before.rfind("$.store_mutate(") {
+    if let Some(mutate_pos) = memchr::memmem::rfind(before.as_bytes(), b"$.store_mutate(") {
         // Check if we're inside the parentheses
         let after_mutate = &line[mutate_pos + 15..]; // after "$.store_mutate("
         let mut depth = 1;

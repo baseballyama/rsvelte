@@ -390,7 +390,9 @@ impl<'a> ServerCodeGenerator<'a> {
                             for prop in props {
                                 if super::super::helpers::expr_contains_await(prop) {
                                     // Extract the prop name and value
-                                    if let Some(colon_pos) = prop.find(": ") {
+                                    if let Some(colon_pos) =
+                                        memchr::memmem::find(prop.as_bytes(), b": ")
+                                    {
                                         let prop_name = &prop[..colon_pos];
                                         let prop_value = &prop[colon_pos + 2..];
                                         if super::super::helpers::expr_contains_await(prop_value) {

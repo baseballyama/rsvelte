@@ -4107,8 +4107,9 @@ fn is_svelte_ignored_with_source(
             }
 
             // Check for HTML-style svelte-ignore comments: <!-- svelte-ignore <code> -->
-            if let Some(comment_end) = before.rfind("-->")
-                && let Some(comment_start) = before[..comment_end].rfind("<!--")
+            if let Some(comment_end) = memchr::memmem::rfind(before.as_bytes(), b"-->")
+                && let Some(comment_start) =
+                    memchr::memmem::rfind(&before.as_bytes()[..comment_end], b"<!--")
             {
                 let comment_text = &before[comment_start + 4..comment_end];
                 if comment_has_svelte_ignore(comment_text, code) {

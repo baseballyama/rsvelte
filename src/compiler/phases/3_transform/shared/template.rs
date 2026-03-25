@@ -68,9 +68,17 @@ pub fn normalize_whitespace(s: &str) -> String {
 
 /// Sanitize a template string by escaping special characters.
 pub fn sanitize_template_string(s: &str) -> String {
-    s.replace('\\', "\\\\")
-        .replace('`', "\\`")
-        .replace("${", "\\${")
+    // Fast path: if no special chars, avoid allocation
+    if !s.contains('\\') && !s.contains('`') && memchr::memmem::find(s.as_bytes(), b"${").is_none()
+    {
+        return s.to_string();
+    }
+    let result = s.replace('\\', "\\\\").replace('`', "\\`");
+    if memchr::memmem::find(result.as_bytes(), b"${").is_some() {
+        result.replace("${", "\\${")
+    } else {
+        result
+    }
 }
 
 /// Escape a string for use in a single-quoted JavaScript string literal.

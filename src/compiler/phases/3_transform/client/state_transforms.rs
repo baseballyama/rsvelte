@@ -534,7 +534,10 @@ pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) ->
                 // Look for `=>` after `)`
                 let after_paren = result[paren_close + 1..].trim_start();
                 if after_paren.starts_with("=>") {
-                    let arrow_pos = result[paren_close + 1..].find("=>").unwrap() + paren_close + 1;
+                    let arrow_pos =
+                        memchr::memmem::find(&result.as_bytes()[paren_close + 1..], b"=>").unwrap()
+                            + paren_close
+                            + 1;
                     let body_start = arrow_pos + 2;
                     let body_text = result[body_start..].trim_start();
                     let body_offset = body_start + (result[body_start..].len() - body_text.len());
