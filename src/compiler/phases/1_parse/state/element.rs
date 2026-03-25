@@ -12,6 +12,7 @@
 use compact_str::CompactString;
 use memchr::memchr;
 use memchr::memmem;
+use rustc_hash::FxHashSet;
 
 use crate::ast::js::Expression;
 use crate::ast::template::{
@@ -98,21 +99,27 @@ impl Parser<'_> {
         let name = self.read_tag_name();
         let name_end = self.index;
 
-        // Validate svelte: tag names
-        if name.starts_with("svelte:") {
-            let valid_svelte_tags = [
-                "svelte:head",
-                "svelte:options",
-                "svelte:window",
-                "svelte:document",
-                "svelte:body",
-                "svelte:element",
-                "svelte:component",
-                "svelte:self",
-                "svelte:fragment",
-                "svelte:boundary",
-            ];
-            if !valid_svelte_tags.contains(&name.as_str()) {
+        // Validate svelte: tag names using first-byte dispatch on suffix
+        if name.as_bytes().first() == Some(&b's')
+            && name.len() > 7
+            && name.as_bytes().get(6) == Some(&b':')
+            && name.as_bytes()[..7] == *b"svelte:"
+        {
+            let suffix = &name[7..];
+            let is_valid = matches!(
+                suffix,
+                "head"
+                    | "options"
+                    | "window"
+                    | "document"
+                    | "body"
+                    | "element"
+                    | "component"
+                    | "self"
+                    | "fragment"
+                    | "boundary"
+            );
+            if !is_valid {
                 return Err(crate::error::ParseError::svelte(
                     "svelte_meta_invalid_tag",
                     "Valid `<svelte:...>` tag names are svelte:head, svelte:options, svelte:window, svelte:document, svelte:body, svelte:element, svelte:component, svelte:self, svelte:fragment or svelte:boundary\nhttps://svelte.dev/e/svelte_meta_invalid_tag",
@@ -634,7 +641,12 @@ impl Parser<'_> {
             "svelte:options" => ElementType::SvelteOptions,
             _ => {
                 // Check if component (starts with uppercase or contains dot)
-                if name.chars().next().is_some_and(|c| c.is_uppercase()) || name.contains('.') {
+                // Fast byte-level check: uppercase ASCII or first char is uppercase Unicode
+                let first = name.as_bytes().first().copied().unwrap_or(0);
+                if first.is_ascii_uppercase()
+                    || (first >= 0x80 && name.chars().next().is_some_and(|c| c.is_uppercase()))
+                    || memchr(b'.', name.as_bytes()).is_some()
+                {
                     ElementType::Component
                 } else {
                     ElementType::Regular
@@ -659,12 +671,11 @@ impl Parser<'_> {
     /// Check if not at root level (inside any element or block context).
     /// A script/style tag at root level is a Svelte script/style.
     /// A script/style tag inside an element or block is an HTML script/style.
+    #[inline]
     pub fn is_inside_element(&self) -> bool {
-        // We're at root level only if the stack contains just the Root entry.
-        // Any other entry (Element, EachBlock, IfBlock, etc.) means we're nested.
-        self.stack
-            .iter()
-            .any(|entry| !matches!(entry, StackEntry::Root))
+        // Root is always at position 0 in the stack.
+        // If there's more than just Root, we're nested.
+        self.stack.len() > 1
     }
 
     /// Check if current position starts a valid closing tag (e.g., `</textarea>` or `</textarea  >`).
@@ -830,54 +841,54 @@ impl Parser<'_> {
 
     /// Parse attributes.
     pub fn parse_attributes(&mut self) -> ParseResult<Vec<crate::ast::Attribute>> {
-        let mut attributes = Vec::new();
-        // Track unique attribute names for duplicate detection
-        // Format: "type:name" where type is Attribute, BindDirective, ClassDirective, or StyleDirective
-        let mut unique_names: Vec<String> = Vec::new();
+        let mut attributes = Vec::with_capacity(4);
+        // Track unique attribute names for duplicate detection using FxHashSet for O(1) lookup.
+        // Encode type as a prefix byte to avoid format! allocation:
+        // 'A' = Attribute/BindDirective, 'C' = ClassDirective, 'S' = StyleDirective
+        let mut unique_names: FxHashSet<CompactString> = FxHashSet::default();
 
         loop {
             // Track position before whitespace skip for unclosed elements
             let before_ws = self.index;
             self.skip_whitespace();
 
-            // Stop conditions:
-            // - EOF
-            // - '>' (end of open tag)
-            // - '/>' (self-closing)
-            // - '</' (closing tag starts - unclosed open tag in loose mode)
-            // - '{/' (block closing tag - unclosed open tag inside block in loose mode)
-            // - '{#' (block opening tag - unclosed open tag followed by sibling block in loose mode)
-            if self.index >= self.bytes.len()
-                || self.bytes[self.index] == b'>'
-                || self.match_str("/>")
-                || self.match_str("</")
-                || self.match_str("{/")
-                || self.match_str("{#")
-            {
+            // Stop conditions (fast byte checks):
+            if self.index >= self.bytes.len() {
                 // For unclosed elements at EOF, restore position to before trailing whitespace
-                if self.is_eof() && self.index > before_ws {
+                if self.index > before_ws {
                     self.index = before_ws;
                 }
+                break;
+            }
+            let b = self.bytes[self.index];
+            if b == b'>' {
+                break;
+            }
+            if b == b'/' && self.index + 1 < self.bytes.len() && self.bytes[self.index + 1] == b'>'
+            {
+                break;
+            }
+            if b == b'<' && self.index + 1 < self.bytes.len() && self.bytes[self.index + 1] == b'/'
+            {
+                break;
+            }
+            if b == b'{'
+                && self.index + 1 < self.bytes.len()
+                && (self.bytes[self.index + 1] == b'/' || self.bytes[self.index + 1] == b'#')
+            {
                 break;
             }
 
             if let Some(attr) = self.parse_attribute()? {
                 // Check for duplicate attributes
-                // animate and transition can only be specified once per element so no need
-                // to check here, use can be used multiple times, same for the on directive
-                // finally let already has error handling in case of duplicate variable names
-                let (attr_type, attr_name, attr_start): (&str, &str, u32) = match &attr {
-                    crate::ast::Attribute::Attribute(a) => ("Attribute", a.name.as_str(), a.start),
+                let (attr_type_prefix, attr_name, attr_start): (u8, &str, u32) = match &attr {
+                    crate::ast::Attribute::Attribute(a) => (b'A', a.name.as_str(), a.start),
                     crate::ast::Attribute::BindDirective(b) => {
                         // bind:attribute and attribute are the same, normalize to Attribute
-                        ("Attribute", b.name.as_str(), b.start)
+                        (b'A', b.name.as_str(), b.start)
                     }
-                    crate::ast::Attribute::ClassDirective(c) => {
-                        ("ClassDirective", c.name.as_str(), c.start)
-                    }
-                    crate::ast::Attribute::StyleDirective(s) => {
-                        ("StyleDirective", s.name.as_str(), s.start)
-                    }
+                    crate::ast::Attribute::ClassDirective(c) => (b'C', c.name.as_str(), c.start),
+                    crate::ast::Attribute::StyleDirective(s) => (b'S', s.name.as_str(), s.start),
                     _ => {
                         // Other attribute types are not checked for duplicates
                         attributes.push(attr);
@@ -885,18 +896,20 @@ impl Parser<'_> {
                     }
                 };
 
-                let key = format!("{}:{}", attr_type, attr_name);
-
                 // Skip duplicate check for "this" attribute (used on svelte:element and svelte:component)
                 if attr_name != "this" {
-                    if unique_names.contains(&key) {
+                    // Build key with prefix byte to avoid format! allocation
+                    let mut key = CompactString::with_capacity(1 + attr_name.len());
+                    key.push(attr_type_prefix as char);
+                    key.push_str(attr_name);
+
+                    if !unique_names.insert(key) {
                         return Err(crate::error::ParseError::svelte(
                             "attribute_duplicate",
                             "Attributes need to be unique",
                             (attr_start as usize, attr_start as usize + attr_name.len()),
                         ));
                     }
-                    unique_names.push(key);
                 }
 
                 attributes.push(attr);
@@ -951,16 +964,22 @@ impl Parser<'_> {
             // Check for spread attribute {...expr}
             if self.eat_optional("...") {
                 let expr_start = self.index;
-                let mut depth = 1;
-                while !self.is_eof() && depth > 0 {
-                    let c = self.current_char();
-                    if c == '{' {
-                        depth += 1;
-                    } else if c == '}' {
-                        depth -= 1;
-                    }
-                    if depth > 0 {
-                        self.advance();
+                let mut depth: u32 = 1;
+                // Fast byte-level brace scanning
+                while self.index < self.bytes.len() && depth > 0 {
+                    match self.bytes[self.index] {
+                        b'{' => {
+                            depth += 1;
+                            self.index += 1;
+                        }
+                        b'}' => {
+                            depth -= 1;
+                            if depth > 0 {
+                                self.index += 1;
+                            }
+                        }
+                        b if b < 0x80 => self.index += 1,
+                        _ => self.advance(),
                     }
                 }
                 let expr_content = &self.source[expr_start..self.index];
@@ -977,16 +996,22 @@ impl Parser<'_> {
 
             // Expression shorthand {expr} or empty {} in loose mode
             let expr_start = self.index;
-            let mut depth = 1;
-            while !self.is_eof() && depth > 0 {
-                let c = self.current_char();
-                if c == '{' {
-                    depth += 1;
-                } else if c == '}' {
-                    depth -= 1;
-                }
-                if depth > 0 {
-                    self.advance();
+            let mut depth: u32 = 1;
+            // Fast byte-level brace scanning
+            while self.index < self.bytes.len() && depth > 0 {
+                match self.bytes[self.index] {
+                    b'{' => {
+                        depth += 1;
+                        self.index += 1;
+                    }
+                    b'}' => {
+                        depth -= 1;
+                        if depth > 0 {
+                            self.index += 1;
+                        }
+                    }
+                    b if b < 0x80 => self.index += 1,
+                    _ => self.advance(),
                 }
             }
             let expr_end = self.index;
@@ -1095,44 +1120,36 @@ impl Parser<'_> {
 
         self.skip_whitespace();
 
-        // Check for on: directive (event handler)
-        if name.starts_with("on:") {
-            return self.parse_on_directive(start, &name, name_start, name_end);
-        }
-
-        // Check for bind: directive
-        if name.starts_with("bind:") {
-            return self.parse_bind_directive(start, &name, name_start, name_end);
-        }
-
-        // Check for use: directive (actions)
-        if name.starts_with("use:") {
-            return self.parse_use_directive(start, &name, name_start, name_end);
-        }
-
-        // Check for class: directive
-        if name.starts_with("class:") {
-            return self.parse_class_directive(start, &name, name_start, name_end);
-        }
-
-        // Check for style: directive
-        if name.starts_with("style:") {
-            return self.parse_style_directive(start, &name, name_start, name_end);
-        }
-
-        // Check for transition: / in: / out: directives
-        if name.starts_with("transition:") || name.starts_with("in:") || name.starts_with("out:") {
-            return self.parse_transition_directive(start, &name, name_start, name_end);
-        }
-
-        // Check for animate: directive
-        if name.starts_with("animate:") {
-            return self.parse_animate_directive(start, &name, name_start, name_end);
-        }
-
-        // Check for let: directive
-        if name.starts_with("let:") {
-            return self.parse_let_directive(start, &name, name_start, name_end);
+        // Directive detection using first-byte dispatch to avoid multiple starts_with scans
+        if let Some(colon_pos) = memchr(b':', name.as_bytes()) {
+            let prefix = &name.as_bytes()[..colon_pos];
+            match prefix {
+                b"on" => {
+                    return self.parse_on_directive(start, &name, name_start, name_end);
+                }
+                b"bind" => {
+                    return self.parse_bind_directive(start, &name, name_start, name_end);
+                }
+                b"use" => {
+                    return self.parse_use_directive(start, &name, name_start, name_end);
+                }
+                b"class" => {
+                    return self.parse_class_directive(start, &name, name_start, name_end);
+                }
+                b"style" => {
+                    return self.parse_style_directive(start, &name, name_start, name_end);
+                }
+                b"transition" | b"in" | b"out" => {
+                    return self.parse_transition_directive(start, &name, name_start, name_end);
+                }
+                b"animate" => {
+                    return self.parse_animate_directive(start, &name, name_start, name_end);
+                }
+                b"let" => {
+                    return self.parse_let_directive(start, &name, name_start, name_end);
+                }
+                _ => {} // Not a directive, fall through to normal attribute
+            }
         }
 
         // Check for value
@@ -1199,21 +1216,10 @@ impl Parser<'_> {
                 };
                 if self.eat_optional("{") {
                     let expr_start = self.index;
-                    let mut depth = 1;
-                    while !self.is_eof() && depth > 0 {
-                        let c = self.current_char();
-                        if c == '{' {
-                            depth += 1;
-                        } else if c == '}' {
-                            depth -= 1;
-                        }
-                        if depth > 0 {
-                            self.advance();
-                        }
-                    }
+                    self.scan_to_closing_brace();
                     let expr_content = &self.source[expr_start..self.index];
                     self.advance(); // consume '}'
-                    if self.current_char() == quote {
+                    if self.index < self.bytes.len() && self.bytes[self.index] == quote as u8 {
                         self.advance();
                     }
                     (
@@ -1232,18 +1238,7 @@ impl Parser<'_> {
             } else if self.eat_optional("{") {
                 // Expression in braces
                 let expr_start = self.index;
-                let mut depth = 1;
-                while !self.is_eof() && depth > 0 {
-                    let c = self.current_char();
-                    if c == '{' {
-                        depth += 1;
-                    } else if c == '}' {
-                        depth -= 1;
-                    }
-                    if depth > 0 {
-                        self.advance();
-                    }
-                }
+                self.scan_to_closing_brace();
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
                 (
@@ -1304,18 +1299,7 @@ impl Parser<'_> {
                 };
                 if self.eat_optional("{") {
                     let expr_start = self.index;
-                    let mut depth = 1;
-                    while !self.is_eof() && depth > 0 {
-                        let c = self.current_char();
-                        if c == '{' {
-                            depth += 1;
-                        } else if c == '}' {
-                            depth -= 1;
-                        }
-                        if depth > 0 {
-                            self.advance();
-                        }
-                    }
+                    self.scan_to_closing_brace();
                     let expr_content = &self.source[expr_start..self.index];
                     self.advance(); // consume '}'
                     if self.current_char() == quote {
@@ -1346,18 +1330,7 @@ impl Parser<'_> {
             } else if self.eat_optional("{") {
                 // Expression in braces
                 let expr_start = self.index;
-                let mut depth = 1;
-                while !self.is_eof() && depth > 0 {
-                    let c = self.current_char();
-                    if c == '{' {
-                        depth += 1;
-                    } else if c == '}' {
-                        depth -= 1;
-                    }
-                    if depth > 0 {
-                        self.advance();
-                    }
-                }
+                self.scan_to_closing_brace();
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
                 (
@@ -1434,18 +1407,7 @@ impl Parser<'_> {
                 // Look for expression inside quotes: "{expr}"
                 if self.eat_optional("{") {
                     let expr_start = self.index;
-                    let mut depth = 1;
-                    while !self.is_eof() && depth > 0 {
-                        let c = self.current_char();
-                        if c == '{' {
-                            depth += 1;
-                        } else if c == '}' {
-                            depth -= 1;
-                        }
-                        if depth > 0 {
-                            self.advance();
-                        }
-                    }
+                    self.scan_to_closing_brace();
                     let expr_end = self.index;
                     let expr_content = &self.source[expr_start..expr_end];
                     self.advance(); // consume '}'
@@ -1470,18 +1432,7 @@ impl Parser<'_> {
             } else if self.eat_optional("{") {
                 // Unquoted expression: ={expression}
                 let expr_start = self.index;
-                let mut depth = 1;
-                while !self.is_eof() && depth > 0 {
-                    let c = self.current_char();
-                    if c == '{' {
-                        depth += 1;
-                    } else if c == '}' {
-                        depth -= 1;
-                    }
-                    if depth > 0 {
-                        self.advance();
-                    }
-                }
+                self.scan_to_closing_brace();
                 let expr_end = self.index;
                 let expr_content = &self.source[expr_start..expr_end];
                 self.advance(); // consume '}'
@@ -1542,18 +1493,7 @@ impl Parser<'_> {
                 };
             if self.eat_optional("{") {
                 let expr_start = self.index;
-                let mut depth = 1;
-                while !self.is_eof() && depth > 0 {
-                    let c = self.current_char();
-                    if c == '{' {
-                        depth += 1;
-                    } else if c == '}' {
-                        depth -= 1;
-                    }
-                    if depth > 0 {
-                        self.advance();
-                    }
-                }
+                self.scan_to_closing_brace();
                 let expr_end = self.index;
                 let expr_content = &self.source[expr_start..expr_end];
                 self.advance(); // consume '}'
@@ -1621,18 +1561,7 @@ impl Parser<'_> {
             self.skip_whitespace();
             if self.eat_optional("{") {
                 let expr_start = self.index;
-                let mut depth = 1;
-                while !self.is_eof() && depth > 0 {
-                    let c = self.current_char();
-                    if c == '{' {
-                        depth += 1;
-                    } else if c == '}' {
-                        depth -= 1;
-                    }
-                    if depth > 0 {
-                        self.advance();
-                    }
-                }
+                self.scan_to_closing_brace();
                 let expr_end = self.index;
                 let expr_content = &self.source[expr_start..expr_end];
                 self.advance(); // consume '}'
@@ -1665,18 +1594,7 @@ impl Parser<'_> {
                         let expr_start = self.index;
                         self.advance(); // consume '{'
                         let inner_start = self.index;
-                        let mut depth = 1;
-                        while !self.is_eof() && depth > 0 {
-                            let ch = self.current_char();
-                            if ch == '{' {
-                                depth += 1;
-                            } else if ch == '}' {
-                                depth -= 1;
-                            }
-                            if depth > 0 {
-                                self.advance();
-                            }
-                        }
+                        self.scan_to_closing_brace();
                         let inner_end = self.index;
                         self.advance(); // consume '}'
                         parts.push(AttributeValuePart::ExpressionTag(ExpressionTag {
@@ -1730,18 +1648,7 @@ impl Parser<'_> {
                         let expr_start = self.index;
                         self.advance(); // consume '{'
                         let inner_start = self.index;
-                        let mut depth = 1;
-                        while !self.is_eof() && depth > 0 {
-                            let ch = self.current_char();
-                            if ch == '{' {
-                                depth += 1;
-                            } else if ch == '}' {
-                                depth -= 1;
-                            }
-                            if depth > 0 {
-                                self.advance();
-                            }
-                        }
+                        self.scan_to_closing_brace();
                         let inner_end = self.index;
                         self.advance(); // consume '}'
                         parts.push(AttributeValuePart::ExpressionTag(ExpressionTag {
@@ -1828,18 +1735,7 @@ impl Parser<'_> {
                 };
                 if self.eat_optional("{") {
                     let expr_start = self.index;
-                    let mut depth = 1;
-                    while !self.is_eof() && depth > 0 {
-                        let c = self.current_char();
-                        if c == '{' {
-                            depth += 1;
-                        } else if c == '}' {
-                            depth -= 1;
-                        }
-                        if depth > 0 {
-                            self.advance();
-                        }
-                    }
+                    self.scan_to_closing_brace();
                     let expr_content = &self.source[expr_start..self.index];
                     self.advance(); // consume '}'
                     if self.current_char() == quote {
@@ -1861,18 +1757,7 @@ impl Parser<'_> {
                 }
             } else if self.eat_optional("{") {
                 let expr_start = self.index;
-                let mut depth = 1;
-                while !self.is_eof() && depth > 0 {
-                    let c = self.current_char();
-                    if c == '{' {
-                        depth += 1;
-                    } else if c == '}' {
-                        depth -= 1;
-                    }
-                    if depth > 0 {
-                        self.advance();
-                    }
-                }
+                self.scan_to_closing_brace();
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
                 (
@@ -1939,18 +1824,7 @@ impl Parser<'_> {
                 };
             if self.eat_optional("{") {
                 let expr_start = self.index;
-                let mut depth = 1;
-                while !self.is_eof() && depth > 0 {
-                    let c = self.current_char();
-                    if c == '{' {
-                        depth += 1;
-                    } else if c == '}' {
-                        depth -= 1;
-                    }
-                    if depth > 0 {
-                        self.advance();
-                    }
-                }
+                self.scan_to_closing_brace();
                 let expr_end = self.index;
                 let expr_content = &self.source[expr_start..expr_end];
                 self.advance(); // consume '}'
@@ -2004,18 +1878,7 @@ impl Parser<'_> {
                 };
             if self.eat_optional("{") {
                 let expr_start = self.index;
-                let mut depth = 1;
-                while !self.is_eof() && depth > 0 {
-                    let c = self.current_char();
-                    if c == '{' {
-                        depth += 1;
-                    } else if c == '}' {
-                        depth -= 1;
-                    }
-                    if depth > 0 {
-                        self.advance();
-                    }
-                }
+                self.scan_to_closing_brace();
                 let expr_end = self.index;
                 let expr_content = &self.source[expr_start..expr_end];
                 self.advance(); // consume '}'
@@ -2053,18 +1916,7 @@ impl Parser<'_> {
 
         // Parse the expression until the closing }
         let expr_start = self.index;
-        let mut depth = 1;
-        while !self.is_eof() && depth > 0 {
-            let c = self.current_char();
-            if c == '{' {
-                depth += 1;
-            } else if c == '}' {
-                depth -= 1;
-            }
-            if depth > 0 {
-                self.advance();
-            }
-        }
+        self.scan_to_closing_brace();
         let expr_end = self.index;
         let expr_content = &self.source[expr_start..expr_end];
         self.advance(); // consume closing '}'
@@ -2084,8 +1936,7 @@ impl Parser<'_> {
     /// Parse attribute value.
     pub fn parse_attribute_value(&mut self) -> ParseResult<AttributeValue> {
         // Check for missing value (e.g., `class= >` or `class=>`)
-        let c = self.current_char();
-        if c == '>' {
+        if self.index < self.bytes.len() && self.bytes[self.index] == b'>' {
             return Err(crate::error::ParseError::svelte(
                 "expected_attribute_value",
                 "Expected attribute value",
@@ -2095,7 +1946,10 @@ impl Parser<'_> {
 
         // Special case: `href=/>` should be parsed as `href=/` with `/` as the value
         // followed by `>` to close the tag. This matches official Svelte behavior.
-        if c == '/' && self.match_str("/>") {
+        if self.index + 1 < self.bytes.len()
+            && self.bytes[self.index] == b'/'
+            && self.bytes[self.index + 1] == b'>'
+        {
             let start = self.index;
             self.advance(); // consume '/'
             return Ok(AttributeValue::Sequence(vec![AttributeValuePart::Text(
@@ -2108,41 +1962,57 @@ impl Parser<'_> {
             )]));
         }
 
-        let quote = if self.eat_optional("\"") {
-            Some('"')
-        } else if self.eat_optional("'") {
-            Some('\'')
+        let quote = if self.index < self.bytes.len() && self.bytes[self.index] == b'"' {
+            self.index += 1;
+            Some(b'"')
+        } else if self.index < self.bytes.len() && self.bytes[self.index] == b'\'' {
+            self.index += 1;
+            Some(b'\'')
         } else {
             None
         };
 
-        let mut parts = Vec::new();
+        let mut parts = Vec::with_capacity(2);
         let value_start = self.index;
 
         loop {
-            if self.is_eof() {
+            if self.index >= self.bytes.len() {
                 break;
             }
 
+            let cur_byte = self.bytes[self.index];
             if let Some(q) = quote {
-                if self.current_char() == q {
+                if cur_byte == q {
                     break;
                 }
             } else {
-                // Unquoted value ends at whitespace or > (but NOT / alone - it can be part of the value like href=/)
-                // However, /> (self-closing tag) should stop the value parsing
-                let c = self.current_char();
-                if c.is_whitespace() || c == '>' {
+                // Unquoted value ends at whitespace or >
+                if cur_byte == b'>'
+                    || cur_byte == b' '
+                    || cur_byte == b'\t'
+                    || cur_byte == b'\n'
+                    || cur_byte == b'\r'
+                {
                     break;
                 }
-                // Stop at /> (self-closing tag marker) - don't consume the slash as part of the value
-                if c == '/' && self.match_str("/>") {
+                // Stop at /> (self-closing tag marker)
+                if cur_byte == b'/'
+                    && self.index + 1 < self.bytes.len()
+                    && self.bytes[self.index + 1] == b'>'
+                {
                     break;
+                }
+                // Non-ASCII whitespace check
+                if cur_byte >= 0x80 {
+                    let c = self.source[self.index..].chars().next().unwrap_or('\0');
+                    if c.is_whitespace() {
+                        break;
+                    }
                 }
             }
 
             // Check for expression
-            if self.current_char() == '{' {
+            if cur_byte == b'{' {
                 let expr_start = self.index;
                 self.advance(); // consume '{'
 
@@ -2213,24 +2083,51 @@ impl Parser<'_> {
                     expression: self.parse_js_expression(expr_content, expr_start + 1),
                 }));
             } else {
-                // Text content
+                // Text content - use byte-level scanning for speed
                 let text_start = self.index;
-                while !self.is_eof() {
-                    let c = self.current_char();
-                    if c == '{' {
-                        break;
-                    }
-                    if let Some(q) = quote {
-                        if c == q {
+                if let Some(q) = quote {
+                    // Quoted: scan for '{' or closing quote using memchr
+                    while self.index < self.bytes.len() {
+                        let b = self.bytes[self.index];
+                        if b == b'{' || b == q {
                             break;
                         }
-                    } else if c.is_whitespace() || c == '>' {
-                        break;
-                    } else if c == '/' && self.match_str("/>") {
-                        // Self-closing tag marker - stop text here (don't consume the '/')
-                        break;
+                        if b < 0x80 {
+                            self.index += 1;
+                        } else {
+                            self.advance();
+                        }
                     }
-                    self.advance();
+                } else {
+                    // Unquoted: scan for '{', whitespace, '>', or '/>'
+                    while self.index < self.bytes.len() {
+                        let b = self.bytes[self.index];
+                        if b == b'{'
+                            || b == b'>'
+                            || b == b' '
+                            || b == b'\t'
+                            || b == b'\n'
+                            || b == b'\r'
+                        {
+                            break;
+                        }
+                        if b == b'/'
+                            && self.index + 1 < self.bytes.len()
+                            && self.bytes[self.index + 1] == b'>'
+                        {
+                            break;
+                        }
+                        if b < 0x80 {
+                            self.index += 1;
+                        } else {
+                            // Non-ASCII: check for Unicode whitespace
+                            let c = self.source[self.index..].chars().next().unwrap_or('\0');
+                            if c.is_whitespace() {
+                                break;
+                            }
+                            self.index += c.len_utf8();
+                        }
+                    }
                 }
                 let text_end = self.index;
 

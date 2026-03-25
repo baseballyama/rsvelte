@@ -99,26 +99,27 @@ pub fn decode_character_references(html: &str, is_attribute_value: bool) -> Stri
 }
 
 /// Check if an element is a void element.
+/// Uses first-byte dispatch for fast rejection.
+#[inline]
 pub fn is_void_element(name: &str) -> bool {
-    matches!(
-        name,
-        "area"
-            | "base"
-            | "br"
-            | "col"
-            | "command"
-            | "embed"
-            | "hr"
-            | "img"
-            | "input"
-            | "keygen"
-            | "link"
-            | "meta"
-            | "param"
-            | "source"
-            | "track"
-            | "wbr"
-    ) || name.eq_ignore_ascii_case("!doctype")
+    let bytes = name.as_bytes();
+    match bytes.first() {
+        Some(b'a') => name == "area",
+        Some(b'b') => name == "br" || name == "base",
+        Some(b'c') => name == "col" || name == "command",
+        Some(b'e') => name == "embed",
+        Some(b'h') => name == "hr",
+        Some(b'i') => name == "img" || name == "input",
+        Some(b'k') => name == "keygen",
+        Some(b'l') => name == "link",
+        Some(b'm') => name == "meta",
+        Some(b'p') => name == "param",
+        Some(b's') => name == "source",
+        Some(b't') => name == "track",
+        Some(b'w') => name == "wbr",
+        Some(b'!') => name.eq_ignore_ascii_case("!doctype"),
+        _ => false,
+    }
 }
 
 #[cfg(test)]

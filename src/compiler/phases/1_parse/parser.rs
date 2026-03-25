@@ -251,20 +251,31 @@ impl<'a> Parser<'a> {
     }
 
     /// Create name_loc with character field for Svelte compatibility.
+    #[inline]
     pub fn create_name_loc(&self, start: usize, end: usize) -> SourceLocation {
-        let start_loc = self.get_location(start);
-        let end_loc = self.get_location(end);
+        // Inline get_location to avoid two separate binary searches
+        let start_line = self
+            .line_offsets
+            .partition_point(|&offset| offset <= start)
+            .saturating_sub(1);
+        let start_line_start = self.line_offsets.get(start_line).copied().unwrap_or(0);
+
+        let end_line = self
+            .line_offsets
+            .partition_point(|&offset| offset <= end)
+            .saturating_sub(1);
+        let end_line_start = self.line_offsets.get(end_line).copied().unwrap_or(0);
 
         SourceLocation {
             start: LineColumn {
-                line: start_loc.start.line,
-                column: start_loc.start.column,
-                character: start_loc.start.character,
+                line: (start_line + 1) as u32,
+                column: (start - start_line_start) as u32,
+                character: start as u32,
             },
             end: LineColumn {
-                line: end_loc.start.line,
-                column: end_loc.start.column,
-                character: end_loc.start.character,
+                line: (end_line + 1) as u32,
+                column: (end - end_line_start) as u32,
+                character: end as u32,
             },
         }
     }
@@ -329,10 +340,23 @@ impl<'a> Parser<'a> {
     /// Check if the source at current position starts with the given string.
     #[inline]
     pub fn match_str(&self, s: &str) -> bool {
-        // Use byte comparison instead of creating a string slice
         let s_bytes = s.as_bytes();
+        let s_len = s_bytes.len();
         let remaining = self.bytes.len() - self.index;
-        remaining >= s_bytes.len() && self.bytes[self.index..self.index + s_bytes.len()] == *s_bytes
+        if remaining < s_len {
+            return false;
+        }
+        // Fast paths for common lengths
+        match s_len {
+            1 => self.bytes[self.index] == s_bytes[0],
+            2 => self.bytes[self.index] == s_bytes[0] && self.bytes[self.index + 1] == s_bytes[1],
+            3 => {
+                self.bytes[self.index] == s_bytes[0]
+                    && self.bytes[self.index + 1] == s_bytes[1]
+                    && self.bytes[self.index + 2] == s_bytes[2]
+            }
+            _ => self.bytes[self.index..self.index + s_len] == *s_bytes,
+        }
     }
 
     /// Check if the byte at the current position matches (ASCII only).
@@ -374,8 +398,17 @@ impl<'a> Parser<'a> {
     /// This is the most common use case - try to consume a string, but don't error if it's not there.
     #[inline]
     pub fn eat_optional(&mut self, s: &str) -> bool {
+        let s_bytes = s.as_bytes();
+        // Fast path for single-byte strings (most common case)
+        if s_bytes.len() == 1 {
+            if self.index < self.bytes.len() && self.bytes[self.index] == s_bytes[0] {
+                self.index += 1;
+                return true;
+            }
+            return false;
+        }
         if self.match_str(s) {
-            self.advance_by(s.len());
+            self.index += s_bytes.len();
             true
         } else {
             false
@@ -698,5 +731,31 @@ impl<'a> Parser<'a> {
     /// This is just an alias for `skip_whitespace()`.
     pub fn allow_whitespace(&mut self) {
         self.skip_whitespace();
+    }
+
+    /// Scan forward from the current position to find the matching closing brace,
+    /// tracking nested brace depth. Returns the position of the closing `}`.
+    /// Uses byte-level scanning for maximum speed.
+    /// Does NOT advance past the closing brace - caller must do that.
+    #[inline]
+    pub fn scan_to_closing_brace(&mut self) -> usize {
+        let mut depth: u32 = 1;
+        while self.index < self.bytes.len() && depth > 0 {
+            match self.bytes[self.index] {
+                b'{' => {
+                    depth += 1;
+                    self.index += 1;
+                }
+                b'}' => {
+                    depth -= 1;
+                    if depth > 0 {
+                        self.index += 1;
+                    }
+                }
+                b if b < 0x80 => self.index += 1,
+                _ => self.advance(),
+            }
+        }
+        self.index
     }
 }

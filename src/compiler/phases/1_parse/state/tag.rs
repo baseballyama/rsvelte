@@ -87,11 +87,12 @@ impl Parser<'_> {
             "key" => self.parse_key_block(start),
             "snippet" => self.parse_snippet_block(start),
             _ => {
-                // Unknown block, skip to closing brace
-                while !self.is_eof() && self.current_char() != '}' {
-                    self.advance();
+                // Unknown block, skip to closing brace using memchr
+                if let Some(pos) = memchr::memchr(b'}', &self.bytes[self.index..]) {
+                    self.index += pos + 1;
+                } else {
+                    self.index = self.bytes.len();
                 }
-                self.advance(); // consume '}'
                 Ok(None)
             }
         }
@@ -240,32 +241,38 @@ impl Parser<'_> {
         // Parse the iterable expression (up to " as " or closing "}")
         let expr_start = self.index;
 
-        // Find " as " to get the expression, tracking brace depth
+        // Find " as " to get the expression, tracking brace depth (byte-level)
         let mut found_as = false;
-        let mut depth = 0;
-        while !self.is_eof() {
-            let c = self.current_char();
+        let mut depth: i32 = 0;
+        while self.index < self.bytes.len() {
+            let b = self.bytes[self.index];
 
             // Track brace depth
-            if c == '{' || c == '(' || c == '[' {
-                depth += 1;
-            } else if c == ')' || c == ']' {
-                depth -= 1;
-            } else if c == '}' {
-                if depth == 0 {
-                    // This is the closing brace of {#each}, not a nested brace
-                    break;
+            match b {
+                b'{' | b'(' | b'[' => depth += 1,
+                b')' | b']' => depth -= 1,
+                b'}' => {
+                    if depth == 0 {
+                        // This is the closing brace of {#each}, not a nested brace
+                        break;
+                    }
+                    depth -= 1;
                 }
-                depth -= 1;
+                b' ' if depth == 0 => {
+                    // Check for " as " at top level
+                    if self.match_str(" as ") {
+                        found_as = true;
+                        break;
+                    }
+                }
+                _ => {}
             }
 
-            // Check for " as " at top level
-            if depth == 0 && self.match_str(" as ") {
-                found_as = true;
-                break;
+            if b < 0x80 {
+                self.index += 1;
+            } else {
+                self.advance();
             }
-
-            self.advance();
         }
 
         let expr_end = self.index;
@@ -1084,21 +1091,23 @@ impl Parser<'_> {
     pub fn parse_special_tag(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
         self.advance(); // consume '@'
 
-        // Try to match known keywords and check for whitespace
+        // Try to match known keywords using first-byte dispatch
         let _keyword_start = self.index;
-        let known_keywords = ["html", "render", "const", "debug", "attach"];
-
-        // Check each keyword to see if it matches
-        let mut keyword = CompactString::new("");
-        for kw in &known_keywords {
-            if self.match_str(kw) {
-                // Found a match - check if followed by identifier chars
-                let pos_after_kw = self.index + kw.len();
-                if pos_after_kw < self.source.len() {
-                    let next_char = self.source[pos_after_kw..].chars().next().unwrap_or('\0');
-                    if next_char.is_alphanumeric() || next_char == '_' {
-                        // Keyword followed by identifier chars without whitespace
-                        // This is an error like @constfoo
+        let keyword: CompactString = if self.index < self.bytes.len() {
+            let matched_kw = match self.bytes[self.index] {
+                b'h' if self.match_str("html") => Some(("html", 4)),
+                b'r' if self.match_str("render") => Some(("render", 6)),
+                b'c' if self.match_str("const") => Some(("const", 5)),
+                b'd' if self.match_str("debug") => Some(("debug", 5)),
+                b'a' if self.match_str("attach") => Some(("attach", 6)),
+                _ => None,
+            };
+            if let Some((kw, len)) = matched_kw {
+                // Check if followed by identifier chars
+                let pos_after_kw = self.index + len;
+                if pos_after_kw < self.bytes.len() {
+                    let next_byte = self.bytes[pos_after_kw];
+                    if next_byte.is_ascii_alphanumeric() || next_byte == b'_' {
                         return Err(crate::error::ParseError::svelte(
                             "expected_whitespace",
                             "Expected whitespace",
@@ -1106,16 +1115,14 @@ impl Parser<'_> {
                         ));
                     }
                 }
-                self.advance_by(kw.len());
-                keyword = CompactString::from(*kw);
-                break;
+                self.index += len;
+                CompactString::from(kw)
+            } else {
+                self.read_identifier()
             }
-        }
-
-        // If no keyword matched, read as identifier (unknown tag)
-        if keyword.is_empty() {
-            keyword = self.read_identifier();
-        }
+        } else {
+            self.read_identifier()
+        };
 
         self.skip_whitespace();
 
@@ -1125,120 +1132,122 @@ impl Parser<'_> {
 
                 // Track bracket depth to handle nested braces in expressions
                 // e.g., {@html `foo: ${foo}`} - need to skip the inner `}` in template literal
-                let mut depth = 1; // We're already inside the opening `{` of the tag
-                while !self.is_eof() {
-                    let ch = self.current_char();
+                let mut depth: u32 = 1; // We're already inside the opening `{` of the tag
+                while self.index < self.bytes.len() {
+                    let ch = self.bytes[self.index];
                     match ch {
-                        '{' => {
+                        b'{' => {
                             depth += 1;
-                            self.advance();
+                            self.index += 1;
                         }
-                        '}' => {
+                        b'}' => {
                             depth -= 1;
                             if depth == 0 {
                                 break;
                             }
-                            self.advance();
+                            self.index += 1;
                         }
                         // Skip string literals to avoid counting braces inside strings
-                        '"' | '\'' => {
+                        b'"' | b'\'' => {
                             let quote = ch;
-                            self.advance();
-                            let mut escaped = false;
-                            while !self.is_eof() {
-                                let c = self.current_char();
-                                if escaped {
-                                    escaped = false;
-                                } else if c == '\\' {
-                                    escaped = true;
+                            self.index += 1;
+                            while self.index < self.bytes.len() {
+                                let c = self.bytes[self.index];
+                                if c == b'\\' {
+                                    self.index += 2; // skip escape sequence
                                 } else if c == quote {
                                     break;
-                                }
-                                self.advance();
-                            }
-                            if !self.is_eof() {
-                                self.advance(); // consume closing quote
-                            }
-                        }
-                        // Skip template literals - they can contain ${...}
-                        '`' => {
-                            self.advance(); // consume opening backtick
-                            let mut escaped = false;
-                            while !self.is_eof() {
-                                let c = self.current_char();
-                                if escaped {
-                                    escaped = false;
-                                    self.advance();
-                                } else if c == '\\' {
-                                    escaped = true;
-                                    self.advance();
-                                } else if c == '$' && self.peek_chars(1).starts_with('{') {
-                                    // Template literal expression ${...}
-                                    self.advance(); // consume '$'
-                                    self.advance(); // consume '{'
-                                    let mut template_depth = 1;
-                                    while !self.is_eof() && template_depth > 0 {
-                                        match self.current_char() {
-                                            '{' => {
-                                                template_depth += 1;
-                                                self.advance();
-                                            }
-                                            '}' => {
-                                                template_depth -= 1;
-                                                self.advance();
-                                            }
-                                            '`' => {
-                                                // Nested template literal - skip it recursively
-                                                self.advance(); // consume opening backtick
-                                                let mut nested_escaped = false;
-                                                while !self.is_eof() {
-                                                    let nc = self.current_char();
-                                                    if nested_escaped {
-                                                        nested_escaped = false;
-                                                        self.advance();
-                                                    } else if nc == '\\' {
-                                                        nested_escaped = true;
-                                                        self.advance();
-                                                    } else if nc == '`' {
-                                                        self.advance();
-                                                        break;
-                                                    } else {
-                                                        self.advance();
-                                                    }
-                                                }
-                                            }
-                                            '"' | '\'' => {
-                                                // Skip strings inside template expression
-                                                let q = self.current_char();
-                                                self.advance();
-                                                while !self.is_eof() {
-                                                    let sc = self.current_char();
-                                                    if sc == '\\' {
-                                                        self.advance();
-                                                        if !self.is_eof() {
-                                                            self.advance();
-                                                        }
-                                                    } else if sc == q {
-                                                        self.advance();
-                                                        break;
-                                                    } else {
-                                                        self.advance();
-                                                    }
-                                                }
-                                            }
-                                            _ => self.advance(),
-                                        }
-                                    }
-                                } else if c == '`' {
-                                    break;
+                                } else if c < 0x80 {
+                                    self.index += 1;
                                 } else {
                                     self.advance();
                                 }
                             }
-                            if !self.is_eof() {
-                                self.advance(); // consume closing backtick
+                            if self.index < self.bytes.len() {
+                                self.index += 1; // consume closing quote
                             }
                         }
+                        // Skip template literals - they can contain ${...}
+                        b'`' => {
+                            self.index += 1; // consume opening backtick
+                            let mut escaped = false;
+                            while self.index < self.bytes.len() {
+                                let c = self.bytes[self.index];
+                                if escaped {
+                                    escaped = false;
+                                    self.advance();
+                                } else if c == b'\\' {
+                                    escaped = true;
+                                    self.index += 1;
+                                } else if c == b'$'
+                                    && self.index + 1 < self.bytes.len()
+                                    && self.bytes[self.index + 1] == b'{'
+                                {
+                                    // Template literal expression ${...}
+                                    self.index += 2; // consume '${'
+                                    let mut template_depth: u32 = 1;
+                                    while self.index < self.bytes.len() && template_depth > 0 {
+                                        match self.bytes[self.index] {
+                                            b'{' => {
+                                                template_depth += 1;
+                                                self.index += 1;
+                                            }
+                                            b'}' => {
+                                                template_depth -= 1;
+                                                self.index += 1;
+                                            }
+                                            b'`' => {
+                                                // Nested template literal - skip it
+                                                self.index += 1;
+                                                while self.index < self.bytes.len() {
+                                                    let nc = self.bytes[self.index];
+                                                    if nc == b'\\' {
+                                                        self.index += 2;
+                                                    } else if nc == b'`' {
+                                                        self.index += 1;
+                                                        break;
+                                                    } else if nc < 0x80 {
+                                                        self.index += 1;
+                                                    } else {
+                                                        self.advance();
+                                                    }
+                                                }
+                                            }
+                                            b'"' | b'\'' => {
+                                                // Skip strings inside template expression
+                                                let q = self.bytes[self.index];
+                                                self.index += 1;
+                                                while self.index < self.bytes.len() {
+                                                    let sc = self.bytes[self.index];
+                                                    if sc == b'\\' {
+                                                        self.index += 2;
+                                                    } else if sc == q {
+                                                        self.index += 1;
+                                                        break;
+                                                    } else if sc < 0x80 {
+                                                        self.index += 1;
+                                                    } else {
+                                                        self.advance();
+                                                    }
+                                                }
+                                            }
+                                            b if b < 0x80 => self.index += 1,
+                                            _ => self.advance(),
+                                        }
+                                    }
+                                } else if c == b'`' {
+                                    break;
+                                } else if c < 0x80 {
+                                    self.index += 1;
+                                } else {
+                                    self.advance();
+                                }
+                            }
+                            if self.index < self.bytes.len() {
+                                self.index += 1; // consume closing backtick
+                            }
+                        }
+                        b if b < 0x80 => self.index += 1,
                         _ => self.advance(),
                     }
                 }

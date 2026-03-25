@@ -120,12 +120,12 @@ fn count_leading_backslashes(string: &str, search_start_index: usize) -> usize {
 /// # Returns
 /// The index of the closing bracket, or `None` if not found
 pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option<usize> {
-    let default_brackets: FxHashMap<char, char> = [('{', '}'), ('(', ')'), ('[', ']')]
-        .iter()
-        .cloned()
-        .collect();
-
-    let close = default_brackets.get(&open)?;
+    let close = match open {
+        '{' => '}',
+        '(' => ')',
+        '[' => ']',
+        _ => return None,
+    };
     let mut brackets = 1;
     let mut i = index;
     let bytes = template.as_bytes();
@@ -209,7 +209,7 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
             _ => {
                 if ch == open {
                     brackets += 1;
-                } else if ch == *close {
+                } else if ch == close {
                     brackets -= 1;
                 }
 

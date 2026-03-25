@@ -99,13 +99,18 @@ impl Parser<'_> {
         if self.match_str("</") {
             let close_start = self.index;
             let tag_name_start = self.index + 2;
-            let rest = &self.source[tag_name_start..];
-            let tag_name: String = rest
-                .chars()
-                .take_while(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == ':')
-                .collect();
+            let mut tag_name_end = tag_name_start;
+            while tag_name_end < self.bytes.len() {
+                let b = self.bytes[tag_name_end];
+                if b.is_ascii_alphanumeric() || b == b'-' || b == b':' {
+                    tag_name_end += 1;
+                } else {
+                    break;
+                }
+            }
+            let tag_name = &self.source[tag_name_start..tag_name_end];
 
-            if is_void_element(&tag_name) {
+            if is_void_element(tag_name) {
                 return Err(crate::error::ParseError::svelte(
                     "void_element_invalid_content",
                     "Void elements cannot have children or closing tags",
@@ -127,8 +132,15 @@ impl Parser<'_> {
         // Remove trailing whitespace-only Text nodes (Svelte doesn't include them)
         // But only if they're at the very end of the file (after script/style too)
         while let Some(TemplateNode::Text(text)) = fragment.nodes.last() {
-            let is_whitespace = text.data.chars().all(|c| c.is_whitespace());
             let after_special = text.end >= max_special_end;
+            // Fast byte-level whitespace check
+            let is_whitespace = text.data.as_bytes().iter().all(|&b| {
+                b == b' '
+                    || b == b'\t'
+                    || b == b'\n'
+                    || b == b'\r'
+                    || (b >= 0x80 && (b as char).is_whitespace())
+            });
             if is_whitespace && after_special {
                 fragment.nodes.pop();
             } else {
@@ -213,7 +225,7 @@ impl Parser<'_> {
         use super::super::parser::StackEntry;
         use super::super::utils::is_void_element;
 
-        let mut nodes = Vec::new();
+        let mut nodes = Vec::with_capacity(8);
 
         while self.index < self.bytes.len() {
             // Fast dispatch on first byte to avoid redundant match_str calls
@@ -253,16 +265,21 @@ impl Parser<'_> {
                 let is_root_level =
                     self.stack.len() == 1 && matches!(self.stack.first(), Some(StackEntry::Root));
                 if is_root_level {
-                    // Peek ahead to get the tag name
+                    // Peek ahead to get the tag name using byte scanning (no allocation)
                     let close_start = self.index;
                     let tag_name_start = self.index + 2;
-                    let rest = &self.source[tag_name_start..];
-                    let tag_name: String = rest
-                        .chars()
-                        .take_while(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == ':')
-                        .collect();
+                    let mut tag_name_end = tag_name_start;
+                    while tag_name_end < self.bytes.len() {
+                        let b = self.bytes[tag_name_end];
+                        if b.is_ascii_alphanumeric() || b == b'-' || b == b':' {
+                            tag_name_end += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    let tag_name = &self.source[tag_name_start..tag_name_end];
 
-                    if is_void_element(&tag_name) {
+                    if is_void_element(tag_name) {
                         return Err(crate::error::ParseError::svelte(
                             "void_element_invalid_content",
                             "Void elements cannot have children or closing tags",
@@ -273,7 +290,7 @@ impl Parser<'_> {
                         // Check if this tag was auto-closed by a nested element.
                         // If so, raise element_invalid_closing_tag_autoclosed instead.
                         if let Some(ref last_auto) = self.last_auto_closed_tag
-                            && last_auto.tag == tag_name.as_str()
+                            && last_auto.tag.as_str() == tag_name
                         {
                             let reason = last_auto.reason.clone();
                             return Err(crate::error::ParseError::svelte(
@@ -325,12 +342,19 @@ impl Parser<'_> {
             }
 
             // Check for implicit closing - if the next tag would implicitly close the current element
-            if self.should_implicitly_close().is_some() {
+            if first_byte == b'<' && self.should_implicitly_close().is_some() {
                 break;
             }
 
             // Skip trailing whitespace at EOF - don't parse it as a Text node
-            if self.remaining_is_whitespace_only() {
+            // Only check if the first byte looks like whitespace (fast path)
+            if (first_byte == b' '
+                || first_byte == b'\t'
+                || first_byte == b'\n'
+                || first_byte == b'\r'
+                || first_byte >= 0x80)
+                && self.remaining_is_whitespace_only()
+            {
                 break;
             }
 

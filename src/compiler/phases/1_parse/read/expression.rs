@@ -275,7 +275,10 @@ pub fn parse_destructuring_pattern(
                 SourceType::mjs()
             };
 
-            let wrapped = format!("let {} = null", content);
+            let mut wrapped = String::with_capacity(content.len() + 12);
+            wrapped.push_str("let ");
+            wrapped.push_str(content);
+            wrapped.push_str(" = null");
             let parser = OxcParser::new(allocator, &wrapped, source_type);
             let result = parser.parse();
 
@@ -363,7 +366,10 @@ pub fn parse_expression_with_end(
 
 /// Check if JavaScript expression has parse errors. Returns Some(error_message) if there is an error.
 pub fn check_js_parse_error(content: &str) -> Option<String> {
-    let wrapped = format!("({})", content);
+    let mut wrapped = String::with_capacity(content.len() + 2);
+    wrapped.push('(');
+    wrapped.push_str(content);
+    wrapped.push(')');
 
     // Try TypeScript first
     let ts_error = with_oxc_allocator(|allocator| {
@@ -420,8 +426,12 @@ fn parse_expression_with_typescript(
             SourceType::mjs()
         };
 
-        // Try to parse as an expression by wrapping it
-        let wrapped = format!("({})", content);
+        // Try to parse as an expression by wrapping it in parens.
+        // Use pre-allocated String with exact capacity to avoid realloc.
+        let mut wrapped = String::with_capacity(content.len() + 2);
+        wrapped.push('(');
+        wrapped.push_str(content);
+        wrapped.push(')');
         let parser = OxcParser::new(allocator, &wrapped, source_type);
         let result = parser.parse();
 
@@ -685,7 +695,10 @@ pub fn parse_typescript_params(
     let source_type = SourceType::ts();
 
     // Wrap as arrow function to parse parameters: "(msg: string) => {}"
-    let wrapped = format!("({}) => {{}}", content);
+    let mut wrapped = String::with_capacity(content.len() + 9);
+    wrapped.push('(');
+    wrapped.push_str(content);
+    wrapped.push_str(") => {}");
     let mut params = Vec::new();
 
     enum ParseOutcome {
@@ -720,7 +733,10 @@ pub fn parse_typescript_params(
 
     // OXC TS parser failed - try stripping optional markers and re-parsing
     let stripped = strip_optional_markers(content);
-    let cleaned_wrapped = format!("({}) => {{}}", stripped.content);
+    let mut cleaned_wrapped = String::with_capacity(stripped.content.len() + 9);
+    cleaned_wrapped.push('(');
+    cleaned_wrapped.push_str(&stripped.content);
+    cleaned_wrapped.push_str(") => {}");
 
     let cleaned_ok = with_oxc_allocator(|allocator| {
         let cleaned_parser = OxcParser::new(allocator, &cleaned_wrapped, source_type);
@@ -759,7 +775,10 @@ pub fn parse_typescript_params(
                 continue;
             }
             let stripped_part = strip_optional_markers(part);
-            let single_wrapped = format!("({}) => {{}}", stripped_part.content);
+            let mut single_wrapped = String::with_capacity(stripped_part.content.len() + 9);
+            single_wrapped.push('(');
+            single_wrapped.push_str(&stripped_part.content);
+            single_wrapped.push_str(") => {}");
             let single_result_expr = with_oxc_allocator(|allocator| {
                 let single_parser = OxcParser::new(allocator, &single_wrapped, source_type);
                 let single_result = single_parser.parse();

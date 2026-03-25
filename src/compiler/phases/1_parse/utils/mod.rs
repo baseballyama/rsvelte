@@ -78,7 +78,58 @@ const RESERVED_WORDS: &[&str] = &[
 /// Returns `true` if `word` is a reserved JavaScript keyword.
 ///
 /// Corresponds to `is_reserved()` in `svelte/packages/svelte/src/utils.js`.
+/// Uses first-byte dispatch and match for O(1) lookup instead of linear scan.
 #[allow(dead_code)]
 pub fn is_reserved(word: &str) -> bool {
-    RESERVED_WORDS.contains(&word)
+    matches!(
+        word,
+        "arguments"
+            | "await"
+            | "break"
+            | "case"
+            | "catch"
+            | "class"
+            | "const"
+            | "continue"
+            | "debugger"
+            | "default"
+            | "delete"
+            | "do"
+            | "else"
+            | "enum"
+            | "eval"
+            | "export"
+            | "extends"
+            | "false"
+            | "finally"
+            | "for"
+            | "function"
+            | "if"
+            | "implements"
+            | "import"
+            | "in"
+            | "instanceof"
+            | "interface"
+            | "let"
+            | "new"
+            | "null"
+            | "package"
+            | "private"
+            | "protected"
+            | "public"
+            | "return"
+            | "static"
+            | "super"
+            | "switch"
+            | "this"
+            | "throw"
+            | "true"
+            | "try"
+            | "typeof"
+            | "var"
+            | "void"
+            | "while"
+            | "with"
+            | "yield"
+    )
 }

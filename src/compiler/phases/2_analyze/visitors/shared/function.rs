@@ -68,28 +68,30 @@ pub fn exit_function(context: &mut VisitorContext) {
 }
 
 /// Check if an identifier is a rune.
+/// Uses first-byte dispatch after '$' for fast rejection.
+#[inline]
 pub fn is_rune(name: &str) -> bool {
-    matches!(
-        name,
-        "$state"
-            | "$state.raw"
-            | "$state.eager"
-            | "$state.snapshot"
-            | "$derived"
-            | "$derived.by"
-            | "$props"
-            | "$props.id"
-            | "$bindable"
-            | "$effect"
-            | "$effect.pre"
-            | "$effect.tracking"
-            | "$effect.root"
-            | "$effect.pending"
-            | "$inspect"
-            | "$inspect().with"
-            | "$inspect.trace"
-            | "$host"
-    )
+    let bytes = name.as_bytes();
+    if bytes.first() != Some(&b'$') || bytes.len() < 5 {
+        return false;
+    }
+    // Dispatch on second byte for fast rejection
+    match bytes[1] {
+        b's' => matches!(
+            name,
+            "$state" | "$state.raw" | "$state.eager" | "$state.snapshot"
+        ),
+        b'd' => matches!(name, "$derived" | "$derived.by"),
+        b'p' => matches!(name, "$props" | "$props.id"),
+        b'b' => name == "$bindable",
+        b'e' => matches!(
+            name,
+            "$effect" | "$effect.pre" | "$effect.tracking" | "$effect.root" | "$effect.pending"
+        ),
+        b'i' => matches!(name, "$inspect" | "$inspect().with" | "$inspect.trace"),
+        b'h' => name == "$host",
+        _ => false,
+    }
 }
 
 /// Get the rune type from a name.
