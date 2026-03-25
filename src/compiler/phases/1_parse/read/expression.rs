@@ -4450,26 +4450,36 @@ fn distribute_comments_to_nested_bodies(
     content: &str,
     offset: usize,
 ) {
-    // Build a list of all comment JSON values with their document-offset end positions
-    let comment_values: Vec<(u32, Value)> = all_comments
+    // Build a list of pre-computed comment entries with positions extracted upfront.
+    // Comments from OXC are already sorted by position, which enables binary search.
+    let comment_entries: Vec<CommentEntry> = all_comments
         .iter()
         .map(|comment| {
+            let comment_start = offset + comment.span.start as usize;
             let comment_end = offset + comment.span.end as usize;
-            (
-                comment_end as u32,
-                build_comment_value(comment, content, offset),
-            )
+            CommentEntry {
+                start: comment_start as u32,
+                end: comment_end as u32,
+                value: build_comment_value(comment, content, offset),
+            }
         })
         .collect();
 
-    // Recursively walk the AST and distribute comments
+    // Recursively walk the AST and distribute comments in-place
     if let Some(body) = program_obj.get_mut("body") {
-        distribute_comments_to_body(body, &comment_values);
+        distribute_comments_to_body(body, &comment_entries);
     }
 }
 
+/// A pre-computed comment entry with positions extracted to avoid repeated Value lookups.
+struct CommentEntry {
+    start: u32,
+    end: u32,
+    value: Value,
+}
+
 /// Distribute comments to statements in a body array, then recurse into nested bodies.
-fn distribute_comments_to_body(body: &mut Value, comments: &[(u32, Value)]) {
+fn distribute_comments_to_body(body: &mut Value, comments: &[CommentEntry]) {
     if let Some(stmts) = body.as_array_mut() {
         for stmt in stmts.iter_mut() {
             // Recurse into nested bodies of this statement
@@ -4479,7 +4489,11 @@ fn distribute_comments_to_body(body: &mut Value, comments: &[(u32, Value)]) {
 }
 
 /// Recursively walk a node and distribute comments to any nested statement bodies.
-fn distribute_comments_to_node(node: &mut Value, comments: &[(u32, Value)]) {
+///
+/// This function operates entirely in-place: it never clones statement Values.
+/// Comments are attached by inserting `leadingComments` directly into existing
+/// statement Map objects via mutable references.
+fn distribute_comments_to_node(node: &mut Value, comments: &[CommentEntry]) {
     let Some(obj) = node.as_object_mut() else {
         return;
     };
@@ -4501,79 +4515,67 @@ fn distribute_comments_to_node(node: &mut Value, comments: &[(u32, Value)]) {
     };
 
     for &field in body_fields {
-        if let Some(body_val) = obj.get(field).cloned()
-            && let Some(stmts) = body_val.as_array()
-        {
-            let mut new_stmts: Vec<Value> = Vec::with_capacity(stmts.len());
-            for stmt in stmts {
-                let mut stmt = stmt.clone();
-                // Check if this statement doesn't already have leadingComments
-                if let Some(stmt_obj) = stmt.as_object_mut()
-                    && !stmt_obj.contains_key("leadingComments")
-                {
-                    let stmt_start =
-                        stmt_obj.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
+        if let Some(stmts) = obj.get_mut(field).and_then(|v| v.as_array_mut()) {
+            let mut prev_end: u32 = 0;
+            for stmt in stmts.iter_mut() {
+                if let Some(stmt_obj) = stmt.as_object_mut() {
+                    // Check if this statement doesn't already have leadingComments
+                    if !stmt_obj.contains_key("leadingComments") {
+                        let stmt_start =
+                            stmt_obj.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
 
-                    // Find comments that appear before this statement and after the previous
-                    // statement (or parent start)
-                    let prev_end = new_stmts
-                        .last()
-                        .and_then(|s: &Value| s.get("end"))
-                        .and_then(|e| e.as_u64())
-                        .unwrap_or(0) as u32;
+                        // Use binary search to find the first comment that could be relevant
+                        // (comment.end > prev_end). Comments are sorted by position.
+                        let search_start = comments.partition_point(|c| c.end <= prev_end);
 
-                    let mut leading = Vec::new();
-                    for (comment_end, comment_value) in comments {
-                        let comment_start = comment_value
-                            .get("start")
-                            .and_then(|s| s.as_u64())
-                            .unwrap_or(0) as u32;
-                        // Comment must be between prev statement end and this statement start
-                        if comment_start >= prev_end && *comment_end <= stmt_start {
-                            leading.push(comment_value.clone());
+                        let mut leading = Vec::new();
+                        for comment in &comments[search_start..] {
+                            // Once comment end exceeds statement start, no more matches
+                            if comment.end > stmt_start {
+                                break;
+                            }
+                            // Comment must start after previous statement end
+                            if comment.start >= prev_end {
+                                leading.push(comment.value.clone());
+                            }
+                        }
+
+                        if !leading.is_empty() {
+                            stmt_obj.insert("leadingComments".to_string(), Value::Array(leading));
                         }
                     }
 
-                    if !leading.is_empty() {
-                        stmt_obj.insert("leadingComments".to_string(), Value::Array(leading));
-                    }
+                    // Track prev_end for the next iteration
+                    prev_end = stmt_obj.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as u32;
                 }
-                new_stmts.push(stmt);
             }
-            obj.insert(field.to_string(), Value::Array(new_stmts));
         }
     }
 
-    // Recurse into child nodes that might contain nested bodies
-    // We need to walk into specific child fields
-    let child_fields: Vec<String> = match node_type.as_str() {
-        "FunctionDeclaration" | "FunctionExpression" | "ArrowFunctionExpression" => {
-            vec!["body".to_string()]
-        }
-        "IfStatement" => vec!["consequent".to_string(), "alternate".to_string()],
+    // Recurse into child nodes that might contain nested bodies.
+    // We use &str slices to avoid String allocations.
+    let child_fields: &[&str] = match node_type.as_str() {
+        "FunctionDeclaration" | "FunctionExpression" | "ArrowFunctionExpression" => &["body"],
+        "IfStatement" => &["consequent", "alternate"],
         "ForStatement" | "ForInStatement" | "ForOfStatement" | "WhileStatement"
-        | "DoWhileStatement" => vec!["body".to_string()],
-        "TryStatement" => vec![
-            "block".to_string(),
-            "handler".to_string(),
-            "finalizer".to_string(),
-        ],
-        "CatchClause" => vec!["body".to_string()],
-        "WithStatement" => vec!["body".to_string()],
-        "LabeledStatement" => vec!["body".to_string()],
-        "SwitchStatement" => vec!["cases".to_string()],
-        "SwitchCase" => vec!["consequent".to_string()],
-        "BlockStatement" | "Program" => vec!["body".to_string()],
-        "ExportNamedDeclaration" | "ExportDefaultDeclaration" => vec!["declaration".to_string()],
-        "VariableDeclaration" => vec!["declarations".to_string()],
-        "ClassDeclaration" | "ClassExpression" => vec!["body".to_string()],
-        "ClassBody" => vec!["body".to_string()],
-        "MethodDefinition" | "PropertyDefinition" => vec!["value".to_string()],
-        _ => vec![],
+        | "DoWhileStatement" => &["body"],
+        "TryStatement" => &["block", "handler", "finalizer"],
+        "CatchClause" => &["body"],
+        "WithStatement" => &["body"],
+        "LabeledStatement" => &["body"],
+        "SwitchStatement" => &["cases"],
+        "SwitchCase" => &["consequent"],
+        "BlockStatement" | "Program" => &["body"],
+        "ExportNamedDeclaration" | "ExportDefaultDeclaration" => &["declaration"],
+        "VariableDeclaration" => &["declarations"],
+        "ClassDeclaration" | "ClassExpression" => &["body"],
+        "ClassBody" => &["body"],
+        "MethodDefinition" | "PropertyDefinition" => &["value"],
+        _ => &[],
     };
 
-    for field in child_fields {
-        if let Some(child) = obj.get_mut(&field) {
+    for &field in child_fields {
+        if let Some(child) = obj.get_mut(field) {
             if child.is_array() {
                 if let Some(items) = child.as_array_mut() {
                     for item in items {
