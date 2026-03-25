@@ -68,16 +68,29 @@ impl Parser<'_> {
         }
 
         let end = self.index as u32;
-        let data = self.source[start_pos..self.index].to_string();
+        let raw_str = &self.source[start_pos..self.index];
 
-        // Decode character references (is_attribute_value = false)
-        let decoded_data = decode_html_entities(&data, false);
+        // Fast path: skip decode_html_entities entirely if no '&' present
+        let text_bytes = &self.bytes[start_pos..self.index];
+        let has_entity = memchr::memchr(b'&', text_bytes).is_some();
 
-        Ok(Some(TemplateNode::Text(Text {
-            start,
-            end,
-            raw: CompactString::from(data),
-            data: CompactString::from(decoded_data),
-        })))
+        if has_entity {
+            let decoded_data = decode_html_entities(raw_str, false);
+            Ok(Some(TemplateNode::Text(Text {
+                start,
+                end,
+                raw: CompactString::from(raw_str),
+                data: CompactString::from(decoded_data),
+            })))
+        } else {
+            // No entities: raw and data are the same, avoid decode overhead
+            let cs = CompactString::from(raw_str);
+            Ok(Some(TemplateNode::Text(Text {
+                start,
+                end,
+                raw: cs.clone(),
+                data: cs,
+            })))
+        }
     }
 }

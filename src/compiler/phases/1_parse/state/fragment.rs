@@ -190,8 +190,22 @@ impl Parser<'_> {
     }
 
     /// Check if the remaining content from current position to EOF is only whitespace.
+    #[inline]
     pub fn remaining_is_whitespace_only(&self) -> bool {
-        self.source[self.index..].chars().all(|c| c.is_whitespace())
+        // Fast path: scan bytes for ASCII whitespace
+        let bytes = &self.bytes[self.index..];
+        for &b in bytes {
+            if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
+                continue;
+            }
+            if b < 0x80 {
+                // ASCII non-whitespace
+                return false;
+            }
+            // Non-ASCII: fall back to char-based check for entire remaining string
+            return self.source[self.index..].chars().all(|c| c.is_whitespace());
+        }
+        true
     }
 
     /// Parse a fragment (sequence of nodes).
@@ -201,16 +215,40 @@ impl Parser<'_> {
 
         let mut nodes = Vec::new();
 
-        while !self.is_eof() {
-            // Check for end conditions
-            // Note: {/* and {// are JS comments, not block close/continuation tags
-            let is_block_close =
-                self.match_str("{/") && !self.match_str("{/*") && !self.match_str("{//");
-            let is_block_continuation =
-                self.match_str("{:") && !self.match_str("{:/*") && !self.match_str("{://");
+        while self.index < self.bytes.len() {
+            // Fast dispatch on first byte to avoid redundant match_str calls
+            let first_byte = self.bytes[self.index];
+
+            // Check for end conditions based on first byte
+            let (is_block_close, is_block_continuation) =
+                if first_byte == b'{' && self.index + 1 < self.bytes.len() {
+                    let second_byte = self.bytes[self.index + 1];
+                    if second_byte == b'/' {
+                        // {/ - but not {/* or {//
+                        let is_comment = self.index + 2 < self.bytes.len()
+                            && (self.bytes[self.index + 2] == b'*'
+                                || self.bytes[self.index + 2] == b'/');
+                        (!is_comment, false)
+                    } else if second_byte == b':' {
+                        // {: - but not {:/* or {://
+                        // Check 3rd+4th bytes directly: {:/ followed by * or /
+                        let is_comment = self.index + 3 < self.bytes.len()
+                            && self.bytes[self.index + 2] == b'/'
+                            && (self.bytes[self.index + 3] == b'*'
+                                || self.bytes[self.index + 3] == b'/');
+                        (false, !is_comment)
+                    } else {
+                        (false, false)
+                    }
+                } else {
+                    (false, false)
+                };
 
             // If we see a closing tag and the stack only has Root (root level), this is an error
-            if self.match_str("</") {
+            if first_byte == b'<'
+                && self.index + 1 < self.bytes.len()
+                && self.bytes[self.index + 1] == b'/'
+            {
                 // Check if this is a closing tag at root level (only Root on stack)
                 let is_root_level =
                     self.stack.len() == 1 && matches!(self.stack.first(), Some(StackEntry::Root));
@@ -320,16 +358,16 @@ impl Parser<'_> {
     /// - `parser.match('<')` → `element` (JS) / `parse_element_or_comment()` (Rust)
     /// - `parser.match('{')` → `tag` (JS) / `parse_mustache()` (Rust)
     /// - Otherwise → `text` (JS) / `parse_text()` (Rust)
+    #[inline]
     pub fn parse_node(&mut self) -> ParseResult<Option<TemplateNode>> {
-        if self.is_eof() {
+        if self.index >= self.bytes.len() {
             return Ok(None);
         }
 
-        let c = self.current_char();
-
-        match c {
-            '<' => self.parse_element_or_comment(),
-            '{' => self.parse_mustache(),
+        // Use byte dispatch instead of char dispatch for ASCII
+        match self.bytes[self.index] {
+            b'<' => self.parse_element_or_comment(),
+            b'{' => self.parse_mustache(),
             _ => self.parse_text(),
         }
     }

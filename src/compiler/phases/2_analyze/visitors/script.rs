@@ -51,17 +51,19 @@ pub fn visit_script(script_ast: &Value, context: &mut VisitorContext) -> Result<
 /// * `context` - The visitor context
 pub fn walk_js_node(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Fast path: skip non-object values (primitives, arrays, nulls)
-    if !node.is_object() {
-        return Ok(());
-    }
+    let obj = match node {
+        Value::Object(obj) => obj,
+        _ => return Ok(()),
+    };
 
-    let node_type = node.get("type").and_then(|t| t.as_str());
+    let node_type = obj.get("type").and_then(|t| t.as_str());
 
     // Process leadingComments for svelte-ignore directives.
     // This mirrors the official Svelte compiler's universal `_` visitor (2-analyze/index.js L117-131)
     // which extracts svelte-ignore codes from JS comments and pushes them to the ignore stack.
+    // Most nodes don't have leadingComments, so check existence first.
     let mut has_ignores = false;
-    if let Some(comments) = node.get("leadingComments").and_then(|c| c.as_array()) {
+    if let Some(comments) = obj.get("leadingComments").and_then(|c| c.as_array()) {
         let mut ignores = Vec::new();
         for comment in comments {
             if let Some(value) = comment.get("value").and_then(|v| v.as_str()) {
@@ -78,88 +80,93 @@ pub fn walk_js_node(node: &Value, context: &mut VisitorContext) -> Result<(), An
     context.js_path.push(super::JsPathEntry::new(node));
 
     // Visit specific node types and determine if the visitor handles its own children
-    let self_traversal = match node_type {
-        Some("CallExpression") => {
-            super::call_expression::visit(node, context)?;
-            true
+    // Unwrap Option once to avoid repeated Some() matching overhead on every arm
+    let self_traversal = if let Some(nt) = node_type {
+        match nt {
+            "CallExpression" => {
+                super::call_expression::visit(node, context)?;
+                true
+            }
+            "VariableDeclarator" => {
+                super::variable_declarator::visit(node, context)?;
+                true
+            }
+            "FunctionDeclaration" => {
+                super::function_declaration::visit(node, context)?;
+                true
+            }
+            "FunctionExpression" | "ArrowFunctionExpression" => {
+                super::function_expression::visit(node, context)?;
+                true
+            }
+            "ClassDeclaration" => {
+                super::class_declaration::visit(node, context)?;
+                true
+            }
+            "ClassBody" => {
+                super::class_body::visit(node, context)?;
+                true
+            }
+            "PropertyDefinition" => {
+                super::property_definition::visit(node, context)?;
+                true
+            }
+            "AssignmentExpression" => {
+                super::assignment_expression::visit(node, context)?;
+                true
+            }
+            "AwaitExpression" => {
+                super::await_expression::visit(node, context)?;
+                true
+            }
+            "ExpressionStatement" => {
+                super::expression_statement::visit(node, context)?;
+                true
+            }
+            "Identifier" => {
+                super::identifier::visit(node, context)?;
+                false
+            }
+            "Literal" => {
+                super::literal::visit(node, context)?;
+                false
+            }
+            "TemplateElement" => {
+                super::template_element::visit(node, context)?;
+                false
+            }
+            "MemberExpression" => {
+                super::member_expression::visit(node, context)?;
+                true
+            }
+            "NewExpression" => {
+                super::new_expression::visit(node, context)?;
+                true
+            }
+            "UpdateExpression" => {
+                super::update_expression::visit(node, context)?;
+                true
+            }
+            "LabeledStatement" => {
+                super::labeled_statement::visit(node, context)?;
+                true
+            }
+            "ExportDefaultDeclaration" => {
+                super::export_default_declaration::visit(node, context)?;
+                true
+            }
+            "ExportNamedDeclaration" => {
+                super::export_named_declaration::visit(node, context)?;
+                true
+            }
+            "ImportDeclaration" => {
+                super::import_declaration::visit(node, context)?;
+                true
+            }
+            _ => false,
         }
-        Some("VariableDeclarator") => {
-            super::variable_declarator::visit(node, context)?;
-            true
-        }
-        Some("FunctionDeclaration") => {
-            super::function_declaration::visit(node, context)?;
-            true
-        }
-        Some("FunctionExpression") | Some("ArrowFunctionExpression") => {
-            super::function_expression::visit(node, context)?;
-            true
-        }
-        Some("ClassDeclaration") => {
-            super::class_declaration::visit(node, context)?;
-            true
-        }
-        Some("ClassBody") => {
-            super::class_body::visit(node, context)?;
-            true
-        }
-        Some("PropertyDefinition") => {
-            super::property_definition::visit(node, context)?;
-            true
-        }
-        Some("AssignmentExpression") => {
-            super::assignment_expression::visit(node, context)?;
-            true
-        }
-        Some("AwaitExpression") => {
-            super::await_expression::visit(node, context)?;
-            true
-        }
-        Some("ExpressionStatement") => {
-            super::expression_statement::visit(node, context)?;
-            true
-        }
-        Some("Identifier") => {
-            super::identifier::visit(node, context)?;
-            false
-        }
-        Some("Literal") => {
-            super::literal::visit(node, context)?;
-            false
-        }
-        Some("TemplateElement") => {
-            super::template_element::visit(node, context)?;
-            false
-        }
-        Some("MemberExpression") => {
-            super::member_expression::visit(node, context)?;
-            true
-        }
-        Some("NewExpression") => {
-            super::new_expression::visit(node, context)?;
-            true
-        }
-        Some("UpdateExpression") => {
-            super::update_expression::visit(node, context)?;
-            true
-        }
-        Some("LabeledStatement") => {
-            super::labeled_statement::visit(node, context)?;
-            true
-        }
-        Some("ExportDefaultDeclaration") => {
-            super::export_default_declaration::visit(node, context)?;
-            true
-        }
-        Some("ExportNamedDeclaration") => {
-            super::export_named_declaration::visit(node, context)?;
-            true
-        }
-        Some("ImportDeclaration") => {
-            super::import_declaration::visit(node, context)?;
-            true
-        }
-        _ => false,
+    } else {
+        false
     };
 
     // Visit children (common fields) - pass node_type to avoid re-reading it
@@ -259,12 +266,16 @@ fn visit_children(
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     // Dispatch based on node type to minimize HashMap lookups
-    match node_type {
-        Some("Program") | Some("BlockStatement") => {
+    // Unwrap Option once to avoid repeated Some() matching overhead
+    let Some(nt) = node_type else {
+        return visit_children_fallback(node, context);
+    };
+    match nt {
+        "Program" | "BlockStatement" => {
             // body[]
             walk_body(node, context)?;
         }
-        Some("VariableDeclaration") => {
+        "VariableDeclaration" => {
             // declarations[]
             if let Some(declarations) = node.get("declarations").and_then(|d| d.as_array()) {
                 for decl in declarations {
@@ -272,7 +283,7 @@ fn visit_children(
                 }
             }
         }
-        Some("IfStatement") => {
+        "IfStatement" => {
             // test, consequent, alternate
             if let Some(test) = node.get("test") {
                 walk_js_node(test, context)?;
@@ -284,7 +295,7 @@ fn visit_children(
                 walk_js_node(alternate, context)?;
             }
         }
-        Some("ForStatement") => {
+        "ForStatement" => {
             // init, test, update, body
             if let Some(init) = node.get("init") {
                 walk_js_node(init, context)?;
@@ -297,7 +308,7 @@ fn visit_children(
             }
             walk_body(node, context)?;
         }
-        Some("ForInStatement") | Some("ForOfStatement") => {
+        "ForInStatement" | "ForOfStatement" => {
             // left, right, body
             if let Some(left) = node.get("left") {
                 walk_js_node(left, context)?;
@@ -307,14 +318,14 @@ fn visit_children(
             }
             walk_body(node, context)?;
         }
-        Some("WhileStatement") | Some("DoWhileStatement") => {
+        "WhileStatement" | "DoWhileStatement" => {
             // test, body
             if let Some(test) = node.get("test") {
                 walk_js_node(test, context)?;
             }
             walk_body(node, context)?;
         }
-        Some("SwitchStatement") => {
+        "SwitchStatement" => {
             // discriminant, cases[]
             if let Some(discriminant) = node.get("discriminant") {
                 walk_js_node(discriminant, context)?;
@@ -325,7 +336,7 @@ fn visit_children(
                 }
             }
         }
-        Some("SwitchCase") => {
+        "SwitchCase" => {
             // test, consequent[]
             if let Some(test) = node.get("test") {
                 walk_js_node(test, context)?;
@@ -336,7 +347,7 @@ fn visit_children(
                 }
             }
         }
-        Some("TryStatement") => {
+        "TryStatement" => {
             // block, handler, finalizer
             if let Some(block) = node.get("block") {
                 walk_js_node(block, context)?;
@@ -348,25 +359,21 @@ fn visit_children(
                 walk_js_node(finalizer, context)?;
             }
         }
-        Some("CatchClause") => {
+        "CatchClause" => {
             // param, body
             if let Some(param) = node.get("param") {
                 walk_js_node(param, context)?;
             }
             walk_body(node, context)?;
         }
-        Some("ReturnStatement")
-        | Some("ThrowStatement")
-        | Some("SpreadElement")
-        | Some("UnaryExpression")
-        | Some("YieldExpression")
-        | Some("RestElement") => {
+        "ReturnStatement" | "ThrowStatement" | "SpreadElement" | "UnaryExpression"
+        | "YieldExpression" | "RestElement" => {
             // argument
             if let Some(argument) = node.get("argument") {
                 walk_js_node(argument, context)?;
             }
         }
-        Some("BinaryExpression") | Some("LogicalExpression") => {
+        "BinaryExpression" | "LogicalExpression" => {
             // left, right
             if let Some(left) = node.get("left") {
                 walk_js_node(left, context)?;
@@ -375,7 +382,7 @@ fn visit_children(
                 walk_js_node(right, context)?;
             }
         }
-        Some("ConditionalExpression") => {
+        "ConditionalExpression" => {
             // test, consequent, alternate
             if let Some(test) = node.get("test") {
                 walk_js_node(test, context)?;
@@ -387,7 +394,7 @@ fn visit_children(
                 walk_js_node(alternate, context)?;
             }
         }
-        Some("ObjectExpression") | Some("ObjectPattern") => {
+        "ObjectExpression" | "ObjectPattern" => {
             // properties[]
             if let Some(properties) = node.get("properties").and_then(|p| p.as_array()) {
                 for prop in properties {
@@ -395,7 +402,7 @@ fn visit_children(
                 }
             }
         }
-        Some("ArrayExpression") | Some("ArrayPattern") => {
+        "ArrayExpression" | "ArrayPattern" => {
             // elements[]
             if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
                 for elem in elements {
@@ -405,7 +412,7 @@ fn visit_children(
                 }
             }
         }
-        Some("Property") => {
+        "Property" => {
             // key (if computed), value
             if node
                 .get("computed")
@@ -419,7 +426,7 @@ fn visit_children(
                 walk_js_node(value, context)?;
             }
         }
-        Some("SequenceExpression") => {
+        "SequenceExpression" => {
             // expressions[]
             if let Some(expressions) = node.get("expressions").and_then(|e| e.as_array()) {
                 for expr in expressions {
@@ -427,7 +434,7 @@ fn visit_children(
                 }
             }
         }
-        Some("TemplateLiteral") => {
+        "TemplateLiteral" => {
             // expressions[], quasis[]
             if let Some(expressions) = node.get("expressions").and_then(|e| e.as_array()) {
                 for expr in expressions {
@@ -440,7 +447,7 @@ fn visit_children(
                 }
             }
         }
-        Some("TaggedTemplateExpression") => {
+        "TaggedTemplateExpression" => {
             // tag, quasi
             if let Some(tag) = node.get("tag") {
                 walk_js_node(tag, context)?;
@@ -449,7 +456,7 @@ fn visit_children(
                 walk_js_node(quasi, context)?;
             }
         }
-        Some("AssignmentPattern") => {
+        "AssignmentPattern" => {
             // left, right
             if let Some(left) = node.get("left") {
                 walk_js_node(left, context)?;
@@ -458,7 +465,7 @@ fn visit_children(
                 walk_js_node(right, context)?;
             }
         }
-        Some("MethodDefinition") => {
+        "MethodDefinition" => {
             // key (if computed), value
             if node
                 .get("computed")
@@ -472,25 +479,25 @@ fn visit_children(
                 walk_js_node(value, context)?;
             }
         }
-        Some("ExportAllDeclaration")
-        | Some("Identifier")
-        | Some("Literal")
-        | Some("TemplateElement")
-        | Some("ThisExpression")
-        | Some("Super")
-        | Some("BreakStatement")
-        | Some("ContinueStatement")
-        | Some("EmptyStatement")
-        | Some("DebuggerStatement") => {
+        "ExportAllDeclaration"
+        | "Identifier"
+        | "Literal"
+        | "TemplateElement"
+        | "ThisExpression"
+        | "Super"
+        | "BreakStatement"
+        | "ContinueStatement"
+        | "EmptyStatement"
+        | "DebuggerStatement" => {
             // Leaf nodes - no children to walk
         }
-        Some("ImportExpression") => {
+        "ImportExpression" => {
             // source
             if let Some(source) = node.get("source") {
                 walk_js_node(source, context)?;
             }
         }
-        Some("ChainExpression") | Some("ParenthesizedExpression") => {
+        "ChainExpression" | "ParenthesizedExpression" => {
             // expression
             if let Some(expression) = node.get("expression") {
                 walk_js_node(expression, context)?;

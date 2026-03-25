@@ -29,12 +29,12 @@ impl Parser<'_> {
 
         self.skip_whitespace();
 
-        // Check for block tags
-        if self.match_str("#") {
+        // Check for block tags (use byte comparison for single-char checks)
+        if self.match_byte(b'#') {
             return self.parse_block_open(start);
         }
 
-        if self.match_str(":") {
+        if self.match_byte(b':') {
             // Block continuation - should not happen at top level
             return Err(crate::error::ParseError::svelte(
                 "block_invalid_continuation_placement",
@@ -43,12 +43,12 @@ impl Parser<'_> {
             ));
         }
 
-        if self.match_str("/") && !self.match_str("/*") && !self.match_str("//") {
+        if self.match_byte(b'/') && !self.match_str("/*") && !self.match_str("//") {
             // Block close (but not JS comment) - should not happen at top level
             return Ok(None);
         }
 
-        if self.match_str("@") {
+        if self.match_byte(b'@') {
             return self.parse_special_tag(start);
         }
 

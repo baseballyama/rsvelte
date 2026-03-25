@@ -156,12 +156,15 @@ impl<'a> Parser<'a> {
     ///
     /// Corresponds to the `Parser` constructor in `svelte/packages/svelte/src/compiler/phases/1-parse/index.js`.
     pub fn new(source: &'a str, options: ParseOptions) -> Self {
-        // Calculate line offsets for location calculation
-        let mut line_offsets = vec![0];
-        for (i, c) in source.char_indices() {
-            if c == '\n' {
-                line_offsets.push(i + 1);
-            }
+        // Calculate line offsets for location calculation using SIMD-accelerated memchr
+        let bytes = source.as_bytes();
+        let mut line_offsets = Vec::with_capacity(bytes.len() / 40 + 1); // rough estimate
+        line_offsets.push(0);
+        let mut pos = 0;
+        while let Some(offset) = memchr::memchr(b'\n', &bytes[pos..]) {
+            let abs = pos + offset;
+            line_offsets.push(abs + 1);
+            pos = abs + 1;
         }
 
         // Detect TypeScript mode by looking for lang="ts" in script tags
@@ -279,19 +282,41 @@ impl<'a> Parser<'a> {
     /// Get the current character.
     #[inline]
     pub fn current_char(&self) -> char {
-        if self.is_eof() {
+        if self.index >= self.bytes.len() {
             '\0'
         } else {
-            self.source[self.index..].chars().next().unwrap_or('\0')
+            // Fast path: ASCII byte (covers 99%+ of Svelte source)
+            let b = self.bytes[self.index];
+            if b < 0x80 {
+                b as char
+            } else {
+                // Slow path: multi-byte UTF-8
+                // SAFETY: self.source is valid UTF-8 and self.index < self.bytes.len()
+                self.source[self.index..].chars().next().unwrap_or('\0')
+            }
         }
     }
 
     /// Advance the position by one character.
     #[inline]
     pub fn advance(&mut self) {
-        if !self.is_eof() {
-            let c = self.current_char();
-            self.index += c.len_utf8();
+        if self.index < self.bytes.len() {
+            // Fast path: ASCII byte (covers 99%+ of Svelte source)
+            let b = self.bytes[self.index];
+            if b < 0x80 {
+                self.index += 1;
+            } else {
+                // Slow path: multi-byte UTF-8
+                // Determine UTF-8 byte length from the leading byte
+                let len = if b < 0xE0 {
+                    2
+                } else if b < 0xF0 {
+                    3
+                } else {
+                    4
+                };
+                self.index += len;
+            }
         }
     }
 
@@ -304,7 +329,16 @@ impl<'a> Parser<'a> {
     /// Check if the source at current position starts with the given string.
     #[inline]
     pub fn match_str(&self, s: &str) -> bool {
-        self.source[self.index..].starts_with(s)
+        // Use byte comparison instead of creating a string slice
+        let s_bytes = s.as_bytes();
+        let remaining = self.bytes.len() - self.index;
+        remaining >= s_bytes.len() && self.bytes[self.index..self.index + s_bytes.len()] == *s_bytes
+    }
+
+    /// Check if the byte at the current position matches (ASCII only).
+    #[inline]
+    pub fn match_byte(&self, b: u8) -> bool {
+        self.index < self.bytes.len() && self.bytes[self.index] == b
     }
 
     /// Consume a string if it matches.
@@ -340,7 +374,12 @@ impl<'a> Parser<'a> {
     /// This is the most common use case - try to consume a string, but don't error if it's not there.
     #[inline]
     pub fn eat_optional(&mut self, s: &str) -> bool {
-        self.eat(s, false, true).unwrap_or(false)
+        if self.match_str(s) {
+            self.advance_by(s.len());
+            true
+        } else {
+            false
+        }
     }
 
     /// Consume a string, requiring it to be present (equivalent to `eat(s, true, true)` in JavaScript).
@@ -368,13 +407,25 @@ impl<'a> Parser<'a> {
     }
 
     /// Skip whitespace.
+    #[inline]
     pub fn skip_whitespace(&mut self) {
-        while !self.is_eof() {
-            let c = self.current_char();
-            if !c.is_whitespace() {
+        // Fast path for ASCII whitespace (space, tab, newline, carriage return)
+        while self.index < self.bytes.len() {
+            let b = self.bytes[self.index];
+            if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
+                self.index += 1;
+            } else if b < 0x80 {
+                // ASCII non-whitespace: done
                 break;
+            } else {
+                // Non-ASCII: check for Unicode whitespace via char
+                let c = self.source[self.index..].chars().next().unwrap_or('\0');
+                if c.is_whitespace() {
+                    self.index += c.len_utf8();
+                } else {
+                    break;
+                }
             }
-            self.advance();
         }
     }
 
@@ -385,44 +436,44 @@ impl<'a> Parser<'a> {
     ///
     /// Stops when reaching an unmatched `}` that closes the outer block.
     pub fn skip_pattern_expression(&mut self) {
-        let mut brace_depth = 0; // { }
-        let mut bracket_depth = 0; // [ ]
-        let mut paren_depth = 0; // ( )
+        let mut brace_depth: u32 = 0;
+        let mut bracket_depth: u32 = 0;
+        let mut paren_depth: u32 = 0;
 
-        while !self.is_eof() {
-            let c = self.current_char();
-
-            match c {
-                '{' => brace_depth += 1,
-                '}' => {
+        while self.index < self.bytes.len() {
+            // Fast path: all delimiter chars are ASCII
+            let b = self.bytes[self.index];
+            match b {
+                b'{' => brace_depth += 1,
+                b'}' => {
                     if brace_depth == 0 {
-                        // Unmatched } - this closes the outer await/each/etc. block
                         break;
                     }
                     brace_depth -= 1;
                 }
-                '[' => bracket_depth += 1,
-                ']' => {
-                    if bracket_depth > 0 {
-                        bracket_depth -= 1;
-                    }
+                b'[' => bracket_depth += 1,
+                b']' => {
+                    bracket_depth = bracket_depth.saturating_sub(1);
                 }
-                '(' => paren_depth += 1,
-                ')' => {
-                    if paren_depth > 0 {
-                        paren_depth -= 1;
-                    }
+                b'(' => paren_depth += 1,
+                b')' => {
+                    paren_depth = paren_depth.saturating_sub(1);
                 }
                 _ => {}
             }
 
-            self.advance();
+            // Advance by byte length
+            if b < 0x80 {
+                self.index += 1;
+            } else {
+                self.advance();
+            }
         }
 
-        // Trim trailing whitespace from the pattern
+        // Trim trailing ASCII whitespace from the pattern
         while self.index > 0 {
             let prev_byte = self.bytes[self.index - 1];
-            if (prev_byte as char).is_ascii_whitespace() {
+            if prev_byte == b' ' || prev_byte == b'\t' || prev_byte == b'\n' || prev_byte == b'\r' {
                 self.index -= 1;
             } else {
                 break;
@@ -431,45 +482,91 @@ impl<'a> Parser<'a> {
     }
 
     /// Read an identifier.
+    #[inline]
     pub fn read_identifier(&mut self) -> CompactString {
         let start = self.index;
 
-        while !self.is_eof() {
-            let c = self.current_char();
-            if !c.is_alphanumeric() && c != '_' && c != '$' {
+        // Fast path: ASCII identifier characters (a-z, A-Z, 0-9, _, $)
+        while self.index < self.bytes.len() {
+            let b = self.bytes[self.index];
+            if b.is_ascii_alphanumeric() || b == b'_' || b == b'$' {
+                self.index += 1;
+            } else if b < 0x80 {
+                // ASCII non-identifier char: done
                 break;
+            } else {
+                // Non-ASCII: check via char
+                let c = self.source[self.index..].chars().next().unwrap_or('\0');
+                if c.is_alphanumeric() {
+                    self.index += c.len_utf8();
+                } else {
+                    break;
+                }
             }
-            self.advance();
         }
 
         CompactString::from(&self.source[start..self.index])
     }
 
     /// Read a tag name.
+    #[inline]
     pub fn read_tag_name(&mut self) -> CompactString {
         let start = self.index;
 
-        while !self.is_eof() {
-            let c = self.current_char();
-            if c.is_whitespace() || c == '>' || c == '/' || c == '=' {
+        // Fast path: tag name characters are ASCII (stop at whitespace, >, /, =)
+        while self.index < self.bytes.len() {
+            let b = self.bytes[self.index];
+            if b == b' '
+                || b == b'\t'
+                || b == b'\n'
+                || b == b'\r'
+                || b == b'>'
+                || b == b'/'
+                || b == b'='
+            {
                 break;
+            } else if b < 0x80 {
+                self.index += 1;
+            } else {
+                let c = self.source[self.index..].chars().next().unwrap_or('\0');
+                if c.is_whitespace() {
+                    break;
+                }
+                self.index += c.len_utf8();
             }
-            self.advance();
         }
 
         CompactString::from(&self.source[start..self.index])
     }
 
     /// Read an attribute name.
+    #[inline]
     pub fn read_attribute_name(&mut self) -> CompactString {
         let start = self.index;
 
-        while !self.is_eof() {
-            let c = self.current_char();
-            if c.is_whitespace() || c == '=' || c == '>' || c == '/' || c == '"' || c == '\'' {
+        // Fast path: attribute name characters are ASCII (stop at whitespace, =, >, /, ", ')
+        while self.index < self.bytes.len() {
+            let b = self.bytes[self.index];
+            if b == b' '
+                || b == b'\t'
+                || b == b'\n'
+                || b == b'\r'
+                || b == b'='
+                || b == b'>'
+                || b == b'/'
+                || b == b'"'
+                || b == b'\''
+            {
                 break;
+            } else if b < 0x80 {
+                self.index += 1;
+            } else {
+                let c = self.source[self.index..].chars().next().unwrap_or('\0');
+                if c.is_whitespace() {
+                    break;
+                }
+                self.index += c.len_utf8();
             }
-            self.advance();
         }
 
         CompactString::from(&self.source[start..self.index])

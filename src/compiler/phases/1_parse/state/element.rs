@@ -11,6 +11,7 @@
 
 use compact_str::CompactString;
 use memchr::memchr;
+use memchr::memmem;
 
 use crate::ast::js::Expression;
 use crate::ast::template::{
@@ -35,8 +36,11 @@ impl Parser<'_> {
             self.advance_by(3); // consume '!--'
             let data_start = self.index;
 
-            while !self.is_eof() && !self.match_str("-->") {
-                self.advance();
+            // Use SIMD-accelerated search for "-->" instead of byte-by-byte scanning
+            if let Some(pos) = memmem::find(&self.bytes[self.index..], b"-->") {
+                self.index += pos;
+            } else {
+                self.index = self.bytes.len();
             }
 
             let data = &self.source[data_start..self.index];
@@ -64,7 +68,7 @@ impl Parser<'_> {
         }
 
         // Check for closing tag
-        if self.match_str("/") {
+        if self.match_byte(b'/') {
             let close_start = self.index - 1; // start includes '<'
             self.advance(); // consume '/'
             let name = self.read_tag_name();
@@ -699,96 +703,102 @@ impl Parser<'_> {
         };
 
         // Check if the next tag would implicitly close the current element
-        if !self.match_str("<") || self.match_str("</") || self.match_str("<!") {
+        if !self.match_byte(b'<') || self.match_str("</") || self.match_str("<!") {
             return None;
         }
 
-        // Look ahead to get the next tag name
-        let remaining = &self.source[self.index + 1..]; // skip '<'
-        let next_tag: String = remaining
-            .chars()
-            .take_while(|c| c.is_alphanumeric() || *c == '-' || *c == ':')
-            .collect();
+        // Look ahead to get the next tag name using bytes (avoids String allocation)
+        let tag_start = self.index + 1; // skip '<'
+        let mut tag_end = tag_start;
+        while tag_end < self.bytes.len() {
+            let b = self.bytes[tag_end];
+            if b.is_ascii_alphanumeric() || b == b'-' || b == b':' {
+                tag_end += 1;
+            } else {
+                break;
+            }
+        }
 
-        if next_tag.is_empty() {
+        if tag_end == tag_start {
             return None;
         }
+
+        let next_tag_bytes = &self.bytes[tag_start..tag_end];
 
         // Components (starting with uppercase) should not trigger implicit closing.
         // Only HTML elements (lowercase) can implicitly close other elements.
-        if next_tag.starts_with(|c: char| c.is_uppercase()) {
+        if next_tag_bytes[0].is_ascii_uppercase() {
             return None;
         }
 
-        let next_tag = next_tag.to_lowercase();
+        // All HTML tag names are ASCII - use a stack buffer for case-insensitive comparison
+        // This avoids the heap allocation from to_lowercase()
+        let next_tag_str = std::str::from_utf8(next_tag_bytes).unwrap_or("");
 
-        // Check implicit closing rules
+        // Helper macro for case-insensitive comparison against lowercase literals
+        macro_rules! tag_eq {
+            ($lit:expr) => {
+                next_tag_str.eq_ignore_ascii_case($lit)
+            };
+        }
+
+        // Check implicit closing rules (case-insensitive for HTML compliance)
         let closes = match current_element {
-            // <li> is implicitly closed by another <li>
-            "li" => next_tag == "li",
-            // <p> is implicitly closed by many block-level elements
-            "p" => matches!(
-                next_tag.as_str(),
-                "address"
-                    | "article"
-                    | "aside"
-                    | "blockquote"
-                    | "details"
-                    | "div"
-                    | "dl"
-                    | "fieldset"
-                    | "figcaption"
-                    | "figure"
-                    | "footer"
-                    | "form"
-                    | "h1"
-                    | "h2"
-                    | "h3"
-                    | "h4"
-                    | "h5"
-                    | "h6"
-                    | "header"
-                    | "hgroup"
-                    | "hr"
-                    | "main"
-                    | "menu"
-                    | "nav"
-                    | "ol"
-                    | "p"
-                    | "pre"
-                    | "section"
-                    | "table"
-                    | "ul"
-            ),
-            // <dt> is implicitly closed by <dt> or <dd>
-            "dt" => matches!(next_tag.as_str(), "dt" | "dd"),
-            // <dd> is implicitly closed by <dt> or <dd>
-            "dd" => matches!(next_tag.as_str(), "dt" | "dd"),
-            // <rt> is implicitly closed by <rt> or <rp>
-            "rt" => matches!(next_tag.as_str(), "rt" | "rp"),
-            // <rp> is implicitly closed by <rt> or <rp>
-            "rp" => matches!(next_tag.as_str(), "rt" | "rp"),
-            // <td> is implicitly closed by <td>, <th>, or <tr>
-            "td" => matches!(next_tag.as_str(), "td" | "th" | "tr"),
-            // <th> is implicitly closed by <td>, <th>, or <tr>
-            "th" => matches!(next_tag.as_str(), "td" | "th" | "tr"),
-            // <tr> is implicitly closed by <tr> or <tbody>
-            "tr" => matches!(next_tag.as_str(), "tr" | "tbody"),
-            // <thead> is implicitly closed by <tbody> or <tfoot>
-            "thead" => matches!(next_tag.as_str(), "tbody" | "tfoot"),
-            // <tbody> is implicitly closed by <tbody> or <tfoot>
-            "tbody" => matches!(next_tag.as_str(), "tbody" | "tfoot"),
-            // <tfoot> is implicitly closed by <tbody>
-            "tfoot" => next_tag == "tbody",
-            // <option> is implicitly closed by <option> or <optgroup>
-            "option" => matches!(next_tag.as_str(), "option" | "optgroup"),
-            // <optgroup> is implicitly closed by <optgroup>
-            "optgroup" => next_tag == "optgroup",
+            "li" => tag_eq!("li"),
+            "p" => {
+                tag_eq!("address")
+                    || tag_eq!("article")
+                    || tag_eq!("aside")
+                    || tag_eq!("blockquote")
+                    || tag_eq!("details")
+                    || tag_eq!("div")
+                    || tag_eq!("dl")
+                    || tag_eq!("fieldset")
+                    || tag_eq!("figcaption")
+                    || tag_eq!("figure")
+                    || tag_eq!("footer")
+                    || tag_eq!("form")
+                    || tag_eq!("h1")
+                    || tag_eq!("h2")
+                    || tag_eq!("h3")
+                    || tag_eq!("h4")
+                    || tag_eq!("h5")
+                    || tag_eq!("h6")
+                    || tag_eq!("header")
+                    || tag_eq!("hgroup")
+                    || tag_eq!("hr")
+                    || tag_eq!("main")
+                    || tag_eq!("menu")
+                    || tag_eq!("nav")
+                    || tag_eq!("ol")
+                    || tag_eq!("p")
+                    || tag_eq!("pre")
+                    || tag_eq!("section")
+                    || tag_eq!("table")
+                    || tag_eq!("ul")
+            }
+            "dt" => tag_eq!("dt") || tag_eq!("dd"),
+            "dd" => tag_eq!("dt") || tag_eq!("dd"),
+            "rt" => tag_eq!("rt") || tag_eq!("rp"),
+            "rp" => tag_eq!("rt") || tag_eq!("rp"),
+            "td" => tag_eq!("td") || tag_eq!("th") || tag_eq!("tr"),
+            "th" => tag_eq!("td") || tag_eq!("th") || tag_eq!("tr"),
+            "tr" => tag_eq!("tr") || tag_eq!("tbody"),
+            "thead" => tag_eq!("tbody") || tag_eq!("tfoot"),
+            "tbody" => tag_eq!("tbody") || tag_eq!("tfoot"),
+            "tfoot" => tag_eq!("tbody"),
+            "option" => tag_eq!("option") || tag_eq!("optgroup"),
+            "optgroup" => tag_eq!("optgroup"),
             _ => false,
         };
 
         if closes {
-            Some(CompactString::from(next_tag))
+            // Only allocate CompactString when we actually need the result
+            let mut lower = String::with_capacity(next_tag_str.len());
+            for b in next_tag_str.bytes() {
+                lower.push(b.to_ascii_lowercase() as char);
+            }
+            Some(CompactString::from(lower))
         } else {
             None
         }
@@ -837,8 +847,8 @@ impl Parser<'_> {
             // - '</' (closing tag starts - unclosed open tag in loose mode)
             // - '{/' (block closing tag - unclosed open tag inside block in loose mode)
             // - '{#' (block opening tag - unclosed open tag followed by sibling block in loose mode)
-            if self.is_eof()
-                || self.current_char() == '>'
+            if self.index >= self.bytes.len()
+                || self.bytes[self.index] == b'>'
                 || self.match_str("/>")
                 || self.match_str("</")
                 || self.match_str("{/")
@@ -856,19 +866,17 @@ impl Parser<'_> {
                 // animate and transition can only be specified once per element so no need
                 // to check here, use can be used multiple times, same for the on directive
                 // finally let already has error handling in case of duplicate variable names
-                let (attr_type, attr_name, attr_start) = match &attr {
-                    crate::ast::Attribute::Attribute(a) => {
-                        ("Attribute".to_string(), a.name.to_string(), a.start)
-                    }
+                let (attr_type, attr_name, attr_start): (&str, &str, u32) = match &attr {
+                    crate::ast::Attribute::Attribute(a) => ("Attribute", a.name.as_str(), a.start),
                     crate::ast::Attribute::BindDirective(b) => {
                         // bind:attribute and attribute are the same, normalize to Attribute
-                        ("Attribute".to_string(), b.name.to_string(), b.start)
+                        ("Attribute", b.name.as_str(), b.start)
                     }
                     crate::ast::Attribute::ClassDirective(c) => {
-                        ("ClassDirective".to_string(), c.name.to_string(), c.start)
+                        ("ClassDirective", c.name.as_str(), c.start)
                     }
                     crate::ast::Attribute::StyleDirective(s) => {
-                        ("StyleDirective".to_string(), s.name.to_string(), s.start)
+                        ("StyleDirective", s.name.as_str(), s.start)
                     }
                     _ => {
                         // Other attribute types are not checked for duplicates
@@ -906,21 +914,21 @@ impl Parser<'_> {
         // Corresponds to read_comment() in the official Svelte compiler (5.53+).
         loop {
             if self.match_str("//") {
-                // Line comment: skip until newline
-                while !self.is_eof() && self.current_char() != '\n' {
-                    self.advance();
+                // Line comment: skip until newline using SIMD-accelerated search
+                self.advance_by(2); // consume '//'
+                if let Some(pos) = memchr(b'\n', &self.bytes[self.index..]) {
+                    self.index += pos;
+                } else {
+                    self.index = self.bytes.len();
                 }
                 self.skip_whitespace();
             } else if self.match_str("/*") {
                 // Block comment: skip until */
-                self.advance(); // consume '/'
-                self.advance(); // consume '*'
-                while !self.is_eof() && !self.match_str("*/") {
-                    self.advance();
-                }
-                if self.match_str("*/") {
-                    self.advance(); // consume '*'
-                    self.advance(); // consume '/'
+                self.advance_by(2); // consume '/*'
+                if let Some(pos) = memmem::find(&self.bytes[self.index..], b"*/") {
+                    self.index += pos + 2; // skip past '*/'
+                } else {
+                    self.index = self.bytes.len();
                 }
                 self.skip_whitespace();
             } else {
@@ -931,7 +939,7 @@ impl Parser<'_> {
         let start = self.index;
 
         // Check for spread attribute, @attach, or expression shorthand
-        if self.match_str("{") {
+        if self.match_byte(b'{') {
             self.advance(); // consume '{'
             self.skip_whitespace();
 
@@ -2307,7 +2315,7 @@ impl Parser<'_> {
         // This avoids false positives like </textaread matching </textarea
         while !self.is_eof() && !self.is_valid_closing_tag(&closing_tag) {
             // Check for expression tag
-            if self.match_str("{") && !self.match_str("{{") {
+            if self.match_byte(b'{') && !self.match_str("{{") {
                 let mustache_start = self.index;
 
                 // Check for {@html} or other @ tags in textarea - this is invalid
