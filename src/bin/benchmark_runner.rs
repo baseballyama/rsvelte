@@ -134,6 +134,8 @@ fn process_file(source: &str, filename: &str, task: &Task) {
         Task::Parse => {
             let options = ParseOptions {
                 modern: true,
+                skip_expression_loc: true,
+                defer_script_parse: true,
                 ..Default::default()
             };
             let _ = parse(source, options);

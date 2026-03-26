@@ -624,11 +624,6 @@ fn try_parse_parenthesized(
     offset: usize,
     line_offsets: &[usize],
 ) -> Option<Expression> {
-    // Must end with ')'
-    if *bytes.last()? != b')' {
-        return None;
-    }
-
     // Find the matching ')' for the opening '('
     let mut depth = 1u32;
     let mut in_string = 0u8;
@@ -655,16 +650,123 @@ fn try_parse_parenthesized(
     }
     let close = close?;
 
-    // Only handle simple parenthesized: (expr) with nothing after
-    if close + 1 != bytes.len() {
+    // Check what follows the closing paren
+    let after_close = &bytes[close + 1..];
+
+    // Skip whitespace after ')'
+    let ws_skip = after_close
+        .iter()
+        .position(|&b| b != b' ' && b != b'\t' && b != b'\n' && b != b'\r')
+        .unwrap_or(after_close.len());
+
+    // Check for arrow function: (...) => body
+    if after_close.len() >= ws_skip + 2
+        && after_close[ws_skip] == b'='
+        && after_close[ws_skip + 1] == b'>'
+    {
+        return try_parse_arrow_function(
+            arena,
+            content,
+            bytes,
+            offset,
+            line_offsets,
+            close,
+            ws_skip,
+        );
+    }
+
+    // Simple parenthesized: (expr) with nothing after
+    if close + 1 == bytes.len() {
+        let inner = content[1..close].trim();
+        if inner.is_empty() {
+            return None;
+        }
+        return try_parse_atom(arena, inner, inner.as_bytes(), offset + 1, line_offsets);
+    }
+
+    None
+}
+
+/// Try to parse arrow functions: `() => expr`, `(x) => expr`, `(a, b) => expr`
+/// Also handles expression body only (not block body `() => { ... }`).
+#[inline]
+fn try_parse_arrow_function(
+    arena: &ParseArena,
+    content: &str,
+    _bytes: &[u8],
+    offset: usize,
+    line_offsets: &[usize],
+    close_paren: usize,
+    ws_after_paren: usize,
+) -> Option<Expression> {
+    let arrow_start = close_paren + 1 + ws_after_paren + 2; // past "=>"
+    let body_str = content[arrow_start..].trim();
+
+    if body_str.is_empty() {
         return None;
     }
 
-    let inner = content[1..close].trim();
-    if inner.is_empty() {
+    // Block body `() => { ... }` — too complex for fast path
+    if body_str.as_bytes()[0] == b'{' {
         return None;
     }
-    try_parse_atom(arena, inner, inner.as_bytes(), offset + 1, line_offsets)
+
+    let body_bytes = body_str.as_bytes();
+    let body_offset = offset
+        + arrow_start
+        + (content[arrow_start..].len() - content[arrow_start..].trim_start().len());
+
+    // Parse body as expression
+    let body = try_parse_atom(arena, body_str, body_bytes, body_offset, line_offsets)
+        .or_else(|| {
+            try_parse_compound_expression(arena, body_str, body_bytes, body_offset, line_offsets)
+        })
+        .or_else(|| {
+            try_parse_call_expression(arena, body_str, body_bytes, body_offset, line_offsets)
+        })
+        .or_else(|| {
+            try_parse_update_expression(arena, body_str, body_bytes, body_offset, line_offsets)
+        })?;
+
+    // Parse params between ( and )
+    let params_str = content[1..close_paren].trim();
+    let params_start = arena.js_children_count();
+
+    if !params_str.is_empty() {
+        for param in params_str.split(',') {
+            let p = param.trim();
+            if p.is_empty() {
+                return None;
+            }
+            let p_bytes = p.as_bytes();
+            if !is_ident_start_byte(p_bytes[0]) {
+                return None; // Destructuring params — too complex
+            }
+            if !p_bytes.iter().all(|&b| is_ident_continue_byte(b)) {
+                return None; // Has type annotations or defaults — too complex
+            }
+            arena.alloc_js_child(JsNode::Identifier {
+                start: 0, // Approximate — exact positions not critical for compilation
+                end: 0,
+                loc: None,
+                name: CompactString::from(p),
+            });
+        }
+    }
+    let params = arena.children_range_since(params_start);
+
+    let total_end = offset + content.len();
+    Some(Expression::from_node(JsNode::ArrowFunctionExpression {
+        start: offset as u32,
+        end: total_end as u32,
+        loc: create_typed_loc(offset, total_end, line_offsets),
+        id: None,
+        params,
+        body: arena.alloc_js_node(expr_to_node(body)),
+        expression: true,
+        generator: false,
+        r#async: false,
+    }))
 }
 
 /// Try to parse compound expressions: binary ops, logical ops, ternary.
@@ -1212,8 +1314,7 @@ pub fn parse_expression(
     ts: bool,
 ) -> Result<Expression, (String, usize)> {
     // Fast path: handle simple expressions (identifiers, member expressions,
-    // boolean/null literals) without invoking OXC. These account for ~58% of
-    // all template expressions and are trivial to parse directly.
+    // boolean/null literals) without invoking OXC.
     if let Some(expr) = try_parse_simple_expression(arena, content, offset, line_offsets) {
         return Ok(expr);
     }

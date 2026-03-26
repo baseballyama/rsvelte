@@ -12,6 +12,7 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = ["native"]
 native = ["rayon", "miette/fancy", "jemalloc"]
+trace-fastpath = []
 napi = ["dep:napi", "dep:napi-derive", "dep:napi-build"]
 jemalloc = ["dep:tikv-jemallocator"]
 wasm = ["wasm-bindgen", "console_error_panic_hook", "getrandom/js"]
@@ -113,6 +114,14 @@ path = "src/bin/parse_profile.rs"
 [[bin]]
 name = "samply_target"
 path = "src/bin/samply_target.rs"
+
+[[bin]]
+name = "oxc_call_counter"
+path = "src/bin/oxc_call_counter.rs"
+
+[[bin]]
+name = "parse_bottleneck"
+path = "src/bin/parse_bottleneck.rs"
 
 [[bin]]
 name = "fastpath_coverage"
