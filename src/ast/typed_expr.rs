@@ -1957,12 +1957,25 @@ thread_local! {
     static DESER_ARENA: std::cell::RefCell<ParseArena> = std::cell::RefCell::new(ParseArena::new());
 }
 
+/// Allocate a JsNode during deserialization.
+/// Uses the serialize arena if one is set (during compile pipeline),
+/// otherwise falls back to DESER_ARENA (for tests and standalone usage).
 fn deser_alloc_node(node: JsNode) -> JsNodeId {
-    DESER_ARENA.with(|a| a.borrow().alloc_js_node(node))
+    use crate::ast::arena::try_get_serialize_arena;
+    if let Some(arena) = try_get_serialize_arena() {
+        arena.alloc_js_node(node)
+    } else {
+        DESER_ARENA.with(|a| a.borrow().alloc_js_node(node))
+    }
 }
 
 fn deser_alloc_children(nodes: Vec<JsNode>) -> IdRange {
-    DESER_ARENA.with(|a| a.borrow().alloc_js_children(nodes))
+    use crate::ast::arena::try_get_serialize_arena;
+    if let Some(arena) = try_get_serialize_arena() {
+        arena.alloc_js_children(nodes)
+    } else {
+        DESER_ARENA.with(|a| a.borrow().alloc_js_children(nodes))
+    }
 }
 
 fn convert_child(obj: &serde_json::Map<String, Value>, key: &str) -> JsNodeId {

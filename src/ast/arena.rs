@@ -90,7 +90,12 @@ impl ParseArena {
         unsafe {
             let vec = &*self.js_nodes.get();
             if (id.0 as usize) >= vec.len() {
-                // Return a static Null node for arena mismatch
+                #[cfg(debug_assertions)]
+                eprintln!(
+                    "ARENA MISMATCH: get_js_node(id={}) but arena has {} nodes",
+                    id.0,
+                    vec.len()
+                );
                 static NULL_NODE: JsNode = JsNode::Null;
                 return &NULL_NODE;
             }
@@ -145,7 +150,13 @@ impl ParseArena {
             let vec = &*self.js_children.get();
             let end = (range.start + range.len) as usize;
             if end > vec.len() {
-                // Graceful fallback for arena mismatch (e.g., DESER_ARENA used during serialize)
+                #[cfg(debug_assertions)]
+                eprintln!(
+                    "ARENA CHILDREN MISMATCH: range({},{}) but arena has {} children",
+                    range.start,
+                    range.len,
+                    vec.len()
+                );
                 return &[];
             }
             &vec[range.start as usize..end]
@@ -239,6 +250,13 @@ pub unsafe fn set_serialize_arena(arena: *const ParseArena) {
     SERIALIZE_ARENA.with(|cell| {
         cell.set(Some(arena));
     });
+}
+
+/// Try to get the current serialize arena for allocation (used by deserialization).
+/// Returns None if no arena is set.
+#[inline]
+pub fn try_get_serialize_arena() -> Option<&'static ParseArena> {
+    SERIALIZE_ARENA.with(|cell| cell.get().map(|ptr| unsafe { &*ptr }))
 }
 
 /// Clear the thread-local serialize arena.
