@@ -751,7 +751,7 @@ pub fn compile_module(
 
     // Remove TypeScript nodes if needed
     let program = if is_typescript {
-        let mut val_clone = program.as_json().clone();
+        let mut val_clone = crate::ast::arena::with_serialize_arena(&arena, || program.as_json());
         let _ = phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(
             &mut val_clone,
             &[],
@@ -808,8 +808,18 @@ pub fn compile_module(
         ..Default::default()
     };
 
+    // Set serialize arena for analysis/transform phase JsNodeId resolution
+    unsafe { set_serialize_arena(&ast.arena as *const _) };
+
     // Phase 2: Analyze (reuses component analysis infrastructure)
-    let analysis = phases::phase2_analyze::analyze_component(&mut ast, source, &compile_options)?;
+    let analysis =
+        match phases::phase2_analyze::analyze_component(&mut ast, source, &compile_options) {
+            Ok(a) => a,
+            Err(e) => {
+                clear_serialize_arena();
+                return Err(e.into());
+            }
+        };
 
     // Module-specific validation: check for store subscriptions.
     // In modules, $store references (where `store` is a binding) are invalid.
@@ -817,12 +827,17 @@ pub fn compile_module(
     //   if (binding !== null && !is_rune(name)) {
     //     e.store_invalid_subscription_module(references[0].node);
     //   }
-    check_module_store_subscriptions(&analysis)?;
+    if let Err(e) = check_module_store_subscriptions(&analysis) {
+        clear_serialize_arena();
+        return Err(e);
+    }
 
     // Phase 3: Generate module output using the module-specific transform.
     // Unlike transform_component, this does NOT generate a component wrapper.
     let transform_result =
         phases::phase3_transform::transform_module(&analysis, source, &compile_options);
+
+    clear_serialize_arena();
 
     let js_code = match transform_result {
         Ok(result) => result.js,
