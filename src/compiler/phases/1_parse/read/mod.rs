@@ -11,5 +11,5 @@ pub mod acorn;
 pub mod context;
 pub mod expression;
 mod options;
-mod script;
+pub(crate) mod script;
 pub mod style;

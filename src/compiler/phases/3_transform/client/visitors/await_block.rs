@@ -622,7 +622,7 @@ fn convert_expression_to_pattern_with_context(
     context: &mut ComponentContext,
 ) -> JsPattern {
     let val = expr.as_json();
-    convert_value_to_pattern_with_context(val, context)
+    convert_value_to_pattern_with_context(&val, context)
 }
 
 /// Convert a JSON AST Value to a JsPattern, using reactive transforms for computed keys.
@@ -1481,7 +1481,7 @@ mod tests {
 
         let val = expr.as_json();
         let arena = JsArena::new();
-        let pattern = convert_value_to_pattern(val, &arena);
+        let pattern = convert_value_to_pattern(&val, &arena);
         match pattern {
             JsPattern::Identifier(name) => assert_eq!(name, "value"),
             _ => panic!("Expected identifier pattern"),

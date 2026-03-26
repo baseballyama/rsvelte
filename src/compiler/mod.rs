@@ -526,6 +526,7 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
         loose: false,
         filename: options.filename.clone(),
         skip_expression_loc: true,
+        defer_script_parse: true,
     };
     let mut ast = phases::phase1_parse::parse(source, parse_options)?;
 
@@ -761,9 +762,12 @@ pub fn compile_module(
             context: crate::ast::template::ScriptContext::Module,
             content: program,
             attributes: Vec::new(),
+            raw_content: String::new(),
+            content_offset: 0,
+            is_typescript: false,
         })),
         parse_warnings: Vec::new(),
-        source: Some(source.to_string()),
+        source: None,
     };
 
     // Convert ModuleCompileOptions to CompileOptions for the analysis phase.

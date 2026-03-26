@@ -86,19 +86,19 @@ pub enum JsNode {
     Identifier {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         name: CompactString,
     },
     PrivateIdentifier {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         name: CompactString,
     },
     Literal {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         value: LiteralValue,
         raw: CompactString,
         regex: Option<RegexValue>,
@@ -106,7 +106,7 @@ pub enum JsNode {
     BinaryExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         left: Box<JsNode>,
         operator: CompactString,
         right: Box<JsNode>,
@@ -114,7 +114,7 @@ pub enum JsNode {
     LogicalExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         left: Box<JsNode>,
         operator: CompactString,
         right: Box<JsNode>,
@@ -122,7 +122,7 @@ pub enum JsNode {
     UnaryExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         operator: CompactString,
         prefix: bool,
         argument: Box<JsNode>,
@@ -130,7 +130,7 @@ pub enum JsNode {
     ConditionalExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         test: Box<JsNode>,
         consequent: Box<JsNode>,
         alternate: Box<JsNode>,
@@ -138,7 +138,7 @@ pub enum JsNode {
     CallExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         callee: Box<JsNode>,
         arguments: Vec<JsNode>,
         optional: bool,
@@ -146,7 +146,7 @@ pub enum JsNode {
     MemberExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         object: Box<JsNode>,
         property: Box<JsNode>,
         computed: bool,
@@ -155,14 +155,14 @@ pub enum JsNode {
     NewExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         callee: Box<JsNode>,
         arguments: Vec<JsNode>,
     },
     FunctionExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         id: Option<Box<JsNode>>,
         params: Vec<JsNode>,
         body: Option<Box<JsNode>>,
@@ -173,7 +173,7 @@ pub enum JsNode {
     ClassExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         id: Option<Box<JsNode>>,
         super_class: Option<Box<JsNode>>,
         body: Box<JsNode>,
@@ -181,7 +181,7 @@ pub enum JsNode {
     ArrowFunctionExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         id: Option<Box<JsNode>>,
         params: Vec<JsNode>,
         body: Box<JsNode>,
@@ -192,7 +192,7 @@ pub enum JsNode {
     AssignmentExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         operator: CompactString,
         left: Box<JsNode>,
         right: Box<JsNode>,
@@ -200,7 +200,7 @@ pub enum JsNode {
     UpdateExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         operator: CompactString,
         prefix: bool,
         argument: Box<JsNode>,
@@ -208,120 +208,120 @@ pub enum JsNode {
     SequenceExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         expressions: Vec<JsNode>,
     },
     ArrayExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         elements: Vec<Option<JsNode>>,
     },
     ObjectExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         properties: Vec<JsNode>,
     },
     TemplateLiteral {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         quasis: Vec<JsNode>,
         expressions: Vec<JsNode>,
     },
     TaggedTemplateExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         tag: Box<JsNode>,
         quasi: Box<JsNode>,
     },
     TemplateElement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         tail: bool,
         value: TemplateElementValue,
     },
     ThisExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
     },
     Super {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
     },
     ImportExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         source: Box<JsNode>,
     },
     AwaitExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         argument: Box<JsNode>,
     },
     YieldExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         delegate: bool,
         argument: Option<Box<JsNode>>,
     },
     ChainExpression {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         expression: Box<JsNode>,
     },
     MetaProperty {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         meta: Box<JsNode>,
         property: Box<JsNode>,
     },
     SpreadElement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         argument: Box<JsNode>,
     },
     // Patterns
     ObjectPattern {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         properties: Vec<JsNode>,
     },
     ArrayPattern {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         elements: Vec<Option<JsNode>>,
     },
     AssignmentPattern {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         left: Box<JsNode>,
         right: Box<JsNode>,
     },
     RestElement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         argument: Box<JsNode>,
     },
     Property {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         key: Box<JsNode>,
         value: Box<JsNode>,
         kind: CompactString,
@@ -333,26 +333,30 @@ pub enum JsNode {
     Program {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         body: Vec<JsNode>,
         source_type: CompactString,
+        /// Leading comments on the Program node (e.g. from HTML comments before script tag).
+        leading_comments: Option<Vec<Value>>,
+        /// Trailing comments on the Program node (all JS comments in the program).
+        trailing_comments: Option<Vec<Value>>,
     },
     ExpressionStatement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         expression: Box<JsNode>,
     },
     BlockStatement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         body: Vec<JsNode>,
     },
     VariableDeclaration {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         declarations: Vec<JsNode>,
         kind: CompactString,
         declare: bool,
@@ -360,14 +364,14 @@ pub enum JsNode {
     VariableDeclarator {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         id: Box<JsNode>,
         init: Option<Box<JsNode>>,
     },
     FunctionDeclaration {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         id: Option<Box<JsNode>>,
         params: Vec<JsNode>,
         body: Option<Box<JsNode>>,
@@ -377,7 +381,7 @@ pub enum JsNode {
     ClassDeclaration {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         id: Option<Box<JsNode>>,
         super_class: Option<Box<JsNode>>,
         body: Box<JsNode>,
@@ -389,19 +393,19 @@ pub enum JsNode {
     ReturnStatement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         argument: Option<Box<JsNode>>,
     },
     ThrowStatement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         argument: Box<JsNode>,
     },
     IfStatement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         test: Box<JsNode>,
         consequent: Box<JsNode>,
         alternate: Option<Box<JsNode>>,
@@ -409,7 +413,7 @@ pub enum JsNode {
     ForStatement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         init: Option<Box<JsNode>>,
         test: Option<Box<JsNode>>,
         update: Option<Box<JsNode>>,
@@ -418,7 +422,7 @@ pub enum JsNode {
     ForOfStatement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         r#await: bool,
         left: Box<JsNode>,
         right: Box<JsNode>,
@@ -427,7 +431,7 @@ pub enum JsNode {
     ForInStatement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         left: Box<JsNode>,
         right: Box<JsNode>,
         body: Box<JsNode>,
@@ -435,21 +439,21 @@ pub enum JsNode {
     WhileStatement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         test: Box<JsNode>,
         body: Box<JsNode>,
     },
     DoWhileStatement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         test: Box<JsNode>,
         body: Box<JsNode>,
     },
     TryStatement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         block: Box<JsNode>,
         handler: Option<Box<JsNode>>,
         finalizer: Option<Box<JsNode>>,
@@ -457,58 +461,58 @@ pub enum JsNode {
     CatchClause {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         param: Option<Box<JsNode>>,
         body: Box<JsNode>,
     },
     SwitchStatement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         discriminant: Box<JsNode>,
         cases: Vec<JsNode>,
     },
     SwitchCase {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         test: Option<Box<JsNode>>,
         consequent: Vec<JsNode>,
     },
     LabeledStatement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         label: Box<JsNode>,
         body: Box<JsNode>,
     },
     BreakStatement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         label: Option<Box<JsNode>>,
     },
     ContinueStatement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         label: Option<Box<JsNode>>,
     },
     EmptyStatement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
     },
     DebuggerStatement {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
     },
     // Import/Export
     ImportDeclaration {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         specifiers: Vec<JsNode>,
         source: Box<JsNode>,
         import_kind: Option<CompactString>,
@@ -517,7 +521,7 @@ pub enum JsNode {
     ImportSpecifier {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         imported: Box<JsNode>,
         local: Box<JsNode>,
         import_kind: Option<CompactString>,
@@ -525,19 +529,19 @@ pub enum JsNode {
     ImportDefaultSpecifier {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         local: Box<JsNode>,
     },
     ImportNamespaceSpecifier {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         local: Box<JsNode>,
     },
     ExportNamedDeclaration {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         declaration: Option<Box<JsNode>>,
         specifiers: Vec<JsNode>,
         source: Option<Box<JsNode>>,
@@ -547,13 +551,13 @@ pub enum JsNode {
     ExportDefaultDeclaration {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         declaration: Box<JsNode>,
     },
     ExportSpecifier {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         local: Box<JsNode>,
         exported: Box<JsNode>,
         export_kind: Option<CompactString>,
@@ -562,13 +566,13 @@ pub enum JsNode {
     ClassBody {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         body: Vec<JsNode>,
     },
     MethodDefinition {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         key: Box<JsNode>,
         value: Box<JsNode>,
         kind: CompactString,
@@ -578,7 +582,7 @@ pub enum JsNode {
     PropertyDefinition {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         key: Box<JsNode>,
         value: Option<Box<JsNode>>,
         r#static: bool,
@@ -587,30 +591,30 @@ pub enum JsNode {
     StaticBlock {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         body: Vec<JsNode>,
     },
     Decorator {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
     },
     // TypeScript (minimal, for remove_typescript_nodes detection)
     TSTypeAnnotation {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         type_annotation: Box<JsNode>,
     },
     TSEnumDeclaration {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
     },
     TSModuleDeclaration {
         start: u32,
         end: u32,
-        loc: Option<Loc>,
+        loc: Option<Box<Loc>>,
         body: Option<Box<JsNode>>,
     },
     // Comment (used in Program.comments array, type is "Line" or "Block")
@@ -1233,6 +1237,8 @@ impl Serialize for JsNode {
                 loc,
                 body,
                 source_type,
+                leading_comments,
+                trailing_comments,
             } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "Program")?;
@@ -1241,6 +1247,12 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 map.serialize_entry("body", body)?;
                 map.serialize_entry("sourceType", source_type.as_str())?;
+                if let Some(tc) = trailing_comments {
+                    map.serialize_entry("trailingComments", tc)?;
+                }
+                if let Some(lc) = leading_comments {
+                    map.serialize_entry("leadingComments", lc)?;
+                }
                 map.end()
             }
             JsNode::ExpressionStatement {
@@ -1959,13 +1971,13 @@ fn get_bool(obj: &serde_json::Map<String, Value>, key: &str) -> bool {
     obj.get(key).and_then(|v| v.as_bool()).unwrap_or(false)
 }
 
-fn convert_loc(obj: &serde_json::Map<String, Value>) -> Option<Loc> {
+fn convert_loc(obj: &serde_json::Map<String, Value>) -> Option<Box<Loc>> {
     let loc_val = obj.get("loc")?;
     let loc_obj = loc_val.as_object()?;
     let start_obj = loc_obj.get("start")?.as_object()?;
     let end_obj = loc_obj.get("end")?.as_object()?;
 
-    Some(Loc {
+    Some(Box::new(Loc {
         start: SourcePosition {
             line: get_u32(start_obj, "line"),
             column: get_u32(start_obj, "column"),
@@ -1982,7 +1994,7 @@ fn convert_loc(obj: &serde_json::Map<String, Value>) -> Option<Loc> {
                 .and_then(|v| v.as_u64())
                 .map(|n| n as u32),
         },
-    })
+    }))
 }
 
 fn convert_child(obj: &serde_json::Map<String, Value>, key: &str) -> Box<JsNode> {
@@ -2306,6 +2318,12 @@ impl JsNode {
                         loc,
                         body: convert_array(obj, "body"),
                         source_type: get_str(obj, "sourceType"),
+                        leading_comments: obj
+                            .get("leadingComments")
+                            .and_then(|v| v.as_array().cloned()),
+                        trailing_comments: obj
+                            .get("trailingComments")
+                            .and_then(|v| v.as_array().cloned()),
                     },
                     "ExpressionStatement" => JsNode::ExpressionStatement {
                         start,

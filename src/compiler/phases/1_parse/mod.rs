@@ -84,12 +84,33 @@ pub struct ParseOptions {
     /// When true, loc fields are set to null instead of creating nested objects.
     /// This saves significant allocations during compilation where loc is never used.
     pub skip_expression_loc: bool,
+    /// Defer script content parsing for faster parse().
+    /// When true, script blocks store raw content and parse lazily in the analysis phase.
+    /// Set to false for tests that compare parse output directly.
+    pub defer_script_parse: bool,
 }
 
 /// Parse a Svelte component source into an AST.
 pub fn parse(source: &str, options: ParseOptions) -> ParseResult<Root> {
     let mut parser = Parser::new(source, options);
     parser.parse()
+}
+
+/// Compute line offsets for a source string (used for deferred script parsing).
+pub fn compute_line_offsets(source: &str, skip: bool) -> Vec<usize> {
+    if skip {
+        return Vec::new();
+    }
+    let bytes = source.as_bytes();
+    let mut offsets = Vec::with_capacity(bytes.len() / 40 + 1);
+    offsets.push(0);
+    let mut pos = 0;
+    while let Some(offset) = memchr::memchr(b'\n', &bytes[pos..]) {
+        let abs = pos + offset;
+        offsets.push(abs + 1);
+        pos = abs + 1;
+    }
+    offsets
 }
 
 /// Parse multiple Svelte components in parallel.

@@ -345,7 +345,7 @@ fn extract_call_callee(expr: &Expression) -> Option<Expression> {
 
 /// Wrapper to check if an Expression has a call.
 fn render_tag_has_call(expr: &Expression) -> bool {
-    json_value_has_call(expr.as_json())
+    json_value_has_call(&expr.as_json())
 }
 
 /// Recursively check if a JSON value (ESTree node) contains a CallExpression.

@@ -105,7 +105,7 @@ pub fn process_children<F>(
                 TemplateNode::ExpressionTag(expr_tag) => {
                     // Try to evaluate the expression at compile time (constant folding)
                     // This corresponds to state.scope.evaluate(node.expression) in the official compiler
-                    let eval_result = try_evaluate_expression(expr_tag.expression.as_json());
+                    let eval_result = try_evaluate_expression(&expr_tag.expression.as_json());
 
                     match eval_result {
                         EvalResult::Known(value) => {
@@ -795,7 +795,7 @@ pub fn convert_expression_simple(
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 ) -> JsExpr {
     let json = expr.as_json();
-    convert_json_value_simple(json, arena)
+    convert_json_value_simple(&json, arena)
 }
 
 /// Convert a JSON value to JsExpr without context.

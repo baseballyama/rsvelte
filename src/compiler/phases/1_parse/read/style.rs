@@ -55,18 +55,25 @@ impl Parser<'_> {
 
         let content_start = self.index;
 
-        // Find the closing </style> tag (with optional whitespace before >)
-        // Also track if we see an invalid '<' that is not part of </style
+        // Use SIMD-accelerated search for </style and check for invalid '<' along the way
         let mut first_invalid_lt: Option<usize> = None;
-        while !self.is_eof() && !self.is_valid_closing_tag("</style") {
-            // Check for '<' that is not part of </style - this is invalid in CSS
-            if self.current_char() == '<'
-                && !self.match_str("</style")
-                && first_invalid_lt.is_none()
-            {
-                first_invalid_lt = Some(self.index);
+        loop {
+            // Search for next '<' using memchr
+            if let Some(offset) = memchr::memchr(b'<', &self.bytes[self.index..]) {
+                let lt_pos = self.index + offset;
+                self.index = lt_pos;
+                if self.is_valid_closing_tag("</style") {
+                    break;
+                }
+                // Track first invalid '<' that is not part of </style
+                if first_invalid_lt.is_none() {
+                    first_invalid_lt = Some(lt_pos);
+                }
+                self.index = lt_pos + 1;
+            } else {
+                self.index = self.bytes.len();
+                break;
             }
-            self.advance();
         }
 
         let content_end = self.index;

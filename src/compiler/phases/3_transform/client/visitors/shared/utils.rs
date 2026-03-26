@@ -3396,7 +3396,7 @@ pub fn build_template_chunk(
 fn collect_expression_identifiers_for_blockers(expr: &crate::ast::js::Expression) -> Vec<String> {
     let mut names = Vec::new();
     let val = expr.as_json();
-    collect_expr_ids_recursive(val, &mut names);
+    collect_expr_ids_recursive(&val, &mut names);
     names
 }
 
@@ -3872,7 +3872,7 @@ pub(crate) fn is_expression_defined(
     expr: &crate::ast::js::Expression,
     context: &ComponentContext,
 ) -> bool {
-    is_expression_defined_json(expr.as_json(), context)
+    is_expression_defined_json(&expr.as_json(), context)
 }
 
 /// Internal helper for checking if a JSON expression is defined.
@@ -4013,7 +4013,7 @@ pub fn analyze_expression_properties(
 
     {
         let json_value = expr.as_json();
-        analyze_props_json(json_value, context, &mut props);
+        analyze_props_json(&json_value, context, &mut props);
     }
 
     props
@@ -4259,7 +4259,7 @@ pub fn expression_has_reactive_state(
     expr: &crate::ast::js::Expression,
     context: &ComponentContext,
 ) -> bool {
-    has_reactive_state_json(expr.as_json(), context)
+    has_reactive_state_json(&expr.as_json(), context)
 }
 
 /// Check if an expression is a `$effect.pending()` rune call.
@@ -4781,7 +4781,7 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
 /// Pure calls with only pure arguments are not counted.
 #[inline]
 pub fn expression_has_call(expr: &crate::ast::js::Expression, context: &ComponentContext) -> bool {
-    has_call_json(expr.as_json(), context)
+    has_call_json(&expr.as_json(), context)
 }
 
 /// Check if an expression (or its callee) is "pure" in the Svelte sense.
@@ -5022,7 +5022,7 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
 /// Returns true if the expression contains a MemberExpression at any level.
 #[inline]
 pub fn expression_has_member(expr: &crate::ast::js::Expression) -> bool {
-    has_member_json(expr.as_json())
+    has_member_json(&expr.as_json())
 }
 
 /// Internal helper that checks for MemberExpression in JSON values.
@@ -5142,7 +5142,7 @@ fn has_member_json(json_value: &serde_json::Value) -> bool {
 /// Returns true if the expression contains an AwaitExpression at any level.
 #[inline]
 pub fn expression_has_await(expr: &crate::ast::js::Expression) -> bool {
-    has_await_json(expr.as_json())
+    has_await_json(&expr.as_json())
 }
 
 /// Internal helper that checks for AwaitExpression in JSON values.

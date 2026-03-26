@@ -404,6 +404,7 @@ fn profile_file(config: &Config, filename: &str, content: &str) -> FileMetrics {
         loose: false,
         filename: Some(filename.to_string()),
         skip_expression_loc: true,
+        defer_script_parse: false,
     };
 
     let compile_options = CompileOptions {

@@ -106,6 +106,18 @@ path = "src/bin/benchmark_runner.rs"
 name = "profiler"
 path = "src/bin/profiler.rs"
 
+[[bin]]
+name = "parse_profile"
+path = "src/bin/parse_profile.rs"
+
+[[bin]]
+name = "samply_target"
+path = "src/bin/samply_target.rs"
+
+[[bin]]
+name = "fastpath_coverage"
+path = "src/bin/fastpath_coverage.rs"
+
 [[bench]]
 name = "parser"
 harness = false

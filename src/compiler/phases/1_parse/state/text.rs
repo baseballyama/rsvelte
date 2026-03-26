@@ -83,13 +83,13 @@ impl Parser<'_> {
                 data: CompactString::from(decoded_data),
             })))
         } else {
-            // No entities: raw and data are the same, avoid decode overhead
-            let cs = CompactString::from(raw_str);
+            // No entities: raw and data are the same, create both from the slice directly
+            // (CompactString inlines short strings up to 24 bytes, avoiding heap for both)
             Ok(Some(TemplateNode::Text(Text {
                 start,
                 end,
-                raw: cs.clone(),
-                data: cs,
+                raw: CompactString::from(raw_str),
+                data: CompactString::from(raw_str),
             })))
         }
     }

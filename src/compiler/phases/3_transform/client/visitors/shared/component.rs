@@ -2914,7 +2914,7 @@ fn get_binding_root_name(expr: &Expression) -> Option<String> {
         return Some(name.to_string());
     }
     // Fall back to JSON for member expression chain traversal
-    get_root_identifier_from_json(expr.as_json())
+    get_root_identifier_from_json(&expr.as_json())
 }
 
 fn get_root_identifier_from_json(val: &serde_json::Value) -> Option<String> {

@@ -10,13 +10,64 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 use crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore;
 use serde_json::Value;
 
-/// Visit a JavaScript script content.
+/// Visit a JavaScript script content from an Expression.
+///
+/// For `Typed(JsNode::Program)` expressions, this iterates the body directly
+/// via typed dispatch, avoiding the JSON Map construction and `.get("type")` lookups
+/// on the Program node itself.
+///
+/// Falls back to the JSON-based path for `Value` expressions.
+///
+/// # Arguments
+///
+/// * `script_expr` - The script Expression (should be a Program)
+/// * `context` - The visitor context
+pub fn visit_script_expr(
+    script_expr: &Expression,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    match script_expr {
+        Expression::Typed(te) => {
+            if let JsNode::Program { body, .. } = &te.node {
+                // Fast path: push a lazily-computed Value for js_path, then walk body typed
+                let program_value = te.as_json();
+                context
+                    .js_path
+                    .push(super::JsPathEntry::new(&program_value));
+
+                for stmt in body {
+                    match stmt {
+                        // For Raw nodes (statements with leadingComments attached),
+                        // use the Value-based walker which handles all node types
+                        // via string matching and processes leadingComments properly.
+                        JsNode::Raw(value) => {
+                            walk_js_node(value, context)?;
+                        }
+                        // For typed nodes, use the typed walker for direct field access.
+                        _ => {
+                            walk_js_node_typed(stmt, context)?;
+                        }
+                    }
+                }
+
+                context.js_path.pop();
+                Ok(())
+            } else {
+                // Not a Program - fall back to JSON path
+                visit_script(&script_expr.as_json(), context)
+            }
+        }
+        Expression::Value(_) => visit_script(&script_expr.as_json(), context),
+    }
+}
+
+/// Visit a JavaScript script content (JSON-based path).
 ///
 /// This walks the JavaScript AST and calls appropriate visitors for each node type.
 ///
 /// # Arguments
 ///
-/// * `script_ast` - The JavaScript AST (Program node)
+/// * `script_ast` - The JavaScript AST (Program node) as a JSON Value
 /// * `context` - The visitor context
 pub fn visit_script(script_ast: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Script content should be a Program node
@@ -523,7 +574,7 @@ pub fn walk_expression(
     // Always use walk_js_node with the JSON representation for now.
     // walk_js_node_typed is available for future optimization once
     // all individual JS visitors are converted to accept JsNode directly.
-    walk_js_node(expr.as_json(), context)
+    walk_js_node(&expr.as_json(), context)
 }
 
 /// Recursively walk typed JavaScript AST nodes.

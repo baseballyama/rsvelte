@@ -324,7 +324,7 @@ fn parse_custom_element_option(
                 // Object expression: customElement={{tag: "...", ...}}
                 if expr_json.get("type") == Some(&JsonValue::String("ObjectExpression".to_string()))
                 {
-                    return parse_custom_element_object(expr_json, attr);
+                    return parse_custom_element_object(&expr_json, attr);
                 }
             }
         }
@@ -353,7 +353,7 @@ fn parse_custom_element_option(
 
             // Object expression: customElement={{tag: "...", ...}}
             if expr_json.get("type") == Some(&JsonValue::String("ObjectExpression".to_string())) {
-                return parse_custom_element_object(expr_json, attr);
+                return parse_custom_element_object(&expr_json, attr);
             }
         }
     }

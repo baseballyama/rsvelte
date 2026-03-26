@@ -12,7 +12,6 @@
 use compact_str::CompactString;
 use memchr::memchr;
 use memchr::memmem;
-use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
 
 use crate::ast::js::Expression;
@@ -843,10 +842,6 @@ impl Parser<'_> {
     /// Parse attributes.
     pub fn parse_attributes(&mut self) -> ParseResult<Vec<crate::ast::Attribute>> {
         let mut attributes = Vec::with_capacity(4);
-        // Track unique attribute names for duplicate detection using FxHashSet for O(1) lookup.
-        // Encode type as a prefix byte to avoid format! allocation:
-        // 'A' = Attribute/BindDirective, 'C' = ClassDirective, 'S' = StyleDirective
-        let mut unique_names: FxHashSet<CompactString> = FxHashSet::default();
 
         loop {
             // Track position before whitespace skip for unclosed elements
@@ -881,7 +876,8 @@ impl Parser<'_> {
             }
 
             if let Some(attr) = self.parse_attribute()? {
-                // Check for duplicate attributes
+                // Check for duplicate attributes - linear scan over existing attributes.
+                // No separate data structure needed (most elements have < 10 attributes).
                 let (attr_type_prefix, attr_name, attr_start): (u8, &str, u32) = match &attr {
                     crate::ast::Attribute::Attribute(a) => (b'A', a.name.as_str(), a.start),
                     crate::ast::Attribute::BindDirective(b) => {
@@ -899,12 +895,20 @@ impl Parser<'_> {
 
                 // Skip duplicate check for "this" attribute (used on svelte:element and svelte:component)
                 if attr_name != "this" {
-                    // Build key with prefix byte to avoid format! allocation
-                    let mut key = CompactString::with_capacity(1 + attr_name.len());
-                    key.push(attr_type_prefix as char);
-                    key.push_str(attr_name);
+                    // Linear scan for duplicates against already-parsed attributes.
+                    // Zero allocations - just compare names in existing attribute objects.
+                    let is_dup = attributes.iter().any(|existing| {
+                        let (existing_prefix, existing_name): (u8, &str) = match existing {
+                            crate::ast::Attribute::Attribute(a) => (b'A', a.name.as_str()),
+                            crate::ast::Attribute::BindDirective(b) => (b'A', b.name.as_str()),
+                            crate::ast::Attribute::ClassDirective(c) => (b'C', c.name.as_str()),
+                            crate::ast::Attribute::StyleDirective(s) => (b'S', s.name.as_str()),
+                            _ => return false,
+                        };
+                        existing_prefix == attr_type_prefix && existing_name == attr_name
+                    });
 
-                    if !unique_names.insert(key) {
+                    if is_dup {
                         return Err(crate::error::ParseError::svelte(
                             "attribute_duplicate",
                             "Attributes need to be unique",
@@ -2234,8 +2238,7 @@ impl Parser<'_> {
         let mut nodes = Vec::new();
         let mut text_start = self.index;
 
-        // For textarea, we need to find a valid closing tag: </tagname followed by optional whitespace and >
-        // This avoids false positives like </textaread matching </textarea
+        // For textarea/raw elements, we need to find a valid closing tag
         while !self.is_eof() && !self.is_valid_closing_tag(&closing_tag) {
             // Check for expression tag
             if self.match_byte(b'{') && !self.match_str("{{") {

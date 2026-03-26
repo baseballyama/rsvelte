@@ -6,35 +6,33 @@
 
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
-use std::sync::OnceLock;
 
 use super::span::SourceLocation;
 use super::typed_expr::{JsNode, Loc, SourcePosition};
 
-/// Wrapper for a typed JsNode with a lazily-initialized JSON cache.
+/// Wrapper for a typed JsNode. JSON conversion is done on-demand without caching.
+/// This eliminates the 40-byte OnceCell overhead per expression.
 pub struct TypedExpr {
     pub node: JsNode,
-    json_cache: OnceLock<serde_json::Value>,
 }
 
 impl TypedExpr {
+    #[inline(always)]
     pub fn new(node: JsNode) -> Self {
-        TypedExpr {
-            node,
-            json_cache: OnceLock::new(),
-        }
+        TypedExpr { node }
     }
 
-    pub fn as_json(&self) -> &serde_json::Value {
-        self.json_cache.get_or_init(|| self.node.to_value())
+    #[inline]
+    pub fn as_json(&self) -> serde_json::Value {
+        self.node.to_value()
     }
 }
 
 impl Clone for TypedExpr {
+    #[inline]
     fn clone(&self) -> Self {
         TypedExpr {
             node: self.node.clone(),
-            json_cache: OnceLock::new(),
         }
     }
 }
@@ -71,17 +69,19 @@ impl Expression {
         end: u32,
         loc: Option<SourceLocation>,
     ) -> Self {
-        let typed_loc = loc.map(|l| Loc {
-            start: SourcePosition {
-                line: l.start.line,
-                column: l.start.column,
-                character: None,
-            },
-            end: SourcePosition {
-                line: l.end.line,
-                column: l.end.column,
-                character: None,
-            },
+        let typed_loc = loc.map(|l| {
+            Box::new(Loc {
+                start: SourcePosition {
+                    line: l.start.line,
+                    column: l.start.column,
+                    character: None,
+                },
+                end: SourcePosition {
+                    line: l.end.line,
+                    column: l.end.column,
+                    character: None,
+                },
+            })
         });
         Expression::Typed(TypedExpr::new(JsNode::Identifier {
             start,
@@ -101,11 +101,21 @@ impl Expression {
         Expression::Typed(TypedExpr::new(node))
     }
 
-    /// Get the underlying JSON value (lazy conversion for Typed variant).
-    pub fn as_json(&self) -> &serde_json::Value {
+    /// Get the underlying JSON value. For Typed variant, creates a new Value each time.
+    /// For performance-critical paths, prefer working with JsNode directly via as_node().
+    pub fn as_json(&self) -> serde_json::Value {
         match self {
-            Expression::Value(v) => v,
+            Expression::Value(v) => v.clone(),
             Expression::Typed(te) => te.as_json(),
+        }
+    }
+
+    /// Get a reference to the JSON value (only available for Value variant).
+    /// For Typed variant, returns None - caller should use as_json() or to_json() instead.
+    pub fn as_json_ref(&self) -> Option<&serde_json::Value> {
+        match self {
+            Expression::Value(v) => Some(v),
+            Expression::Typed(_) => None,
         }
     }
 

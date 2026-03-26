@@ -63,6 +63,25 @@ pub fn analyze_component(
     source: &str,
     options: &CompileOptions,
 ) -> Result<ComponentAnalysis, AnalysisError> {
+    // Ensure deferred script parsing is completed before analysis.
+    // During parse(), script content is stored as raw text for performance.
+    // Here we invoke OXC to produce the full AST.
+    let line_offsets = crate::compiler::phases::phase1_parse::compute_line_offsets(source, false);
+    if let Some(ref mut instance) = ast.instance {
+        crate::compiler::phases::phase1_parse::read::script::ensure_script_parsed(
+            instance,
+            source,
+            &line_offsets,
+        );
+    }
+    if let Some(ref mut module) = ast.module {
+        crate::compiler::phases::phase1_parse::read::script::ensure_script_parsed(
+            module,
+            source,
+            &line_offsets,
+        );
+    }
+
     let mut analysis = ComponentAnalysis::new(source, options);
 
     // Forward parser-level warnings to the analysis warnings.
@@ -193,7 +212,7 @@ pub fn analyze_component(
         .map(|inst| {
             let val = inst.content.as_json();
             let empty_subs: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
-            let r = json_check_features(val, &empty_subs);
+            let r = json_check_features(&val, &empty_subs);
             (r.has_await, r.has_rune_reference)
         })
         .unwrap_or((false, false));
@@ -207,7 +226,7 @@ pub fn analyze_component(
             .map(|module| {
                 let val = module.content.as_json();
                 let empty_subs: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
-                json_check_features(val, &empty_subs).has_rune_reference
+                json_check_features(&val, &empty_subs).has_rune_reference
             })
             .unwrap_or(false)
     } else {
@@ -287,13 +306,13 @@ pub fn analyze_component(
                 .push(warnings::script_context_deprecated());
         }
 
-        // TODO: migrate visit_script to accept JsNode
-        let script_ast = module.content.as_json();
+        // Use typed dispatch for script visiting - avoids JSON Map construction
+        // for the Program node when content is Typed(JsNode::Program)
         let mut context = visitors::VisitorContext::new(&mut analysis);
         context.ast_type = visitors::AstType::Module;
         // Module script stays at function_depth 0
         context.function_depth = 0;
-        visitors::visit_script(script_ast, &mut context)?;
+        visitors::visit_script_expr(&module.content, &mut context)?;
     }
 
     // Snapshot module scope declarations (imports) for conflict detection during instance
@@ -321,13 +340,13 @@ pub fn analyze_component(
         // Validate script attributes - warn for unknown attributes
         validate_script_attributes(&instance.attributes, &mut analysis);
 
-        // TODO: migrate visit_script to accept JsNode
-        let script_ast = instance.content.as_json();
+        // Use typed dispatch for script visiting - avoids JSON Map construction
+        // for the Program node when content is Typed(JsNode::Program)
         let mut context = visitors::VisitorContext::new(&mut analysis);
         context.ast_type = visitors::AstType::Instance;
         // Instance script starts at function_depth 1 (like Svelte's scope system)
         context.function_depth = 1;
-        visitors::visit_script(script_ast, &mut context)?;
+        visitors::visit_script_expr(&instance.content, &mut context)?;
     }
 
     // Check for cyclical reactive statement dependencies ($: a = b + 1; $: b = a + 1;)
@@ -2582,7 +2601,7 @@ fn expression_check_features(
 ) -> JsonCheckResults {
     // TODO: migrate json_check_features to JsNode walker
     let value = expr.as_json();
-    json_check_features(value, store_subs)
+    json_check_features(&value, store_subs)
 }
 
 /// Check if a name is a rune identifier.

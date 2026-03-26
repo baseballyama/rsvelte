@@ -8,7 +8,7 @@ use std::fs;
 use std::path::Path;
 
 use common::svelte_path;
-use svelte_compiler_rust::compiler::print::print;
+use svelte_compiler_rust::compiler::print::print_with_source;
 use svelte_compiler_rust::{ParseOptions, parse};
 
 /// A Print test fixture.
@@ -95,7 +95,7 @@ fn run_print_test(fixture: &PrintFixture) -> TestResult {
     match parse(&input, parse_options) {
         Ok(ast) => {
             // Print the AST back to source
-            match print(&ast, None) {
+            match print_with_source(&ast, None, Some(&input)) {
                 Ok(result) => {
                     let actual_normalized = normalize_output(&result.code);
                     let expected_normalized = normalize_output(&fixture.expected_output);

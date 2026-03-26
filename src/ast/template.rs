@@ -42,9 +42,10 @@ pub struct Root {
     /// These are collected during parsing and forwarded to the analysis phase.
     #[serde(skip)]
     pub parse_warnings: Vec<ParseWarning>,
-    /// Original source text, used by the printer for faithful reproduction.
+    /// Source text is NOT stored here anymore - pass it separately to print().
+    /// This avoids cloning the entire source during parsing.
     #[serde(skip)]
-    pub source: Option<String>,
+    pub source: Option<()>,
 }
 
 /// A warning emitted during parsing.
@@ -997,8 +998,17 @@ pub struct Script {
     pub start: u32,
     pub end: u32,
     pub context: ScriptContext,
-    pub content: Expression, // Program
+    pub content: Expression, // Program (lazily parsed from raw_content)
     pub attributes: Vec<AttributeNode>,
+    /// Raw script content for deferred parsing. Empty string means content was already parsed eagerly.
+    #[serde(skip)]
+    pub raw_content: String,
+    /// Offset of raw_content in the source for position mapping.
+    #[serde(skip)]
+    pub content_offset: u32,
+    /// Whether the script uses TypeScript.
+    #[serde(skip)]
+    pub is_typescript: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]

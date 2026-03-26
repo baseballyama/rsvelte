@@ -20,28 +20,8 @@
 use compact_str::CompactString;
 use regex::Regex;
 use rustc_hash::FxHashMap;
-use std::sync::LazyLock;
 
 use crate::ast::css::StyleSheet;
-
-/// Cached regex for TypeScript detection in script tags.
-#[allow(dead_code)]
-static REGEX_TYPESCRIPT_LANG: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(
-        r#"(?x)
-        <!--[\s\S]*?-->       # Skip HTML comments ([\s\S] matches any char including newline)
-        |
-        <script\s+            # <script with whitespace
-        (?:[^>]*?)            # Any attributes before lang
-        lang=                 # lang attribute
-        (?:["'])?             # Optional quote
-        (ts)                  # Capture "ts"
-        (?:["'])?             # Optional quote
-        [^>]*>                # Rest of tag
-        "#,
-    )
-    .expect("Failed to compile TypeScript lang regex")
-});
 use crate::ast::span::{LineColumn, SourceLocation};
 use crate::ast::template::{Script, SvelteOptions};
 use crate::error::{ParseError, ParseResult};
@@ -177,12 +157,16 @@ impl<'a> Parser<'a> {
         // Corresponds to the TypeScript detection logic in JavaScript Parser constructor
         let ts = Self::detect_typescript_mode(source);
 
+        // Pre-allocate with small capacity since most files use few meta tags
+        let mut stack = Vec::with_capacity(8);
+        stack.push(StackEntry::Root);
+
         Self {
             source,
             bytes: source.as_bytes(),
             index: 0,
             options,
-            stack: vec![StackEntry::Root],
+            stack,
             line_offsets,
             instance_script: None,
             module_script: None,
@@ -190,7 +174,7 @@ impl<'a> Parser<'a> {
             svelte_options: None,
             pending_leading_comments: Vec::new(),
             ts,
-            meta_tags: FxHashMap::default(),
+            meta_tags: FxHashMap::with_capacity_and_hasher(4, Default::default()),
             last_auto_closed_tag: None,
             parse_warnings: Vec::new(),
         }
@@ -198,14 +182,88 @@ impl<'a> Parser<'a> {
 
     /// Detect TypeScript mode by looking for `lang="ts"` or `lang='ts'` in script tags.
     ///
-    /// Corresponds to the regex-based TypeScript detection in JavaScript Parser constructor.
-    #[allow(dead_code)]
+    /// Uses SIMD-accelerated search for `<script` followed by byte-level attribute scanning.
     fn detect_typescript_mode(source: &str) -> bool {
-        // Use cached regex for better performance
-        if let Some(captures) = REGEX_TYPESCRIPT_LANG.captures(source)
-            && let Some(lang) = captures.get(1)
-        {
-            return lang.as_str() == "ts";
+        let bytes = source.as_bytes();
+        let len = bytes.len();
+
+        // Use memchr to quickly find '<' characters, then check for <script
+        let mut pos = 0;
+        while let Some(offset) = memchr::memchr(b'<', &bytes[pos..]) {
+            let i = pos + offset;
+            pos = i + 1;
+
+            // Skip HTML comments: <!-- ... -->
+            if i + 3 < len && bytes[i + 1] == b'!' && bytes[i + 2] == b'-' && bytes[i + 3] == b'-' {
+                if let Some(end_offset) = memchr::memmem::find(&bytes[i + 4..], b"-->") {
+                    pos = i + 4 + end_offset + 3;
+                } else {
+                    break;
+                }
+                continue;
+            }
+
+            // Check for <script followed by whitespace or >
+            if i + 7 < len
+                && bytes[i + 1] == b's'
+                && bytes[i + 2] == b'c'
+                && bytes[i + 3] == b'r'
+                && bytes[i + 4] == b'i'
+                && bytes[i + 5] == b'p'
+                && bytes[i + 6] == b't'
+                && (bytes[i + 7] == b' '
+                    || bytes[i + 7] == b'\t'
+                    || bytes[i + 7] == b'\n'
+                    || bytes[i + 7] == b'\r'
+                    || bytes[i + 7] == b'>')
+            {
+                // Scan attributes for lang="ts" or lang='ts'
+                let mut j = i + 7;
+                while j < len && bytes[j] != b'>' {
+                    if j + 4 <= len
+                        && bytes[j] == b'l'
+                        && bytes[j + 1] == b'a'
+                        && bytes[j + 2] == b'n'
+                        && bytes[j + 3] == b'g'
+                    {
+                        let mut k = j + 4;
+                        while k < len && (bytes[k] == b' ' || bytes[k] == b'\t') {
+                            k += 1;
+                        }
+                        if k < len && bytes[k] == b'=' {
+                            k += 1;
+                            while k < len && (bytes[k] == b' ' || bytes[k] == b'\t') {
+                                k += 1;
+                            }
+                            if k < len {
+                                if (bytes[k] == b'"' || bytes[k] == b'\'') && k + 3 < len {
+                                    let quote = bytes[k];
+                                    if bytes[k + 1] == b't'
+                                        && bytes[k + 2] == b's'
+                                        && bytes[k + 3] == quote
+                                    {
+                                        return true;
+                                    }
+                                } else if k + 1 < len
+                                    && bytes[k] == b't'
+                                    && bytes[k + 1] == b's'
+                                    && (k + 2 >= len
+                                        || bytes[k + 2] == b' '
+                                        || bytes[k + 2] == b'\t'
+                                        || bytes[k + 2] == b'>'
+                                        || bytes[k + 2] == b'/')
+                                {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                    j += 1;
+                }
+                if j < len {
+                    pos = j + 1;
+                }
+            }
         }
 
         false
@@ -302,7 +360,7 @@ impl<'a> Parser<'a> {
     // =========================================================================
 
     /// Check if we've reached the end of the source.
-    #[inline]
+    #[inline(always)]
     pub fn is_eof(&self) -> bool {
         self.index >= self.bytes.len()
     }
@@ -355,7 +413,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Check if the source at current position starts with the given string.
-    #[inline]
+    #[inline(always)]
     pub fn match_str(&self, s: &str) -> bool {
         let s_bytes = s.as_bytes();
         let s_len = s_bytes.len();
@@ -377,7 +435,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Check if the byte at the current position matches (ASCII only).
-    #[inline]
+    #[inline(always)]
     pub fn match_byte(&self, b: u8) -> bool {
         self.index < self.bytes.len() && self.bytes[self.index] == b
     }

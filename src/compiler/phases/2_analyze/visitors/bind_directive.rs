@@ -96,11 +96,8 @@ fn visit_common(
         // But ignore parentheses that are inside comments (leading comments before the expression)
         if let Some(start) = directive.expression.start() {
             // Get leading comments from the expression if available
-            let leading_comments = directive
-                .expression
-                .as_json()
-                .get("leadingComments")
-                .and_then(|c| c.as_array());
+            let expr_json = directive.expression.as_json();
+            let leading_comments = expr_json.get("leadingComments").and_then(|c| c.as_array());
 
             // Calculate comment range if we have leading comments
             let comment_range: Option<(usize, usize)> = leading_comments.and_then(|comments| {

@@ -11,7 +11,7 @@ pub mod shared;
 
 // Script visitor
 mod script;
-pub use script::{visit_script, walk_expression, walk_js_node};
+pub use script::{visit_script, visit_script_expr, walk_expression, walk_js_node};
 
 // Template visitors
 mod component;

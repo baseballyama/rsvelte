@@ -226,7 +226,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
             let node_type = context_expr.node_type();
             if node_type == Some("ObjectPattern") || node_type == Some("ArrayPattern") {
                 let val = context_expr.as_json();
-                if let serde_json::Value::Object(obj) = val {
+                if let serde_json::Value::Object(ref obj) = val {
                     collect_pattern_names(obj, &mut item_names);
                 }
             }
@@ -1020,7 +1020,7 @@ fn build_declarations(
         if ctx_type == Some("ObjectPattern") || ctx_type == Some("ArrayPattern") {
             // Need as_json for destructured pattern traversal
             let val = context_expr.as_json();
-            if let serde_json::Value::Object(obj) = val {
+            if let serde_json::Value::Object(ref obj) = val {
                 let item_reactive = (flags & EACH_ITEM_REACTIVE) != 0;
 
                 let unwrapped_item = if item_reactive {
@@ -1809,7 +1809,7 @@ fn build_key_function(
 /// This recursively inspects the JSON AST of the expression.
 fn expression_references_identifier(expr: &Expression, name: &str) -> bool {
     let val = expr.as_json();
-    json_value_references_identifier(val, name)
+    json_value_references_identifier(&val, name)
 }
 
 /// Check if a JSON value (AST node) references an identifier with the given name.

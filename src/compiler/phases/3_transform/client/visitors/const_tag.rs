@@ -430,7 +430,7 @@ fn render_pattern_as_string(pattern: &serde_json::Value) -> String {
 fn extract_refs_from_json_expr(expr: &crate::ast::js::Expression) -> Vec<String> {
     let value = expr.as_json();
     let mut refs = Vec::new();
-    collect_json_identifiers(value, &mut refs);
+    collect_json_identifiers(&value, &mut refs);
     refs
 }
 

@@ -911,7 +911,7 @@ fn build_group_binding_call(
             // bind:group={$order.scoops}), look up in analysis.binding_groups by keypath.
             // The keypath must match what mark_group_bindings_in_node used when registering.
             let keypath = directive_expr
-                .map(|expr| build_group_binding_keypath(expr.as_json()))
+                .map(|expr| build_group_binding_keypath(&expr.as_json()))
                 .unwrap_or_default();
 
             if let Some(group_name) = context.state.analysis.binding_groups.get(&keypath).cloned() {
@@ -1060,7 +1060,7 @@ fn unwrap_thunk(arena: &JsArena, expr: &JsExpr) -> JsExpr {
 
 /// Check if an expression is a member expression (has dots, subscript access).
 fn expression_is_member(expr: &crate::ast::js::Expression) -> bool {
-    expression_json_is_member(expr.as_json())
+    expression_json_is_member(&expr.as_json())
 }
 
 /// Check if a raw expression JSON is a member expression (has dots, subscript access).
@@ -2545,7 +2545,7 @@ fn get_expression_root_identifier(expr: &JsExpr, arena: &JsArena) -> Option<Stri
 fn collect_ast_identifiers(expr: &Expression) -> Vec<String> {
     let mut names = Vec::new();
     let val = expr.as_json();
-    collect_ast_identifiers_recursive(val, &mut names);
+    collect_ast_identifiers_recursive(&val, &mut names);
     names
 }
 
@@ -2592,7 +2592,7 @@ pub fn emit_validate_binding(
     use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
     // Extract the root object name from the original AST expression
-    let root_name = extract_root_name_from_json(node.expression.as_json());
+    let root_name = extract_root_name_from_json(&node.expression.as_json());
     let root_name = match root_name {
         Some(n) => n,
         None => return,
@@ -2723,7 +2723,7 @@ fn offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
 /// Get the root identifier name from an AST Expression (JSON-based).
 /// For `form.count` returns `Some("form")`.
 fn get_ast_root_identifier(expr: &Expression) -> Option<String> {
-    extract_root_name_from_json(expr.as_json())
+    extract_root_name_from_json(&expr.as_json())
 }
 
 /// Build the member property path from an AST Expression (JSON-based).
@@ -2731,7 +2731,7 @@ fn get_ast_root_identifier(expr: &Expression) -> Option<String> {
 /// This walks the member expression chain and collects all property names as literals.
 fn build_ast_member_path(expr: &Expression) -> Vec<JsExpr> {
     let mut path = Vec::new();
-    build_ast_member_path_recursive(expr.as_json(), &mut path);
+    build_ast_member_path_recursive(&expr.as_json(), &mut path);
     path
 }
 

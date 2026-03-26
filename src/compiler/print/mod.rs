@@ -64,8 +64,17 @@ pub struct PrintResult {
 ///
 /// Returns a `PrintResult` containing the generated code and optional source map.
 pub fn print(ast: &Root, _options: Option<PrintOptions>) -> Result<PrintResult, PrintError> {
+    print_with_source(ast, _options, None)
+}
+
+/// Print AST with external source text (avoids storing source in Root).
+pub fn print_with_source(
+    ast: &Root,
+    _options: Option<PrintOptions>,
+    source: Option<&str>,
+) -> Result<PrintResult, PrintError> {
     let allocator = Allocator::default();
-    let mut context = Context::new_with_source(&allocator, ast.source.as_deref());
+    let mut context = Context::new_with_source(&allocator, source);
 
     // Visit the root node to generate the code
     visitors::visit_root(&mut context, ast);

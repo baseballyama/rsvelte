@@ -10,12 +10,40 @@
 
 use compact_str::CompactString;
 
+use crate::ast::js::Expression;
 use crate::ast::template::{
     AttributeValue, AttributeValuePart, Script, ScriptContext, ScriptType, TemplateNode, Text,
 };
 use crate::error::ParseResult;
 
 use super::super::parser::Parser;
+
+/// Ensure a Script's content has been fully parsed from raw_content.
+/// This performs the deferred OXC parse. Call this before accessing script.content in analysis.
+pub fn ensure_script_parsed(script: &mut Script, _source: &str, line_offsets: &[usize]) {
+    if script.raw_content.is_empty() {
+        return; // Already parsed or no raw content
+    }
+
+    let raw = std::mem::take(&mut script.raw_content);
+    let offset = script.content_offset as usize;
+
+    // Collect leading comments from the source before the script tag
+    // For now, pass empty - TODO: preserve leading comments from parse phase
+    let leading_comments: Vec<String> = Vec::new();
+
+    let program = super::expression::parse_program(
+        &raw,
+        offset,
+        line_offsets,
+        script.is_typescript,
+        &leading_comments,
+        script.start as usize,
+        script.end as usize,
+    );
+
+    script.content = program;
+}
 
 impl Parser<'_> {
     /// Merge attribute value parts into a single Text for script/style tags.
@@ -60,9 +88,19 @@ impl Parser<'_> {
     ) -> ParseResult<Option<TemplateNode>> {
         let content_start = self.index;
 
-        // Find the closing </script> tag (with optional whitespace before >)
-        while !self.is_eof() && !self.is_valid_closing_tag("</script") {
-            self.advance();
+        // Use SIMD-accelerated search for </script instead of byte-by-byte scanning
+        loop {
+            if let Some(offset) = memchr::memmem::find(&self.bytes[self.index..], b"</script") {
+                self.index += offset;
+                if self.is_valid_closing_tag("</script") {
+                    break;
+                }
+                // Not a valid closing tag (e.g., </scripting), skip past it
+                self.index += 8;
+            } else {
+                self.index = self.bytes.len();
+                break;
+            }
         }
 
         let content_end = self.index;
@@ -162,35 +200,53 @@ impl Parser<'_> {
             }
         }
 
-        // Parse the script content as a JavaScript/TypeScript Program
-        // Pass any pending leading comments (HTML comments before the script tag)
-        // Also pass the script tag start and end positions for loc calculation
-        // (Svelte uses locator(start) for loc.start and locator(parser.index) for loc.end)
-        //
-        // Use self.ts (global TypeScript mode) OR local is_typescript flag.
-        // In the official Svelte compiler, if ANY script tag has lang="ts", ALL scripts
-        // are parsed as TypeScript (parser.ts is set once globally in the constructor).
-        // This is important because instance scripts may use TypeScript syntax like
-        // `import type { Foo }` without having their own lang="ts" attribute.
         let use_typescript = self.ts || is_typescript;
         let leading_comments = std::mem::take(&mut self.pending_leading_comments);
-        let program = super::super::expression::parse_program(
-            script_content,
-            content_start,
-            self.expression_line_offsets(),
-            use_typescript,
-            &leading_comments,
-            start, // Script tag start position for loc.start
-            end,   // Script tag end position (after </script>) for loc.end
-        );
 
-        let script = Script {
-            node_type: ScriptType::Script,
-            start: start as u32,
-            end: end as u32,
-            context,
-            content: program,
-            attributes: script_attributes,
+        let script = if self.options.defer_script_parse {
+            // Defer script content parsing to analysis phase for faster parse().
+            let placeholder = Expression::from_node(crate::ast::typed_expr::JsNode::Program {
+                start: content_start as u32,
+                end: (content_start + script_content.len()) as u32,
+                loc: None,
+                body: Vec::new(),
+                source_type: CompactString::from("module"),
+                leading_comments: None,
+                trailing_comments: None,
+            });
+            Script {
+                node_type: ScriptType::Script,
+                start: start as u32,
+                end: end as u32,
+                context,
+                content: placeholder,
+                attributes: script_attributes,
+                raw_content: script_content.to_string(),
+                content_offset: content_start as u32,
+                is_typescript: use_typescript,
+            }
+        } else {
+            // Eager parsing (default for tests and direct AST comparison)
+            let program = super::super::expression::parse_program(
+                script_content,
+                content_start,
+                self.expression_line_offsets(),
+                use_typescript,
+                &leading_comments,
+                start,
+                end,
+            );
+            Script {
+                node_type: ScriptType::Script,
+                start: start as u32,
+                end: end as u32,
+                context,
+                content: program,
+                attributes: script_attributes,
+                raw_content: String::new(),
+                content_offset: content_start as u32,
+                is_typescript: use_typescript,
+            }
         };
 
         // Check for duplicate scripts

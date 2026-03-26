@@ -218,19 +218,40 @@ fn try_parse_simple_expression(
         return None;
     }
 
-    // Quick rejection: if the expression contains characters that can't appear in
-    // identifiers, member expressions, or simple literals, bail out immediately.
-    // This avoids the cost of detailed scanning for complex expressions.
     let first = bytes[0];
 
     // Fast path for identifiers and member expressions (most common case)
     if is_ident_start_byte(first) {
-        return try_parse_ident_or_member(content, bytes, offset, line_offsets);
+        // Try simple ident/member first
+        if let Some(expr) = try_parse_ident_or_member(content, bytes, offset, line_offsets) {
+            return Some(expr);
+        }
+        // Try call expression: `fn(arg)`, `obj.method(args)`
+        if let Some(expr) = try_parse_call_expression(content, bytes, offset, line_offsets) {
+            return Some(expr);
+        }
+        // Try update expression: `count++`, `count--`
+        if let Some(expr) = try_parse_update_expression(content, bytes, offset, line_offsets) {
+            return Some(expr);
+        }
+        // Might be `ident op expr` - try binary/logical/ternary
+        if let Some(expr) = try_parse_compound_expression(content, bytes, offset, line_offsets) {
+            return Some(expr);
+        }
+        // Try ternary: `cond ? a : b`
+        if let Some(expr) = try_parse_ternary(content, bytes, offset, line_offsets) {
+            return Some(expr);
+        }
+        return None;
     }
 
     // Fast path for numeric literals
     if first.is_ascii_digit() {
-        return try_parse_numeric_literal(content, bytes, offset, line_offsets);
+        if let Some(expr) = try_parse_numeric_literal(content, bytes, offset, line_offsets) {
+            return Some(expr);
+        }
+        // Might be `123 === x` etc
+        return try_parse_compound_expression(content, bytes, offset, line_offsets);
     }
 
     // Fast path for string literals
@@ -241,6 +262,570 @@ fn try_parse_simple_expression(
     // Fast path for negative numeric literals: -1, -3.14
     if first == b'-' && bytes.len() >= 2 && bytes[1].is_ascii_digit() {
         return try_parse_negative_numeric(content, bytes, offset, line_offsets);
+    }
+
+    // Fast path for !expr (logical not)
+    if first == b'!' && bytes.len() >= 2 {
+        return try_parse_unary_not(content, bytes, offset, line_offsets);
+    }
+
+    // Fast path for parenthesized expressions: `(expr)`
+    if first == b'(' {
+        return try_parse_parenthesized(content, bytes, offset, line_offsets);
+    }
+
+    None
+}
+
+/// Try to parse a unary `!expr` where expr is a simple expression.
+#[inline]
+fn try_parse_unary_not(
+    content: &str,
+    bytes: &[u8],
+    offset: usize,
+    line_offsets: &[usize],
+) -> Option<Expression> {
+    let inner = &content[1..];
+    let inner_bytes = &bytes[1..];
+    if inner_bytes.is_empty() {
+        return None;
+    }
+
+    // Try to parse the argument as a simple atom
+    let arg = try_parse_atom(inner, inner_bytes, offset + 1, line_offsets)?;
+
+    Some(Expression::from_node(JsNode::UnaryExpression {
+        start: offset as u32,
+        end: (offset + content.len()) as u32,
+        loc: create_typed_loc(offset, offset + content.len(), line_offsets),
+        operator: CompactString::from("!"),
+        prefix: true,
+        argument: Box::new(expr_to_node(arg)),
+    }))
+}
+
+/// Try to parse a "simple atom" - identifier, member expr, numeric, string, bool, null.
+/// This is used as a building block for compound expressions.
+#[inline]
+fn try_parse_atom(
+    content: &str,
+    bytes: &[u8],
+    offset: usize,
+    line_offsets: &[usize],
+) -> Option<Expression> {
+    if bytes.is_empty() {
+        return None;
+    }
+    let first = bytes[0];
+    if is_ident_start_byte(first) {
+        return try_parse_ident_or_member(content, bytes, offset, line_offsets);
+    }
+    if first.is_ascii_digit() {
+        return try_parse_numeric_literal(content, bytes, offset, line_offsets);
+    }
+    if first == b'\'' || first == b'"' {
+        return try_parse_string_literal(content, bytes, offset, line_offsets);
+    }
+    if first == b'-' && bytes.len() >= 2 && bytes[1].is_ascii_digit() {
+        return try_parse_negative_numeric(content, bytes, offset, line_offsets);
+    }
+    None
+}
+
+/// Try to parse call expressions: `fn(arg)`, `obj.method(a, b)`
+/// Handles simple call expressions where callee is an ident/member and args are atoms.
+#[inline]
+fn try_parse_call_expression(
+    content: &str,
+    bytes: &[u8],
+    offset: usize,
+    line_offsets: &[usize],
+) -> Option<Expression> {
+    // Find the opening '(' - callee must be ident/member
+    let paren_pos = memchr::memchr(b'(', bytes)?;
+    if paren_pos == 0 {
+        return None;
+    }
+
+    // Everything after ')' must be empty (no chaining for now)
+    let last = *bytes.last()?;
+    if last != b')' {
+        return None;
+    }
+
+    // Parse callee as ident/member
+    let callee_str = &content[..paren_pos];
+    let callee_bytes = &bytes[..paren_pos];
+    if !is_ident_start_byte(callee_bytes[0]) {
+        return None;
+    }
+    let callee = try_parse_ident_or_member(callee_str, callee_bytes, offset, line_offsets)?;
+
+    // Parse arguments between parens
+    let args_start = paren_pos + 1;
+    let args_end = bytes.len() - 1;
+    let args_str = content[args_start..args_end].trim();
+
+    let arguments = if args_str.is_empty() {
+        Vec::new()
+    } else {
+        // Split by top-level commas (no nested parens/brackets)
+        let mut args = Vec::new();
+        let args_bytes = args_str.as_bytes();
+        let mut depth = 0u32;
+        let mut start = 0usize;
+        let mut in_string = 0u8;
+
+        for (i, &b) in args_bytes.iter().enumerate() {
+            if in_string != 0 {
+                if b == in_string && (i == 0 || args_bytes[i - 1] != b'\\') {
+                    in_string = 0;
+                }
+                continue;
+            }
+            match b {
+                b'\'' | b'"' | b'`' => in_string = b,
+                b'(' | b'[' | b'{' => depth += 1,
+                b')' | b']' | b'}' => {
+                    if depth == 0 {
+                        return None;
+                    } // Unbalanced
+                    depth -= 1;
+                }
+                b',' if depth == 0 => {
+                    let arg_str = args_str[start..i].trim();
+                    let arg_bytes = arg_str.as_bytes();
+                    let arg_offset = offset
+                        + args_start
+                        + start
+                        + (args_str[start..i].len() - args_str[start..i].trim_start().len());
+                    let arg = try_parse_atom(arg_str, arg_bytes, arg_offset, line_offsets)?;
+                    args.push(expr_to_node(arg));
+                    start = i + 1;
+                }
+                _ => {}
+            }
+        }
+        if depth != 0 {
+            return None;
+        }
+        // Last argument
+        let arg_str = args_str[start..].trim();
+        if !arg_str.is_empty() {
+            let arg_bytes = arg_str.as_bytes();
+            let arg_offset = offset
+                + args_start
+                + start
+                + (args_str[start..].len() - args_str[start..].trim_start().len());
+            let arg = try_parse_atom(arg_str, arg_bytes, arg_offset, line_offsets)?;
+            args.push(expr_to_node(arg));
+        }
+        args
+    };
+
+    let total_end = offset + content.len();
+    Some(Expression::from_node(JsNode::CallExpression {
+        start: offset as u32,
+        end: total_end as u32,
+        loc: create_typed_loc(offset, total_end, line_offsets),
+        callee: Box::new(expr_to_node(callee)),
+        arguments,
+        optional: false,
+    }))
+}
+
+/// Try to parse update expressions: `count++`, `count--`, `++count`, `--count`
+#[inline]
+fn try_parse_update_expression(
+    content: &str,
+    bytes: &[u8],
+    offset: usize,
+    line_offsets: &[usize],
+) -> Option<Expression> {
+    let len = bytes.len();
+    if len < 3 {
+        return None;
+    }
+
+    // Postfix: `ident++` or `ident--`
+    if bytes[len - 2] == bytes[len - 1] && (bytes[len - 1] == b'+' || bytes[len - 1] == b'-') {
+        let arg_str = &content[..len - 2];
+        let arg_bytes = &bytes[..len - 2];
+        if !arg_str.is_empty() && is_ident_start_byte(arg_bytes[0]) {
+            let arg = try_parse_ident_or_member(arg_str, arg_bytes, offset, line_offsets)?;
+            let op = if bytes[len - 1] == b'+' { "++" } else { "--" };
+            return Some(Expression::from_node(JsNode::UpdateExpression {
+                start: offset as u32,
+                end: (offset + len) as u32,
+                loc: create_typed_loc(offset, offset + len, line_offsets),
+                operator: CompactString::from(op),
+                argument: Box::new(expr_to_node(arg)),
+                prefix: false,
+            }));
+        }
+    }
+
+    // Prefix: `++ident` or `--ident`
+    if bytes[0] == bytes[1] && (bytes[0] == b'+' || bytes[0] == b'-') {
+        let arg_str = &content[2..];
+        let arg_bytes = &bytes[2..];
+        if !arg_str.is_empty() && is_ident_start_byte(arg_bytes[0]) {
+            let arg = try_parse_ident_or_member(arg_str, arg_bytes, offset + 2, line_offsets)?;
+            let op = if bytes[0] == b'+' { "++" } else { "--" };
+            return Some(Expression::from_node(JsNode::UpdateExpression {
+                start: offset as u32,
+                end: (offset + len) as u32,
+                loc: create_typed_loc(offset, offset + len, line_offsets),
+                operator: CompactString::from(op),
+                argument: Box::new(expr_to_node(arg)),
+                prefix: true,
+            }));
+        }
+    }
+
+    None
+}
+
+/// Try to parse ternary expressions: `cond ? consequent : alternate`
+#[inline]
+fn try_parse_ternary(
+    content: &str,
+    bytes: &[u8],
+    offset: usize,
+    line_offsets: &[usize],
+) -> Option<Expression> {
+    // Find '?' at top level (not inside strings/parens)
+    let mut depth = 0u32;
+    let mut in_string = 0u8;
+    let mut q_pos = None;
+
+    for (i, &b) in bytes.iter().enumerate() {
+        if in_string != 0 {
+            if b == in_string && (i == 0 || bytes[i - 1] != b'\\') {
+                in_string = 0;
+            }
+            continue;
+        }
+        match b {
+            b'\'' | b'"' | b'`' => in_string = b,
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth = depth.saturating_sub(1),
+            b'?' if depth == 0 => {
+                // Ensure it's not `?.` (optional chaining)
+                if i + 1 < bytes.len() && bytes[i + 1] == b'.' {
+                    continue;
+                }
+                q_pos = Some(i);
+                break;
+            }
+            _ => {}
+        }
+    }
+
+    let q_pos = q_pos?;
+
+    // Find ':' after '?' at top level
+    let mut depth = 0u32;
+    let mut in_string = 0u8;
+    let mut colon_pos = None;
+
+    for (i, &b) in bytes[q_pos + 1..].iter().enumerate() {
+        let abs_i = q_pos + 1 + i;
+        if in_string != 0 {
+            if b == in_string && (i == 0 || bytes[abs_i - 1] != b'\\') {
+                in_string = 0;
+            }
+            continue;
+        }
+        match b {
+            b'\'' | b'"' | b'`' => in_string = b,
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth = depth.saturating_sub(1),
+            b':' if depth == 0 => {
+                colon_pos = Some(abs_i);
+                break;
+            }
+            _ => {}
+        }
+    }
+
+    let colon_pos = colon_pos?;
+
+    let test_raw = &content[..q_pos];
+    let cons_raw = &content[q_pos + 1..colon_pos];
+    let alt_raw = &content[colon_pos + 1..];
+
+    let test_str = test_raw.trim();
+    let cons_str = cons_raw.trim();
+    let alt_str = alt_raw.trim();
+
+    if test_str.is_empty() || cons_str.is_empty() || alt_str.is_empty() {
+        return None;
+    }
+
+    // Calculate precise offsets accounting for leading whitespace
+    let test_offset = offset + (test_raw.len() - test_raw.trim_start().len());
+    let cons_offset = offset + q_pos + 1 + (cons_raw.len() - cons_raw.trim_start().len());
+    let alt_offset = offset + colon_pos + 1 + (alt_raw.len() - alt_raw.trim_start().len());
+
+    let test =
+        try_parse_atom(test_str, test_str.as_bytes(), test_offset, line_offsets).or_else(|| {
+            try_parse_compound_expression(test_str, test_str.as_bytes(), test_offset, line_offsets)
+        })?;
+    let cons = try_parse_atom(cons_str, cons_str.as_bytes(), cons_offset, line_offsets)?;
+    let alt = try_parse_atom(alt_str, alt_str.as_bytes(), alt_offset, line_offsets)?;
+
+    let total_end = offset + content.len();
+    Some(Expression::from_node(JsNode::ConditionalExpression {
+        start: offset as u32,
+        end: total_end as u32,
+        loc: create_typed_loc(offset, total_end, line_offsets),
+        test: Box::new(expr_to_node(test)),
+        consequent: Box::new(expr_to_node(cons)),
+        alternate: Box::new(expr_to_node(alt)),
+    }))
+}
+
+/// Try to parse parenthesized expressions: `(expr)`
+#[inline]
+fn try_parse_parenthesized(
+    content: &str,
+    bytes: &[u8],
+    offset: usize,
+    line_offsets: &[usize],
+) -> Option<Expression> {
+    // Must end with ')'
+    if *bytes.last()? != b')' {
+        return None;
+    }
+
+    // Find the matching ')' for the opening '('
+    let mut depth = 1u32;
+    let mut in_string = 0u8;
+    let mut close = None;
+    for (i, &b) in bytes[1..].iter().enumerate() {
+        if in_string != 0 {
+            if b == in_string && (i == 0 || bytes[i] != b'\\') {
+                in_string = 0;
+            }
+            continue;
+        }
+        match b {
+            b'\'' | b'"' | b'`' => in_string = b,
+            b'(' => depth += 1,
+            b')' => {
+                depth -= 1;
+                if depth == 0 {
+                    close = Some(i + 1);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let close = close?;
+
+    // Only handle simple parenthesized: (expr) with nothing after
+    if close + 1 != bytes.len() {
+        return None;
+    }
+
+    let inner = content[1..close].trim();
+    if inner.is_empty() {
+        return None;
+    }
+    try_parse_atom(inner, inner.as_bytes(), offset + 1, line_offsets)
+}
+
+/// Try to parse compound expressions: binary ops, logical ops, ternary.
+/// Examples: `count > 5`, `a === b`, `a && b`, `x > 0 ? 'yes' : 'no'`
+#[inline]
+fn try_parse_compound_expression(
+    content: &str,
+    bytes: &[u8],
+    offset: usize,
+    line_offsets: &[usize],
+) -> Option<Expression> {
+    let len = bytes.len();
+
+    // Scan for a binary/logical operator at the top level.
+    // We need to find an operator surrounded by whitespace.
+    // Strategy: scan forward to find an operator, split into left/right, parse each as atom.
+    let mut i = 0;
+
+    // Skip the first token (left operand)
+    i = skip_simple_token(bytes, i);
+    if i >= len {
+        return None;
+    }
+
+    // There must be whitespace before the operator
+    if bytes[i] != b' ' && bytes[i] != b'\t' {
+        return None;
+    }
+    while i < len && (bytes[i] == b' ' || bytes[i] == b'\t') {
+        i += 1;
+    }
+    if i >= len {
+        return None;
+    }
+
+    // Try to match an operator
+    let (op_str, op_len) = match_operator(bytes, i)?;
+
+    let op_end = i + op_len;
+    if op_end >= len {
+        return None;
+    }
+
+    // There must be whitespace after the operator
+    if bytes[op_end] != b' ' && bytes[op_end] != b'\t' {
+        return None;
+    }
+    let mut right_start = op_end;
+    while right_start < len && (bytes[right_start] == b' ' || bytes[right_start] == b'\t') {
+        right_start += 1;
+    }
+    if right_start >= len {
+        return None;
+    }
+
+    let left_content = content[..i].trim_end();
+    let right_content = content[right_start..].trim_end();
+
+    let left_bytes = left_content.as_bytes();
+    let right_bytes = right_content.as_bytes();
+
+    // Parse left side as atom
+    let left = try_parse_atom(left_content, left_bytes, offset, line_offsets)?;
+
+    // Check if this is a ternary: `left op right ? consequent : alternate`
+    // For now, only handle simple binary/logical
+    let right = try_parse_atom(
+        right_content,
+        right_bytes,
+        offset + right_start,
+        line_offsets,
+    )?;
+
+    let total_end = offset + content.len();
+
+    // Determine if it's binary or logical
+    match op_str {
+        "&&" | "||" | "??" => Some(Expression::from_node(JsNode::LogicalExpression {
+            start: offset as u32,
+            end: total_end as u32,
+            loc: create_typed_loc(offset, total_end, line_offsets),
+            left: Box::new(expr_to_node(left)),
+            operator: CompactString::from(op_str),
+            right: Box::new(expr_to_node(right)),
+        })),
+        _ => Some(Expression::from_node(JsNode::BinaryExpression {
+            start: offset as u32,
+            end: total_end as u32,
+            loc: create_typed_loc(offset, total_end, line_offsets),
+            left: Box::new(expr_to_node(left)),
+            operator: CompactString::from(op_str),
+            right: Box::new(expr_to_node(right)),
+        })),
+    }
+}
+
+/// Skip a simple token (identifier, number, string, member expression) and return the position after it.
+#[inline]
+fn skip_simple_token(bytes: &[u8], start: usize) -> usize {
+    let len = bytes.len();
+    let mut pos = start;
+    if pos >= len {
+        return pos;
+    }
+
+    let first = bytes[pos];
+
+    // String literal
+    if first == b'\'' || first == b'"' {
+        pos += 1;
+        while pos < len && bytes[pos] != first {
+            if bytes[pos] == b'\\' {
+                pos += 1; // skip escape
+            }
+            pos += 1;
+        }
+        if pos < len {
+            pos += 1; // closing quote
+        }
+        return pos;
+    }
+
+    // Negative number
+    if first == b'-' && pos + 1 < len && bytes[pos + 1].is_ascii_digit() {
+        pos += 1;
+    }
+
+    // Identifier or number with possible dots (member expressions)
+    if is_ident_start_byte(bytes[pos]) || bytes[pos].is_ascii_digit() {
+        while pos < len {
+            let b = bytes[pos];
+            if is_ident_continue_byte(b) || b == b'.' {
+                pos += 1;
+            } else {
+                break;
+            }
+        }
+        return pos;
+    }
+
+    pos
+}
+
+/// Try to match a binary or logical operator at position `i` in bytes.
+/// Returns (operator_str, operator_byte_len) or None.
+#[inline]
+fn match_operator(bytes: &[u8], i: usize) -> Option<(&'static str, usize)> {
+    let remaining = bytes.len() - i;
+
+    // 3-char operators first
+    if remaining >= 3 {
+        match (bytes[i], bytes[i + 1], bytes[i + 2]) {
+            (b'=', b'=', b'=') => return Some(("===", 3)),
+            (b'!', b'=', b'=') => return Some(("!==", 3)),
+            (b'>', b'>', b'>') => return Some((">>>", 3)),
+            _ => {}
+        }
+    }
+
+    // 2-char operators
+    if remaining >= 2 {
+        match (bytes[i], bytes[i + 1]) {
+            (b'=', b'=') => return Some(("==", 2)),
+            (b'!', b'=') => return Some(("!=", 2)),
+            (b'<', b'=') => return Some(("<=", 2)),
+            (b'>', b'=') => return Some((">=", 2)),
+            (b'&', b'&') => return Some(("&&", 2)),
+            (b'|', b'|') => return Some(("||", 2)),
+            (b'?', b'?') => return Some(("??", 2)),
+            (b'*', b'*') => return Some(("**", 2)),
+            (b'<', b'<') => return Some(("<<", 2)),
+            (b'>', b'>') => return Some((">>", 2)),
+            _ => {}
+        }
+    }
+
+    // 1-char operators
+    if remaining >= 1 {
+        match bytes[i] {
+            b'+' => return Some(("+", 1)),
+            b'-' => return Some(("-", 1)),
+            b'*' => return Some(("*", 1)),
+            b'/' => return Some(("/", 1)),
+            b'%' => return Some(("%", 1)),
+            b'<' => return Some(("<", 1)),
+            b'>' => return Some((">", 1)),
+            b'&' => return Some(("&", 1)),
+            b'|' => return Some(("|", 1)),
+            b'^' => return Some(("^", 1)),
+            _ => {}
+        }
     }
 
     None
@@ -580,6 +1165,7 @@ fn try_parse_numeric_literal(
 /// # Returns
 /// A parsed `Expression` or an empty identifier in loose mode.
 /// Returns an error message if parsing fails and loose mode is disabled.
+#[allow(clippy::too_many_arguments)]
 pub fn parse_expression(
     content: &str,
     offset: usize,
@@ -588,6 +1174,7 @@ pub fn parse_expression(
     loose: bool,
     disallow_loose: bool,
     opening_token: char,
+    ts: bool,
 ) -> Result<Expression, (String, usize)> {
     // Fast path: handle simple expressions (identifiers, member expressions,
     // boolean/null literals) without invoking OXC. These account for ~58% of
@@ -596,9 +1183,10 @@ pub fn parse_expression(
         return Ok(expr);
     }
 
-    // Try TypeScript first, then fall back to JavaScript
-    let result = parse_expression_with_typescript(content, offset, line_offsets, true)
-        .or_else(|| parse_expression_with_typescript(content, offset, line_offsets, false));
+    // Use known TS mode: parse with TS only if the file uses TypeScript,
+    // otherwise parse as JS directly. Fall back to the other mode only on failure.
+    let result = parse_expression_with_typescript(content, offset, line_offsets, ts)
+        .or_else(|| parse_expression_with_typescript(content, offset, line_offsets, !ts));
 
     if let Some(expr) = result {
         return Ok(expr);
@@ -718,15 +1306,16 @@ pub fn parse_expression_with_end(
     loose: bool,
     disallow_loose: bool,
     _opening_token: char,
+    ts: bool,
 ) -> Result<Expression, (String, usize)> {
     // Fast path: handle simple expressions without OXC
     if let Some(expr) = try_parse_simple_expression(content, offset, line_offsets) {
         return Ok(expr);
     }
 
-    // Try TypeScript first, then fall back to JavaScript
-    let result = parse_expression_with_typescript(content, offset, line_offsets, true)
-        .or_else(|| parse_expression_with_typescript(content, offset, line_offsets, false));
+    // Use known TS mode, fall back to other mode on failure
+    let result = parse_expression_with_typescript(content, offset, line_offsets, ts)
+        .or_else(|| parse_expression_with_typescript(content, offset, line_offsets, !ts));
 
     if let Some(expr) = result {
         return Ok(expr);
@@ -809,8 +1398,7 @@ fn parse_expression_with_typescript(
             SourceType::mjs()
         };
 
-        // Try to parse as an expression by wrapping it in parens.
-        // Use pre-allocated String with exact capacity to avoid realloc.
+        // Wrap content in parens to parse as expression
         let mut wrapped = String::with_capacity(content.len() + 2);
         wrapped.push('(');
         wrapped.push_str(content);
@@ -4315,58 +4903,17 @@ fn calculate_line_offsets(content: &str) -> Vec<usize> {
     offsets
 }
 
-/// Create loc for script Program node using document coordinates.
-/// Svelte uses locator(script_tag_start) for start and locator(script_tag_end) for end.
-fn create_loc_for_script(
-    script_tag_start: usize,
-    script_tag_end: usize,
-    doc_line_offsets: &[usize],
-) -> Option<Value> {
-    if doc_line_offsets.is_empty() {
-        return None;
-    }
-    // Svelte uses document coordinates for Program.loc:
-    // - loc.start: locator(script_tag_start) - position of <script>
-    // - loc.end: locator(script_tag_end) - position after </script>
-    let start_loc = get_line_column(script_tag_start, doc_line_offsets);
-    let end_loc = get_line_column(script_tag_end, doc_line_offsets);
-
-    let mut loc = Map::new();
-
-    let mut start_obj = Map::new();
-    start_obj.insert(
-        "line".to_string(),
-        Value::Number((start_loc.0 as i64).into()),
-    );
-    start_obj.insert(
-        "column".to_string(),
-        Value::Number((start_loc.1 as i64).into()),
-    );
-
-    let mut end_obj = Map::new();
-    end_obj.insert("line".to_string(), Value::Number((end_loc.0 as i64).into()));
-    end_obj.insert(
-        "column".to_string(),
-        Value::Number((end_loc.1 as i64).into()),
-    );
-
-    loc.insert("start".to_string(), Value::Object(start_obj));
-    loc.insert("end".to_string(), Value::Object(end_obj));
-
-    Some(Value::Object(loc))
-}
-
 // ============================================================================
 // Typed loc helper functions (return typed_expr::Loc instead of serde_json::Value)
 // ============================================================================
 
-fn create_typed_loc(start: usize, end: usize, line_offsets: &[usize]) -> Option<Loc> {
+fn create_typed_loc(start: usize, end: usize, line_offsets: &[usize]) -> Option<Box<Loc>> {
     if line_offsets.is_empty() {
         return None;
     }
     let start_lc = get_line_column(start, line_offsets);
     let end_lc = get_line_column(end, line_offsets);
-    Some(Loc {
+    Some(Box::new(Loc {
         start: SourcePosition {
             line: start_lc.0,
             column: start_lc.1,
@@ -4377,20 +4924,20 @@ fn create_typed_loc(start: usize, end: usize, line_offsets: &[usize]) -> Option<
             column: end_lc.1,
             character: None,
         },
-    })
+    }))
 }
 
 fn create_typed_loc_with_character(
     start: usize,
     end: usize,
     line_offsets: &[usize],
-) -> Option<Loc> {
+) -> Option<Box<Loc>> {
     if line_offsets.is_empty() {
         return None;
     }
     let start_lc = get_line_column(start, line_offsets);
     let end_lc = get_line_column(end, line_offsets);
-    Some(Loc {
+    Some(Box::new(Loc {
         start: SourcePosition {
             line: start_lc.0,
             column: start_lc.1,
@@ -4401,16 +4948,20 @@ fn create_typed_loc_with_character(
             column: end_lc.1,
             character: Some(end as u32),
         },
-    })
+    }))
 }
 
-fn create_typed_loc_for_binding(start: usize, end: usize, line_offsets: &[usize]) -> Option<Loc> {
+fn create_typed_loc_for_binding(
+    start: usize,
+    end: usize,
+    line_offsets: &[usize],
+) -> Option<Box<Loc>> {
     if line_offsets.is_empty() {
         return None;
     }
     let start_lc = get_line_column_for_binding(start, line_offsets);
     let end_lc = get_line_column_for_binding(end, line_offsets);
-    Some(Loc {
+    Some(Box::new(Loc {
         start: SourcePosition {
             line: start_lc.0,
             column: start_lc.1,
@@ -4421,14 +4972,14 @@ fn create_typed_loc_for_binding(start: usize, end: usize, line_offsets: &[usize]
             column: end_lc.1,
             character: None,
         },
-    })
+    }))
 }
 
 fn create_typed_loc_for_binding_identifier(
     start: usize,
     end: usize,
     line_offsets: &[usize],
-) -> Option<Loc> {
+) -> Option<Box<Loc>> {
     if line_offsets.is_empty() {
         return None;
     }
@@ -4440,7 +4991,7 @@ fn create_typed_loc_for_binding_identifier(
         .saturating_sub(1);
     let start_line_offset = line_offsets.get(start_line).copied().unwrap_or(0);
     let end_line_offset = line_offsets.get(end_line).copied().unwrap_or(0);
-    Some(Loc {
+    Some(Box::new(Loc {
         start: SourcePosition {
             line: (start_line + 1) as u32,
             column: (start - start_line_offset) as u32,
@@ -4451,21 +5002,20 @@ fn create_typed_loc_for_binding_identifier(
             column: (end - end_line_offset) as u32,
             character: Some(end as u32),
         },
-    })
+    }))
 }
 
-#[allow(dead_code)]
 fn create_typed_loc_for_script(
     script_tag_start: usize,
     script_tag_end: usize,
     doc_line_offsets: &[usize],
-) -> Option<Loc> {
+) -> Option<Box<Loc>> {
     if doc_line_offsets.is_empty() {
         return None;
     }
     let start_lc = get_line_column(script_tag_start, doc_line_offsets);
     let end_lc = get_line_column(script_tag_end, doc_line_offsets);
-    Some(Loc {
+    Some(Box::new(Loc {
         start: SourcePosition {
             line: start_lc.0,
             column: start_lc.1,
@@ -4476,7 +5026,7 @@ fn create_typed_loc_for_script(
             column: end_lc.1,
             character: None,
         },
-    })
+    }))
 }
 
 /// Parse a JavaScript program (script content) and return it as an Expression.
@@ -4505,43 +5055,42 @@ pub fn parse_program(
 
         let program = &result.program;
 
-        let mut obj = Map::new();
-        obj.insert("type".to_string(), Value::String("Program".to_string()));
-
         // Calculate actual positions within the document
         let start = offset + program.span.start as usize;
         let end = offset + program.span.end as usize;
 
-        obj.insert("start".to_string(), Value::Number((start as i64).into()));
-        obj.insert("end".to_string(), Value::Number((end as i64).into()));
-
         // For Program loc, Svelte uses document coordinates:
         // - loc.start: locator(script_tag_start) - position of <script>
         // - loc.end: locator(script_tag_end) - position after </script>
-        if let Some(loc) = create_loc_for_script(script_tag_start, script_tag_end, line_offsets) {
-            obj.insert("loc".to_string(), loc);
-        }
+        let loc = create_typed_loc_for_script(script_tag_start, script_tag_end, line_offsets);
 
         // Convert body statements and attach leading comments to each statement.
         // The official Svelte compiler (via acorn) attaches leadingComments to AST nodes.
         // OXC stores all comments at the program level, so we distribute them here.
         let all_comments: Vec<_> = result.program.comments.iter().collect();
-        let mut comment_idx = 0;
         let has_comments = !all_comments.is_empty();
 
-        let mut body: Vec<Value> = Vec::with_capacity(program.body.len());
-        for stmt in program.body.iter() {
-            if let Some(stmt_node) = convert_statement_for_program(stmt, offset, line_offsets) {
-                if has_comments {
+        // Build body as Vec<JsNode> (typed, no Value conversion needed for common case).
+        let body: Vec<JsNode> = if has_comments {
+            // When there are comments, we need to:
+            // 1. Attach leadingComments to individual statements
+            // 2. Distribute comments to nested bodies
+            // For statements with comments, we wrap as JsNode::Raw(Value) since
+            // leadingComments is a JSON-only concept not modeled in JsNode variants.
+            let mut comment_idx = 0;
+            let mut body_nodes: Vec<JsNode> = Vec::with_capacity(program.body.len());
+
+            for stmt in program.body.iter() {
+                if let Some(stmt_node) = convert_statement_for_program(stmt, offset, line_offsets) {
                     let stmt_start = stmt.span().start;
 
                     // Collect comments that appear before this statement
-                    let mut leading = Vec::new();
+                    let mut stmt_leading = Vec::new();
                     while comment_idx < all_comments.len()
                         && all_comments[comment_idx].span.end <= stmt_start
                     {
                         let comment = all_comments[comment_idx];
-                        leading.push(build_comment_value(comment, content, offset));
+                        stmt_leading.push(build_comment_value(comment, content, offset));
                         comment_idx += 1;
                     }
 
@@ -4552,66 +5101,94 @@ pub fn parse_program(
                         comment_idx += 1;
                     }
 
-                    if !leading.is_empty() {
-                        // Only convert to Value when we need to attach comments
+                    if !stmt_leading.is_empty() {
+                        // Convert to Value to attach leadingComments, then wrap as Raw
                         let mut stmt_value = stmt_node.to_value();
                         if let Value::Object(ref mut obj) = stmt_value {
-                            obj.insert("leadingComments".to_string(), Value::Array(leading));
+                            obj.insert("leadingComments".to_string(), Value::Array(stmt_leading));
                         }
-                        body.push(stmt_value);
+                        body_nodes.push(JsNode::Raw(stmt_value));
                     } else {
-                        // No comments - still need Value for the body array
-                        body.push(stmt_node.to_value());
+                        // No leading comments - keep as typed JsNode
+                        body_nodes.push(stmt_node);
                     }
-                } else {
-                    // No comments at all in the program - fast path
-                    body.push(stmt_node.to_value());
                 }
             }
-        }
-        obj.insert("body".to_string(), Value::Array(body));
 
-        obj.insert(
-            "sourceType".to_string(),
-            Value::String("module".to_string()),
-        );
-
-        // Store all comments on the Program as trailingComments (for backward compat)
-        if has_comments {
-            let comments: Vec<Value> = all_comments
-                .iter()
-                .map(|comment| build_comment_value(comment, content, offset))
-                .collect();
-            obj.insert("trailingComments".to_string(), Value::Array(comments));
-        }
-
-        // Add leading comments if there are any (from HTML comments before script tag)
-        if !leading_comments.is_empty() {
-            let leading_comments_value: Vec<Value> = leading_comments
+            // Post-process: distribute comments to nested statement bodies.
+            // Build a temporary Value body array, run distribution, then extract back.
+            let comment_entries: Vec<CommentEntry> = all_comments
                 .iter()
                 .map(|comment| {
-                    let mut comment_obj = Map::new();
-                    // HTML comments are treated as "Line" type
-                    comment_obj.insert("type".to_string(), Value::String("Line".to_string()));
-                    comment_obj.insert("value".to_string(), Value::String(comment.clone()));
-                    Value::Object(comment_obj)
+                    let comment_start = offset + comment.span.start as usize;
+                    let comment_end = offset + comment.span.end as usize;
+                    CommentEntry {
+                        start: comment_start as u32,
+                        end: comment_end as u32,
+                        value: build_comment_value(comment, content, offset),
+                    }
                 })
                 .collect();
-            obj.insert(
-                "leadingComments".to_string(),
-                Value::Array(leading_comments_value),
-            );
-        }
 
-        // Post-process: distribute comments to nested statement bodies.
-        // The top-level comment distribution only handles Program.body.
-        // Comments inside function bodies, if-blocks, etc. are skipped.
-        // This step recursively walks the AST and attaches comments to nested statements.
-        distribute_comments_to_nested_bodies(&mut obj, &all_comments, content, offset);
+            // Distribute comments to nested bodies within each statement.
+            // We convert each statement to a mutable Value, run distribution, then wrap back.
+            for node in body_nodes.iter_mut() {
+                let mut val = node.to_value();
+                distribute_comments_to_node(&mut val, &comment_entries);
+                // Check if the value was actually modified (has nested leadingComments added)
+                // by comparing against the original. Since distribute_comments_to_node modifies
+                // in-place, we always wrap back as Raw to preserve any changes.
+                *node = JsNode::Raw(val);
+            }
 
-        let program_value = Value::Object(obj);
+            body_nodes
+        } else {
+            // No comments at all - fast path: keep everything as typed JsNode
+            program
+                .body
+                .iter()
+                .filter_map(|stmt| convert_statement_for_program(stmt, offset, line_offsets))
+                .collect()
+        };
 
-        Expression::Value(program_value)
+        // Build trailing comments (all JS comments stored on Program for backward compat)
+        let trailing_comments_val = if has_comments {
+            Some(
+                all_comments
+                    .iter()
+                    .map(|comment| build_comment_value(comment, content, offset))
+                    .collect(),
+            )
+        } else {
+            None
+        };
+
+        // Build leading comments from HTML comments before script tag
+        let leading_comments_val = if !leading_comments.is_empty() {
+            Some(
+                leading_comments
+                    .iter()
+                    .map(|comment| {
+                        let mut comment_obj = Map::new();
+                        comment_obj.insert("type".to_string(), Value::String("Line".to_string()));
+                        comment_obj.insert("value".to_string(), Value::String(comment.clone()));
+                        Value::Object(comment_obj)
+                    })
+                    .collect(),
+            )
+        } else {
+            None
+        };
+
+        Expression::from_node(JsNode::Program {
+            start: start as u32,
+            end: end as u32,
+            loc,
+            body,
+            source_type: CompactString::from("module"),
+            leading_comments: leading_comments_val,
+            trailing_comments: trailing_comments_val,
+        })
     })
 }
 
@@ -4654,54 +5231,11 @@ fn build_comment_value(comment: &oxc_ast::ast::Comment, content: &str, offset: u
     Value::Object(comment_obj)
 }
 
-/// Recursively distribute comments to nested statement bodies.
-///
-/// OXC stores all comments at the program level. The main distribution loop
-/// only attaches comments to top-level Program.body statements. This function
-/// walks the entire AST and attaches leading comments to statements inside
-/// function bodies, if-blocks, loops, etc.
-fn distribute_comments_to_nested_bodies(
-    program_obj: &mut Map<String, Value>,
-    all_comments: &[&oxc_ast::ast::Comment],
-    content: &str,
-    offset: usize,
-) {
-    // Build a list of pre-computed comment entries with positions extracted upfront.
-    // Comments from OXC are already sorted by position, which enables binary search.
-    let comment_entries: Vec<CommentEntry> = all_comments
-        .iter()
-        .map(|comment| {
-            let comment_start = offset + comment.span.start as usize;
-            let comment_end = offset + comment.span.end as usize;
-            CommentEntry {
-                start: comment_start as u32,
-                end: comment_end as u32,
-                value: build_comment_value(comment, content, offset),
-            }
-        })
-        .collect();
-
-    // Recursively walk the AST and distribute comments in-place
-    if let Some(body) = program_obj.get_mut("body") {
-        distribute_comments_to_body(body, &comment_entries);
-    }
-}
-
 /// A pre-computed comment entry with positions extracted to avoid repeated Value lookups.
 struct CommentEntry {
     start: u32,
     end: u32,
     value: Value,
-}
-
-/// Distribute comments to statements in a body array, then recurse into nested bodies.
-fn distribute_comments_to_body(body: &mut Value, comments: &[CommentEntry]) {
-    if let Some(stmts) = body.as_array_mut() {
-        for stmt in stmts.iter_mut() {
-            // Recurse into nested bodies of this statement
-            distribute_comments_to_node(stmt, comments);
-        }
-    }
 }
 
 /// Recursively walk a node and distribute comments to any nested statement bodies.

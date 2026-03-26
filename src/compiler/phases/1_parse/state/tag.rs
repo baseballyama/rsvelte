@@ -56,7 +56,8 @@ impl Parser<'_> {
         let expr_start = self.index;
 
         // Use find_matching_bracket to properly handle strings, comments, and regex
-        // inside the expression (the naive depth counter breaks on e.g. {'{'})
+        // inside the expression (the naive depth counter breaks on e.g. {'{'}).
+        // find_matching_bracket already has an optimized fast path for simple expressions.
         let end = find_matching_bracket(self.source, expr_start, '{').unwrap_or(self.source.len());
         self.index = end;
 
@@ -713,6 +714,7 @@ impl Parser<'_> {
             self.options.loose,
             false,
             '{',
+            self.ts,
         )
         .unwrap_or_else(|(_, pos)| {
             // Return an invalid identifier on parse error (empty name)
@@ -1605,6 +1607,7 @@ impl Parser<'_> {
             self.options.loose,
             disallow_loose,
             opening_token,
+            self.ts,
         )
         .unwrap_or_else(|(_, pos)| {
             // Return an invalid identifier on parse error (empty name, no loc field)
@@ -1632,6 +1635,7 @@ impl Parser<'_> {
             self.options.loose,
             false,
             '{',
+            self.ts,
         )
         .map_err(|(msg, pos)| {
             crate::error::ParseError::svelte("js_parse_error", msg, (pos, pos + trimmed.len()))
