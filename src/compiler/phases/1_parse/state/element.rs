@@ -13,6 +13,7 @@ use compact_str::CompactString;
 use memchr::memchr;
 use memchr::memmem;
 use rustc_hash::FxHashSet;
+use smallvec::SmallVec;
 
 use crate::ast::js::Expression;
 use crate::ast::template::{
@@ -198,8 +199,8 @@ impl Parser<'_> {
             return self.parse_svelte_options(start, attributes, self_closing);
         }
 
-        // Add character field for compatibility
-        let name_loc_with_char = self.create_name_loc(name_start, name_end);
+        // Add character field for compatibility (skip in compilation mode)
+        let name_loc_with_char = self.create_name_loc_optional(name_start, name_end);
 
         let is_void = is_void_element(&name);
         let element_type = self.get_element_type(&name, &attributes);
@@ -380,7 +381,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end,
                 name: name.clone(),
-                name_loc: Some(name_loc_with_char),
+                name_loc: name_loc_with_char,
                 attributes,
                 fragment,
             }),
@@ -388,7 +389,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end,
                 name: name.clone(),
-                name_loc: Some(name_loc_with_char),
+                name_loc: name_loc_with_char,
                 attributes,
                 fragment,
             }),
@@ -396,7 +397,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end,
                 name: name.clone(),
-                name_loc: Some(name_loc_with_char),
+                name_loc: name_loc_with_char,
                 attributes,
                 fragment,
                 metadata: Default::default(),
@@ -405,7 +406,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end,
                 name: name.clone(),
-                name_loc: Some(name_loc_with_char),
+                name_loc: name_loc_with_char,
                 attributes,
                 fragment,
             }),
@@ -413,7 +414,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end,
                 name: name.clone(),
-                name_loc: Some(name_loc_with_char),
+                name_loc: name_loc_with_char,
                 attributes,
                 fragment,
             }),
@@ -421,7 +422,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end,
                 name: name.clone(),
-                name_loc: Some(name_loc_with_char),
+                name_loc: name_loc_with_char,
                 attributes,
                 fragment,
             }),
@@ -429,7 +430,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end,
                 name: name.clone(),
-                name_loc: Some(name_loc_with_char),
+                name_loc: name_loc_with_char,
                 attributes,
                 fragment,
             }),
@@ -437,7 +438,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end,
                 name: name.clone(),
-                name_loc: Some(name_loc_with_char),
+                name_loc: name_loc_with_char,
                 attributes,
                 fragment,
             }),
@@ -445,7 +446,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end,
                 name: name.clone(),
-                name_loc: Some(name_loc_with_char),
+                name_loc: name_loc_with_char,
                 attributes,
                 fragment,
             }),
@@ -453,7 +454,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end,
                 name: name.clone(),
-                name_loc: Some(name_loc_with_char),
+                name_loc: name_loc_with_char,
                 attributes,
                 fragment,
             }),
@@ -461,7 +462,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end,
                 name: name.clone(),
-                name_loc: Some(name_loc_with_char),
+                name_loc: name_loc_with_char,
                 attributes,
                 fragment,
             }),
@@ -485,7 +486,7 @@ impl Parser<'_> {
                     start: start as u32,
                     end,
                     name: name.clone(),
-                    name_loc: Some(name_loc_with_char),
+                    name_loc: name_loc_with_char,
                     attributes: filtered_attrs,
                     fragment,
                     expression,
@@ -536,7 +537,7 @@ impl Parser<'_> {
                     start: start as u32,
                     end,
                     name: name.clone(),
-                    name_loc: Some(name_loc_with_char),
+                    name_loc: name_loc_with_char,
                     attributes: filtered_attrs,
                     fragment,
                     tag,
@@ -547,7 +548,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end,
                 name: name.clone(),
-                name_loc: Some(name_loc_with_char),
+                name_loc: name_loc_with_char,
                 attributes,
                 fragment,
                 metadata: Default::default(),
@@ -1030,28 +1031,38 @@ impl Parser<'_> {
                 }
 
                 // In loose mode, create an empty attribute with empty expression
-                let name_loc = self.create_name_loc(expr_start, expr_start);
-                let loc = self.get_location(expr_start);
+                let name_loc = self.create_name_loc_optional(expr_start, expr_start);
 
                 // Create an empty ExpressionTag value
-                let expression = Expression::Value(serde_json::json!({
-                    "type": "Identifier",
-                    "name": "",
-                    "start": expr_start,
-                    "end": expr_start,
-                    "loc": {
-                        "start": {
-                            "line": loc.start.line,
-                            "column": loc.start.column,
-                            "character": expr_start
-                        },
-                        "end": {
-                            "line": loc.end.line,
-                            "column": loc.end.column,
-                            "character": expr_start
+                let expression = if self.options.skip_expression_loc {
+                    Expression::Value(serde_json::json!({
+                        "type": "Identifier",
+                        "name": "",
+                        "start": expr_start,
+                        "end": expr_start,
+                        "loc": null
+                    }))
+                } else {
+                    let loc = self.get_location(expr_start);
+                    Expression::Value(serde_json::json!({
+                        "type": "Identifier",
+                        "name": "",
+                        "start": expr_start,
+                        "end": expr_start,
+                        "loc": {
+                            "start": {
+                                "line": loc.start.line,
+                                "column": loc.start.column,
+                                "character": expr_start
+                            },
+                            "end": {
+                                "line": loc.end.line,
+                                "column": loc.end.column,
+                                "character": expr_start
+                            }
                         }
-                    }
-                }));
+                    }))
+                };
 
                 let value = AttributeValue::Expression(ExpressionTag {
                     start: expr_start as u32,
@@ -1064,7 +1075,7 @@ impl Parser<'_> {
                         start: start as u32,
                         end: self.index as u32,
                         name: CompactString::from(""),
-                        name_loc: Some(name_loc),
+                        name_loc,
                         value,
                     },
                 ))));
@@ -1091,7 +1102,7 @@ impl Parser<'_> {
             }
 
             // Calculate name_loc
-            let name_loc = self.create_name_loc(expr_start, expr_end);
+            let name_loc = self.create_name_loc_optional(expr_start, expr_end);
 
             // Create the ExpressionTag value
             let value = AttributeValue::Expression(ExpressionTag {
@@ -1105,7 +1116,7 @@ impl Parser<'_> {
                     start: start as u32,
                     end: self.index as u32,
                     name: CompactString::from(name),
-                    name_loc: Some(name_loc),
+                    name_loc,
                     value,
                 },
             ))));
@@ -1120,7 +1131,7 @@ impl Parser<'_> {
             return Ok(None);
         }
 
-        let name_loc = self.create_name_loc(name_start, name_end);
+        let name_loc = self.create_name_loc_optional(name_start, name_end);
 
         self.skip_whitespace();
 
@@ -1181,7 +1192,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end: attr_end as u32,
                 name: name.clone(),
-                name_loc: Some(name_loc),
+                name_loc,
                 value,
             },
         ))))
@@ -1198,17 +1209,16 @@ impl Parser<'_> {
         // Extract event name and modifiers from "on:click|preventDefault"
         let after_on = &full_name[3..]; // Skip "on:"
         let (event_name, modifiers) = if let Some(pipe_pos) = memchr(b'|', after_on.as_bytes()) {
-            let name = &after_on[..pipe_pos];
-            let mods: Vec<CompactString> = after_on[pipe_pos + 1..]
+            let mods: SmallVec<[CompactString; 2]> = after_on[pipe_pos + 1..]
                 .split('|')
                 .map(CompactString::from)
                 .collect();
-            (name.to_string(), mods)
+            (CompactString::from(&after_on[..pipe_pos]), mods)
         } else {
-            (after_on.to_string(), Vec::new())
+            (CompactString::from(after_on), SmallVec::new())
         };
 
-        let name_loc = self.create_name_loc(name_start, name_end);
+        let name_loc = self.create_name_loc_optional(name_start, name_end);
 
         // Parse the value (expression)
         let (expression, end_pos) = if self.eat_optional("=") {
@@ -1262,8 +1272,8 @@ impl Parser<'_> {
             crate::ast::template::OnDirective {
                 start: start as u32,
                 end: end_pos as u32,
-                name: CompactString::from(event_name),
-                name_loc: Some(name_loc),
+                name: event_name,
+                name_loc,
                 expression,
                 modifiers,
             },
@@ -1281,17 +1291,16 @@ impl Parser<'_> {
         // Extract property name and modifiers from "bind:value|modifier"
         let after_bind = &full_name[5..]; // Skip "bind:"
         let (prop_name, modifiers) = if let Some(pipe_pos) = memchr(b'|', after_bind.as_bytes()) {
-            let name = &after_bind[..pipe_pos];
-            let mods: Vec<CompactString> = after_bind[pipe_pos + 1..]
+            let mods: SmallVec<[CompactString; 2]> = after_bind[pipe_pos + 1..]
                 .split('|')
                 .map(CompactString::from)
                 .collect();
-            (name.to_string(), mods)
+            (&after_bind[..pipe_pos], mods)
         } else {
-            (after_bind.to_string(), Vec::new())
+            (after_bind, SmallVec::new())
         };
 
-        let name_loc = self.create_name_loc(name_start, name_end);
+        let name_loc = self.create_name_loc_optional(name_start, name_end);
 
         // Parse the value (expression)
         let (expression, end_pos) = if self.eat_optional("=") {
@@ -1325,7 +1334,7 @@ impl Parser<'_> {
                     }
                     (
                         super::super::expression::create_identifier_with_character(
-                            &prop_name,
+                            prop_name,
                             name_start + 5,
                             name_end,
                             self.expression_line_offsets(),
@@ -1347,7 +1356,7 @@ impl Parser<'_> {
                 // Shorthand: bind:value without expression means bind to a variable with same name
                 (
                     super::super::expression::create_identifier_with_character(
-                        &prop_name,
+                        prop_name,
                         name_start + 5, // start after "bind:"
                         name_end,
                         self.expression_line_offsets(),
@@ -1359,7 +1368,7 @@ impl Parser<'_> {
             // Shorthand: bind:value means bind to variable named "value"
             (
                 super::super::expression::create_identifier_with_character(
-                    &prop_name,
+                    prop_name,
                     name_start + 5, // start after "bind:"
                     name_end,
                     self.expression_line_offsets(),
@@ -1373,7 +1382,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end: end_pos as u32,
                 name: CompactString::from(prop_name),
-                name_loc: Some(name_loc),
+                name_loc,
                 expression,
                 modifiers,
             },
@@ -1399,7 +1408,7 @@ impl Parser<'_> {
             ));
         }
 
-        let name_loc = self.create_name_loc(name_start, name_end);
+        let name_loc = self.create_name_loc_optional(name_start, name_end);
 
         let (expression, end_pos) = if self.eat_optional("=") {
             self.skip_whitespace();
@@ -1459,7 +1468,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end: end_pos as u32,
                 name: CompactString::from(action_name),
-                name_loc: Some(name_loc),
+                name_loc,
                 expression,
             },
         ))))
@@ -1484,7 +1493,7 @@ impl Parser<'_> {
             ));
         }
 
-        let name_loc = self.create_name_loc(name_start, name_end);
+        let name_loc = self.create_name_loc_optional(name_start, name_end);
 
         let expression = if self.eat_optional("=") {
             self.skip_whitespace();
@@ -1534,7 +1543,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end: self.index as u32,
                 name: CompactString::from(class_name),
-                name_loc: Some(name_loc),
+                name_loc,
                 expression,
             },
         ))))
@@ -1551,17 +1560,16 @@ impl Parser<'_> {
         // Extract property name and modifiers from "style:color|important"
         let after_style = &full_name[6..]; // Skip "style:"
         let (prop_name, modifiers) = if let Some(pipe_pos) = memchr(b'|', after_style.as_bytes()) {
-            let name = &after_style[..pipe_pos];
-            let mods: Vec<CompactString> = after_style[pipe_pos + 1..]
+            let mods: SmallVec<[CompactString; 2]> = after_style[pipe_pos + 1..]
                 .split('|')
                 .map(CompactString::from)
                 .collect();
-            (name.to_string(), mods)
+            (&after_style[..pipe_pos], mods)
         } else {
-            (after_style.to_string(), Vec::new())
+            (after_style, SmallVec::new())
         };
 
-        let name_loc = self.create_name_loc(name_start, name_end);
+        let name_loc = self.create_name_loc_optional(name_start, name_end);
 
         let value = if self.eat_optional("=") {
             self.skip_whitespace();
@@ -1698,7 +1706,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end: self.index as u32,
                 name: CompactString::from(prop_name),
-                name_loc: Some(name_loc),
+                name_loc,
                 value,
                 modifiers,
             },
@@ -1728,7 +1736,7 @@ impl Parser<'_> {
                 return Ok(None);
             };
 
-        let name_loc = self.create_name_loc(name_start, name_end);
+        let name_loc = self.create_name_loc_optional(name_start, name_end);
 
         let (expression, end_pos) = if self.eat_optional("=") {
             self.skip_whitespace();
@@ -1782,7 +1790,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end: end_pos as u32,
                 name: CompactString::from(transition_name),
-                name_loc: Some(name_loc),
+                name_loc,
                 expression,
                 modifiers,
                 intro,
@@ -1793,16 +1801,16 @@ impl Parser<'_> {
     }
 
     /// Helper to extract name and modifiers from "name|mod1|mod2".
-    pub fn extract_name_and_modifiers(s: &str) -> (String, Vec<CompactString>) {
+    pub fn extract_name_and_modifiers(s: &str) -> (&str, SmallVec<[CompactString; 2]>) {
         if let Some(pipe_pos) = memchr(b'|', s.as_bytes()) {
             let name = &s[..pipe_pos];
-            let mods: Vec<CompactString> = s[pipe_pos + 1..]
+            let mods: SmallVec<[CompactString; 2]> = s[pipe_pos + 1..]
                 .split('|')
                 .map(CompactString::from)
                 .collect();
-            (name.to_string(), mods)
+            (name, mods)
         } else {
-            (s.to_string(), Vec::new())
+            (s, SmallVec::new())
         }
     }
 
@@ -1815,7 +1823,7 @@ impl Parser<'_> {
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute>> {
         let animate_name = &full_name[8..]; // Skip "animate:"
-        let name_loc = self.create_name_loc(name_start, name_end);
+        let name_loc = self.create_name_loc_optional(name_start, name_end);
 
         let expression = if self.eat_optional("=") {
             self.skip_whitespace();
@@ -1853,7 +1861,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end: self.index as u32,
                 name: CompactString::from(animate_name),
-                name_loc: Some(name_loc),
+                name_loc,
                 expression,
                 metadata: None, // Populated during Phase 2 analysis
             },
@@ -1869,7 +1877,7 @@ impl Parser<'_> {
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute>> {
         let let_name = &full_name[4..]; // Skip "let:"
-        let name_loc = self.create_name_loc(name_start, name_end);
+        let name_loc = self.create_name_loc_optional(name_start, name_end);
 
         let expression = if self.eat_optional("=") {
             self.skip_whitespace();
@@ -1907,7 +1915,7 @@ impl Parser<'_> {
                 start: start as u32,
                 end: self.index as u32,
                 name: CompactString::from(let_name),
-                name_loc: Some(name_loc),
+                name_loc,
                 expression,
             },
         ))))

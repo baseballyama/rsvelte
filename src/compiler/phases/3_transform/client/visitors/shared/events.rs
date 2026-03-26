@@ -461,7 +461,7 @@ mod tests {
             end: 0,
             name: CompactString::new("click"),
             name_loc: None,
-            modifiers: vec![],
+            modifiers: smallvec::smallvec![],
             expression: None,
         }
     }

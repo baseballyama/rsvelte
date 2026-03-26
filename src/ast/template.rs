@@ -7,6 +7,7 @@ use compact_str::CompactString;
 use indexmap::IndexSet;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 
 use super::css::StyleSheet;
 use super::js::Expression;
@@ -696,7 +697,7 @@ pub struct BindDirective {
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
     pub expression: Expression,
-    pub modifiers: Vec<CompactString>,
+    pub modifiers: SmallVec<[CompactString; 2]>,
 }
 
 impl serde::Serialize for BindDirective {
@@ -727,7 +728,7 @@ pub struct OnDirective {
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
     pub expression: Option<Expression>,
-    pub modifiers: Vec<CompactString>,
+    pub modifiers: SmallVec<[CompactString; 2]>,
 }
 
 impl serde::Serialize for OnDirective {
@@ -789,7 +790,7 @@ pub struct StyleDirective {
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
     pub value: AttributeValue,
-    pub modifiers: Vec<CompactString>,
+    pub modifiers: SmallVec<[CompactString; 2]>,
 }
 
 impl serde::Serialize for StyleDirective {
@@ -820,7 +821,7 @@ pub struct TransitionDirective {
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
     pub expression: Option<Expression>,
-    pub modifiers: Vec<CompactString>,
+    pub modifiers: SmallVec<[CompactString; 2]>,
     pub intro: bool,
     pub outro: bool,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -156,16 +156,22 @@ impl<'a> Parser<'a> {
     ///
     /// Corresponds to the `Parser` constructor in `svelte/packages/svelte/src/compiler/phases/1-parse/index.js`.
     pub fn new(source: &'a str, options: ParseOptions) -> Self {
-        // Calculate line offsets for location calculation using SIMD-accelerated memchr
+        // Calculate line offsets for location calculation using SIMD-accelerated memchr.
+        // Skip entirely in compilation mode where line/column info is never used.
         let bytes = source.as_bytes();
-        let mut line_offsets = Vec::with_capacity(bytes.len() / 40 + 1); // rough estimate
-        line_offsets.push(0);
-        let mut pos = 0;
-        while let Some(offset) = memchr::memchr(b'\n', &bytes[pos..]) {
-            let abs = pos + offset;
-            line_offsets.push(abs + 1);
-            pos = abs + 1;
-        }
+        let line_offsets = if options.skip_expression_loc {
+            Vec::new()
+        } else {
+            let mut offsets = Vec::with_capacity(bytes.len() / 40 + 1); // rough estimate
+            offsets.push(0);
+            let mut pos = 0;
+            while let Some(offset) = memchr::memchr(b'\n', &bytes[pos..]) {
+                let abs = pos + offset;
+                offsets.push(abs + 1);
+                pos = abs + 1;
+            }
+            offsets
+        };
 
         // Detect TypeScript mode by looking for lang="ts" in script tags
         // Corresponds to the TypeScript detection logic in JavaScript Parser constructor
@@ -277,6 +283,17 @@ impl<'a> Parser<'a> {
                 column: (end - end_line_start) as u32,
                 character: end as u32,
             },
+        }
+    }
+
+    /// Create name_loc, returning None when skip_expression_loc is enabled (compilation mode).
+    /// This avoids expensive binary searches for line/column when the data is never used.
+    #[inline]
+    pub fn create_name_loc_optional(&self, start: usize, end: usize) -> Option<SourceLocation> {
+        if self.options.skip_expression_loc {
+            None
+        } else {
+            Some(self.create_name_loc(start, end))
         }
     }
 
