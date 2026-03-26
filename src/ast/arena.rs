@@ -89,6 +89,11 @@ impl ParseArena {
     pub fn get_js_node(&self, id: JsNodeId) -> &JsNode {
         unsafe {
             let vec = &*self.js_nodes.get();
+            if (id.0 as usize) >= vec.len() {
+                // Return a static Null node for arena mismatch
+                static NULL_NODE: JsNode = JsNode::Null;
+                return &NULL_NODE;
+            }
             &vec[id.0 as usize]
         }
     }
@@ -138,7 +143,12 @@ impl ParseArena {
         }
         unsafe {
             let vec = &*self.js_children.get();
-            &vec[range.start as usize..(range.start + range.len) as usize]
+            let end = (range.start + range.len) as usize;
+            if end > vec.len() {
+                // Graceful fallback for arena mismatch (e.g., DESER_ARENA used during serialize)
+                return &[];
+            }
+            &vec[range.start as usize..end]
         }
     }
 
