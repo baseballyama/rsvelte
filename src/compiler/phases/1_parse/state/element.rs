@@ -2133,13 +2133,25 @@ impl Parser<'_> {
 
                 if text_end > text_start {
                     let raw = &self.source[text_start..text_end];
-                    let data = decode_html_entities(raw, true);
-                    parts.push(AttributeValuePart::Text(Text {
-                        start: text_start as u32,
-                        end: text_end as u32,
-                        raw: CompactString::from(raw),
-                        data: CompactString::from(data),
-                    }));
+                    // Fast path: skip entity decoding when no '&' present
+                    let has_entity = memchr(b'&', &self.bytes[text_start..text_end]).is_some();
+                    if has_entity {
+                        let data = decode_html_entities(raw, true);
+                        parts.push(AttributeValuePart::Text(Text {
+                            start: text_start as u32,
+                            end: text_end as u32,
+                            raw: CompactString::from(raw),
+                            data: CompactString::from(data),
+                        }));
+                    } else {
+                        let cs = CompactString::from(raw);
+                        parts.push(AttributeValuePart::Text(Text {
+                            start: text_start as u32,
+                            end: text_end as u32,
+                            raw: cs.clone(),
+                            data: cs,
+                        }));
+                    }
                 }
             }
         }

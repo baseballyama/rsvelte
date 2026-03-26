@@ -126,9 +126,54 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
         '[' => ']',
         _ => return None,
     };
+    let bytes = template.as_bytes();
+
+    // Fast path: for simple expressions like `{identifier}` or `{a.b.c}`,
+    // scan for the closing bracket directly. If we only encounter identifier
+    // characters, dots, whitespace, and no nesting/string/comment characters,
+    // we can return immediately without the full state machine.
+    if open == '{' {
+        let remaining = &bytes[index..];
+        // Use memchr to find the first '}' quickly
+        if let Some(close_offset) = memchr(b'}', remaining) {
+            // Check if the content between open and close is "simple" -
+            // contains no characters that require the full state machine:
+            // no nested brackets, no strings, no comments, no regex
+            let content = &remaining[..close_offset];
+            let is_simple = content.iter().all(|&b| {
+                b.is_ascii_alphanumeric()
+                    || b == b'_'
+                    || b == b'$'
+                    || b == b'.'
+                    || b == b' '
+                    || b == b'\t'
+                    || b == b'\n'
+                    || b == b'\r'
+                    || b == b'?'  // optional chaining
+                    || b == b','
+                    || b == b':'  // ternary, object literal
+                    || b == b';'
+                    || b == b'+'
+                    || b == b'-'
+                    || b == b'*'
+                    || b == b'%'
+                    || b == b'!'
+                    || b == b'='
+                    || b == b'<'
+                    || b == b'>'
+                    || b == b'&'
+                    || b == b'|'
+                    || b == b'^'
+                    || b == b'~'
+            });
+            if is_simple {
+                return Some(index + close_offset);
+            }
+        }
+    }
+
     let mut brackets = 1;
     let mut i = index;
-    let bytes = template.as_bytes();
 
     // Track the previous non-whitespace character to distinguish division from regex.
     // When `/` follows an identifier char, `)`, `]`, `++`, `--`, it is division.
