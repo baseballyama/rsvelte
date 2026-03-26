@@ -233,6 +233,143 @@ fn try_parse_simple_expression(
         return try_parse_numeric_literal(content, bytes, offset, line_offsets);
     }
 
+    // Fast path for string literals
+    if first == b'\'' || first == b'"' {
+        return try_parse_string_literal(content, bytes, offset, line_offsets);
+    }
+
+    // Fast path for negative numeric literals: -1, -3.14
+    if first == b'-' && bytes.len() >= 2 && bytes[1].is_ascii_digit() {
+        return try_parse_negative_numeric(content, bytes, offset, line_offsets);
+    }
+
+    None
+}
+
+/// Try to parse a negative numeric literal (-1, -3.14).
+#[inline]
+fn try_parse_negative_numeric(
+    content: &str,
+    bytes: &[u8],
+    offset: usize,
+    line_offsets: &[usize],
+) -> Option<Expression> {
+    // Parse the numeric part (after the minus sign)
+    let num_content = &content[1..];
+    let num_bytes = &bytes[1..];
+    let len = num_bytes.len();
+    let mut pos = 0;
+    let mut has_dot = false;
+
+    // Quick reject for non-decimal prefixes
+    if len >= 2 && num_bytes[0] == b'0' {
+        let second = num_bytes[1];
+        if second == b'x'
+            || second == b'X'
+            || second == b'o'
+            || second == b'O'
+            || second == b'b'
+            || second == b'B'
+        {
+            return None;
+        }
+    }
+
+    while pos < len {
+        let b = num_bytes[pos];
+        if b.is_ascii_digit() {
+            pos += 1;
+        } else if b == b'.' && !has_dot && pos + 1 < len && num_bytes[pos + 1].is_ascii_digit() {
+            has_dot = true;
+            pos += 1;
+        } else {
+            return None;
+        }
+    }
+
+    if pos != len {
+        return None;
+    }
+
+    // This is a UnaryExpression(-numeric)
+    let value: f64 = num_content.parse().ok()?;
+    let total_len = content.len();
+
+    // Create the inner numeric literal
+    let argument = create_numeric_literal(
+        value,
+        num_content,
+        offset + 1,
+        offset + total_len,
+        line_offsets,
+    );
+
+    Some(Expression::from_node(JsNode::UnaryExpression {
+        start: offset as u32,
+        end: (offset + total_len) as u32,
+        loc: create_typed_loc(offset, offset + total_len, line_offsets),
+        operator: CompactString::from("-"),
+        prefix: true,
+        argument: Box::new(expr_to_node(argument)),
+    }))
+}
+
+/// Try to parse a simple string literal ('...' or "...").
+///
+/// Handles simple strings without escape sequences that span to the end of content.
+/// Does NOT handle: template literals, strings with escape sequences, or
+/// strings that don't consume the entire content.
+#[inline]
+fn try_parse_string_literal(
+    content: &str,
+    bytes: &[u8],
+    offset: usize,
+    line_offsets: &[usize],
+) -> Option<Expression> {
+    let len = bytes.len();
+    if len < 2 {
+        return None;
+    }
+
+    let quote = bytes[0];
+    let mut pos = 1;
+    let mut has_escape = false;
+
+    while pos < len {
+        let b = bytes[pos];
+        if b == b'\\' {
+            // Has escape sequences - bail to OXC for correct handling
+            has_escape = true;
+            pos += 2; // skip escape
+            if pos > len {
+                return None;
+            }
+            continue;
+        }
+        if b == quote {
+            // Found closing quote - check if it's at the end
+            if pos + 1 == len {
+                // Simple string literal consuming entire content
+                if has_escape {
+                    // Has escapes - let OXC handle the value decoding
+                    return None;
+                }
+                let value = &content[1..pos]; // without quotes
+                return Some(create_string_literal(
+                    value,
+                    content,
+                    offset,
+                    offset + len,
+                    line_offsets,
+                ));
+            }
+            // Closing quote not at end - not a simple string
+            return None;
+        }
+        pos += 1;
+    }
+
+    // No closing quote found
     None
 }
 
@@ -650,15 +787,13 @@ pub fn check_js_parse_error(content: &str) -> Option<String> {
 
 /// Create an identifier for invalid expressions
 fn create_invalid_identifier(start: usize, end: usize, _line_offsets: &[usize]) -> Expression {
-    let mut obj = Map::new();
-    obj.insert("type".to_string(), Value::String("Identifier".to_string()));
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    obj.insert("name".to_string(), Value::String("".to_string()));
-
     // Note: Similar to get_loose_identifier, invalid identifiers don't include 'loc'
-
-    Expression::Value(Value::Object(obj))
+    Expression::from_node(JsNode::Identifier {
+        start: start as u32,
+        end: end as u32,
+        loc: None,
+        name: CompactString::from(""),
+    })
 }
 
 fn parse_expression_with_typescript(
@@ -2361,7 +2496,7 @@ fn create_binary_expression(
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         left: Box::new(expr_to_node(left_expr)),
-        operator: CompactString::from(binary_operator_to_string(operator)),
+        operator: CompactString::from(binary_operator_to_str(operator)),
         right: Box::new(expr_to_node(right_expr)),
     })
 }
@@ -2381,7 +2516,7 @@ fn create_logical_expression(
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         left: Box::new(expr_to_node(left_expr)),
-        operator: CompactString::from(logical_operator_to_string(&logical.operator)),
+        operator: CompactString::from(logical_operator_to_str(&logical.operator)),
         right: Box::new(expr_to_node(right_expr)),
     })
 }
@@ -2399,7 +2534,7 @@ fn create_unary_expression(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        operator: CompactString::from(unary_operator_to_string(&unary.operator)),
+        operator: CompactString::from(unary_operator_to_str(&unary.operator)),
         prefix: true,
         argument: Box::new(expr_to_node(argument)),
     })
@@ -2600,13 +2735,7 @@ fn create_function_expression(
         .params
         .items
         .iter()
-        .map(|param| {
-            JsNode::Raw(convert_binding_pattern(
-                &param.pattern,
-                offset,
-                line_offsets,
-            ))
-        })
+        .map(|param| convert_binding_pattern(&param.pattern, offset, line_offsets))
         .collect();
 
     // body
@@ -2616,7 +2745,7 @@ fn create_function_expression(
         let statements: Vec<JsNode> = body
             .statements
             .iter()
-            .filter_map(|stmt| convert_statement(stmt, offset, line_offsets).map(JsNode::Raw))
+            .filter_map(|stmt| convert_statement(stmt, offset, line_offsets))
             .collect();
         Box::new(JsNode::BlockStatement {
             start: body_start as u32,
@@ -2853,6 +2982,7 @@ fn convert_class_element_for_expr(
                 .body
                 .iter()
                 .filter_map(|stmt| convert_statement(stmt, offset, line_offsets))
+                .map(|node| node.to_value())
                 .collect();
             obj.insert("body".to_string(), Value::Array(body_statements));
 
@@ -3000,7 +3130,7 @@ fn create_assignment_expression(
     offset: usize,
     line_offsets: &[usize],
 ) -> Expression {
-    let operator = assignment_operator_to_string(&assign.operator);
+    let operator = assignment_operator_to_str(&assign.operator);
     let left = convert_assignment_target(&assign.left, offset, line_offsets);
     let right = convert_expression(&assign.right, offset, line_offsets);
 
@@ -3014,7 +3144,7 @@ fn create_assignment_expression(
     })
 }
 
-fn assignment_operator_to_string(op: &oxc_ast::ast::AssignmentOperator) -> String {
+fn assignment_operator_to_str(op: &oxc_ast::ast::AssignmentOperator) -> &'static str {
     use oxc_ast::ast::AssignmentOperator::*;
     match op {
         Assign => "=",
@@ -3034,32 +3164,20 @@ fn assignment_operator_to_string(op: &oxc_ast::ast::AssignmentOperator) -> Strin
         LogicalOr => "||=",
         LogicalNullish => "??=",
     }
-    .to_string()
 }
 
-/// Convert an ObjectAssignmentTarget to ObjectPattern JSON.
+/// Convert an ObjectAssignmentTarget to ObjectPattern JsNode.
 /// ObjectAssignmentTarget is `{ foo }` in `({ foo } = obj);`
 fn convert_object_assignment_target(
     obj_target: &oxc_ast::ast::ObjectAssignmentTarget,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     // Note: -1 adjustment for the paren we added when parsing
     let start = offset + obj_target.span.start as usize - 1;
     let end = offset + obj_target.span.end as usize - 1;
 
-    let mut obj = Map::new();
-    obj.insert(
-        "type".to_string(),
-        Value::String("ObjectPattern".to_string()),
-    );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
-
-    let mut properties: Vec<Value> = obj_target
+    let mut properties: Vec<JsNode> = obj_target
         .properties
         .iter()
         .map(|prop| convert_assignment_target_property(prop, offset, line_offsets))
@@ -3069,57 +3187,43 @@ fn convert_object_assignment_target(
     if let Some(rest) = &obj_target.rest {
         let rest_start = offset + rest.span.start as usize - 1;
         let rest_end = offset + rest.span.end as usize - 1;
-
-        let mut rest_obj = Map::new();
-        rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
-        rest_obj.insert(
-            "start".to_string(),
-            Value::Number((rest_start as i64).into()),
-        );
-        rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
-        if let Some(loc) = create_loc(rest_start, rest_end, line_offsets) {
-            rest_obj.insert("loc".to_string(), loc);
-        }
-        rest_obj.insert(
-            "argument".to_string(),
-            convert_assignment_target(&rest.target, offset, line_offsets).to_value(),
-        );
-        properties.push(Value::Object(rest_obj));
+        properties.push(JsNode::RestElement {
+            start: rest_start as u32,
+            end: rest_end as u32,
+            loc: create_typed_loc(rest_start, rest_end, line_offsets),
+            argument: Box::new(convert_assignment_target(
+                &rest.target,
+                offset,
+                line_offsets,
+            )),
+        });
     }
 
-    obj.insert("properties".to_string(), Value::Array(properties));
-
-    Value::Object(obj)
+    JsNode::ObjectPattern {
+        start: start as u32,
+        end: end as u32,
+        loc: create_typed_loc(start, end, line_offsets),
+        properties,
+    }
 }
 
-/// Convert an ArrayAssignmentTarget to ArrayPattern JSON.
+/// Convert an ArrayAssignmentTarget to ArrayPattern JsNode.
 /// ArrayAssignmentTarget is `[a, b]` in `([a, b] = arr);`
 fn convert_array_assignment_target(
     arr_target: &oxc_ast::ast::ArrayAssignmentTarget,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     // Note: -1 adjustment for the paren we added when parsing
     let start = offset + arr_target.span.start as usize - 1;
     let end = offset + arr_target.span.end as usize - 1;
 
-    let mut obj = Map::new();
-    obj.insert(
-        "type".to_string(),
-        Value::String("ArrayPattern".to_string()),
-    );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
-
-    let mut elements: Vec<Value> = arr_target
+    let mut elements: Vec<Option<JsNode>> = arr_target
         .elements
         .iter()
-        .map(|elem| match elem {
-            Some(target) => convert_assignment_target_maybe_default(target, offset, line_offsets),
-            None => Value::Null,
+        .map(|elem| {
+            elem.as_ref()
+                .map(|target| convert_assignment_target_maybe_default(target, offset, line_offsets))
         })
         .collect();
 
@@ -3127,35 +3231,32 @@ fn convert_array_assignment_target(
     if let Some(rest) = &arr_target.rest {
         let rest_start = offset + rest.span.start as usize - 1;
         let rest_end = offset + rest.span.end as usize - 1;
-
-        let mut rest_obj = Map::new();
-        rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
-        rest_obj.insert(
-            "start".to_string(),
-            Value::Number((rest_start as i64).into()),
-        );
-        rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
-        if let Some(loc) = create_loc(rest_start, rest_end, line_offsets) {
-            rest_obj.insert("loc".to_string(), loc);
-        }
-        rest_obj.insert(
-            "argument".to_string(),
-            convert_assignment_target(&rest.target, offset, line_offsets).to_value(),
-        );
-        elements.push(Value::Object(rest_obj));
+        elements.push(Some(JsNode::RestElement {
+            start: rest_start as u32,
+            end: rest_end as u32,
+            loc: create_typed_loc(rest_start, rest_end, line_offsets),
+            argument: Box::new(convert_assignment_target(
+                &rest.target,
+                offset,
+                line_offsets,
+            )),
+        }));
     }
 
-    obj.insert("elements".to_string(), Value::Array(elements));
-
-    Value::Object(obj)
+    JsNode::ArrayPattern {
+        start: start as u32,
+        end: end as u32,
+        loc: create_typed_loc(start, end, line_offsets),
+        elements,
+    }
 }
 
-/// Convert an AssignmentTargetProperty to Property JSON.
+/// Convert an AssignmentTargetProperty to Property JsNode.
 fn convert_assignment_target_property(
     prop: &oxc_ast::ast::AssignmentTargetProperty,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     use oxc_ast::ast::AssignmentTargetProperty;
 
     match prop {
@@ -3164,93 +3265,73 @@ fn convert_assignment_target_property(
             let start = offset + id_prop.span.start as usize - 1;
             let end = offset + id_prop.span.end as usize - 1;
 
-            let mut obj = Map::new();
-            obj.insert("type".to_string(), Value::String("Property".to_string()));
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
-            obj.insert("method".to_string(), Value::Bool(false));
-            obj.insert("shorthand".to_string(), Value::Bool(true));
-            obj.insert("computed".to_string(), Value::Bool(false));
-            obj.insert("kind".to_string(), Value::String("init".to_string()));
-
             // For shorthand, key and value are the same identifier
             let id_start = offset + id_prop.binding.span.start as usize - 1;
             let id_end = offset + id_prop.binding.span.end as usize - 1;
-            let identifier =
-                create_identifier(&id_prop.binding.name, id_start, id_end, line_offsets)
-                    .as_json()
-                    .clone();
-
-            obj.insert("key".to_string(), identifier.clone());
+            let id_node = expr_to_node(create_identifier(
+                &id_prop.binding.name,
+                id_start,
+                id_end,
+                line_offsets,
+            ));
 
             // Value is the identifier, possibly with a default value
-            if let Some(init) = &id_prop.init {
+            let value = if let Some(init) = &id_prop.init {
                 // Has default: `{ foo = default }` -> AssignmentPattern
-                let mut assign_pat = Map::new();
-                assign_pat.insert(
-                    "type".to_string(),
-                    Value::String("AssignmentPattern".to_string()),
-                );
-                assign_pat.insert("start".to_string(), Value::Number((id_start as i64).into()));
                 let init_end = offset + init.span().end as usize - 1;
-                assign_pat.insert("end".to_string(), Value::Number((init_end as i64).into()));
-                if let Some(loc) = create_loc(id_start, init_end, line_offsets) {
-                    assign_pat.insert("loc".to_string(), loc);
+                JsNode::AssignmentPattern {
+                    start: id_start as u32,
+                    end: init_end as u32,
+                    loc: create_typed_loc(id_start, init_end, line_offsets),
+                    left: Box::new(id_node.clone()),
+                    right: Box::new(expr_to_node(convert_expression(init, offset, line_offsets))),
                 }
-                assign_pat.insert("left".to_string(), identifier);
-                assign_pat.insert(
-                    "right".to_string(),
-                    convert_expression(init, offset, line_offsets)
-                        .as_json()
-                        .clone(),
-                );
-                obj.insert("value".to_string(), Value::Object(assign_pat));
             } else {
-                obj.insert("value".to_string(), identifier);
-            }
+                id_node.clone()
+            };
 
-            Value::Object(obj)
+            JsNode::Property {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                key: Box::new(id_node),
+                value: Box::new(value),
+                kind: CompactString::from("init"),
+                method: false,
+                shorthand: true,
+                computed: false,
+            }
         }
         AssignmentTargetProperty::AssignmentTargetPropertyProperty(prop_prop) => {
             // Non-shorthand property like `{ foo: bar }` in `({ foo: bar } = obj);`
             let start = offset + prop_prop.span.start as usize - 1;
             let end = offset + prop_prop.span.end as usize - 1;
 
-            let mut obj = Map::new();
-            obj.insert("type".to_string(), Value::String("Property".to_string()));
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
-            obj.insert("method".to_string(), Value::Bool(false));
-            obj.insert("shorthand".to_string(), Value::Bool(false));
-            obj.insert("computed".to_string(), Value::Bool(prop_prop.computed));
-            obj.insert("kind".to_string(), Value::String("init".to_string()));
-
-            // Convert key
             let key = convert_property_key_with_offset(&prop_prop.name, offset, line_offsets);
-            obj.insert("key".to_string(), key.to_value());
-
-            // Convert value
             let value =
                 convert_assignment_target_maybe_default(&prop_prop.binding, offset, line_offsets);
-            obj.insert("value".to_string(), value);
 
-            Value::Object(obj)
+            JsNode::Property {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                key: Box::new(key),
+                value: Box::new(value),
+                kind: CompactString::from("init"),
+                method: false,
+                shorthand: false,
+                computed: prop_prop.computed,
+            }
         }
     }
 }
 
-/// Convert an AssignmentTargetMaybeDefault to JSON.
+/// Convert an AssignmentTargetMaybeDefault to JsNode.
 fn convert_assignment_target_maybe_default(
     target: &oxc_ast::ast::AssignmentTargetMaybeDefault,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     use oxc_ast::ast::AssignmentTargetMaybeDefault;
 
     match target {
@@ -3259,36 +3340,29 @@ fn convert_assignment_target_maybe_default(
             let start = offset + with_default.span.start as usize - 1;
             let end = offset + with_default.span.end as usize - 1;
 
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("AssignmentPattern".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
+            JsNode::AssignmentPattern {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                left: Box::new(convert_assignment_target(
+                    &with_default.binding,
+                    offset,
+                    line_offsets,
+                )),
+                right: Box::new(expr_to_node(convert_expression(
+                    &with_default.init,
+                    offset,
+                    line_offsets,
+                ))),
             }
-            obj.insert(
-                "left".to_string(),
-                convert_assignment_target(&with_default.binding, offset, line_offsets).to_value(),
-            );
-            obj.insert(
-                "right".to_string(),
-                convert_expression(&with_default.init, offset, line_offsets)
-                    .as_json()
-                    .clone(),
-            );
-
-            Value::Object(obj)
         }
         // All other variants are AssignmentTarget variants
         _ => {
             // Convert to AssignmentTarget - need to extract the inner target
             if let Some(inner) = target.as_assignment_target() {
-                convert_assignment_target(inner, offset, line_offsets).to_value()
+                convert_assignment_target(inner, offset, line_offsets)
             } else {
-                Value::Null
+                JsNode::Null
             }
         }
     }
@@ -3362,12 +3436,12 @@ fn convert_assignment_target(
                 line_offsets,
             ))
         }
-        AssignmentTarget::ObjectAssignmentTarget(obj_target) => JsNode::Raw(
-            convert_object_assignment_target(obj_target, offset, line_offsets),
-        ),
-        AssignmentTarget::ArrayAssignmentTarget(arr_target) => JsNode::Raw(
-            convert_array_assignment_target(arr_target, offset, line_offsets),
-        ),
+        AssignmentTarget::ObjectAssignmentTarget(obj_target) => {
+            convert_object_assignment_target(obj_target, offset, line_offsets)
+        }
+        AssignmentTarget::ArrayAssignmentTarget(arr_target) => {
+            convert_array_assignment_target(arr_target, offset, line_offsets)
+        }
         _ => {
             // Fallback for other complex patterns (e.g., TSAsExpression, TSNonNullExpression)
             JsNode::Null
@@ -3485,10 +3559,10 @@ fn create_arrow_function(
                 line_offsets,
             ))
         } else {
-            JsNode::Raw(convert_arrow_body(&arrow.body, offset, line_offsets))
+            convert_arrow_body(&arrow.body, offset, line_offsets)
         }
     } else {
-        JsNode::Raw(convert_arrow_body(&arrow.body, offset, line_offsets))
+        convert_arrow_body(&arrow.body, offset, line_offsets)
     };
 
     Expression::from_node(JsNode::ArrowFunctionExpression {
@@ -3504,43 +3578,35 @@ fn create_arrow_function(
     })
 }
 
-/// Convert arrow function body to JSON Value (for block bodies).
+/// Convert arrow function body to JsNode (for block bodies).
 fn convert_arrow_body(
     body: &oxc_ast::ast::FunctionBody,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     let start = offset + body.span.start as usize - 1;
     let end = offset + body.span.end as usize - 1;
 
-    let mut obj = Map::new();
-    obj.insert(
-        "type".to_string(),
-        Value::String("BlockStatement".to_string()),
-    );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
-
-    // Convert statements in the body
-    let body_stmts: Vec<Value> = body
+    let body_stmts: Vec<JsNode> = body
         .statements
         .iter()
         .filter_map(|stmt| convert_statement(stmt, offset, line_offsets))
         .collect();
-    obj.insert("body".to_string(), Value::Array(body_stmts));
 
-    Value::Object(obj)
+    JsNode::BlockStatement {
+        start: start as u32,
+        end: end as u32,
+        loc: create_typed_loc(start, end, line_offsets),
+        body: body_stmts,
+    }
 }
 
-/// Convert a statement to JSON Value.
+/// Convert a statement to JsNode.
 fn convert_statement(
     stmt: &oxc_ast::ast::Statement,
     offset: usize,
     line_offsets: &[usize],
-) -> Option<Value> {
+) -> Option<JsNode> {
     match stmt {
         oxc_ast::ast::Statement::VariableDeclaration(decl) => {
             Some(convert_variable_declaration(decl, offset, line_offsets))
@@ -3549,263 +3615,202 @@ fn convert_statement(
             let start = offset + expr_stmt.span.start as usize - 1;
             let end = offset + expr_stmt.span.end as usize - 1;
 
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("ExpressionStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
-            obj.insert(
-                "expression".to_string(),
-                convert_expression(&expr_stmt.expression, offset, line_offsets)
-                    .as_json()
-                    .clone(),
-            );
-
-            Some(Value::Object(obj))
+            Some(JsNode::ExpressionStatement {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                expression: Box::new(expr_to_node(convert_expression(
+                    &expr_stmt.expression,
+                    offset,
+                    line_offsets,
+                ))),
+            })
         }
         oxc_ast::ast::Statement::ReturnStatement(ret_stmt) => {
             let start = offset + ret_stmt.span.start as usize - 1;
             let end = offset + ret_stmt.span.end as usize - 1;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("ReturnStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
-            if let Some(arg) = &ret_stmt.argument {
-                obj.insert(
-                    "argument".to_string(),
-                    convert_expression(arg, offset, line_offsets)
-                        .as_json()
-                        .clone(),
-                );
-            } else {
-                obj.insert("argument".to_string(), Value::Null);
-            }
-            Some(Value::Object(obj))
+
+            Some(JsNode::ReturnStatement {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                argument: ret_stmt.argument.as_ref().map(|arg| {
+                    Box::new(expr_to_node(convert_expression(arg, offset, line_offsets)))
+                }),
+            })
         }
         oxc_ast::ast::Statement::ThrowStatement(throw_stmt) => {
             let start = offset + throw_stmt.span.start as usize - 1;
             let end = offset + throw_stmt.span.end as usize - 1;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("ThrowStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
-            obj.insert(
-                "argument".to_string(),
-                convert_expression(&throw_stmt.argument, offset, line_offsets)
-                    .as_json()
-                    .clone(),
-            );
-            Some(Value::Object(obj))
+
+            Some(JsNode::ThrowStatement {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                argument: Box::new(expr_to_node(convert_expression(
+                    &throw_stmt.argument,
+                    offset,
+                    line_offsets,
+                ))),
+            })
         }
         oxc_ast::ast::Statement::IfStatement(if_stmt) => {
             let start = offset + if_stmt.span.start as usize - 1;
             let end = offset + if_stmt.span.end as usize - 1;
-            let mut obj = Map::new();
-            obj.insert("type".to_string(), Value::String("IfStatement".to_string()));
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
-            obj.insert(
-                "test".to_string(),
-                convert_expression(&if_stmt.test, offset, line_offsets)
-                    .as_json()
-                    .clone(),
-            );
-            if let Some(consequent_val) =
-                convert_statement(&if_stmt.consequent, offset, line_offsets)
-            {
-                obj.insert("consequent".to_string(), consequent_val);
-            }
-            if let Some(alternate) = &if_stmt.alternate
-                && let Some(alternate_val) = convert_statement(alternate, offset, line_offsets)
-            {
-                obj.insert("alternate".to_string(), alternate_val);
-            }
-            Some(Value::Object(obj))
+
+            let consequent = convert_statement(&if_stmt.consequent, offset, line_offsets)
+                .unwrap_or(JsNode::Null);
+            let alternate = if_stmt
+                .alternate
+                .as_ref()
+                .and_then(|alt| convert_statement(alt, offset, line_offsets));
+
+            Some(JsNode::IfStatement {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                test: Box::new(expr_to_node(convert_expression(
+                    &if_stmt.test,
+                    offset,
+                    line_offsets,
+                ))),
+                consequent: Box::new(consequent),
+                alternate: alternate.map(Box::new),
+            })
         }
         oxc_ast::ast::Statement::BlockStatement(block) => {
             let start = offset + block.span.start as usize - 1;
             let end = offset + block.span.end as usize - 1;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("BlockStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
-            let body_stmts: Vec<Value> = block
+
+            let body_stmts: Vec<JsNode> = block
                 .body
                 .iter()
                 .filter_map(|s| convert_statement(s, offset, line_offsets))
                 .collect();
-            obj.insert("body".to_string(), Value::Array(body_stmts));
-            Some(Value::Object(obj))
+
+            Some(JsNode::BlockStatement {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                body: body_stmts,
+            })
         }
         oxc_ast::ast::Statement::ForStatement(for_stmt) => {
             let start = offset + for_stmt.span.start as usize - 1;
             let end = offset + for_stmt.span.end as usize - 1;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("ForStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
-            // init
-            if let Some(init) = &for_stmt.init {
-                let init_value = match init {
-                    oxc_ast::ast::ForStatementInit::VariableDeclaration(vd) => {
-                        convert_variable_declaration(vd, offset, line_offsets)
+
+            let init = for_stmt.init.as_ref().map(|init| match init {
+                oxc_ast::ast::ForStatementInit::VariableDeclaration(vd) => {
+                    Box::new(convert_variable_declaration(vd, offset, line_offsets))
+                }
+                _ => {
+                    if let Some(expr) = init.as_expression() {
+                        Box::new(expr_to_node(convert_expression(expr, offset, line_offsets)))
+                    } else {
+                        Box::new(JsNode::Null)
                     }
-                    _ => {
-                        if let Some(expr) = init.as_expression() {
-                            convert_expression(expr, offset, line_offsets)
-                                .as_json()
-                                .clone()
-                        } else {
-                            Value::Null
-                        }
-                    }
-                };
-                obj.insert("init".to_string(), init_value);
-            } else {
-                obj.insert("init".to_string(), Value::Null);
-            }
-            if let Some(body_val) = convert_statement(&for_stmt.body, offset, line_offsets) {
-                obj.insert("body".to_string(), body_val);
-            }
-            if let Some(test) = &for_stmt.test {
-                obj.insert(
-                    "test".to_string(),
-                    convert_expression(test, offset, line_offsets)
-                        .as_json()
-                        .clone(),
-                );
-            }
-            if let Some(update) = &for_stmt.update {
-                obj.insert(
-                    "update".to_string(),
-                    convert_expression(update, offset, line_offsets)
-                        .as_json()
-                        .clone(),
-                );
-            }
-            Some(Value::Object(obj))
+                }
+            });
+
+            let body =
+                convert_statement(&for_stmt.body, offset, line_offsets).unwrap_or(JsNode::Null);
+            let test = for_stmt
+                .test
+                .as_ref()
+                .map(|t| Box::new(expr_to_node(convert_expression(t, offset, line_offsets))));
+            let update = for_stmt
+                .update
+                .as_ref()
+                .map(|u| Box::new(expr_to_node(convert_expression(u, offset, line_offsets))));
+
+            Some(JsNode::ForStatement {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                init,
+                test,
+                update,
+                body: Box::new(body),
+            })
         }
         oxc_ast::ast::Statement::TryStatement(try_stmt) => {
             let start = offset + try_stmt.span.start as usize - 1;
             let end = offset + try_stmt.span.end as usize - 1;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("TryStatement".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
+
             // Convert block
             let block_start = offset + try_stmt.block.span.start as usize - 1;
             let block_end = offset + try_stmt.block.span.end as usize - 1;
-            let mut block_obj = Map::new();
-            block_obj.insert(
-                "type".to_string(),
-                Value::String("BlockStatement".to_string()),
-            );
-            block_obj.insert(
-                "start".to_string(),
-                Value::Number((block_start as i64).into()),
-            );
-            block_obj.insert("end".to_string(), Value::Number((block_end as i64).into()));
-            let block_body: Vec<Value> = try_stmt
+            let block_body: Vec<JsNode> = try_stmt
                 .block
                 .body
                 .iter()
                 .filter_map(|s| convert_statement(s, offset, line_offsets))
                 .collect();
-            block_obj.insert("body".to_string(), Value::Array(block_body));
-            obj.insert("block".to_string(), Value::Object(block_obj));
+            let block = JsNode::BlockStatement {
+                start: block_start as u32,
+                end: block_end as u32,
+                loc: create_typed_loc(block_start, block_end, line_offsets),
+                body: block_body,
+            };
+
             // Convert handler (catch clause)
-            if let Some(handler) = &try_stmt.handler {
+            let handler = try_stmt.handler.as_ref().map(|handler| {
                 let h_start = offset + handler.span.start as usize - 1;
                 let h_end = offset + handler.span.end as usize - 1;
-                let mut h_obj = Map::new();
-                h_obj.insert("type".to_string(), Value::String("CatchClause".to_string()));
-                h_obj.insert("start".to_string(), Value::Number((h_start as i64).into()));
-                h_obj.insert("end".to_string(), Value::Number((h_end as i64).into()));
-                if let Some(param) = &handler.param {
-                    let param_val =
-                        convert_binding_pattern_for_param(&param.pattern, offset - 1, line_offsets);
-                    h_obj.insert("param".to_string(), param_val);
-                }
+                let param = handler.param.as_ref().map(|param| {
+                    Box::new(JsNode::Raw(convert_binding_pattern_for_param(
+                        &param.pattern,
+                        offset - 1,
+                        line_offsets,
+                    )))
+                });
                 let h_body_start = offset + handler.body.span.start as usize - 1;
                 let h_body_end = offset + handler.body.span.end as usize - 1;
-                let mut h_body_obj = Map::new();
-                h_body_obj.insert(
-                    "type".to_string(),
-                    Value::String("BlockStatement".to_string()),
-                );
-                h_body_obj.insert(
-                    "start".to_string(),
-                    Value::Number((h_body_start as i64).into()),
-                );
-                h_body_obj.insert("end".to_string(), Value::Number((h_body_end as i64).into()));
-                let h_body_stmts: Vec<Value> = handler
+                let h_body_stmts: Vec<JsNode> = handler
                     .body
                     .body
                     .iter()
                     .filter_map(|s| convert_statement(s, offset, line_offsets))
                     .collect();
-                h_body_obj.insert("body".to_string(), Value::Array(h_body_stmts));
-                h_obj.insert("body".to_string(), Value::Object(h_body_obj));
-                obj.insert("handler".to_string(), Value::Object(h_obj));
-            }
+                Box::new(JsNode::CatchClause {
+                    start: h_start as u32,
+                    end: h_end as u32,
+                    loc: create_typed_loc(h_start, h_end, line_offsets),
+                    param,
+                    body: Box::new(JsNode::BlockStatement {
+                        start: h_body_start as u32,
+                        end: h_body_end as u32,
+                        loc: create_typed_loc(h_body_start, h_body_end, line_offsets),
+                        body: h_body_stmts,
+                    }),
+                })
+            });
+
             // Convert finalizer (finally)
-            if let Some(finalizer) = &try_stmt.finalizer {
+            let finalizer = try_stmt.finalizer.as_ref().map(|finalizer| {
                 let f_start = offset + finalizer.span.start as usize - 1;
                 let f_end = offset + finalizer.span.end as usize - 1;
-                let mut f_obj = Map::new();
-                f_obj.insert(
-                    "type".to_string(),
-                    Value::String("BlockStatement".to_string()),
-                );
-                f_obj.insert("start".to_string(), Value::Number((f_start as i64).into()));
-                f_obj.insert("end".to_string(), Value::Number((f_end as i64).into()));
-                let f_body: Vec<Value> = finalizer
+                let f_body: Vec<JsNode> = finalizer
                     .body
                     .iter()
                     .filter_map(|s| convert_statement(s, offset, line_offsets))
                     .collect();
-                f_obj.insert("body".to_string(), Value::Array(f_body));
-                obj.insert("finalizer".to_string(), Value::Object(f_obj));
-            }
-            Some(Value::Object(obj))
+                Box::new(JsNode::BlockStatement {
+                    start: f_start as u32,
+                    end: f_end as u32,
+                    loc: create_typed_loc(f_start, f_end, line_offsets),
+                    body: f_body,
+                })
+            });
+
+            Some(JsNode::TryStatement {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                block: Box::new(block),
+                handler,
+                finalizer,
+            })
         }
         oxc_ast::ast::Statement::FunctionDeclaration(func_decl) => {
             // Filter out TypeScript declare functions and function overload signatures (no body)
@@ -3816,143 +3821,110 @@ fn convert_statement(
             }
             let start = offset + func_decl.span.start as usize - 1;
             let end = offset + func_decl.span.end as usize - 1;
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("FunctionDeclaration".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
 
-            if let Some(id) = &func_decl.id {
+            let id = func_decl.id.as_ref().map(|id| {
                 let id_start = offset + id.span.start as usize - 1;
                 let id_end = offset + id.span.end as usize - 1;
-                let id_expr = create_identifier(&id.name, id_start, id_end, line_offsets);
-                obj.insert("id".to_string(), id_expr.as_json().clone());
-            } else {
-                obj.insert("id".to_string(), Value::Null);
-            }
+                Box::new(expr_to_node(create_identifier(
+                    &id.name,
+                    id_start,
+                    id_end,
+                    line_offsets,
+                )))
+            });
 
-            obj.insert("generator".to_string(), Value::Bool(func_decl.generator));
-            obj.insert("async".to_string(), Value::Bool(func_decl.r#async));
-
-            // Convert params
-            let params: Vec<Value> = func_decl
+            let params: Vec<JsNode> = func_decl
                 .params
                 .items
                 .iter()
                 .map(|param| {
-                    convert_formal_parameter(param, offset - 1, line_offsets)
-                        .as_json()
-                        .clone()
+                    expr_to_node(convert_formal_parameter(param, offset - 1, line_offsets))
                 })
                 .collect();
-            obj.insert("params".to_string(), Value::Array(params));
 
-            // Convert body - reuse convert_arrow_body which handles the -1 offset adjustment
-            if let Some(body) = &func_decl.body {
-                let body_value = convert_arrow_body(body, offset, line_offsets);
-                obj.insert("body".to_string(), body_value);
-            } else {
-                obj.insert("body".to_string(), Value::Null);
-            }
+            let body = func_decl
+                .body
+                .as_ref()
+                .map(|body| Box::new(convert_arrow_body(body, offset, line_offsets)));
 
-            Some(Value::Object(obj))
+            Some(JsNode::FunctionDeclaration {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                id,
+                params,
+                body,
+                generator: func_decl.generator,
+                r#async: func_decl.r#async,
+            })
         }
         _ => None, // Skip other statement types for now
     }
 }
 
-/// Convert a variable declaration to JSON Value.
+/// Convert a variable declaration to JsNode.
 fn convert_variable_declaration(
     decl: &oxc_ast::ast::VariableDeclaration,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     let start = offset + decl.span.start as usize - 1;
     let end = offset + decl.span.end as usize - 1;
 
-    let mut obj = Map::new();
-    obj.insert(
-        "type".to_string(),
-        Value::String("VariableDeclaration".to_string()),
-    );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
-
-    // Convert declarations (before kind to match acorn field order)
-    let declarations: Vec<Value> = decl
+    let declarations: Vec<JsNode> = decl
         .declarations
         .iter()
         .map(|d| convert_variable_declarator(d, offset, line_offsets))
         .collect();
-    obj.insert("declarations".to_string(), Value::Array(declarations));
 
-    obj.insert(
-        "kind".to_string(),
-        Value::String(
-            match decl.kind {
-                oxc_ast::ast::VariableDeclarationKind::Var => "var",
-                oxc_ast::ast::VariableDeclarationKind::Const => "const",
-                oxc_ast::ast::VariableDeclarationKind::Let => "let",
-                oxc_ast::ast::VariableDeclarationKind::Using => "using",
-                oxc_ast::ast::VariableDeclarationKind::AwaitUsing => "await using",
-            }
-            .to_string(),
-        ),
-    );
+    let kind = match decl.kind {
+        oxc_ast::ast::VariableDeclarationKind::Var => "var",
+        oxc_ast::ast::VariableDeclarationKind::Const => "const",
+        oxc_ast::ast::VariableDeclarationKind::Let => "let",
+        oxc_ast::ast::VariableDeclarationKind::Using => "using",
+        oxc_ast::ast::VariableDeclarationKind::AwaitUsing => "await using",
+    };
 
-    Value::Object(obj)
+    JsNode::VariableDeclaration {
+        start: start as u32,
+        end: end as u32,
+        loc: create_typed_loc(start, end, line_offsets),
+        declarations,
+        kind: CompactString::from(kind),
+        declare: false,
+    }
 }
 
-/// Convert a variable declarator to JSON Value.
+/// Convert a variable declarator to JsNode.
 fn convert_variable_declarator(
     decl: &oxc_ast::ast::VariableDeclarator,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     let start = offset + decl.span.start as usize - 1;
     let end = offset + decl.span.end as usize - 1;
 
-    let mut obj = Map::new();
-    obj.insert(
-        "type".to_string(),
-        Value::String("VariableDeclarator".to_string()),
-    );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
-
     // Convert id (pattern) with type annotation
-    let id = convert_binding_pattern_for_decl(
+    let id = JsNode::Raw(convert_binding_pattern_for_decl(
         &decl.id,
         offset,
         line_offsets,
         decl.type_annotation.as_deref(),
-    );
-    obj.insert("id".to_string(), id);
+    ));
 
     // Convert init
     let init = decl
         .init
         .as_ref()
-        .map(|expr| {
-            convert_expression(expr, offset, line_offsets)
-                .as_json()
-                .clone()
-        })
-        .unwrap_or(Value::Null);
-    obj.insert("init".to_string(), init);
+        .map(|expr| Box::new(expr_to_node(convert_expression(expr, offset, line_offsets))));
 
-    Value::Object(obj)
+    JsNode::VariableDeclarator {
+        start: start as u32,
+        end: end as u32,
+        loc: create_typed_loc(start, end, line_offsets),
+        id: Box::new(id),
+        init,
+    }
 }
 
 /// Convert a binding pattern for variable declarations.
@@ -3991,13 +3963,13 @@ fn convert_binding_pattern_for_decl(
             Value::Object(obj)
         }
         oxc_ast::ast::BindingPattern::ObjectPattern(obj_pat) => {
-            convert_object_pattern(obj_pat, offset - 1, line_offsets)
+            convert_object_pattern(obj_pat, offset - 1, line_offsets).to_value()
         }
         oxc_ast::ast::BindingPattern::ArrayPattern(arr_pat) => {
-            convert_array_pattern(arr_pat, offset - 1, line_offsets)
+            convert_array_pattern(arr_pat, offset - 1, line_offsets).to_value()
         }
         oxc_ast::ast::BindingPattern::AssignmentPattern(assign_pat) => {
-            convert_assignment_pattern(assign_pat, offset - 1, line_offsets)
+            convert_assignment_pattern(assign_pat, offset - 1, line_offsets).to_value()
         }
     }
 }
@@ -4077,7 +4049,7 @@ fn create_template_literal(
     })
 }
 
-fn binary_operator_to_string(op: &oxc_ast::ast::BinaryOperator) -> String {
+fn binary_operator_to_str(op: &oxc_ast::ast::BinaryOperator) -> &'static str {
     use oxc_ast::ast::BinaryOperator::*;
     match op {
         Equality => "==",
@@ -4103,20 +4075,18 @@ fn binary_operator_to_string(op: &oxc_ast::ast::BinaryOperator) -> String {
         In => "in",
         Instanceof => "instanceof",
     }
-    .to_string()
 }
 
-fn logical_operator_to_string(op: &oxc_ast::ast::LogicalOperator) -> String {
+fn logical_operator_to_str(op: &oxc_ast::ast::LogicalOperator) -> &'static str {
     use oxc_ast::ast::LogicalOperator::*;
     match op {
         And => "&&",
         Or => "||",
         Coalesce => "??",
     }
-    .to_string()
 }
 
-fn unary_operator_to_string(op: &oxc_ast::ast::UnaryOperator) -> String {
+fn unary_operator_to_str(op: &oxc_ast::ast::UnaryOperator) -> &'static str {
     use oxc_ast::ast::UnaryOperator::*;
     match op {
         UnaryNegation => "-",
@@ -4127,16 +4097,14 @@ fn unary_operator_to_string(op: &oxc_ast::ast::UnaryOperator) -> String {
         Void => "void",
         Delete => "delete",
     }
-    .to_string()
 }
 
-fn update_operator_to_string(op: &oxc_ast::ast::UpdateOperator) -> String {
+fn update_operator_to_str(op: &oxc_ast::ast::UpdateOperator) -> &'static str {
     use oxc_ast::ast::UpdateOperator::*;
     match op {
         Increment => "++",
         Decrement => "--",
     }
-    .to_string()
 }
 
 fn create_loc(start: usize, end: usize, line_offsets: &[usize]) -> Option<Value> {
@@ -5476,8 +5444,11 @@ fn convert_statement_for_program(
                 let handler_loc = create_typed_loc(handler_start, handler_end, line_offsets);
 
                 let param = handler.param.as_ref().map(|param| {
-                    let param_value = convert_binding_pattern(&param.pattern, offset, line_offsets);
-                    Box::new(JsNode::Raw(param_value))
+                    Box::new(convert_binding_pattern(
+                        &param.pattern,
+                        offset,
+                        line_offsets,
+                    ))
                 });
 
                 let body_start = offset + handler.body.span.start as usize;
@@ -6118,8 +6089,8 @@ fn convert_variable_declarator_for_program(
     let end = offset + decl.span.end as usize;
     let loc = create_typed_loc(start, end, line_offsets);
 
-    // Convert the id (pattern) - still returns Value, wrap in JsNode::Raw
-    let mut id_value = convert_binding_pattern(&decl.id, offset, line_offsets);
+    // Convert the id (pattern) - convert to Value for potential mutation
+    let mut id_value = convert_binding_pattern(&decl.id, offset, line_offsets).to_value();
 
     // Add TypeScript type annotation if present on the declarator
     if let Some(type_annotation) = &decl.type_annotation
@@ -6359,13 +6330,7 @@ fn convert_expression_for_program(
                 .params
                 .items
                 .iter()
-                .map(|param| {
-                    JsNode::Raw(convert_binding_pattern(
-                        &param.pattern,
-                        offset,
-                        line_offsets,
-                    ))
-                })
+                .map(|param| convert_binding_pattern(&param.pattern, offset, line_offsets))
                 .collect();
 
             let body_value = convert_function_body_for_program(&arrow.body, offset, line_offsets);
@@ -6442,7 +6407,7 @@ fn convert_expression_for_program(
 
             let left = convert_assignment_target_for_program(&assign.left, offset, line_offsets);
             let right = convert_expression_for_program(&assign.right, offset, line_offsets);
-            let operator = assignment_operator_to_string(&assign.operator);
+            let operator = assignment_operator_to_str(&assign.operator);
 
             Expression::from_node(JsNode::AssignmentExpression {
                 start: start as u32,
@@ -6609,7 +6574,7 @@ fn convert_expression_for_program(
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 left: Box::new(expr_to_node(left)),
-                operator: CompactString::from(binary_operator_to_string(&bin.operator)),
+                operator: CompactString::from(binary_operator_to_str(&bin.operator)),
                 right: Box::new(expr_to_node(right)),
             })
         }
@@ -6624,7 +6589,7 @@ fn convert_expression_for_program(
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 left: Box::new(expr_to_node(left)),
-                operator: CompactString::from(logical_operator_to_string(&logical.operator)),
+                operator: CompactString::from(logical_operator_to_str(&logical.operator)),
                 right: Box::new(expr_to_node(right)),
             })
         }
@@ -7184,16 +7149,12 @@ fn convert_binding_pattern(
     pattern: &oxc_ast::ast::BindingPattern,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     match pattern {
         oxc_ast::ast::BindingPattern::BindingIdentifier(id) => {
             let start = offset + id.span.start as usize;
             let end = offset + id.span.end as usize;
-
-            // TODO: TypeScript type annotations need to be supported
-            // OXC v0.107 - type annotations are available but structure needs investigation
-            let expr = create_identifier(&id.name, start, end, line_offsets);
-            expr.as_json().clone()
+            expr_to_node(create_identifier(&id.name, start, end, line_offsets))
         }
         oxc_ast::ast::BindingPattern::ObjectPattern(obj_pat) => {
             convert_object_pattern(obj_pat, offset, line_offsets)
@@ -7207,27 +7168,16 @@ fn convert_binding_pattern(
     }
 }
 
-/// Convert an ObjectPattern binding to JSON.
+/// Convert an ObjectPattern binding to JsNode.
 fn convert_object_pattern(
     obj_pat: &oxc_ast::ast::ObjectPattern,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     let start = offset + obj_pat.span.start as usize;
     let end = offset + obj_pat.span.end as usize;
 
-    let mut obj = Map::new();
-    obj.insert(
-        "type".to_string(),
-        Value::String("ObjectPattern".to_string()),
-    );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
-
-    let mut properties: Vec<Value> = obj_pat
+    let mut properties: Vec<JsNode> = obj_pat
         .properties
         .iter()
         .map(|prop| convert_binding_property(prop, offset, line_offsets))
@@ -7237,55 +7187,41 @@ fn convert_object_pattern(
     if let Some(rest) = &obj_pat.rest {
         let rest_start = offset + rest.span.start as usize;
         let rest_end = offset + rest.span.end as usize;
-
-        let mut rest_obj = Map::new();
-        rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
-        rest_obj.insert(
-            "start".to_string(),
-            Value::Number((rest_start as i64).into()),
-        );
-        rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
-        if let Some(loc) = create_loc(rest_start, rest_end, line_offsets) {
-            rest_obj.insert("loc".to_string(), loc);
-        }
-        rest_obj.insert(
-            "argument".to_string(),
-            convert_binding_pattern(&rest.argument, offset, line_offsets),
-        );
-        properties.push(Value::Object(rest_obj));
+        properties.push(JsNode::RestElement {
+            start: rest_start as u32,
+            end: rest_end as u32,
+            loc: create_typed_loc(rest_start, rest_end, line_offsets),
+            argument: Box::new(convert_binding_pattern(
+                &rest.argument,
+                offset,
+                line_offsets,
+            )),
+        });
     }
 
-    obj.insert("properties".to_string(), Value::Array(properties));
-
-    Value::Object(obj)
+    JsNode::ObjectPattern {
+        start: start as u32,
+        end: end as u32,
+        loc: create_typed_loc(start, end, line_offsets),
+        properties,
+    }
 }
 
-/// Convert an ArrayPattern binding to JSON.
+/// Convert an ArrayPattern binding to JsNode.
 fn convert_array_pattern(
     arr_pat: &oxc_ast::ast::ArrayPattern,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     let start = offset + arr_pat.span.start as usize;
     let end = offset + arr_pat.span.end as usize;
 
-    let mut obj = Map::new();
-    obj.insert(
-        "type".to_string(),
-        Value::String("ArrayPattern".to_string()),
-    );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
-
-    let mut elements: Vec<Value> = arr_pat
+    let mut elements: Vec<Option<JsNode>> = arr_pat
         .elements
         .iter()
-        .map(|elem| match elem {
-            Some(pat) => convert_binding_pattern(pat, offset, line_offsets),
-            None => Value::Null,
+        .map(|elem| {
+            elem.as_ref()
+                .map(|pat| convert_binding_pattern(pat, offset, line_offsets))
         })
         .collect();
 
@@ -7293,61 +7229,50 @@ fn convert_array_pattern(
     if let Some(rest) = &arr_pat.rest {
         let rest_start = offset + rest.span.start as usize;
         let rest_end = offset + rest.span.end as usize;
-
-        let mut rest_obj = Map::new();
-        rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
-        rest_obj.insert(
-            "start".to_string(),
-            Value::Number((rest_start as i64).into()),
-        );
-        rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
-        if let Some(loc) = create_loc(rest_start, rest_end, line_offsets) {
-            rest_obj.insert("loc".to_string(), loc);
-        }
-        rest_obj.insert(
-            "argument".to_string(),
-            convert_binding_pattern(&rest.argument, offset, line_offsets),
-        );
-        elements.push(Value::Object(rest_obj));
+        elements.push(Some(JsNode::RestElement {
+            start: rest_start as u32,
+            end: rest_end as u32,
+            loc: create_typed_loc(rest_start, rest_end, line_offsets),
+            argument: Box::new(convert_binding_pattern(
+                &rest.argument,
+                offset,
+                line_offsets,
+            )),
+        }));
     }
 
-    obj.insert("elements".to_string(), Value::Array(elements));
-
-    Value::Object(obj)
+    JsNode::ArrayPattern {
+        start: start as u32,
+        end: end as u32,
+        loc: create_typed_loc(start, end, line_offsets),
+        elements,
+    }
 }
 
-/// Convert an AssignmentPattern binding to JSON.
+/// Convert an AssignmentPattern binding to JsNode.
 fn convert_assignment_pattern(
     assign_pat: &oxc_ast::ast::AssignmentPattern,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     let start = offset + assign_pat.span.start as usize;
     let end = offset + assign_pat.span.end as usize;
 
-    let mut obj = Map::new();
-    obj.insert(
-        "type".to_string(),
-        Value::String("AssignmentPattern".to_string()),
-    );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
+    JsNode::AssignmentPattern {
+        start: start as u32,
+        end: end as u32,
+        loc: create_typed_loc(start, end, line_offsets),
+        left: Box::new(convert_binding_pattern(
+            &assign_pat.left,
+            offset,
+            line_offsets,
+        )),
+        right: Box::new(expr_to_node(convert_expression(
+            &assign_pat.right,
+            offset,
+            line_offsets,
+        ))),
     }
-
-    obj.insert(
-        "left".to_string(),
-        convert_binding_pattern(&assign_pat.left, offset, line_offsets),
-    );
-    obj.insert(
-        "right".to_string(),
-        convert_expression(&assign_pat.right, offset, line_offsets)
-            .as_json()
-            .clone(),
-    );
-
-    Value::Object(obj)
 }
 
 /// Convert an assignment target for program context (no -1 offset adjustment).
@@ -7728,31 +7653,24 @@ fn convert_binding_property(
     prop: &oxc_ast::ast::BindingProperty,
     offset: usize,
     line_offsets: &[usize],
-) -> Value {
+) -> JsNode {
     let start = offset + prop.span.start as usize;
     let end = offset + prop.span.end as usize;
 
-    let mut obj = Map::new();
-    obj.insert("type".to_string(), Value::String("Property".to_string()));
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
-    obj.insert("method".to_string(), Value::Bool(false));
-    obj.insert("shorthand".to_string(), Value::Bool(prop.shorthand));
-    obj.insert("computed".to_string(), Value::Bool(prop.computed));
-    obj.insert("kind".to_string(), Value::String("init".to_string()));
-
-    // Convert key
     let key = convert_property_key(&prop.key, offset, line_offsets);
-    obj.insert("key".to_string(), key.to_value());
-
-    // Convert value
     let value = convert_binding_pattern(&prop.value, offset, line_offsets);
-    obj.insert("value".to_string(), value);
 
-    Value::Object(obj)
+    JsNode::Property {
+        start: start as u32,
+        end: end as u32,
+        loc: create_typed_loc(start, end, line_offsets),
+        key: Box::new(key),
+        value: Box::new(value),
+        kind: CompactString::from("init"),
+        method: false,
+        shorthand: prop.shorthand,
+        computed: prop.computed,
+    }
 }
 
 /// Convert a property key to JSON.
@@ -8231,7 +8149,7 @@ fn convert_expression_with_adjustment(
                 prefix_len,
                 line_offsets,
             );
-            let operator = binary_operator_to_string(&bin.operator);
+            let operator = binary_operator_to_str(&bin.operator);
             let mut obj = Map::new();
             obj.insert(
                 "type".to_string(),
@@ -8243,7 +8161,7 @@ fn convert_expression_with_adjustment(
                 obj.insert("loc".to_string(), loc);
             }
             obj.insert("left".to_string(), left);
-            obj.insert("operator".to_string(), Value::String(operator));
+            obj.insert("operator".to_string(), Value::String(operator.to_string()));
             obj.insert("right".to_string(), right);
             Value::Object(obj)
         }
@@ -8256,7 +8174,7 @@ fn convert_expression_with_adjustment(
                 prefix_len,
                 line_offsets,
             );
-            let operator = unary_operator_to_string(&unary.operator);
+            let operator = unary_operator_to_str(&unary.operator);
             let mut obj = Map::new();
             obj.insert(
                 "type".to_string(),
@@ -8267,7 +8185,7 @@ fn convert_expression_with_adjustment(
             if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
                 obj.insert("loc".to_string(), loc);
             }
-            obj.insert("operator".to_string(), Value::String(operator));
+            obj.insert("operator".to_string(), Value::String(operator.to_string()));
             obj.insert("prefix".to_string(), Value::Bool(true));
             obj.insert("argument".to_string(), argument);
             Value::Object(obj)
@@ -8283,7 +8201,7 @@ fn convert_expression_with_adjustment(
                 prefix_len,
                 line_offsets,
             );
-            let operator = logical_operator_to_string(&log.operator);
+            let operator = logical_operator_to_str(&log.operator);
             let mut obj = Map::new();
             obj.insert(
                 "type".to_string(),
@@ -8295,7 +8213,7 @@ fn convert_expression_with_adjustment(
                 obj.insert("loc".to_string(), loc);
             }
             obj.insert("left".to_string(), left);
-            obj.insert("operator".to_string(), Value::String(operator));
+            obj.insert("operator".to_string(), Value::String(operator.to_string()));
             obj.insert("right".to_string(), right);
             Value::Object(obj)
         }
@@ -8433,7 +8351,7 @@ fn convert_expression_with_adjustment(
                         .to_value()
                 }
             };
-            let operator = update_operator_to_string(&update.operator);
+            let operator = update_operator_to_str(&update.operator);
             let mut obj = Map::new();
             obj.insert(
                 "type".to_string(),
@@ -8444,7 +8362,7 @@ fn convert_expression_with_adjustment(
             if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
                 obj.insert("loc".to_string(), loc);
             }
-            obj.insert("operator".to_string(), Value::String(operator));
+            obj.insert("operator".to_string(), Value::String(operator.to_string()));
             obj.insert("prefix".to_string(), Value::Bool(update.prefix));
             obj.insert("argument".to_string(), argument);
             Value::Object(obj)
