@@ -52,30 +52,36 @@ pub fn visit(tag: &mut ConstTag, context: &mut VisitorContext) -> Result<(), Ana
     context.in_const_tag = true;
 
     let decl_node = tag.declaration.as_node();
+    let arena = context.parse_arena;
 
     // Handle proper VariableDeclaration format (from official Svelte parser)
     match &*decl_node {
         JsNode::VariableDeclaration { declarations, .. } => {
+            let decls = arena.get_js_children(*declarations);
             if let Some(JsNode::VariableDeclarator {
                 init: Some(init), ..
-            }) = declarations.first()
+            }) = decls.first()
             {
-                walk_js_expression_node(init, context, &mut tag.metadata.expression)?;
+                let init_node = arena.get_js_node(*init);
+                walk_js_expression_node(init_node, context, &mut tag.metadata.expression)?;
                 // Detect pickled awaits in const tag init expressions.
                 super::await_block::collect_pickled_awaits_node(
-                    init,
+                    init_node,
                     &mut context.analysis.pickled_awaits,
+                    arena,
                 );
             }
         }
         // Handle AssignmentExpression format (from our current parser)
         // TODO: Fix the parser to emit VariableDeclaration instead
         JsNode::AssignmentExpression { right, .. } => {
-            walk_js_expression_node(right, context, &mut tag.metadata.expression)?;
+            let right_node = arena.get_js_node(*right);
+            walk_js_expression_node(right_node, context, &mut tag.metadata.expression)?;
             // Detect pickled awaits in const tag expressions.
             super::await_block::collect_pickled_awaits_node(
-                right,
+                right_node,
                 &mut context.analysis.pickled_awaits,
+                arena,
             );
         }
         // Fallback for Raw or unknown variants

@@ -27,6 +27,7 @@ use oxc_parser::Parser as OxcParser;
 use oxc_span::{GetSpan, SourceType};
 use serde_json::{Map, Value};
 
+use crate::ast::arena::{IdRange, ParseArena};
 use crate::ast::js::Expression;
 use crate::ast::typed_expr::{
     JsNode, LiteralValue, Loc, RegexValue, SourcePosition, TemplateElementValue,
@@ -209,6 +210,7 @@ fn get_loose_identifier(
 /// Returns `None` if the expression is too complex for the fast path.
 #[inline]
 fn try_parse_simple_expression(
+    arena: &ParseArena,
     content: &str,
     offset: usize,
     line_offsets: &[usize],
@@ -223,23 +225,26 @@ fn try_parse_simple_expression(
     // Fast path for identifiers and member expressions (most common case)
     if is_ident_start_byte(first) {
         // Try simple ident/member first
-        if let Some(expr) = try_parse_ident_or_member(content, bytes, offset, line_offsets) {
+        if let Some(expr) = try_parse_ident_or_member(arena, content, bytes, offset, line_offsets) {
             return Some(expr);
         }
         // Try call expression: `fn(arg)`, `obj.method(args)`
-        if let Some(expr) = try_parse_call_expression(content, bytes, offset, line_offsets) {
+        if let Some(expr) = try_parse_call_expression(arena, content, bytes, offset, line_offsets) {
             return Some(expr);
         }
         // Try update expression: `count++`, `count--`
-        if let Some(expr) = try_parse_update_expression(content, bytes, offset, line_offsets) {
+        if let Some(expr) = try_parse_update_expression(arena, content, bytes, offset, line_offsets)
+        {
             return Some(expr);
         }
         // Might be `ident op expr` - try binary/logical/ternary
-        if let Some(expr) = try_parse_compound_expression(content, bytes, offset, line_offsets) {
+        if let Some(expr) =
+            try_parse_compound_expression(arena, content, bytes, offset, line_offsets)
+        {
             return Some(expr);
         }
         // Try ternary: `cond ? a : b`
-        if let Some(expr) = try_parse_ternary(content, bytes, offset, line_offsets) {
+        if let Some(expr) = try_parse_ternary(arena, content, bytes, offset, line_offsets) {
             return Some(expr);
         }
         return None;
@@ -251,7 +256,7 @@ fn try_parse_simple_expression(
             return Some(expr);
         }
         // Might be `123 === x` etc
-        return try_parse_compound_expression(content, bytes, offset, line_offsets);
+        return try_parse_compound_expression(arena, content, bytes, offset, line_offsets);
     }
 
     // Fast path for string literals
@@ -261,17 +266,17 @@ fn try_parse_simple_expression(
 
     // Fast path for negative numeric literals: -1, -3.14
     if first == b'-' && bytes.len() >= 2 && bytes[1].is_ascii_digit() {
-        return try_parse_negative_numeric(content, bytes, offset, line_offsets);
+        return try_parse_negative_numeric(arena, content, bytes, offset, line_offsets);
     }
 
     // Fast path for !expr (logical not)
     if first == b'!' && bytes.len() >= 2 {
-        return try_parse_unary_not(content, bytes, offset, line_offsets);
+        return try_parse_unary_not(arena, content, bytes, offset, line_offsets);
     }
 
     // Fast path for parenthesized expressions: `(expr)`
     if first == b'(' {
-        return try_parse_parenthesized(content, bytes, offset, line_offsets);
+        return try_parse_parenthesized(arena, content, bytes, offset, line_offsets);
     }
 
     None
@@ -280,6 +285,7 @@ fn try_parse_simple_expression(
 /// Try to parse a unary `!expr` where expr is a simple expression.
 #[inline]
 fn try_parse_unary_not(
+    arena: &ParseArena,
     content: &str,
     bytes: &[u8],
     offset: usize,
@@ -292,7 +298,7 @@ fn try_parse_unary_not(
     }
 
     // Try to parse the argument as a simple atom
-    let arg = try_parse_atom(inner, inner_bytes, offset + 1, line_offsets)?;
+    let arg = try_parse_atom(arena, inner, inner_bytes, offset + 1, line_offsets)?;
 
     Some(Expression::from_node(JsNode::UnaryExpression {
         start: offset as u32,
@@ -300,7 +306,7 @@ fn try_parse_unary_not(
         loc: create_typed_loc(offset, offset + content.len(), line_offsets),
         operator: CompactString::from("!"),
         prefix: true,
-        argument: Box::new(expr_to_node(arg)),
+        argument: arena.alloc_js_node(expr_to_node(arg)),
     }))
 }
 
@@ -308,6 +314,7 @@ fn try_parse_unary_not(
 /// This is used as a building block for compound expressions.
 #[inline]
 fn try_parse_atom(
+    arena: &ParseArena,
     content: &str,
     bytes: &[u8],
     offset: usize,
@@ -318,7 +325,7 @@ fn try_parse_atom(
     }
     let first = bytes[0];
     if is_ident_start_byte(first) {
-        return try_parse_ident_or_member(content, bytes, offset, line_offsets);
+        return try_parse_ident_or_member(arena, content, bytes, offset, line_offsets);
     }
     if first.is_ascii_digit() {
         return try_parse_numeric_literal(content, bytes, offset, line_offsets);
@@ -327,7 +334,7 @@ fn try_parse_atom(
         return try_parse_string_literal(content, bytes, offset, line_offsets);
     }
     if first == b'-' && bytes.len() >= 2 && bytes[1].is_ascii_digit() {
-        return try_parse_negative_numeric(content, bytes, offset, line_offsets);
+        return try_parse_negative_numeric(arena, content, bytes, offset, line_offsets);
     }
     None
 }
@@ -336,6 +343,7 @@ fn try_parse_atom(
 /// Handles simple call expressions where callee is an ident/member and args are atoms.
 #[inline]
 fn try_parse_call_expression(
+    arena: &ParseArena,
     content: &str,
     bytes: &[u8],
     offset: usize,
@@ -359,7 +367,7 @@ fn try_parse_call_expression(
     if !is_ident_start_byte(callee_bytes[0]) {
         return None;
     }
-    let callee = try_parse_ident_or_member(callee_str, callee_bytes, offset, line_offsets)?;
+    let callee = try_parse_ident_or_member(arena, callee_str, callee_bytes, offset, line_offsets)?;
 
     // Parse arguments between parens
     let args_start = paren_pos + 1;
@@ -399,7 +407,7 @@ fn try_parse_call_expression(
                         + args_start
                         + start
                         + (args_str[start..i].len() - args_str[start..i].trim_start().len());
-                    let arg = try_parse_atom(arg_str, arg_bytes, arg_offset, line_offsets)?;
+                    let arg = try_parse_atom(arena, arg_str, arg_bytes, arg_offset, line_offsets)?;
                     args.push(expr_to_node(arg));
                     start = i + 1;
                 }
@@ -417,7 +425,7 @@ fn try_parse_call_expression(
                 + args_start
                 + start
                 + (args_str[start..].len() - args_str[start..].trim_start().len());
-            let arg = try_parse_atom(arg_str, arg_bytes, arg_offset, line_offsets)?;
+            let arg = try_parse_atom(arena, arg_str, arg_bytes, arg_offset, line_offsets)?;
             args.push(expr_to_node(arg));
         }
         args
@@ -428,8 +436,8 @@ fn try_parse_call_expression(
         start: offset as u32,
         end: total_end as u32,
         loc: create_typed_loc(offset, total_end, line_offsets),
-        callee: Box::new(expr_to_node(callee)),
-        arguments,
+        callee: arena.alloc_js_node(expr_to_node(callee)),
+        arguments: arena.alloc_js_children(arguments),
         optional: false,
     }))
 }
@@ -437,6 +445,7 @@ fn try_parse_call_expression(
 /// Try to parse update expressions: `count++`, `count--`, `++count`, `--count`
 #[inline]
 fn try_parse_update_expression(
+    arena: &ParseArena,
     content: &str,
     bytes: &[u8],
     offset: usize,
@@ -452,14 +461,14 @@ fn try_parse_update_expression(
         let arg_str = &content[..len - 2];
         let arg_bytes = &bytes[..len - 2];
         if !arg_str.is_empty() && is_ident_start_byte(arg_bytes[0]) {
-            let arg = try_parse_ident_or_member(arg_str, arg_bytes, offset, line_offsets)?;
+            let arg = try_parse_ident_or_member(arena, arg_str, arg_bytes, offset, line_offsets)?;
             let op = if bytes[len - 1] == b'+' { "++" } else { "--" };
             return Some(Expression::from_node(JsNode::UpdateExpression {
                 start: offset as u32,
                 end: (offset + len) as u32,
                 loc: create_typed_loc(offset, offset + len, line_offsets),
                 operator: CompactString::from(op),
-                argument: Box::new(expr_to_node(arg)),
+                argument: arena.alloc_js_node(expr_to_node(arg)),
                 prefix: false,
             }));
         }
@@ -470,14 +479,15 @@ fn try_parse_update_expression(
         let arg_str = &content[2..];
         let arg_bytes = &bytes[2..];
         if !arg_str.is_empty() && is_ident_start_byte(arg_bytes[0]) {
-            let arg = try_parse_ident_or_member(arg_str, arg_bytes, offset + 2, line_offsets)?;
+            let arg =
+                try_parse_ident_or_member(arena, arg_str, arg_bytes, offset + 2, line_offsets)?;
             let op = if bytes[0] == b'+' { "++" } else { "--" };
             return Some(Expression::from_node(JsNode::UpdateExpression {
                 start: offset as u32,
                 end: (offset + len) as u32,
                 loc: create_typed_loc(offset, offset + len, line_offsets),
                 operator: CompactString::from(op),
-                argument: Box::new(expr_to_node(arg)),
+                argument: arena.alloc_js_node(expr_to_node(arg)),
                 prefix: true,
             }));
         }
@@ -489,6 +499,7 @@ fn try_parse_update_expression(
 /// Try to parse ternary expressions: `cond ? consequent : alternate`
 #[inline]
 fn try_parse_ternary(
+    arena: &ParseArena,
     content: &str,
     bytes: &[u8],
     offset: usize,
@@ -568,27 +579,46 @@ fn try_parse_ternary(
     let cons_offset = offset + q_pos + 1 + (cons_raw.len() - cons_raw.trim_start().len());
     let alt_offset = offset + colon_pos + 1 + (alt_raw.len() - alt_raw.trim_start().len());
 
-    let test =
-        try_parse_atom(test_str, test_str.as_bytes(), test_offset, line_offsets).or_else(|| {
-            try_parse_compound_expression(test_str, test_str.as_bytes(), test_offset, line_offsets)
-        })?;
-    let cons = try_parse_atom(cons_str, cons_str.as_bytes(), cons_offset, line_offsets)?;
-    let alt = try_parse_atom(alt_str, alt_str.as_bytes(), alt_offset, line_offsets)?;
+    let test = try_parse_atom(
+        arena,
+        test_str,
+        test_str.as_bytes(),
+        test_offset,
+        line_offsets,
+    )
+    .or_else(|| {
+        try_parse_compound_expression(
+            arena,
+            test_str,
+            test_str.as_bytes(),
+            test_offset,
+            line_offsets,
+        )
+    })?;
+    let cons = try_parse_atom(
+        arena,
+        cons_str,
+        cons_str.as_bytes(),
+        cons_offset,
+        line_offsets,
+    )?;
+    let alt = try_parse_atom(arena, alt_str, alt_str.as_bytes(), alt_offset, line_offsets)?;
 
     let total_end = offset + content.len();
     Some(Expression::from_node(JsNode::ConditionalExpression {
         start: offset as u32,
         end: total_end as u32,
         loc: create_typed_loc(offset, total_end, line_offsets),
-        test: Box::new(expr_to_node(test)),
-        consequent: Box::new(expr_to_node(cons)),
-        alternate: Box::new(expr_to_node(alt)),
+        test: arena.alloc_js_node(expr_to_node(test)),
+        consequent: arena.alloc_js_node(expr_to_node(cons)),
+        alternate: arena.alloc_js_node(expr_to_node(alt)),
     }))
 }
 
 /// Try to parse parenthesized expressions: `(expr)`
 #[inline]
 fn try_parse_parenthesized(
+    arena: &ParseArena,
     content: &str,
     bytes: &[u8],
     offset: usize,
@@ -634,13 +664,14 @@ fn try_parse_parenthesized(
     if inner.is_empty() {
         return None;
     }
-    try_parse_atom(inner, inner.as_bytes(), offset + 1, line_offsets)
+    try_parse_atom(arena, inner, inner.as_bytes(), offset + 1, line_offsets)
 }
 
 /// Try to parse compound expressions: binary ops, logical ops, ternary.
 /// Examples: `count > 5`, `a === b`, `a && b`, `x > 0 ? 'yes' : 'no'`
 #[inline]
 fn try_parse_compound_expression(
+    arena: &ParseArena,
     content: &str,
     bytes: &[u8],
     offset: usize,
@@ -697,11 +728,12 @@ fn try_parse_compound_expression(
     let right_bytes = right_content.as_bytes();
 
     // Parse left side as atom
-    let left = try_parse_atom(left_content, left_bytes, offset, line_offsets)?;
+    let left = try_parse_atom(arena, left_content, left_bytes, offset, line_offsets)?;
 
     // Check if this is a ternary: `left op right ? consequent : alternate`
     // For now, only handle simple binary/logical
     let right = try_parse_atom(
+        arena,
         right_content,
         right_bytes,
         offset + right_start,
@@ -716,17 +748,17 @@ fn try_parse_compound_expression(
             start: offset as u32,
             end: total_end as u32,
             loc: create_typed_loc(offset, total_end, line_offsets),
-            left: Box::new(expr_to_node(left)),
+            left: arena.alloc_js_node(expr_to_node(left)),
             operator: CompactString::from(op_str),
-            right: Box::new(expr_to_node(right)),
+            right: arena.alloc_js_node(expr_to_node(right)),
         })),
         _ => Some(Expression::from_node(JsNode::BinaryExpression {
             start: offset as u32,
             end: total_end as u32,
             loc: create_typed_loc(offset, total_end, line_offsets),
-            left: Box::new(expr_to_node(left)),
+            left: arena.alloc_js_node(expr_to_node(left)),
             operator: CompactString::from(op_str),
-            right: Box::new(expr_to_node(right)),
+            right: arena.alloc_js_node(expr_to_node(right)),
         })),
     }
 }
@@ -834,6 +866,7 @@ fn match_operator(bytes: &[u8], i: usize) -> Option<(&'static str, usize)> {
 /// Try to parse a negative numeric literal (-1, -3.14).
 #[inline]
 fn try_parse_negative_numeric(
+    arena: &ParseArena,
     content: &str,
     bytes: &[u8],
     offset: usize,
@@ -895,7 +928,7 @@ fn try_parse_negative_numeric(
         loc: create_typed_loc(offset, offset + total_len, line_offsets),
         operator: CompactString::from("-"),
         prefix: true,
-        argument: Box::new(expr_to_node(argument)),
+        argument: arena.alloc_js_node(expr_to_node(argument)),
     }))
 }
 
@@ -976,6 +1009,7 @@ fn is_ident_continue_byte(b: u8) -> bool {
 /// Returns None if it contains anything else.
 #[inline]
 fn try_parse_ident_or_member(
+    arena: &ParseArena,
     content: &str,
     bytes: &[u8],
     offset: usize,
@@ -1085,8 +1119,8 @@ fn try_parse_ident_or_member(
             start: offset as u32,
             end: (offset + seg_end) as u32,
             loc: create_typed_loc(offset, offset + seg_end, line_offsets),
-            object: Box::new(expr_to_node(result)),
-            property: Box::new(prop_node),
+            object: arena.alloc_js_node(expr_to_node(result)),
+            property: arena.alloc_js_node(prop_node),
             computed: false,
             optional: false,
         });
@@ -1167,6 +1201,7 @@ fn try_parse_numeric_literal(
 /// Returns an error message if parsing fails and loose mode is disabled.
 #[allow(clippy::too_many_arguments)]
 pub fn parse_expression(
+    arena: &ParseArena,
     content: &str,
     offset: usize,
     line_offsets: &[usize],
@@ -1179,14 +1214,14 @@ pub fn parse_expression(
     // Fast path: handle simple expressions (identifiers, member expressions,
     // boolean/null literals) without invoking OXC. These account for ~58% of
     // all template expressions and are trivial to parse directly.
-    if let Some(expr) = try_parse_simple_expression(content, offset, line_offsets) {
+    if let Some(expr) = try_parse_simple_expression(arena, content, offset, line_offsets) {
         return Ok(expr);
     }
 
     // Use known TS mode: parse with TS only if the file uses TypeScript,
     // otherwise parse as JS directly. Fall back to the other mode only on failure.
-    let result = parse_expression_with_typescript(content, offset, line_offsets, ts)
-        .or_else(|| parse_expression_with_typescript(content, offset, line_offsets, !ts));
+    let result = parse_expression_with_typescript(arena, content, offset, line_offsets, ts)
+        .or_else(|| parse_expression_with_typescript(arena, content, offset, line_offsets, !ts));
 
     if let Some(expr) = result {
         return Ok(expr);
@@ -1230,6 +1265,7 @@ pub fn parse_expression(
 /// - Array patterns: `[a, b, ...rest]`
 /// - Rest elements: `{a, ...rest}`
 pub fn parse_destructuring_pattern(
+    arena: &ParseArena,
     content: &str,
     offset: usize,
     line_offsets: &[usize],
@@ -1260,6 +1296,7 @@ pub fn parse_destructuring_pattern(
             {
                 let adjusted_offset = offset.wrapping_sub(4);
                 let pattern_json = convert_binding_pattern_for_param(
+                    arena,
                     &declarator.id,
                     adjusted_offset,
                     line_offsets,
@@ -1298,6 +1335,7 @@ pub fn parse_destructuring_pattern(
 /// Returns an error message if parsing fails and loose mode is disabled.
 #[allow(clippy::too_many_arguments)]
 pub fn parse_expression_with_end(
+    arena: &ParseArena,
     content: &str,
     offset: usize,
     end: usize,
@@ -1309,13 +1347,13 @@ pub fn parse_expression_with_end(
     ts: bool,
 ) -> Result<Expression, (String, usize)> {
     // Fast path: handle simple expressions without OXC
-    if let Some(expr) = try_parse_simple_expression(content, offset, line_offsets) {
+    if let Some(expr) = try_parse_simple_expression(arena, content, offset, line_offsets) {
         return Ok(expr);
     }
 
     // Use known TS mode, fall back to other mode on failure
-    let result = parse_expression_with_typescript(content, offset, line_offsets, ts)
-        .or_else(|| parse_expression_with_typescript(content, offset, line_offsets, !ts));
+    let result = parse_expression_with_typescript(arena, content, offset, line_offsets, ts)
+        .or_else(|| parse_expression_with_typescript(arena, content, offset, line_offsets, !ts));
 
     if let Some(expr) = result {
         return Ok(expr);
@@ -1386,6 +1424,7 @@ fn create_invalid_identifier(start: usize, end: usize, _line_offsets: &[usize]) 
 }
 
 fn parse_expression_with_typescript(
+    arena: &ParseArena,
     content: &str,
     offset: usize,
     line_offsets: &[usize],
@@ -1411,7 +1450,7 @@ fn parse_expression_with_typescript(
                 result.program.body.first()
         {
             // Adjust positions: subtract 1 for the opening paren we added
-            let mut expr = convert_expression(&expr_stmt.expression, offset, line_offsets);
+            let mut expr = convert_expression(arena, &expr_stmt.expression, offset, line_offsets);
 
             // Attach comments to the expression
             if !result.program.comments.is_empty() {
@@ -1658,6 +1697,7 @@ fn split_top_level_params(content: &str) -> Vec<String> {
 /// Parse TypeScript function parameters and return them as Expressions.
 /// Input is the content inside parentheses, e.g., "msg: string, count: number"
 pub fn parse_typescript_params(
+    arena: &ParseArena,
     content: &str,
     offset: usize,
     line_offsets: &[usize],
@@ -1688,7 +1728,7 @@ pub fn parse_typescript_params(
         {
             let mut p = Vec::new();
             for param in &arrow.params.items {
-                let param_expr = convert_formal_parameter(param, offset - 1, line_offsets);
+                let param_expr = convert_formal_parameter(arena, param, offset - 1, line_offsets);
                 p.push(param_expr);
             }
             ParseOutcome::Ok(p)
@@ -1721,9 +1761,15 @@ pub fn parse_typescript_params(
             let mut p = Vec::new();
             for param in &arrow.params.items {
                 let param_expr = if stripped.removed_positions.is_empty() {
-                    convert_formal_parameter(param, offset - 1, line_offsets)
+                    convert_formal_parameter(arena, param, offset - 1, line_offsets)
                 } else {
-                    convert_formal_parameter_with_remap(param, offset, line_offsets, &stripped)
+                    convert_formal_parameter_with_remap(
+                        arena,
+                        param,
+                        offset,
+                        line_offsets,
+                        &stripped,
+                    )
                 };
                 p.push(param_expr);
             }
@@ -1761,9 +1807,10 @@ pub fn parse_typescript_params(
                 {
                     let part_offset_in_content = content.find(part).unwrap_or(0);
                     let param_expr = if stripped_part.removed_positions.is_empty() {
-                        convert_formal_parameter(param, offset - 1, line_offsets)
+                        convert_formal_parameter(arena, param, offset - 1, line_offsets)
                     } else {
                         convert_formal_parameter_with_remap(
+                            arena,
                             param,
                             offset + part_offset_in_content,
                             line_offsets,
@@ -1808,6 +1855,7 @@ pub fn parse_typescript_params(
 /// (i.e., `params_start`). The `stripped` info tells us where `?` characters were removed
 /// so we can map OXC positions (relative to cleaned content) back to original positions.
 fn convert_formal_parameter_with_remap(
+    arena: &ParseArena,
     param: &oxc_ast::ast::FormalParameter,
     base_offset: usize,
     line_offsets: &[usize],
@@ -1832,7 +1880,7 @@ fn convert_formal_parameter_with_remap(
     // This is a pragmatic fix: the inner spans (like type annotations) may still be slightly off,
     // but for snippet parameters, only the top-level span is used to extract source text.
 
-    let expr = convert_formal_parameter(param, base_offset - 1, line_offsets);
+    let expr = convert_formal_parameter(arena, param, base_offset - 1, line_offsets);
 
     // Fix up the top-level span: remap start and end from cleaned positions to original
     let mut val = expr.as_json().clone();
@@ -1891,6 +1939,7 @@ fn convert_formal_parameter_with_remap(
 /// Convert oxc FormalParameter to our Expression format with type annotations.
 /// Caller should pass pre-adjusted offset if needed (e.g., offset - 1 for paren-wrapped content).
 fn convert_formal_parameter(
+    arena: &ParseArena,
     param: &oxc_ast::ast::FormalParameter,
     adjusted_offset: usize,
     line_offsets: &[usize],
@@ -1926,16 +1975,17 @@ fn convert_formal_parameter(
             );
         }
         // Include the parameter itself so remove_typescript_nodes can extract it
-        let inner = convert_formal_parameter_inner(param, adjusted_offset, line_offsets);
+        let inner = convert_formal_parameter_inner(arena, param, adjusted_offset, line_offsets);
         obj.insert("parameter".to_string(), inner.as_json().clone());
         return Expression::Value(Value::Object(obj));
     }
 
-    convert_formal_parameter_inner(param, adjusted_offset, line_offsets)
+    convert_formal_parameter_inner(arena, param, adjusted_offset, line_offsets)
 }
 
 /// Inner implementation of convert_formal_parameter (without TSParameterProperty wrapping).
 fn convert_formal_parameter_inner(
+    arena: &ParseArena,
     param: &oxc_ast::ast::FormalParameter,
     adjusted_offset: usize,
     line_offsets: &[usize],
@@ -1973,13 +2023,13 @@ fn convert_formal_parameter_inner(
             }
         }
         BindingPattern::ObjectPattern(obj_pat) => {
-            convert_object_pattern_to_expr(obj_pat, adjusted_offset, line_offsets)
+            convert_object_pattern_to_expr(arena, obj_pat, adjusted_offset, line_offsets)
         }
         BindingPattern::ArrayPattern(arr_pat) => {
-            convert_array_pattern_to_expr(arr_pat, adjusted_offset, line_offsets)
+            convert_array_pattern_to_expr(arena, arr_pat, adjusted_offset, line_offsets)
         }
         BindingPattern::AssignmentPattern(assign_pat) => {
-            convert_assignment_pattern_to_expr(assign_pat, adjusted_offset, line_offsets)
+            convert_assignment_pattern_to_expr(arena, assign_pat, adjusted_offset, line_offsets)
         }
     };
 
@@ -1987,14 +2037,14 @@ fn convert_formal_parameter_inner(
         let pattern_start = adjusted_offset + param.span.start as usize;
         let pattern_end = adjusted_offset + param.span.end as usize;
 
-        let right = convert_expression(initializer, adjusted_offset + 1, line_offsets);
+        let right = convert_expression(arena, initializer, adjusted_offset + 1, line_offsets);
 
         return Expression::from_node(JsNode::AssignmentPattern {
             start: pattern_start as u32,
             end: pattern_end as u32,
             loc: create_typed_loc(pattern_start, pattern_end, line_offsets),
-            left: Box::new(expr_to_node(pattern_expr)),
-            right: Box::new(expr_to_node(right)),
+            left: arena.alloc_js_node(expr_to_node(pattern_expr)),
+            right: arena.alloc_js_node(expr_to_node(right)),
         });
     }
 
@@ -2003,6 +2053,7 @@ fn convert_formal_parameter_inner(
 
 /// Convert oxc ObjectPattern to our Expression format (for function parameters).
 fn convert_object_pattern_to_expr(
+    arena: &ParseArena,
     obj_pat: &oxc_ast::ast::ObjectPattern,
     adjusted_offset: usize,
     line_offsets: &[usize],
@@ -2017,9 +2068,13 @@ fn convert_object_pattern_to_expr(
             let prop_start = adjusted_offset + prop.span.start as usize;
             let prop_end = adjusted_offset + prop.span.end as usize;
             let key_value =
-                convert_property_key_for_param(&prop.key, adjusted_offset, line_offsets);
-            let value_value =
-                convert_binding_pattern_for_param(&prop.value, adjusted_offset, line_offsets);
+                convert_property_key_for_param(arena, &prop.key, adjusted_offset, line_offsets);
+            let value_value = convert_binding_pattern_for_param(
+                arena,
+                &prop.value,
+                adjusted_offset,
+                line_offsets,
+            );
             JsNode::Property {
                 start: prop_start as u32,
                 end: prop_end as u32,
@@ -2027,8 +2082,8 @@ fn convert_object_pattern_to_expr(
                 method: false,
                 shorthand: prop.shorthand,
                 computed: prop.computed,
-                key: Box::new(JsNode::Raw(key_value)),
-                value: Box::new(JsNode::Raw(value_value)),
+                key: arena.alloc_js_node(JsNode::Raw(key_value)),
+                value: arena.alloc_js_node(JsNode::Raw(value_value)),
                 kind: CompactString::from("init"),
             }
         })
@@ -2038,12 +2093,12 @@ fn convert_object_pattern_to_expr(
         let rest_start = adjusted_offset + rest.span.start as usize;
         let rest_end = adjusted_offset + rest.span.end as usize;
         let argument =
-            convert_binding_pattern_for_param(&rest.argument, adjusted_offset, line_offsets);
+            convert_binding_pattern_for_param(arena, &rest.argument, adjusted_offset, line_offsets);
         properties.push(JsNode::RestElement {
             start: rest_start as u32,
             end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
-            argument: Box::new(JsNode::Raw(argument)),
+            argument: arena.alloc_js_node(JsNode::Raw(argument)),
         });
     }
 
@@ -2051,12 +2106,13 @@ fn convert_object_pattern_to_expr(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        properties,
+        properties: arena.alloc_js_children(properties),
     })
 }
 
 /// Convert oxc ArrayPattern to our Expression format (for function parameters).
 fn convert_array_pattern_to_expr(
+    arena: &ParseArena,
     arr_pat: &oxc_ast::ast::ArrayPattern,
     adjusted_offset: usize,
     line_offsets: &[usize],
@@ -2070,6 +2126,7 @@ fn convert_array_pattern_to_expr(
         .map(|elem| {
             elem.as_ref().map(|pattern| {
                 JsNode::Raw(convert_binding_pattern_for_param(
+                    arena,
                     pattern,
                     adjusted_offset,
                     line_offsets,
@@ -2082,12 +2139,12 @@ fn convert_array_pattern_to_expr(
         let rest_start = adjusted_offset + rest.span.start as usize;
         let rest_end = adjusted_offset + rest.span.end as usize;
         let argument =
-            convert_binding_pattern_for_param(&rest.argument, adjusted_offset, line_offsets);
+            convert_binding_pattern_for_param(arena, &rest.argument, adjusted_offset, line_offsets);
         elements.push(Some(JsNode::RestElement {
             start: rest_start as u32,
             end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
-            argument: Box::new(JsNode::Raw(argument)),
+            argument: arena.alloc_js_node(JsNode::Raw(argument)),
         }));
     }
 
@@ -2101,6 +2158,7 @@ fn convert_array_pattern_to_expr(
 
 /// Convert oxc AssignmentPattern to our Expression format (for function parameters).
 fn convert_assignment_pattern_to_expr(
+    arena: &ParseArena,
     assign_pat: &oxc_ast::ast::AssignmentPattern,
     adjusted_offset: usize,
     line_offsets: &[usize],
@@ -2108,7 +2166,8 @@ fn convert_assignment_pattern_to_expr(
     let start = adjusted_offset + assign_pat.span.start as usize;
     let end = adjusted_offset + assign_pat.span.end as usize;
 
-    let left = convert_binding_pattern_for_param(&assign_pat.left, adjusted_offset, line_offsets);
+    let left =
+        convert_binding_pattern_for_param(arena, &assign_pat.left, adjusted_offset, line_offsets);
 
     // Convert right (the default value) - simplified for now
     let right_start = adjusted_offset + assign_pat.right.span().start as usize;
@@ -2125,13 +2184,14 @@ fn convert_assignment_pattern_to_expr(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        left: Box::new(JsNode::Raw(left)),
-        right: Box::new(JsNode::Raw(Value::Object(right_obj))),
+        left: arena.alloc_js_node(JsNode::Raw(left)),
+        right: arena.alloc_js_node(JsNode::Raw(Value::Object(right_obj))),
     })
 }
 
 /// Convert oxc PropertyKey to our JSON format (for function parameters).
 fn convert_property_key_for_param(
+    arena: &ParseArena,
     key: &oxc_ast::ast::PropertyKey,
     adjusted_offset: usize,
     line_offsets: &[usize],
@@ -2171,7 +2231,7 @@ fn convert_property_key_for_param(
         _ => {
             // For computed keys, convert the expression properly
             if let Some(expr) = key.as_expression() {
-                convert_expression(expr, adjusted_offset, line_offsets)
+                convert_expression(arena, expr, adjusted_offset, line_offsets)
                     .as_json()
                     .clone()
             } else {
@@ -2190,6 +2250,7 @@ fn convert_property_key_for_param(
 
 /// Convert oxc BindingPattern to our JSON format (for function parameters).
 fn convert_binding_pattern_for_param(
+    arena: &ParseArena,
     pattern: &oxc_ast::ast::BindingPattern,
     adjusted_offset: usize,
     line_offsets: &[usize],
@@ -2212,7 +2273,7 @@ fn convert_binding_pattern_for_param(
         }
         BindingPattern::ObjectPattern(obj_pat) => {
             // Recursive call for nested object patterns
-            convert_object_pattern_to_expr(obj_pat, adjusted_offset, line_offsets)
+            convert_object_pattern_to_expr(arena, obj_pat, adjusted_offset, line_offsets)
                 .as_json()
                 .clone()
         }
@@ -2235,6 +2296,7 @@ fn convert_binding_pattern_for_param(
             for elem in &arr_pat.elements {
                 if let Some(pattern) = elem {
                     elements.push(convert_binding_pattern_for_param(
+                        arena,
                         pattern,
                         adjusted_offset,
                         line_offsets,
@@ -2261,6 +2323,7 @@ fn convert_binding_pattern_for_param(
                 }
 
                 let argument = convert_binding_pattern_for_param(
+                    arena,
                     &rest.argument,
                     adjusted_offset,
                     line_offsets,
@@ -2289,14 +2352,19 @@ fn convert_binding_pattern_for_param(
             }
 
             // Convert left (the pattern)
-            let left =
-                convert_binding_pattern_for_param(&assign_pat.left, adjusted_offset, line_offsets);
+            let left = convert_binding_pattern_for_param(
+                arena,
+                &assign_pat.left,
+                adjusted_offset,
+                line_offsets,
+            );
             obj.insert("left".to_string(), left);
 
             // Convert right (the default value) using the full expression converter
-            let right_val = convert_expression(&assign_pat.right, adjusted_offset, line_offsets)
-                .as_json()
-                .clone();
+            let right_val =
+                convert_expression(arena, &assign_pat.right, adjusted_offset, line_offsets)
+                    .as_json()
+                    .clone();
             obj.insert("right".to_string(), right_val);
 
             Value::Object(obj)
@@ -2552,7 +2620,12 @@ fn create_ts_keyword(type_name: &str, start: usize, end: usize, line_offsets: &[
 }
 
 /// Convert an oxc Expression to our JSON-based Expression format.
-fn convert_expression(expr: &OxcExpression, offset: usize, line_offsets: &[usize]) -> Expression {
+fn convert_expression(
+    arena: &ParseArena,
+    expr: &OxcExpression,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Expression {
     match expr {
         OxcExpression::Identifier(id) => {
             let start = offset + id.span.start as usize - 1; // -1 for the paren we added
@@ -2563,6 +2636,7 @@ fn convert_expression(expr: &OxcExpression, offset: usize, line_offsets: &[usize
             let start = offset + bin.span.start as usize - 1;
             let end = offset + bin.span.end as usize - 1;
             create_binary_expression(
+                arena,
                 &bin.left,
                 &bin.operator,
                 &bin.right,
@@ -2604,93 +2678,93 @@ fn convert_expression(expr: &OxcExpression, offset: usize, line_offsets: &[usize
         OxcExpression::CallExpression(call) => {
             let start = offset + call.span.start as usize - 1;
             let end = offset + call.span.end as usize - 1;
-            create_call_expression(call, start, end, offset, line_offsets)
+            create_call_expression(arena, call, start, end, offset, line_offsets)
         }
         OxcExpression::StaticMemberExpression(member) => {
             let start = offset + member.span.start as usize - 1;
             let end = offset + member.span.end as usize - 1;
-            create_static_member_expression(member, start, end, offset, line_offsets)
+            create_static_member_expression(arena, member, start, end, offset, line_offsets)
         }
         OxcExpression::ComputedMemberExpression(member) => {
             let start = offset + member.span.start as usize - 1;
             let end = offset + member.span.end as usize - 1;
-            create_computed_member_expression(member, start, end, offset, line_offsets)
+            create_computed_member_expression(arena, member, start, end, offset, line_offsets)
         }
         OxcExpression::ParenthesizedExpression(paren) => {
             // For parenthesized expressions, just return the inner expression
-            convert_expression(&paren.expression, offset, line_offsets)
+            convert_expression(arena, &paren.expression, offset, line_offsets)
         }
         OxcExpression::LogicalExpression(logical) => {
             let start = offset + logical.span.start as usize - 1;
             let end = offset + logical.span.end as usize - 1;
-            create_logical_expression(logical, start, end, offset, line_offsets)
+            create_logical_expression(arena, logical, start, end, offset, line_offsets)
         }
         OxcExpression::UnaryExpression(unary) => {
             let start = offset + unary.span.start as usize - 1;
             let end = offset + unary.span.end as usize - 1;
-            create_unary_expression(unary, start, end, offset, line_offsets)
+            create_unary_expression(arena, unary, start, end, offset, line_offsets)
         }
         OxcExpression::ConditionalExpression(cond) => {
             let start = offset + cond.span.start as usize - 1;
             let end = offset + cond.span.end as usize - 1;
-            create_conditional_expression(cond, start, end, offset, line_offsets)
+            create_conditional_expression(arena, cond, start, end, offset, line_offsets)
         }
         OxcExpression::ArrayExpression(arr) => {
             let start = offset + arr.span.start as usize - 1;
             let end = offset + arr.span.end as usize - 1;
-            create_array_expression(arr, start, end, offset, line_offsets)
+            create_array_expression(arena, arr, start, end, offset, line_offsets)
         }
         OxcExpression::ObjectExpression(obj) => {
             let start = offset + obj.span.start as usize - 1;
             let end = offset + obj.span.end as usize - 1;
-            create_object_expression(obj, start, end, offset, line_offsets)
+            create_object_expression(arena, obj, start, end, offset, line_offsets)
         }
         OxcExpression::ArrowFunctionExpression(arrow) => {
             let start = offset + arrow.span.start as usize - 1;
             let end = offset + arrow.span.end as usize - 1;
-            create_arrow_function(arrow, start, end, offset, line_offsets)
+            create_arrow_function(arena, arrow, start, end, offset, line_offsets)
         }
         OxcExpression::TemplateLiteral(template) => {
             let start = offset + template.span.start as usize - 1;
             let end = offset + template.span.end as usize - 1;
-            create_template_literal(template, start, end, offset, line_offsets)
+            create_template_literal(arena, template, start, end, offset, line_offsets)
         }
         OxcExpression::AssignmentExpression(assign) => {
             let start = offset + assign.span.start as usize - 1;
             let end = offset + assign.span.end as usize - 1;
-            create_assignment_expression(assign, start, end, offset, line_offsets)
+            create_assignment_expression(arena, assign, start, end, offset, line_offsets)
         }
         OxcExpression::UpdateExpression(update) => {
             let start = offset + update.span.start as usize - 1;
             let end = offset + update.span.end as usize - 1;
-            create_update_expression(update, start, end, offset, line_offsets)
+            create_update_expression(arena, update, start, end, offset, line_offsets)
         }
         OxcExpression::SequenceExpression(seq) => {
             let start = offset + seq.span.start as usize - 1;
             let end = offset + seq.span.end as usize - 1;
-            create_sequence_expression(seq, start, end, offset, line_offsets)
+            create_sequence_expression(arena, seq, start, end, offset, line_offsets)
         }
         // TypeScript expression wrappers - unwrap and return the inner expression
         // This matches Svelte's behavior of removing TypeScript syntax
         OxcExpression::TSAsExpression(ts_as) => {
-            convert_expression(&ts_as.expression, offset, line_offsets)
+            convert_expression(arena, &ts_as.expression, offset, line_offsets)
         }
         OxcExpression::TSSatisfiesExpression(ts_satisfies) => {
-            convert_expression(&ts_satisfies.expression, offset, line_offsets)
+            convert_expression(arena, &ts_satisfies.expression, offset, line_offsets)
         }
         OxcExpression::TSNonNullExpression(ts_non_null) => {
-            convert_expression(&ts_non_null.expression, offset, line_offsets)
+            convert_expression(arena, &ts_non_null.expression, offset, line_offsets)
         }
         OxcExpression::TSTypeAssertion(ts_assertion) => {
-            convert_expression(&ts_assertion.expression, offset, line_offsets)
+            convert_expression(arena, &ts_assertion.expression, offset, line_offsets)
         }
         OxcExpression::TSInstantiationExpression(ts_inst) => {
-            convert_expression(&ts_inst.expression, offset, line_offsets)
+            convert_expression(arena, &ts_inst.expression, offset, line_offsets)
         }
         OxcExpression::NewExpression(new_expr) => {
             let start = offset + new_expr.span.start as usize - 1;
             let end = offset + new_expr.span.end as usize - 1;
-            create_new_expression(new_expr, start, end, offset, line_offsets)
+            create_new_expression(arena, new_expr, start, end, offset, line_offsets)
         }
         OxcExpression::ThisExpression(this_expr) => {
             let start = offset + this_expr.span.start as usize - 1;
@@ -2713,33 +2787,33 @@ fn convert_expression(expr: &OxcExpression, offset: usize, line_offsets: &[usize
         OxcExpression::FunctionExpression(func) => {
             let start = offset + func.span.start as usize - 1;
             let end = offset + func.span.end as usize - 1;
-            create_function_expression(func, start, end, offset, line_offsets)
+            create_function_expression(arena, func, start, end, offset, line_offsets)
         }
         OxcExpression::ClassExpression(class_expr) => {
             let start = offset + class_expr.span.start as usize - 1;
             let end = offset + class_expr.span.end as usize - 1;
-            create_class_expression(class_expr, start, end, offset, line_offsets)
+            create_class_expression(arena, class_expr, start, end, offset, line_offsets)
         }
         OxcExpression::ImportExpression(import_expr) => {
             let start = offset + import_expr.span.start as usize - 1;
             let end = offset + import_expr.span.end as usize - 1;
-            let source = convert_expression(&import_expr.source, offset, line_offsets);
+            let source = convert_expression(arena, &import_expr.source, offset, line_offsets);
             Expression::from_node(JsNode::ImportExpression {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                source: Box::new(expr_to_node(source)),
+                source: arena.alloc_js_node(expr_to_node(source)),
             })
         }
         OxcExpression::AwaitExpression(await_expr) => {
             let start = offset + await_expr.span.start as usize - 1;
             let end = offset + await_expr.span.end as usize - 1;
-            let argument = convert_expression(&await_expr.argument, offset, line_offsets);
+            let argument = convert_expression(arena, &await_expr.argument, offset, line_offsets);
             Expression::from_node(JsNode::AwaitExpression {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                argument: Box::new(expr_to_node(argument)),
+                argument: arena.alloc_js_node(expr_to_node(argument)),
             })
         }
         OxcExpression::YieldExpression(yield_expr) => {
@@ -2751,7 +2825,12 @@ fn convert_expression(expr: &OxcExpression, offset: usize, line_offsets: &[usize
                 loc: create_typed_loc(start, end, line_offsets),
                 delegate: yield_expr.delegate,
                 argument: yield_expr.argument.as_ref().map(|arg| {
-                    Box::new(expr_to_node(convert_expression(arg, offset, line_offsets)))
+                    arena.alloc_js_node(expr_to_node(convert_expression(
+                        arena,
+                        arg,
+                        offset,
+                        line_offsets,
+                    )))
                 }),
             })
         }
@@ -2763,6 +2842,7 @@ fn convert_expression(expr: &OxcExpression, offset: usize, line_offsets: &[usize
                     let inner_start = offset + call.span.start as usize - 1;
                     let inner_end = offset + call.span.end as usize - 1;
                     expr_to_node(create_call_expression(
+                        arena,
                         call,
                         inner_start,
                         inner_end,
@@ -2771,12 +2851,13 @@ fn convert_expression(expr: &OxcExpression, offset: usize, line_offsets: &[usize
                     ))
                 }
                 oxc_ast::ast::ChainElement::TSNonNullExpression(ts_non_null) => expr_to_node(
-                    convert_expression(&ts_non_null.expression, offset, line_offsets),
+                    convert_expression(arena, &ts_non_null.expression, offset, line_offsets),
                 ),
                 oxc_ast::ast::ChainElement::StaticMemberExpression(member) => {
                     let inner_start = offset + member.span.start as usize - 1;
                     let inner_end = offset + member.span.end as usize - 1;
                     expr_to_node(create_static_member_expression(
+                        arena,
                         member,
                         inner_start,
                         inner_end,
@@ -2788,6 +2869,7 @@ fn convert_expression(expr: &OxcExpression, offset: usize, line_offsets: &[usize
                     let inner_start = offset + member.span.start as usize - 1;
                     let inner_end = offset + member.span.end as usize - 1;
                     expr_to_node(create_computed_member_expression(
+                        arena,
                         member,
                         inner_start,
                         inner_end,
@@ -2799,6 +2881,7 @@ fn convert_expression(expr: &OxcExpression, offset: usize, line_offsets: &[usize
                     let inner_start = offset + private_member.span.start as usize - 1;
                     let inner_end = offset + private_member.span.end as usize - 1;
                     expr_to_node(create_private_member_expression(
+                        arena,
                         private_member,
                         inner_start,
                         inner_end,
@@ -2811,18 +2894,25 @@ fn convert_expression(expr: &OxcExpression, offset: usize, line_offsets: &[usize
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                expression: Box::new(chain_inner),
+                expression: arena.alloc_js_node(chain_inner),
             })
         }
         OxcExpression::PrivateFieldExpression(private_member) => {
             let start = offset + private_member.span.start as usize - 1;
             let end = offset + private_member.span.end as usize - 1;
-            create_private_member_expression(private_member, start, end, offset, line_offsets)
+            create_private_member_expression(
+                arena,
+                private_member,
+                start,
+                end,
+                offset,
+                line_offsets,
+            )
         }
         OxcExpression::TaggedTemplateExpression(tagged) => {
             let start = offset + tagged.span.start as usize - 1;
             let end = offset + tagged.span.end as usize - 1;
-            create_tagged_template_expression(tagged, start, end, offset, line_offsets)
+            create_tagged_template_expression(arena, tagged, start, end, offset, line_offsets)
         }
         OxcExpression::MetaProperty(meta) => {
             let start = offset + meta.span.start as usize - 1;
@@ -2835,13 +2925,13 @@ fn convert_expression(expr: &OxcExpression, offset: usize, line_offsets: &[usize
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                meta: Box::new(expr_to_node(create_identifier(
+                meta: arena.alloc_js_node(expr_to_node(create_identifier(
                     &meta.meta.name,
                     meta_start,
                     meta_end,
                     line_offsets,
                 ))),
-                property: Box::new(expr_to_node(create_identifier(
+                property: arena.alloc_js_node(expr_to_node(create_identifier(
                     &meta.property.name,
                     prop_start,
                     prop_end,
@@ -3067,7 +3157,9 @@ fn create_string_literal(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn create_binary_expression(
+    arena: &ParseArena,
     left: &OxcExpression,
     operator: &oxc_ast::ast::BinaryOperator,
     right: &OxcExpression,
@@ -3076,47 +3168,49 @@ fn create_binary_expression(
     offset: usize,
     line_offsets: &[usize],
 ) -> Expression {
-    let left_expr = convert_expression(left, offset, line_offsets);
-    let right_expr = convert_expression(right, offset, line_offsets);
+    let left_expr = convert_expression(arena, left, offset, line_offsets);
+    let right_expr = convert_expression(arena, right, offset, line_offsets);
 
     Expression::from_node(JsNode::BinaryExpression {
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        left: Box::new(expr_to_node(left_expr)),
+        left: arena.alloc_js_node(expr_to_node(left_expr)),
         operator: CompactString::from(binary_operator_to_str(operator)),
-        right: Box::new(expr_to_node(right_expr)),
+        right: arena.alloc_js_node(expr_to_node(right_expr)),
     })
 }
 
 fn create_logical_expression(
+    arena: &ParseArena,
     logical: &oxc_ast::ast::LogicalExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
 ) -> Expression {
-    let left_expr = convert_expression(&logical.left, offset, line_offsets);
-    let right_expr = convert_expression(&logical.right, offset, line_offsets);
+    let left_expr = convert_expression(arena, &logical.left, offset, line_offsets);
+    let right_expr = convert_expression(arena, &logical.right, offset, line_offsets);
 
     Expression::from_node(JsNode::LogicalExpression {
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        left: Box::new(expr_to_node(left_expr)),
+        left: arena.alloc_js_node(expr_to_node(left_expr)),
         operator: CompactString::from(logical_operator_to_str(&logical.operator)),
-        right: Box::new(expr_to_node(right_expr)),
+        right: arena.alloc_js_node(expr_to_node(right_expr)),
     })
 }
 
 fn create_unary_expression(
+    arena: &ParseArena,
     unary: &oxc_ast::ast::UnaryExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
 ) -> Expression {
-    let argument = convert_expression(&unary.argument, offset, line_offsets);
+    let argument = convert_expression(arena, &unary.argument, offset, line_offsets);
 
     Expression::from_node(JsNode::UnaryExpression {
         start: start as u32,
@@ -3124,39 +3218,41 @@ fn create_unary_expression(
         loc: create_typed_loc(start, end, line_offsets),
         operator: CompactString::from(unary_operator_to_str(&unary.operator)),
         prefix: true,
-        argument: Box::new(expr_to_node(argument)),
+        argument: arena.alloc_js_node(expr_to_node(argument)),
     })
 }
 
 fn create_conditional_expression(
+    arena: &ParseArena,
     cond: &oxc_ast::ast::ConditionalExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
 ) -> Expression {
-    let test = convert_expression(&cond.test, offset, line_offsets);
-    let consequent = convert_expression(&cond.consequent, offset, line_offsets);
-    let alternate = convert_expression(&cond.alternate, offset, line_offsets);
+    let test = convert_expression(arena, &cond.test, offset, line_offsets);
+    let consequent = convert_expression(arena, &cond.consequent, offset, line_offsets);
+    let alternate = convert_expression(arena, &cond.alternate, offset, line_offsets);
 
     Expression::from_node(JsNode::ConditionalExpression {
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        test: Box::new(expr_to_node(test)),
-        consequent: Box::new(expr_to_node(consequent)),
-        alternate: Box::new(expr_to_node(alternate)),
+        test: arena.alloc_js_node(expr_to_node(test)),
+        consequent: arena.alloc_js_node(expr_to_node(consequent)),
+        alternate: arena.alloc_js_node(expr_to_node(alternate)),
     })
 }
 
 fn create_call_expression(
+    arena: &ParseArena,
     call: &oxc_ast::ast::CallExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
 ) -> Expression {
-    let callee = convert_expression(&call.callee, offset, line_offsets);
+    let callee = convert_expression(arena, &call.callee, offset, line_offsets);
 
     let args: Vec<JsNode> = call
         .arguments
@@ -3166,7 +3262,12 @@ fn create_call_expression(
                 oxc_ast::ast::Argument::SpreadElement(_) => None, // Simplified
                 _ => {
                     let expr = arg.to_expression();
-                    Some(expr_to_node(convert_expression(expr, offset, line_offsets)))
+                    Some(expr_to_node(convert_expression(
+                        arena,
+                        expr,
+                        offset,
+                        line_offsets,
+                    )))
                 }
             }
         })
@@ -3176,20 +3277,21 @@ fn create_call_expression(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        callee: Box::new(expr_to_node(callee)),
-        arguments: args,
+        callee: arena.alloc_js_node(expr_to_node(callee)),
+        arguments: arena.alloc_js_children(args),
         optional: call.optional,
     })
 }
 
 fn create_static_member_expression(
+    arena: &ParseArena,
     member: &oxc_ast::ast::StaticMemberExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
 ) -> Expression {
-    let object = convert_expression(&member.object, offset, line_offsets);
+    let object = convert_expression(arena, &member.object, offset, line_offsets);
 
     let prop_start = offset + member.property.span.start as usize - 1;
     let prop_end = offset + member.property.span.end as usize - 1;
@@ -3198,8 +3300,8 @@ fn create_static_member_expression(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        object: Box::new(expr_to_node(object)),
-        property: Box::new(JsNode::Identifier {
+        object: arena.alloc_js_node(expr_to_node(object)),
+        property: arena.alloc_js_node(JsNode::Identifier {
             start: prop_start as u32,
             end: prop_end as u32,
             loc: create_typed_loc(prop_start, prop_end, line_offsets),
@@ -3211,34 +3313,36 @@ fn create_static_member_expression(
 }
 
 fn create_computed_member_expression(
+    arena: &ParseArena,
     member: &oxc_ast::ast::ComputedMemberExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
 ) -> Expression {
-    let object = convert_expression(&member.object, offset, line_offsets);
-    let property = convert_expression(&member.expression, offset, line_offsets);
+    let object = convert_expression(arena, &member.object, offset, line_offsets);
+    let property = convert_expression(arena, &member.expression, offset, line_offsets);
 
     Expression::from_node(JsNode::MemberExpression {
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        object: Box::new(expr_to_node(object)),
-        property: Box::new(expr_to_node(property)),
+        object: arena.alloc_js_node(expr_to_node(object)),
+        property: arena.alloc_js_node(expr_to_node(property)),
         computed: true,
         optional: member.optional,
     })
 }
 
 fn create_private_member_expression(
+    arena: &ParseArena,
     member: &oxc_ast::ast::PrivateFieldExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
 ) -> Expression {
-    let object = convert_expression(&member.object, offset, line_offsets);
+    let object = convert_expression(arena, &member.object, offset, line_offsets);
 
     let prop_start = offset + member.field.span.start as usize - 1;
     let prop_end = offset + member.field.span.end as usize - 1;
@@ -3247,8 +3351,8 @@ fn create_private_member_expression(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        object: Box::new(expr_to_node(object)),
-        property: Box::new(JsNode::PrivateIdentifier {
+        object: arena.alloc_js_node(expr_to_node(object)),
+        property: arena.alloc_js_node(JsNode::PrivateIdentifier {
             start: prop_start as u32,
             end: prop_end as u32,
             loc: create_typed_loc(prop_start, prop_end, line_offsets),
@@ -3260,13 +3364,14 @@ fn create_private_member_expression(
 }
 
 fn create_new_expression(
+    arena: &ParseArena,
     new_expr: &oxc_ast::ast::NewExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
 ) -> Expression {
-    let callee = convert_expression(&new_expr.callee, offset, line_offsets);
+    let callee = convert_expression(arena, &new_expr.callee, offset, line_offsets);
 
     let args: Vec<JsNode> = new_expr
         .arguments
@@ -3275,17 +3380,17 @@ fn create_new_expression(
             oxc_ast::ast::Argument::SpreadElement(spread) => {
                 let spread_start = offset + spread.span.start as usize - 1;
                 let spread_end = offset + spread.span.end as usize - 1;
-                let spread_arg = convert_expression(&spread.argument, offset, line_offsets);
+                let spread_arg = convert_expression(arena, &spread.argument, offset, line_offsets);
                 JsNode::SpreadElement {
                     start: spread_start as u32,
                     end: spread_end as u32,
                     loc: create_typed_loc(spread_start, spread_end, line_offsets),
-                    argument: Box::new(expr_to_node(spread_arg)),
+                    argument: arena.alloc_js_node(expr_to_node(spread_arg)),
                 }
             }
             _ => {
                 let expr = arg.to_expression();
-                expr_to_node(convert_expression(expr, offset, line_offsets))
+                expr_to_node(convert_expression(arena, expr, offset, line_offsets))
             }
         })
         .collect();
@@ -3294,12 +3399,13 @@ fn create_new_expression(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        callee: Box::new(expr_to_node(callee)),
-        arguments: args,
+        callee: arena.alloc_js_node(expr_to_node(callee)),
+        arguments: arena.alloc_js_children(args),
     })
 }
 
 fn create_function_expression(
+    arena: &ParseArena,
     func: &oxc_ast::ast::Function,
     start: usize,
     end: usize,
@@ -3310,7 +3416,7 @@ fn create_function_expression(
     let id = func.id.as_ref().map(|id| {
         let id_start = offset + id.span.start as usize - 1;
         let id_end = offset + id.span.end as usize - 1;
-        Box::new(expr_to_node(create_identifier(
+        arena.alloc_js_node(expr_to_node(create_identifier(
             &id.name,
             id_start,
             id_end,
@@ -3323,7 +3429,7 @@ fn create_function_expression(
         .params
         .items
         .iter()
-        .map(|param| convert_binding_pattern(&param.pattern, offset, line_offsets))
+        .map(|param| convert_binding_pattern(arena, &param.pattern, offset, line_offsets))
         .collect();
 
     // body
@@ -3333,13 +3439,13 @@ fn create_function_expression(
         let statements: Vec<JsNode> = body
             .statements
             .iter()
-            .filter_map(|stmt| convert_statement(stmt, offset, line_offsets))
+            .filter_map(|stmt| convert_statement(arena, stmt, offset, line_offsets))
             .collect();
-        Box::new(JsNode::BlockStatement {
+        arena.alloc_js_node(JsNode::BlockStatement {
             start: body_start as u32,
             end: body_end as u32,
             loc: create_typed_loc(body_start, body_end, line_offsets),
-            body: statements,
+            body: arena.alloc_js_children(statements),
         })
     });
 
@@ -3348,7 +3454,7 @@ fn create_function_expression(
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         id,
-        params,
+        params: arena.alloc_js_children(params),
         body,
         generator: func.generator,
         r#async: func.r#async,
@@ -3357,6 +3463,7 @@ fn create_function_expression(
 }
 
 fn create_class_expression(
+    arena: &ParseArena,
     class_expr: &oxc_ast::ast::Class,
     start: usize,
     end: usize,
@@ -3367,7 +3474,7 @@ fn create_class_expression(
     let id = class_expr.id.as_ref().map(|id| {
         let id_start = offset + id.span.start as usize - 1;
         let id_end = offset + id.span.end as usize - 1;
-        Box::new(expr_to_node(create_identifier(
+        arena.alloc_js_node(expr_to_node(create_identifier(
             &id.name,
             id_start,
             id_end,
@@ -3377,12 +3484,12 @@ fn create_class_expression(
 
     // superClass
     let super_class = class_expr.super_class.as_ref().map(|sc| {
-        let super_expr = convert_expression(sc, offset, line_offsets);
-        Box::new(expr_to_node(super_expr))
+        let super_expr = convert_expression(arena, sc, offset, line_offsets);
+        arena.alloc_js_node(expr_to_node(super_expr))
     });
 
     // body
-    let body = convert_class_body_for_expr(&class_expr.body, offset, line_offsets);
+    let body = convert_class_body_for_expr(arena, &class_expr.body, offset, line_offsets);
 
     Expression::from_node(JsNode::ClassExpression {
         start: start as u32,
@@ -3390,30 +3497,37 @@ fn create_class_expression(
         loc: create_typed_loc(start, end, line_offsets),
         id,
         super_class,
-        body: Box::new(JsNode::Raw(body)),
+        body: arena.alloc_js_node(JsNode::Raw(body)),
     })
 }
 
 fn create_tagged_template_expression(
+    arena: &ParseArena,
     tagged: &oxc_ast::ast::TaggedTemplateExpression,
     start: usize,
     end: usize,
     offset: usize,
     line_offsets: &[usize],
 ) -> Expression {
-    let tag = convert_expression(&tagged.tag, offset, line_offsets);
+    let tag = convert_expression(arena, &tagged.tag, offset, line_offsets);
 
     let quasi_start = offset + tagged.quasi.span.start as usize - 1;
     let quasi_end = offset + tagged.quasi.span.end as usize - 1;
-    let quasi =
-        create_template_literal(&tagged.quasi, quasi_start, quasi_end, offset, line_offsets);
+    let quasi = create_template_literal(
+        arena,
+        &tagged.quasi,
+        quasi_start,
+        quasi_end,
+        offset,
+        line_offsets,
+    );
 
     Expression::from_node(JsNode::TaggedTemplateExpression {
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        tag: Box::new(expr_to_node(tag)),
-        quasi: Box::new(expr_to_node(quasi)),
+        tag: arena.alloc_js_node(expr_to_node(tag)),
+        quasi: arena.alloc_js_node(expr_to_node(quasi)),
     })
 }
 
@@ -3450,6 +3564,7 @@ fn create_regex_literal(
 
 /// Convert a class body to JSON value (for expression context, with -1 offset adjustment).
 fn convert_class_body_for_expr(
+    arena: &ParseArena,
     body: &oxc_ast::ast::ClassBody,
     offset: usize,
     line_offsets: &[usize],
@@ -3468,7 +3583,7 @@ fn convert_class_body_for_expr(
     let body_elements: Vec<Value> = body
         .body
         .iter()
-        .filter_map(|element| convert_class_element_for_expr(element, offset, line_offsets))
+        .filter_map(|element| convert_class_element_for_expr(arena, element, offset, line_offsets))
         .collect();
     obj.insert("body".to_string(), Value::Array(body_elements));
 
@@ -3477,6 +3592,7 @@ fn convert_class_body_for_expr(
 
 /// Convert a class element to JSON value (for expression context, with -1 offset adjustment).
 fn convert_class_element_for_expr(
+    arena: &ParseArena,
     element: &oxc_ast::ast::ClassElement,
     offset: usize,
     line_offsets: &[usize],
@@ -3508,13 +3624,14 @@ fn convert_class_element_for_expr(
             obj.insert("kind".to_string(), Value::String(kind.to_string()));
 
             // key
-            let key = convert_property_key_for_expr(&method.key, offset, line_offsets);
+            let key = convert_property_key_for_expr(arena, &method.key, offset, line_offsets);
             obj.insert("key".to_string(), key.to_value());
 
             // value (function expression)
             let value_start = offset + method.value.span.start as usize - 1;
             let value_end = offset + method.value.span.end as usize - 1;
             let value = create_function_expression(
+                arena,
                 &method.value,
                 value_start,
                 value_end,
@@ -3542,12 +3659,12 @@ fn convert_class_element_for_expr(
             obj.insert("computed".to_string(), Value::Bool(prop.computed));
 
             // key
-            let key = convert_property_key_for_expr(&prop.key, offset, line_offsets);
+            let key = convert_property_key_for_expr(arena, &prop.key, offset, line_offsets);
             obj.insert("key".to_string(), key.to_value());
 
             // value
             if let Some(ref value) = prop.value {
-                let val = convert_expression(value, offset, line_offsets);
+                let val = convert_expression(arena, value, offset, line_offsets);
                 obj.insert("value".to_string(), val.as_json().clone());
             } else {
                 obj.insert("value".to_string(), Value::Null);
@@ -3569,7 +3686,7 @@ fn convert_class_element_for_expr(
             let body_statements: Vec<Value> = static_block
                 .body
                 .iter()
-                .filter_map(|stmt| convert_statement(stmt, offset, line_offsets))
+                .filter_map(|stmt| convert_statement(arena, stmt, offset, line_offsets))
                 .map(|node| node.to_value())
                 .collect();
             obj.insert("body".to_string(), Value::Array(body_statements));
@@ -3581,6 +3698,7 @@ fn convert_class_element_for_expr(
 }
 
 fn create_array_expression(
+    arena: &ParseArena,
     arr: &oxc_ast::ast::ArrayExpression,
     start: usize,
     end: usize,
@@ -3594,18 +3712,23 @@ fn create_array_expression(
             oxc_ast::ast::ArrayExpressionElement::SpreadElement(spread) => {
                 let spread_start = offset + spread.span.start as usize - 1;
                 let spread_end = offset + spread.span.end as usize - 1;
-                let spread_arg = convert_expression(&spread.argument, offset, line_offsets);
+                let spread_arg = convert_expression(arena, &spread.argument, offset, line_offsets);
                 Some(JsNode::SpreadElement {
                     start: spread_start as u32,
                     end: spread_end as u32,
                     loc: create_typed_loc(spread_start, spread_end, line_offsets),
-                    argument: Box::new(expr_to_node(spread_arg)),
+                    argument: arena.alloc_js_node(expr_to_node(spread_arg)),
                 })
             }
             oxc_ast::ast::ArrayExpressionElement::Elision(_) => None,
             _ => {
                 let expr = elem.to_expression();
-                Some(expr_to_node(convert_expression(expr, offset, line_offsets)))
+                Some(expr_to_node(convert_expression(
+                    arena,
+                    expr,
+                    offset,
+                    line_offsets,
+                )))
             }
         })
         .collect();
@@ -3619,6 +3742,7 @@ fn create_array_expression(
 }
 
 fn create_object_expression(
+    arena: &ParseArena,
     obj_expr: &oxc_ast::ast::ObjectExpression,
     start: usize,
     end: usize,
@@ -3633,8 +3757,8 @@ fn create_object_expression(
                 let prop_start = offset + p.span.start as usize - 1;
                 let prop_end = offset + p.span.end as usize - 1;
 
-                let key = convert_property_key_for_expr(&p.key, offset, line_offsets);
-                let value = convert_expression(&p.value, offset, line_offsets);
+                let key = convert_property_key_for_expr(arena, &p.key, offset, line_offsets);
+                let value = convert_expression(arena, &p.value, offset, line_offsets);
 
                 let kind = match p.kind {
                     oxc_ast::ast::PropertyKind::Init => "init",
@@ -3646,8 +3770,8 @@ fn create_object_expression(
                     start: prop_start as u32,
                     end: prop_end as u32,
                     loc: create_typed_loc(prop_start, prop_end, line_offsets),
-                    key: Box::new(key),
-                    value: Box::new(expr_to_node(value)),
+                    key: arena.alloc_js_node(key),
+                    value: arena.alloc_js_node(expr_to_node(value)),
                     kind: CompactString::from(kind),
                     method: p.method,
                     shorthand: p.shorthand,
@@ -3657,13 +3781,13 @@ fn create_object_expression(
             oxc_ast::ast::ObjectPropertyKind::SpreadProperty(spread) => {
                 let spread_start = offset + spread.span.start as usize - 1;
                 let spread_end = offset + spread.span.end as usize - 1;
-                let argument = convert_expression(&spread.argument, offset, line_offsets);
+                let argument = convert_expression(arena, &spread.argument, offset, line_offsets);
 
                 JsNode::SpreadElement {
                     start: spread_start as u32,
                     end: spread_end as u32,
                     loc: create_typed_loc(spread_start, spread_end, line_offsets),
-                    argument: Box::new(expr_to_node(argument)),
+                    argument: arena.alloc_js_node(expr_to_node(argument)),
                 }
             }
         })
@@ -3673,12 +3797,13 @@ fn create_object_expression(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        properties,
+        properties: arena.alloc_js_children(properties),
     })
 }
 
 /// Convert property key with -1 adjustment for expression parsing context
 fn convert_property_key_for_expr(
+    arena: &ParseArena,
     key: &oxc_ast::ast::PropertyKey,
     offset: usize,
     line_offsets: &[usize],
@@ -3703,7 +3828,7 @@ fn convert_property_key_for_expr(
             // For computed keys and other expressions
             let expr = key.as_expression();
             if let Some(expr) = expr {
-                expr_to_node(convert_expression(expr, offset, line_offsets))
+                expr_to_node(convert_expression(arena, expr, offset, line_offsets))
             } else {
                 JsNode::Null
             }
@@ -3712,6 +3837,7 @@ fn convert_property_key_for_expr(
 }
 
 fn create_assignment_expression(
+    arena: &ParseArena,
     assign: &oxc_ast::ast::AssignmentExpression,
     start: usize,
     end: usize,
@@ -3719,16 +3845,16 @@ fn create_assignment_expression(
     line_offsets: &[usize],
 ) -> Expression {
     let operator = assignment_operator_to_str(&assign.operator);
-    let left = convert_assignment_target(&assign.left, offset, line_offsets);
-    let right = convert_expression(&assign.right, offset, line_offsets);
+    let left = convert_assignment_target(arena, &assign.left, offset, line_offsets);
+    let right = convert_expression(arena, &assign.right, offset, line_offsets);
 
     Expression::from_node(JsNode::AssignmentExpression {
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         operator: CompactString::from(operator),
-        left: Box::new(left),
-        right: Box::new(expr_to_node(right)),
+        left: arena.alloc_js_node(left),
+        right: arena.alloc_js_node(expr_to_node(right)),
     })
 }
 
@@ -3757,6 +3883,7 @@ fn assignment_operator_to_str(op: &oxc_ast::ast::AssignmentOperator) -> &'static
 /// Convert an ObjectAssignmentTarget to ObjectPattern JsNode.
 /// ObjectAssignmentTarget is `{ foo }` in `({ foo } = obj);`
 fn convert_object_assignment_target(
+    arena: &ParseArena,
     obj_target: &oxc_ast::ast::ObjectAssignmentTarget,
     offset: usize,
     line_offsets: &[usize],
@@ -3768,7 +3895,7 @@ fn convert_object_assignment_target(
     let mut properties: Vec<JsNode> = obj_target
         .properties
         .iter()
-        .map(|prop| convert_assignment_target_property(prop, offset, line_offsets))
+        .map(|prop| convert_assignment_target_property(arena, prop, offset, line_offsets))
         .collect();
 
     // Add rest element if present
@@ -3779,7 +3906,8 @@ fn convert_object_assignment_target(
             start: rest_start as u32,
             end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
-            argument: Box::new(convert_assignment_target(
+            argument: arena.alloc_js_node(convert_assignment_target(
+                arena,
                 &rest.target,
                 offset,
                 line_offsets,
@@ -3791,13 +3919,14 @@ fn convert_object_assignment_target(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        properties,
+        properties: arena.alloc_js_children(properties),
     }
 }
 
 /// Convert an ArrayAssignmentTarget to ArrayPattern JsNode.
 /// ArrayAssignmentTarget is `[a, b]` in `([a, b] = arr);`
 fn convert_array_assignment_target(
+    arena: &ParseArena,
     arr_target: &oxc_ast::ast::ArrayAssignmentTarget,
     offset: usize,
     line_offsets: &[usize],
@@ -3810,8 +3939,9 @@ fn convert_array_assignment_target(
         .elements
         .iter()
         .map(|elem| {
-            elem.as_ref()
-                .map(|target| convert_assignment_target_maybe_default(target, offset, line_offsets))
+            elem.as_ref().map(|target| {
+                convert_assignment_target_maybe_default(arena, target, offset, line_offsets)
+            })
         })
         .collect();
 
@@ -3823,7 +3953,8 @@ fn convert_array_assignment_target(
             start: rest_start as u32,
             end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
-            argument: Box::new(convert_assignment_target(
+            argument: arena.alloc_js_node(convert_assignment_target(
+                arena,
                 &rest.target,
                 offset,
                 line_offsets,
@@ -3841,6 +3972,7 @@ fn convert_array_assignment_target(
 
 /// Convert an AssignmentTargetProperty to Property JsNode.
 fn convert_assignment_target_property(
+    arena: &ParseArena,
     prop: &oxc_ast::ast::AssignmentTargetProperty,
     offset: usize,
     line_offsets: &[usize],
@@ -3871,8 +4003,13 @@ fn convert_assignment_target_property(
                     start: id_start as u32,
                     end: init_end as u32,
                     loc: create_typed_loc(id_start, init_end, line_offsets),
-                    left: Box::new(id_node.clone()),
-                    right: Box::new(expr_to_node(convert_expression(init, offset, line_offsets))),
+                    left: arena.alloc_js_node(id_node.clone()),
+                    right: arena.alloc_js_node(expr_to_node(convert_expression(
+                        arena,
+                        init,
+                        offset,
+                        line_offsets,
+                    ))),
                 }
             } else {
                 id_node.clone()
@@ -3882,8 +4019,8 @@ fn convert_assignment_target_property(
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                key: Box::new(id_node),
-                value: Box::new(value),
+                key: arena.alloc_js_node(id_node),
+                value: arena.alloc_js_node(value),
                 kind: CompactString::from("init"),
                 method: false,
                 shorthand: true,
@@ -3895,16 +4032,21 @@ fn convert_assignment_target_property(
             let start = offset + prop_prop.span.start as usize - 1;
             let end = offset + prop_prop.span.end as usize - 1;
 
-            let key = convert_property_key_with_offset(&prop_prop.name, offset, line_offsets);
-            let value =
-                convert_assignment_target_maybe_default(&prop_prop.binding, offset, line_offsets);
+            let key =
+                convert_property_key_with_offset(arena, &prop_prop.name, offset, line_offsets);
+            let value = convert_assignment_target_maybe_default(
+                arena,
+                &prop_prop.binding,
+                offset,
+                line_offsets,
+            );
 
             JsNode::Property {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                key: Box::new(key),
-                value: Box::new(value),
+                key: arena.alloc_js_node(key),
+                value: arena.alloc_js_node(value),
                 kind: CompactString::from("init"),
                 method: false,
                 shorthand: false,
@@ -3916,6 +4058,7 @@ fn convert_assignment_target_property(
 
 /// Convert an AssignmentTargetMaybeDefault to JsNode.
 fn convert_assignment_target_maybe_default(
+    arena: &ParseArena,
     target: &oxc_ast::ast::AssignmentTargetMaybeDefault,
     offset: usize,
     line_offsets: &[usize],
@@ -3932,12 +4075,14 @@ fn convert_assignment_target_maybe_default(
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                left: Box::new(convert_assignment_target(
+                left: arena.alloc_js_node(convert_assignment_target(
+                    arena,
                     &with_default.binding,
                     offset,
                     line_offsets,
                 )),
-                right: Box::new(expr_to_node(convert_expression(
+                right: arena.alloc_js_node(expr_to_node(convert_expression(
+                    arena,
                     &with_default.init,
                     offset,
                     line_offsets,
@@ -3948,7 +4093,7 @@ fn convert_assignment_target_maybe_default(
         _ => {
             // Convert to AssignmentTarget - need to extract the inner target
             if let Some(inner) = target.as_assignment_target() {
-                convert_assignment_target(inner, offset, line_offsets)
+                convert_assignment_target(arena, inner, offset, line_offsets)
             } else {
                 JsNode::Null
             }
@@ -3958,6 +4103,7 @@ fn convert_assignment_target_maybe_default(
 
 /// Convert a PropertyKey with -1 offset adjustment (for expression context).
 fn convert_property_key_with_offset(
+    arena: &ParseArena,
     key: &oxc_ast::ast::PropertyKey,
     offset: usize,
     line_offsets: &[usize],
@@ -3981,7 +4127,7 @@ fn convert_property_key_with_offset(
         _ => {
             // For computed keys, try to get the expression
             if let Some(expr) = key.as_expression() {
-                expr_to_node(convert_expression(expr, offset, line_offsets))
+                expr_to_node(convert_expression(arena, expr, offset, line_offsets))
             } else {
                 JsNode::Null
             }
@@ -3990,6 +4136,7 @@ fn convert_property_key_with_offset(
 }
 
 fn convert_assignment_target(
+    arena: &ParseArena,
     target: &oxc_ast::ast::AssignmentTarget,
     offset: usize,
     line_offsets: &[usize],
@@ -4006,6 +4153,7 @@ fn convert_assignment_target(
             let start = offset + member.span.start as usize - 1;
             let end = offset + member.span.end as usize - 1;
             expr_to_node(create_static_member_expression(
+                arena,
                 member,
                 start,
                 end,
@@ -4017,6 +4165,7 @@ fn convert_assignment_target(
             let start = offset + member.span.start as usize - 1;
             let end = offset + member.span.end as usize - 1;
             expr_to_node(create_computed_member_expression(
+                arena,
                 member,
                 start,
                 end,
@@ -4025,10 +4174,10 @@ fn convert_assignment_target(
             ))
         }
         AssignmentTarget::ObjectAssignmentTarget(obj_target) => {
-            convert_object_assignment_target(obj_target, offset, line_offsets)
+            convert_object_assignment_target(arena, obj_target, offset, line_offsets)
         }
         AssignmentTarget::ArrayAssignmentTarget(arr_target) => {
-            convert_array_assignment_target(arr_target, offset, line_offsets)
+            convert_array_assignment_target(arena, arr_target, offset, line_offsets)
         }
         _ => {
             // Fallback for other complex patterns (e.g., TSAsExpression, TSNonNullExpression)
@@ -4038,6 +4187,7 @@ fn convert_assignment_target(
 }
 
 fn create_update_expression(
+    arena: &ParseArena,
     update: &oxc_ast::ast::UpdateExpression,
     start: usize,
     end: usize,
@@ -4049,7 +4199,7 @@ fn create_update_expression(
         oxc_ast::ast::UpdateOperator::Decrement => "--",
     };
 
-    let argument = convert_simple_assignment_target(&update.argument, offset, line_offsets);
+    let argument = convert_simple_assignment_target(arena, &update.argument, offset, line_offsets);
 
     Expression::from_node(JsNode::UpdateExpression {
         start: start as u32,
@@ -4057,11 +4207,12 @@ fn create_update_expression(
         loc: create_typed_loc(start, end, line_offsets),
         operator: CompactString::from(operator),
         prefix: update.prefix,
-        argument: Box::new(argument),
+        argument: arena.alloc_js_node(argument),
     })
 }
 
 fn create_sequence_expression(
+    arena: &ParseArena,
     seq: &oxc_ast::ast::SequenceExpression,
     start: usize,
     end: usize,
@@ -4071,18 +4222,19 @@ fn create_sequence_expression(
     let expressions: Vec<JsNode> = seq
         .expressions
         .iter()
-        .map(|expr| expr_to_node(convert_expression(expr, offset, line_offsets)))
+        .map(|expr| expr_to_node(convert_expression(arena, expr, offset, line_offsets)))
         .collect();
 
     Expression::from_node(JsNode::SequenceExpression {
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        expressions,
+        expressions: arena.alloc_js_children(expressions),
     })
 }
 
 fn convert_simple_assignment_target(
+    arena: &ParseArena,
     target: &oxc_ast::ast::SimpleAssignmentTarget,
     offset: usize,
     line_offsets: &[usize],
@@ -4099,6 +4251,7 @@ fn convert_simple_assignment_target(
             let start = offset + member.span.start as usize - 1;
             let end = offset + member.span.end as usize - 1;
             expr_to_node(create_static_member_expression(
+                arena,
                 member,
                 start,
                 end,
@@ -4110,6 +4263,7 @@ fn convert_simple_assignment_target(
             let start = offset + member.span.start as usize - 1;
             let end = offset + member.span.end as usize - 1;
             expr_to_node(create_computed_member_expression(
+                arena,
                 member,
                 start,
                 end,
@@ -4122,6 +4276,7 @@ fn convert_simple_assignment_target(
 }
 
 fn create_arrow_function(
+    arena: &ParseArena,
     arrow: &oxc_ast::ast::ArrowFunctionExpression,
     start: usize,
     end: usize,
@@ -4133,7 +4288,14 @@ fn create_arrow_function(
         .params
         .items
         .iter()
-        .map(|param| expr_to_node(convert_formal_parameter(param, offset - 1, line_offsets)))
+        .map(|param| {
+            expr_to_node(convert_formal_parameter(
+                arena,
+                param,
+                offset - 1,
+                line_offsets,
+            ))
+        })
         .collect();
 
     // Convert body - check if this is an expression body or block body
@@ -4142,15 +4304,16 @@ fn create_arrow_function(
             arrow.body.statements.first()
         {
             expr_to_node(convert_expression(
+                arena,
                 &expr_stmt.expression,
                 offset,
                 line_offsets,
             ))
         } else {
-            convert_arrow_body(&arrow.body, offset, line_offsets)
+            convert_arrow_body(arena, &arrow.body, offset, line_offsets)
         }
     } else {
-        convert_arrow_body(&arrow.body, offset, line_offsets)
+        convert_arrow_body(arena, &arrow.body, offset, line_offsets)
     };
 
     Expression::from_node(JsNode::ArrowFunctionExpression {
@@ -4158,8 +4321,8 @@ fn create_arrow_function(
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         id: None,
-        params,
-        body: Box::new(body_node),
+        params: arena.alloc_js_children(params),
+        body: arena.alloc_js_node(body_node),
         expression: arrow.expression,
         generator: false,
         r#async: arrow.r#async,
@@ -4168,6 +4331,7 @@ fn create_arrow_function(
 
 /// Convert arrow function body to JsNode (for block bodies).
 fn convert_arrow_body(
+    arena: &ParseArena,
     body: &oxc_ast::ast::FunctionBody,
     offset: usize,
     line_offsets: &[usize],
@@ -4178,27 +4342,31 @@ fn convert_arrow_body(
     let body_stmts: Vec<JsNode> = body
         .statements
         .iter()
-        .filter_map(|stmt| convert_statement(stmt, offset, line_offsets))
+        .filter_map(|stmt| convert_statement(arena, stmt, offset, line_offsets))
         .collect();
 
     JsNode::BlockStatement {
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        body: body_stmts,
+        body: arena.alloc_js_children(body_stmts),
     }
 }
 
 /// Convert a statement to JsNode.
 fn convert_statement(
+    arena: &ParseArena,
     stmt: &oxc_ast::ast::Statement,
     offset: usize,
     line_offsets: &[usize],
 ) -> Option<JsNode> {
     match stmt {
-        oxc_ast::ast::Statement::VariableDeclaration(decl) => {
-            Some(convert_variable_declaration(decl, offset, line_offsets))
-        }
+        oxc_ast::ast::Statement::VariableDeclaration(decl) => Some(convert_variable_declaration(
+            arena,
+            decl,
+            offset,
+            line_offsets,
+        )),
         oxc_ast::ast::Statement::ExpressionStatement(expr_stmt) => {
             let start = offset + expr_stmt.span.start as usize - 1;
             let end = offset + expr_stmt.span.end as usize - 1;
@@ -4207,7 +4375,8 @@ fn convert_statement(
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                expression: Box::new(expr_to_node(convert_expression(
+                expression: arena.alloc_js_node(expr_to_node(convert_expression(
+                    arena,
                     &expr_stmt.expression,
                     offset,
                     line_offsets,
@@ -4223,7 +4392,12 @@ fn convert_statement(
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 argument: ret_stmt.argument.as_ref().map(|arg| {
-                    Box::new(expr_to_node(convert_expression(arg, offset, line_offsets)))
+                    arena.alloc_js_node(expr_to_node(convert_expression(
+                        arena,
+                        arg,
+                        offset,
+                        line_offsets,
+                    )))
                 }),
             })
         }
@@ -4235,7 +4409,8 @@ fn convert_statement(
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                argument: Box::new(expr_to_node(convert_expression(
+                argument: arena.alloc_js_node(expr_to_node(convert_expression(
+                    arena,
                     &throw_stmt.argument,
                     offset,
                     line_offsets,
@@ -4246,24 +4421,25 @@ fn convert_statement(
             let start = offset + if_stmt.span.start as usize - 1;
             let end = offset + if_stmt.span.end as usize - 1;
 
-            let consequent = convert_statement(&if_stmt.consequent, offset, line_offsets)
+            let consequent = convert_statement(arena, &if_stmt.consequent, offset, line_offsets)
                 .unwrap_or(JsNode::Null);
             let alternate = if_stmt
                 .alternate
                 .as_ref()
-                .and_then(|alt| convert_statement(alt, offset, line_offsets));
+                .and_then(|alt| convert_statement(arena, alt, offset, line_offsets));
 
             Some(JsNode::IfStatement {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                test: Box::new(expr_to_node(convert_expression(
+                test: arena.alloc_js_node(expr_to_node(convert_expression(
+                    arena,
                     &if_stmt.test,
                     offset,
                     line_offsets,
                 ))),
-                consequent: Box::new(consequent),
-                alternate: alternate.map(Box::new),
+                consequent: arena.alloc_js_node(consequent),
+                alternate: alternate.map(|n| arena.alloc_js_node(n)),
             })
         }
         oxc_ast::ast::Statement::BlockStatement(block) => {
@@ -4273,14 +4449,14 @@ fn convert_statement(
             let body_stmts: Vec<JsNode> = block
                 .body
                 .iter()
-                .filter_map(|s| convert_statement(s, offset, line_offsets))
+                .filter_map(|s| convert_statement(arena, s, offset, line_offsets))
                 .collect();
 
             Some(JsNode::BlockStatement {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                body: body_stmts,
+                body: arena.alloc_js_children(body_stmts),
             })
         }
         oxc_ast::ast::Statement::ForStatement(for_stmt) => {
@@ -4288,28 +4464,41 @@ fn convert_statement(
             let end = offset + for_stmt.span.end as usize - 1;
 
             let init = for_stmt.init.as_ref().map(|init| match init {
-                oxc_ast::ast::ForStatementInit::VariableDeclaration(vd) => {
-                    Box::new(convert_variable_declaration(vd, offset, line_offsets))
-                }
+                oxc_ast::ast::ForStatementInit::VariableDeclaration(vd) => arena.alloc_js_node(
+                    convert_variable_declaration(arena, vd, offset, line_offsets),
+                ),
                 _ => {
                     if let Some(expr) = init.as_expression() {
-                        Box::new(expr_to_node(convert_expression(expr, offset, line_offsets)))
+                        arena.alloc_js_node(expr_to_node(convert_expression(
+                            arena,
+                            expr,
+                            offset,
+                            line_offsets,
+                        )))
                     } else {
-                        Box::new(JsNode::Null)
+                        arena.alloc_js_node(JsNode::Null)
                     }
                 }
             });
 
-            let body =
-                convert_statement(&for_stmt.body, offset, line_offsets).unwrap_or(JsNode::Null);
-            let test = for_stmt
-                .test
-                .as_ref()
-                .map(|t| Box::new(expr_to_node(convert_expression(t, offset, line_offsets))));
-            let update = for_stmt
-                .update
-                .as_ref()
-                .map(|u| Box::new(expr_to_node(convert_expression(u, offset, line_offsets))));
+            let body = convert_statement(arena, &for_stmt.body, offset, line_offsets)
+                .unwrap_or(JsNode::Null);
+            let test = for_stmt.test.as_ref().map(|t| {
+                arena.alloc_js_node(expr_to_node(convert_expression(
+                    arena,
+                    t,
+                    offset,
+                    line_offsets,
+                )))
+            });
+            let update = for_stmt.update.as_ref().map(|u| {
+                arena.alloc_js_node(expr_to_node(convert_expression(
+                    arena,
+                    u,
+                    offset,
+                    line_offsets,
+                )))
+            });
 
             Some(JsNode::ForStatement {
                 start: start as u32,
@@ -4318,7 +4507,7 @@ fn convert_statement(
                 init,
                 test,
                 update,
-                body: Box::new(body),
+                body: arena.alloc_js_node(body),
             })
         }
         oxc_ast::ast::Statement::TryStatement(try_stmt) => {
@@ -4332,13 +4521,13 @@ fn convert_statement(
                 .block
                 .body
                 .iter()
-                .filter_map(|s| convert_statement(s, offset, line_offsets))
+                .filter_map(|s| convert_statement(arena, s, offset, line_offsets))
                 .collect();
             let block = JsNode::BlockStatement {
                 start: block_start as u32,
                 end: block_end as u32,
                 loc: create_typed_loc(block_start, block_end, line_offsets),
-                body: block_body,
+                body: arena.alloc_js_children(block_body),
             };
 
             // Convert handler (catch clause)
@@ -4346,7 +4535,8 @@ fn convert_statement(
                 let h_start = offset + handler.span.start as usize - 1;
                 let h_end = offset + handler.span.end as usize - 1;
                 let param = handler.param.as_ref().map(|param| {
-                    Box::new(JsNode::Raw(convert_binding_pattern_for_param(
+                    arena.alloc_js_node(JsNode::Raw(convert_binding_pattern_for_param(
+                        arena,
                         &param.pattern,
                         offset - 1,
                         line_offsets,
@@ -4358,18 +4548,18 @@ fn convert_statement(
                     .body
                     .body
                     .iter()
-                    .filter_map(|s| convert_statement(s, offset, line_offsets))
+                    .filter_map(|s| convert_statement(arena, s, offset, line_offsets))
                     .collect();
-                Box::new(JsNode::CatchClause {
+                arena.alloc_js_node(JsNode::CatchClause {
                     start: h_start as u32,
                     end: h_end as u32,
                     loc: create_typed_loc(h_start, h_end, line_offsets),
                     param,
-                    body: Box::new(JsNode::BlockStatement {
+                    body: arena.alloc_js_node(JsNode::BlockStatement {
                         start: h_body_start as u32,
                         end: h_body_end as u32,
                         loc: create_typed_loc(h_body_start, h_body_end, line_offsets),
-                        body: h_body_stmts,
+                        body: arena.alloc_js_children(h_body_stmts),
                     }),
                 })
             });
@@ -4381,13 +4571,13 @@ fn convert_statement(
                 let f_body: Vec<JsNode> = finalizer
                     .body
                     .iter()
-                    .filter_map(|s| convert_statement(s, offset, line_offsets))
+                    .filter_map(|s| convert_statement(arena, s, offset, line_offsets))
                     .collect();
-                Box::new(JsNode::BlockStatement {
+                arena.alloc_js_node(JsNode::BlockStatement {
                     start: f_start as u32,
                     end: f_end as u32,
                     loc: create_typed_loc(f_start, f_end, line_offsets),
-                    body: f_body,
+                    body: arena.alloc_js_children(f_body),
                 })
             });
 
@@ -4395,7 +4585,7 @@ fn convert_statement(
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                block: Box::new(block),
+                block: arena.alloc_js_node(block),
                 handler,
                 finalizer,
             })
@@ -4413,7 +4603,7 @@ fn convert_statement(
             let id = func_decl.id.as_ref().map(|id| {
                 let id_start = offset + id.span.start as usize - 1;
                 let id_end = offset + id.span.end as usize - 1;
-                Box::new(expr_to_node(create_identifier(
+                arena.alloc_js_node(expr_to_node(create_identifier(
                     &id.name,
                     id_start,
                     id_end,
@@ -4426,21 +4616,25 @@ fn convert_statement(
                 .items
                 .iter()
                 .map(|param| {
-                    expr_to_node(convert_formal_parameter(param, offset - 1, line_offsets))
+                    expr_to_node(convert_formal_parameter(
+                        arena,
+                        param,
+                        offset - 1,
+                        line_offsets,
+                    ))
                 })
                 .collect();
 
-            let body = func_decl
-                .body
-                .as_ref()
-                .map(|body| Box::new(convert_arrow_body(body, offset, line_offsets)));
+            let body = func_decl.body.as_ref().map(|body| {
+                arena.alloc_js_node(convert_arrow_body(arena, body, offset, line_offsets))
+            });
 
             Some(JsNode::FunctionDeclaration {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 id,
-                params,
+                params: arena.alloc_js_children(params),
                 body,
                 generator: func_decl.generator,
                 r#async: func_decl.r#async,
@@ -4452,6 +4646,7 @@ fn convert_statement(
 
 /// Convert a variable declaration to JsNode.
 fn convert_variable_declaration(
+    arena: &ParseArena,
     decl: &oxc_ast::ast::VariableDeclaration,
     offset: usize,
     line_offsets: &[usize],
@@ -4462,7 +4657,7 @@ fn convert_variable_declaration(
     let declarations: Vec<JsNode> = decl
         .declarations
         .iter()
-        .map(|d| convert_variable_declarator(d, offset, line_offsets))
+        .map(|d| convert_variable_declarator(arena, d, offset, line_offsets))
         .collect();
 
     let kind = match decl.kind {
@@ -4477,7 +4672,7 @@ fn convert_variable_declaration(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        declarations,
+        declarations: arena.alloc_js_children(declarations),
         kind: CompactString::from(kind),
         declare: false,
     }
@@ -4485,6 +4680,7 @@ fn convert_variable_declaration(
 
 /// Convert a variable declarator to JsNode.
 fn convert_variable_declarator(
+    arena: &ParseArena,
     decl: &oxc_ast::ast::VariableDeclarator,
     offset: usize,
     line_offsets: &[usize],
@@ -4494,6 +4690,7 @@ fn convert_variable_declarator(
 
     // Convert id (pattern) with type annotation
     let id = JsNode::Raw(convert_binding_pattern_for_decl(
+        arena,
         &decl.id,
         offset,
         line_offsets,
@@ -4501,22 +4698,27 @@ fn convert_variable_declarator(
     ));
 
     // Convert init
-    let init = decl
-        .init
-        .as_ref()
-        .map(|expr| Box::new(expr_to_node(convert_expression(expr, offset, line_offsets))));
+    let init = decl.init.as_ref().map(|expr| {
+        arena.alloc_js_node(expr_to_node(convert_expression(
+            arena,
+            expr,
+            offset,
+            line_offsets,
+        )))
+    });
 
     JsNode::VariableDeclarator {
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        id: Box::new(id),
+        id: arena.alloc_js_node(id),
         init,
     }
 }
 
 /// Convert a binding pattern for variable declarations.
 fn convert_binding_pattern_for_decl(
+    arena: &ParseArena,
     pattern: &oxc_ast::ast::BindingPattern,
     offset: usize,
     line_offsets: &[usize],
@@ -4551,13 +4753,13 @@ fn convert_binding_pattern_for_decl(
             Value::Object(obj)
         }
         oxc_ast::ast::BindingPattern::ObjectPattern(obj_pat) => {
-            convert_object_pattern(obj_pat, offset - 1, line_offsets).to_value()
+            convert_object_pattern(arena, obj_pat, offset - 1, line_offsets).to_value()
         }
         oxc_ast::ast::BindingPattern::ArrayPattern(arr_pat) => {
-            convert_array_pattern(arr_pat, offset - 1, line_offsets).to_value()
+            convert_array_pattern(arena, arr_pat, offset - 1, line_offsets).to_value()
         }
         oxc_ast::ast::BindingPattern::AssignmentPattern(assign_pat) => {
-            convert_assignment_pattern(assign_pat, offset - 1, line_offsets).to_value()
+            convert_assignment_pattern(arena, assign_pat, offset - 1, line_offsets).to_value()
         }
     }
 }
@@ -4592,6 +4794,7 @@ fn convert_type_annotation_basic(
 }
 
 fn create_template_literal(
+    arena: &ParseArena,
     template: &oxc_ast::ast::TemplateLiteral,
     start: usize,
     end: usize,
@@ -4625,15 +4828,15 @@ fn create_template_literal(
     let expressions: Vec<JsNode> = template
         .expressions
         .iter()
-        .map(|expr| expr_to_node(convert_expression(expr, offset, line_offsets)))
+        .map(|expr| expr_to_node(convert_expression(arena, expr, offset, line_offsets)))
         .collect();
 
     Expression::from_node(JsNode::TemplateLiteral {
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        quasis,
-        expressions,
+        quasis: arena.alloc_js_children(quasis),
+        expressions: arena.alloc_js_children(expressions),
     })
 }
 
@@ -5035,7 +5238,9 @@ fn create_typed_loc_for_script(
 /// `leading_comments` are HTML comments that appeared before the script tag.
 /// `script_tag_start` and `script_tag_end` are positions for loc calculation
 /// (Svelte uses locator(start) for loc.start and locator(parser.index) for loc.end).
+#[allow(clippy::too_many_arguments)]
 pub fn parse_program(
+    arena: &ParseArena,
     content: &str,
     offset: usize,
     line_offsets: &[usize],
@@ -5081,7 +5286,9 @@ pub fn parse_program(
             let mut body_nodes: Vec<JsNode> = Vec::with_capacity(program.body.len());
 
             for stmt in program.body.iter() {
-                if let Some(stmt_node) = convert_statement_for_program(stmt, offset, line_offsets) {
+                if let Some(stmt_node) =
+                    convert_statement_for_program(arena, stmt, offset, line_offsets)
+                {
                     let stmt_start = stmt.span().start;
 
                     // Collect comments that appear before this statement
@@ -5147,7 +5354,7 @@ pub fn parse_program(
             program
                 .body
                 .iter()
-                .filter_map(|stmt| convert_statement_for_program(stmt, offset, line_offsets))
+                .filter_map(|stmt| convert_statement_for_program(arena, stmt, offset, line_offsets))
                 .collect()
         };
 
@@ -5184,7 +5391,7 @@ pub fn parse_program(
             start: start as u32,
             end: end as u32,
             loc,
-            body,
+            body: arena.alloc_js_children(body),
             source_type: CompactString::from("module"),
             leading_comments: leading_comments_val,
             trailing_comments: trailing_comments_val,
@@ -5341,13 +5548,15 @@ fn distribute_comments_to_node(node: &mut Value, comments: &[CommentEntry]) {
 
 /// Convert a statement to JSON value (for program context, no -1 offset adjustment).
 fn convert_statement_for_program(
+    arena: &ParseArena,
     stmt: &oxc_ast::ast::Statement,
     offset: usize,
     line_offsets: &[usize],
 ) -> Option<JsNode> {
     match stmt {
         oxc_ast::ast::Statement::ExpressionStatement(expr_stmt) => {
-            let expr = convert_expression_for_program(&expr_stmt.expression, offset, line_offsets);
+            let expr =
+                convert_expression_for_program(arena, &expr_stmt.expression, offset, line_offsets);
             let start = offset + expr_stmt.span.start as usize;
             let end = offset + expr_stmt.span.end as usize;
             let loc = create_typed_loc(start, end, line_offsets);
@@ -5355,7 +5564,7 @@ fn convert_statement_for_program(
                 start: start as u32,
                 end: end as u32,
                 loc,
-                expression: Box::new(expr_to_node(expr)),
+                expression: arena.alloc_js_node(expr_to_node(expr)),
             })
         }
         oxc_ast::ast::Statement::VariableDeclaration(var_decl) => {
@@ -5367,7 +5576,7 @@ fn convert_statement_for_program(
                 .declarations
                 .iter()
                 .filter_map(|decl| {
-                    convert_variable_declarator_for_program(decl, offset, line_offsets)
+                    convert_variable_declarator_for_program(arena, decl, offset, line_offsets)
                 })
                 .collect();
 
@@ -5383,7 +5592,7 @@ fn convert_statement_for_program(
                 start: start as u32,
                 end: end as u32,
                 loc,
-                declarations,
+                declarations: arena.alloc_js_children(declarations),
                 kind: CompactString::from(kind),
                 declare: var_decl.declare,
             })
@@ -5403,7 +5612,7 @@ fn convert_statement_for_program(
                 let id_start = offset + id.span.start as usize;
                 let id_end = offset + id.span.end as usize;
                 let id_expr = create_identifier(&id.name, id_start, id_end, line_offsets);
-                Box::new(expr_to_node(id_expr))
+                arena.alloc_js_node(expr_to_node(id_expr))
             });
 
             // Convert params
@@ -5411,12 +5620,15 @@ fn convert_statement_for_program(
                 .params
                 .items
                 .iter()
-                .map(|param| expr_to_node(convert_formal_parameter(param, offset, line_offsets)))
+                .map(|param| {
+                    expr_to_node(convert_formal_parameter(arena, param, offset, line_offsets))
+                })
                 .collect();
 
             // Convert body
             let body_node = func_decl.body.as_ref().map(|body| {
-                Box::new(convert_function_body_for_program_as_node(
+                arena.alloc_js_node(convert_function_body_for_program_as_node(
+                    arena,
                     body,
                     offset,
                     line_offsets,
@@ -5428,7 +5640,7 @@ fn convert_statement_for_program(
                 end: end as u32,
                 loc,
                 id: id_node,
-                params,
+                params: arena.alloc_js_children(params),
                 body: body_node,
                 generator: func_decl.generator,
                 r#async: func_decl.r#async,
@@ -5441,8 +5653,8 @@ fn convert_statement_for_program(
 
             // Handle declaration if present (e.g., export let x;)
             let declaration = export_decl.declaration.as_ref().map(|decl| {
-                let decl_value = convert_declaration_for_program(decl, offset, line_offsets);
-                Box::new(JsNode::Raw(decl_value))
+                let decl_value = convert_declaration_for_program(arena, decl, offset, line_offsets);
+                arena.alloc_js_node(JsNode::Raw(decl_value))
             });
 
             // Handle specifiers
@@ -5485,8 +5697,8 @@ fn convert_statement_for_program(
                         start: spec_start as u32,
                         end: spec_end as u32,
                         loc: spec_loc,
-                        local: Box::new(local),
-                        exported: Box::new(exported),
+                        local: arena.alloc_js_node(local),
+                        exported: arena.alloc_js_node(exported),
                         export_kind,
                     }
                 })
@@ -5502,7 +5714,7 @@ fn convert_statement_for_program(
                 let source_start = offset + source.span.start as usize;
                 let source_end = offset + source.span.end as usize;
                 let raw = source.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
-                Box::new(expr_to_node(create_string_literal(
+                arena.alloc_js_node(expr_to_node(create_string_literal(
                     &source.value,
                     raw,
                     source_start,
@@ -5516,10 +5728,10 @@ fn convert_statement_for_program(
                 end: end as u32,
                 loc,
                 declaration,
-                specifiers,
+                specifiers: arena.alloc_js_children(specifiers),
                 source,
                 export_kind,
-                attributes: vec![],
+                attributes: IdRange::empty(),
             })
         }
         oxc_ast::ast::Statement::ExportDefaultDeclaration(export_decl) => {
@@ -5537,7 +5749,7 @@ fn convert_statement_for_program(
                     let id_node = func_decl.id.as_ref().map(|id| {
                         let id_start = offset + id.span.start as usize;
                         let id_end = offset + id.span.end as usize;
-                        Box::new(expr_to_node(create_identifier(
+                        arena.alloc_js_node(expr_to_node(create_identifier(
                             &id.name,
                             id_start,
                             id_end,
@@ -5550,12 +5762,18 @@ fn convert_statement_for_program(
                         .items
                         .iter()
                         .map(|param| {
-                            expr_to_node(convert_formal_parameter(param, offset, line_offsets))
+                            expr_to_node(convert_formal_parameter(
+                                arena,
+                                param,
+                                offset,
+                                line_offsets,
+                            ))
                         })
                         .collect();
 
                     let body_node = func_decl.body.as_ref().map(|body| {
-                        Box::new(convert_function_body_for_program_as_node(
+                        arena.alloc_js_node(convert_function_body_for_program_as_node(
+                            arena,
                             body,
                             offset,
                             line_offsets,
@@ -5567,7 +5785,7 @@ fn convert_statement_for_program(
                         end: func_end as u32,
                         loc: func_loc,
                         id: id_node,
-                        params,
+                        params: arena.alloc_js_children(params),
                         body: body_node,
                         generator: func_decl.generator,
                         r#async: func_decl.r#async,
@@ -5601,15 +5819,23 @@ fn convert_statement_for_program(
                     }
 
                     if let Some(super_class) = &class_decl.super_class {
-                        let super_expr =
-                            convert_expression_for_program(super_class, offset, line_offsets);
+                        let super_expr = convert_expression_for_program(
+                            arena,
+                            super_class,
+                            offset,
+                            line_offsets,
+                        );
                         class_obj.insert("superClass".to_string(), super_expr.as_json().clone());
                     } else {
                         class_obj.insert("superClass".to_string(), Value::Null);
                     }
 
-                    let body =
-                        convert_class_body_for_program(&class_decl.body, offset, line_offsets);
+                    let body = convert_class_body_for_program(
+                        arena,
+                        &class_decl.body,
+                        offset,
+                        line_offsets,
+                    );
                     class_obj.insert("body".to_string(), body);
 
                     JsNode::Raw(Value::Object(class_obj))
@@ -5619,7 +5845,12 @@ fn convert_statement_for_program(
                 }
                 _ => {
                     if let Some(expr) = export_decl.declaration.as_expression() {
-                        expr_to_node(convert_expression_for_program(expr, offset, line_offsets))
+                        expr_to_node(convert_expression_for_program(
+                            arena,
+                            expr,
+                            offset,
+                            line_offsets,
+                        ))
                     } else {
                         JsNode::Null
                     }
@@ -5630,7 +5861,7 @@ fn convert_statement_for_program(
                 start: start as u32,
                 end: end as u32,
                 loc,
-                declaration: Box::new(declaration),
+                declaration: arena.alloc_js_node(declaration),
             })
         }
         oxc_ast::ast::Statement::ImportDeclaration(import_decl) => {
@@ -5644,7 +5875,7 @@ fn convert_statement_for_program(
                 .map(|specs| {
                     specs
                         .iter()
-                        .map(|spec| convert_import_specifier(spec, offset, line_offsets))
+                        .map(|spec| convert_import_specifier(arena, spec, offset, line_offsets))
                         .collect()
                 })
                 .unwrap_or_default();
@@ -5671,10 +5902,10 @@ fn convert_statement_for_program(
                 start: start as u32,
                 end: end as u32,
                 loc,
-                specifiers,
-                source: Box::new(source),
+                specifiers: arena.alloc_js_children(specifiers),
+                source: arena.alloc_js_node(source),
                 import_kind,
-                attributes: vec![],
+                attributes: IdRange::empty(),
             })
         }
         oxc_ast::ast::Statement::IfStatement(if_stmt) => {
@@ -5682,21 +5913,21 @@ fn convert_statement_for_program(
             let end = offset + if_stmt.span.end as usize;
             let loc = create_typed_loc(start, end, line_offsets);
 
-            let test = convert_expression_for_program(&if_stmt.test, offset, line_offsets);
+            let test = convert_expression_for_program(arena, &if_stmt.test, offset, line_offsets);
             let consequent =
-                convert_statement_for_program(&if_stmt.consequent, offset, line_offsets);
+                convert_statement_for_program(arena, &if_stmt.consequent, offset, line_offsets);
             let alternate = if_stmt
                 .alternate
                 .as_ref()
-                .and_then(|alt| convert_statement_for_program(alt, offset, line_offsets));
+                .and_then(|alt| convert_statement_for_program(arena, alt, offset, line_offsets));
 
             Some(JsNode::IfStatement {
                 start: start as u32,
                 end: end as u32,
                 loc,
-                test: Box::new(expr_to_node(test)),
-                consequent: Box::new(consequent.unwrap_or(JsNode::Null)),
-                alternate: alternate.map(Box::new),
+                test: arena.alloc_js_node(expr_to_node(test)),
+                consequent: arena.alloc_js_node(consequent.unwrap_or(JsNode::Null)),
+                alternate: alternate.map(|n| arena.alloc_js_node(n)),
             })
         }
         oxc_ast::ast::Statement::BlockStatement(block_stmt) => {
@@ -5707,14 +5938,14 @@ fn convert_statement_for_program(
             let body: Vec<JsNode> = block_stmt
                 .body
                 .iter()
-                .filter_map(|stmt| convert_statement_for_program(stmt, offset, line_offsets))
+                .filter_map(|stmt| convert_statement_for_program(arena, stmt, offset, line_offsets))
                 .collect();
 
             Some(JsNode::BlockStatement {
                 start: start as u32,
                 end: end as u32,
                 loc,
-                body,
+                body: arena.alloc_js_children(body),
             })
         }
         oxc_ast::ast::Statement::ClassDeclaration(class_decl) => {
@@ -5744,7 +5975,7 @@ fn convert_statement_for_program(
             // superClass
             if let Some(super_class) = &class_decl.super_class {
                 let super_class_value =
-                    convert_expression_for_program(super_class, offset, line_offsets);
+                    convert_expression_for_program(arena, super_class, offset, line_offsets);
                 obj.insert(
                     "superClass".to_string(),
                     super_class_value.as_json().clone(),
@@ -5754,7 +5985,8 @@ fn convert_statement_for_program(
             }
 
             // body (ClassBody)
-            let body_value = convert_class_body_for_program(&class_decl.body, offset, line_offsets);
+            let body_value =
+                convert_class_body_for_program(arena, &class_decl.body, offset, line_offsets);
             obj.insert("body".to_string(), body_value);
 
             // TypeScript: declare field
@@ -5801,7 +6033,8 @@ fn convert_statement_for_program(
             let loc = create_typed_loc(start, end, line_offsets);
 
             let argument = ret_stmt.argument.as_ref().map(|arg| {
-                Box::new(expr_to_node(convert_expression_for_program(
+                arena.alloc_js_node(expr_to_node(convert_expression_for_program(
+                    arena,
                     arg,
                     offset,
                     line_offsets,
@@ -5821,24 +6054,26 @@ fn convert_statement_for_program(
             let loc = create_typed_loc(start, end, line_offsets);
 
             let init = for_stmt.init.as_ref().map(|init| match init {
-                oxc_ast::ast::ForStatementInit::VariableDeclaration(vd) => Box::new(
-                    convert_variable_declaration_as_node(vd, offset, line_offsets),
+                oxc_ast::ast::ForStatementInit::VariableDeclaration(vd) => arena.alloc_js_node(
+                    convert_variable_declaration_as_node(arena, vd, offset, line_offsets),
                 ),
                 _ => {
                     if let Some(expr) = init.as_expression() {
-                        Box::new(expr_to_node(convert_expression_for_program(
+                        arena.alloc_js_node(expr_to_node(convert_expression_for_program(
+                            arena,
                             expr,
                             offset,
                             line_offsets,
                         )))
                     } else {
-                        Box::new(JsNode::Null)
+                        arena.alloc_js_node(JsNode::Null)
                     }
                 }
             });
 
             let test = for_stmt.test.as_ref().map(|test| {
-                Box::new(expr_to_node(convert_expression_for_program(
+                arena.alloc_js_node(expr_to_node(convert_expression_for_program(
+                    arena,
                     test,
                     offset,
                     line_offsets,
@@ -5846,14 +6081,15 @@ fn convert_statement_for_program(
             });
 
             let update = for_stmt.update.as_ref().map(|update| {
-                Box::new(expr_to_node(convert_expression_for_program(
+                arena.alloc_js_node(expr_to_node(convert_expression_for_program(
+                    arena,
                     update,
                     offset,
                     line_offsets,
                 )))
             });
 
-            let body = convert_statement_for_program(&for_stmt.body, offset, line_offsets)
+            let body = convert_statement_for_program(arena, &for_stmt.body, offset, line_offsets)
                 .unwrap_or(JsNode::Null);
 
             Some(JsNode::ForStatement {
@@ -5863,7 +6099,7 @@ fn convert_statement_for_program(
                 init,
                 test,
                 update,
-                body: Box::new(body),
+                body: arena.alloc_js_node(body),
             })
         }
         oxc_ast::ast::Statement::ForOfStatement(for_of_stmt) => {
@@ -5873,28 +6109,30 @@ fn convert_statement_for_program(
 
             let left = match &for_of_stmt.left {
                 oxc_ast::ast::ForStatementLeft::VariableDeclaration(vd) => {
-                    convert_variable_declaration_as_node(vd, offset, line_offsets)
+                    convert_variable_declaration_as_node(arena, vd, offset, line_offsets)
                 }
                 _ => JsNode::Null,
             };
 
             let right = expr_to_node(convert_expression_for_program(
+                arena,
                 &for_of_stmt.right,
                 offset,
                 line_offsets,
             ));
 
-            let body = convert_statement_for_program(&for_of_stmt.body, offset, line_offsets)
-                .unwrap_or(JsNode::Null);
+            let body =
+                convert_statement_for_program(arena, &for_of_stmt.body, offset, line_offsets)
+                    .unwrap_or(JsNode::Null);
 
             Some(JsNode::ForOfStatement {
                 start: start as u32,
                 end: end as u32,
                 loc,
                 r#await: for_of_stmt.r#await,
-                left: Box::new(left),
-                right: Box::new(right),
-                body: Box::new(body),
+                left: arena.alloc_js_node(left),
+                right: arena.alloc_js_node(right),
+                body: arena.alloc_js_node(body),
             })
         }
         oxc_ast::ast::Statement::ForInStatement(for_in_stmt) => {
@@ -5904,27 +6142,29 @@ fn convert_statement_for_program(
 
             let left = match &for_in_stmt.left {
                 oxc_ast::ast::ForStatementLeft::VariableDeclaration(vd) => {
-                    convert_variable_declaration_as_node(vd, offset, line_offsets)
+                    convert_variable_declaration_as_node(arena, vd, offset, line_offsets)
                 }
                 _ => JsNode::Null,
             };
 
             let right = expr_to_node(convert_expression_for_program(
+                arena,
                 &for_in_stmt.right,
                 offset,
                 line_offsets,
             ));
 
-            let body = convert_statement_for_program(&for_in_stmt.body, offset, line_offsets)
-                .unwrap_or(JsNode::Null);
+            let body =
+                convert_statement_for_program(arena, &for_in_stmt.body, offset, line_offsets)
+                    .unwrap_or(JsNode::Null);
 
             Some(JsNode::ForInStatement {
                 start: start as u32,
                 end: end as u32,
                 loc,
-                left: Box::new(left),
-                right: Box::new(right),
-                body: Box::new(body),
+                left: arena.alloc_js_node(left),
+                right: arena.alloc_js_node(right),
+                body: arena.alloc_js_node(body),
             })
         }
         oxc_ast::ast::Statement::WhileStatement(while_stmt) => {
@@ -5933,20 +6173,21 @@ fn convert_statement_for_program(
             let loc = create_typed_loc(start, end, line_offsets);
 
             let test = expr_to_node(convert_expression_for_program(
+                arena,
                 &while_stmt.test,
                 offset,
                 line_offsets,
             ));
 
-            let body = convert_statement_for_program(&while_stmt.body, offset, line_offsets)
+            let body = convert_statement_for_program(arena, &while_stmt.body, offset, line_offsets)
                 .unwrap_or(JsNode::Null);
 
             Some(JsNode::WhileStatement {
                 start: start as u32,
                 end: end as u32,
                 loc,
-                test: Box::new(test),
-                body: Box::new(body),
+                test: arena.alloc_js_node(test),
+                body: arena.alloc_js_node(body),
             })
         }
         oxc_ast::ast::Statement::TryStatement(try_stmt) => {
@@ -5962,13 +6203,13 @@ fn convert_statement_for_program(
                 .block
                 .body
                 .iter()
-                .filter_map(|stmt| convert_statement_for_program(stmt, offset, line_offsets))
+                .filter_map(|stmt| convert_statement_for_program(arena, stmt, offset, line_offsets))
                 .collect();
             let block = JsNode::BlockStatement {
                 start: block_start as u32,
                 end: block_end as u32,
                 loc: block_loc,
-                body: block_body,
+                body: arena.alloc_js_children(block_body),
             };
 
             // handler
@@ -5978,7 +6219,8 @@ fn convert_statement_for_program(
                 let handler_loc = create_typed_loc(handler_start, handler_end, line_offsets);
 
                 let param = handler.param.as_ref().map(|param| {
-                    Box::new(convert_binding_pattern(
+                    arena.alloc_js_node(convert_binding_pattern(
+                        arena,
                         &param.pattern,
                         offset,
                         line_offsets,
@@ -5992,21 +6234,23 @@ fn convert_statement_for_program(
                     .body
                     .body
                     .iter()
-                    .filter_map(|stmt| convert_statement_for_program(stmt, offset, line_offsets))
+                    .filter_map(|stmt| {
+                        convert_statement_for_program(arena, stmt, offset, line_offsets)
+                    })
                     .collect();
                 let body = JsNode::BlockStatement {
                     start: body_start as u32,
                     end: body_end as u32,
                     loc: body_loc,
-                    body: body_stmts,
+                    body: arena.alloc_js_children(body_stmts),
                 };
 
-                Box::new(JsNode::CatchClause {
+                arena.alloc_js_node(JsNode::CatchClause {
                     start: handler_start as u32,
                     end: handler_end as u32,
                     loc: handler_loc,
                     param,
-                    body: Box::new(body),
+                    body: arena.alloc_js_node(body),
                 })
             });
 
@@ -6018,13 +6262,15 @@ fn convert_statement_for_program(
                 let body_stmts: Vec<JsNode> = finalizer
                     .body
                     .iter()
-                    .filter_map(|stmt| convert_statement_for_program(stmt, offset, line_offsets))
+                    .filter_map(|stmt| {
+                        convert_statement_for_program(arena, stmt, offset, line_offsets)
+                    })
                     .collect();
-                Box::new(JsNode::BlockStatement {
+                arena.alloc_js_node(JsNode::BlockStatement {
                     start: finalizer_start as u32,
                     end: finalizer_end as u32,
                     loc: finalizer_loc,
-                    body: body_stmts,
+                    body: arena.alloc_js_children(body_stmts),
                 })
             });
 
@@ -6032,7 +6278,7 @@ fn convert_statement_for_program(
                 start: start as u32,
                 end: end as u32,
                 loc,
-                block: Box::new(block),
+                block: arena.alloc_js_node(block),
                 handler,
                 finalizer,
             })
@@ -6043,6 +6289,7 @@ fn convert_statement_for_program(
             let loc = create_typed_loc(start, end, line_offsets);
 
             let argument = expr_to_node(convert_expression_for_program(
+                arena,
                 &throw_stmt.argument,
                 offset,
                 line_offsets,
@@ -6052,7 +6299,7 @@ fn convert_statement_for_program(
                 start: start as u32,
                 end: end as u32,
                 loc,
-                argument: Box::new(argument),
+                argument: arena.alloc_js_node(argument),
             })
         }
         oxc_ast::ast::Statement::BreakStatement(break_stmt) => {
@@ -6063,7 +6310,7 @@ fn convert_statement_for_program(
             let label = break_stmt.label.as_ref().map(|label| {
                 let label_start = offset + label.span.start as usize;
                 let label_end = offset + label.span.end as usize;
-                Box::new(expr_to_node(create_identifier(
+                arena.alloc_js_node(expr_to_node(create_identifier(
                     &label.name,
                     label_start,
                     label_end,
@@ -6086,7 +6333,7 @@ fn convert_statement_for_program(
             let label = continue_stmt.label.as_ref().map(|label| {
                 let label_start = offset + label.span.start as usize;
                 let label_end = offset + label.span.end as usize;
-                Box::new(expr_to_node(create_identifier(
+                arena.alloc_js_node(expr_to_node(create_identifier(
                     &label.name,
                     label_start,
                     label_end,
@@ -6107,6 +6354,7 @@ fn convert_statement_for_program(
             let loc = create_typed_loc(start, end, line_offsets);
 
             let discriminant = expr_to_node(convert_expression(
+                arena,
                 &switch_stmt.discriminant,
                 offset,
                 line_offsets,
@@ -6121,14 +6369,19 @@ fn convert_statement_for_program(
                     let case_loc = create_typed_loc(case_start, case_end, line_offsets);
 
                     let test = case.test.as_ref().map(|test| {
-                        Box::new(expr_to_node(convert_expression(test, offset, line_offsets)))
+                        arena.alloc_js_node(expr_to_node(convert_expression(
+                            arena,
+                            test,
+                            offset,
+                            line_offsets,
+                        )))
                     });
 
                     let consequent: Vec<JsNode> = case
                         .consequent
                         .iter()
                         .filter_map(|stmt| {
-                            convert_statement_for_program(stmt, offset, line_offsets)
+                            convert_statement_for_program(arena, stmt, offset, line_offsets)
                         })
                         .collect();
 
@@ -6137,7 +6390,7 @@ fn convert_statement_for_program(
                         end: case_end as u32,
                         loc: case_loc,
                         test,
-                        consequent,
+                        consequent: arena.alloc_js_children(consequent),
                     }
                 })
                 .collect();
@@ -6146,8 +6399,8 @@ fn convert_statement_for_program(
                 start: start as u32,
                 end: end as u32,
                 loc,
-                discriminant: Box::new(discriminant),
-                cases,
+                discriminant: arena.alloc_js_node(discriminant),
+                cases: arena.alloc_js_children(cases),
             })
         }
         oxc_ast::ast::Statement::DoWhileStatement(do_while_stmt) => {
@@ -6156,20 +6409,22 @@ fn convert_statement_for_program(
             let loc = create_typed_loc(start, end, line_offsets);
 
             let test = expr_to_node(convert_expression(
+                arena,
                 &do_while_stmt.test,
                 offset,
                 line_offsets,
             ));
 
-            let body = convert_statement_for_program(&do_while_stmt.body, offset, line_offsets)
-                .unwrap_or(JsNode::Null);
+            let body =
+                convert_statement_for_program(arena, &do_while_stmt.body, offset, line_offsets)
+                    .unwrap_or(JsNode::Null);
 
             Some(JsNode::DoWhileStatement {
                 start: start as u32,
                 end: end as u32,
                 loc,
-                test: Box::new(test),
-                body: Box::new(body),
+                test: arena.alloc_js_node(test),
+                body: arena.alloc_js_node(body),
             })
         }
         oxc_ast::ast::Statement::LabeledStatement(labeled_stmt) => {
@@ -6186,15 +6441,16 @@ fn convert_statement_for_program(
                 line_offsets,
             ));
 
-            let body = convert_statement_for_program(&labeled_stmt.body, offset, line_offsets)
-                .unwrap_or(JsNode::Null);
+            let body =
+                convert_statement_for_program(arena, &labeled_stmt.body, offset, line_offsets)
+                    .unwrap_or(JsNode::Null);
 
             Some(JsNode::LabeledStatement {
                 start: start as u32,
                 end: end as u32,
                 loc,
-                label: Box::new(label),
-                body: Box::new(body),
+                label: arena.alloc_js_node(label),
+                body: arena.alloc_js_node(body),
             })
         }
         oxc_ast::ast::Statement::EmptyStatement(empty_stmt) => {
@@ -6245,16 +6501,16 @@ fn convert_statement_for_program(
                             .body
                             .iter()
                             .filter_map(|stmt| {
-                                convert_statement_for_program(stmt, offset, line_offsets)
+                                convert_statement_for_program(arena, stmt, offset, line_offsets)
                             })
                             .collect();
                         // Structure: node.body = { body: [...statements...] }
                         // TSModuleDeclaration body is a wrapper with inner body
-                        Some(Box::new(JsNode::BlockStatement {
+                        Some(arena.alloc_js_node(JsNode::BlockStatement {
                             start: start as u32,
                             end: end as u32,
                             loc: loc.clone(),
-                            body: block_body,
+                            body: arena.alloc_js_children(block_body),
                         }))
                     }
                     oxc_ast::ast::TSModuleDeclarationBody::TSModuleDeclaration(_inner) => {
@@ -6279,6 +6535,7 @@ fn convert_statement_for_program(
 
 /// Convert a Declaration to JSON value (for program context).
 fn convert_declaration_for_program(
+    arena: &ParseArena,
     decl: &oxc_ast::ast::Declaration,
     offset: usize,
     line_offsets: &[usize],
@@ -6301,7 +6558,9 @@ fn convert_declaration_for_program(
             let declarations: Vec<Value> = var_decl
                 .declarations
                 .iter()
-                .filter_map(|d| convert_variable_declarator_for_program(d, offset, line_offsets))
+                .filter_map(|d| {
+                    convert_variable_declarator_for_program(arena, d, offset, line_offsets)
+                })
                 .map(|n| n.to_value())
                 .collect();
             obj.insert("declarations".to_string(), Value::Array(declarations));
@@ -6373,7 +6632,7 @@ fn convert_declaration_for_program(
                 .items
                 .iter()
                 .map(|param| {
-                    convert_formal_parameter(param, offset, line_offsets)
+                    convert_formal_parameter(arena, param, offset, line_offsets)
                         .as_json()
                         .clone()
                 })
@@ -6382,7 +6641,8 @@ fn convert_declaration_for_program(
 
             // Convert body
             if let Some(body) = &func_decl.body {
-                let body_value = convert_function_body_for_program(body, offset, line_offsets);
+                let body_value =
+                    convert_function_body_for_program(arena, body, offset, line_offsets);
                 obj.insert("body".to_string(), body_value);
             } else {
                 obj.insert("body".to_string(), Value::Null);
@@ -6416,7 +6676,7 @@ fn convert_declaration_for_program(
             // superClass
             if let Some(super_class) = &class_decl.super_class {
                 let super_class_value =
-                    convert_expression_for_program(super_class, offset, line_offsets);
+                    convert_expression_for_program(arena, super_class, offset, line_offsets);
                 obj.insert(
                     "superClass".to_string(),
                     super_class_value.as_json().clone(),
@@ -6426,7 +6686,8 @@ fn convert_declaration_for_program(
             }
 
             // body (ClassBody)
-            let body_value = convert_class_body_for_program(&class_decl.body, offset, line_offsets);
+            let body_value =
+                convert_class_body_for_program(arena, &class_decl.body, offset, line_offsets);
             obj.insert("body".to_string(), body_value);
 
             Value::Object(obj)
@@ -6470,7 +6731,7 @@ fn convert_declaration_for_program(
                             .body
                             .iter()
                             .filter_map(|stmt| {
-                                convert_statement_for_program(stmt, offset, line_offsets)
+                                convert_statement_for_program(arena, stmt, offset, line_offsets)
                             })
                             .map(|n| n.to_value())
                             .collect();
@@ -6490,6 +6751,7 @@ fn convert_declaration_for_program(
 
 /// Convert an import specifier to JSON value.
 fn convert_import_specifier(
+    arena: &ParseArena,
     spec: &oxc_ast::ast::ImportDeclarationSpecifier,
     offset: usize,
     line_offsets: &[usize],
@@ -6529,8 +6791,8 @@ fn convert_import_specifier(
                 start: start as u32,
                 end: end as u32,
                 loc,
-                imported: Box::new(imported),
-                local: Box::new(local),
+                imported: arena.alloc_js_node(imported),
+                local: arena.alloc_js_node(local),
                 import_kind,
             }
         }
@@ -6552,7 +6814,7 @@ fn convert_import_specifier(
                 start: start as u32,
                 end: end as u32,
                 loc,
-                local: Box::new(local),
+                local: arena.alloc_js_node(local),
             }
         }
         oxc_ast::ast::ImportDeclarationSpecifier::ImportNamespaceSpecifier(ns_spec) => {
@@ -6573,7 +6835,7 @@ fn convert_import_specifier(
                 start: start as u32,
                 end: end as u32,
                 loc,
-                local: Box::new(local),
+                local: arena.alloc_js_node(local),
             }
         }
     }
@@ -6581,6 +6843,7 @@ fn convert_import_specifier(
 
 /// Convert a VariableDeclaration to JsNode directly (for ForStatement/ForOfStatement/ForInStatement).
 fn convert_variable_declaration_as_node(
+    arena: &ParseArena,
     vd: &oxc_ast::ast::VariableDeclaration,
     offset: usize,
     line_offsets: &[usize],
@@ -6592,7 +6855,7 @@ fn convert_variable_declaration_as_node(
     let declarations: Vec<JsNode> = vd
         .declarations
         .iter()
-        .filter_map(|d| convert_variable_declarator_for_program(d, offset, line_offsets))
+        .filter_map(|d| convert_variable_declarator_for_program(arena, d, offset, line_offsets))
         .collect();
 
     let kind = match vd.kind {
@@ -6607,7 +6870,7 @@ fn convert_variable_declaration_as_node(
         start: var_start as u32,
         end: var_end as u32,
         loc,
-        declarations,
+        declarations: arena.alloc_js_children(declarations),
         kind: CompactString::from(kind),
         declare: vd.declare,
     }
@@ -6615,6 +6878,7 @@ fn convert_variable_declaration_as_node(
 
 /// Convert a variable declarator to JsNode (for program context, no -1 offset adjustment).
 fn convert_variable_declarator_for_program(
+    arena: &ParseArena,
     decl: &oxc_ast::ast::VariableDeclarator,
     offset: usize,
     line_offsets: &[usize],
@@ -6624,7 +6888,7 @@ fn convert_variable_declarator_for_program(
     let loc = create_typed_loc(start, end, line_offsets);
 
     // Convert the id (pattern) - convert to Value for potential mutation
-    let mut id_value = convert_binding_pattern(&decl.id, offset, line_offsets).to_value();
+    let mut id_value = convert_binding_pattern(arena, &decl.id, offset, line_offsets).to_value();
 
     // Add TypeScript type annotation if present on the declarator
     if let Some(type_annotation) = &decl.type_annotation
@@ -6663,12 +6927,12 @@ fn convert_variable_declarator_for_program(
     }
 
     // Use JsNode::Raw for the id to preserve all fields (including typeAnnotation)
-    let id_node = Box::new(JsNode::Raw(id_value));
+    let id_node = arena.alloc_js_node(JsNode::Raw(id_value));
 
     // Convert init if present
     let init_node = decl.init.as_ref().map(|init| {
-        let init_expr = convert_expression_for_program(init, offset, line_offsets);
-        Box::new(expr_to_node(init_expr))
+        let init_expr = convert_expression_for_program(arena, init, offset, line_offsets);
+        arena.alloc_js_node(expr_to_node(init_expr))
     });
 
     Some(JsNode::VariableDeclarator {
@@ -6682,6 +6946,7 @@ fn convert_variable_declarator_for_program(
 
 /// Convert an expression for program context (no -1 offset adjustment).
 fn convert_expression_for_program(
+    arena: &ParseArena,
     expr: &OxcExpression,
     offset: usize,
     line_offsets: &[usize],
@@ -6725,7 +6990,7 @@ fn convert_expression_for_program(
         OxcExpression::CallExpression(call) => {
             let start = offset + call.span.start as usize;
             let end = offset + call.span.end as usize;
-            let callee = convert_expression_for_program(&call.callee, offset, line_offsets);
+            let callee = convert_expression_for_program(arena, &call.callee, offset, line_offsets);
 
             let args: Vec<JsNode> = call
                 .arguments
@@ -6738,16 +7003,24 @@ fn convert_expression_for_program(
                             start: spread_start as u32,
                             end: spread_end as u32,
                             loc: create_typed_loc(spread_start, spread_end, line_offsets),
-                            argument: Box::new(expr_to_node(convert_expression_for_program(
-                                &spread.argument,
-                                offset,
-                                line_offsets,
-                            ))),
+                            argument: arena.alloc_js_node(expr_to_node(
+                                convert_expression_for_program(
+                                    arena,
+                                    &spread.argument,
+                                    offset,
+                                    line_offsets,
+                                ),
+                            )),
                         }
                     }
                     _ => {
                         let expr = arg.to_expression();
-                        expr_to_node(convert_expression_for_program(expr, offset, line_offsets))
+                        expr_to_node(convert_expression_for_program(
+                            arena,
+                            expr,
+                            offset,
+                            line_offsets,
+                        ))
                     }
                 })
                 .collect();
@@ -6756,8 +7029,8 @@ fn convert_expression_for_program(
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                callee: Box::new(expr_to_node(callee)),
-                arguments: args,
+                callee: arena.alloc_js_node(expr_to_node(callee)),
+                arguments: arena.alloc_js_children(args),
                 optional: false,
             })
         }
@@ -6776,17 +7049,21 @@ fn convert_expression_for_program(
                             start: spread_start as u32,
                             end: spread_end as u32,
                             loc: create_typed_loc(spread_start, spread_end, line_offsets),
-                            argument: Box::new(expr_to_node(convert_expression_for_program(
-                                &spread.argument,
-                                offset,
-                                line_offsets,
-                            ))),
+                            argument: arena.alloc_js_node(expr_to_node(
+                                convert_expression_for_program(
+                                    arena,
+                                    &spread.argument,
+                                    offset,
+                                    line_offsets,
+                                ),
+                            )),
                         })
                     }
                     oxc_ast::ast::ArrayExpressionElement::Elision(_elision) => None,
                     _ => {
                         let expr = elem.to_expression();
                         Some(expr_to_node(convert_expression_for_program(
+                            arena,
                             expr,
                             offset,
                             line_offsets,
@@ -6813,8 +7090,9 @@ fn convert_expression_for_program(
                     oxc_ast::ast::ObjectPropertyKind::ObjectProperty(p) => {
                         let prop_start = offset + p.span.start as usize;
                         let prop_end = offset + p.span.end as usize;
-                        let key = convert_property_key(&p.key, offset, line_offsets);
-                        let value = convert_expression_for_program(&p.value, offset, line_offsets);
+                        let key = convert_property_key(arena, &p.key, offset, line_offsets);
+                        let value =
+                            convert_expression_for_program(arena, &p.value, offset, line_offsets);
                         let kind = match p.kind {
                             oxc_ast::ast::PropertyKind::Init => "init",
                             oxc_ast::ast::PropertyKind::Get => "get",
@@ -6827,8 +7105,8 @@ fn convert_expression_for_program(
                             method: p.method,
                             shorthand: p.shorthand,
                             computed: p.computed,
-                            key: Box::new(key),
-                            value: Box::new(expr_to_node(value)),
+                            key: arena.alloc_js_node(key),
+                            value: arena.alloc_js_node(expr_to_node(value)),
                             kind: CompactString::from(kind),
                         }
                     }
@@ -6839,11 +7117,14 @@ fn convert_expression_for_program(
                             start: spread_start as u32,
                             end: spread_end as u32,
                             loc: create_typed_loc(spread_start, spread_end, line_offsets),
-                            argument: Box::new(expr_to_node(convert_expression_for_program(
-                                &spread.argument,
-                                offset,
-                                line_offsets,
-                            ))),
+                            argument: arena.alloc_js_node(expr_to_node(
+                                convert_expression_for_program(
+                                    arena,
+                                    &spread.argument,
+                                    offset,
+                                    line_offsets,
+                                ),
+                            )),
                         }
                     }
                 })
@@ -6853,7 +7134,7 @@ fn convert_expression_for_program(
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                properties,
+                properties: arena.alloc_js_children(properties),
             })
         }
         OxcExpression::ArrowFunctionExpression(arrow) => {
@@ -6864,10 +7145,11 @@ fn convert_expression_for_program(
                 .params
                 .items
                 .iter()
-                .map(|param| convert_binding_pattern(&param.pattern, offset, line_offsets))
+                .map(|param| convert_binding_pattern(arena, &param.pattern, offset, line_offsets))
                 .collect();
 
-            let body_value = convert_function_body_for_program(&arrow.body, offset, line_offsets);
+            let body_value =
+                convert_function_body_for_program(arena, &arrow.body, offset, line_offsets);
 
             Expression::from_node(JsNode::ArrowFunctionExpression {
                 start: start as u32,
@@ -6877,17 +7159,18 @@ fn convert_expression_for_program(
                 expression: arrow.expression,
                 generator: false,
                 r#async: arrow.r#async,
-                params,
-                body: Box::new(JsNode::Raw(body_value)),
+                params: arena.alloc_js_children(params),
+                body: arena.alloc_js_node(JsNode::Raw(body_value)),
             })
         }
         OxcExpression::FunctionExpression(func) => Expression::from_node(JsNode::Raw(
-            convert_function_expression_for_program(func, offset, line_offsets),
+            convert_function_expression_for_program(arena, func, offset, line_offsets),
         )),
         OxcExpression::StaticMemberExpression(member) => {
             let start = offset + member.span.start as usize;
             let end = offset + member.span.end as usize;
-            let object = convert_expression_for_program(&member.object, offset, line_offsets);
+            let object =
+                convert_expression_for_program(arena, &member.object, offset, line_offsets);
             let property_start = offset + member.property.span.start as usize;
             let property_end = offset + member.property.span.end as usize;
             let property = create_identifier(
@@ -6901,8 +7184,8 @@ fn convert_expression_for_program(
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                object: Box::new(expr_to_node(object)),
-                property: Box::new(expr_to_node(property)),
+                object: arena.alloc_js_node(expr_to_node(object)),
+                property: arena.alloc_js_node(expr_to_node(property)),
                 computed: false,
                 optional: member.optional,
             })
@@ -6910,15 +7193,17 @@ fn convert_expression_for_program(
         OxcExpression::ComputedMemberExpression(member) => {
             let start = offset + member.span.start as usize;
             let end = offset + member.span.end as usize;
-            let object = convert_expression_for_program(&member.object, offset, line_offsets);
-            let property = convert_expression_for_program(&member.expression, offset, line_offsets);
+            let object =
+                convert_expression_for_program(arena, &member.object, offset, line_offsets);
+            let property =
+                convert_expression_for_program(arena, &member.expression, offset, line_offsets);
 
             Expression::from_node(JsNode::MemberExpression {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                object: Box::new(expr_to_node(object)),
-                property: Box::new(expr_to_node(property)),
+                object: arena.alloc_js_node(expr_to_node(object)),
+                property: arena.alloc_js_node(expr_to_node(property)),
                 computed: true,
                 optional: member.optional,
             })
@@ -6926,21 +7211,23 @@ fn convert_expression_for_program(
         OxcExpression::ImportExpression(import_expr) => {
             let start = offset + import_expr.span.start as usize;
             let end = offset + import_expr.span.end as usize;
-            let source = convert_expression_for_program(&import_expr.source, offset, line_offsets);
+            let source =
+                convert_expression_for_program(arena, &import_expr.source, offset, line_offsets);
 
             Expression::from_node(JsNode::ImportExpression {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                source: Box::new(expr_to_node(source)),
+                source: arena.alloc_js_node(expr_to_node(source)),
             })
         }
         OxcExpression::AssignmentExpression(assign) => {
             let start = offset + assign.span.start as usize;
             let end = offset + assign.span.end as usize;
 
-            let left = convert_assignment_target_for_program(&assign.left, offset, line_offsets);
-            let right = convert_expression_for_program(&assign.right, offset, line_offsets);
+            let left =
+                convert_assignment_target_for_program(arena, &assign.left, offset, line_offsets);
+            let right = convert_expression_for_program(arena, &assign.right, offset, line_offsets);
             let operator = assignment_operator_to_str(&assign.operator);
 
             Expression::from_node(JsNode::AssignmentExpression {
@@ -6948,27 +7235,29 @@ fn convert_expression_for_program(
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 operator: CompactString::from(operator),
-                left: Box::new(left),
-                right: Box::new(expr_to_node(right)),
+                left: arena.alloc_js_node(left),
+                right: arena.alloc_js_node(expr_to_node(right)),
             })
         }
         OxcExpression::UnaryExpression(unary) => {
             let start = offset + unary.span.start as usize;
             let end = offset + unary.span.end as usize;
-            let argument = convert_expression_for_program(&unary.argument, offset, line_offsets);
+            let argument =
+                convert_expression_for_program(arena, &unary.argument, offset, line_offsets);
             Expression::from_node(JsNode::UnaryExpression {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 operator: CompactString::from(unary.operator.as_str()),
                 prefix: true,
-                argument: Box::new(expr_to_node(argument)),
+                argument: arena.alloc_js_node(expr_to_node(argument)),
             })
         }
         OxcExpression::NewExpression(new_expr) => {
             let start = offset + new_expr.span.start as usize;
             let end = offset + new_expr.span.end as usize;
-            let callee = convert_expression_for_program(&new_expr.callee, offset, line_offsets);
+            let callee =
+                convert_expression_for_program(arena, &new_expr.callee, offset, line_offsets);
             let args: Vec<JsNode> = new_expr
                 .arguments
                 .iter()
@@ -6980,16 +7269,24 @@ fn convert_expression_for_program(
                             start: spread_start as u32,
                             end: spread_end as u32,
                             loc: create_typed_loc(spread_start, spread_end, line_offsets),
-                            argument: Box::new(expr_to_node(convert_expression_for_program(
-                                &spread.argument,
-                                offset,
-                                line_offsets,
-                            ))),
+                            argument: arena.alloc_js_node(expr_to_node(
+                                convert_expression_for_program(
+                                    arena,
+                                    &spread.argument,
+                                    offset,
+                                    line_offsets,
+                                ),
+                            )),
                         }
                     }
                     _ => {
                         let expr = arg.to_expression();
-                        expr_to_node(convert_expression_for_program(expr, offset, line_offsets))
+                        expr_to_node(convert_expression_for_program(
+                            arena,
+                            expr,
+                            offset,
+                            line_offsets,
+                        ))
                     }
                 })
                 .collect();
@@ -6998,8 +7295,8 @@ fn convert_expression_for_program(
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                callee: Box::new(expr_to_node(callee)),
-                arguments: args,
+                callee: arena.alloc_js_node(expr_to_node(callee)),
+                arguments: arena.alloc_js_children(args),
             })
         }
         OxcExpression::ClassExpression(class_expr) => {
@@ -7009,7 +7306,7 @@ fn convert_expression_for_program(
             let id = class_expr.id.as_ref().map(|id| {
                 let id_start = offset + id.span.start as usize;
                 let id_end = offset + id.span.end as usize;
-                Box::new(expr_to_node(create_identifier(
+                arena.alloc_js_node(expr_to_node(create_identifier(
                     &id.name,
                     id_start,
                     id_end,
@@ -7018,14 +7315,16 @@ fn convert_expression_for_program(
             });
 
             let super_class = class_expr.super_class.as_ref().map(|sc| {
-                Box::new(expr_to_node(convert_expression_for_program(
+                arena.alloc_js_node(expr_to_node(convert_expression_for_program(
+                    arena,
                     sc,
                     offset,
                     line_offsets,
                 )))
             });
 
-            let body = convert_class_body_for_program(&class_expr.body, offset, line_offsets);
+            let body =
+                convert_class_body_for_program(arena, &class_expr.body, offset, line_offsets);
 
             Expression::from_node(JsNode::ClassExpression {
                 start: start as u32,
@@ -7033,7 +7332,7 @@ fn convert_expression_for_program(
                 loc: create_typed_loc(start, end, line_offsets),
                 id,
                 super_class,
-                body: Box::new(JsNode::Raw(body)),
+                body: arena.alloc_js_node(JsNode::Raw(body)),
             })
         }
         OxcExpression::Super(super_expr) => {
@@ -7085,7 +7384,12 @@ fn convert_expression_for_program(
                 .expressions
                 .iter()
                 .map(|expr| {
-                    expr_to_node(convert_expression_for_program(expr, offset, line_offsets))
+                    expr_to_node(convert_expression_for_program(
+                        arena,
+                        expr,
+                        offset,
+                        line_offsets,
+                    ))
                 })
                 .collect();
 
@@ -7093,38 +7397,38 @@ fn convert_expression_for_program(
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                quasis,
-                expressions,
+                quasis: arena.alloc_js_children(quasis),
+                expressions: arena.alloc_js_children(expressions),
             })
         }
         OxcExpression::BinaryExpression(bin) => {
             let start = offset + bin.span.start as usize;
             let end = offset + bin.span.end as usize;
-            let left = convert_expression_for_program(&bin.left, offset, line_offsets);
-            let right = convert_expression_for_program(&bin.right, offset, line_offsets);
+            let left = convert_expression_for_program(arena, &bin.left, offset, line_offsets);
+            let right = convert_expression_for_program(arena, &bin.right, offset, line_offsets);
 
             Expression::from_node(JsNode::BinaryExpression {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                left: Box::new(expr_to_node(left)),
+                left: arena.alloc_js_node(expr_to_node(left)),
                 operator: CompactString::from(binary_operator_to_str(&bin.operator)),
-                right: Box::new(expr_to_node(right)),
+                right: arena.alloc_js_node(expr_to_node(right)),
             })
         }
         OxcExpression::LogicalExpression(logical) => {
             let start = offset + logical.span.start as usize;
             let end = offset + logical.span.end as usize;
-            let left = convert_expression_for_program(&logical.left, offset, line_offsets);
-            let right = convert_expression_for_program(&logical.right, offset, line_offsets);
+            let left = convert_expression_for_program(arena, &logical.left, offset, line_offsets);
+            let right = convert_expression_for_program(arena, &logical.right, offset, line_offsets);
 
             Expression::from_node(JsNode::LogicalExpression {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                left: Box::new(expr_to_node(left)),
+                left: arena.alloc_js_node(expr_to_node(left)),
                 operator: CompactString::from(logical_operator_to_str(&logical.operator)),
-                right: Box::new(expr_to_node(right)),
+                right: arena.alloc_js_node(expr_to_node(right)),
             })
         }
         OxcExpression::UpdateExpression(update) => {
@@ -7135,6 +7439,7 @@ fn convert_expression_for_program(
                 oxc_ast::ast::UpdateOperator::Decrement => "--",
             };
             let argument = convert_simple_assignment_target_for_program(
+                arena,
                 &update.argument,
                 offset,
                 line_offsets,
@@ -7146,35 +7451,37 @@ fn convert_expression_for_program(
                 loc: create_typed_loc(start, end, line_offsets),
                 operator: CompactString::from(operator),
                 prefix: update.prefix,
-                argument: Box::new(argument),
+                argument: arena.alloc_js_node(argument),
             })
         }
         OxcExpression::AwaitExpression(await_expr) => {
             let start = offset + await_expr.span.start as usize;
             let end = offset + await_expr.span.end as usize;
             let argument =
-                convert_expression_for_program(&await_expr.argument, offset, line_offsets);
+                convert_expression_for_program(arena, &await_expr.argument, offset, line_offsets);
             Expression::from_node(JsNode::AwaitExpression {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                argument: Box::new(expr_to_node(argument)),
+                argument: arena.alloc_js_node(expr_to_node(argument)),
             })
         }
         OxcExpression::ConditionalExpression(cond) => {
             let start = offset + cond.span.start as usize;
             let end = offset + cond.span.end as usize;
-            let test = convert_expression_for_program(&cond.test, offset, line_offsets);
-            let consequent = convert_expression_for_program(&cond.consequent, offset, line_offsets);
-            let alternate = convert_expression_for_program(&cond.alternate, offset, line_offsets);
+            let test = convert_expression_for_program(arena, &cond.test, offset, line_offsets);
+            let consequent =
+                convert_expression_for_program(arena, &cond.consequent, offset, line_offsets);
+            let alternate =
+                convert_expression_for_program(arena, &cond.alternate, offset, line_offsets);
 
             Expression::from_node(JsNode::ConditionalExpression {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                test: Box::new(expr_to_node(test)),
-                consequent: Box::new(expr_to_node(consequent)),
-                alternate: Box::new(expr_to_node(alternate)),
+                test: arena.alloc_js_node(expr_to_node(test)),
+                consequent: arena.alloc_js_node(expr_to_node(consequent)),
+                alternate: arena.alloc_js_node(expr_to_node(alternate)),
             })
         }
         OxcExpression::SequenceExpression(seq) => {
@@ -7185,7 +7492,12 @@ fn convert_expression_for_program(
                 .expressions
                 .iter()
                 .map(|expr| {
-                    expr_to_node(convert_expression_for_program(expr, offset, line_offsets))
+                    expr_to_node(convert_expression_for_program(
+                        arena,
+                        expr,
+                        offset,
+                        line_offsets,
+                    ))
                 })
                 .collect();
 
@@ -7193,7 +7505,7 @@ fn convert_expression_for_program(
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                expressions,
+                expressions: arena.alloc_js_children(expressions),
             })
         }
         OxcExpression::YieldExpression(yield_expr) => {
@@ -7205,7 +7517,8 @@ fn convert_expression_for_program(
                 loc: create_typed_loc(start, end, line_offsets),
                 delegate: yield_expr.delegate,
                 argument: yield_expr.argument.as_ref().map(|arg| {
-                    Box::new(expr_to_node(convert_expression_for_program(
+                    arena.alloc_js_node(expr_to_node(convert_expression_for_program(
+                        arena,
                         arg,
                         offset,
                         line_offsets,
@@ -7220,7 +7533,8 @@ fn convert_expression_for_program(
                 oxc_ast::ast::ChainElement::CallExpression(call) => {
                     let inner_start = offset + call.span.start as usize;
                     let inner_end = offset + call.span.end as usize;
-                    let callee = convert_expression_for_program(&call.callee, offset, line_offsets);
+                    let callee =
+                        convert_expression_for_program(arena, &call.callee, offset, line_offsets);
                     let args: Vec<JsNode> = call
                         .arguments
                         .iter()
@@ -7232,8 +7546,9 @@ fn convert_expression_for_program(
                                     start: spread_start as u32,
                                     end: spread_end as u32,
                                     loc: create_typed_loc(spread_start, spread_end, line_offsets),
-                                    argument: Box::new(expr_to_node(
+                                    argument: arena.alloc_js_node(expr_to_node(
                                         convert_expression_for_program(
+                                            arena,
                                             &spread.argument,
                                             offset,
                                             line_offsets,
@@ -7244,6 +7559,7 @@ fn convert_expression_for_program(
                             _ => {
                                 let expr = arg.to_expression();
                                 expr_to_node(convert_expression_for_program(
+                                    arena,
                                     expr,
                                     offset,
                                     line_offsets,
@@ -7255,19 +7571,24 @@ fn convert_expression_for_program(
                         start: inner_start as u32,
                         end: inner_end as u32,
                         loc: create_typed_loc(inner_start, inner_end, line_offsets),
-                        callee: Box::new(expr_to_node(callee)),
-                        arguments: args,
+                        callee: arena.alloc_js_node(expr_to_node(callee)),
+                        arguments: arena.alloc_js_children(args),
                         optional: call.optional,
                     }
                 }
-                oxc_ast::ast::ChainElement::TSNonNullExpression(ts_non_null) => expr_to_node(
-                    convert_expression_for_program(&ts_non_null.expression, offset, line_offsets),
-                ),
+                oxc_ast::ast::ChainElement::TSNonNullExpression(ts_non_null) => {
+                    expr_to_node(convert_expression_for_program(
+                        arena,
+                        &ts_non_null.expression,
+                        offset,
+                        line_offsets,
+                    ))
+                }
                 oxc_ast::ast::ChainElement::StaticMemberExpression(member) => {
                     let inner_start = offset + member.span.start as usize;
                     let inner_end = offset + member.span.end as usize;
                     let object =
-                        convert_expression_for_program(&member.object, offset, line_offsets);
+                        convert_expression_for_program(arena, &member.object, offset, line_offsets);
                     let prop_start = offset + member.property.span.start as usize;
                     let prop_end = offset + member.property.span.end as usize;
                     let property = create_identifier(
@@ -7280,8 +7601,8 @@ fn convert_expression_for_program(
                         start: inner_start as u32,
                         end: inner_end as u32,
                         loc: create_typed_loc(inner_start, inner_end, line_offsets),
-                        object: Box::new(expr_to_node(object)),
-                        property: Box::new(expr_to_node(property)),
+                        object: arena.alloc_js_node(expr_to_node(object)),
+                        property: arena.alloc_js_node(expr_to_node(property)),
                         computed: false,
                         optional: member.optional,
                     }
@@ -7290,15 +7611,19 @@ fn convert_expression_for_program(
                     let inner_start = offset + member.span.start as usize;
                     let inner_end = offset + member.span.end as usize;
                     let object =
-                        convert_expression_for_program(&member.object, offset, line_offsets);
-                    let property =
-                        convert_expression_for_program(&member.expression, offset, line_offsets);
+                        convert_expression_for_program(arena, &member.object, offset, line_offsets);
+                    let property = convert_expression_for_program(
+                        arena,
+                        &member.expression,
+                        offset,
+                        line_offsets,
+                    );
                     JsNode::MemberExpression {
                         start: inner_start as u32,
                         end: inner_end as u32,
                         loc: create_typed_loc(inner_start, inner_end, line_offsets),
-                        object: Box::new(expr_to_node(object)),
-                        property: Box::new(expr_to_node(property)),
+                        object: arena.alloc_js_node(expr_to_node(object)),
+                        property: arena.alloc_js_node(expr_to_node(property)),
                         computed: true,
                         optional: member.optional,
                     }
@@ -7307,6 +7632,7 @@ fn convert_expression_for_program(
                     let inner_start = offset + private_member.span.start as usize;
                     let inner_end = offset + private_member.span.end as usize;
                     let object = convert_expression_for_program(
+                        arena,
                         &private_member.object,
                         offset,
                         line_offsets,
@@ -7323,8 +7649,8 @@ fn convert_expression_for_program(
                         start: inner_start as u32,
                         end: inner_end as u32,
                         loc: create_typed_loc(inner_start, inner_end, line_offsets),
-                        object: Box::new(expr_to_node(object)),
-                        property: Box::new(expr_to_node(property)),
+                        object: arena.alloc_js_node(expr_to_node(object)),
+                        property: arena.alloc_js_node(expr_to_node(property)),
                         computed: false,
                         optional: private_member.optional,
                     }
@@ -7334,13 +7660,13 @@ fn convert_expression_for_program(
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                expression: Box::new(chain_inner),
+                expression: arena.alloc_js_node(chain_inner),
             })
         }
         OxcExpression::TaggedTemplateExpression(tagged) => {
             let start = offset + tagged.span.start as usize;
             let end = offset + tagged.span.end as usize;
-            let tag = convert_expression_for_program(&tagged.tag, offset, line_offsets);
+            let tag = convert_expression_for_program(arena, &tagged.tag, offset, line_offsets);
 
             let quasi_start = offset + tagged.quasi.span.start as usize;
             let quasi_end = offset + tagged.quasi.span.end as usize;
@@ -7374,7 +7700,12 @@ fn convert_expression_for_program(
                 .expressions
                 .iter()
                 .map(|expr| {
-                    expr_to_node(convert_expression_for_program(expr, offset, line_offsets))
+                    expr_to_node(convert_expression_for_program(
+                        arena,
+                        expr,
+                        offset,
+                        line_offsets,
+                    ))
                 })
                 .collect();
 
@@ -7382,16 +7713,16 @@ fn convert_expression_for_program(
                 start: quasi_start as u32,
                 end: quasi_end as u32,
                 loc: create_typed_loc(quasi_start, quasi_end, line_offsets),
-                quasis,
-                expressions: quasi_expressions,
+                quasis: arena.alloc_js_children(quasis),
+                expressions: arena.alloc_js_children(quasi_expressions),
             };
 
             Expression::from_node(JsNode::TaggedTemplateExpression {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                tag: Box::new(expr_to_node(tag)),
-                quasi: Box::new(quasi),
+                tag: arena.alloc_js_node(expr_to_node(tag)),
+                quasi: arena.alloc_js_node(quasi),
             })
         }
         OxcExpression::RegExpLiteral(regex) => {
@@ -7401,23 +7732,23 @@ fn convert_expression_for_program(
         }
         // Parenthesized expressions - unwrap and return the inner expression
         OxcExpression::ParenthesizedExpression(paren) => {
-            convert_expression_for_program(&paren.expression, offset, line_offsets)
+            convert_expression_for_program(arena, &paren.expression, offset, line_offsets)
         }
         // TypeScript expression wrappers - unwrap and return the inner expression
         OxcExpression::TSAsExpression(ts_as) => {
-            convert_expression_for_program(&ts_as.expression, offset, line_offsets)
+            convert_expression_for_program(arena, &ts_as.expression, offset, line_offsets)
         }
         OxcExpression::TSSatisfiesExpression(ts_satisfies) => {
-            convert_expression_for_program(&ts_satisfies.expression, offset, line_offsets)
+            convert_expression_for_program(arena, &ts_satisfies.expression, offset, line_offsets)
         }
         OxcExpression::TSNonNullExpression(ts_non_null) => {
-            convert_expression_for_program(&ts_non_null.expression, offset, line_offsets)
+            convert_expression_for_program(arena, &ts_non_null.expression, offset, line_offsets)
         }
         OxcExpression::TSTypeAssertion(ts_assertion) => {
-            convert_expression_for_program(&ts_assertion.expression, offset, line_offsets)
+            convert_expression_for_program(arena, &ts_assertion.expression, offset, line_offsets)
         }
         OxcExpression::TSInstantiationExpression(ts_inst) => {
-            convert_expression_for_program(&ts_inst.expression, offset, line_offsets)
+            convert_expression_for_program(arena, &ts_inst.expression, offset, line_offsets)
         }
         _ => {
             // Fallback for unsupported expression types
@@ -7431,6 +7762,7 @@ fn convert_expression_for_program(
 
 /// Convert a class body to JSON value (for program context).
 fn convert_class_body_for_program(
+    arena: &ParseArena,
     body: &oxc_ast::ast::ClassBody,
     offset: usize,
     line_offsets: &[usize],
@@ -7449,7 +7781,9 @@ fn convert_class_body_for_program(
     let body_elements: Vec<Value> = body
         .body
         .iter()
-        .filter_map(|element| convert_class_element_for_program(element, offset, line_offsets))
+        .filter_map(|element| {
+            convert_class_element_for_program(arena, element, offset, line_offsets)
+        })
         .collect();
     obj.insert("body".to_string(), Value::Array(body_elements));
 
@@ -7458,6 +7792,7 @@ fn convert_class_body_for_program(
 
 /// Convert a class element to JSON value (for program context).
 fn convert_class_element_for_program(
+    arena: &ParseArena,
     element: &oxc_ast::ast::ClassElement,
     offset: usize,
     line_offsets: &[usize],
@@ -7493,12 +7828,12 @@ fn convert_class_element_for_program(
             obj.insert("kind".to_string(), Value::String(kind.to_string()));
 
             // key
-            let key = convert_property_key(&method.key, offset, line_offsets);
+            let key = convert_property_key(arena, &method.key, offset, line_offsets);
             obj.insert("key".to_string(), key.to_value());
 
             // value (function expression)
             let value =
-                convert_function_expression_for_program(&method.value, offset, line_offsets);
+                convert_function_expression_for_program(arena, &method.value, offset, line_offsets);
             obj.insert("value".to_string(), value);
 
             Some(Value::Object(obj))
@@ -7524,12 +7859,12 @@ fn convert_class_element_for_program(
             obj.insert("computed".to_string(), Value::Bool(prop.computed));
 
             // key
-            let key = convert_property_key(&prop.key, offset, line_offsets);
+            let key = convert_property_key(arena, &prop.key, offset, line_offsets);
             obj.insert("key".to_string(), key.to_value());
 
             // value
             if let Some(ref value) = prop.value {
-                let val = convert_expression_for_program(value, offset, line_offsets);
+                let val = convert_expression_for_program(arena, value, offset, line_offsets);
                 obj.insert("value".to_string(), val.as_json().clone());
             } else {
                 obj.insert("value".to_string(), Value::Null);
@@ -7561,11 +7896,11 @@ fn convert_class_element_for_program(
             obj.insert("static".to_string(), Value::Bool(prop.r#static));
             obj.insert("computed".to_string(), Value::Bool(prop.computed));
 
-            let key = convert_property_key(&prop.key, offset, line_offsets);
+            let key = convert_property_key(arena, &prop.key, offset, line_offsets);
             obj.insert("key".to_string(), key.to_value());
 
             if let Some(ref value) = prop.value {
-                let val = convert_expression_for_program(value, offset, line_offsets);
+                let val = convert_expression_for_program(arena, value, offset, line_offsets);
                 obj.insert("value".to_string(), val.as_json().clone());
             } else {
                 obj.insert("value".to_string(), Value::Null);
@@ -7579,6 +7914,7 @@ fn convert_class_element_for_program(
 
 /// Convert a function expression to JSON value (for program context).
 fn convert_function_expression_for_program(
+    arena: &ParseArena,
     func: &oxc_ast::ast::Function,
     offset: usize,
     line_offsets: &[usize],
@@ -7605,7 +7941,7 @@ fn convert_function_expression_for_program(
         .items
         .iter()
         .map(|param| {
-            convert_formal_parameter(param, offset, line_offsets)
+            convert_formal_parameter(arena, param, offset, line_offsets)
                 .as_json()
                 .clone()
         })
@@ -7614,7 +7950,7 @@ fn convert_function_expression_for_program(
 
     // body
     if let Some(ref body) = func.body {
-        let body_value = convert_function_body_for_program(body, offset, line_offsets);
+        let body_value = convert_function_body_for_program(arena, body, offset, line_offsets);
         obj.insert("body".to_string(), body_value);
     } else {
         obj.insert("body".to_string(), Value::Null);
@@ -7625,6 +7961,7 @@ fn convert_function_expression_for_program(
 
 /// Convert a function body (statement or expression) to JSON value.
 fn convert_function_body_for_program(
+    arena: &ParseArena,
     body: &oxc_ast::ast::FunctionBody,
     offset: usize,
     line_offsets: &[usize],
@@ -7646,7 +7983,7 @@ fn convert_function_body_for_program(
     let statements: Vec<Value> = body
         .statements
         .iter()
-        .filter_map(|stmt| convert_statement_for_program(stmt, offset, line_offsets))
+        .filter_map(|stmt| convert_statement_for_program(arena, stmt, offset, line_offsets))
         .map(|n| n.to_value())
         .collect();
     obj.insert("body".to_string(), Value::Array(statements));
@@ -7656,6 +7993,7 @@ fn convert_function_body_for_program(
 
 /// Convert a function body to JsNode (for FunctionDeclaration in JsNode path).
 fn convert_function_body_for_program_as_node(
+    arena: &ParseArena,
     body: &oxc_ast::ast::FunctionBody,
     offset: usize,
     line_offsets: &[usize],
@@ -7667,19 +8005,20 @@ fn convert_function_body_for_program_as_node(
     let statements: Vec<JsNode> = body
         .statements
         .iter()
-        .filter_map(|stmt| convert_statement_for_program(stmt, offset, line_offsets))
+        .filter_map(|stmt| convert_statement_for_program(arena, stmt, offset, line_offsets))
         .collect();
 
     JsNode::BlockStatement {
         start: start as u32,
         end: end as u32,
         loc,
-        body: statements,
+        body: arena.alloc_js_children(statements),
     }
 }
 
 /// Convert a binding pattern to JSON value.
 fn convert_binding_pattern(
+    arena: &ParseArena,
     pattern: &oxc_ast::ast::BindingPattern,
     offset: usize,
     line_offsets: &[usize],
@@ -7691,19 +8030,20 @@ fn convert_binding_pattern(
             expr_to_node(create_identifier(&id.name, start, end, line_offsets))
         }
         oxc_ast::ast::BindingPattern::ObjectPattern(obj_pat) => {
-            convert_object_pattern(obj_pat, offset, line_offsets)
+            convert_object_pattern(arena, obj_pat, offset, line_offsets)
         }
         oxc_ast::ast::BindingPattern::ArrayPattern(arr_pat) => {
-            convert_array_pattern(arr_pat, offset, line_offsets)
+            convert_array_pattern(arena, arr_pat, offset, line_offsets)
         }
         oxc_ast::ast::BindingPattern::AssignmentPattern(assign_pat) => {
-            convert_assignment_pattern(assign_pat, offset, line_offsets)
+            convert_assignment_pattern(arena, assign_pat, offset, line_offsets)
         }
     }
 }
 
 /// Convert an ObjectPattern binding to JsNode.
 fn convert_object_pattern(
+    arena: &ParseArena,
     obj_pat: &oxc_ast::ast::ObjectPattern,
     offset: usize,
     line_offsets: &[usize],
@@ -7714,7 +8054,7 @@ fn convert_object_pattern(
     let mut properties: Vec<JsNode> = obj_pat
         .properties
         .iter()
-        .map(|prop| convert_binding_property(prop, offset, line_offsets))
+        .map(|prop| convert_binding_property(arena, prop, offset, line_offsets))
         .collect();
 
     // Handle rest element if present (e.g., `...others` in `{ foo, ...others }`)
@@ -7725,7 +8065,8 @@ fn convert_object_pattern(
             start: rest_start as u32,
             end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
-            argument: Box::new(convert_binding_pattern(
+            argument: arena.alloc_js_node(convert_binding_pattern(
+                arena,
                 &rest.argument,
                 offset,
                 line_offsets,
@@ -7737,12 +8078,13 @@ fn convert_object_pattern(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        properties,
+        properties: arena.alloc_js_children(properties),
     }
 }
 
 /// Convert an ArrayPattern binding to JsNode.
 fn convert_array_pattern(
+    arena: &ParseArena,
     arr_pat: &oxc_ast::ast::ArrayPattern,
     offset: usize,
     line_offsets: &[usize],
@@ -7755,7 +8097,7 @@ fn convert_array_pattern(
         .iter()
         .map(|elem| {
             elem.as_ref()
-                .map(|pat| convert_binding_pattern(pat, offset, line_offsets))
+                .map(|pat| convert_binding_pattern(arena, pat, offset, line_offsets))
         })
         .collect();
 
@@ -7767,7 +8109,8 @@ fn convert_array_pattern(
             start: rest_start as u32,
             end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
-            argument: Box::new(convert_binding_pattern(
+            argument: arena.alloc_js_node(convert_binding_pattern(
+                arena,
                 &rest.argument,
                 offset,
                 line_offsets,
@@ -7785,6 +8128,7 @@ fn convert_array_pattern(
 
 /// Convert an AssignmentPattern binding to JsNode.
 fn convert_assignment_pattern(
+    arena: &ParseArena,
     assign_pat: &oxc_ast::ast::AssignmentPattern,
     offset: usize,
     line_offsets: &[usize],
@@ -7796,12 +8140,14 @@ fn convert_assignment_pattern(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        left: Box::new(convert_binding_pattern(
+        left: arena.alloc_js_node(convert_binding_pattern(
+            arena,
             &assign_pat.left,
             offset,
             line_offsets,
         )),
-        right: Box::new(expr_to_node(convert_expression(
+        right: arena.alloc_js_node(expr_to_node(convert_expression(
+            arena,
             &assign_pat.right,
             offset,
             line_offsets,
@@ -7811,6 +8157,7 @@ fn convert_assignment_pattern(
 
 /// Convert an assignment target for program context (no -1 offset adjustment).
 fn convert_assignment_target_for_program(
+    arena: &ParseArena,
     target: &oxc_ast::ast::AssignmentTarget,
     offset: usize,
     line_offsets: &[usize],
@@ -7827,7 +8174,8 @@ fn convert_assignment_target_for_program(
             let start = offset + member.span.start as usize;
             let end = offset + member.span.end as usize;
 
-            let object = convert_expression_for_program(&member.object, offset, line_offsets);
+            let object =
+                convert_expression_for_program(arena, &member.object, offset, line_offsets);
             let property = create_identifier(
                 &member.property.name,
                 offset + member.property.span.start as usize,
@@ -7839,8 +8187,8 @@ fn convert_assignment_target_for_program(
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                object: Box::new(expr_to_node(object)),
-                property: Box::new(expr_to_node(property)),
+                object: arena.alloc_js_node(expr_to_node(object)),
+                property: arena.alloc_js_node(expr_to_node(property)),
                 computed: false,
                 optional: member.optional,
             }
@@ -7849,24 +8197,26 @@ fn convert_assignment_target_for_program(
             let start = offset + member.span.start as usize;
             let end = offset + member.span.end as usize;
 
-            let object = convert_expression_for_program(&member.object, offset, line_offsets);
-            let property = convert_expression_for_program(&member.expression, offset, line_offsets);
+            let object =
+                convert_expression_for_program(arena, &member.object, offset, line_offsets);
+            let property =
+                convert_expression_for_program(arena, &member.expression, offset, line_offsets);
 
             JsNode::MemberExpression {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                object: Box::new(expr_to_node(object)),
-                property: Box::new(expr_to_node(property)),
+                object: arena.alloc_js_node(expr_to_node(object)),
+                property: arena.alloc_js_node(expr_to_node(property)),
                 computed: true,
                 optional: member.optional,
             }
         }
         AssignmentTarget::ObjectAssignmentTarget(obj_target) => JsNode::Raw(
-            convert_object_assignment_target_for_program(obj_target, offset, line_offsets),
+            convert_object_assignment_target_for_program(arena, obj_target, offset, line_offsets),
         ),
         AssignmentTarget::ArrayAssignmentTarget(arr_target) => JsNode::Raw(
-            convert_array_assignment_target_for_program(arr_target, offset, line_offsets),
+            convert_array_assignment_target_for_program(arena, arr_target, offset, line_offsets),
         ),
         _ => {
             // For other complex patterns (e.g., TSAsExpression, TSNonNullExpression)
@@ -7877,6 +8227,7 @@ fn convert_assignment_target_for_program(
 
 /// Convert an ObjectAssignmentTarget to ObjectPattern JSON (no -1 offset adjustment).
 fn convert_object_assignment_target_for_program(
+    arena: &ParseArena,
     obj_target: &oxc_ast::ast::ObjectAssignmentTarget,
     offset: usize,
     line_offsets: &[usize],
@@ -7898,7 +8249,9 @@ fn convert_object_assignment_target_for_program(
     let mut properties: Vec<Value> = obj_target
         .properties
         .iter()
-        .map(|prop| convert_assignment_target_property_for_program(prop, offset, line_offsets))
+        .map(|prop| {
+            convert_assignment_target_property_for_program(arena, prop, offset, line_offsets)
+        })
         .collect();
 
     // Add rest element if present
@@ -7918,7 +8271,8 @@ fn convert_object_assignment_target_for_program(
         }
         rest_obj.insert(
             "argument".to_string(),
-            convert_assignment_target_for_program(&rest.target, offset, line_offsets).to_value(),
+            convert_assignment_target_for_program(arena, &rest.target, offset, line_offsets)
+                .to_value(),
         );
         properties.push(Value::Object(rest_obj));
     }
@@ -7930,6 +8284,7 @@ fn convert_object_assignment_target_for_program(
 
 /// Convert an ArrayAssignmentTarget to ArrayPattern JSON (no -1 offset adjustment).
 fn convert_array_assignment_target_for_program(
+    arena: &ParseArena,
     arr_target: &oxc_ast::ast::ArrayAssignmentTarget,
     offset: usize,
     line_offsets: &[usize],
@@ -7952,9 +8307,12 @@ fn convert_array_assignment_target_for_program(
         .elements
         .iter()
         .map(|elem| match elem {
-            Some(target) => {
-                convert_assignment_target_maybe_default_for_program(target, offset, line_offsets)
-            }
+            Some(target) => convert_assignment_target_maybe_default_for_program(
+                arena,
+                target,
+                offset,
+                line_offsets,
+            ),
             None => Value::Null,
         })
         .collect();
@@ -7976,7 +8334,8 @@ fn convert_array_assignment_target_for_program(
         }
         rest_obj.insert(
             "argument".to_string(),
-            convert_assignment_target_for_program(&rest.target, offset, line_offsets).to_value(),
+            convert_assignment_target_for_program(arena, &rest.target, offset, line_offsets)
+                .to_value(),
         );
         elements.push(Value::Object(rest_obj));
     }
@@ -7988,6 +8347,7 @@ fn convert_array_assignment_target_for_program(
 
 /// Convert an AssignmentTargetProperty to Property JSON (no -1 offset adjustment).
 fn convert_assignment_target_property_for_program(
+    arena: &ParseArena,
     prop: &oxc_ast::ast::AssignmentTargetProperty,
     offset: usize,
     line_offsets: &[usize],
@@ -8035,7 +8395,7 @@ fn convert_assignment_target_property_for_program(
                 assign_pat.insert("left".to_string(), identifier);
                 assign_pat.insert(
                     "right".to_string(),
-                    convert_expression_for_program(init, offset, line_offsets)
+                    convert_expression_for_program(arena, init, offset, line_offsets)
                         .as_json()
                         .clone(),
                 );
@@ -8062,10 +8422,11 @@ fn convert_assignment_target_property_for_program(
             obj.insert("computed".to_string(), Value::Bool(prop_prop.computed));
             obj.insert("kind".to_string(), Value::String("init".to_string()));
 
-            let key = convert_property_key(&prop_prop.name, offset, line_offsets);
+            let key = convert_property_key(arena, &prop_prop.name, offset, line_offsets);
             obj.insert("key".to_string(), key.to_value());
 
             let value = convert_assignment_target_maybe_default_for_program(
+                arena,
                 &prop_prop.binding,
                 offset,
                 line_offsets,
@@ -8080,6 +8441,7 @@ fn convert_assignment_target_property_for_program(
 /// Convert a SimpleAssignmentTarget to JsNode (no -1 offset adjustment).
 #[allow(dead_code)]
 fn convert_simple_assignment_target_for_program(
+    arena: &ParseArena,
     target: &oxc_ast::ast::SimpleAssignmentTarget,
     offset: usize,
     line_offsets: &[usize],
@@ -8096,7 +8458,8 @@ fn convert_simple_assignment_target_for_program(
             let start = offset + member.span.start as usize;
             let end = offset + member.span.end as usize;
 
-            let object = convert_expression_for_program(&member.object, offset, line_offsets);
+            let object =
+                convert_expression_for_program(arena, &member.object, offset, line_offsets);
             let property = create_identifier(
                 &member.property.name,
                 offset + member.property.span.start as usize,
@@ -8108,8 +8471,8 @@ fn convert_simple_assignment_target_for_program(
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                object: Box::new(expr_to_node(object)),
-                property: Box::new(expr_to_node(property)),
+                object: arena.alloc_js_node(expr_to_node(object)),
+                property: arena.alloc_js_node(expr_to_node(property)),
                 computed: false,
                 optional: member.optional,
             }
@@ -8118,15 +8481,17 @@ fn convert_simple_assignment_target_for_program(
             let start = offset + member.span.start as usize;
             let end = offset + member.span.end as usize;
 
-            let object = convert_expression_for_program(&member.object, offset, line_offsets);
-            let property = convert_expression_for_program(&member.expression, offset, line_offsets);
+            let object =
+                convert_expression_for_program(arena, &member.object, offset, line_offsets);
+            let property =
+                convert_expression_for_program(arena, &member.expression, offset, line_offsets);
 
             JsNode::MemberExpression {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
-                object: Box::new(expr_to_node(object)),
-                property: Box::new(expr_to_node(property)),
+                object: arena.alloc_js_node(expr_to_node(object)),
+                property: arena.alloc_js_node(expr_to_node(property)),
                 computed: true,
                 optional: member.optional,
             }
@@ -8137,6 +8502,7 @@ fn convert_simple_assignment_target_for_program(
 
 /// Convert an AssignmentTargetMaybeDefault to JSON (no -1 offset adjustment).
 fn convert_assignment_target_maybe_default_for_program(
+    arena: &ParseArena,
     target: &oxc_ast::ast::AssignmentTargetMaybeDefault,
     offset: usize,
     line_offsets: &[usize],
@@ -8160,12 +8526,17 @@ fn convert_assignment_target_maybe_default_for_program(
             }
             obj.insert(
                 "left".to_string(),
-                convert_assignment_target_for_program(&with_default.binding, offset, line_offsets)
-                    .to_value(),
+                convert_assignment_target_for_program(
+                    arena,
+                    &with_default.binding,
+                    offset,
+                    line_offsets,
+                )
+                .to_value(),
             );
             obj.insert(
                 "right".to_string(),
-                convert_expression_for_program(&with_default.init, offset, line_offsets)
+                convert_expression_for_program(arena, &with_default.init, offset, line_offsets)
                     .as_json()
                     .clone(),
             );
@@ -8174,7 +8545,7 @@ fn convert_assignment_target_maybe_default_for_program(
         }
         _ => {
             if let Some(inner) = target.as_assignment_target() {
-                convert_assignment_target_for_program(inner, offset, line_offsets).to_value()
+                convert_assignment_target_for_program(arena, inner, offset, line_offsets).to_value()
             } else {
                 Value::Null
             }
@@ -8184,6 +8555,7 @@ fn convert_assignment_target_maybe_default_for_program(
 
 /// Convert a binding property to JSON.
 fn convert_binding_property(
+    arena: &ParseArena,
     prop: &oxc_ast::ast::BindingProperty,
     offset: usize,
     line_offsets: &[usize],
@@ -8191,15 +8563,15 @@ fn convert_binding_property(
     let start = offset + prop.span.start as usize;
     let end = offset + prop.span.end as usize;
 
-    let key = convert_property_key(&prop.key, offset, line_offsets);
-    let value = convert_binding_pattern(&prop.value, offset, line_offsets);
+    let key = convert_property_key(arena, &prop.key, offset, line_offsets);
+    let value = convert_binding_pattern(arena, &prop.value, offset, line_offsets);
 
     JsNode::Property {
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        key: Box::new(key),
-        value: Box::new(value),
+        key: arena.alloc_js_node(key),
+        value: arena.alloc_js_node(value),
         kind: CompactString::from("init"),
         method: false,
         shorthand: prop.shorthand,
@@ -8209,6 +8581,7 @@ fn convert_binding_property(
 
 /// Convert a property key to JSON.
 fn convert_property_key(
+    arena: &ParseArena,
     key: &oxc_ast::ast::PropertyKey,
     offset: usize,
     line_offsets: &[usize],
@@ -8232,7 +8605,7 @@ fn convert_property_key(
         _ => {
             // For computed keys, try to get the expression
             if let Some(expr) = key.as_expression() {
-                expr_to_node(convert_expression(expr, offset, line_offsets))
+                expr_to_node(convert_expression(arena, expr, offset, line_offsets))
             } else {
                 JsNode::Null
             }
@@ -8243,6 +8616,7 @@ fn convert_property_key(
 /// Parse a binding pattern (for {#each} context).
 /// This parses patterns like `item`, `{ name }`, `[a, b]`, etc.
 pub fn parse_binding_pattern(
+    arena: &ParseArena,
     content: &str,
     offset: usize,
     line_offsets: &[usize],
@@ -8282,6 +8656,7 @@ pub fn parse_binding_pattern(
             }
 
             return Ok(Expression::Value(convert_binding_pattern_with_adjustment(
+                arena,
                 &decl.id,
                 offset,
                 4,
@@ -8312,6 +8687,7 @@ pub fn parse_binding_pattern(
 /// Convert a binding pattern with position adjustment.
 /// The adjustment is needed when parsing patterns from wrapped expressions.
 fn convert_binding_pattern_with_adjustment(
+    arena: &ParseArena,
     pattern: &oxc_ast::ast::BindingPattern,
     doc_offset: usize,
     prefix_len: usize,
@@ -8325,13 +8701,26 @@ fn convert_binding_pattern_with_adjustment(
             create_identifier_for_binding(&id.name, start, end, line_offsets).to_value()
         }
         oxc_ast::ast::BindingPattern::ObjectPattern(obj_pat) => {
-            convert_object_pattern_with_adjustment(obj_pat, doc_offset, prefix_len, line_offsets)
+            convert_object_pattern_with_adjustment(
+                arena,
+                obj_pat,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            )
         }
         oxc_ast::ast::BindingPattern::ArrayPattern(arr_pat) => {
-            convert_array_pattern_with_adjustment(arr_pat, doc_offset, prefix_len, line_offsets)
+            convert_array_pattern_with_adjustment(
+                arena,
+                arr_pat,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            )
         }
         oxc_ast::ast::BindingPattern::AssignmentPattern(assign_pat) => {
             convert_assignment_pattern_with_adjustment(
+                arena,
                 assign_pat,
                 doc_offset,
                 prefix_len,
@@ -8342,6 +8731,7 @@ fn convert_binding_pattern_with_adjustment(
 }
 
 fn convert_object_pattern_with_adjustment(
+    arena: &ParseArena,
     obj_pat: &oxc_ast::ast::ObjectPattern,
     doc_offset: usize,
     prefix_len: usize,
@@ -8365,7 +8755,13 @@ fn convert_object_pattern_with_adjustment(
         .properties
         .iter()
         .map(|prop| {
-            convert_binding_property_with_adjustment(prop, doc_offset, prefix_len, line_offsets)
+            convert_binding_property_with_adjustment(
+                arena,
+                prop,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            )
         })
         .collect();
 
@@ -8387,6 +8783,7 @@ fn convert_object_pattern_with_adjustment(
         rest_obj.insert(
             "argument".to_string(),
             convert_binding_pattern_with_adjustment(
+                arena,
                 &rest.argument,
                 doc_offset,
                 prefix_len,
@@ -8402,6 +8799,7 @@ fn convert_object_pattern_with_adjustment(
 }
 
 fn convert_array_pattern_with_adjustment(
+    arena: &ParseArena,
     arr_pat: &oxc_ast::ast::ArrayPattern,
     doc_offset: usize,
     prefix_len: usize,
@@ -8425,9 +8823,13 @@ fn convert_array_pattern_with_adjustment(
         .elements
         .iter()
         .map(|elem| match elem {
-            Some(pat) => {
-                convert_binding_pattern_with_adjustment(pat, doc_offset, prefix_len, line_offsets)
-            }
+            Some(pat) => convert_binding_pattern_with_adjustment(
+                arena,
+                pat,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            ),
             None => Value::Null,
         })
         .collect();
@@ -8450,6 +8852,7 @@ fn convert_array_pattern_with_adjustment(
         rest_obj.insert(
             "argument".to_string(),
             convert_binding_pattern_with_adjustment(
+                arena,
                 &rest.argument,
                 doc_offset,
                 prefix_len,
@@ -8465,6 +8868,7 @@ fn convert_array_pattern_with_adjustment(
 }
 
 fn convert_assignment_pattern_with_adjustment(
+    arena: &ParseArena,
     assign_pat: &oxc_ast::ast::AssignmentPattern,
     doc_offset: usize,
     prefix_len: usize,
@@ -8487,6 +8891,7 @@ fn convert_assignment_pattern_with_adjustment(
     obj.insert(
         "left".to_string(),
         convert_binding_pattern_with_adjustment(
+            arena,
             &assign_pat.left,
             doc_offset,
             prefix_len,
@@ -8496,14 +8901,20 @@ fn convert_assignment_pattern_with_adjustment(
 
     // For the right side (expression), we need to adjust positions too
     // Using the expression converter with adjusted offset
-    let right =
-        convert_expression_with_adjustment(&assign_pat.right, doc_offset, prefix_len, line_offsets);
+    let right = convert_expression_with_adjustment(
+        arena,
+        &assign_pat.right,
+        doc_offset,
+        prefix_len,
+        line_offsets,
+    );
     obj.insert("right".to_string(), right);
 
     Value::Object(obj)
 }
 
 fn convert_binding_property_with_adjustment(
+    arena: &ParseArena,
     prop: &oxc_ast::ast::BindingProperty,
     doc_offset: usize,
     prefix_len: usize,
@@ -8525,18 +8936,30 @@ fn convert_binding_property_with_adjustment(
     obj.insert("kind".to_string(), Value::String("init".to_string()));
 
     // Convert key
-    let key = convert_property_key_with_adjustment(&prop.key, doc_offset, prefix_len, line_offsets);
+    let key = convert_property_key_with_adjustment(
+        arena,
+        &prop.key,
+        doc_offset,
+        prefix_len,
+        line_offsets,
+    );
     obj.insert("key".to_string(), key);
 
     // Convert value
-    let value =
-        convert_binding_pattern_with_adjustment(&prop.value, doc_offset, prefix_len, line_offsets);
+    let value = convert_binding_pattern_with_adjustment(
+        arena,
+        &prop.value,
+        doc_offset,
+        prefix_len,
+        line_offsets,
+    );
     obj.insert("value".to_string(), value);
 
     Value::Object(obj)
 }
 
 fn convert_property_key_with_adjustment(
+    arena: &ParseArena,
     key: &oxc_ast::ast::PropertyKey,
     doc_offset: usize,
     prefix_len: usize,
@@ -8555,7 +8978,13 @@ fn convert_property_key_with_adjustment(
         }
         _ => {
             if let Some(expr) = key.as_expression() {
-                convert_expression_with_adjustment(expr, doc_offset, prefix_len, line_offsets)
+                convert_expression_with_adjustment(
+                    arena,
+                    expr,
+                    doc_offset,
+                    prefix_len,
+                    line_offsets,
+                )
             } else {
                 Value::Null
             }
@@ -8565,6 +8994,7 @@ fn convert_property_key_with_adjustment(
 
 /// Convert expression with position adjustment for wrapped patterns.
 fn convert_expression_with_adjustment(
+    arena: &ParseArena,
     expr: &OxcExpression,
     doc_offset: usize,
     prefix_len: usize,
@@ -8600,6 +9030,7 @@ fn convert_expression_with_adjustment(
             let start = doc_offset + template.span.start as usize - prefix_len;
             let end = doc_offset + template.span.end as usize - prefix_len;
             create_template_literal_with_adjustment(
+                arena,
                 template,
                 start,
                 end,
@@ -8612,6 +9043,7 @@ fn convert_expression_with_adjustment(
             let start = doc_offset + call.span.start as usize - prefix_len;
             let end = doc_offset + call.span.end as usize - prefix_len;
             create_call_expression_with_adjustment(
+                arena,
                 call,
                 start,
                 end,
@@ -8624,6 +9056,7 @@ fn convert_expression_with_adjustment(
             let start = doc_offset + arrow.span.start as usize - prefix_len;
             let end = doc_offset + arrow.span.end as usize - prefix_len;
             create_arrow_function_with_adjustment(
+                arena,
                 arrow,
                 start,
                 end,
@@ -8635,6 +9068,7 @@ fn convert_expression_with_adjustment(
         OxcExpression::ParenthesizedExpression(paren) => {
             // Unwrap the parenthesized expression and convert the inner expression
             convert_expression_with_adjustment(
+                arena,
                 &paren.expression,
                 doc_offset,
                 prefix_len,
@@ -8643,30 +9077,35 @@ fn convert_expression_with_adjustment(
         }
         // TypeScript expression wrappers - unwrap and return the inner expression
         OxcExpression::TSAsExpression(ts_as) => convert_expression_with_adjustment(
+            arena,
             &ts_as.expression,
             doc_offset,
             prefix_len,
             line_offsets,
         ),
         OxcExpression::TSSatisfiesExpression(ts_satisfies) => convert_expression_with_adjustment(
+            arena,
             &ts_satisfies.expression,
             doc_offset,
             prefix_len,
             line_offsets,
         ),
         OxcExpression::TSNonNullExpression(ts_non_null) => convert_expression_with_adjustment(
+            arena,
             &ts_non_null.expression,
             doc_offset,
             prefix_len,
             line_offsets,
         ),
         OxcExpression::TSTypeAssertion(ts_assertion) => convert_expression_with_adjustment(
+            arena,
             &ts_assertion.expression,
             doc_offset,
             prefix_len,
             line_offsets,
         ),
         OxcExpression::TSInstantiationExpression(ts_inst) => convert_expression_with_adjustment(
+            arena,
             &ts_inst.expression,
             doc_offset,
             prefix_len,
@@ -8675,9 +9114,15 @@ fn convert_expression_with_adjustment(
         OxcExpression::BinaryExpression(bin) => {
             let start = doc_offset + bin.span.start as usize - prefix_len;
             let end = doc_offset + bin.span.end as usize - prefix_len;
-            let left =
-                convert_expression_with_adjustment(&bin.left, doc_offset, prefix_len, line_offsets);
+            let left = convert_expression_with_adjustment(
+                arena,
+                &bin.left,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            );
             let right = convert_expression_with_adjustment(
+                arena,
                 &bin.right,
                 doc_offset,
                 prefix_len,
@@ -8703,6 +9148,7 @@ fn convert_expression_with_adjustment(
             let start = doc_offset + unary.span.start as usize - prefix_len;
             let end = doc_offset + unary.span.end as usize - prefix_len;
             let argument = convert_expression_with_adjustment(
+                arena,
                 &unary.argument,
                 doc_offset,
                 prefix_len,
@@ -8727,9 +9173,15 @@ fn convert_expression_with_adjustment(
         OxcExpression::LogicalExpression(log) => {
             let start = doc_offset + log.span.start as usize - prefix_len;
             let end = doc_offset + log.span.end as usize - prefix_len;
-            let left =
-                convert_expression_with_adjustment(&log.left, doc_offset, prefix_len, line_offsets);
+            let left = convert_expression_with_adjustment(
+                arena,
+                &log.left,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            );
             let right = convert_expression_with_adjustment(
+                arena,
                 &log.right,
                 doc_offset,
                 prefix_len,
@@ -8755,18 +9207,21 @@ fn convert_expression_with_adjustment(
             let start = doc_offset + cond.span.start as usize - prefix_len;
             let end = doc_offset + cond.span.end as usize - prefix_len;
             let test = convert_expression_with_adjustment(
+                arena,
                 &cond.test,
                 doc_offset,
                 prefix_len,
                 line_offsets,
             );
             let consequent = convert_expression_with_adjustment(
+                arena,
                 &cond.consequent,
                 doc_offset,
                 prefix_len,
                 line_offsets,
             );
             let alternate = convert_expression_with_adjustment(
+                arena,
                 &cond.alternate,
                 doc_offset,
                 prefix_len,
@@ -8791,6 +9246,7 @@ fn convert_expression_with_adjustment(
             let start = doc_offset + member.span.start as usize - prefix_len;
             let end = doc_offset + member.span.end as usize - prefix_len;
             let object = convert_expression_with_adjustment(
+                arena,
                 &member.object,
                 doc_offset,
                 prefix_len,
@@ -8825,12 +9281,14 @@ fn convert_expression_with_adjustment(
             let start = doc_offset + member.span.start as usize - prefix_len;
             let end = doc_offset + member.span.end as usize - prefix_len;
             let object = convert_expression_with_adjustment(
+                arena,
                 &member.object,
                 doc_offset,
                 prefix_len,
                 line_offsets,
             );
             let property = convert_expression_with_adjustment(
+                arena,
                 &member.expression,
                 doc_offset,
                 prefix_len,
@@ -8855,14 +9313,14 @@ fn convert_expression_with_adjustment(
         OxcExpression::ObjectExpression(_obj_expr) => {
             // Use the full convert_expression for complex objects
             let adjusted_offset = doc_offset.wrapping_sub(prefix_len).wrapping_add(1);
-            convert_expression(expr, adjusted_offset, line_offsets)
+            convert_expression(arena, expr, adjusted_offset, line_offsets)
                 .as_json()
                 .clone()
         }
         OxcExpression::ArrayExpression(_arr_expr) => {
             // Use the full convert_expression for arrays
             let adjusted_offset = doc_offset.wrapping_sub(prefix_len).wrapping_add(1);
-            convert_expression(expr, adjusted_offset, line_offsets)
+            convert_expression(arena, expr, adjusted_offset, line_offsets)
                 .as_json()
                 .clone()
         }
@@ -8910,7 +9368,7 @@ fn convert_expression_with_adjustment(
         OxcExpression::NewExpression(_) | OxcExpression::FunctionExpression(_) => {
             // Delegate to full convert_expression
             let adjusted_offset = doc_offset.wrapping_sub(prefix_len).wrapping_add(1);
-            convert_expression(expr, adjusted_offset, line_offsets)
+            convert_expression(arena, expr, adjusted_offset, line_offsets)
                 .as_json()
                 .clone()
         }
@@ -8918,7 +9376,7 @@ fn convert_expression_with_adjustment(
             // Fallback for other expressions - delegate to the full convert_expression
             // with proper offset adjustment
             let adjusted_offset = doc_offset.wrapping_sub(prefix_len).wrapping_add(1);
-            convert_expression(expr, adjusted_offset, line_offsets)
+            convert_expression(arena, expr, adjusted_offset, line_offsets)
                 .as_json()
                 .clone()
         }
@@ -8926,6 +9384,7 @@ fn convert_expression_with_adjustment(
 }
 
 fn create_template_literal_with_adjustment(
+    arena: &ParseArena,
     template: &oxc_ast::ast::TemplateLiteral,
     start: usize,
     end: usize,
@@ -8989,7 +9448,9 @@ fn create_template_literal_with_adjustment(
     let expressions: Vec<Value> = template
         .expressions
         .iter()
-        .map(|expr| convert_expression_with_adjustment(expr, doc_offset, prefix_len, line_offsets))
+        .map(|expr| {
+            convert_expression_with_adjustment(arena, expr, doc_offset, prefix_len, line_offsets)
+        })
         .collect();
     obj.insert("expressions".to_string(), Value::Array(expressions));
 
@@ -8997,6 +9458,7 @@ fn create_template_literal_with_adjustment(
 }
 
 fn create_call_expression_with_adjustment(
+    arena: &ParseArena,
     call: &oxc_ast::ast::CallExpression,
     start: usize,
     end: usize,
@@ -9015,8 +9477,13 @@ fn create_call_expression_with_adjustment(
         obj.insert("loc".to_string(), loc);
     }
 
-    let callee =
-        convert_expression_with_adjustment(&call.callee, doc_offset, prefix_len, line_offsets);
+    let callee = convert_expression_with_adjustment(
+        arena,
+        &call.callee,
+        doc_offset,
+        prefix_len,
+        line_offsets,
+    );
     obj.insert("callee".to_string(), callee);
 
     let args: Vec<Value> = call
@@ -9027,6 +9494,7 @@ fn create_call_expression_with_adjustment(
             _ => {
                 let expr = arg.to_expression();
                 Some(convert_expression_with_adjustment(
+                    arena,
                     expr,
                     doc_offset,
                     prefix_len,
@@ -9042,6 +9510,7 @@ fn create_call_expression_with_adjustment(
 }
 
 fn create_arrow_function_with_adjustment(
+    arena: &ParseArena,
     arrow: &oxc_ast::ast::ArrowFunctionExpression,
     start: usize,
     end: usize,
@@ -9066,14 +9535,20 @@ fn create_arrow_function_with_adjustment(
     obj.insert("params".to_string(), Value::Array(Vec::new())); // Simplified
 
     // Convert body - arrow.expression indicates if body is expression or block statement
-    let body =
-        convert_function_body_with_adjustment(&arrow.body, doc_offset, prefix_len, line_offsets);
+    let body = convert_function_body_with_adjustment(
+        arena,
+        &arrow.body,
+        doc_offset,
+        prefix_len,
+        line_offsets,
+    );
     obj.insert("body".to_string(), body);
 
     Value::Object(obj)
 }
 
 fn convert_function_body_with_adjustment(
+    arena: &ParseArena,
     body: &oxc_ast::ast::FunctionBody,
     doc_offset: usize,
     prefix_len: usize,
@@ -9097,7 +9572,7 @@ fn convert_function_body_with_adjustment(
         .statements
         .iter()
         .filter_map(|stmt| {
-            convert_statement_with_adjustment(stmt, doc_offset, prefix_len, line_offsets)
+            convert_statement_with_adjustment(arena, stmt, doc_offset, prefix_len, line_offsets)
         })
         .collect();
     obj.insert("body".to_string(), Value::Array(statements));
@@ -9106,6 +9581,7 @@ fn convert_function_body_with_adjustment(
 }
 
 fn convert_statement_with_adjustment(
+    arena: &ParseArena,
     stmt: &oxc_ast::ast::Statement,
     doc_offset: usize,
     prefix_len: usize,
@@ -9130,7 +9606,13 @@ fn convert_statement_with_adjustment(
             if let Some(arg) = &ret.argument {
                 obj.insert(
                     "argument".to_string(),
-                    convert_expression_with_adjustment(arg, doc_offset, prefix_len, line_offsets),
+                    convert_expression_with_adjustment(
+                        arena,
+                        arg,
+                        doc_offset,
+                        prefix_len,
+                        line_offsets,
+                    ),
                 );
             } else {
                 obj.insert("argument".to_string(), Value::Null);
@@ -9155,6 +9637,7 @@ fn convert_statement_with_adjustment(
             obj.insert(
                 "expression".to_string(),
                 convert_expression_with_adjustment(
+                    arena,
                     &expr_stmt.expression,
                     doc_offset,
                     prefix_len,
@@ -9174,11 +9657,12 @@ mod tests {
 
     #[test]
     fn test_parse_destructuring_assignment() {
+        let arena = ParseArena::new();
         let content = "{ handler } = structured";
         let offset = 10; // arbitrary offset
         let line_offsets = vec![0, 50, 100]; // dummy line offsets
 
-        let expr = parse_expression_with_typescript(content, offset, &line_offsets, false);
+        let expr = parse_expression_with_typescript(&arena, content, offset, &line_offsets, false);
 
         println!("Expression: {:?}", expr);
 

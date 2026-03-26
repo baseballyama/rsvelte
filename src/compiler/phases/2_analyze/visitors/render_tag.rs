@@ -8,7 +8,6 @@ use super::VisitorContext;
 use super::shared::fragment::mark_subtree_dynamic;
 use super::shared::utils::validate_opening_tag;
 use crate::ast::template::{ExpressionMetadata, RenderTag, TemplateNode};
-use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::{AnalysisError, BindingKind, errors};
 
 /// Visit a render tag.
@@ -23,18 +22,25 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
         .map(|node| node_type_string(node))
         .collect();
 
-    // Unwrap optional chaining if present
-    let expr_node = tag.expression.as_node();
-    let expression = unwrap_optional_node(&expr_node);
+    // Unwrap optional chaining if present (use JSON to avoid arena dependency)
+    let expr_json = tag.expression.as_json();
+    let expression_json =
+        if expr_json.get("type").and_then(|t| t.as_str()) == Some("ChainExpression") {
+            expr_json.get("expression").unwrap_or(&expr_json)
+        } else {
+            &expr_json
+        };
 
     // Get the callee from the call expression
-    let callee = expression
-        .callee()
+    let callee_json = expression_json
+        .get("callee")
         .ok_or_else(errors::render_tag_invalid_expression)?;
 
     // Check if the callee is an Identifier and look up its binding
-    let binding = if callee.node_type() == Some("Identifier") {
-        if let Some(name) = callee.name() {
+    let callee_type = callee_json.get("type").and_then(|t| t.as_str());
+    let callee_name = callee_json.get("name").and_then(|n| n.as_str());
+    let binding = if callee_type == Some("Identifier") {
+        if let Some(name) = callee_name {
             context
                 .analysis
                 .root
@@ -82,18 +88,20 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
     context.analysis.css.has_opaque_elements = true;
 
     // Validate arguments - no spread elements allowed
-    let arguments = expression.call_arguments();
-    for arg in arguments {
-        if arg.node_type() == Some("SpreadElement") {
-            return Err(errors::render_tag_invalid_spread_argument());
+    let arguments_json = expression_json.get("arguments").and_then(|a| a.as_array());
+    if let Some(args) = arguments_json {
+        for arg in args {
+            if arg.get("type").and_then(|t| t.as_str()) == Some("SpreadElement") {
+                return Err(errors::render_tag_invalid_spread_argument());
+            }
         }
     }
 
     // Check for invalid .bind(), .apply(), .call() usage
-    if callee.node_type() == Some("MemberExpression")
-        && let Some(property) = callee.property()
-        && property.node_type() == Some("Identifier")
-        && let Some(name) = property.name()
+    if callee_type == Some("MemberExpression")
+        && let Some(property) = callee_json.get("property")
+        && property.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+        && let Some(name) = property.get("name").and_then(|n| n.as_str())
         && matches!(name, "bind" | "apply" | "call")
     {
         return Err(errors::render_tag_invalid_call_expression());
@@ -103,17 +111,15 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
     mark_subtree_dynamic(&context.path);
 
     // Visit the callee expression and track its metadata
-    // context.visit(callee, { ...context.state, expression: node.metadata.expression });
-    // For now, we'll use walk_js_expression to populate the callee metadata
-    let callee_value = callee.to_value();
-    super::shared::utils::walk_js_expression(&callee_value, context, &mut tag.metadata.expression)?;
+    super::shared::utils::walk_js_expression(callee_json, context, &mut tag.metadata.expression)?;
 
     // Visit each argument and track its metadata
-    for arg in arguments {
-        let mut arg_metadata = ExpressionMetadata::default();
-        let arg_value = arg.to_value();
-        super::shared::utils::walk_js_expression(&arg_value, context, &mut arg_metadata)?;
-        tag.metadata.arguments.push(arg_metadata);
+    if let Some(args) = arguments_json {
+        for arg in args {
+            let mut arg_metadata = ExpressionMetadata::default();
+            super::shared::utils::walk_js_expression(arg, context, &mut arg_metadata)?;
+            tag.metadata.arguments.push(arg_metadata);
+        }
     }
 
     Ok(())
@@ -125,17 +131,6 @@ pub fn visit_render_tag(
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     visit(tag, context)
-}
-
-/// Unwrap optional chaining (ChainExpression) to get the inner JsNode.
-///
-/// Corresponds to `unwrap_optional` in Svelte's utils/ast.js.
-fn unwrap_optional_node(node: &JsNode) -> &JsNode {
-    if node.node_type() == Some("ChainExpression") {
-        node.expression_node().unwrap_or(node)
-    } else {
-        node
-    }
 }
 
 /// Check if a binding unambiguously resolves to a specific snippet declaration,

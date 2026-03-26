@@ -154,10 +154,10 @@ fn expr_only_uses_params(
 
 /// Dispatch to JsNode or JSON version of extract_pattern_names.
 fn extract_pattern_names_for_expr(expr: &Expression) -> Option<Vec<String>> {
-    match expr {
-        Expression::Typed(te) => extract_pattern_names_node(&te.node),
-        Expression::Value(v) => extract_pattern_names(v),
-    }
+    // Use JSON-based approach for both variants to avoid arena dependency.
+    // The Typed path converts to JSON once (cheap for pattern nodes).
+    let json = expr.as_json();
+    extract_pattern_names(&json)
 }
 
 /// Dispatch to JsNode or JSON version of check_pattern_defaults_hoistable.
@@ -182,6 +182,7 @@ fn expression_only_uses_params_node(
     param_names: &FxHashSet<String>,
     context: &VisitorContext,
 ) -> bool {
+    let arena = context.parse_arena;
     match node {
         JsNode::Identifier { name, .. } => {
             is_identifier_hoistable(name.as_str(), param_names, context)
@@ -192,10 +193,10 @@ fn expression_only_uses_params_node(
         JsNode::CallExpression {
             callee, arguments, ..
         } => {
-            if !expression_only_uses_params_node(callee, param_names, context) {
+            if !expression_only_uses_params_node(arena.get_js_node(*callee), param_names, context) {
                 return false;
             }
-            for arg in arguments {
+            for arg in arena.get_js_children(*arguments) {
                 if !expression_only_uses_params_node(arg, param_names, context) {
                     return false;
                 }
@@ -209,10 +210,16 @@ fn expression_only_uses_params_node(
             computed,
             ..
         } => {
-            if !expression_only_uses_params_node(object, param_names, context) {
+            if !expression_only_uses_params_node(arena.get_js_node(*object), param_names, context) {
                 return false;
             }
-            if *computed && !expression_only_uses_params_node(property, param_names, context) {
+            if *computed
+                && !expression_only_uses_params_node(
+                    arena.get_js_node(*property),
+                    param_names,
+                    context,
+                )
+            {
                 return false;
             }
             true
@@ -220,10 +227,10 @@ fn expression_only_uses_params_node(
 
         JsNode::BinaryExpression { left, right, .. }
         | JsNode::LogicalExpression { left, right, .. } => {
-            if !expression_only_uses_params_node(left, param_names, context) {
+            if !expression_only_uses_params_node(arena.get_js_node(*left), param_names, context) {
                 return false;
             }
-            if !expression_only_uses_params_node(right, param_names, context) {
+            if !expression_only_uses_params_node(arena.get_js_node(*right), param_names, context) {
                 return false;
             }
             true
@@ -235,13 +242,21 @@ fn expression_only_uses_params_node(
             alternate,
             ..
         } => {
-            expression_only_uses_params_node(test, param_names, context)
-                && expression_only_uses_params_node(consequent, param_names, context)
-                && expression_only_uses_params_node(alternate, param_names, context)
+            expression_only_uses_params_node(arena.get_js_node(*test), param_names, context)
+                && expression_only_uses_params_node(
+                    arena.get_js_node(*consequent),
+                    param_names,
+                    context,
+                )
+                && expression_only_uses_params_node(
+                    arena.get_js_node(*alternate),
+                    param_names,
+                    context,
+                )
         }
 
         JsNode::TemplateLiteral { expressions, .. } => {
-            for e in expressions {
+            for e in arena.get_js_children(*expressions) {
                 if !expression_only_uses_params_node(e, param_names, context) {
                     return false;
                 }
@@ -259,7 +274,7 @@ fn expression_only_uses_params_node(
         }
 
         JsNode::ObjectExpression { properties, .. } => {
-            for prop in properties {
+            for prop in arena.get_js_children(*properties) {
                 match prop {
                     JsNode::Property {
                         key,
@@ -267,16 +282,29 @@ fn expression_only_uses_params_node(
                         computed,
                         ..
                     } => {
-                        if *computed && !expression_only_uses_params_node(key, param_names, context)
+                        if *computed
+                            && !expression_only_uses_params_node(
+                                arena.get_js_node(*key),
+                                param_names,
+                                context,
+                            )
                         {
                             return false;
                         }
-                        if !expression_only_uses_params_node(value, param_names, context) {
+                        if !expression_only_uses_params_node(
+                            arena.get_js_node(*value),
+                            param_names,
+                            context,
+                        ) {
                             return false;
                         }
                     }
                     JsNode::SpreadElement { argument, .. } => {
-                        if !expression_only_uses_params_node(argument, param_names, context) {
+                        if !expression_only_uses_params_node(
+                            arena.get_js_node(*argument),
+                            param_names,
+                            context,
+                        ) {
                             return false;
                         }
                     }
@@ -306,25 +334,25 @@ fn expression_only_uses_params_node(
         }
 
         JsNode::SpreadElement { argument, .. } => {
-            expression_only_uses_params_node(argument, param_names, context)
+            expression_only_uses_params_node(arena.get_js_node(*argument), param_names, context)
         }
 
         JsNode::UnaryExpression { argument, .. } | JsNode::UpdateExpression { argument, .. } => {
-            expression_only_uses_params_node(argument, param_names, context)
+            expression_only_uses_params_node(arena.get_js_node(*argument), param_names, context)
         }
 
         JsNode::AssignmentExpression { left, right, .. } => {
-            if !expression_only_uses_params_node(left, param_names, context) {
+            if !expression_only_uses_params_node(arena.get_js_node(*left), param_names, context) {
                 return false;
             }
-            if !expression_only_uses_params_node(right, param_names, context) {
+            if !expression_only_uses_params_node(arena.get_js_node(*right), param_names, context) {
                 return false;
             }
             true
         }
 
         JsNode::SequenceExpression { expressions, .. } => {
-            for e in expressions {
+            for e in arena.get_js_children(*expressions) {
                 if !expression_only_uses_params_node(e, param_names, context) {
                     return false;
                 }
@@ -342,26 +370,32 @@ fn expression_only_uses_params_node(
 }
 
 /// Extract all names from a pattern (as JsNode).
-fn extract_pattern_names_node(node: &JsNode) -> Option<Vec<String>> {
+fn extract_pattern_names_node(
+    node: &JsNode,
+    arena: &crate::ast::arena::ParseArena,
+) -> Option<Vec<String>> {
     match node {
         JsNode::Identifier { name, .. } => Some(vec![name.to_string()]),
 
         JsNode::ObjectPattern { properties, .. } => {
             let mut names = Vec::new();
-            for prop in properties {
+            for prop in arena.get_js_children(*properties) {
                 match prop {
                     JsNode::Property { value, .. } => {
                         // If value is AssignmentPattern, extract from left
-                        let actual = match value.as_ref() {
-                            JsNode::AssignmentPattern { left, .. } => left.as_ref(),
+                        let value_node = arena.get_js_node(*value);
+                        let actual = match value_node {
+                            JsNode::AssignmentPattern { left, .. } => arena.get_js_node(*left),
                             other => other,
                         };
-                        if let Some(inner_names) = extract_pattern_names_node(actual) {
+                        if let Some(inner_names) = extract_pattern_names_node(actual, arena) {
                             names.extend(inner_names);
                         }
                     }
                     JsNode::RestElement { argument, .. } => {
-                        if let Some(inner_names) = extract_pattern_names_node(argument) {
+                        if let Some(inner_names) =
+                            extract_pattern_names_node(arena.get_js_node(*argument), arena)
+                        {
                             names.extend(inner_names);
                         }
                     }
@@ -401,16 +435,20 @@ fn extract_pattern_names_node(node: &JsNode) -> Option<Vec<String>> {
         JsNode::ArrayPattern { elements, .. } => {
             let mut names = Vec::new();
             for e in elements.iter().flatten() {
-                if let Some(inner_names) = extract_pattern_names_node(e) {
+                if let Some(inner_names) = extract_pattern_names_node(e, arena) {
                     names.extend(inner_names);
                 }
             }
             Some(names)
         }
 
-        JsNode::AssignmentPattern { left, .. } => extract_pattern_names_node(left),
+        JsNode::AssignmentPattern { left, .. } => {
+            extract_pattern_names_node(arena.get_js_node(*left), arena)
+        }
 
-        JsNode::RestElement { argument, .. } => extract_pattern_names_node(argument),
+        JsNode::RestElement { argument, .. } => {
+            extract_pattern_names_node(arena.get_js_node(*argument), arena)
+        }
 
         // Fallback for Raw nodes
         JsNode::Raw(v) => extract_pattern_names(v),
@@ -425,12 +463,17 @@ fn check_pattern_defaults_hoistable_node(
     param_names: &FxHashSet<String>,
     context: &VisitorContext,
 ) -> bool {
+    let arena = context.parse_arena;
     match node {
         JsNode::ObjectPattern { properties, .. } => {
-            for prop in properties {
+            for prop in arena.get_js_children(*properties) {
                 match prop {
                     JsNode::Property { value, .. } => {
-                        if !check_pattern_defaults_hoistable_node(value, param_names, context) {
+                        if !check_pattern_defaults_hoistable_node(
+                            arena.get_js_node(*value),
+                            param_names,
+                            context,
+                        ) {
                             return false;
                         }
                     }
@@ -460,7 +503,7 @@ fn check_pattern_defaults_hoistable_node(
         }
 
         JsNode::AssignmentPattern { right, .. } => {
-            expression_only_uses_params_node(right, param_names, context)
+            expression_only_uses_params_node(arena.get_js_node(*right), param_names, context)
         }
 
         // Fallback for Raw nodes
@@ -477,11 +520,16 @@ fn check_params_hoistable(
     param_names: &FxHashSet<String>,
     context: &VisitorContext,
 ) -> bool {
+    let arena = context.parse_arena;
     for param in params {
         match param {
             Expression::Typed(te) => match &te.node {
                 JsNode::AssignmentPattern { right, .. } => {
-                    if !expression_only_uses_params_node(right, param_names, context) {
+                    if !expression_only_uses_params_node(
+                        arena.get_js_node(*right),
+                        param_names,
+                        context,
+                    ) {
                         return false;
                     }
                 }

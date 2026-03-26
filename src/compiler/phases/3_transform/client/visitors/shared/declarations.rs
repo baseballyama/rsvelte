@@ -888,8 +888,10 @@ mod tests {
         let transform_options = Rc::new(
             crate::compiler::phases::phase3_transform::client::types::TransformOptions::default(),
         );
+        let parse_arena = crate::ast::arena::ParseArena::new();
         let state =
             crate::compiler::phases::phase3_transform::client::types::ComponentClientTransformState::new(
+                &parse_arena,
                 &scope,
                 &scope_root,
                 &analysis,

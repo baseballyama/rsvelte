@@ -7,6 +7,7 @@
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 
+use super::arena::{IdRange, JsNodeId};
 use super::span::SourceLocation;
 use super::typed_expr::{JsNode, Loc, SourcePosition};
 
@@ -259,7 +260,7 @@ impl Expression {
 
     /// Get "callee" for CallExpression/NewExpression (delegates to JsNode::callee()).
     #[inline]
-    pub fn callee(&self) -> Option<&JsNode> {
+    pub fn callee(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.callee(),
             Expression::Value(_) => None,
@@ -268,16 +269,16 @@ impl Expression {
 
     /// Get "arguments" for CallExpression/NewExpression.
     #[inline]
-    pub fn call_arguments(&self) -> &[JsNode] {
+    pub fn call_arguments(&self) -> IdRange {
         match self {
             Expression::Typed(te) => te.node.call_arguments(),
-            Expression::Value(_) => &[],
+            Expression::Value(_) => IdRange::empty(),
         }
     }
 
     /// Get "object" for MemberExpression.
     #[inline]
-    pub fn object(&self) -> Option<&JsNode> {
+    pub fn object(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.object(),
             Expression::Value(_) => None,
@@ -286,7 +287,7 @@ impl Expression {
 
     /// Get "property" for MemberExpression.
     #[inline]
-    pub fn property(&self) -> Option<&JsNode> {
+    pub fn property(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.property(),
             Expression::Value(_) => None,
@@ -295,7 +296,7 @@ impl Expression {
 
     /// Get "left" for BinaryExpression, etc.
     #[inline]
-    pub fn left(&self) -> Option<&JsNode> {
+    pub fn left(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.left(),
             Expression::Value(_) => None,
@@ -304,7 +305,7 @@ impl Expression {
 
     /// Get "right" for BinaryExpression, etc.
     #[inline]
-    pub fn right(&self) -> Option<&JsNode> {
+    pub fn right(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.right(),
             Expression::Value(_) => None,
@@ -322,7 +323,7 @@ impl Expression {
 
     /// Get "argument" for UnaryExpression, etc.
     #[inline]
-    pub fn argument(&self) -> Option<&JsNode> {
+    pub fn argument(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.argument(),
             Expression::Value(_) => None,
@@ -331,10 +332,10 @@ impl Expression {
 
     /// Get "properties" for ObjectExpression/ObjectPattern.
     #[inline]
-    pub fn properties(&self) -> &[JsNode] {
+    pub fn properties(&self) -> IdRange {
         match self {
             Expression::Typed(te) => te.node.properties(),
-            Expression::Value(_) => &[],
+            Expression::Value(_) => IdRange::empty(),
         }
     }
 
@@ -349,25 +350,25 @@ impl Expression {
 
     /// Get "expressions" for SequenceExpression/TemplateLiteral.
     #[inline]
-    pub fn expressions(&self) -> &[JsNode] {
+    pub fn expressions(&self) -> IdRange {
         match self {
             Expression::Typed(te) => te.node.expressions(),
-            Expression::Value(_) => &[],
+            Expression::Value(_) => IdRange::empty(),
         }
     }
 
     /// Get "params" for function-like nodes.
     #[inline]
-    pub fn params(&self) -> &[JsNode] {
+    pub fn params(&self) -> IdRange {
         match self {
             Expression::Typed(te) => te.node.params(),
-            Expression::Value(_) => &[],
+            Expression::Value(_) => IdRange::empty(),
         }
     }
 
     /// Get "test" for ConditionalExpression, IfStatement, etc.
     #[inline]
-    pub fn test(&self) -> Option<&JsNode> {
+    pub fn test(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.test(),
             Expression::Value(_) => None,
@@ -376,7 +377,7 @@ impl Expression {
 
     /// Get "consequent" for ConditionalExpression, IfStatement.
     #[inline]
-    pub fn consequent(&self) -> Option<&JsNode> {
+    pub fn consequent(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.consequent(),
             Expression::Value(_) => None,
@@ -385,7 +386,7 @@ impl Expression {
 
     /// Get "alternate" for ConditionalExpression, IfStatement.
     #[inline]
-    pub fn alternate(&self) -> Option<&JsNode> {
+    pub fn alternate(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.alternate(),
             Expression::Value(_) => None,

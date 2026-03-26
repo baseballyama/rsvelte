@@ -644,6 +644,7 @@ impl Parser<'_> {
         offset: usize,
     ) -> Result<Expression, crate::error::ParseError> {
         super::super::expression::parse_binding_pattern(
+            &self.arena,
             content,
             offset,
             self.expression_line_offsets(),
@@ -706,6 +707,7 @@ impl Parser<'_> {
         // For await blocks, we parse the expression with a known end position
         // to avoid find_matching_bracket finding the block's closing }
         let expression = super::super::expression::parse_expression_with_end(
+            &self.arena,
             trimmed_content.trim(),
             adjusted_start,
             adjusted_end,
@@ -1037,6 +1039,7 @@ impl Parser<'_> {
             // Parse parameters with TypeScript type annotations
             if !params_content.trim().is_empty() {
                 parameters = super::super::expression::parse_typescript_params(
+                    &self.arena,
                     params_content,
                     params_start,
                     self.expression_line_offsets(),
@@ -1454,6 +1457,7 @@ impl Parser<'_> {
                     let pattern_expr =
                         if pattern_clean.starts_with('{') || pattern_clean.starts_with('[') {
                             super::super::read::expression::parse_destructuring_pattern(
+                                &self.arena,
                                 &pattern_clean,
                                 expr_start,
                                 self.expression_line_offsets(),
@@ -1478,6 +1482,7 @@ impl Parser<'_> {
                     // can still extract the original source text via
                     // tag.declaration.start() / tag.declaration.end().
                     build_const_variable_declaration(
+                        &self.arena,
                         &pattern_expr,
                         &init_expr,
                         expr_start,
@@ -1600,6 +1605,7 @@ impl Parser<'_> {
         let leading_ws = content.len() - content.trim_start().len();
         let trimmed = content.trim();
         super::super::expression::parse_expression(
+            &self.arena,
             trimmed,
             offset + leading_ws,
             self.expression_line_offsets(),
@@ -1628,6 +1634,7 @@ impl Parser<'_> {
         let leading_ws = content.len() - content.trim_start().len();
         let trimmed = content.trim();
         super::super::expression::parse_expression(
+            &self.arena,
             trimmed,
             offset + leading_ws,
             self.expression_line_offsets(),
@@ -1695,6 +1702,7 @@ fn strip_type_annotation(pattern: &str) -> String {
 /// }
 /// ```
 fn build_const_variable_declaration(
+    arena: &crate::ast::arena::ParseArena,
     pattern: &Expression,
     init: &Expression,
     decl_start: usize,
@@ -1702,8 +1710,9 @@ fn build_const_variable_declaration(
 ) -> Expression {
     use serde_json::{Map, Value};
 
-    let pattern_value = pattern.as_json().clone();
-    let init_value = init.as_json().clone();
+    // Use the parser's arena for serialization context
+    let pattern_value = crate::ast::arena::with_serialize_arena(arena, || pattern.as_json());
+    let init_value = crate::ast::arena::with_serialize_arena(arena, || init.as_json());
 
     // Get positions from the pattern and init for the declarator
     let id_start = pattern_value

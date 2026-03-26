@@ -50,10 +50,10 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
 
     // Get the call expression from the render tag
     // The expression should be a CallExpression like `snip()` or `snip(arg1, arg2)`
-    let call_expr = unwrap_optional(&node.expression);
+    let call_expr = unwrap_optional(&node.expression, context.state.parse_arena);
     // Extract arguments and wrap them in thunks
     // Reference: RenderTag.js lines 22-33
-    let raw_args = extract_call_arguments(&call_expr);
+    let raw_args = extract_call_arguments(&call_expr, context.state.parse_arena);
 
     // Track async values for $.async() wrapping
     let mut async_values: Vec<JsExpr> = Vec::new();
@@ -130,15 +130,16 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
 
     // Get the snippet function (callee)
     // Reference: RenderTag.js lines 40-44
-    let snippet_function = if let Some(callee) = extract_call_callee(&call_expr) {
-        let converted = convert_expression(&callee, context);
-        // Apply transforms to the callee too (e.g., for derived snippet variables)
-        let metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
-        build_expression(context, &converted, &metadata)
-    } else {
-        // Fallback - shouldn't normally happen
-        b::id("$$snippet")
-    };
+    let snippet_function =
+        if let Some(callee) = extract_call_callee(&call_expr, context.state.parse_arena) {
+            let converted = convert_expression(&callee, context);
+            // Apply transforms to the callee too (e.g., for derived snippet variables)
+            let metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
+            build_expression(context, &converted, &metadata)
+        } else {
+            // Fallback - shouldn't normally happen
+            b::id("$$snippet")
+        };
 
     // If we have a chain expression then ensure a nullish snippet function gets turned into an empty one
     let is_chain_expression = node.expression.node_type() == Some("ChainExpression");
@@ -285,13 +286,13 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
 /// Unwrap optional chain expression if present.
 ///
 /// Corresponds to `unwrap_optional` in Svelte's utils.
-fn unwrap_optional(expr: &Expression) -> Expression {
+fn unwrap_optional(expr: &Expression, arena: &crate::ast::arena::ParseArena) -> Expression {
     use crate::ast::typed_expr::JsNode;
     if expr.node_type() == Some("ChainExpression") {
         let node = expr.as_node();
         match &*node {
             JsNode::ChainExpression { expression, .. } => {
-                return Expression::from_node((**expression).clone());
+                return Expression::from_node(arena.get_js_node(*expression).clone());
             }
             JsNode::Raw(val) => {
                 if let Some(inner) = val.get("expression") {
@@ -305,14 +306,18 @@ fn unwrap_optional(expr: &Expression) -> Expression {
 }
 
 /// Extract arguments from a call expression.
-fn extract_call_arguments(expr: &Expression) -> Vec<Expression> {
+fn extract_call_arguments(
+    expr: &Expression,
+    arena: &crate::ast::arena::ParseArena,
+) -> Vec<Expression> {
     use crate::ast::typed_expr::JsNode;
     if expr.node_type() != Some("CallExpression") {
         return Vec::new();
     }
     let node = expr.as_node();
     match &*node {
-        JsNode::CallExpression { arguments, .. } => arguments
+        JsNode::CallExpression { arguments, .. } => arena
+            .get_js_children(*arguments)
             .iter()
             .map(|arg| Expression::from_node(arg.clone()))
             .collect(),
@@ -330,14 +335,19 @@ fn extract_call_arguments(expr: &Expression) -> Vec<Expression> {
 }
 
 /// Extract callee from a call expression.
-fn extract_call_callee(expr: &Expression) -> Option<Expression> {
+fn extract_call_callee(
+    expr: &Expression,
+    arena: &crate::ast::arena::ParseArena,
+) -> Option<Expression> {
     use crate::ast::typed_expr::JsNode;
     if expr.node_type() != Some("CallExpression") {
         return None;
     }
     let node = expr.as_node();
     match &*node {
-        JsNode::CallExpression { callee, .. } => Some(Expression::from_node((**callee).clone())),
+        JsNode::CallExpression { callee, .. } => {
+            Some(Expression::from_node(arena.get_js_node(*callee).clone()))
+        }
         JsNode::Raw(val) => val.get("callee").map(|c| Expression::Value(c.clone())),
         _ => None,
     }
@@ -387,7 +397,8 @@ mod tests {
             "arguments": []
         }));
 
-        let callee = extract_call_callee(&call_expr);
+        let arena = crate::ast::arena::ParseArena::new();
+        let callee = extract_call_callee(&call_expr, &arena);
         assert!(callee.is_some());
 
         if let Some(callee_expr) = callee {
@@ -409,7 +420,8 @@ mod tests {
             ]
         }));
 
-        let args = extract_call_arguments(&call_expr);
+        let arena = crate::ast::arena::ParseArena::new();
+        let args = extract_call_arguments(&call_expr, &arena);
         assert_eq!(args.len(), 1);
     }
 }

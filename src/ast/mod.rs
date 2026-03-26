@@ -6,6 +6,7 @@
 //! - Cache-friendly layouts
 //! - Easy serialization to match Svelte's JSON output
 
+pub mod arena;
 pub mod css;
 pub mod js;
 pub mod span;

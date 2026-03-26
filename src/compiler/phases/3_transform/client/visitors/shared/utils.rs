@@ -3268,7 +3268,8 @@ pub fn build_template_chunk(
                     // but NOT a "call" for memoization. This matches the official Svelte compiler's
                     // phase 2 analysis where $effect.pending() explicitly sets has_state = true
                     // but does NOT set has_call (because is_pure returns true for the callee).
-                    let is_pending_rune = is_effect_pending_expr(&expr_tag.expression);
+                    let is_pending_rune =
+                        is_effect_pending_expr(&expr_tag.expression, context.state.parse_arena);
                     let expr_props = analyze_expression_properties(&expr_tag.expression, context);
                     let expr_has_state = expr_props.has_state || is_pending_rune;
                     // $effect.pending() is treated as a pure call by the official compiler,
@@ -4269,16 +4270,20 @@ pub fn expression_has_reactive_state(
 /// (since the callee is a pure global). This function detects this rune call
 /// so the caller can set has_state = true without affecting has_call.
 #[inline]
-pub fn is_effect_pending_expr(expr: &crate::ast::js::Expression) -> bool {
+pub fn is_effect_pending_expr(
+    expr: &crate::ast::js::Expression,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
     use crate::ast::typed_expr::JsNode;
     // Must be a CallExpression
     if expr.node_type() != Some("CallExpression") {
         return false;
     }
     // Check callee is $effect.pending (MemberExpression, not computed)
-    let Some(callee) = expr.callee() else {
+    let Some(callee_id) = expr.callee() else {
         return false;
     };
+    let callee = arena.get_js_node(callee_id);
     match callee {
         JsNode::MemberExpression {
             object,
@@ -4289,9 +4294,12 @@ pub fn is_effect_pending_expr(expr: &crate::ast::js::Expression) -> bool {
             if *computed {
                 return false;
             }
-            let is_pending = matches!(&**property, JsNode::Identifier { name, .. } if name.as_str() == "pending");
+            let prop_node = arena.get_js_node(*property);
+            let obj_node = arena.get_js_node(*object);
+            let is_pending =
+                matches!(prop_node, JsNode::Identifier { name, .. } if name.as_str() == "pending");
             let is_effect_obj =
-                matches!(&**object, JsNode::Identifier { name, .. } if name.as_str() == "$effect");
+                matches!(obj_node, JsNode::Identifier { name, .. } if name.as_str() == "$effect");
             is_pending && is_effect_obj
         }
         JsNode::Raw(val) => {

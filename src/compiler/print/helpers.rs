@@ -989,23 +989,9 @@ pub fn format_program_from_source(program: &crate::ast::js::Expression, source: 
 
 /// Get (start, end) positions of each statement in a Program body.
 fn get_program_body_positions(program: &crate::ast::js::Expression) -> Vec<(usize, usize)> {
-    use crate::ast::typed_expr::JsNode;
-
-    // Try typed variant first
-    if let crate::ast::js::Expression::Typed(typed) = program
-        && let JsNode::Program { body, .. } = &typed.node
-    {
-        return body
-            .iter()
-            .filter_map(|stmt| {
-                let s = stmt.start()? as usize;
-                let e = stmt.end()? as usize;
-                Some((s, e))
-            })
-            .collect();
-    }
-
-    // Handle Value variant (legacy JSON)
+    // Use JSON representation to access body statements.
+    // The typed path would require ParseArena to resolve IdRange;
+    // as_json() handles arena resolution internally via to_value().
     let json = program.as_json();
     if let Some(body) = json.get("body").and_then(|v| v.as_array()) {
         return body

@@ -35,7 +35,8 @@ pub fn visit_script_expr(
                     .js_path
                     .push(super::JsPathEntry::new(&program_value));
 
-                for stmt in body {
+                let arena = context.parse_arena;
+                for stmt in arena.get_js_children(*body) {
                     match stmt {
                         // For Raw nodes (statements with leadingComments attached),
                         // use the Value-based walker which handles all node types
@@ -681,6 +682,7 @@ pub fn walk_js_node_typed(
 /// Uses pattern matching on `JsNode` variants to directly access child fields
 /// instead of doing `serde_json::Value` field lookups.
 fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    let arena = context.parse_arena;
     match node {
         // Types that handle their own child traversal
         JsNode::CallExpression { .. }
@@ -702,69 +704,69 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
         | JsNode::ExportNamedDeclaration { .. }
         | JsNode::ImportDeclaration { .. } => Ok(()),
 
-        // Block-like with body array
+        // Block-like with body array (IdRange)
         JsNode::BlockStatement { body, .. }
         | JsNode::Program { body, .. }
         | JsNode::StaticBlock { body, .. } => {
-            for child in body {
+            for child in arena.get_js_children(*body) {
                 walk_js_node_typed(child, context)?;
             }
             Ok(())
         }
 
-        // Binary/Logical: left + right
+        // Binary/Logical: left + right (JsNodeId)
         JsNode::BinaryExpression { left, right, .. }
         | JsNode::LogicalExpression { left, right, .. } => {
-            walk_js_node_typed(left, context)?;
-            walk_js_node_typed(right, context)?;
+            walk_js_node_typed(arena.get_js_node(*left), context)?;
+            walk_js_node_typed(arena.get_js_node(*right), context)?;
             Ok(())
         }
 
-        // Unary: argument
+        // Unary: argument (JsNodeId)
         JsNode::UnaryExpression { argument, .. }
         | JsNode::SpreadElement { argument, .. }
         | JsNode::RestElement { argument, .. } => {
-            walk_js_node_typed(argument, context)?;
+            walk_js_node_typed(arena.get_js_node(*argument), context)?;
             Ok(())
         }
 
-        // Conditional: test + consequent + alternate
+        // Conditional: test + consequent + alternate (all JsNodeId)
         JsNode::ConditionalExpression {
             test,
             consequent,
             alternate,
             ..
         } => {
-            walk_js_node_typed(test, context)?;
-            walk_js_node_typed(consequent, context)?;
-            walk_js_node_typed(alternate, context)?;
+            walk_js_node_typed(arena.get_js_node(*test), context)?;
+            walk_js_node_typed(arena.get_js_node(*consequent), context)?;
+            walk_js_node_typed(arena.get_js_node(*alternate), context)?;
             Ok(())
         }
 
-        // IfStatement
+        // IfStatement: test + consequent (JsNodeId), alternate (Option<JsNodeId>)
         JsNode::IfStatement {
             test,
             consequent,
             alternate,
             ..
         } => {
-            walk_js_node_typed(test, context)?;
-            walk_js_node_typed(consequent, context)?;
+            walk_js_node_typed(arena.get_js_node(*test), context)?;
+            walk_js_node_typed(arena.get_js_node(*consequent), context)?;
             if let Some(alt) = alternate {
-                walk_js_node_typed(alt, context)?;
+                walk_js_node_typed(arena.get_js_node(*alt), context)?;
             }
             Ok(())
         }
 
-        // Objects: properties
+        // Objects: properties (IdRange)
         JsNode::ObjectExpression { properties, .. } | JsNode::ObjectPattern { properties, .. } => {
-            for prop in properties {
+            for prop in arena.get_js_children(*properties) {
                 walk_js_node_typed(prop, context)?;
             }
             Ok(())
         }
 
-        // ArrayExpression
+        // ArrayExpression: elements is Vec<Option<JsNode>> - kept as-is (not IdRange)
         JsNode::ArrayExpression { elements, .. } => {
             for e in elements.iter().flatten() {
                 walk_js_node_typed(e, context)?;
@@ -772,7 +774,7 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
             Ok(())
         }
 
-        // ArrayPattern
+        // ArrayPattern: elements is Vec<Option<JsNode>> - kept as-is (not IdRange)
         JsNode::ArrayPattern { elements, .. } => {
             for e in elements.iter().flatten() {
                 walk_js_node_typed(e, context)?;
@@ -780,7 +782,7 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
             Ok(())
         }
 
-        // Property: key (if computed) + value
+        // Property: key + value (JsNodeId)
         JsNode::Property {
             key,
             value,
@@ -788,13 +790,13 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
             ..
         } => {
             if *computed {
-                walk_js_node_typed(key, context)?;
+                walk_js_node_typed(arena.get_js_node(*key), context)?;
             }
-            walk_js_node_typed(value, context)?;
+            walk_js_node_typed(arena.get_js_node(*value), context)?;
             Ok(())
         }
 
-        // MethodDefinition: key (if computed) + value
+        // MethodDefinition: key + value (JsNodeId)
         JsNode::MethodDefinition {
             key,
             value,
@@ -802,43 +804,43 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
             ..
         } => {
             if *computed {
-                walk_js_node_typed(key, context)?;
+                walk_js_node_typed(arena.get_js_node(*key), context)?;
             }
-            walk_js_node_typed(value, context)?;
+            walk_js_node_typed(arena.get_js_node(*value), context)?;
             Ok(())
         }
 
-        // SequenceExpression: expressions
+        // SequenceExpression: expressions (IdRange)
         JsNode::SequenceExpression { expressions, .. } => {
-            for expr in expressions {
+            for expr in arena.get_js_children(*expressions) {
                 walk_js_node_typed(expr, context)?;
             }
             Ok(())
         }
 
-        // TemplateLiteral: quasis + expressions
+        // TemplateLiteral: quasis + expressions (IdRange)
         JsNode::TemplateLiteral {
             quasis,
             expressions,
             ..
         } => {
-            for quasi in quasis {
+            for quasi in arena.get_js_children(*quasis) {
                 walk_js_node_typed(quasi, context)?;
             }
-            for expr in expressions {
+            for expr in arena.get_js_children(*expressions) {
                 walk_js_node_typed(expr, context)?;
             }
             Ok(())
         }
 
-        // TaggedTemplateExpression: tag + quasi
+        // TaggedTemplateExpression: tag + quasi (JsNodeId)
         JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
-            walk_js_node_typed(tag, context)?;
-            walk_js_node_typed(quasi, context)?;
+            walk_js_node_typed(arena.get_js_node(*tag), context)?;
+            walk_js_node_typed(arena.get_js_node(*quasi), context)?;
             Ok(())
         }
 
-        // ForStatement
+        // ForStatement: init/test/update (Option<JsNodeId>), body (JsNodeId)
         JsNode::ForStatement {
             init,
             test,
@@ -847,161 +849,161 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
             ..
         } => {
             if let Some(init) = init {
-                walk_js_node_typed(init, context)?;
+                walk_js_node_typed(arena.get_js_node(*init), context)?;
             }
             if let Some(test) = test {
-                walk_js_node_typed(test, context)?;
+                walk_js_node_typed(arena.get_js_node(*test), context)?;
             }
             if let Some(update) = update {
-                walk_js_node_typed(update, context)?;
+                walk_js_node_typed(arena.get_js_node(*update), context)?;
             }
-            walk_js_node_typed(body, context)?;
+            walk_js_node_typed(arena.get_js_node(*body), context)?;
             Ok(())
         }
 
-        // WhileStatement
+        // WhileStatement: test + body (JsNodeId)
         JsNode::WhileStatement { test, body, .. } => {
-            walk_js_node_typed(test, context)?;
-            walk_js_node_typed(body, context)?;
+            walk_js_node_typed(arena.get_js_node(*test), context)?;
+            walk_js_node_typed(arena.get_js_node(*body), context)?;
             Ok(())
         }
 
-        // DoWhileStatement
+        // DoWhileStatement: test + body (JsNodeId)
         JsNode::DoWhileStatement { test, body, .. } => {
-            walk_js_node_typed(test, context)?;
-            walk_js_node_typed(body, context)?;
+            walk_js_node_typed(arena.get_js_node(*test), context)?;
+            walk_js_node_typed(arena.get_js_node(*body), context)?;
             Ok(())
         }
 
-        // ReturnStatement
+        // ReturnStatement: argument (Option<JsNodeId>)
         JsNode::ReturnStatement { argument, .. } => {
             if let Some(arg) = argument {
-                walk_js_node_typed(arg, context)?;
+                walk_js_node_typed(arena.get_js_node(*arg), context)?;
             }
             Ok(())
         }
 
-        // ThrowStatement
+        // ThrowStatement: argument (JsNodeId)
         JsNode::ThrowStatement { argument, .. } => {
-            walk_js_node_typed(argument, context)?;
+            walk_js_node_typed(arena.get_js_node(*argument), context)?;
             Ok(())
         }
 
-        // VariableDeclaration: declarations
+        // VariableDeclaration: declarations (IdRange)
         JsNode::VariableDeclaration { declarations, .. } => {
-            for decl in declarations {
+            for decl in arena.get_js_children(*declarations) {
                 walk_js_node_typed(decl, context)?;
             }
             Ok(())
         }
 
-        // AssignmentPattern: left + right
+        // AssignmentPattern: left + right (JsNodeId)
         JsNode::AssignmentPattern { left, right, .. } => {
-            walk_js_node_typed(left, context)?;
-            walk_js_node_typed(right, context)?;
+            walk_js_node_typed(arena.get_js_node(*left), context)?;
+            walk_js_node_typed(arena.get_js_node(*right), context)?;
             Ok(())
         }
 
-        // ChainExpression
+        // ChainExpression: expression (JsNodeId)
         JsNode::ChainExpression { expression, .. } => {
-            walk_js_node_typed(expression, context)?;
+            walk_js_node_typed(arena.get_js_node(*expression), context)?;
             Ok(())
         }
 
-        // ImportExpression
+        // ImportExpression: source (JsNodeId)
         JsNode::ImportExpression { source, .. } => {
-            walk_js_node_typed(source, context)?;
+            walk_js_node_typed(arena.get_js_node(*source), context)?;
             Ok(())
         }
 
-        // YieldExpression
+        // YieldExpression: argument (Option<JsNodeId>)
         JsNode::YieldExpression { argument, .. } => {
             if let Some(arg) = argument {
-                walk_js_node_typed(arg, context)?;
+                walk_js_node_typed(arena.get_js_node(*arg), context)?;
             }
             Ok(())
         }
 
-        // ForOfStatement / ForInStatement
+        // ForOfStatement / ForInStatement: left + right + body (JsNodeId)
         JsNode::ForOfStatement {
             left, right, body, ..
         }
         | JsNode::ForInStatement {
             left, right, body, ..
         } => {
-            walk_js_node_typed(left, context)?;
-            walk_js_node_typed(right, context)?;
-            walk_js_node_typed(body, context)?;
+            walk_js_node_typed(arena.get_js_node(*left), context)?;
+            walk_js_node_typed(arena.get_js_node(*right), context)?;
+            walk_js_node_typed(arena.get_js_node(*body), context)?;
             Ok(())
         }
 
-        // SwitchStatement
+        // SwitchStatement: discriminant (JsNodeId), cases (IdRange)
         JsNode::SwitchStatement {
             discriminant,
             cases,
             ..
         } => {
-            walk_js_node_typed(discriminant, context)?;
-            for case in cases {
+            walk_js_node_typed(arena.get_js_node(*discriminant), context)?;
+            for case in arena.get_js_children(*cases) {
                 walk_js_node_typed(case, context)?;
             }
             Ok(())
         }
 
-        // SwitchCase
+        // SwitchCase: test (Option<JsNodeId>), consequent (IdRange)
         JsNode::SwitchCase {
             test, consequent, ..
         } => {
             if let Some(t) = test {
-                walk_js_node_typed(t, context)?;
+                walk_js_node_typed(arena.get_js_node(*t), context)?;
             }
-            for stmt in consequent {
+            for stmt in arena.get_js_children(*consequent) {
                 walk_js_node_typed(stmt, context)?;
             }
             Ok(())
         }
 
-        // TryStatement
+        // TryStatement: block (JsNodeId), handler/finalizer (Option<JsNodeId>)
         JsNode::TryStatement {
             block,
             handler,
             finalizer,
             ..
         } => {
-            walk_js_node_typed(block, context)?;
+            walk_js_node_typed(arena.get_js_node(*block), context)?;
             if let Some(h) = handler {
-                walk_js_node_typed(h, context)?;
+                walk_js_node_typed(arena.get_js_node(*h), context)?;
             }
             if let Some(f) = finalizer {
-                walk_js_node_typed(f, context)?;
+                walk_js_node_typed(arena.get_js_node(*f), context)?;
             }
             Ok(())
         }
 
-        // CatchClause
+        // CatchClause: param (Option<JsNodeId>), body (JsNodeId)
         JsNode::CatchClause { param, body, .. } => {
             if let Some(p) = param {
-                walk_js_node_typed(p, context)?;
+                walk_js_node_typed(arena.get_js_node(*p), context)?;
             }
-            walk_js_node_typed(body, context)?;
+            walk_js_node_typed(arena.get_js_node(*body), context)?;
             Ok(())
         }
 
-        // ClassExpression: super_class + body
+        // ClassExpression: super_class (Option<JsNodeId>), body (JsNodeId)
         JsNode::ClassExpression {
             super_class, body, ..
         } => {
             if let Some(sc) = super_class {
-                walk_js_node_typed(sc, context)?;
+                walk_js_node_typed(arena.get_js_node(*sc), context)?;
             }
-            walk_js_node_typed(body, context)?;
+            walk_js_node_typed(arena.get_js_node(*body), context)?;
             Ok(())
         }
 
-        // MetaProperty: meta + property
+        // MetaProperty: meta + property (JsNodeId)
         JsNode::MetaProperty { meta, property, .. } => {
-            walk_js_node_typed(meta, context)?;
-            walk_js_node_typed(property, context)?;
+            walk_js_node_typed(arena.get_js_node(*meta), context)?;
+            walk_js_node_typed(arena.get_js_node(*property), context)?;
             Ok(())
         }
 

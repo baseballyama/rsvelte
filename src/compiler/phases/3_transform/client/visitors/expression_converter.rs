@@ -6,6 +6,7 @@
 //!
 //! Corresponds to the visitor pattern in Svelte's transform phase.
 
+use crate::ast::arena::ParseArena;
 use crate::ast::js::Expression;
 use crate::ast::typed_expr::{JsNode, LiteralValue};
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
@@ -149,6 +150,14 @@ pub fn convert_expression(expr: &Expression, context: &mut ComponentContext) -> 
 /// Convert a JsNode directly to JsExpr via pattern matching, bypassing serde_json::Value
 /// for simple expression types. Complex types fall back to convert_json_value.
 fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
+    // Copy the parse_arena reference from context.state so we can resolve JsNodeId/IdRange
+    // without holding a borrow on context. The ParseArena is external and outlives context.
+    let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: The ParseArena reference is valid for the duration of this function.
+    // We use a raw pointer to avoid borrow-checker conflicts when passing &mut context
+    // to recursive calls while also reading from the arena.
+    let pa: &ParseArena = unsafe { &*pa };
+
     match node {
         JsNode::Identifier { name, .. } => {
             // Check if this is a prop that needs special handling
@@ -236,8 +245,8 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             if context.state.options.dev
                 && (operator == "===" || operator == "!==" || operator == "==" || operator == "!=")
             {
-                let left_expr = convert_js_node(left, context);
-                let right_expr = convert_js_node(right, context);
+                let left_expr = convert_js_node(pa.get_js_node(*left), context);
+                let right_expr = convert_js_node(pa.get_js_node(*right), context);
 
                 let is_strict = operator == "===" || operator == "!==";
                 let is_negated = operator == "!==" || operator == "!=";
@@ -288,11 +297,11 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             JsExpr::Binary(JsBinaryExpression {
                 operator: op,
                 left: {
-                    let __tmp = convert_js_node(left, context);
+                    let __tmp = convert_js_node(pa.get_js_node(*left), context);
                     context.arena.alloc_expr(__tmp)
                 },
                 right: {
-                    let __tmp = convert_js_node(right, context);
+                    let __tmp = convert_js_node(pa.get_js_node(*right), context);
                     context.arena.alloc_expr(__tmp)
                 },
             })
@@ -313,11 +322,11 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             JsExpr::Logical(JsLogicalExpression {
                 operator: op,
                 left: {
-                    let __tmp = convert_js_node(left, context);
+                    let __tmp = convert_js_node(pa.get_js_node(*left), context);
                     context.arena.alloc_expr(__tmp)
                 },
                 right: {
-                    let __tmp = convert_js_node(right, context);
+                    let __tmp = convert_js_node(pa.get_js_node(*right), context);
                     context.arena.alloc_expr(__tmp)
                 },
             })
@@ -342,7 +351,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             JsExpr::Unary(JsUnaryExpression {
                 operator: op,
                 argument: {
-                    let __tmp = convert_js_node(argument, context);
+                    let __tmp = convert_js_node(pa.get_js_node(*argument), context);
                     context.arena.alloc_expr(__tmp)
                 },
                 prefix: *prefix,
@@ -356,15 +365,15 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             ..
         } => JsExpr::Conditional(JsConditionalExpression {
             test: {
-                let __tmp = convert_js_node(test, context);
+                let __tmp = convert_js_node(pa.get_js_node(*test), context);
                 context.arena.alloc_expr(__tmp)
             },
             consequent: {
-                let __tmp = convert_js_node(consequent, context);
+                let __tmp = convert_js_node(pa.get_js_node(*consequent), context);
                 context.arena.alloc_expr(__tmp)
             },
             alternate: {
-                let __tmp = convert_js_node(alternate, context);
+                let __tmp = convert_js_node(pa.get_js_node(*alternate), context);
                 context.arena.alloc_expr(__tmp)
             },
         }),
@@ -378,7 +387,8 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
         }
 
         JsNode::SequenceExpression { expressions, .. } => {
-            let exprs = expressions
+            let children: Vec<&JsNode> = pa.get_js_children(*expressions).iter().collect();
+            let exprs = children
                 .iter()
                 .map(|e| convert_js_node(e, context))
                 .collect();
@@ -388,14 +398,14 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
         JsNode::ThisExpression { .. } => JsExpr::This,
 
         JsNode::SpreadElement { argument, .. } => JsExpr::Spread({
-            let __tmp = convert_js_node(argument, context);
+            let __tmp = convert_js_node(pa.get_js_node(*argument), context);
             context.arena.alloc_expr(__tmp)
         }),
 
         JsNode::AwaitExpression {
             start, argument, ..
         } => {
-            let converted_arg = convert_js_node(argument, context);
+            let converted_arg = convert_js_node(pa.get_js_node(*argument), context);
 
             // Check if this await is in the pickled_awaits set (needs $.save() wrapping)
             if context.state.analysis.pickled_awaits.contains(start) {
@@ -473,7 +483,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
         } => JsExpr::Yield(JsYieldExpression {
             delegate: *delegate,
             argument: argument.as_ref().map(|a| {
-                let __tmp = convert_js_node(a, context);
+                let __tmp = convert_js_node(pa.get_js_node(*a), context);
                 context.arena.alloc_expr(__tmp)
             }),
         }),
@@ -483,7 +493,8 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             expressions,
             ..
         } => {
-            let template_quasis: Vec<JsTemplateElement> = quasis
+            let template_quasis: Vec<JsTemplateElement> = pa
+                .get_js_children(*quasis)
                 .iter()
                 .filter_map(|q| match q {
                     JsNode::TemplateElement { value, tail, .. } => Some(JsTemplateElement {
@@ -499,7 +510,8 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                     _ => None,
                 })
                 .collect();
-            let expr_parts: Vec<JsExpr> = expressions
+            let expr_children: Vec<&JsNode> = pa.get_js_children(*expressions).iter().collect();
+            let expr_parts: Vec<JsExpr> = expr_children
                 .iter()
                 .map(|e| convert_js_node(e, context))
                 .collect();
@@ -510,8 +522,8 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
         }
 
         JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
-            let tag_expr = convert_js_node(tag, context);
-            let quasi_tl = match convert_js_node(quasi, context) {
+            let tag_expr = convert_js_node(pa.get_js_node(*tag), context);
+            let quasi_tl = match convert_js_node(pa.get_js_node(*quasi), context) {
                 JsExpr::TemplateLiteral(tl) => tl,
                 _ => JsTemplateLiteral {
                     quasis: vec![],
@@ -524,14 +536,16 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             })
         }
 
-        JsNode::ChainExpression { expression, .. } => convert_js_node(expression, context),
+        JsNode::ChainExpression { expression, .. } => {
+            convert_js_node(pa.get_js_node(*expression), context)
+        }
 
         JsNode::MetaProperty { meta, property, .. } => {
-            let meta_name = match meta.as_ref() {
+            let meta_name = match pa.get_js_node(*meta) {
                 JsNode::Identifier { name, .. } => name.as_str(),
                 _ => "import",
             };
-            let prop_name = match property.as_ref() {
+            let prop_name = match pa.get_js_node(*property) {
                 JsNode::Identifier { name, .. } => name.as_str(),
                 _ => "meta",
             };
@@ -559,11 +573,11 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             if context.state.analysis.runes
                 && !computed
                 && !context.state.in_direct_assignment_lhs
-                && let Some(obj_name) = get_jsnode_identifier_name(object)
+                && let Some(obj_name) = get_jsnode_identifier_name(pa.get_js_node(*object))
                 && !context.state.shadowed_prop_names.contains(&obj_name)
                 && let Some(binding) = context.state.get_binding(&obj_name)
                 && binding.kind == BindingKind::RestProp
-                && let Some(prop_name) = get_jsnode_identifier_name(property)
+                && let Some(prop_name) = get_jsnode_identifier_name(pa.get_js_node(*property))
                 && !binding.exclude_props.iter().any(|ep| ep == &prop_name)
             {
                 return JsExpr::Member(JsMemberExpression {
@@ -577,7 +591,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             }
 
             // Handle private state field access: this.#foo -> this.#foo.v or $.get(this.#foo)
-            if !computed && let Some(prop_name) = get_jsnode_private_identifier_name(property) {
+            if !computed
+                && let Some(prop_name) =
+                    get_jsnode_private_identifier_name(pa.get_js_node(*property))
+            {
                 let mut field_name = String::with_capacity(1 + prop_name.len());
                 field_name.push('#');
                 field_name.push_str(&prop_name);
@@ -589,7 +606,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
                 if let Some((field_type, in_constructor)) = field_info {
                     let base_object = {
-                        let __tmp = convert_js_node(object, context);
+                        let __tmp = convert_js_node(pa.get_js_node(*object), context);
                         context.arena.alloc_expr(__tmp)
                     };
                     let base_member = JsExpr::Member(JsMemberExpression {
@@ -627,23 +644,24 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
             let conv_object = {
                 {
-                    let __tmp = convert_js_node(object, context);
+                    let __tmp = convert_js_node(pa.get_js_node(*object), context);
                     context.arena.alloc_expr(__tmp)
                 }
             };
 
+            let prop_node = pa.get_js_node(*property);
             let conv_property = if computed {
                 JsMemberProperty::Expression({
-                    let __tmp = convert_js_node(property, context);
+                    let __tmp = convert_js_node(prop_node, context);
                     context.arena.alloc_expr(__tmp)
                 })
-            } else if let Some(prop_name) = get_jsnode_private_identifier_name(property) {
+            } else if let Some(prop_name) = get_jsnode_private_identifier_name(prop_node) {
                 JsMemberProperty::PrivateIdentifier(prop_name.into())
-            } else if let Some(prop_name) = get_jsnode_identifier_name(property) {
+            } else if let Some(prop_name) = get_jsnode_identifier_name(prop_node) {
                 JsMemberProperty::Identifier(prop_name.into())
             } else {
                 // Fallback: convert through Value path
-                let value = property.to_value();
+                let value = prop_node.to_value();
                 if let Some(obj) = value.as_object() {
                     if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
                         JsMemberProperty::Identifier(name.into())
@@ -671,7 +689,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             ..
         } => {
             // Check if this is a rune call - use Value fallback only for rune detection
-            if is_potential_rune_call(callee, context) {
+            if is_potential_rune_call(pa.get_js_node(*callee), context) {
                 let value = node.to_value();
                 if let Some(obj) = value.as_object()
                     && let Some(rune) = get_rune_from_call(obj, context)
@@ -681,10 +699,11 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             }
 
             let conv_callee = {
-                let __tmp = convert_js_node(callee, context);
+                let __tmp = convert_js_node(pa.get_js_node(*callee), context);
                 context.arena.alloc_expr(__tmp)
             };
-            let conv_arguments: Vec<JsExpr> = arguments
+            let arg_children: Vec<&JsNode> = pa.get_js_children(*arguments).iter().collect();
+            let conv_arguments: Vec<JsExpr> = arg_children
                 .iter()
                 .map(|arg| convert_js_node(arg, context))
                 .collect();
@@ -701,10 +720,11 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             callee, arguments, ..
         } => {
             let conv_callee = {
-                let __tmp = convert_js_node(callee, context);
+                let __tmp = convert_js_node(pa.get_js_node(*callee), context);
                 context.arena.alloc_expr(__tmp)
             };
-            let conv_arguments: Vec<JsExpr> = arguments
+            let arg_children: Vec<&JsNode> = pa.get_js_children(*arguments).iter().collect();
+            let conv_arguments: Vec<JsExpr> = arg_children
                 .iter()
                 .map(|arg| convert_js_node(arg, context))
                 .collect();
@@ -717,7 +737,8 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
         // ObjectExpression: direct JsNode handling
         JsNode::ObjectExpression { properties, .. } => {
-            let conv_properties: Vec<JsObjectMember> = properties
+            let prop_children: Vec<&JsNode> = pa.get_js_children(*properties).iter().collect();
+            let conv_properties: Vec<JsObjectMember> = prop_children
                 .iter()
                 .filter_map(|prop| convert_object_member_from_node(prop, context))
                 .collect();
@@ -735,11 +756,12 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             ..
         } => {
             // Convert params via JsNode
-            let conv_params = convert_params_from_nodes(params, context);
+            let param_nodes: Vec<&JsNode> = pa.get_js_children(*params).iter().collect();
+            let conv_params = convert_params_from_nodes(&param_nodes, context);
 
             // Save transforms and remove for shadowed params
             let saved_transform = context.state.transform.clone();
-            let param_names = extract_param_names_from_nodes(params);
+            let param_names = extract_param_names_from_node_refs(&param_nodes);
             for name in &param_names {
                 context.state.transform.remove(name);
             }
@@ -750,23 +772,24 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             // When inside an event attribute handler and the body IS an AssignmentExpression,
             // set the arrow body level to skip coercive assignment transforms.
             // Reference: AssignmentExpression.js lines 189-209
-            let body_is_assignment = match body.as_ref() {
+            let body_node = pa.get_js_node(*body);
+            let body_is_assignment = match body_node {
                 JsNode::Raw(v) => {
                     v.as_object()
                         .and_then(|o| o.get("type"))
                         .and_then(|t| t.as_str())
                         == Some("AssignmentExpression")
                 }
-                _ => body.node_type() == Some("AssignmentExpression"),
+                _ => body_node.node_type() == Some("AssignmentExpression"),
             };
             let saved_arrow_level = context.state.event_handler_arrow_body_level;
             if context.state.in_event_attribute_handler && body_is_assignment {
                 context.state.event_handler_arrow_body_level = 1;
             }
 
-            let conv_body = match body.as_ref() {
+            let conv_body = match body_node {
                 JsNode::BlockStatement { .. } => {
-                    let body_value = body.to_value();
+                    let body_value = body_node.to_value();
                     if let Some(body_obj) = body_value.as_object() {
                         JsArrowBody::Block(convert_block_statement(body_obj, context))
                     } else {
@@ -788,7 +811,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                     }
                 }
                 _ => JsArrowBody::Expression({
-                    let __tmp = convert_js_node(body, context);
+                    let __tmp = convert_js_node(body_node, context);
                     context.arena.alloc_expr(__tmp)
                 }),
             };
@@ -815,21 +838,25 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             ..
         } => {
             let conv_id: Option<CompactString> =
-                id.as_ref().and_then(|id_node| match id_node.as_ref() {
-                    JsNode::Identifier { name, .. } => Some(name.to_string().into()),
-                    JsNode::Raw(v) => v
-                        .as_object()
-                        .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
-                        .and_then(|o| o.get("name").and_then(|n| n.as_str()))
-                        .map(|n| n.into()),
-                    _ => None,
-                });
+                id.as_ref()
+                    .and_then(|id_node| match pa.get_js_node(*id_node) {
+                        JsNode::Identifier { name, .. } => Some(name.to_string().into()),
+                        JsNode::Raw(v) => v
+                            .as_object()
+                            .filter(|o| {
+                                o.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                            })
+                            .and_then(|o| o.get("name").and_then(|n| n.as_str()))
+                            .map(|n| n.into()),
+                        _ => None,
+                    });
 
-            let conv_params = convert_params_from_nodes(params, context);
+            let param_nodes: Vec<&JsNode> = pa.get_js_children(*params).iter().collect();
+            let conv_params = convert_params_from_nodes(&param_nodes, context);
 
             // Save transforms and remove for shadowed params
             let saved_transform = context.state.transform.clone();
-            let param_names = extract_param_names_from_nodes(params);
+            let param_names = extract_param_names_from_node_refs(&param_nodes);
             for name in &param_names {
                 context.state.transform.remove(name);
             }
@@ -838,28 +865,31 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
             let conv_body = body
                 .as_ref()
-                .map(|b| match b.as_ref() {
-                    JsNode::BlockStatement { .. } => {
-                        let body_value = b.to_value();
-                        if let Some(body_obj) = body_value.as_object() {
-                            convert_block_statement(body_obj, context)
-                        } else {
-                            JsBlockStatement::new()
+                .map(|b| {
+                    let b_node = pa.get_js_node(*b);
+                    match b_node {
+                        JsNode::BlockStatement { .. } => {
+                            let body_value = b_node.to_value();
+                            if let Some(body_obj) = body_value.as_object() {
+                                convert_block_statement(body_obj, context)
+                            } else {
+                                JsBlockStatement::new()
+                            }
                         }
-                    }
-                    JsNode::Raw(v) => {
-                        if let Some(obj) = v.as_object() {
-                            convert_block_statement(obj, context)
-                        } else {
-                            JsBlockStatement::new()
+                        JsNode::Raw(v) => {
+                            if let Some(obj) = v.as_object() {
+                                convert_block_statement(obj, context)
+                            } else {
+                                JsBlockStatement::new()
+                            }
                         }
-                    }
-                    _ => {
-                        let body_value = b.to_value();
-                        if let Some(body_obj) = body_value.as_object() {
-                            convert_block_statement(body_obj, context)
-                        } else {
-                            JsBlockStatement::new()
+                        _ => {
+                            let body_value = b_node.to_value();
+                            if let Some(body_obj) = body_value.as_object() {
+                                convert_block_statement(body_obj, context)
+                            } else {
+                                JsBlockStatement::new()
+                            }
                         }
                     }
                 })
@@ -885,9 +915,11 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             ..
         } => {
             let operator_str = operator.as_str();
+            let left_node = pa.get_js_node(*left);
+            let right_node = pa.get_js_node(*right);
 
             // Check if the LHS is a destructuring pattern (typed or Raw-wrapped)
-            let left_is_pattern = match left.as_ref() {
+            let left_is_pattern = match left_node {
                 JsNode::ArrayPattern { .. }
                 | JsNode::ObjectPattern { .. }
                 | JsNode::RestElement { .. } => true,
@@ -899,8 +931,8 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             };
 
             if left_is_pattern {
-                let left_val = left.to_value();
-                let right_val = right.to_value();
+                let left_val = left_node.to_value();
+                let right_val = right_node.to_value();
                 if let Some(result) =
                     try_destructure_assignment(&left_val, Some(&right_val), context)
                 {
@@ -929,24 +961,24 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             };
 
             // Check if the LHS is a direct MemberExpression with an Identifier object
-            let is_direct_member_assignment = is_direct_member_with_identifier(left);
+            let is_direct_member_assignment = is_direct_member_with_identifier(left_node, pa);
 
             let saved_flag = context.state.in_direct_assignment_lhs;
             if is_direct_member_assignment {
                 context.state.in_direct_assignment_lhs = true;
             }
 
-            let conv_left = convert_js_node(left, context);
+            let conv_left = convert_js_node(left_node, context);
 
             context.state.in_direct_assignment_lhs = saved_flag;
 
-            let conv_right = convert_js_node(right, context);
+            let conv_right = convert_js_node(right_node, context);
 
             // Extract root identifier from original JsNode (before transforms)
-            let original_root_name = extract_root_identifier_from_jsnode(left);
+            let original_root_name = extract_root_identifier_from_jsnode(left_node, pa);
 
             // For should_proxy_value, we need the right JSON value
-            let right_json_val = right.to_value();
+            let right_json_val = right_node.to_value();
 
             if let Some(transformed) = try_transform_assignment(
                 operator_str,
@@ -982,8 +1014,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 _ => JsUpdateOp::Increment,
             };
 
+            let arg_node = pa.get_js_node(*argument);
+
             // Check if the argument is a simple identifier with an update transform
-            if let Some(name_str) = get_jsnode_identifier_name(argument)
+            if let Some(name_str) = get_jsnode_identifier_name(arg_node)
                 && let Some(update_fn) = context
                     .state
                     .transform
@@ -999,7 +1033,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             }
 
             // Check if the argument is a direct MemberExpression with Identifier object
-            let is_direct_member_update = is_direct_member_with_identifier(argument);
+            let is_direct_member_update = is_direct_member_with_identifier(arg_node, pa);
 
             let saved_flag = context.state.in_direct_assignment_lhs;
             if is_direct_member_update {
@@ -1007,7 +1041,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             }
 
             let conv_argument = {
-                let __tmp = convert_js_node(argument, context);
+                let __tmp = convert_js_node(arg_node, context);
                 context.arena.alloc_expr(__tmp)
             };
 
@@ -1050,6 +1084,9 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 /// Check if a CallExpression callee might be a rune call.
 /// This is a fast check to avoid the expensive `to_value()` conversion for non-rune calls.
 fn is_potential_rune_call(callee: &JsNode, context: &ComponentContext) -> bool {
+    let pa = context.state.parse_arena as *const ParseArena;
+    let pa: &ParseArena = unsafe { &*pa };
+
     let check_rune_name = |name: &str| -> bool {
         name.starts_with('$')
             && context.state.get_binding(name).is_none()
@@ -1062,16 +1099,17 @@ fn is_potential_rune_call(callee: &JsNode, context: &ComponentContext) -> bool {
 
     // Check for MemberExpression (typed)
     if let JsNode::MemberExpression { object, .. } = callee {
-        if let Some(name) = get_jsnode_identifier_name(object)
+        let object_node = pa.get_js_node(*object);
+        if let Some(name) = get_jsnode_identifier_name(object_node)
             && name.starts_with('$')
             && context.state.get_binding(&name).is_none()
         {
             return true;
         }
         // Check for $inspect().with() pattern
-        match object.as_ref() {
+        match object_node {
             JsNode::CallExpression { callee: inner, .. } => {
-                if let Some(n) = get_jsnode_identifier_name(inner)
+                if let Some(n) = get_jsnode_identifier_name(pa.get_js_node(*inner))
                     && n.starts_with('$')
                     && context.state.get_binding(&n).is_none()
                 {
@@ -1122,6 +1160,9 @@ fn convert_object_member_from_node(
     node: &JsNode,
     context: &mut ComponentContext,
 ) -> Option<JsObjectMember> {
+    let pa = context.state.parse_arena as *const ParseArena;
+    let pa: &ParseArena = unsafe { &*pa };
+
     match node {
         JsNode::Property {
             key,
@@ -1132,9 +1173,9 @@ fn convert_object_member_from_node(
             computed,
             ..
         } => {
-            let conv_key = convert_property_key_from_node(key, *computed, context);
+            let conv_key = convert_property_key_from_node(pa.get_js_node(*key), *computed, context);
             let conv_value = {
-                let __tmp = convert_js_node(value, context);
+                let __tmp = convert_js_node(pa.get_js_node(*value), context);
                 context.arena.alloc_expr(__tmp)
             };
 
@@ -1156,7 +1197,7 @@ fn convert_object_member_from_node(
         }
         JsNode::SpreadElement { argument, .. } => {
             let conv_argument = {
-                let __tmp = convert_js_node(argument, context);
+                let __tmp = convert_js_node(pa.get_js_node(*argument), context);
                 context.arena.alloc_expr(__tmp)
             };
             Some(JsObjectMember::SpreadElement(conv_argument))
@@ -1289,8 +1330,8 @@ fn convert_property_key_from_node(
     }
 }
 
-/// Convert function parameters from JsNode slices.
-fn convert_params_from_nodes(params: &[JsNode], context: &mut ComponentContext) -> Vec<JsPattern> {
+/// Convert function parameters from JsNode reference slices.
+fn convert_params_from_nodes(params: &[&JsNode], context: &mut ComponentContext) -> Vec<JsPattern> {
     params
         .iter()
         .filter_map(|param| convert_param_pattern_from_node(param, context))
@@ -1302,12 +1343,15 @@ fn convert_param_pattern_from_node(
     node: &JsNode,
     context: &mut ComponentContext,
 ) -> Option<JsPattern> {
+    let pa = context.state.parse_arena as *const ParseArena;
+    let pa: &ParseArena = unsafe { &*pa };
+
     match node {
         JsNode::Identifier { name, .. } => Some(JsPattern::Identifier(name.to_string().into())),
         JsNode::AssignmentPattern { left, right, .. } => {
-            let conv_left = convert_param_pattern_from_node(left, context)?;
+            let conv_left = convert_param_pattern_from_node(pa.get_js_node(*left), context)?;
             let conv_right = {
-                let expr = convert_js_node(right, context);
+                let expr = convert_js_node(pa.get_js_node(*right), context);
                 context.arena.alloc_expr(crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&expr, context))
             };
             Some(JsPattern::Assignment(JsAssignmentPattern {
@@ -1316,11 +1360,13 @@ fn convert_param_pattern_from_node(
             }))
         }
         JsNode::RestElement { argument, .. } => {
-            let conv_argument = convert_param_pattern_from_node(argument, context)?;
+            let conv_argument =
+                convert_param_pattern_from_node(pa.get_js_node(*argument), context)?;
             Some(JsPattern::Rest(Box::new(conv_argument)))
         }
         JsNode::ObjectPattern { properties, .. } | JsNode::ObjectExpression { properties, .. } => {
-            let conv_properties: Vec<JsObjectPatternProperty> = properties
+            let prop_children: Vec<&JsNode> = pa.get_js_children(*properties).iter().collect();
+            let conv_properties: Vec<JsObjectPatternProperty> = prop_children
                 .iter()
                 .filter_map(|prop| convert_object_pattern_property_from_node(prop, context))
                 .collect();
@@ -1355,9 +1401,12 @@ fn convert_object_pattern_property_from_node(
     node: &JsNode,
     context: &mut ComponentContext,
 ) -> Option<JsObjectPatternProperty> {
+    let pa = context.state.parse_arena as *const ParseArena;
+    let pa: &ParseArena = unsafe { &*pa };
+
     match node {
         JsNode::RestElement { argument, .. } | JsNode::SpreadElement { argument, .. } => {
-            let conv_arg = convert_param_pattern_from_node(argument, context)?;
+            let conv_arg = convert_param_pattern_from_node(pa.get_js_node(*argument), context)?;
             Some(JsObjectPatternProperty::Rest(Box::new(conv_arg)))
         }
         JsNode::Property {
@@ -1366,7 +1415,13 @@ fn convert_object_pattern_property_from_node(
             shorthand,
             computed,
             ..
-        } => convert_object_pattern_prop_inner(key, value, *shorthand, *computed, context),
+        } => convert_object_pattern_prop_inner(
+            pa.get_js_node(*key),
+            pa.get_js_node(*value),
+            *shorthand,
+            *computed,
+            context,
+        ),
         // Handle Raw-wrapped nodes
         JsNode::Raw(v) => {
             if let Some(obj) = v.as_object() {
@@ -1537,63 +1592,26 @@ fn convert_object_pattern_prop_inner(
     })
 }
 
-/// Extract parameter names from JsNode params for transform shadowing.
-fn extract_param_names_from_nodes(params: &[JsNode]) -> Vec<String> {
+/// Extract parameter names from JsNode reference params for transform shadowing.
+fn extract_param_names_from_node_refs(params: &[&JsNode]) -> Vec<String> {
     let mut names = Vec::new();
     for param in params {
-        collect_param_names_from_node(param, &mut names);
+        // Top-level params are already resolved; just collect identifier names.
+        // For simple identifier params, this doesn't need the arena.
+        collect_param_names(&param.to_value(), &mut names);
     }
     names
 }
 
-/// Recursively collect identifier names from a JsNode parameter pattern.
-fn collect_param_names_from_node(node: &JsNode, names: &mut Vec<String>) {
-    match node {
-        JsNode::Identifier { name, .. } => {
-            names.push(name.to_string());
-        }
-        JsNode::AssignmentPattern { left, .. } => {
-            collect_param_names_from_node(left, names);
-        }
-        JsNode::ObjectPattern { properties, .. } => {
-            for prop in properties {
-                match prop {
-                    JsNode::Property { value, .. } => {
-                        collect_param_names_from_node(value, names);
-                    }
-                    JsNode::RestElement { argument, .. } => {
-                        collect_param_names_from_node(argument, names);
-                    }
-                    _ => {
-                        // Might be Raw - fall back to Value-based extraction
-                        collect_param_names(&prop.to_value(), names);
-                    }
-                }
-            }
-        }
-        JsNode::ArrayPattern { elements, .. } => {
-            for elem in elements.iter().flatten() {
-                collect_param_names_from_node(elem, names);
-            }
-        }
-        JsNode::RestElement { argument, .. } => {
-            collect_param_names_from_node(argument, names);
-        }
-        // Handle Raw-wrapped nodes
-        JsNode::Raw(value) => {
-            collect_param_names(value, names);
-        }
-        _ => {}
-    }
-}
-
 /// Extract root identifier name from a JsNode (before conversion applies transforms).
-fn extract_root_identifier_from_jsnode(node: &JsNode) -> Option<String> {
+fn extract_root_identifier_from_jsnode(node: &JsNode, pa: &ParseArena) -> Option<String> {
     match node {
         JsNode::Identifier { name, .. } => Some(name.to_string()),
-        JsNode::MemberExpression { object, .. } => extract_root_identifier_from_jsnode(object),
+        JsNode::MemberExpression { object, .. } => {
+            extract_root_identifier_from_jsnode(pa.get_js_node(*object), pa)
+        }
         JsNode::ChainExpression { expression, .. } => {
-            extract_root_identifier_from_jsnode(expression)
+            extract_root_identifier_from_jsnode(pa.get_js_node(*expression), pa)
         }
         JsNode::Raw(v) => extract_root_identifier_from_json(v),
         _ => None,
@@ -1628,7 +1646,7 @@ fn get_jsnode_identifier_name(node: &JsNode) -> Option<String> {
 
 /// Check if a JsNode is a MemberExpression with a direct Identifier object (not computed).
 /// Handles both typed and Raw-wrapped nodes.
-fn is_direct_member_with_identifier(node: &JsNode) -> bool {
+fn is_direct_member_with_identifier(node: &JsNode, pa: &ParseArena) -> bool {
     match node {
         JsNode::MemberExpression {
             object, computed, ..
@@ -1636,8 +1654,9 @@ fn is_direct_member_with_identifier(node: &JsNode) -> bool {
             if *computed {
                 return false;
             }
-            matches!(object.as_ref(), JsNode::Identifier { .. })
-                || matches!(object.as_ref(), JsNode::Raw(v)
+            let obj_node = pa.get_js_node(*object);
+            matches!(obj_node, JsNode::Identifier { .. })
+                || matches!(obj_node, JsNode::Raw(v)
                     if v.as_object()
                         .and_then(|o| o.get("type").and_then(|t| t.as_str()))
                         == Some("Identifier"))

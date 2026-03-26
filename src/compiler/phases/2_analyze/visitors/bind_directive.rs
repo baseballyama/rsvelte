@@ -150,7 +150,9 @@ fn visit_common(
         {
             let node = directive.expression.as_node();
             let expressions = node.expressions();
-            if !expressions.is_empty() && expressions.len() != 2 {
+            let arena = context.parse_arena;
+            let expr_slice = arena.get_js_children(expressions);
+            if !expr_slice.is_empty() && expr_slice.len() != 2 {
                 return Err(AnalysisError::ValidationWithCode {
                     code: "bind_invalid_expression".to_string(),
                     message: "Binding with getter/setter requires exactly two functions"
@@ -169,7 +171,8 @@ fn visit_common(
         {
             let node = directive.expression.as_node();
             let expressions = node.expressions();
-            for expr in expressions {
+            let arena = context.parse_arena;
+            for expr in arena.get_js_children(expressions) {
                 // Walk the expression to track mutations (e.g., assignments in setters)
                 let expr_value = expr.to_value();
                 super::script::walk_js_node(&expr_value, context)?;
@@ -191,17 +194,20 @@ fn visit_common(
 
     // Get the leftmost identifier (the binding target)
     let expr_node = directive.expression.as_node();
-    let left = get_object_node(&expr_node);
-
-    if left.is_none() {
-        return Err(AnalysisError::ValidationWithCode {
-            code: "bind_invalid_expression".to_string(),
-            message: "Invalid binding expression".to_string(),
-        });
-    }
-
-    let left = left.unwrap();
-    let binding_name = left.name().unwrap_or_default();
+    let binding_name_owned: String;
+    let binding_name: &str = if let Some(left) = get_object_node(&expr_node) {
+        left.name().unwrap_or_default()
+    } else {
+        // Fall back to JSON for MemberExpression chains
+        binding_name_owned = get_object_name_via_json(&expr_node).unwrap_or_default();
+        if binding_name_owned.is_empty() {
+            return Err(AnalysisError::ValidationWithCode {
+                code: "bind_invalid_expression".to_string(),
+                message: "Invalid binding expression".to_string(),
+            });
+        }
+        &binding_name_owned
+    };
 
     // Look up the binding in the scope using proper scope chain traversal
     let binding_idx = context
@@ -747,18 +753,36 @@ fn is_text_attribute(attr: &crate::ast::template::AttributeNode) -> bool {
 fn get_object_node(node: &JsNode) -> Option<&JsNode> {
     match node {
         JsNode::Identifier { .. } => Some(node),
-        JsNode::MemberExpression { object, .. } => get_object_node(object),
+        JsNode::MemberExpression { .. } => {
+            // Fall back to JSON traversal for recursive member expression resolution
+            // to avoid needing the ParseArena in this helper
+            None
+        }
         JsNode::Raw(v) => {
             // Fallback for raw JSON nodes
             let node_type = v.get("type")?.as_str()?;
             match node_type {
                 "Identifier" => Some(node),
-                "MemberExpression" => {
-                    // For Raw nodes we can't recurse into sub-nodes easily, fall back
-                    None
-                }
                 _ => None,
             }
+        }
+        _ => None,
+    }
+}
+
+/// Get the object name (leftmost identifier) from a JsNode expression via JSON.
+fn get_object_name_via_json(node: &JsNode) -> Option<String> {
+    let json = node.to_value();
+    get_object_name_from_json(&json)
+}
+
+fn get_object_name_from_json(v: &serde_json::Value) -> Option<String> {
+    let node_type = v.get("type")?.as_str()?;
+    match node_type {
+        "Identifier" => v.get("name").and_then(|n| n.as_str()).map(String::from),
+        "MemberExpression" => {
+            let obj = v.get("object")?;
+            get_object_name_from_json(obj)
         }
         _ => None,
     }

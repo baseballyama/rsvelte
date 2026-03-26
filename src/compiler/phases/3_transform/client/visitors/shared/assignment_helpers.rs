@@ -5,6 +5,7 @@
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/utils.js` and
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/AssignmentExpression.js`.
 
+use crate::ast::arena::ParseArena;
 use crate::ast::js::Expression;
 use crate::compiler::phases::phase2_analyze::scope::Scope;
 use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
@@ -49,7 +50,7 @@ const RUNES: &[&str] = &[
 /// // myFunction() returns None
 /// // $state() where $state is defined as a local variable returns None
 /// ```
-pub fn get_rune(expr: &Expression, scope: &Scope) -> Option<String> {
+pub fn get_rune(expr: &Expression, scope: &Scope, arena: &ParseArena) -> Option<String> {
     // Check if expression is a CallExpression
     let node_type = expr.node_type()?;
     if node_type != "CallExpression" {
@@ -57,7 +58,8 @@ pub fn get_rune(expr: &Expression, scope: &Scope) -> Option<String> {
     }
 
     // Get the callee from the expression using typed accessors
-    let callee = expr.callee()?;
+    let callee_id = expr.callee()?;
+    let callee = arena.get_js_node(callee_id);
 
     // Extract the callee name based on its type
     let callee_name = match callee {
@@ -69,8 +71,10 @@ pub fn get_rune(expr: &Expression, scope: &Scope) -> Option<String> {
             object, property, ..
         } => {
             // Member expression: $derived.by
-            let object_name = object.name()?;
-            let property_name = property.name()?;
+            let object_node = arena.get_js_node(*object);
+            let property_node = arena.get_js_node(*property);
+            let object_name = object_node.name()?;
+            let property_name = property_node.name()?;
             format!("{}.{}", object_name, property_name)
         }
         _ => {

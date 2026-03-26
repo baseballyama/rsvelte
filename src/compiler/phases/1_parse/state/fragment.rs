@@ -198,6 +198,7 @@ impl Parser<'_> {
             module: self.module_script.take().map(Box::new),
             parse_warnings: std::mem::take(&mut self.parse_warnings),
             source: None,
+            arena: std::mem::take(&mut self.arena),
         })
     }
 

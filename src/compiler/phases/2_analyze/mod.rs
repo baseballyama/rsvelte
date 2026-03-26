@@ -65,10 +65,11 @@ pub fn analyze_component(
 ) -> Result<ComponentAnalysis, AnalysisError> {
     // Ensure deferred script parsing is completed before analysis.
     // During parse(), script content is stored as raw text for performance.
-    // Here we invoke OXC to produce the full AST.
+    // Here we invoke OXC to produce the full AST into the Root's arena.
     let line_offsets = crate::compiler::phases::phase1_parse::compute_line_offsets(source, false);
     if let Some(ref mut instance) = ast.instance {
         crate::compiler::phases::phase1_parse::read::script::ensure_script_parsed(
+            &ast.arena,
             instance,
             source,
             &line_offsets,
@@ -76,6 +77,7 @@ pub fn analyze_component(
     }
     if let Some(ref mut module) = ast.module {
         crate::compiler::phases::phase1_parse::read::script::ensure_script_parsed(
+            &ast.arena,
             module,
             source,
             &line_offsets,
@@ -152,7 +154,7 @@ pub fn analyze_component(
     analysis.extract_scripts(ast);
 
     // Create scopes for the component
-    analysis.create_scopes(ast)?;
+    analysis.create_scopes(ast, &ast.arena)?;
 
     // Detect store subscriptions and create synthetic bindings
     // This must happen after scopes are created but before template analysis
@@ -308,7 +310,7 @@ pub fn analyze_component(
 
         // Use typed dispatch for script visiting - avoids JSON Map construction
         // for the Program node when content is Typed(JsNode::Program)
-        let mut context = visitors::VisitorContext::new(&mut analysis);
+        let mut context = visitors::VisitorContext::new(&mut analysis, &ast.arena);
         context.ast_type = visitors::AstType::Module;
         // Module script stays at function_depth 0
         context.function_depth = 0;
@@ -342,7 +344,7 @@ pub fn analyze_component(
 
         // Use typed dispatch for script visiting - avoids JSON Map construction
         // for the Program node when content is Typed(JsNode::Program)
-        let mut context = visitors::VisitorContext::new(&mut analysis);
+        let mut context = visitors::VisitorContext::new(&mut analysis, &ast.arena);
         context.ast_type = visitors::AstType::Instance;
         // Instance script starts at function_depth 1 (like Svelte's scope system)
         context.function_depth = 1;
@@ -365,8 +367,11 @@ pub fn analyze_component(
         populate_legacy_dependencies(ast, &mut analysis);
     }
 
-    // Analyze the template using visitors
-    visitors::analyze_template(ast, &mut analysis)?;
+    // Analyze the template using visitors.
+    // Take a pointer to the arena to avoid borrow conflict with &mut ast.
+    let arena_ptr = &ast.arena as *const crate::ast::arena::ParseArena;
+    let arena_ref = unsafe { &*arena_ptr };
+    visitors::analyze_template(ast, &mut analysis, arena_ref)?;
 
     // Post-analysis check: validate module script export specifiers.
     // This mirrors the official Svelte compiler's index.js post-walk checks.
@@ -2021,34 +2026,19 @@ fn extract_each_pattern_identifiers(node: &serde_json::Value, names: &mut Vec<St
 }
 
 /// Extract identifier names from a destructuring pattern (JsNode version).
+/// Uses JSON fallback for arena-dependent fields to avoid threading ParseArena.
 fn extract_each_pattern_identifiers_node(node: &JsNode, names: &mut Vec<String>) {
     match node {
         JsNode::Identifier { name, .. } => {
             names.push(name.to_string());
         }
-        JsNode::ObjectPattern { properties, .. } => {
-            for prop in properties {
-                match prop {
-                    JsNode::RestElement { argument, .. } => {
-                        extract_each_pattern_identifiers_node(argument, names);
-                    }
-                    JsNode::Property { value, .. } => {
-                        extract_each_pattern_identifiers_node(value, names);
-                    }
-                    _ => {}
-                }
-            }
-        }
-        JsNode::ArrayPattern { elements, .. } => {
-            for elem in elements.iter().flatten() {
-                extract_each_pattern_identifiers_node(elem, names);
-            }
-        }
-        JsNode::AssignmentPattern { left, .. } => {
-            extract_each_pattern_identifiers_node(left, names);
-        }
-        JsNode::RestElement { argument, .. } => {
-            extract_each_pattern_identifiers_node(argument, names);
+        // For complex patterns with arena-dependent fields, fall back to JSON
+        JsNode::ObjectPattern { .. }
+        | JsNode::ArrayPattern { .. }
+        | JsNode::AssignmentPattern { .. }
+        | JsNode::RestElement { .. } => {
+            let json = node.to_value();
+            extract_each_pattern_identifiers(&json, names);
         }
         // Raw fallback
         JsNode::Raw(v) => {
@@ -3248,6 +3238,7 @@ fn extract_all_identifiers_from_expr(expr: &serde_json::Value, ids: &mut Vec<Str
 
 /// Extract ALL identifier names from a JsNode expression.
 /// JsNode version of `extract_all_identifiers_from_expr`.
+/// Uses JSON fallback for complex nodes with arena-dependent fields.
 fn extract_all_identifiers_from_node(node: &JsNode, ids: &mut Vec<String>) {
     match node {
         JsNode::Identifier { name, .. } => {
@@ -3256,40 +3247,14 @@ fn extract_all_identifiers_from_node(node: &JsNode, ids: &mut Vec<String>) {
                 ids.push(name_str);
             }
         }
-        JsNode::MemberExpression {
-            object,
-            property,
-            computed,
-            ..
-        } => {
-            extract_all_identifiers_from_node(object, ids);
-            // Only extract computed property identifiers (e.g., [index] in arr[index])
-            if *computed {
-                extract_all_identifiers_from_node(property, ids);
-            }
-        }
-        JsNode::CallExpression {
-            callee, arguments, ..
-        } => {
-            extract_all_identifiers_from_node(callee, ids);
-            for arg in arguments {
-                extract_all_identifiers_from_node(arg, ids);
-            }
-        }
-        JsNode::BinaryExpression { left, right, .. }
-        | JsNode::LogicalExpression { left, right, .. } => {
-            extract_all_identifiers_from_node(left, ids);
-            extract_all_identifiers_from_node(right, ids);
-        }
-        JsNode::ConditionalExpression {
-            test,
-            consequent,
-            alternate,
-            ..
-        } => {
-            extract_all_identifiers_from_node(test, ids);
-            extract_all_identifiers_from_node(consequent, ids);
-            extract_all_identifiers_from_node(alternate, ids);
+        // For nodes with JsNodeId/IdRange children, fall back to JSON
+        JsNode::MemberExpression { .. }
+        | JsNode::CallExpression { .. }
+        | JsNode::BinaryExpression { .. }
+        | JsNode::LogicalExpression { .. }
+        | JsNode::ConditionalExpression { .. } => {
+            let json = node.to_value();
+            extract_all_identifiers_from_expr(&json, ids);
         }
         // Raw fallback
         JsNode::Raw(v) => {
@@ -3375,23 +3340,11 @@ fn build_keypath_parts_node(node: &JsNode, parts: &mut Vec<String>) {
         JsNode::Identifier { name, .. } => {
             parts.push(name.to_string());
         }
-        JsNode::MemberExpression {
-            object,
-            property,
-            computed,
-            ..
-        } => {
-            // Walk the object part
-            build_keypath_parts_node(object, parts);
-            // Handle the property part
-            if *computed {
-                // Computed property: arr[idx] -> push "[idx]"
-                let prop_str = build_binding_keypath_node(property);
-                parts.push(format!("[{}]", prop_str));
-            } else if let Some(name) = property.name() {
-                // Static property: obj.prop -> push "prop"
-                parts.push(name.to_string());
-            }
+        // For MemberExpression and other complex nodes, fall back to JSON
+        // to avoid arena dependency in this helper
+        JsNode::MemberExpression { .. } => {
+            let json = node.to_value();
+            build_keypath_parts(&json, parts);
         }
         // Raw fallback
         JsNode::Raw(v) => {

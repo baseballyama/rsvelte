@@ -93,7 +93,10 @@ pub struct ParseOptions {
 /// Parse a Svelte component source into an AST.
 pub fn parse(source: &str, options: ParseOptions) -> ParseResult<Root> {
     let mut parser = Parser::new(source, options);
-    parser.parse()
+    // Set the parser's arena as the serialize context so that any to_value()
+    // calls during parsing (e.g., build_const_variable_declaration) can resolve JsNodeIds.
+    let arena_ptr = &parser.arena as *const crate::ast::arena::ParseArena;
+    crate::ast::arena::with_serialize_arena(unsafe { &*arena_ptr }, || parser.parse())
 }
 
 /// Compute line offsets for a source string (used for deferred script parsing).

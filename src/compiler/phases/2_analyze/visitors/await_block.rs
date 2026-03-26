@@ -107,7 +107,11 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
     // In the JS version: context.visit(node.expression, { ...context.state, expression: node.metadata.expression });
     if let Some(node_ref) = block.expression.try_as_node_ref() {
         walk_js_expression_node(node_ref, context, &mut block.metadata.expression)?;
-        collect_pickled_awaits_node(node_ref, &mut context.analysis.pickled_awaits);
+        collect_pickled_awaits_node(
+            node_ref,
+            &mut context.analysis.pickled_awaits,
+            context.parse_arena,
+        );
     } else {
         let value = block.expression.as_json();
         walk_js_expression(&value, context, &mut block.metadata.expression)?;
@@ -362,12 +366,17 @@ fn walk_pattern_computed_keys_node(
     context: &mut VisitorContext,
     metadata: &mut crate::ast::template::ExpressionMetadata,
 ) -> Result<(), AnalysisError> {
+    let arena = context.parse_arena;
     match pattern {
         JsNode::ObjectPattern { properties, .. } => {
-            for prop in properties {
+            for prop in arena.get_js_children(*properties) {
                 match prop {
                     JsNode::RestElement { argument, .. } => {
-                        walk_pattern_computed_keys_node(argument, context, metadata)?;
+                        walk_pattern_computed_keys_node(
+                            arena.get_js_node(*argument),
+                            context,
+                            metadata,
+                        )?;
                     }
                     JsNode::Property {
                         key,
@@ -376,9 +385,17 @@ fn walk_pattern_computed_keys_node(
                         ..
                     } => {
                         if *computed {
-                            walk_expression_for_mutations_node(key, context, metadata)?;
+                            walk_expression_for_mutations_node(
+                                arena.get_js_node(*key),
+                                context,
+                                metadata,
+                            )?;
                         }
-                        walk_pattern_computed_keys_node(value, context, metadata)?;
+                        walk_pattern_computed_keys_node(
+                            arena.get_js_node(*value),
+                            context,
+                            metadata,
+                        )?;
                     }
                     _ => {}
                 }
@@ -390,7 +407,7 @@ fn walk_pattern_computed_keys_node(
             }
         }
         JsNode::AssignmentPattern { left, .. } => {
-            walk_pattern_computed_keys_node(left, context, metadata)?;
+            walk_pattern_computed_keys_node(arena.get_js_node(*left), context, metadata)?;
         }
         _ => {}
     }
@@ -416,23 +433,30 @@ fn walk_expression_for_mutations_node(
 /// Recursively walk a JsNode expression tree to find and mark UpdateExpression and
 /// AssignmentExpression nodes, calling mark_binding_mutation_node for each.
 fn mark_mutations_recursive_node(expression: &JsNode, context: &mut VisitorContext) {
+    let arena = context.parse_arena;
     match expression {
         JsNode::UpdateExpression { argument, .. } => {
-            super::assignment_expression::mark_binding_mutation_node(argument, context);
+            super::assignment_expression::mark_binding_mutation_node(
+                arena.get_js_node(*argument),
+                context,
+            );
         }
         JsNode::AssignmentExpression { left, right, .. } => {
-            super::assignment_expression::mark_binding_mutation_node(left, context);
-            mark_mutations_recursive_node(right, context);
+            super::assignment_expression::mark_binding_mutation_node(
+                arena.get_js_node(*left),
+                context,
+            );
+            mark_mutations_recursive_node(arena.get_js_node(*right), context);
         }
         JsNode::TemplateLiteral { expressions, .. } => {
-            for expr in expressions {
+            for expr in arena.get_js_children(*expressions) {
                 mark_mutations_recursive_node(expr, context);
             }
         }
         JsNode::BinaryExpression { left, right, .. }
         | JsNode::LogicalExpression { left, right, .. } => {
-            mark_mutations_recursive_node(left, context);
-            mark_mutations_recursive_node(right, context);
+            mark_mutations_recursive_node(arena.get_js_node(*left), context);
+            mark_mutations_recursive_node(arena.get_js_node(*right), context);
         }
         JsNode::ConditionalExpression {
             test,
@@ -440,9 +464,9 @@ fn mark_mutations_recursive_node(expression: &JsNode, context: &mut VisitorConte
             alternate,
             ..
         } => {
-            mark_mutations_recursive_node(test, context);
-            mark_mutations_recursive_node(consequent, context);
-            mark_mutations_recursive_node(alternate, context);
+            mark_mutations_recursive_node(arena.get_js_node(*test), context);
+            mark_mutations_recursive_node(arena.get_js_node(*consequent), context);
+            mark_mutations_recursive_node(arena.get_js_node(*alternate), context);
         }
         JsNode::CallExpression {
             callee, arguments, ..
@@ -450,13 +474,13 @@ fn mark_mutations_recursive_node(expression: &JsNode, context: &mut VisitorConte
         | JsNode::NewExpression {
             callee, arguments, ..
         } => {
-            mark_mutations_recursive_node(callee, context);
-            for arg in arguments {
+            mark_mutations_recursive_node(arena.get_js_node(*callee), context);
+            for arg in arena.get_js_children(*arguments) {
                 mark_mutations_recursive_node(arg, context);
             }
         }
         JsNode::SequenceExpression { expressions, .. } => {
-            for expr in expressions {
+            for expr in arena.get_js_children(*expressions) {
                 mark_mutations_recursive_node(expr, context);
             }
         }
@@ -466,13 +490,13 @@ fn mark_mutations_recursive_node(expression: &JsNode, context: &mut VisitorConte
             computed,
             ..
         } => {
-            mark_mutations_recursive_node(object, context);
+            mark_mutations_recursive_node(arena.get_js_node(*object), context);
             if *computed {
-                mark_mutations_recursive_node(property, context);
+                mark_mutations_recursive_node(arena.get_js_node(*property), context);
             }
         }
         JsNode::UnaryExpression { argument, .. } => {
-            mark_mutations_recursive_node(argument, context);
+            mark_mutations_recursive_node(arena.get_js_node(*argument), context);
         }
         _ => {}
     }
@@ -624,14 +648,19 @@ fn collect_pickled_awaits_inner(
 ///
 /// An await expression is "pickled" when it's NOT the last evaluated expression
 /// in the reactive context. This is a JsNode-based version of `collect_pickled_awaits`.
-pub fn collect_pickled_awaits_node(expr: &JsNode, pickled: &mut rustc_hash::FxHashSet<u32>) {
-    collect_pickled_awaits_inner_node(expr, pickled, true);
+pub fn collect_pickled_awaits_node(
+    expr: &JsNode,
+    pickled: &mut rustc_hash::FxHashSet<u32>,
+    arena: &crate::ast::arena::ParseArena,
+) {
+    collect_pickled_awaits_inner_node(expr, pickled, true, arena);
 }
 
 fn collect_pickled_awaits_inner_node(
     expr: &JsNode,
     pickled: &mut rustc_hash::FxHashSet<u32>,
     is_last: bool,
+    arena: &crate::ast::arena::ParseArena,
 ) {
     match expr {
         JsNode::AwaitExpression {
@@ -641,15 +670,15 @@ fn collect_pickled_awaits_inner_node(
                 pickled.insert(*start);
             }
             // Also recurse into argument
-            collect_pickled_awaits_inner_node(argument, pickled, true);
+            collect_pickled_awaits_inner_node(arena.get_js_node(*argument), pickled, true, arena);
         }
         JsNode::BinaryExpression { left, right, .. }
         | JsNode::LogicalExpression { left, right, .. }
         | JsNode::AssignmentExpression { left, right, .. } => {
             // Left side is NOT last (right side evaluates after it)
-            collect_pickled_awaits_inner_node(left, pickled, false);
+            collect_pickled_awaits_inner_node(arena.get_js_node(*left), pickled, false, arena);
             // Right side inherits parent's is_last
-            collect_pickled_awaits_inner_node(right, pickled, is_last);
+            collect_pickled_awaits_inner_node(arena.get_js_node(*right), pickled, is_last, arena);
         }
         JsNode::CallExpression {
             callee, arguments, ..
@@ -658,15 +687,17 @@ fn collect_pickled_awaits_inner_node(
             callee, arguments, ..
         } => {
             // Callee is not last if there are arguments
-            let has_args = !arguments.is_empty();
+            let args = arena.get_js_children(*arguments);
+            let has_args = !args.is_empty();
             collect_pickled_awaits_inner_node(
-                callee,
+                arena.get_js_node(*callee),
                 pickled,
                 if has_args { false } else { is_last },
+                arena,
             );
-            for (i, arg) in arguments.iter().enumerate() {
-                let arg_is_last = i == arguments.len() - 1 && is_last;
-                collect_pickled_awaits_inner_node(arg, pickled, arg_is_last);
+            for (i, arg) in args.iter().enumerate() {
+                let arg_is_last = i == args.len() - 1 && is_last;
+                collect_pickled_awaits_inner_node(arg, pickled, arg_is_last, arena);
             }
         }
         JsNode::ConditionalExpression {
@@ -675,21 +706,32 @@ fn collect_pickled_awaits_inner_node(
             alternate,
             ..
         } => {
-            collect_pickled_awaits_inner_node(test, pickled, false);
-            collect_pickled_awaits_inner_node(consequent, pickled, is_last);
-            collect_pickled_awaits_inner_node(alternate, pickled, is_last);
+            collect_pickled_awaits_inner_node(arena.get_js_node(*test), pickled, false, arena);
+            collect_pickled_awaits_inner_node(
+                arena.get_js_node(*consequent),
+                pickled,
+                is_last,
+                arena,
+            );
+            collect_pickled_awaits_inner_node(
+                arena.get_js_node(*alternate),
+                pickled,
+                is_last,
+                arena,
+            );
         }
         JsNode::SequenceExpression { expressions, .. } => {
-            for (i, e) in expressions.iter().enumerate() {
-                let e_is_last = i == expressions.len() - 1 && is_last;
-                collect_pickled_awaits_inner_node(e, pickled, e_is_last);
+            let exprs = arena.get_js_children(*expressions);
+            for (i, e) in exprs.iter().enumerate() {
+                let e_is_last = i == exprs.len() - 1 && is_last;
+                collect_pickled_awaits_inner_node(e, pickled, e_is_last, arena);
             }
         }
         JsNode::ArrayExpression { elements, .. } => {
             for (i, e) in elements.iter().enumerate() {
                 let e_is_last = i == elements.len() - 1 && is_last;
                 if let Some(elem) = e {
-                    collect_pickled_awaits_inner_node(elem, pickled, e_is_last);
+                    collect_pickled_awaits_inner_node(elem, pickled, e_is_last, arena);
                 }
             }
         }
@@ -700,30 +742,48 @@ fn collect_pickled_awaits_inner_node(
             ..
         } => {
             collect_pickled_awaits_inner_node(
-                object,
+                arena.get_js_node(*object),
                 pickled,
                 if *computed { false } else { is_last },
+                arena,
             );
             if *computed {
-                collect_pickled_awaits_inner_node(property, pickled, is_last);
+                collect_pickled_awaits_inner_node(
+                    arena.get_js_node(*property),
+                    pickled,
+                    is_last,
+                    arena,
+                );
             }
         }
         JsNode::TemplateLiteral { expressions, .. } => {
-            for (i, e) in expressions.iter().enumerate() {
-                let e_is_last = i == expressions.len() - 1 && is_last;
-                collect_pickled_awaits_inner_node(e, pickled, e_is_last);
+            let exprs = arena.get_js_children(*expressions);
+            for (i, e) in exprs.iter().enumerate() {
+                let e_is_last = i == exprs.len() - 1 && is_last;
+                collect_pickled_awaits_inner_node(e, pickled, e_is_last, arena);
             }
         }
         JsNode::ObjectExpression { properties, .. } => {
-            for (i, p) in properties.iter().enumerate() {
-                let p_is_last = i == properties.len() - 1 && is_last;
+            let props = arena.get_js_children(*properties);
+            for (i, p) in props.iter().enumerate() {
+                let p_is_last = i == props.len() - 1 && is_last;
                 if let JsNode::Property { value, .. } = p {
-                    collect_pickled_awaits_inner_node(value, pickled, p_is_last);
+                    collect_pickled_awaits_inner_node(
+                        arena.get_js_node(*value),
+                        pickled,
+                        p_is_last,
+                        arena,
+                    );
                 }
             }
         }
         JsNode::UnaryExpression { argument, .. } => {
-            collect_pickled_awaits_inner_node(argument, pickled, is_last);
+            collect_pickled_awaits_inner_node(
+                arena.get_js_node(*argument),
+                pickled,
+                is_last,
+                arena,
+            );
         }
         JsNode::ArrowFunctionExpression { .. }
         | JsNode::FunctionExpression { .. }

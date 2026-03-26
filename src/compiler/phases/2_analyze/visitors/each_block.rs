@@ -80,7 +80,11 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     // Detect pickled awaits in each block collection expressions.
     // Template expressions are reactive contexts, so await expressions
     // that aren't the last evaluated expression need $.save() wrapping.
-    super::await_block::collect_pickled_awaits_node(&node, &mut context.analysis.pickled_awaits);
+    super::await_block::collect_pickled_awaits_node(
+        &node,
+        &mut context.analysis.pickled_awaits,
+        context.parse_arena,
+    );
 
     // Mark that we have control flow affecting sibling relationships
     context.analysis.css.has_control_flow = true;

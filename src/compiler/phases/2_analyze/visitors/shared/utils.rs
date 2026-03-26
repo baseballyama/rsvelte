@@ -2281,7 +2281,11 @@ fn get_name_node(node: &JsNode) -> Option<String> {
 
 /// JsNode version of `get_global_keypath`.
 /// Get the global keypath for an expression (e.g., "$state", "$derived.by", "$effect.tracking").
-fn get_global_keypath_node(node: &JsNode, scope: &Scope) -> Option<String> {
+fn get_global_keypath_node(
+    node: &JsNode,
+    scope: &Scope,
+    arena: &crate::ast::arena::ParseArena,
+) -> Option<String> {
     match node {
         JsNode::MemberExpression {
             object,
@@ -2293,20 +2297,20 @@ fn get_global_keypath_node(node: &JsNode, scope: &Scope) -> Option<String> {
                 return None;
             }
             // Property must be Identifier
-            let property_name = match property.as_ref() {
+            let property_name = match arena.get_js_node(*property) {
                 JsNode::Identifier { name, .. } => name.as_str(),
                 _ => return None,
             };
 
             // Recurse on object, then append .property
-            let mut base = get_global_keypath_node(object, scope)?;
+            let mut base = get_global_keypath_node(arena.get_js_node(*object), scope, arena)?;
             base.push('.');
             base.push_str(property_name);
             Some(base)
         }
         JsNode::CallExpression { callee, .. } => {
             // For CallExpression, check if callee is an Identifier
-            if let JsNode::Identifier { name, .. } = callee.as_ref() {
+            if let JsNode::Identifier { name, .. } = arena.get_js_node(*callee) {
                 if scope.declarations.contains_key(name.as_str()) {
                     return None;
                 }
@@ -2332,10 +2336,14 @@ fn get_global_keypath_node(node: &JsNode, scope: &Scope) -> Option<String> {
 
 /// JsNode version of `get_rune_from_json`.
 /// Get the rune name from a CallExpression node, if it's a rune call.
-fn get_rune_from_node(node: &JsNode, scope: &Scope) -> Option<String> {
+fn get_rune_from_node(
+    node: &JsNode,
+    scope: &Scope,
+    arena: &crate::ast::arena::ParseArena,
+) -> Option<String> {
     match node {
         JsNode::CallExpression { callee, .. } => {
-            let keypath = get_global_keypath_node(callee, scope)?;
+            let keypath = get_global_keypath_node(arena.get_js_node(*callee), scope, arena)?;
             if !is_rune(&keypath) {
                 return None;
             }
@@ -2349,17 +2357,18 @@ fn get_rune_from_node(node: &JsNode, scope: &Scope) -> Option<String> {
 /// JsNode version of `is_pure`.
 /// Check if an expression is pure (has no side effects).
 pub fn is_pure_node(node: &JsNode, context: &VisitorContext) -> bool {
+    let arena = context.parse_arena;
     match node {
         JsNode::Literal { .. } => true,
         JsNode::CallExpression {
             callee, arguments, ..
         } => {
-            if !is_pure_node(callee, context) {
+            if !is_pure_node(arena.get_js_node(*callee), context) {
                 return false;
             }
-            for arg in arguments {
+            for arg in arena.get_js_children(*arguments) {
                 let arg_to_check = match arg {
-                    JsNode::SpreadElement { argument, .. } => argument.as_ref(),
+                    JsNode::SpreadElement { argument, .. } => arena.get_js_node(*argument),
                     other => other,
                 };
                 if !is_pure_node(arg_to_check, context) {
@@ -2376,19 +2385,20 @@ pub fn is_pure_node(node: &JsNode, context: &VisitorContext) -> bool {
         }
         JsNode::MemberExpression { object, .. } => {
             // Check if it's $effect.tracking (not pure)
-            if let Some(keypath) = get_global_keypath_node(node, &context.analysis.root.scope)
+            if let Some(keypath) =
+                get_global_keypath_node(node, &context.analysis.root.scope, arena)
                 && keypath == "$effect.tracking"
             {
                 return false;
             }
 
             // Navigate to the leftmost node
-            let mut left: &JsNode = object;
+            let mut left: &JsNode = arena.get_js_node(*object);
             while let JsNode::MemberExpression {
                 object: inner_obj, ..
             } = left
             {
-                left = inner_obj;
+                left = arena.get_js_node(*inner_obj);
             }
 
             if let JsNode::Identifier { name, .. } = left {
@@ -2406,10 +2416,11 @@ pub fn is_pure_node(node: &JsNode, context: &VisitorContext) -> bool {
 /// JsNode version of `is_safe_identifier`.
 /// Check if an identifier expression is "safe" (doesn't require component context).
 pub fn is_safe_identifier_node(expression: &JsNode, context: &VisitorContext) -> bool {
+    let arena = context.parse_arena;
     // Navigate to the base identifier through MemberExpression chain
     let mut node = expression;
     while let JsNode::MemberExpression { object, .. } = node {
-        node = object;
+        node = arena.get_js_node(*object);
     }
 
     // Must be an Identifier at the base
@@ -2461,6 +2472,7 @@ pub fn validate_no_const_assignment_node(
     context: &VisitorContext,
     is_binding: bool,
 ) -> Result<(), AnalysisError> {
+    let arena = context.parse_arena;
     match argument {
         JsNode::ArrayPattern { elements, .. } => {
             for elem in elements.iter().flatten() {
@@ -2468,13 +2480,21 @@ pub fn validate_no_const_assignment_node(
             }
         }
         JsNode::ObjectPattern { properties, .. } => {
-            for property in properties {
+            for property in arena.get_js_children(*properties) {
                 match property {
                     JsNode::Property { value, .. } => {
-                        validate_no_const_assignment_node(value, context, is_binding)?;
+                        validate_no_const_assignment_node(
+                            arena.get_js_node(*value),
+                            context,
+                            is_binding,
+                        )?;
                     }
                     JsNode::RestElement { argument, .. } => {
-                        validate_no_const_assignment_node(argument, context, is_binding)?;
+                        validate_no_const_assignment_node(
+                            arena.get_js_node(*argument),
+                            context,
+                            is_binding,
+                        )?;
                     }
                     _ => {}
                 }
@@ -2581,6 +2601,8 @@ pub fn validate_assignment_node(
         }
     }
 
+    let arena = context.parse_arena;
+
     // Handle MemberExpression with 'this' (state field assignments)
     if let JsNode::MemberExpression {
         object,
@@ -2588,12 +2610,13 @@ pub fn validate_assignment_node(
         computed,
         ..
     } = argument
-        && matches!(object.as_ref(), JsNode::ThisExpression { .. })
+        && matches!(arena.get_js_node(*object), JsNode::ThisExpression { .. })
     {
-        let name = if *computed && !matches!(property.as_ref(), JsNode::Literal { .. }) {
+        let prop_node = arena.get_js_node(*property);
+        let name = if *computed && !matches!(prop_node, JsNode::Literal { .. }) {
             None
         } else {
-            get_name_node(property)
+            get_name_node(prop_node)
         };
 
         if let Some(ref field_name) = name
@@ -2646,7 +2669,10 @@ pub fn validate_assignment_node(
 
 /// JsNode version of `extract_identifiers`.
 /// Extract all identifier names from a pattern.
-pub fn extract_identifiers_node(pattern: &JsNode) -> Vec<String> {
+pub fn extract_identifiers_node(
+    pattern: &JsNode,
+    arena: &crate::ast::arena::ParseArena,
+) -> Vec<String> {
     let mut names = Vec::new();
 
     match pattern {
@@ -2655,25 +2681,31 @@ pub fn extract_identifiers_node(pattern: &JsNode) -> Vec<String> {
         }
         JsNode::ArrayPattern { elements, .. } => {
             for elem in elements.iter().flatten() {
-                names.extend(extract_identifiers_node(elem));
+                names.extend(extract_identifiers_node(elem, arena));
             }
         }
         JsNode::ObjectPattern { properties, .. } => {
-            for property in properties {
-                if let Some(value) = property.value_node() {
-                    names.extend(extract_identifiers_node(value));
+            for property in arena.get_js_children(*properties) {
+                if let Some(value_id) = property.value_node() {
+                    names.extend(extract_identifiers_node(arena.get_js_node(value_id), arena));
                 }
                 // Handle RestElement in object pattern
                 if let JsNode::RestElement { argument, .. } = property {
-                    names.extend(extract_identifiers_node(argument));
+                    names.extend(extract_identifiers_node(
+                        arena.get_js_node(*argument),
+                        arena,
+                    ));
                 }
             }
         }
         JsNode::AssignmentPattern { left, .. } => {
-            names.extend(extract_identifiers_node(left));
+            names.extend(extract_identifiers_node(arena.get_js_node(*left), arena));
         }
         JsNode::RestElement { argument, .. } => {
-            names.extend(extract_identifiers_node(argument));
+            names.extend(extract_identifiers_node(
+                arena.get_js_node(*argument),
+                arena,
+            ));
         }
         JsNode::Raw(value) => {
             return extract_identifiers(value);
@@ -2686,19 +2718,31 @@ pub fn extract_identifiers_node(pattern: &JsNode) -> Vec<String> {
 
 /// JsNode version of `collect_all_identifier_names_from_pattern`.
 /// Collect all identifier names from a pattern (identifier, object, array, rest, assignment).
-pub fn collect_all_identifier_names_from_pattern_node(pattern: &JsNode, names: &mut Vec<String>) {
+pub fn collect_all_identifier_names_from_pattern_node(
+    pattern: &JsNode,
+    names: &mut Vec<String>,
+    arena: &crate::ast::arena::ParseArena,
+) {
     match pattern {
         JsNode::Identifier { name, .. } => {
             names.push(name.to_string());
         }
         JsNode::ObjectPattern { properties, .. } => {
-            for prop in properties {
+            for prop in arena.get_js_children(*properties) {
                 match prop {
                     JsNode::RestElement { argument, .. } => {
-                        collect_all_identifier_names_from_pattern_node(argument, names);
+                        collect_all_identifier_names_from_pattern_node(
+                            arena.get_js_node(*argument),
+                            names,
+                            arena,
+                        );
                     }
                     JsNode::Property { value, .. } => {
-                        collect_all_identifier_names_from_pattern_node(value, names);
+                        collect_all_identifier_names_from_pattern_node(
+                            arena.get_js_node(*value),
+                            names,
+                            arena,
+                        );
                     }
                     _ => {}
                 }
@@ -2706,14 +2750,18 @@ pub fn collect_all_identifier_names_from_pattern_node(pattern: &JsNode, names: &
         }
         JsNode::ArrayPattern { elements, .. } => {
             for elem in elements.iter().flatten() {
-                collect_all_identifier_names_from_pattern_node(elem, names);
+                collect_all_identifier_names_from_pattern_node(elem, names, arena);
             }
         }
         JsNode::AssignmentPattern { left, .. } => {
-            collect_all_identifier_names_from_pattern_node(left, names);
+            collect_all_identifier_names_from_pattern_node(arena.get_js_node(*left), names, arena);
         }
         JsNode::RestElement { argument, .. } => {
-            collect_all_identifier_names_from_pattern_node(argument, names);
+            collect_all_identifier_names_from_pattern_node(
+                arena.get_js_node(*argument),
+                names,
+                arena,
+            );
         }
         JsNode::Raw(value) => {
             collect_all_identifier_names_from_pattern(value, names);
@@ -2725,6 +2773,7 @@ pub fn collect_all_identifier_names_from_pattern_node(pattern: &JsNode, names: &
 /// JsNode version of `get_rune_name`.
 /// Get the rune name from a callee expression, if it's a rune call.
 fn get_rune_name_node(callee: &JsNode, context: &VisitorContext) -> Option<String> {
+    let arena = context.parse_arena;
     match callee {
         JsNode::Identifier { name, .. } => {
             if super::function::is_rune(name)
@@ -2748,11 +2797,11 @@ fn get_rune_name_node(callee: &JsNode, context: &VisitorContext) -> Option<Strin
             if *computed {
                 return None;
             }
-            let obj_name = match object.as_ref() {
+            let obj_name = match arena.get_js_node(*object) {
                 JsNode::Identifier { name, .. } => name.as_str(),
                 _ => return None,
             };
-            let prop_name = match property.as_ref() {
+            let prop_name = match arena.get_js_node(*property) {
                 JsNode::Identifier { name, .. } => name.as_str(),
                 _ => return None,
             };
@@ -2789,6 +2838,7 @@ pub fn walk_js_expression_node(
     context: &mut VisitorContext,
     metadata: &mut crate::ast::template::ExpressionMetadata,
 ) -> Result<(), AnalysisError> {
+    let arena = context.parse_arena;
     match expression {
         JsNode::Identifier {
             name, start, end, ..
@@ -2882,7 +2932,7 @@ pub fn walk_js_expression_node(
             if !context.analysis.runes {
                 let mut base: &JsNode = expression;
                 while let JsNode::MemberExpression { object: obj, .. } = base {
-                    base = obj;
+                    base = arena.get_js_node(*obj);
                 }
                 if let JsNode::Identifier { name, .. } = base
                     && (name == "$$props" || name == "$$restProps")
@@ -2892,15 +2942,16 @@ pub fn walk_js_expression_node(
             }
 
             // Recursively visit object and property
-            walk_js_expression_node(object, context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*object), context, metadata)?;
             if *computed {
-                walk_js_expression_node(property, context, metadata)?;
+                walk_js_expression_node(arena.get_js_node(*property), context, metadata)?;
             }
         }
         JsNode::CallExpression {
             callee, arguments, ..
         } => {
-            let rune_name = get_rune_name_node(callee, context);
+            let callee_node = arena.get_js_node(*callee);
+            let rune_name = get_rune_name_node(callee_node, context);
 
             if let Some(ref rn) = rune_name
                 && matches!(
@@ -2912,16 +2963,16 @@ pub fn walk_js_expression_node(
                 return Err(errors::state_invalid_placement(rn));
             }
 
-            if rune_name.is_none() && !is_safe_identifier_node(callee, context) {
+            if rune_name.is_none() && !is_safe_identifier_node(callee_node, context) {
                 context.analysis.needs_context = true;
             }
 
-            walk_js_expression_node(callee, context, metadata)?;
-            for arg in arguments {
+            walk_js_expression_node(callee_node, context, metadata)?;
+            for arg in arena.get_js_children(*arguments) {
                 walk_js_expression_node(arg, context, metadata)?;
             }
 
-            let callee_is_pure = is_pure_node(callee, context);
+            let callee_is_pure = is_pure_node(callee_node, context);
             if !callee_is_pure || !metadata.dependencies.is_empty() {
                 metadata.set_has_call(true);
                 metadata.set_has_state(true);
@@ -2929,19 +2980,20 @@ pub fn walk_js_expression_node(
         }
         JsNode::BinaryExpression { left, right, .. }
         | JsNode::LogicalExpression { left, right, .. } => {
-            walk_js_expression_node(left, context, metadata)?;
-            walk_js_expression_node(right, context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*left), context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*right), context, metadata)?;
         }
         JsNode::UnaryExpression { argument, .. } => {
-            walk_js_expression_node(argument, context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*argument), context, metadata)?;
         }
         JsNode::AwaitExpression { argument, .. } => {
             metadata.set_has_await(true);
-            walk_js_expression_node(argument, context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*argument), context, metadata)?;
         }
         JsNode::UpdateExpression { argument, .. } => {
-            validate_assignment_node(argument, context, false)?;
-            walk_js_expression_node(argument, context, metadata)?;
+            let arg_node = arena.get_js_node(*argument);
+            validate_assignment_node(arg_node, context, false)?;
+            walk_js_expression_node(arg_node, context, metadata)?;
         }
         JsNode::ConditionalExpression {
             test,
@@ -2949,9 +3001,9 @@ pub fn walk_js_expression_node(
             alternate,
             ..
         } => {
-            walk_js_expression_node(test, context, metadata)?;
-            walk_js_expression_node(consequent, context, metadata)?;
-            walk_js_expression_node(alternate, context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*test), context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*consequent), context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*alternate), context, metadata)?;
         }
         JsNode::ArrayExpression { elements, .. } => {
             for elem in elements.iter().flatten() {
@@ -2959,31 +3011,33 @@ pub fn walk_js_expression_node(
             }
         }
         JsNode::ObjectExpression { properties, .. } => {
-            for property in properties {
-                if let Some(value) = property.value_node() {
-                    walk_js_expression_node(value, context, metadata)?;
+            for property in arena.get_js_children(*properties) {
+                if let Some(value_id) = property.value_node() {
+                    walk_js_expression_node(arena.get_js_node(value_id), context, metadata)?;
                 }
-                if let Some(key) = property.key()
+                if let Some(key_id) = property.key()
                     && property.computed()
                 {
-                    walk_js_expression_node(key, context, metadata)?;
+                    walk_js_expression_node(arena.get_js_node(key_id), context, metadata)?;
                 }
                 // Handle SpreadElement in object (rest/spread)
                 if let JsNode::SpreadElement { argument, .. } = property {
-                    walk_js_expression_node(argument, context, metadata)?;
+                    walk_js_expression_node(arena.get_js_node(*argument), context, metadata)?;
                 }
             }
         }
         JsNode::SequenceExpression { expressions, .. } => {
-            for expr in expressions {
+            for expr in arena.get_js_children(*expressions) {
                 walk_js_expression_node(expr, context, metadata)?;
             }
         }
         JsNode::AssignmentExpression { left, right, .. } => {
-            validate_assignment_node(left, context, false)?;
-            super::super::assignment_expression::mark_binding_mutation_node(left, context);
-            walk_js_expression_node(left, context, metadata)?;
-            walk_js_expression_node(right, context, metadata)?;
+            let left_node = arena.get_js_node(*left);
+            let right_node = arena.get_js_node(*right);
+            validate_assignment_node(left_node, context, false)?;
+            super::super::assignment_expression::mark_binding_mutation_node(left_node, context);
+            walk_js_expression_node(left_node, context, metadata)?;
+            walk_js_expression_node(right_node, context, metadata)?;
             metadata.set_has_assignment(true);
         }
         JsNode::ArrowFunctionExpression { params, body, .. }
@@ -3009,9 +3063,9 @@ pub fn walk_js_expression_node(
             context.scope = temp_scope_idx;
 
             // Register parameters
-            for param in params {
+            for param in arena.get_js_children(*params) {
                 let mut param_names = Vec::new();
-                collect_all_identifier_names_from_pattern_node(param, &mut param_names);
+                collect_all_identifier_names_from_pattern_node(param, &mut param_names, arena);
 
                 for param_name in param_names {
                     let temp_binding_idx = context.analysis.root.bindings.len();
@@ -3042,7 +3096,7 @@ pub fn walk_js_expression_node(
 
             // Visit function body
             let mut inner_metadata = crate::ast::template::ExpressionMetadata::default();
-            walk_js_expression_node(body, context, &mut inner_metadata)?;
+            walk_js_expression_node(arena.get_js_node(*body), context, &mut inner_metadata)?;
 
             // Propagate references and dependencies
             if !context.analysis.runes {
@@ -3067,49 +3121,49 @@ pub fn walk_js_expression_node(
             // No body - nothing to walk
         }
         JsNode::BlockStatement { body, .. } => {
-            for stmt in body {
+            for stmt in arena.get_js_children(*body) {
                 walk_js_statement_node(stmt, context, metadata)?;
             }
         }
         JsNode::ExpressionStatement {
             expression: expr, ..
         } => {
-            walk_js_expression_node(expr, context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*expr), context, metadata)?;
         }
         JsNode::SpreadElement { argument, .. } => {
-            walk_js_expression_node(argument, context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*argument), context, metadata)?;
         }
         JsNode::TemplateLiteral { expressions, .. } => {
-            for expr in expressions {
+            for expr in arena.get_js_children(*expressions) {
                 walk_js_expression_node(expr, context, metadata)?;
             }
         }
         JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
-            walk_js_expression_node(tag, context, metadata)?;
-            walk_js_expression_node(quasi, context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*tag), context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*quasi), context, metadata)?;
         }
         JsNode::NewExpression {
             callee, arguments, ..
         } => {
             context.analysis.needs_context = true;
-            walk_js_expression_node(callee, context, metadata)?;
-            for arg in arguments {
+            walk_js_expression_node(arena.get_js_node(*callee), context, metadata)?;
+            for arg in arena.get_js_children(*arguments) {
                 walk_js_expression_node(arg, context, metadata)?;
             }
         }
         JsNode::ChainExpression {
             expression: expr, ..
         } => {
-            walk_js_expression_node(expr, context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*expr), context, metadata)?;
         }
         JsNode::ImportExpression { source, .. } => {
-            walk_js_expression_node(source, context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*source), context, metadata)?;
         }
         JsNode::YieldExpression {
             argument: Some(arg),
             ..
         } => {
-            walk_js_expression_node(arg, context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*arg), context, metadata)?;
         }
         JsNode::YieldExpression { argument: None, .. } => {}
         // Raw fallback: delegate to JSON-based walker
@@ -3132,15 +3186,16 @@ pub fn walk_js_statement_node(
     context: &mut VisitorContext,
     metadata: &mut crate::ast::template::ExpressionMetadata,
 ) -> Result<(), AnalysisError> {
+    let arena = context.parse_arena;
     match statement {
         JsNode::ExpressionStatement { expression, .. } => {
-            walk_js_expression_node(expression, context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*expression), context, metadata)?;
         }
         JsNode::ReturnStatement {
             argument: Some(arg),
             ..
         } => {
-            walk_js_expression_node(arg, context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*arg), context, metadata)?;
         }
         JsNode::ReturnStatement { argument: None, .. } => {}
         JsNode::IfStatement {
@@ -3149,28 +3204,32 @@ pub fn walk_js_statement_node(
             alternate,
             ..
         } => {
-            walk_js_expression_node(test, context, metadata)?;
-            walk_js_statement_node(consequent, context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*test), context, metadata)?;
+            walk_js_statement_node(arena.get_js_node(*consequent), context, metadata)?;
             if let Some(alt) = alternate {
-                walk_js_statement_node(alt, context, metadata)?;
+                walk_js_statement_node(arena.get_js_node(*alt), context, metadata)?;
             }
         }
         JsNode::BlockStatement { body, .. } => {
-            for stmt in body {
+            for stmt in arena.get_js_children(*body) {
                 walk_js_statement_node(stmt, context, metadata)?;
             }
         }
         JsNode::VariableDeclaration { declarations, .. } => {
-            for decl in declarations {
+            for decl in arena.get_js_children(*declarations) {
                 // Walk init before registering the binding
-                if let Some(init) = decl.init() {
-                    walk_js_expression_node(init, context, metadata)?;
+                if let Some(init_id) = decl.init() {
+                    walk_js_expression_node(arena.get_js_node(init_id), context, metadata)?;
                 }
 
                 // Register declared variables as temporary bindings
-                if let Some(id) = decl.id() {
+                if let Some(id_id) = decl.id() {
                     let mut names = Vec::new();
-                    collect_all_identifier_names_from_pattern_node(id, &mut names);
+                    collect_all_identifier_names_from_pattern_node(
+                        arena.get_js_node(id_id),
+                        &mut names,
+                        arena,
+                    );
                     for name in names {
                         let temp_binding_idx = context.analysis.root.bindings.len();
                         let temp_binding =
@@ -3200,11 +3259,11 @@ pub fn walk_js_statement_node(
         JsNode::ForStatement { body, .. }
         | JsNode::ForInStatement { body, .. }
         | JsNode::ForOfStatement { body, .. } => {
-            walk_js_statement_node(body, context, metadata)?;
+            walk_js_statement_node(arena.get_js_node(*body), context, metadata)?;
         }
         JsNode::WhileStatement { test, body, .. } | JsNode::DoWhileStatement { test, body, .. } => {
-            walk_js_expression_node(test, context, metadata)?;
-            walk_js_statement_node(body, context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*test), context, metadata)?;
+            walk_js_statement_node(arena.get_js_node(*body), context, metadata)?;
         }
         JsNode::FunctionDeclaration { .. } => {
             // Walk function declarations like function expressions
@@ -3215,12 +3274,12 @@ pub fn walk_js_statement_node(
             cases,
             ..
         } => {
-            walk_js_expression_node(discriminant, context, metadata)?;
-            for case in cases {
-                if let Some(test) = case.test() {
-                    walk_js_expression_node(test, context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*discriminant), context, metadata)?;
+            for case in arena.get_js_children(*cases) {
+                if let Some(test_id) = case.test() {
+                    walk_js_expression_node(arena.get_js_node(test_id), context, metadata)?;
                 }
-                for stmt in case.consequent_stmts() {
+                for stmt in arena.get_js_children(case.consequent_stmts()) {
                     walk_js_statement_node(stmt, context, metadata)?;
                 }
             }
@@ -3231,18 +3290,19 @@ pub fn walk_js_statement_node(
             finalizer,
             ..
         } => {
-            walk_js_statement_node(block, context, metadata)?;
-            if let Some(handler) = handler
-                && let Some(body) = handler.body_node()
-            {
-                walk_js_statement_node(body, context, metadata)?;
+            walk_js_statement_node(arena.get_js_node(*block), context, metadata)?;
+            if let Some(handler_id) = handler {
+                let handler_node = arena.get_js_node(*handler_id);
+                if let Some(body_id) = handler_node.body_node() {
+                    walk_js_statement_node(arena.get_js_node(body_id), context, metadata)?;
+                }
             }
             if let Some(fin) = finalizer {
-                walk_js_statement_node(fin, context, metadata)?;
+                walk_js_statement_node(arena.get_js_node(*fin), context, metadata)?;
             }
         }
         JsNode::ThrowStatement { argument, .. } => {
-            walk_js_expression_node(argument, context, metadata)?;
+            walk_js_expression_node(arena.get_js_node(*argument), context, metadata)?;
         }
         // Raw fallback: delegate to JSON-based walker
         JsNode::Raw(value) => {

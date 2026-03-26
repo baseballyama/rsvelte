@@ -1504,11 +1504,20 @@ impl ComponentAnalysis {
     }
 
     /// Create scopes for the component.
-    pub fn create_scopes(&mut self, ast: &Root) -> Result<(), super::AnalysisError> {
+    pub fn create_scopes(
+        &mut self,
+        ast: &Root,
+        arena: &crate::ast::arena::ParseArena,
+    ) -> Result<(), super::AnalysisError> {
         // Build scope tree using ScopeBuilder
         // Pass is_typescript so template expressions are parsed as TypeScript when needed
-        let (scope_root, validation_errors) =
-            super::scope_builder::build_scopes(ast, &self.source, self.runes, self.is_typescript);
+        let (scope_root, validation_errors) = super::scope_builder::build_scopes(
+            ast,
+            &self.source,
+            self.runes,
+            self.is_typescript,
+            arena,
+        );
         self.root = scope_root;
 
         // Return first validation error if any occurred during scope building

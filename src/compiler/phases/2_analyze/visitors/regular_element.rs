@@ -1277,11 +1277,25 @@ fn extract_binding_root_identifier(expr: &crate::ast::js::Expression) -> Option<
 }
 
 fn extract_binding_root_identifier_node(node: &crate::ast::typed_expr::JsNode) -> Option<String> {
-    match node.node_type()? {
-        "Identifier" => node.name().map(|s| s.to_string()),
+    match node {
+        crate::ast::typed_expr::JsNode::Identifier { name, .. } => Some(name.to_string()),
+        crate::ast::typed_expr::JsNode::MemberExpression { .. } => {
+            // Fall back to JSON for recursive member expression traversal
+            // to avoid arena dependency in this helper
+            let json = node.to_value();
+            extract_binding_root_identifier_json(&json)
+        }
+        crate::ast::typed_expr::JsNode::Raw(v) => extract_binding_root_identifier_json(v),
+        _ => None,
+    }
+}
+
+fn extract_binding_root_identifier_json(value: &serde_json::Value) -> Option<String> {
+    match value.get("type").and_then(|t| t.as_str())? {
+        "Identifier" => value.get("name").and_then(|n| n.as_str()).map(String::from),
         "MemberExpression" => {
-            let object = node.object()?;
-            extract_binding_root_identifier_node(object)
+            let object = value.get("object")?;
+            extract_binding_root_identifier_json(object)
         }
         _ => None,
     }

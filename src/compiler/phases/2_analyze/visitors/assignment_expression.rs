@@ -169,7 +169,8 @@ pub fn mark_binding_mutation_node(target: &JsNode, context: &mut VisitorContext)
             }
         }
         JsNode::MemberExpression { .. } => {
-            if let Some(root_name) = get_member_expression_root_name_node(target)
+            if let Some(root_name) =
+                get_member_expression_root_name_node(target, context.parse_arena)
                 && let Some(binding_idx) = context
                     .analysis
                     .root
@@ -181,7 +182,8 @@ pub fn mark_binding_mutation_node(target: &JsNode, context: &mut VisitorContext)
             }
         }
         JsNode::ArrayPattern { .. } | JsNode::ObjectPattern { .. } => {
-            let identifiers = super::shared::utils::extract_identifiers_node(target);
+            let identifiers =
+                super::shared::utils::extract_identifiers_node(target, context.parse_arena);
             for name in identifiers {
                 if let Some(binding_idx) = context
                     .analysis
@@ -199,10 +201,15 @@ pub fn mark_binding_mutation_node(target: &JsNode, context: &mut VisitorContext)
 }
 
 /// Get the root identifier name from a JsNode MemberExpression chain.
-fn get_member_expression_root_name_node(expr: &JsNode) -> Option<String> {
+fn get_member_expression_root_name_node(
+    expr: &JsNode,
+    arena: &crate::ast::arena::ParseArena,
+) -> Option<String> {
     match expr {
         JsNode::Identifier { name, .. } => Some(name.to_string()),
-        JsNode::MemberExpression { object, .. } => get_member_expression_root_name_node(object),
+        JsNode::MemberExpression { object, .. } => {
+            get_member_expression_root_name_node(arena.get_js_node(*object), arena)
+        }
         _ => None,
     }
 }

@@ -3,6 +3,8 @@ use serde::Serialize;
 use serde::ser::{SerializeMap, Serializer};
 use serde_json::Value;
 
+use super::arena::{IdRange, JsNodeId, ParseArena};
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourcePosition {
     pub line: u32,
@@ -107,17 +109,17 @@ pub enum JsNode {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        left: Box<JsNode>,
+        left: JsNodeId,
         operator: CompactString,
-        right: Box<JsNode>,
+        right: JsNodeId,
     },
     LogicalExpression {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        left: Box<JsNode>,
+        left: JsNodeId,
         operator: CompactString,
-        right: Box<JsNode>,
+        right: JsNodeId,
     },
     UnaryExpression {
         start: u32,
@@ -125,30 +127,30 @@ pub enum JsNode {
         loc: Option<Box<Loc>>,
         operator: CompactString,
         prefix: bool,
-        argument: Box<JsNode>,
+        argument: JsNodeId,
     },
     ConditionalExpression {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        test: Box<JsNode>,
-        consequent: Box<JsNode>,
-        alternate: Box<JsNode>,
+        test: JsNodeId,
+        consequent: JsNodeId,
+        alternate: JsNodeId,
     },
     CallExpression {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        callee: Box<JsNode>,
-        arguments: Vec<JsNode>,
+        callee: JsNodeId,
+        arguments: IdRange,
         optional: bool,
     },
     MemberExpression {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        object: Box<JsNode>,
-        property: Box<JsNode>,
+        object: JsNodeId,
+        property: JsNodeId,
         computed: bool,
         optional: bool,
     },
@@ -156,16 +158,16 @@ pub enum JsNode {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        callee: Box<JsNode>,
-        arguments: Vec<JsNode>,
+        callee: JsNodeId,
+        arguments: IdRange,
     },
     FunctionExpression {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        id: Option<Box<JsNode>>,
-        params: Vec<JsNode>,
-        body: Option<Box<JsNode>>,
+        id: Option<JsNodeId>,
+        params: IdRange,
+        body: Option<JsNodeId>,
         generator: bool,
         r#async: bool,
         expression: bool,
@@ -174,17 +176,17 @@ pub enum JsNode {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        id: Option<Box<JsNode>>,
-        super_class: Option<Box<JsNode>>,
-        body: Box<JsNode>,
+        id: Option<JsNodeId>,
+        super_class: Option<JsNodeId>,
+        body: JsNodeId,
     },
     ArrowFunctionExpression {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        id: Option<Box<JsNode>>,
-        params: Vec<JsNode>,
-        body: Box<JsNode>,
+        id: Option<JsNodeId>,
+        params: IdRange,
+        body: JsNodeId,
         expression: bool,
         generator: bool,
         r#async: bool,
@@ -194,8 +196,8 @@ pub enum JsNode {
         end: u32,
         loc: Option<Box<Loc>>,
         operator: CompactString,
-        left: Box<JsNode>,
-        right: Box<JsNode>,
+        left: JsNodeId,
+        right: JsNodeId,
     },
     UpdateExpression {
         start: u32,
@@ -203,13 +205,13 @@ pub enum JsNode {
         loc: Option<Box<Loc>>,
         operator: CompactString,
         prefix: bool,
-        argument: Box<JsNode>,
+        argument: JsNodeId,
     },
     SequenceExpression {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        expressions: Vec<JsNode>,
+        expressions: IdRange,
     },
     ArrayExpression {
         start: u32,
@@ -221,21 +223,21 @@ pub enum JsNode {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        properties: Vec<JsNode>,
+        properties: IdRange,
     },
     TemplateLiteral {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        quasis: Vec<JsNode>,
-        expressions: Vec<JsNode>,
+        quasis: IdRange,
+        expressions: IdRange,
     },
     TaggedTemplateExpression {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        tag: Box<JsNode>,
-        quasi: Box<JsNode>,
+        tag: JsNodeId,
+        quasi: JsNodeId,
     },
     TemplateElement {
         start: u32,
@@ -258,46 +260,46 @@ pub enum JsNode {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        source: Box<JsNode>,
+        source: JsNodeId,
     },
     AwaitExpression {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        argument: Box<JsNode>,
+        argument: JsNodeId,
     },
     YieldExpression {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
         delegate: bool,
-        argument: Option<Box<JsNode>>,
+        argument: Option<JsNodeId>,
     },
     ChainExpression {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        expression: Box<JsNode>,
+        expression: JsNodeId,
     },
     MetaProperty {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        meta: Box<JsNode>,
-        property: Box<JsNode>,
+        meta: JsNodeId,
+        property: JsNodeId,
     },
     SpreadElement {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        argument: Box<JsNode>,
+        argument: JsNodeId,
     },
     // Patterns
     ObjectPattern {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        properties: Vec<JsNode>,
+        properties: IdRange,
     },
     ArrayPattern {
         start: u32,
@@ -309,21 +311,21 @@ pub enum JsNode {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        left: Box<JsNode>,
-        right: Box<JsNode>,
+        left: JsNodeId,
+        right: JsNodeId,
     },
     RestElement {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        argument: Box<JsNode>,
+        argument: JsNodeId,
     },
     Property {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        key: Box<JsNode>,
-        value: Box<JsNode>,
+        key: JsNodeId,
+        value: JsNodeId,
         kind: CompactString,
         method: bool,
         shorthand: bool,
@@ -334,7 +336,7 @@ pub enum JsNode {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        body: Vec<JsNode>,
+        body: IdRange,
         source_type: CompactString,
         /// Leading comments on the Program node (e.g. from HTML comments before script tag).
         leading_comments: Option<Vec<Value>>,
@@ -345,19 +347,19 @@ pub enum JsNode {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        expression: Box<JsNode>,
+        expression: JsNodeId,
     },
     BlockStatement {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        body: Vec<JsNode>,
+        body: IdRange,
     },
     VariableDeclaration {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        declarations: Vec<JsNode>,
+        declarations: IdRange,
         kind: CompactString,
         declare: bool,
     },
@@ -365,16 +367,16 @@ pub enum JsNode {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        id: Box<JsNode>,
-        init: Option<Box<JsNode>>,
+        id: JsNodeId,
+        init: Option<JsNodeId>,
     },
     FunctionDeclaration {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        id: Option<Box<JsNode>>,
-        params: Vec<JsNode>,
-        body: Option<Box<JsNode>>,
+        id: Option<JsNodeId>,
+        params: IdRange,
+        body: Option<JsNodeId>,
         generator: bool,
         r#async: bool,
     },
@@ -382,121 +384,121 @@ pub enum JsNode {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        id: Option<Box<JsNode>>,
-        super_class: Option<Box<JsNode>>,
-        body: Box<JsNode>,
+        id: Option<JsNodeId>,
+        super_class: Option<JsNodeId>,
+        body: JsNodeId,
         declare: bool,
         r#abstract: bool,
         implements: bool,
-        decorators: Vec<JsNode>,
+        decorators: IdRange,
     },
     ReturnStatement {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        argument: Option<Box<JsNode>>,
+        argument: Option<JsNodeId>,
     },
     ThrowStatement {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        argument: Box<JsNode>,
+        argument: JsNodeId,
     },
     IfStatement {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        test: Box<JsNode>,
-        consequent: Box<JsNode>,
-        alternate: Option<Box<JsNode>>,
+        test: JsNodeId,
+        consequent: JsNodeId,
+        alternate: Option<JsNodeId>,
     },
     ForStatement {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        init: Option<Box<JsNode>>,
-        test: Option<Box<JsNode>>,
-        update: Option<Box<JsNode>>,
-        body: Box<JsNode>,
+        init: Option<JsNodeId>,
+        test: Option<JsNodeId>,
+        update: Option<JsNodeId>,
+        body: JsNodeId,
     },
     ForOfStatement {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
         r#await: bool,
-        left: Box<JsNode>,
-        right: Box<JsNode>,
-        body: Box<JsNode>,
+        left: JsNodeId,
+        right: JsNodeId,
+        body: JsNodeId,
     },
     ForInStatement {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        left: Box<JsNode>,
-        right: Box<JsNode>,
-        body: Box<JsNode>,
+        left: JsNodeId,
+        right: JsNodeId,
+        body: JsNodeId,
     },
     WhileStatement {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        test: Box<JsNode>,
-        body: Box<JsNode>,
+        test: JsNodeId,
+        body: JsNodeId,
     },
     DoWhileStatement {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        test: Box<JsNode>,
-        body: Box<JsNode>,
+        test: JsNodeId,
+        body: JsNodeId,
     },
     TryStatement {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        block: Box<JsNode>,
-        handler: Option<Box<JsNode>>,
-        finalizer: Option<Box<JsNode>>,
+        block: JsNodeId,
+        handler: Option<JsNodeId>,
+        finalizer: Option<JsNodeId>,
     },
     CatchClause {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        param: Option<Box<JsNode>>,
-        body: Box<JsNode>,
+        param: Option<JsNodeId>,
+        body: JsNodeId,
     },
     SwitchStatement {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        discriminant: Box<JsNode>,
-        cases: Vec<JsNode>,
+        discriminant: JsNodeId,
+        cases: IdRange,
     },
     SwitchCase {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        test: Option<Box<JsNode>>,
-        consequent: Vec<JsNode>,
+        test: Option<JsNodeId>,
+        consequent: IdRange,
     },
     LabeledStatement {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        label: Box<JsNode>,
-        body: Box<JsNode>,
+        label: JsNodeId,
+        body: JsNodeId,
     },
     BreakStatement {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        label: Option<Box<JsNode>>,
+        label: Option<JsNodeId>,
     },
     ContinueStatement {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        label: Option<Box<JsNode>>,
+        label: Option<JsNodeId>,
     },
     EmptyStatement {
         start: u32,
@@ -513,53 +515,53 @@ pub enum JsNode {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        specifiers: Vec<JsNode>,
-        source: Box<JsNode>,
+        specifiers: IdRange,
+        source: JsNodeId,
         import_kind: Option<CompactString>,
-        attributes: Vec<JsNode>,
+        attributes: IdRange,
     },
     ImportSpecifier {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        imported: Box<JsNode>,
-        local: Box<JsNode>,
+        imported: JsNodeId,
+        local: JsNodeId,
         import_kind: Option<CompactString>,
     },
     ImportDefaultSpecifier {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        local: Box<JsNode>,
+        local: JsNodeId,
     },
     ImportNamespaceSpecifier {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        local: Box<JsNode>,
+        local: JsNodeId,
     },
     ExportNamedDeclaration {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        declaration: Option<Box<JsNode>>,
-        specifiers: Vec<JsNode>,
-        source: Option<Box<JsNode>>,
+        declaration: Option<JsNodeId>,
+        specifiers: IdRange,
+        source: Option<JsNodeId>,
         export_kind: Option<CompactString>,
-        attributes: Vec<JsNode>,
+        attributes: IdRange,
     },
     ExportDefaultDeclaration {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        declaration: Box<JsNode>,
+        declaration: JsNodeId,
     },
     ExportSpecifier {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        local: Box<JsNode>,
-        exported: Box<JsNode>,
+        local: JsNodeId,
+        exported: JsNodeId,
         export_kind: Option<CompactString>,
     },
     // Class-related
@@ -567,14 +569,14 @@ pub enum JsNode {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        body: Vec<JsNode>,
+        body: IdRange,
     },
     MethodDefinition {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        key: Box<JsNode>,
-        value: Box<JsNode>,
+        key: JsNodeId,
+        value: JsNodeId,
         kind: CompactString,
         r#static: bool,
         computed: bool,
@@ -583,8 +585,8 @@ pub enum JsNode {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        key: Box<JsNode>,
-        value: Option<Box<JsNode>>,
+        key: JsNodeId,
+        value: Option<JsNodeId>,
         r#static: bool,
         computed: bool,
     },
@@ -592,7 +594,7 @@ pub enum JsNode {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        body: Vec<JsNode>,
+        body: IdRange,
     },
     Decorator {
         start: u32,
@@ -604,7 +606,7 @@ pub enum JsNode {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        type_annotation: Box<JsNode>,
+        type_annotation: JsNodeId,
     },
     TSEnumDeclaration {
         start: u32,
@@ -615,7 +617,7 @@ pub enum JsNode {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        body: Option<Box<JsNode>>,
+        body: Option<JsNodeId>,
     },
     // Comment (used in Program.comments array, type is "Line" or "Block")
     Comment {
@@ -638,6 +640,35 @@ macro_rules! ser_loc {
         if let Some(loc) = $loc {
             $map.serialize_entry("loc", loc)?;
         }
+    };
+}
+
+/// Helper: serialize a JsNodeId field by resolving through the arena.
+macro_rules! ser_node {
+    ($map:ident, $key:expr, $id:expr) => {
+        $map.serialize_entry($key, crate::ast::arena::resolve_js_node_for_serialize(*$id))?
+    };
+}
+
+/// Helper: serialize an Option<JsNodeId> field (Some -> resolved node, None -> null).
+macro_rules! ser_opt_node {
+    ($map:ident, $key:expr, $opt:expr) => {
+        match $opt {
+            Some(id) => {
+                $map.serialize_entry($key, crate::ast::arena::resolve_js_node_for_serialize(*id))?
+            }
+            None => $map.serialize_entry($key, &Value::Null)?,
+        }
+    };
+}
+
+/// Helper: serialize an IdRange field as a JSON array by resolving children through the arena.
+macro_rules! ser_children {
+    ($map:ident, $key:expr, $range:expr) => {
+        $map.serialize_entry(
+            $key,
+            &crate::ast::arena::resolve_js_children_for_serialize(*$range),
+        )?
     };
 }
 
@@ -711,9 +742,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("left", &**left)?;
+                ser_node!(map, "left", left);
                 map.serialize_entry("operator", operator.as_str())?;
-                map.serialize_entry("right", &**right)?;
+                ser_node!(map, "right", right);
                 map.end()
             }
             JsNode::LogicalExpression {
@@ -729,9 +760,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("left", &**left)?;
+                ser_node!(map, "left", left);
                 map.serialize_entry("operator", operator.as_str())?;
-                map.serialize_entry("right", &**right)?;
+                ser_node!(map, "right", right);
                 map.end()
             }
             JsNode::UnaryExpression {
@@ -749,7 +780,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 map.serialize_entry("operator", operator.as_str())?;
                 map.serialize_entry("prefix", prefix)?;
-                map.serialize_entry("argument", &**argument)?;
+                ser_node!(map, "argument", argument);
                 map.end()
             }
             JsNode::ConditionalExpression {
@@ -765,9 +796,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("test", &**test)?;
-                map.serialize_entry("consequent", &**consequent)?;
-                map.serialize_entry("alternate", &**alternate)?;
+                ser_node!(map, "test", test);
+                ser_node!(map, "consequent", consequent);
+                ser_node!(map, "alternate", alternate);
                 map.end()
             }
             JsNode::CallExpression {
@@ -783,8 +814,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("callee", &**callee)?;
-                map.serialize_entry("arguments", arguments)?;
+                ser_node!(map, "callee", callee);
+                ser_children!(map, "arguments", arguments);
                 map.serialize_entry("optional", optional)?;
                 map.end()
             }
@@ -802,8 +833,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("object", &**object)?;
-                map.serialize_entry("property", &**property)?;
+                ser_node!(map, "object", object);
+                ser_node!(map, "property", property);
                 map.serialize_entry("computed", computed)?;
                 map.serialize_entry("optional", optional)?;
                 map.end()
@@ -820,8 +851,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("callee", &**callee)?;
-                map.serialize_entry("arguments", arguments)?;
+                ser_node!(map, "callee", callee);
+                ser_children!(map, "arguments", arguments);
                 map.end()
             }
             JsNode::FunctionExpression {
@@ -840,18 +871,12 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                match id {
-                    Some(id) => map.serialize_entry("id", &**id)?,
-                    None => map.serialize_entry("id", &Value::Null)?,
-                }
+                ser_opt_node!(map, "id", id);
                 map.serialize_entry("generator", generator)?;
                 map.serialize_entry("async", r#async)?;
                 map.serialize_entry("expression", expression)?;
-                map.serialize_entry("params", params)?;
-                match body {
-                    Some(body) => map.serialize_entry("body", &**body)?,
-                    None => map.serialize_entry("body", &Value::Null)?,
-                }
+                ser_children!(map, "params", params);
+                ser_opt_node!(map, "body", body);
                 map.end()
             }
             JsNode::ClassExpression {
@@ -867,15 +892,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                match id {
-                    Some(id) => map.serialize_entry("id", &**id)?,
-                    None => map.serialize_entry("id", &Value::Null)?,
-                }
-                match super_class {
-                    Some(sc) => map.serialize_entry("superClass", &**sc)?,
-                    None => map.serialize_entry("superClass", &Value::Null)?,
-                }
-                map.serialize_entry("body", &**body)?;
+                ser_opt_node!(map, "id", id);
+                ser_opt_node!(map, "superClass", super_class);
+                ser_node!(map, "body", body);
                 map.end()
             }
             JsNode::ArrowFunctionExpression {
@@ -894,15 +913,12 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                match id {
-                    Some(id) => map.serialize_entry("id", &**id)?,
-                    None => map.serialize_entry("id", &Value::Null)?,
-                }
+                ser_opt_node!(map, "id", id);
                 map.serialize_entry("expression", expression)?;
                 map.serialize_entry("generator", generator)?;
                 map.serialize_entry("async", r#async)?;
-                map.serialize_entry("params", params)?;
-                map.serialize_entry("body", &**body)?;
+                ser_children!(map, "params", params);
+                ser_node!(map, "body", body);
                 map.end()
             }
             JsNode::AssignmentExpression {
@@ -919,8 +935,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 map.serialize_entry("operator", operator.as_str())?;
-                map.serialize_entry("left", &**left)?;
-                map.serialize_entry("right", &**right)?;
+                ser_node!(map, "left", left);
+                ser_node!(map, "right", right);
                 map.end()
             }
             JsNode::UpdateExpression {
@@ -938,7 +954,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 map.serialize_entry("operator", operator.as_str())?;
                 map.serialize_entry("prefix", prefix)?;
-                map.serialize_entry("argument", &**argument)?;
+                ser_node!(map, "argument", argument);
                 map.end()
             }
             JsNode::SequenceExpression {
@@ -952,7 +968,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("expressions", expressions)?;
+                ser_children!(map, "expressions", expressions);
                 map.end()
             }
             JsNode::ArrayExpression {
@@ -981,7 +997,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("properties", properties)?;
+                ser_children!(map, "properties", properties);
                 map.end()
             }
             JsNode::TemplateLiteral {
@@ -996,8 +1012,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("quasis", quasis)?;
-                map.serialize_entry("expressions", expressions)?;
+                ser_children!(map, "quasis", quasis);
+                ser_children!(map, "expressions", expressions);
                 map.end()
             }
             JsNode::TaggedTemplateExpression {
@@ -1012,8 +1028,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("tag", &**tag)?;
-                map.serialize_entry("quasi", &**quasi)?;
+                ser_node!(map, "tag", tag);
+                ser_node!(map, "quasi", quasi);
                 map.end()
             }
             JsNode::TemplateElement {
@@ -1068,7 +1084,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("source", &**source)?;
+                ser_node!(map, "source", source);
                 map.serialize_entry("options", &None::<()>)?;
                 map.end()
             }
@@ -1083,7 +1099,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("argument", &**argument)?;
+                ser_node!(map, "argument", argument);
                 map.end()
             }
             JsNode::YieldExpression {
@@ -1099,10 +1115,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 map.serialize_entry("delegate", delegate)?;
-                match argument {
-                    Some(arg) => map.serialize_entry("argument", &**arg)?,
-                    None => map.serialize_entry("argument", &Value::Null)?,
-                }
+                ser_opt_node!(map, "argument", argument);
                 map.end()
             }
             JsNode::ChainExpression {
@@ -1116,7 +1129,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("expression", &**expression)?;
+                ser_node!(map, "expression", expression);
                 map.end()
             }
             JsNode::MetaProperty {
@@ -1131,8 +1144,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("meta", &**meta)?;
-                map.serialize_entry("property", &**property)?;
+                ser_node!(map, "meta", meta);
+                ser_node!(map, "property", property);
                 map.end()
             }
             JsNode::SpreadElement {
@@ -1146,7 +1159,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("argument", &**argument)?;
+                ser_node!(map, "argument", argument);
                 map.end()
             }
             JsNode::ObjectPattern {
@@ -1160,7 +1173,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("properties", properties)?;
+                ser_children!(map, "properties", properties);
                 map.end()
             }
             JsNode::ArrayPattern {
@@ -1189,8 +1202,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("left", &**left)?;
-                map.serialize_entry("right", &**right)?;
+                ser_node!(map, "left", left);
+                ser_node!(map, "right", right);
                 map.end()
             }
             JsNode::RestElement {
@@ -1204,7 +1217,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("argument", &**argument)?;
+                ser_node!(map, "argument", argument);
                 map.end()
             }
             JsNode::Property {
@@ -1226,8 +1239,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("method", method)?;
                 map.serialize_entry("shorthand", shorthand)?;
                 map.serialize_entry("computed", computed)?;
-                map.serialize_entry("key", &**key)?;
-                map.serialize_entry("value", &**value)?;
+                ser_node!(map, "key", key);
+                ser_node!(map, "value", value);
                 map.serialize_entry("kind", kind.as_str())?;
                 map.end()
             }
@@ -1245,7 +1258,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("body", body)?;
+                ser_children!(map, "body", body);
                 map.serialize_entry("sourceType", source_type.as_str())?;
                 if let Some(tc) = trailing_comments {
                     map.serialize_entry("trailingComments", tc)?;
@@ -1266,7 +1279,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("expression", &**expression)?;
+                ser_node!(map, "expression", expression);
                 map.end()
             }
             JsNode::BlockStatement {
@@ -1280,7 +1293,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("body", body)?;
+                ser_children!(map, "body", body);
                 map.end()
             }
             JsNode::VariableDeclaration {
@@ -1296,7 +1309,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("declarations", declarations)?;
+                ser_children!(map, "declarations", declarations);
                 map.serialize_entry("kind", kind.as_str())?;
                 if *declare {
                     map.serialize_entry("declare", &true)?;
@@ -1315,11 +1328,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("id", &**id)?;
-                match init {
-                    Some(init) => map.serialize_entry("init", &**init)?,
-                    None => map.serialize_entry("init", &Value::Null)?,
-                }
+                ser_node!(map, "id", id);
+                ser_opt_node!(map, "init", init);
                 map.end()
             }
             JsNode::FunctionDeclaration {
@@ -1337,17 +1347,11 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                match id {
-                    Some(id) => map.serialize_entry("id", &**id)?,
-                    None => map.serialize_entry("id", &Value::Null)?,
-                }
+                ser_opt_node!(map, "id", id);
                 map.serialize_entry("generator", generator)?;
                 map.serialize_entry("async", r#async)?;
-                map.serialize_entry("params", params)?;
-                match body {
-                    Some(body) => map.serialize_entry("body", &**body)?,
-                    None => map.serialize_entry("body", &Value::Null)?,
-                }
+                ser_children!(map, "params", params);
+                ser_opt_node!(map, "body", body);
                 map.end()
             }
             JsNode::ClassDeclaration {
@@ -1367,15 +1371,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                match id {
-                    Some(id) => map.serialize_entry("id", &**id)?,
-                    None => map.serialize_entry("id", &Value::Null)?,
-                }
-                match super_class {
-                    Some(sc) => map.serialize_entry("superClass", &**sc)?,
-                    None => map.serialize_entry("superClass", &Value::Null)?,
-                }
-                map.serialize_entry("body", &**body)?;
+                ser_opt_node!(map, "id", id);
+                ser_opt_node!(map, "superClass", super_class);
+                ser_node!(map, "body", body);
                 if *declare {
                     map.serialize_entry("declare", &true)?;
                 }
@@ -1386,7 +1384,7 @@ impl Serialize for JsNode {
                     map.serialize_entry("implements", &true)?;
                 }
                 if !decorators.is_empty() {
-                    map.serialize_entry("decorators", decorators)?;
+                    ser_children!(map, "decorators", decorators);
                 }
                 map.end()
             }
@@ -1401,10 +1399,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                match argument {
-                    Some(arg) => map.serialize_entry("argument", &**arg)?,
-                    None => map.serialize_entry("argument", &Value::Null)?,
-                }
+                ser_opt_node!(map, "argument", argument);
                 map.end()
             }
             JsNode::ThrowStatement {
@@ -1418,7 +1413,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("argument", &**argument)?;
+                ser_node!(map, "argument", argument);
                 map.end()
             }
             JsNode::IfStatement {
@@ -1434,12 +1429,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("test", &**test)?;
-                map.serialize_entry("consequent", &**consequent)?;
-                match alternate {
-                    Some(alt) => map.serialize_entry("alternate", &**alt)?,
-                    None => map.serialize_entry("alternate", &Value::Null)?,
-                }
+                ser_node!(map, "test", test);
+                ser_node!(map, "consequent", consequent);
+                ser_opt_node!(map, "alternate", alternate);
                 map.end()
             }
             JsNode::ForStatement {
@@ -1456,19 +1448,10 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                match init {
-                    Some(init) => map.serialize_entry("init", &**init)?,
-                    None => map.serialize_entry("init", &Value::Null)?,
-                }
-                match test {
-                    Some(test) => map.serialize_entry("test", &**test)?,
-                    None => map.serialize_entry("test", &Value::Null)?,
-                }
-                match update {
-                    Some(update) => map.serialize_entry("update", &**update)?,
-                    None => map.serialize_entry("update", &Value::Null)?,
-                }
-                map.serialize_entry("body", &**body)?;
+                ser_opt_node!(map, "init", init);
+                ser_opt_node!(map, "test", test);
+                ser_opt_node!(map, "update", update);
+                ser_node!(map, "body", body);
                 map.end()
             }
             JsNode::ForOfStatement {
@@ -1486,9 +1469,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 map.serialize_entry("await", r#await)?;
-                map.serialize_entry("left", &**left)?;
-                map.serialize_entry("right", &**right)?;
-                map.serialize_entry("body", &**body)?;
+                ser_node!(map, "left", left);
+                ser_node!(map, "right", right);
+                ser_node!(map, "body", body);
                 map.end()
             }
             JsNode::ForInStatement {
@@ -1504,9 +1487,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("left", &**left)?;
-                map.serialize_entry("right", &**right)?;
-                map.serialize_entry("body", &**body)?;
+                ser_node!(map, "left", left);
+                ser_node!(map, "right", right);
+                ser_node!(map, "body", body);
                 map.end()
             }
             JsNode::WhileStatement {
@@ -1521,8 +1504,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("test", &**test)?;
-                map.serialize_entry("body", &**body)?;
+                ser_node!(map, "test", test);
+                ser_node!(map, "body", body);
                 map.end()
             }
             JsNode::DoWhileStatement {
@@ -1537,8 +1520,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("test", &**test)?;
-                map.serialize_entry("body", &**body)?;
+                ser_node!(map, "test", test);
+                ser_node!(map, "body", body);
                 map.end()
             }
             JsNode::TryStatement {
@@ -1554,15 +1537,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("block", &**block)?;
-                match handler {
-                    Some(h) => map.serialize_entry("handler", &**h)?,
-                    None => map.serialize_entry("handler", &Value::Null)?,
-                }
-                match finalizer {
-                    Some(f) => map.serialize_entry("finalizer", &**f)?,
-                    None => map.serialize_entry("finalizer", &Value::Null)?,
-                }
+                ser_node!(map, "block", block);
+                ser_opt_node!(map, "handler", handler);
+                ser_opt_node!(map, "finalizer", finalizer);
                 map.end()
             }
             JsNode::CatchClause {
@@ -1577,11 +1554,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                match param {
-                    Some(p) => map.serialize_entry("param", &**p)?,
-                    None => map.serialize_entry("param", &Value::Null)?,
-                }
-                map.serialize_entry("body", &**body)?;
+                ser_opt_node!(map, "param", param);
+                ser_node!(map, "body", body);
                 map.end()
             }
             JsNode::SwitchStatement {
@@ -1596,8 +1570,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("discriminant", &**discriminant)?;
-                map.serialize_entry("cases", cases)?;
+                ser_node!(map, "discriminant", discriminant);
+                ser_children!(map, "cases", cases);
                 map.end()
             }
             JsNode::SwitchCase {
@@ -1612,11 +1586,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                match test {
-                    Some(t) => map.serialize_entry("test", &**t)?,
-                    None => map.serialize_entry("test", &Value::Null)?,
-                }
-                map.serialize_entry("consequent", consequent)?;
+                ser_opt_node!(map, "test", test);
+                ser_children!(map, "consequent", consequent);
                 map.end()
             }
             JsNode::LabeledStatement {
@@ -1631,8 +1602,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("label", &**label)?;
-                map.serialize_entry("body", &**body)?;
+                ser_node!(map, "label", label);
+                ser_node!(map, "body", body);
                 map.end()
             }
             JsNode::BreakStatement {
@@ -1646,10 +1617,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                match label {
-                    Some(l) => map.serialize_entry("label", &**l)?,
-                    None => map.serialize_entry("label", &Value::Null)?,
-                }
+                ser_opt_node!(map, "label", label);
                 map.end()
             }
             JsNode::ContinueStatement {
@@ -1663,10 +1631,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                match label {
-                    Some(l) => map.serialize_entry("label", &**l)?,
-                    None => map.serialize_entry("label", &Value::Null)?,
-                }
+                ser_opt_node!(map, "label", label);
                 map.end()
             }
             JsNode::EmptyStatement { start, end, loc } => {
@@ -1699,12 +1664,12 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("specifiers", specifiers)?;
-                map.serialize_entry("source", &**source)?;
+                ser_children!(map, "specifiers", specifiers);
+                ser_node!(map, "source", source);
                 if let Some(ik) = import_kind {
                     map.serialize_entry("importKind", ik.as_str())?;
                 }
-                map.serialize_entry("attributes", attributes)?;
+                ser_children!(map, "attributes", attributes);
                 map.end()
             }
             JsNode::ImportSpecifier {
@@ -1720,8 +1685,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("imported", &**imported)?;
-                map.serialize_entry("local", &**local)?;
+                ser_node!(map, "imported", imported);
+                ser_node!(map, "local", local);
                 if let Some(ik) = import_kind {
                     map.serialize_entry("importKind", ik.as_str())?;
                 }
@@ -1738,7 +1703,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("local", &**local)?;
+                ser_node!(map, "local", local);
                 map.end()
             }
             JsNode::ImportNamespaceSpecifier {
@@ -1752,7 +1717,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("local", &**local)?;
+                ser_node!(map, "local", local);
                 map.end()
             }
             JsNode::ExportNamedDeclaration {
@@ -1770,19 +1735,13 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                match declaration {
-                    Some(d) => map.serialize_entry("declaration", &**d)?,
-                    None => map.serialize_entry("declaration", &Value::Null)?,
-                }
-                map.serialize_entry("specifiers", specifiers)?;
-                match source {
-                    Some(s) => map.serialize_entry("source", &**s)?,
-                    None => map.serialize_entry("source", &Value::Null)?,
-                }
+                ser_opt_node!(map, "declaration", declaration);
+                ser_children!(map, "specifiers", specifiers);
+                ser_opt_node!(map, "source", source);
                 if let Some(ek) = export_kind {
                     map.serialize_entry("exportKind", ek.as_str())?;
                 }
-                map.serialize_entry("attributes", attributes)?;
+                ser_children!(map, "attributes", attributes);
                 map.end()
             }
             JsNode::ExportDefaultDeclaration {
@@ -1796,7 +1755,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("declaration", &**declaration)?;
+                ser_node!(map, "declaration", declaration);
                 map.end()
             }
             JsNode::ExportSpecifier {
@@ -1812,8 +1771,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("local", &**local)?;
-                map.serialize_entry("exported", &**exported)?;
+                ser_node!(map, "local", local);
+                ser_node!(map, "exported", exported);
                 if let Some(ek) = export_kind {
                     map.serialize_entry("exportKind", ek.as_str())?;
                 }
@@ -1830,7 +1789,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("body", body)?;
+                ser_children!(map, "body", body);
                 map.end()
             }
             JsNode::MethodDefinition {
@@ -1851,8 +1810,8 @@ impl Serialize for JsNode {
                 map.serialize_entry("static", r#static)?;
                 map.serialize_entry("computed", computed)?;
                 map.serialize_entry("kind", kind.as_str())?;
-                map.serialize_entry("key", &**key)?;
-                map.serialize_entry("value", &**value)?;
+                ser_node!(map, "key", key);
+                ser_node!(map, "value", value);
                 map.end()
             }
             JsNode::PropertyDefinition {
@@ -1871,11 +1830,8 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 map.serialize_entry("static", r#static)?;
                 map.serialize_entry("computed", computed)?;
-                map.serialize_entry("key", &**key)?;
-                match value {
-                    Some(v) => map.serialize_entry("value", &**v)?,
-                    None => map.serialize_entry("value", &Value::Null)?,
-                }
+                ser_node!(map, "key", key);
+                ser_opt_node!(map, "value", value);
                 map.end()
             }
             JsNode::StaticBlock {
@@ -1889,7 +1845,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("body", body)?;
+                ser_children!(map, "body", body);
                 map.end()
             }
             JsNode::Decorator { start, end, loc } => {
@@ -1911,7 +1867,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                map.serialize_entry("typeAnnotation", &**type_annotation)?;
+                ser_node!(map, "typeAnnotation", type_annotation);
                 map.end()
             }
             JsNode::TSEnumDeclaration { start, end, loc } => {
@@ -1934,7 +1890,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 if let Some(b) = body {
-                    map.serialize_entry("body", &**b)?;
+                    ser_node!(map, "body", b);
                 }
                 map.end()
             }
@@ -1997,24 +1953,43 @@ fn convert_loc(obj: &serde_json::Map<String, Value>) -> Option<Box<Loc>> {
     }))
 }
 
-fn convert_child(obj: &serde_json::Map<String, Value>, key: &str) -> Box<JsNode> {
+thread_local! {
+    static DESER_ARENA: std::cell::RefCell<ParseArena> = std::cell::RefCell::new(ParseArena::new());
+}
+
+fn deser_alloc_node(node: JsNode) -> JsNodeId {
+    DESER_ARENA.with(|a| a.borrow().alloc_js_node(node))
+}
+
+fn deser_alloc_children(nodes: Vec<JsNode>) -> IdRange {
+    DESER_ARENA.with(|a| a.borrow().alloc_js_children(nodes))
+}
+
+fn convert_child(obj: &serde_json::Map<String, Value>, key: &str) -> JsNodeId {
     match obj.get(key) {
-        Some(Value::Object(_)) => Box::new(JsNode::from_value(obj.get(key).unwrap().clone())),
-        _ => Box::new(JsNode::Null),
+        Some(Value::Object(_)) => {
+            deser_alloc_node(JsNode::from_value(obj.get(key).unwrap().clone()))
+        }
+        _ => deser_alloc_node(JsNode::Null),
     }
 }
 
-fn convert_optional_child(obj: &serde_json::Map<String, Value>, key: &str) -> Option<Box<JsNode>> {
+fn convert_optional_child(obj: &serde_json::Map<String, Value>, key: &str) -> Option<JsNodeId> {
     match obj.get(key) {
-        Some(Value::Object(_)) => Some(Box::new(JsNode::from_value(obj.get(key).unwrap().clone()))),
+        Some(Value::Object(_)) => Some(deser_alloc_node(JsNode::from_value(
+            obj.get(key).unwrap().clone(),
+        ))),
         _ => None,
     }
 }
 
-fn convert_array(obj: &serde_json::Map<String, Value>, key: &str) -> Vec<JsNode> {
+fn convert_array(obj: &serde_json::Map<String, Value>, key: &str) -> IdRange {
     match obj.get(key) {
-        Some(Value::Array(arr)) => arr.iter().map(|v| JsNode::from_value(v.clone())).collect(),
-        _ => Vec::new(),
+        Some(Value::Array(arr)) => {
+            let nodes: Vec<JsNode> = arr.iter().map(|v| JsNode::from_value(v.clone())).collect();
+            deser_alloc_children(nodes)
+        }
+        _ => IdRange::empty(),
     }
 }
 
@@ -2739,21 +2714,21 @@ impl JsNode {
         }
     }
 
-    /// Get the "body" field as a slice of JsNode (for Program, BlockStatement, ClassBody, StaticBlock).
+    /// Get the "body" field as an IdRange (for Program, BlockStatement, ClassBody, StaticBlock).
     #[inline]
-    pub fn body_stmts(&self) -> &[JsNode] {
+    pub fn body_stmts(&self) -> IdRange {
         match self {
             JsNode::Program { body, .. }
             | JsNode::BlockStatement { body, .. }
             | JsNode::ClassBody { body, .. }
-            | JsNode::StaticBlock { body, .. } => body,
-            _ => &[],
+            | JsNode::StaticBlock { body, .. } => *body,
+            _ => IdRange::empty(),
         }
     }
 
-    /// Get the "body" field as a single node (for ArrowFunctionExpression, ForStatement, etc).
+    /// Get the "body" field as a JsNodeId (for ArrowFunctionExpression, ForStatement, etc).
     #[inline]
-    pub fn body_node(&self) -> Option<&JsNode> {
+    pub fn body_node(&self) -> Option<JsNodeId> {
         match self {
             JsNode::ArrowFunctionExpression { body, .. }
             | JsNode::ForStatement { body, .. }
@@ -2764,30 +2739,30 @@ impl JsNode {
             | JsNode::LabeledStatement { body, .. }
             | JsNode::CatchClause { body, .. }
             | JsNode::ClassExpression { body, .. }
-            | JsNode::ClassDeclaration { body, .. } => Some(body),
+            | JsNode::ClassDeclaration { body, .. } => Some(*body),
             JsNode::FunctionExpression { body, .. } | JsNode::FunctionDeclaration { body, .. } => {
-                body.as_deref()
+                *body
             }
-            JsNode::TSModuleDeclaration { body, .. } => body.as_deref(),
+            JsNode::TSModuleDeclaration { body, .. } => *body,
             _ => None,
         }
     }
 
     /// Get "declarations" for VariableDeclaration.
     #[inline]
-    pub fn declarations(&self) -> &[JsNode] {
+    pub fn declarations(&self) -> IdRange {
         match self {
-            JsNode::VariableDeclaration { declarations, .. } => declarations,
-            _ => &[],
+            JsNode::VariableDeclaration { declarations, .. } => *declarations,
+            _ => IdRange::empty(),
         }
     }
 
     /// Get "callee" for CallExpression, NewExpression.
     #[inline]
-    pub fn callee(&self) -> Option<&JsNode> {
+    pub fn callee(&self) -> Option<JsNodeId> {
         match self {
             JsNode::CallExpression { callee, .. } | JsNode::NewExpression { callee, .. } => {
-                Some(callee)
+                Some(*callee)
             }
             _ => None,
         }
@@ -2795,26 +2770,26 @@ impl JsNode {
 
     /// Get "arguments" for CallExpression, NewExpression.
     #[inline]
-    pub fn call_arguments(&self) -> &[JsNode] {
+    pub fn call_arguments(&self) -> IdRange {
         match self {
             JsNode::CallExpression { arguments, .. } | JsNode::NewExpression { arguments, .. } => {
-                arguments
+                *arguments
             }
-            _ => &[],
+            _ => IdRange::empty(),
         }
     }
 
     /// Get "left" for BinaryExpression, LogicalExpression, AssignmentExpression, AssignmentPattern,
     /// ForOfStatement, ForInStatement.
     #[inline]
-    pub fn left(&self) -> Option<&JsNode> {
+    pub fn left(&self) -> Option<JsNodeId> {
         match self {
             JsNode::BinaryExpression { left, .. }
             | JsNode::LogicalExpression { left, .. }
             | JsNode::AssignmentExpression { left, .. }
             | JsNode::AssignmentPattern { left, .. }
             | JsNode::ForOfStatement { left, .. }
-            | JsNode::ForInStatement { left, .. } => Some(left),
+            | JsNode::ForInStatement { left, .. } => Some(*left),
             _ => None,
         }
     }
@@ -2822,25 +2797,25 @@ impl JsNode {
     /// Get "right" for BinaryExpression, LogicalExpression, AssignmentExpression, AssignmentPattern,
     /// ForOfStatement, ForInStatement.
     #[inline]
-    pub fn right(&self) -> Option<&JsNode> {
+    pub fn right(&self) -> Option<JsNodeId> {
         match self {
             JsNode::BinaryExpression { right, .. }
             | JsNode::LogicalExpression { right, .. }
             | JsNode::AssignmentExpression { right, .. }
             | JsNode::AssignmentPattern { right, .. }
             | JsNode::ForOfStatement { right, .. }
-            | JsNode::ForInStatement { right, .. } => Some(right),
+            | JsNode::ForInStatement { right, .. } => Some(*right),
             _ => None,
         }
     }
 
     /// Get "properties" for ObjectExpression, ObjectPattern.
     #[inline]
-    pub fn properties(&self) -> &[JsNode] {
+    pub fn properties(&self) -> IdRange {
         match self {
             JsNode::ObjectExpression { properties, .. }
-            | JsNode::ObjectPattern { properties, .. } => properties,
-            _ => &[],
+            | JsNode::ObjectPattern { properties, .. } => *properties,
+            _ => IdRange::empty(),
         }
     }
 
@@ -2857,30 +2832,30 @@ impl JsNode {
 
     /// Get "params" for FunctionExpression, FunctionDeclaration, ArrowFunctionExpression.
     #[inline]
-    pub fn params(&self) -> &[JsNode] {
+    pub fn params(&self) -> IdRange {
         match self {
             JsNode::FunctionExpression { params, .. }
             | JsNode::FunctionDeclaration { params, .. }
-            | JsNode::ArrowFunctionExpression { params, .. } => params,
-            _ => &[],
+            | JsNode::ArrowFunctionExpression { params, .. } => *params,
+            _ => IdRange::empty(),
         }
     }
 
     /// Get "object" for MemberExpression.
     #[inline]
-    pub fn object(&self) -> Option<&JsNode> {
+    pub fn object(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::MemberExpression { object, .. } => Some(object),
+            JsNode::MemberExpression { object, .. } => Some(*object),
             _ => None,
         }
     }
 
     /// Get "property" for MemberExpression, MetaProperty.
     #[inline]
-    pub fn property(&self) -> Option<&JsNode> {
+    pub fn property(&self) -> Option<JsNodeId> {
         match self {
             JsNode::MemberExpression { property, .. } | JsNode::MetaProperty { property, .. } => {
-                Some(property)
+                Some(*property)
             }
             _ => None,
         }
@@ -2936,53 +2911,51 @@ impl JsNode {
 
     /// Get "test" for ConditionalExpression, IfStatement, SwitchCase.
     #[inline]
-    pub fn test(&self) -> Option<&JsNode> {
+    pub fn test(&self) -> Option<JsNodeId> {
         match self {
             JsNode::ConditionalExpression { test, .. }
             | JsNode::IfStatement { test, .. }
             | JsNode::WhileStatement { test, .. }
-            | JsNode::DoWhileStatement { test, .. } => Some(test),
-            JsNode::ForStatement { test, .. } | JsNode::SwitchCase { test, .. } => test.as_deref(),
+            | JsNode::DoWhileStatement { test, .. } => Some(*test),
+            JsNode::ForStatement { test, .. } | JsNode::SwitchCase { test, .. } => *test,
             _ => None,
         }
     }
 
     /// Get "consequent" for ConditionalExpression, IfStatement.
     #[inline]
-    pub fn consequent(&self) -> Option<&JsNode> {
+    pub fn consequent(&self) -> Option<JsNodeId> {
         match self {
             JsNode::ConditionalExpression { consequent, .. }
-            | JsNode::IfStatement { consequent, .. } => Some(consequent),
+            | JsNode::IfStatement { consequent, .. } => Some(*consequent),
             _ => None,
         }
     }
 
     /// Get "consequent" items for SwitchCase.
     #[inline]
-    pub fn consequent_stmts(&self) -> &[JsNode] {
+    pub fn consequent_stmts(&self) -> IdRange {
         match self {
-            JsNode::SwitchCase { consequent, .. } => consequent,
-            _ => &[],
+            JsNode::SwitchCase { consequent, .. } => *consequent,
+            _ => IdRange::empty(),
         }
     }
 
     /// Get "alternate" for ConditionalExpression, IfStatement.
     #[inline]
-    pub fn alternate(&self) -> Option<&JsNode> {
+    pub fn alternate(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::ConditionalExpression { alternate, .. } => Some(alternate),
-            JsNode::IfStatement { alternate, .. } => alternate.as_deref(),
+            JsNode::ConditionalExpression { alternate, .. } => Some(*alternate),
+            JsNode::IfStatement { alternate, .. } => *alternate,
             _ => None,
         }
     }
 
     /// Get "init" for VariableDeclarator, ForStatement.
     #[inline]
-    pub fn init(&self) -> Option<&JsNode> {
+    pub fn init(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::VariableDeclarator { init, .. } | JsNode::ForStatement { init, .. } => {
-                init.as_deref()
-            }
+            JsNode::VariableDeclarator { init, .. } | JsNode::ForStatement { init, .. } => *init,
             _ => None,
         }
     }
@@ -2990,14 +2963,14 @@ impl JsNode {
     /// Get "id" for VariableDeclarator, FunctionDeclaration, FunctionExpression,
     /// ClassDeclaration, ClassExpression.
     #[inline]
-    pub fn id(&self) -> Option<&JsNode> {
+    pub fn id(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::VariableDeclarator { id, .. } => Some(id),
+            JsNode::VariableDeclarator { id, .. } => Some(*id),
             JsNode::FunctionDeclaration { id, .. }
             | JsNode::FunctionExpression { id, .. }
             | JsNode::ClassDeclaration { id, .. }
             | JsNode::ClassExpression { id, .. }
-            | JsNode::ArrowFunctionExpression { id, .. } => id.as_deref(),
+            | JsNode::ArrowFunctionExpression { id, .. } => *id,
             _ => None,
         }
     }
@@ -3005,16 +2978,16 @@ impl JsNode {
     /// Get "argument" for UnaryExpression, UpdateExpression, SpreadElement, RestElement,
     /// ReturnStatement, ThrowStatement, AwaitExpression, YieldExpression.
     #[inline]
-    pub fn argument(&self) -> Option<&JsNode> {
+    pub fn argument(&self) -> Option<JsNodeId> {
         match self {
             JsNode::UnaryExpression { argument, .. }
             | JsNode::UpdateExpression { argument, .. }
             | JsNode::SpreadElement { argument, .. }
             | JsNode::RestElement { argument, .. }
             | JsNode::ThrowStatement { argument, .. }
-            | JsNode::AwaitExpression { argument, .. } => Some(argument),
+            | JsNode::AwaitExpression { argument, .. } => Some(*argument),
             JsNode::ReturnStatement { argument, .. } | JsNode::YieldExpression { argument, .. } => {
-                argument.as_deref()
+                *argument
             }
             _ => None,
         }
@@ -3022,41 +2995,41 @@ impl JsNode {
 
     /// Get "expression" for ExpressionStatement, ChainExpression.
     #[inline]
-    pub fn expression_node(&self) -> Option<&JsNode> {
+    pub fn expression_node(&self) -> Option<JsNodeId> {
         match self {
             JsNode::ExpressionStatement { expression, .. }
-            | JsNode::ChainExpression { expression, .. } => Some(expression),
+            | JsNode::ChainExpression { expression, .. } => Some(*expression),
             _ => None,
         }
     }
 
     /// Get "expressions" for SequenceExpression, TemplateLiteral.
     #[inline]
-    pub fn expressions(&self) -> &[JsNode] {
+    pub fn expressions(&self) -> IdRange {
         match self {
             JsNode::SequenceExpression { expressions, .. }
-            | JsNode::TemplateLiteral { expressions, .. } => expressions,
-            _ => &[],
+            | JsNode::TemplateLiteral { expressions, .. } => *expressions,
+            _ => IdRange::empty(),
         }
     }
 
     /// Get "key" for Property, MethodDefinition, PropertyDefinition.
     #[inline]
-    pub fn key(&self) -> Option<&JsNode> {
+    pub fn key(&self) -> Option<JsNodeId> {
         match self {
             JsNode::Property { key, .. }
             | JsNode::MethodDefinition { key, .. }
-            | JsNode::PropertyDefinition { key, .. } => Some(key),
+            | JsNode::PropertyDefinition { key, .. } => Some(*key),
             _ => None,
         }
     }
 
-    /// Get "value" as a JsNode for Property, VariableDeclarator (init), PropertyDefinition.
+    /// Get "value" as a JsNodeId for Property, MethodDefinition, PropertyDefinition.
     #[inline]
-    pub fn value_node(&self) -> Option<&JsNode> {
+    pub fn value_node(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::Property { value, .. } | JsNode::MethodDefinition { value, .. } => Some(value),
-            JsNode::PropertyDefinition { value, .. } => value.as_deref(),
+            JsNode::Property { value, .. } | JsNode::MethodDefinition { value, .. } => Some(*value),
+            JsNode::PropertyDefinition { value, .. } => *value,
             _ => None,
         }
     }
@@ -3132,99 +3105,99 @@ impl JsNode {
 
     /// Get "specifiers" for ImportDeclaration, ExportNamedDeclaration.
     #[inline]
-    pub fn specifiers(&self) -> &[JsNode] {
+    pub fn specifiers(&self) -> IdRange {
         match self {
             JsNode::ImportDeclaration { specifiers, .. }
-            | JsNode::ExportNamedDeclaration { specifiers, .. } => specifiers,
-            _ => &[],
+            | JsNode::ExportNamedDeclaration { specifiers, .. } => *specifiers,
+            _ => IdRange::empty(),
         }
     }
 
     /// Get "source" for ImportDeclaration, ImportExpression.
     #[inline]
-    pub fn source(&self) -> Option<&JsNode> {
+    pub fn source(&self) -> Option<JsNodeId> {
         match self {
             JsNode::ImportDeclaration { source, .. } | JsNode::ImportExpression { source, .. } => {
-                Some(source)
+                Some(*source)
             }
-            JsNode::ExportNamedDeclaration { source, .. } => source.as_deref(),
+            JsNode::ExportNamedDeclaration { source, .. } => *source,
             _ => None,
         }
     }
 
     /// Get "local" for ImportSpecifier, ImportDefaultSpecifier, ImportNamespaceSpecifier, ExportSpecifier.
     #[inline]
-    pub fn local(&self) -> Option<&JsNode> {
+    pub fn local(&self) -> Option<JsNodeId> {
         match self {
             JsNode::ImportSpecifier { local, .. }
             | JsNode::ImportDefaultSpecifier { local, .. }
             | JsNode::ImportNamespaceSpecifier { local, .. }
-            | JsNode::ExportSpecifier { local, .. } => Some(local),
+            | JsNode::ExportSpecifier { local, .. } => Some(*local),
             _ => None,
         }
     }
 
     /// Get "imported" for ImportSpecifier.
     #[inline]
-    pub fn imported(&self) -> Option<&JsNode> {
+    pub fn imported(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::ImportSpecifier { imported, .. } => Some(imported),
+            JsNode::ImportSpecifier { imported, .. } => Some(*imported),
             _ => None,
         }
     }
 
     /// Get "exported" for ExportSpecifier.
     #[inline]
-    pub fn exported(&self) -> Option<&JsNode> {
+    pub fn exported(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::ExportSpecifier { exported, .. } => Some(exported),
+            JsNode::ExportSpecifier { exported, .. } => Some(*exported),
             _ => None,
         }
     }
 
     /// Get "declaration" for ExportNamedDeclaration, ExportDefaultDeclaration.
     #[inline]
-    pub fn declaration(&self) -> Option<&JsNode> {
+    pub fn declaration(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::ExportDefaultDeclaration { declaration, .. } => Some(declaration),
-            JsNode::ExportNamedDeclaration { declaration, .. } => declaration.as_deref(),
+            JsNode::ExportDefaultDeclaration { declaration, .. } => Some(*declaration),
+            JsNode::ExportNamedDeclaration { declaration, .. } => *declaration,
             _ => None,
         }
     }
 
     /// Get "quasis" for TemplateLiteral.
     #[inline]
-    pub fn quasis(&self) -> &[JsNode] {
+    pub fn quasis(&self) -> IdRange {
         match self {
-            JsNode::TemplateLiteral { quasis, .. } => quasis,
-            _ => &[],
+            JsNode::TemplateLiteral { quasis, .. } => *quasis,
+            _ => IdRange::empty(),
         }
     }
 
     /// Get "tag" for TaggedTemplateExpression.
     #[inline]
-    pub fn tag(&self) -> Option<&JsNode> {
+    pub fn tag(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::TaggedTemplateExpression { tag, .. } => Some(tag),
+            JsNode::TaggedTemplateExpression { tag, .. } => Some(*tag),
             _ => None,
         }
     }
 
     /// Get "discriminant" for SwitchStatement.
     #[inline]
-    pub fn discriminant(&self) -> Option<&JsNode> {
+    pub fn discriminant(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::SwitchStatement { discriminant, .. } => Some(discriminant),
+            JsNode::SwitchStatement { discriminant, .. } => Some(*discriminant),
             _ => None,
         }
     }
 
     /// Get "cases" for SwitchStatement.
     #[inline]
-    pub fn cases(&self) -> &[JsNode] {
+    pub fn cases(&self) -> IdRange {
         match self {
-            JsNode::SwitchStatement { cases, .. } => cases,
-            _ => &[],
+            JsNode::SwitchStatement { cases, .. } => *cases,
+            _ => IdRange::empty(),
         }
     }
 
@@ -3448,7 +3421,17 @@ impl JsNode {
     }
 
     pub fn to_value(&self) -> Value {
-        serde_json::to_value(self).unwrap_or(Value::Null)
+        use crate::ast::arena::{has_serialize_arena, with_serialize_arena};
+        if has_serialize_arena() {
+            serde_json::to_value(self).unwrap_or(Value::Null)
+        } else {
+            // Fall back to the deserialization arena (used in tests and from_value roundtrips).
+            DESER_ARENA.with(|a| {
+                with_serialize_arena(&a.borrow(), || {
+                    serde_json::to_value(self).unwrap_or(Value::Null)
+                })
+            })
+        }
     }
 }
 

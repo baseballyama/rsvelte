@@ -309,6 +309,7 @@ fn transform_client_with_visitors(
 
     // Create the component client transform state
     let state = ComponentClientTransformState::new(
+        &ast.arena,
         &analysis.root.scope,
         &analysis.root,
         analysis,

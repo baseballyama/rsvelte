@@ -9,6 +9,7 @@
 //! - `{#snippet}` block parameters: `{#snippet foo(arg1, arg2)}`
 //! - Type annotations: `{#each items as item: Item}`
 
+use crate::ast::arena::ParseArena;
 use crate::ast::js::Expression;
 use crate::compiler::phases::phase1_parse::utils::bracket::find_matching_bracket;
 
@@ -28,7 +29,12 @@ use crate::compiler::phases::phase1_parse::utils::bracket::find_matching_bracket
 /// # Returns
 /// A tuple of (Pattern Expression, end position)
 #[allow(dead_code)]
-pub fn read_pattern(source: &str, start: usize, line_offsets: &[usize]) -> (Expression, usize) {
+pub fn read_pattern(
+    arena: &ParseArena,
+    source: &str,
+    start: usize,
+    line_offsets: &[usize],
+) -> (Expression, usize) {
     let bytes = source.as_bytes();
     let mut i = start;
 
@@ -52,12 +58,17 @@ pub fn read_pattern(source: &str, start: usize, line_offsets: &[usize]) -> (Expr
         let open_char = c as char;
         if let Some(end_pos) = find_matching_bracket(source, i + 1, open_char) {
             let pattern_str = &source[i..=end_pos];
-            let pattern = super::expression::parse_binding_pattern(pattern_str, i, line_offsets)
-                .unwrap_or_else(|_| {
-                    crate::ast::js::Expression::Value(
-                        serde_json::json!({"type": "Identifier", "name": "", "start": i, "end": i}),
-                    )
-                });
+            let pattern = super::expression::parse_binding_pattern(
+                arena,
+                pattern_str,
+                i,
+                line_offsets,
+            )
+            .unwrap_or_else(|_| {
+                crate::ast::js::Expression::Value(
+                    serde_json::json!({"type": "Identifier", "name": "", "start": i, "end": i}),
+                )
+            });
 
             // Check for type annotation after the pattern
             let (type_annotation, final_pos) =
@@ -212,9 +223,10 @@ mod tests {
 
     #[test]
     fn test_read_simple_identifier() {
+        let arena = ParseArena::new();
         let source = "item";
         let line_offsets = get_line_offsets(source);
-        let (pattern, end) = read_pattern(source, 0, &line_offsets);
+        let (pattern, end) = read_pattern(&arena, source, 0, &line_offsets);
 
         assert_eq!(end, 4);
         let val = pattern.as_json();
@@ -224,9 +236,10 @@ mod tests {
 
     #[test]
     fn test_read_pattern_with_whitespace() {
+        let arena = ParseArena::new();
         let source = "  item  ";
         let line_offsets = get_line_offsets(source);
-        let (pattern, end) = read_pattern(source, 0, &line_offsets);
+        let (pattern, end) = read_pattern(&arena, source, 0, &line_offsets);
 
         assert_eq!(end, 6);
         let val = pattern.as_json();
@@ -236,9 +249,10 @@ mod tests {
 
     #[test]
     fn test_read_object_pattern() {
+        let arena = ParseArena::new();
         let source = "{ name, id }";
         let line_offsets = get_line_offsets(source);
-        let (pattern, end) = read_pattern(source, 0, &line_offsets);
+        let (pattern, end) = read_pattern(&arena, source, 0, &line_offsets);
 
         assert_eq!(end, 12);
         let val = pattern.as_json();
@@ -247,9 +261,10 @@ mod tests {
 
     #[test]
     fn test_read_array_pattern() {
+        let arena = ParseArena::new();
         let source = "[first, second]";
         let line_offsets = get_line_offsets(source);
-        let (pattern, end) = read_pattern(source, 0, &line_offsets);
+        let (pattern, end) = read_pattern(&arena, source, 0, &line_offsets);
 
         assert_eq!(end, 15);
         let val = pattern.as_json();
@@ -258,9 +273,10 @@ mod tests {
 
     #[test]
     fn test_read_identifier_with_type_annotation() {
+        let arena = ParseArena::new();
         let source = "item: string";
         let line_offsets = get_line_offsets(source);
-        let (_pattern, end) = read_pattern(source, 0, &line_offsets);
+        let (_pattern, end) = read_pattern(&arena, source, 0, &line_offsets);
 
         // End should be after the type annotation
         assert_eq!(end, 12);

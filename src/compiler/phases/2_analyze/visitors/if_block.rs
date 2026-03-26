@@ -118,6 +118,7 @@ fn analyze_test_expression(
         super::await_block::collect_pickled_awaits_node(
             &node,
             &mut context.analysis.pickled_awaits,
+            context.parse_arena,
         );
     }
 

@@ -715,7 +715,9 @@ pub fn compile_module(
 
     // Parse JS source into an AST using the same infrastructure as component scripts
     // Pass empty line_offsets to skip loc object creation (not needed during compilation)
+    let arena = crate::ast::arena::ParseArena::new();
     let program = phases::phase1_parse::read::expression::parse_program(
+        &arena,
         source,
         0, // offset = 0 (source is the entire file)
         &[],
@@ -768,6 +770,7 @@ pub fn compile_module(
         })),
         parse_warnings: Vec::new(),
         source: None,
+        arena,
     };
 
     // Convert ModuleCompileOptions to CompileOptions for the analysis phase.

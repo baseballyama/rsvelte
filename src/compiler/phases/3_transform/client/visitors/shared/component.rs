@@ -832,11 +832,12 @@ fn process_let_directive(
                 let node = expr.as_node();
                 match &*node {
                     crate::ast::typed_expr::JsNode::ObjectExpression { properties, .. } => {
-                        for prop in properties {
-                            if let Some(key) = prop.key()
-                                && let Some(name) = key.name()
-                            {
-                                binding_names.push(name.into());
+                        for prop in context.state.parse_arena.get_js_children(*properties) {
+                            if let Some(key_id) = prop.key() {
+                                let key = context.state.parse_arena.get_js_node(key_id);
+                                if let Some(name) = key.name() {
+                                    binding_names.push(name.into());
+                                }
                             }
                         }
                     }

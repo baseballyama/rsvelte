@@ -46,6 +46,9 @@ pub struct Root {
     /// This avoids cloning the entire source during parsing.
     #[serde(skip)]
     pub source: Option<()>,
+    /// Arena for JsNode instances. Stores all expression sub-nodes contiguously.
+    #[serde(skip)]
+    pub arena: crate::ast::arena::ParseArena,
 }
 
 /// A warning emitted during parsing.

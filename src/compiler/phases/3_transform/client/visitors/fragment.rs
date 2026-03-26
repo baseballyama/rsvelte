@@ -132,6 +132,7 @@ pub fn fragment(
     // ensuring variable names don't collide between outer and inner scopes (e.g., nested IfBlocks)
     // Pre-allocate vectors with typical capacities to reduce allocations
     let state = ComponentClientTransformState {
+        parse_arena: context.state.parse_arena,
         scope: context.state.scope,
         scopes: FxHashMap::default(),
         analysis: context.state.analysis,

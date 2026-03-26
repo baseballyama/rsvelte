@@ -690,8 +690,10 @@ mod tests {
         let analysis = ComponentAnalysis::new(source, &options);
         let scope_root = ScopeRoot::new();
         let transform_options = Rc::new(TransformOptions::default());
+        let parse_arena = crate::ast::arena::ParseArena::new();
 
         let state = ComponentClientTransformState::new(
+            &parse_arena,
             &scope_root.scope,
             &scope_root,
             &analysis,

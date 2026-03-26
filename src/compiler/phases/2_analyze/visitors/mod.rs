@@ -101,6 +101,7 @@ pub use text::visit_text;
 
 use super::AnalysisError;
 use super::types::{ComponentAnalysis, CssDomElement, DomStructure, SiblingCertainty};
+use crate::ast::arena::ParseArena;
 use crate::ast::template::{Root, TemplateNode};
 
 /// Information about the current EachBlock context for animate: validation.
@@ -167,6 +168,8 @@ pub struct VisitorContext<'a> {
     pub scope: usize,
     /// The analysis being built.
     pub analysis: &'a mut ComponentAnalysis,
+    /// The parse arena used to resolve JsNodeId and IdRange references.
+    pub parse_arena: &'a ParseArena,
     /// The path of nodes from root to current (Svelte template nodes).
     pub path: Vec<&'a TemplateNode>,
     /// JavaScript AST node path (for expressions in scripts).
@@ -329,10 +332,11 @@ pub enum AstType {
 
 impl<'a> VisitorContext<'a> {
     /// Create a new visitor context.
-    pub fn new(analysis: &'a mut ComponentAnalysis) -> Self {
+    pub fn new(analysis: &'a mut ComponentAnalysis, parse_arena: &'a ParseArena) -> Self {
         Self {
             scope: 0,
             analysis,
+            parse_arena,
             path: Vec::new(),
             js_path: Vec::new(),
             expression: None,
@@ -439,8 +443,9 @@ impl<'a> VisitorContext<'a> {
 pub fn analyze_template(
     ast: &mut Root,
     analysis: &mut ComponentAnalysis,
+    parse_arena: &ParseArena,
 ) -> Result<(), AnalysisError> {
-    let mut context = VisitorContext::new(analysis);
+    let mut context = VisitorContext::new(analysis, parse_arena);
     fragment::analyze(&mut ast.fragment, &mut context)?;
 
     // Build sibling relationships for CSS sibling combinator detection

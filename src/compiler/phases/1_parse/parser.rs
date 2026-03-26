@@ -21,6 +21,7 @@ use compact_str::CompactString;
 use regex::Regex;
 use rustc_hash::FxHashMap;
 
+use crate::ast::arena::ParseArena;
 use crate::ast::css::StyleSheet;
 use crate::ast::span::{LineColumn, SourceLocation};
 use crate::ast::template::{Script, SvelteOptions};
@@ -83,6 +84,8 @@ pub struct Parser<'a> {
     pub(crate) last_auto_closed_tag: Option<LastAutoClosedTag>,
     /// Parser-level warnings (e.g., element_implicitly_closed).
     pub(crate) parse_warnings: Vec<crate::ast::template::ParseWarning>,
+    /// Arena allocator for JsNode instances created during parsing.
+    pub(crate) arena: ParseArena,
 }
 
 /// An entry on the parser stack.
@@ -177,6 +180,7 @@ impl<'a> Parser<'a> {
             meta_tags: FxHashMap::with_capacity_and_hasher(4, Default::default()),
             last_auto_closed_tag: None,
             parse_warnings: Vec::new(),
+            arena: ParseArena::new(),
         }
     }
 

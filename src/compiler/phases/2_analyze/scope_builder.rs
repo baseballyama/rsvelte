@@ -5,6 +5,7 @@
 use super::errors;
 use super::scope::{Binding, BindingKind, DeclarationKind, Scope, ScopeRoot};
 use super::visitors::shared::utils::validate_identifier_name;
+use crate::ast::arena::ParseArena;
 use crate::ast::template::{
     AwaitBlock, ConstTag, EachBlock, Fragment, IfBlock, KeyBlock, RegularElement, Root, Script,
     SnippetBlock, TemplateNode,
@@ -41,6 +42,8 @@ pub struct ScopeBuilder<'a> {
     current_scope: usize,
     /// Source code for extracting script content
     source: &'a str,
+    /// Parse arena for resolving JsNodeId and IdRange references
+    arena: &'a ParseArena,
     /// Tracked updates (assignments and update expressions) to process after declarations
     updates: Vec<Update>,
     /// Current function depth (for validating $ prefixes)
@@ -83,7 +86,12 @@ pub struct ScopeBuilder<'a> {
 
 impl<'a> ScopeBuilder<'a> {
     /// Create a new scope builder with runes mode and TypeScript flag.
-    pub fn new(source: &'a str, runes_mode: bool, is_typescript: bool) -> Self {
+    pub fn new(
+        source: &'a str,
+        runes_mode: bool,
+        is_typescript: bool,
+        arena: &'a ParseArena,
+    ) -> Self {
         // Pre-allocate with reasonable capacities based on typical Svelte components.
         // Most components have a modest number of scopes, bindings, and updates.
         Self {
@@ -95,6 +103,7 @@ impl<'a> ScopeBuilder<'a> {
             bindings: Vec::with_capacity(16),
             current_scope: 0,
             source,
+            arena,
             updates: Vec::with_capacity(8),
             // Initialize function_depth to 1 to match the official Svelte compiler's scope structure:
             // In the official compiler, scope.function_depth = parent.function_depth + 1 for non-porous
@@ -1654,7 +1663,11 @@ impl<'a> ScopeBuilder<'a> {
             Expression::Typed(te) => {
                 // Walk the typed JsNode directly - avoids JSON conversion entirely.
                 self.track_node_expression_updates(&te.node);
-                collect_arrow_param_names_node(&te.node, &mut self.template_expression_params);
+                collect_arrow_param_names_node(
+                    &te.node,
+                    &mut self.template_expression_params,
+                    self.arena,
+                );
             }
             Expression::Value(json) => {
                 // Legacy fallback: walk JSON AST directly.
@@ -1688,17 +1701,24 @@ impl<'a> ScopeBuilder<'a> {
 
             // For MemberExpression (bind:this={foo[i]}), traverse to base object
             // and mark as mutated (not reassigned, since only a property is being set)
-            JsNode::MemberExpression { .. } => {
-                let mut current = &*node;
-                while let JsNode::MemberExpression { object, .. } = current {
-                    current = object;
-                }
-                if let JsNode::Identifier { name, .. } = current {
-                    self.updates.push(Update {
-                        name: name.to_string(),
-                        is_direct_assignment: false, // mutation, not reassignment
-                        scope_idx: self.current_scope,
-                    });
+            JsNode::MemberExpression { object, .. } => {
+                let mut current_id = *object;
+                loop {
+                    let current = self.arena.get_js_node(current_id);
+                    match current {
+                        JsNode::MemberExpression { object, .. } => {
+                            current_id = *object;
+                        }
+                        JsNode::Identifier { name, .. } => {
+                            self.updates.push(Update {
+                                name: name.to_string(),
+                                is_direct_assignment: false, // mutation, not reassignment
+                                scope_idx: self.current_scope,
+                            });
+                            break;
+                        }
+                        _ => break,
+                    }
                 }
             }
 
@@ -2275,11 +2295,11 @@ impl<'a> ScopeBuilder<'a> {
     fn track_node_expression_updates(&mut self, node: &JsNode) {
         match node {
             JsNode::AssignmentExpression { left, right, .. } => {
-                self.track_node_assignment_target(left);
-                self.track_node_expression_updates(right);
+                self.track_node_assignment_target(self.arena.get_js_node(*left));
+                self.track_node_expression_updates(self.arena.get_js_node(*right));
             }
             JsNode::UpdateExpression { argument, .. } => {
-                self.track_node_simple_assignment_target(argument);
+                self.track_node_simple_assignment_target(self.arena.get_js_node(*argument));
             }
             JsNode::CallExpression {
                 callee, arguments, ..
@@ -2287,51 +2307,61 @@ impl<'a> ScopeBuilder<'a> {
             | JsNode::NewExpression {
                 callee, arguments, ..
             } => {
-                self.track_node_expression_updates(callee);
-                for arg in arguments {
+                self.track_node_expression_updates(self.arena.get_js_node(*callee));
+                for arg in self.arena.get_js_children(*arguments) {
                     if let JsNode::SpreadElement { argument, .. } = arg {
-                        self.track_node_expression_updates(argument);
+                        self.track_node_expression_updates(self.arena.get_js_node(*argument));
                     } else {
                         self.track_node_expression_updates(arg);
                     }
                 }
             }
             JsNode::ArrowFunctionExpression { body, params, .. } => {
+                let body_id = *body;
+                let params_range = *params;
                 let old_scope = self.push_function_scope();
                 self.function_depth += 1;
                 // Record function scope mapping
-                if let Some(start) = node_start(body) {
+                let body_node = self.arena.get_js_node(body_id);
+                if let Some(start) = node_start(body_node) {
                     self.function_scope_map.insert(start, self.current_scope);
                 }
                 // Declare parameters
-                for param in params {
+                for param in self.arena.get_js_children(params_range) {
                     self.declare_bindings_from_pattern_node(param, BindingKind::Normal, false);
                 }
                 // Track body updates
-                if let JsNode::BlockStatement { body: stmts, .. } = &**body {
-                    for stmt in stmts {
+                let body_node = self.arena.get_js_node(body_id);
+                if let JsNode::BlockStatement { body: stmts, .. } = body_node {
+                    let stmts = *stmts;
+                    for stmt in self.arena.get_js_children(stmts) {
                         self.track_node_statement_updates(stmt);
                     }
                 } else {
-                    self.track_node_expression_updates(body);
+                    self.track_node_expression_updates(body_node);
                 }
                 self.function_depth -= 1;
                 self.pop_scope(old_scope);
             }
             JsNode::FunctionExpression { body, params, .. } => {
+                let body_id = *body;
+                let params_range = *params;
                 let old_scope = self.push_function_scope();
                 self.function_depth += 1;
-                if let Some(body) = body {
-                    if let Some(start) = node_start(body) {
+                if let Some(body_id) = body_id {
+                    let body_node = self.arena.get_js_node(body_id);
+                    if let Some(start) = node_start(body_node) {
                         self.function_scope_map.insert(start, self.current_scope);
                     }
                 }
-                for param in params {
+                for param in self.arena.get_js_children(params_range) {
                     self.declare_bindings_from_pattern_node(param, BindingKind::Normal, false);
                 }
-                if let Some(body) = body {
-                    if let JsNode::BlockStatement { body: stmts, .. } = &**body {
-                        for stmt in stmts {
+                if let Some(body_id) = body_id {
+                    let body_node = self.arena.get_js_node(body_id);
+                    if let JsNode::BlockStatement { body: stmts, .. } = body_node {
+                        let stmts = *stmts;
+                        for stmt in self.arena.get_js_children(stmts) {
                             self.track_node_statement_updates(stmt);
                         }
                     }
@@ -2345,68 +2375,69 @@ impl<'a> ScopeBuilder<'a> {
                 alternate,
                 ..
             } => {
-                self.track_node_expression_updates(test);
-                self.track_node_expression_updates(consequent);
-                self.track_node_expression_updates(alternate);
+                self.track_node_expression_updates(self.arena.get_js_node(*test));
+                self.track_node_expression_updates(self.arena.get_js_node(*consequent));
+                self.track_node_expression_updates(self.arena.get_js_node(*alternate));
             }
             JsNode::LogicalExpression { left, right, .. }
             | JsNode::BinaryExpression { left, right, .. } => {
-                self.track_node_expression_updates(left);
-                self.track_node_expression_updates(right);
+                self.track_node_expression_updates(self.arena.get_js_node(*left));
+                self.track_node_expression_updates(self.arena.get_js_node(*right));
             }
             JsNode::UnaryExpression { argument, .. } => {
-                self.track_node_expression_updates(argument);
+                self.track_node_expression_updates(self.arena.get_js_node(*argument));
             }
             JsNode::SequenceExpression { expressions, .. } => {
-                for expr in expressions {
+                for expr in self.arena.get_js_children(*expressions) {
                     self.track_node_expression_updates(expr);
                 }
             }
             JsNode::ArrayExpression { elements, .. } => {
                 for elem in elements.iter().flatten() {
                     if let JsNode::SpreadElement { argument, .. } = elem {
-                        self.track_node_expression_updates(argument);
+                        self.track_node_expression_updates(self.arena.get_js_node(*argument));
                     } else {
                         self.track_node_expression_updates(elem);
                     }
                 }
             }
             JsNode::ObjectExpression { properties, .. } => {
-                for prop in properties {
+                for prop in self.arena.get_js_children(*properties) {
                     if let JsNode::SpreadElement { argument, .. } = prop {
-                        self.track_node_expression_updates(argument);
+                        self.track_node_expression_updates(self.arena.get_js_node(*argument));
                     } else if let JsNode::Property { value, .. } = prop {
-                        self.track_node_expression_updates(value);
+                        self.track_node_expression_updates(self.arena.get_js_node(*value));
                     }
                 }
             }
             JsNode::MemberExpression { object, .. } => {
-                self.track_node_expression_updates(object);
+                self.track_node_expression_updates(self.arena.get_js_node(*object));
             }
             JsNode::TemplateLiteral { expressions, .. } => {
-                for expr in expressions {
+                for expr in self.arena.get_js_children(*expressions) {
                     self.track_node_expression_updates(expr);
                 }
             }
             JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
-                self.track_node_expression_updates(tag);
-                if let JsNode::TemplateLiteral { expressions, .. } = &**quasi {
-                    for expr in expressions {
+                self.track_node_expression_updates(self.arena.get_js_node(*tag));
+                let quasi_node = self.arena.get_js_node(*quasi);
+                if let JsNode::TemplateLiteral { expressions, .. } = quasi_node {
+                    for expr in self.arena.get_js_children(*expressions) {
                         self.track_node_expression_updates(expr);
                     }
                 }
             }
             JsNode::AwaitExpression { argument, .. } => {
-                self.track_node_expression_updates(argument);
+                self.track_node_expression_updates(self.arena.get_js_node(*argument));
             }
             JsNode::YieldExpression {
                 argument: Some(argument),
                 ..
             } => {
-                self.track_node_expression_updates(argument);
+                self.track_node_expression_updates(self.arena.get_js_node(*argument));
             }
             JsNode::ChainExpression { expression, .. } => {
-                self.track_node_expression_updates(expression);
+                self.track_node_expression_updates(self.arena.get_js_node(*expression));
             }
             JsNode::Identifier { name, .. } => {
                 // Check for store subscription scoping errors
@@ -2447,24 +2478,31 @@ impl<'a> ScopeBuilder<'a> {
                 }
             }
             JsNode::ClassExpression { body, .. } => {
+                let body_id = *body;
                 // Walk class body looking for method/property updates
-                if let JsNode::ClassBody { body: elements, .. } = &**body {
-                    for elem in elements {
+                let body_node = self.arena.get_js_node(body_id);
+                if let JsNode::ClassBody { body: elements, .. } = body_node {
+                    let elements_range = *elements;
+                    for elem in self.arena.get_js_children(elements_range) {
                         if let JsNode::MethodDefinition { value, .. } = elem {
-                            if let JsNode::FunctionExpression { body, params, .. } = value.as_ref()
-                            {
+                            let value_node = self.arena.get_js_node(*value);
+                            if let JsNode::FunctionExpression { body, params, .. } = value_node {
+                                let body_id = *body;
+                                let params_range = *params;
                                 let old_scope = self.push_function_scope();
                                 self.function_depth += 1;
-                                for param in params {
+                                for param in self.arena.get_js_children(params_range) {
                                     self.declare_bindings_from_pattern_node(
                                         param,
                                         BindingKind::Normal,
                                         false,
                                     );
                                 }
-                                if let Some(body) = body {
-                                    if let JsNode::BlockStatement { body: stmts, .. } = &**body {
-                                        for stmt in stmts {
+                                if let Some(body_id) = body_id {
+                                    let body_node = self.arena.get_js_node(body_id);
+                                    if let JsNode::BlockStatement { body: stmts, .. } = body_node {
+                                        let stmts = *stmts;
+                                        for stmt in self.arena.get_js_children(stmts) {
                                             self.track_node_statement_updates(stmt);
                                         }
                                     }
@@ -2476,7 +2514,7 @@ impl<'a> ScopeBuilder<'a> {
                             value: Some(value), ..
                         } = elem
                         {
-                            self.track_node_expression_updates(value);
+                            self.track_node_expression_updates(self.arena.get_js_node(*value));
                         }
                     }
                 }
@@ -2537,7 +2575,9 @@ impl<'a> ScopeBuilder<'a> {
                 });
             }
             JsNode::MemberExpression { object, .. } => {
-                if let Some(name) = get_node_base_identifier_name(object) {
+                if let Some(name) =
+                    get_node_base_identifier_name(self.arena.get_js_node(*object), self.arena)
+                {
                     self.updates.push(Update {
                         name,
                         is_direct_assignment: false,
@@ -2551,21 +2591,21 @@ impl<'a> ScopeBuilder<'a> {
                 }
             }
             JsNode::ObjectPattern { properties, .. } => {
-                for prop in properties {
+                for prop in self.arena.get_js_children(*properties) {
                     if let JsNode::RestElement { argument, .. }
                     | JsNode::SpreadElement { argument, .. } = prop
                     {
-                        self.track_node_assignment_target(argument);
+                        self.track_node_assignment_target(self.arena.get_js_node(*argument));
                     } else if let JsNode::Property { value, .. } = prop {
-                        self.track_node_assignment_target(value);
+                        self.track_node_assignment_target(self.arena.get_js_node(*value));
                     }
                 }
             }
             JsNode::AssignmentPattern { left, .. } => {
-                self.track_node_assignment_target(left);
+                self.track_node_assignment_target(self.arena.get_js_node(*left));
             }
             JsNode::RestElement { argument, .. } => {
-                self.track_node_assignment_target(argument);
+                self.track_node_assignment_target(self.arena.get_js_node(*argument));
             }
             JsNode::Raw(json) => {
                 self.track_json_assignment_target(json);
@@ -2585,7 +2625,9 @@ impl<'a> ScopeBuilder<'a> {
                 });
             }
             JsNode::MemberExpression { object, .. } => {
-                if let Some(name) = get_node_base_identifier_name(object) {
+                if let Some(name) =
+                    get_node_base_identifier_name(self.arena.get_js_node(*object), self.arena)
+                {
                     self.updates.push(Update {
                         name,
                         is_direct_assignment: false,
@@ -2605,21 +2647,21 @@ impl<'a> ScopeBuilder<'a> {
     fn track_node_statement_updates(&mut self, node: &JsNode) {
         match node {
             JsNode::ExpressionStatement { expression, .. } => {
-                self.track_node_expression_updates(expression);
+                self.track_node_expression_updates(self.arena.get_js_node(*expression));
             }
             JsNode::ReturnStatement {
                 argument: Some(argument),
                 ..
             } => {
-                self.track_node_expression_updates(argument);
+                self.track_node_expression_updates(self.arena.get_js_node(*argument));
             }
             JsNode::VariableDeclaration { declarations, .. } => {
-                for decl in declarations {
+                for decl in self.arena.get_js_children(*declarations) {
                     if let JsNode::VariableDeclarator {
                         init: Some(init), ..
                     } = decl
                     {
-                        self.track_node_expression_updates(init);
+                        self.track_node_expression_updates(self.arena.get_js_node(*init));
                     }
                 }
             }
@@ -2629,14 +2671,14 @@ impl<'a> ScopeBuilder<'a> {
                 alternate,
                 ..
             } => {
-                self.track_node_expression_updates(test);
-                self.track_node_statement_updates(consequent);
+                self.track_node_expression_updates(self.arena.get_js_node(*test));
+                self.track_node_statement_updates(self.arena.get_js_node(*consequent));
                 if let Some(alternate) = alternate {
-                    self.track_node_statement_updates(alternate);
+                    self.track_node_statement_updates(self.arena.get_js_node(*alternate));
                 }
             }
             JsNode::BlockStatement { body, .. } => {
-                for stmt in body {
+                for stmt in self.arena.get_js_children(*body) {
                     self.track_node_statement_updates(stmt);
                 }
             }
@@ -2645,12 +2687,12 @@ impl<'a> ScopeBuilder<'a> {
             | JsNode::DoWhileStatement { body, .. }
             | JsNode::ForInStatement { body, .. }
             | JsNode::ForOfStatement { body, .. } => {
-                self.track_node_statement_updates(body);
+                self.track_node_statement_updates(self.arena.get_js_node(*body));
             }
             JsNode::SwitchStatement { cases, .. } => {
-                for case in cases {
+                for case in self.arena.get_js_children(*cases) {
                     if let JsNode::SwitchCase { consequent, .. } = case {
-                        for stmt in consequent {
+                        for stmt in self.arena.get_js_children(*consequent) {
                             self.track_node_statement_updates(stmt);
                         }
                     }
@@ -2662,14 +2704,15 @@ impl<'a> ScopeBuilder<'a> {
                 finalizer,
                 ..
             } => {
-                self.track_node_statement_updates(block);
-                if let Some(handler) = handler
-                    && let JsNode::CatchClause { body, .. } = &**handler
-                {
-                    self.track_node_statement_updates(body);
+                self.track_node_statement_updates(self.arena.get_js_node(*block));
+                if let Some(handler_id) = handler {
+                    let handler_node = self.arena.get_js_node(*handler_id);
+                    if let JsNode::CatchClause { body, .. } = handler_node {
+                        self.track_node_statement_updates(self.arena.get_js_node(*body));
+                    }
                 }
                 if let Some(finalizer) = finalizer {
-                    self.track_node_statement_updates(finalizer);
+                    self.track_node_statement_updates(self.arena.get_js_node(*finalizer));
                 }
             }
             JsNode::Raw(json) => {
@@ -2720,7 +2763,7 @@ impl<'a> ScopeBuilder<'a> {
         let collection_names = {
             let node = block.expression.as_node();
             let mut ids = Vec::new();
-            collect_identifiers_from_node(&node, &mut ids);
+            collect_identifiers_from_node(&node, &mut ids, self.arena);
             ids
         };
         self.each_block_collection_infos
@@ -2835,14 +2878,22 @@ impl<'a> ScopeBuilder<'a> {
             // for destructured let directive patterns like let:box={{width, height}})
             JsNode::ObjectPattern { properties, .. }
             | JsNode::ObjectExpression { properties, .. } => {
-                for prop in properties {
+                for prop in self.arena.get_js_children(*properties) {
                     match prop {
                         JsNode::RestElement { argument, .. }
                         | JsNode::SpreadElement { argument, .. } => {
-                            self.declare_bindings_from_pattern_node(argument, kind, true);
+                            self.declare_bindings_from_pattern_node(
+                                self.arena.get_js_node(*argument),
+                                kind,
+                                true,
+                            );
                         }
                         JsNode::Property { value, .. } => {
-                            self.declare_bindings_from_pattern_node(value, kind, inside_rest);
+                            self.declare_bindings_from_pattern_node(
+                                self.arena.get_js_node(*value),
+                                kind,
+                                inside_rest,
+                            );
                         }
                         _ => {}
                     }
@@ -2861,10 +2912,18 @@ impl<'a> ScopeBuilder<'a> {
             }
             // Handle both RestElement (official AST) and SpreadElement (our parser's AST)
             JsNode::RestElement { argument, .. } | JsNode::SpreadElement { argument, .. } => {
-                self.declare_bindings_from_pattern_node(argument, kind, true);
+                self.declare_bindings_from_pattern_node(
+                    self.arena.get_js_node(*argument),
+                    kind,
+                    true,
+                );
             }
             JsNode::AssignmentPattern { left, .. } => {
-                self.declare_bindings_from_pattern_node(left, kind, inside_rest);
+                self.declare_bindings_from_pattern_node(
+                    self.arena.get_js_node(*left),
+                    kind,
+                    inside_rest,
+                );
             }
             // Raw fallback: use JSON version
             JsNode::Raw(v) => {
@@ -2999,22 +3058,27 @@ impl<'a> ScopeBuilder<'a> {
 
         match &*node {
             JsNode::AssignmentExpression { left, right, .. } => {
-                self.process_binding_pattern_from_node(left);
+                let left_node = self.arena.get_js_node(*left);
+                let right_node = self.arena.get_js_node(*right);
+                self.process_binding_pattern_from_node(left_node);
                 // Store the initial value (right side) on the binding for scope.evaluate()
                 // set_const_tag_initial still uses JSON since it stores init.to_string()
-                let left_json = left.to_value();
-                let right_json = right.to_value();
+                let left_json = left_node.to_value();
+                let right_json = right_node.to_value();
                 self.set_const_tag_initial(&left_json, &right_json);
             }
             JsNode::VariableDeclaration { declarations, .. } => {
-                if let Some(decl) = declarations.first()
-                    && let Some(id) = decl.id()
+                let children = self.arena.get_js_children(*declarations);
+                if let Some(decl) = children.first()
+                    && let Some(id_id) = decl.id()
                 {
-                    self.process_binding_pattern_from_node(id);
+                    let id_node = self.arena.get_js_node(id_id);
+                    self.process_binding_pattern_from_node(id_node);
                     // Store the initial value on the binding for scope.evaluate()
-                    let id_json = id.to_value();
-                    if let Some(init) = decl.init() {
-                        let init_json = init.to_value();
+                    let id_json = id_node.to_value();
+                    if let Some(init_id) = decl.init() {
+                        let init_node = self.arena.get_js_node(init_id);
+                        let init_json = init_node.to_value();
                         self.set_const_tag_initial(&id_json, &init_json);
                     }
                 }
@@ -3117,9 +3181,9 @@ impl<'a> ScopeBuilder<'a> {
             }
             JsNode::ObjectPattern { properties, .. }
             | JsNode::ObjectExpression { properties, .. } => {
-                for prop in properties {
-                    if let Some(value) = prop.value_node() {
-                        self.process_binding_pattern_from_node(value);
+                for prop in self.arena.get_js_children(*properties) {
+                    if let Some(value_id) = prop.value_node() {
+                        self.process_binding_pattern_from_node(self.arena.get_js_node(value_id));
                     }
                 }
             }
@@ -3129,10 +3193,10 @@ impl<'a> ScopeBuilder<'a> {
                 }
             }
             JsNode::AssignmentPattern { left, .. } => {
-                self.process_binding_pattern_from_node(left);
+                self.process_binding_pattern_from_node(self.arena.get_js_node(*left));
             }
             JsNode::RestElement { argument, .. } => {
-                self.process_binding_pattern_from_node(argument);
+                self.process_binding_pattern_from_node(self.arena.get_js_node(*argument));
             }
             // Raw fallback: use JSON version
             JsNode::Raw(v) => {
@@ -3177,7 +3241,7 @@ fn collect_identifiers_from_json(val: &serde_json::Value, result: &mut Vec<Strin
 ///
 /// JsNode version of `collect_identifiers_from_json`. Used to extract identifiers
 /// from a collection expression so their bindings can be promoted to State kind.
-fn collect_identifiers_from_node(node: &JsNode, result: &mut Vec<String>) {
+fn collect_identifiers_from_node(node: &JsNode, result: &mut Vec<String>, arena: &ParseArena) {
     match node {
         JsNode::Identifier { name, .. } => {
             result.push(name.to_string());
@@ -3186,23 +3250,23 @@ fn collect_identifiers_from_node(node: &JsNode, result: &mut Vec<String>) {
         JsNode::MemberExpression {
             object, property, ..
         } => {
-            collect_identifiers_from_node(object, result);
-            collect_identifiers_from_node(property, result);
+            collect_identifiers_from_node(arena.get_js_node(*object), result, arena);
+            collect_identifiers_from_node(arena.get_js_node(*property), result, arena);
         }
         JsNode::CallExpression {
             callee, arguments, ..
         } => {
-            collect_identifiers_from_node(callee, result);
-            for arg in arguments {
-                collect_identifiers_from_node(arg, result);
+            collect_identifiers_from_node(arena.get_js_node(*callee), result, arena);
+            for arg in arena.get_js_children(*arguments) {
+                collect_identifiers_from_node(arg, result, arena);
             }
         }
         JsNode::BinaryExpression { left, right, .. }
         | JsNode::LogicalExpression { left, right, .. }
         | JsNode::AssignmentExpression { left, right, .. }
         | JsNode::AssignmentPattern { left, right, .. } => {
-            collect_identifiers_from_node(left, result);
-            collect_identifiers_from_node(right, result);
+            collect_identifiers_from_node(arena.get_js_node(*left), result, arena);
+            collect_identifiers_from_node(arena.get_js_node(*right), result, arena);
         }
         JsNode::ConditionalExpression {
             test,
@@ -3210,53 +3274,53 @@ fn collect_identifiers_from_node(node: &JsNode, result: &mut Vec<String>) {
             alternate,
             ..
         } => {
-            collect_identifiers_from_node(test, result);
-            collect_identifiers_from_node(consequent, result);
-            collect_identifiers_from_node(alternate, result);
+            collect_identifiers_from_node(arena.get_js_node(*test), result, arena);
+            collect_identifiers_from_node(arena.get_js_node(*consequent), result, arena);
+            collect_identifiers_from_node(arena.get_js_node(*alternate), result, arena);
         }
         JsNode::UnaryExpression { argument, .. }
         | JsNode::UpdateExpression { argument, .. }
         | JsNode::SpreadElement { argument, .. }
         | JsNode::RestElement { argument, .. }
         | JsNode::AwaitExpression { argument, .. } => {
-            collect_identifiers_from_node(argument, result);
+            collect_identifiers_from_node(arena.get_js_node(*argument), result, arena);
         }
         JsNode::ArrayExpression { elements, .. } | JsNode::ArrayPattern { elements, .. } => {
             for e in elements.iter().flatten() {
-                collect_identifiers_from_node(e, result);
+                collect_identifiers_from_node(e, result, arena);
             }
         }
         JsNode::ObjectExpression { properties, .. } | JsNode::ObjectPattern { properties, .. } => {
-            for prop in properties {
-                collect_identifiers_from_node(prop, result);
+            for prop in arena.get_js_children(*properties) {
+                collect_identifiers_from_node(prop, result, arena);
             }
         }
         JsNode::Property { key, value, .. } => {
-            collect_identifiers_from_node(key, result);
-            collect_identifiers_from_node(value, result);
+            collect_identifiers_from_node(arena.get_js_node(*key), result, arena);
+            collect_identifiers_from_node(arena.get_js_node(*value), result, arena);
         }
         JsNode::SequenceExpression { expressions, .. }
         | JsNode::TemplateLiteral { expressions, .. } => {
-            for expr in expressions {
-                collect_identifiers_from_node(expr, result);
+            for expr in arena.get_js_children(*expressions) {
+                collect_identifiers_from_node(expr, result, arena);
             }
         }
         JsNode::ArrowFunctionExpression { body, params, .. } => {
-            for p in params {
-                collect_identifiers_from_node(p, result);
+            for p in arena.get_js_children(*params) {
+                collect_identifiers_from_node(p, result, arena);
             }
-            collect_identifiers_from_node(body, result);
+            collect_identifiers_from_node(arena.get_js_node(*body), result, arena);
         }
         JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
-            collect_identifiers_from_node(tag, result);
-            collect_identifiers_from_node(quasi, result);
+            collect_identifiers_from_node(arena.get_js_node(*tag), result, arena);
+            collect_identifiers_from_node(arena.get_js_node(*quasi), result, arena);
         }
         JsNode::NewExpression {
             callee, arguments, ..
         } => {
-            collect_identifiers_from_node(callee, result);
-            for arg in arguments {
-                collect_identifiers_from_node(arg, result);
+            collect_identifiers_from_node(arena.get_js_node(*callee), result, arena);
+            for arg in arena.get_js_children(*arguments) {
+                collect_identifiers_from_node(arg, result, arena);
             }
         }
         // Raw fallback
@@ -3277,11 +3341,12 @@ pub fn build_scopes(
     source: &str,
     runes_mode: bool,
     is_typescript: bool,
+    arena: &ParseArena,
 ) -> (
     ScopeRoot,
     Vec<crate::compiler::phases::phase2_analyze::AnalysisError>,
 ) {
-    let builder = ScopeBuilder::new(source, runes_mode, is_typescript);
+    let builder = ScopeBuilder::new(source, runes_mode, is_typescript, arena);
     builder.build(ast)
 }
 
@@ -3428,59 +3493,59 @@ fn collect_pattern_names(pattern: &serde_json::Value, names: &mut Vec<String>) {
 /// JsNode version of `collect_arrow_param_names`. Walks the typed JsNode tree
 /// looking for ArrowFunctionExpression and FunctionExpression nodes, then
 /// extracts parameter identifier names. Avoids JSON conversion entirely.
-fn collect_arrow_param_names_node(node: &JsNode, names: &mut Vec<String>) {
+fn collect_arrow_param_names_node(node: &JsNode, names: &mut Vec<String>, arena: &ParseArena) {
     match node {
         JsNode::ArrowFunctionExpression { params, body, .. } => {
-            for param in params {
-                collect_pattern_names_node(param, names);
+            for param in arena.get_js_children(*params) {
+                collect_pattern_names_node(param, names, arena);
             }
-            collect_arrow_param_names_node(body, names);
+            collect_arrow_param_names_node(arena.get_js_node(*body), names, arena);
         }
         JsNode::FunctionExpression { params, body, .. } => {
-            for param in params {
-                collect_pattern_names_node(param, names);
+            for param in arena.get_js_children(*params) {
+                collect_pattern_names_node(param, names, arena);
             }
             if let Some(body) = body {
-                collect_arrow_param_names_node(body, names);
+                collect_arrow_param_names_node(arena.get_js_node(*body), names, arena);
             }
         }
         // Recurse into all child nodes
         JsNode::CallExpression {
             callee, arguments, ..
         } => {
-            collect_arrow_param_names_node(callee, names);
-            for arg in arguments {
-                collect_arrow_param_names_node(arg, names);
+            collect_arrow_param_names_node(arena.get_js_node(*callee), names, arena);
+            for arg in arena.get_js_children(*arguments) {
+                collect_arrow_param_names_node(arg, names, arena);
             }
         }
         JsNode::NewExpression {
             callee, arguments, ..
         } => {
-            collect_arrow_param_names_node(callee, names);
-            for arg in arguments {
-                collect_arrow_param_names_node(arg, names);
+            collect_arrow_param_names_node(arena.get_js_node(*callee), names, arena);
+            for arg in arena.get_js_children(*arguments) {
+                collect_arrow_param_names_node(arg, names, arena);
             }
         }
         JsNode::MemberExpression {
             object, property, ..
         } => {
-            collect_arrow_param_names_node(object, names);
-            collect_arrow_param_names_node(property, names);
+            collect_arrow_param_names_node(arena.get_js_node(*object), names, arena);
+            collect_arrow_param_names_node(arena.get_js_node(*property), names, arena);
         }
         JsNode::AssignmentExpression { left, right, .. } => {
-            collect_arrow_param_names_node(left, names);
-            collect_arrow_param_names_node(right, names);
+            collect_arrow_param_names_node(arena.get_js_node(*left), names, arena);
+            collect_arrow_param_names_node(arena.get_js_node(*right), names, arena);
         }
         JsNode::BinaryExpression { left, right, .. }
         | JsNode::LogicalExpression { left, right, .. } => {
-            collect_arrow_param_names_node(left, names);
-            collect_arrow_param_names_node(right, names);
+            collect_arrow_param_names_node(arena.get_js_node(*left), names, arena);
+            collect_arrow_param_names_node(arena.get_js_node(*right), names, arena);
         }
         JsNode::UnaryExpression { argument, .. }
         | JsNode::UpdateExpression { argument, .. }
         | JsNode::SpreadElement { argument, .. }
         | JsNode::AwaitExpression { argument, .. } => {
-            collect_arrow_param_names_node(argument, names);
+            collect_arrow_param_names_node(arena.get_js_node(*argument), names, arena);
         }
         JsNode::ConditionalExpression {
             test,
@@ -3488,69 +3553,69 @@ fn collect_arrow_param_names_node(node: &JsNode, names: &mut Vec<String>) {
             alternate,
             ..
         } => {
-            collect_arrow_param_names_node(test, names);
-            collect_arrow_param_names_node(consequent, names);
-            collect_arrow_param_names_node(alternate, names);
+            collect_arrow_param_names_node(arena.get_js_node(*test), names, arena);
+            collect_arrow_param_names_node(arena.get_js_node(*consequent), names, arena);
+            collect_arrow_param_names_node(arena.get_js_node(*alternate), names, arena);
         }
         JsNode::SequenceExpression { expressions, .. } => {
-            for expr in expressions {
-                collect_arrow_param_names_node(expr, names);
+            for expr in arena.get_js_children(*expressions) {
+                collect_arrow_param_names_node(expr, names, arena);
             }
         }
         JsNode::ArrayExpression { elements, .. } => {
             for elem in elements.iter().flatten() {
-                collect_arrow_param_names_node(elem, names);
+                collect_arrow_param_names_node(elem, names, arena);
             }
         }
         JsNode::ObjectExpression { properties, .. } => {
-            for prop in properties {
-                collect_arrow_param_names_node(prop, names);
+            for prop in arena.get_js_children(*properties) {
+                collect_arrow_param_names_node(prop, names, arena);
             }
         }
         JsNode::Property { value, .. } => {
-            collect_arrow_param_names_node(value, names);
+            collect_arrow_param_names_node(arena.get_js_node(*value), names, arena);
         }
         JsNode::TemplateLiteral { expressions, .. } => {
-            for expr in expressions {
-                collect_arrow_param_names_node(expr, names);
+            for expr in arena.get_js_children(*expressions) {
+                collect_arrow_param_names_node(expr, names, arena);
             }
         }
         JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
-            collect_arrow_param_names_node(tag, names);
-            collect_arrow_param_names_node(quasi, names);
+            collect_arrow_param_names_node(arena.get_js_node(*tag), names, arena);
+            collect_arrow_param_names_node(arena.get_js_node(*quasi), names, arena);
         }
         JsNode::YieldExpression {
             argument: Some(argument),
             ..
         } => {
-            collect_arrow_param_names_node(argument, names);
+            collect_arrow_param_names_node(arena.get_js_node(*argument), names, arena);
         }
         JsNode::ChainExpression { expression, .. } => {
-            collect_arrow_param_names_node(expression, names);
+            collect_arrow_param_names_node(arena.get_js_node(*expression), names, arena);
         }
         JsNode::BlockStatement { body, .. } => {
-            for stmt in body {
-                collect_arrow_param_names_node(stmt, names);
+            for stmt in arena.get_js_children(*body) {
+                collect_arrow_param_names_node(stmt, names, arena);
             }
         }
         JsNode::ExpressionStatement { expression, .. } => {
-            collect_arrow_param_names_node(expression, names);
+            collect_arrow_param_names_node(arena.get_js_node(*expression), names, arena);
         }
         JsNode::ReturnStatement {
             argument: Some(argument),
             ..
         } => {
-            collect_arrow_param_names_node(argument, names);
+            collect_arrow_param_names_node(arena.get_js_node(*argument), names, arena);
         }
         JsNode::VariableDeclaration { declarations, .. } => {
-            for decl in declarations {
-                collect_arrow_param_names_node(decl, names);
+            for decl in arena.get_js_children(*declarations) {
+                collect_arrow_param_names_node(decl, names, arena);
             }
         }
         JsNode::VariableDeclarator {
             init: Some(init), ..
         } => {
-            collect_arrow_param_names_node(init, names);
+            collect_arrow_param_names_node(arena.get_js_node(*init), names, arena);
         }
         JsNode::IfStatement {
             test,
@@ -3558,10 +3623,10 @@ fn collect_arrow_param_names_node(node: &JsNode, names: &mut Vec<String>) {
             alternate,
             ..
         } => {
-            collect_arrow_param_names_node(test, names);
-            collect_arrow_param_names_node(consequent, names);
+            collect_arrow_param_names_node(arena.get_js_node(*test), names, arena);
+            collect_arrow_param_names_node(arena.get_js_node(*consequent), names, arena);
             if let Some(alternate) = alternate {
-                collect_arrow_param_names_node(alternate, names);
+                collect_arrow_param_names_node(arena.get_js_node(*alternate), names, arena);
             }
         }
         JsNode::Raw(json) => {
@@ -3573,30 +3638,30 @@ fn collect_arrow_param_names_node(node: &JsNode, names: &mut Vec<String>) {
 }
 
 /// JsNode version of `collect_pattern_names`.
-fn collect_pattern_names_node(node: &JsNode, names: &mut Vec<String>) {
+fn collect_pattern_names_node(node: &JsNode, names: &mut Vec<String>, arena: &ParseArena) {
     match node {
         JsNode::Identifier { name, .. } => {
             names.push(name.to_string());
         }
         JsNode::ObjectPattern { properties, .. } => {
-            for prop in properties {
+            for prop in arena.get_js_children(*properties) {
                 if let JsNode::Property { value, .. } = prop {
-                    collect_pattern_names_node(value, names);
+                    collect_pattern_names_node(arena.get_js_node(*value), names, arena);
                 } else if let JsNode::RestElement { argument, .. } = prop {
-                    collect_pattern_names_node(argument, names);
+                    collect_pattern_names_node(arena.get_js_node(*argument), names, arena);
                 }
             }
         }
         JsNode::ArrayPattern { elements, .. } => {
             for elem in elements.iter().flatten() {
-                collect_pattern_names_node(elem, names);
+                collect_pattern_names_node(elem, names, arena);
             }
         }
         JsNode::RestElement { argument, .. } => {
-            collect_pattern_names_node(argument, names);
+            collect_pattern_names_node(arena.get_js_node(*argument), names, arena);
         }
         JsNode::AssignmentPattern { left, .. } => {
-            collect_pattern_names_node(left, names);
+            collect_pattern_names_node(arena.get_js_node(*left), names, arena);
         }
         JsNode::Raw(json) => {
             collect_pattern_names(json, names);
@@ -3633,10 +3698,12 @@ fn node_start(node: &JsNode) -> Option<u32> {
 }
 
 /// Get the base identifier name from a JsNode (walking through member expressions).
-fn get_node_base_identifier_name(node: &JsNode) -> Option<String> {
+fn get_node_base_identifier_name(node: &JsNode, arena: &ParseArena) -> Option<String> {
     match node {
         JsNode::Identifier { name, .. } => Some(name.to_string()),
-        JsNode::MemberExpression { object, .. } => get_node_base_identifier_name(object),
+        JsNode::MemberExpression { object, .. } => {
+            get_node_base_identifier_name(arena.get_js_node(*object), arena)
+        }
         JsNode::Raw(json) => {
             // Fallback to JSON-based extraction
             let obj = json.as_object()?;
@@ -3647,10 +3714,26 @@ fn get_node_base_identifier_name(node: &JsNode) -> Option<String> {
                     .map(|s| s.to_string()),
                 "MemberExpression" => {
                     let object = obj.get("object")?;
-                    get_node_base_identifier_name(&JsNode::Raw(object.clone()))
+                    get_node_base_identifier_name_json(object)
                 }
                 _ => None,
             }
+        }
+        _ => None,
+    }
+}
+
+/// JSON-only fallback for get_node_base_identifier_name (no arena needed).
+fn get_node_base_identifier_name_json(json: &serde_json::Value) -> Option<String> {
+    let obj = json.as_object()?;
+    match obj.get("type").and_then(|t| t.as_str())? {
+        "Identifier" => obj
+            .get("name")
+            .and_then(|n| n.as_str())
+            .map(|s| s.to_string()),
+        "MemberExpression" => {
+            let object = obj.get("object")?;
+            get_node_base_identifier_name_json(object)
         }
         _ => None,
     }

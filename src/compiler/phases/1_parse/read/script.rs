@@ -10,6 +10,7 @@
 
 use compact_str::CompactString;
 
+use crate::ast::arena::ParseArena;
 use crate::ast::js::Expression;
 use crate::ast::template::{
     AttributeValue, AttributeValuePart, Script, ScriptContext, ScriptType, TemplateNode, Text,
@@ -20,7 +21,12 @@ use super::super::parser::Parser;
 
 /// Ensure a Script's content has been fully parsed from raw_content.
 /// This performs the deferred OXC parse. Call this before accessing script.content in analysis.
-pub fn ensure_script_parsed(script: &mut Script, _source: &str, line_offsets: &[usize]) {
+pub fn ensure_script_parsed(
+    arena: &ParseArena,
+    script: &mut Script,
+    _source: &str,
+    line_offsets: &[usize],
+) {
     if script.raw_content.is_empty() {
         return; // Already parsed or no raw content
     }
@@ -33,6 +39,7 @@ pub fn ensure_script_parsed(script: &mut Script, _source: &str, line_offsets: &[
     let leading_comments: Vec<String> = Vec::new();
 
     let program = super::expression::parse_program(
+        arena,
         &raw,
         offset,
         line_offsets,
@@ -209,7 +216,7 @@ impl Parser<'_> {
                 start: content_start as u32,
                 end: (content_start + script_content.len()) as u32,
                 loc: None,
-                body: Vec::new(),
+                body: crate::ast::arena::IdRange::empty(),
                 source_type: CompactString::from("module"),
                 leading_comments: None,
                 trailing_comments: None,
@@ -228,6 +235,7 @@ impl Parser<'_> {
         } else {
             // Eager parsing (default for tests and direct AST comparison)
             let program = super::super::expression::parse_program(
+                &self.arena,
                 script_content,
                 content_start,
                 self.expression_line_offsets(),

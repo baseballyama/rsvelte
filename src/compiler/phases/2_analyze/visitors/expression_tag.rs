@@ -25,7 +25,11 @@ pub fn visit(tag: &ExpressionTag, context: &mut VisitorContext) -> Result<(), An
     // Template expression tags are reactive contexts, so await expressions
     // that aren't the last evaluated expression need $.save() wrapping.
     let node = tag.expression.as_node();
-    super::await_block::collect_pickled_awaits_node(&node, &mut context.analysis.pickled_awaits);
+    super::await_block::collect_pickled_awaits_node(
+        &node,
+        &mut context.analysis.pickled_awaits,
+        context.parse_arena,
+    );
 
     Ok(())
 }

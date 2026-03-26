@@ -476,7 +476,9 @@ mod tests {
         let scope = crate::compiler::phases::phase2_analyze::scope::Scope::new(None);
         let scope_root = crate::compiler::phases::phase2_analyze::scope::ScopeRoot::new();
         let options = Rc::new(TransformOptions::default());
+        let parse_arena = crate::ast::arena::ParseArena::new();
         let state = ComponentClientTransformState::new(
+            &parse_arena,
             &scope,
             &scope_root,
             &analysis,

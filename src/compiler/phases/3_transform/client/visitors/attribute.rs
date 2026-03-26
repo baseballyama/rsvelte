@@ -389,7 +389,8 @@ pub fn build_event_handler(
 
         // Check has_side_effects and remove_parens (matches official events.js lines 142-156)
         let side_effects = expression_has_side_effects(&expr_tag.expression);
-        let remove_parens = expression_is_removable_call(&expr_tag.expression);
+        let remove_parens =
+            expression_is_removable_call(&expr_tag.expression, context.state.parse_arena);
 
         let mut apply_args = vec![
             b::thunk(&context.arena, js_expr),
@@ -561,12 +562,18 @@ fn json_has_side_effects(value: &serde_json::Value) -> bool {
 
 /// Check if expression is a call with no arguments to an identifier (for remove_parens).
 /// Matches the `remove_parens` check in events.js.
-fn expression_is_removable_call(expr: &crate::ast::js::Expression) -> bool {
+fn expression_is_removable_call(
+    expr: &crate::ast::js::Expression,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
     if expr.node_type() != Some("CallExpression") {
         return false;
     }
     let args_empty = expr.call_arguments().is_empty();
-    let callee_is_identifier = expr.callee().and_then(|c| c.node_type()) == Some("Identifier");
+    let callee_is_identifier = expr
+        .callee()
+        .map(|c| arena.get_js_node(c).node_type() == Some("Identifier"))
+        .unwrap_or(false);
     args_empty && callee_is_identifier
 }
 

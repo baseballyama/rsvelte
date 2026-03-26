@@ -7,6 +7,7 @@
 //! Corresponds to `ComponentContext` and `ComponentClientTransformState` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/types.js`.
 
+use crate::ast::arena::ParseArena;
 use crate::ast::template::TemplateNode;
 use crate::compiler::phases::phase2_analyze::scope::{Binding, Scope, ScopeRoot};
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
@@ -1365,8 +1366,10 @@ impl<'a> ComponentContext<'a> {
                                     ..
                                 } => {
                                     // Object destructuring: {y, z}
-                                    for prop in properties {
-                                        if let Some(key) = prop.key() {
+                                    for prop in self.state.parse_arena.get_js_children(*properties)
+                                    {
+                                        if let Some(key_id) = prop.key() {
+                                            let key = self.state.parse_arena.get_js_node(key_id);
                                             if let Some(name) = key.name() {
                                                 binding_names.push(name.into());
                                             }
@@ -1780,6 +1783,9 @@ pub struct AsyncConsts {
 /// Corresponds to `ComponentClientTransformState` in Svelte's types.
 #[derive(Debug, Clone)]
 pub struct ComponentClientTransformState<'a> {
+    /// Parse-phase arena for resolving JsNodeId/IdRange in typed expressions.
+    pub parse_arena: &'a ParseArena,
+
     /// Current scope
     pub scope: &'a Scope,
 
@@ -2078,6 +2084,7 @@ pub struct EachBindingContext {
 impl<'a> ComponentClientTransformState<'a> {
     /// Create a new component client transform state.
     pub fn new(
+        parse_arena: &'a ParseArena,
         scope: &'a Scope,
         scope_root: &'a ScopeRoot,
         analysis: &'a ComponentAnalysis,
@@ -2087,6 +2094,7 @@ impl<'a> ComponentClientTransformState<'a> {
         let dev = options.dev;
         let preserve_whitespace = options.preserve_whitespace;
         Self {
+            parse_arena,
             scope,
             scopes: FxHashMap::default(),
             analysis,
