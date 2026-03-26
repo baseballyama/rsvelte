@@ -67,11 +67,11 @@ impl Parser<'_> {
         // (corresponds to Svelte's read_expression call which throws on invalid JS)
         let expression = self.parse_js_expression_strict(expr_content.trim(), expr_start)?;
 
-        Ok(Some(TemplateNode::ExpressionTag(ExpressionTag {
+        Ok(Some(TemplateNode::ExpressionTag(Box::new(ExpressionTag {
             start: start as u32,
             end: self.index as u32,
             expression,
-        })))
+        }))))
     }
 
     /// Parse block open tag ({#if}, {#each}, etc.)
@@ -144,7 +144,7 @@ impl Parser<'_> {
             Self::update_if_block_ends(alt_fragment, self.index as u32);
         }
 
-        Ok(Some(TemplateNode::IfBlock(IfBlock {
+        Ok(Some(TemplateNode::IfBlock(Box::new(IfBlock {
             start: start as u32,
             end: self.index as u32,
             elseif: false,
@@ -152,7 +152,7 @@ impl Parser<'_> {
             consequent,
             alternate,
             metadata: Default::default(),
-        })))
+        }))))
     }
 
     /// Update end positions of all elseif IfBlocks recursively
@@ -208,7 +208,7 @@ impl Parser<'_> {
 
             Ok(Some(Fragment {
                 node_type: FragmentType::Fragment,
-                nodes: vec![TemplateNode::IfBlock(IfBlock {
+                nodes: vec![TemplateNode::IfBlock(Box::new(IfBlock {
                     start: else_block_start as u32,
                     end: self.index as u32,
                     elseif: true,
@@ -216,7 +216,7 @@ impl Parser<'_> {
                     consequent: alt_consequent,
                     alternate: alt_alternate,
                     metadata: Default::default(),
-                })],
+                }))],
                 ..Default::default()
             }))
         } else {
@@ -404,7 +404,7 @@ impl Parser<'_> {
                 self.stack.pop();
             }
 
-            return Ok(Some(TemplateNode::EachBlock(EachBlock {
+            return Ok(Some(TemplateNode::EachBlock(Box::new(EachBlock {
                 start: start as u32,
                 end: self.index as u32,
                 expression: final_expr,
@@ -414,7 +414,7 @@ impl Parser<'_> {
                 body,
                 fallback,
                 metadata: Default::default(),
-            })));
+            }))));
         }
 
         // Consume " as "
@@ -623,7 +623,7 @@ impl Parser<'_> {
             self.stack.pop();
         }
 
-        Ok(Some(TemplateNode::EachBlock(EachBlock {
+        Ok(Some(TemplateNode::EachBlock(Box::new(EachBlock {
             start: start as u32,
             end: self.index as u32,
             expression,
@@ -633,7 +633,7 @@ impl Parser<'_> {
             index,
             key,
             metadata: Default::default(),
-        })))
+        }))))
     }
 
     /// Parse a binding pattern (for each block context).
@@ -852,7 +852,7 @@ impl Parser<'_> {
         // Pop the stack
         self.stack.pop();
 
-        Ok(Some(TemplateNode::AwaitBlock(AwaitBlock {
+        Ok(Some(TemplateNode::AwaitBlock(Box::new(AwaitBlock {
             start: start as u32,
             end: self.index as u32,
             expression,
@@ -862,7 +862,7 @@ impl Parser<'_> {
             then: then_fragment,
             catch: catch_fragment,
             metadata: Default::default(),
-        })))
+        }))))
     }
 
     /// Parse {#key} block.
@@ -900,13 +900,13 @@ impl Parser<'_> {
             self.stack.pop();
         }
 
-        Ok(Some(TemplateNode::KeyBlock(KeyBlock {
+        Ok(Some(TemplateNode::KeyBlock(Box::new(KeyBlock {
             start: start as u32,
             end: self.index as u32,
             expression,
             fragment,
             metadata: Default::default(),
-        })))
+        }))))
     }
 
     /// Parse {#snippet name(params)} block.
@@ -1076,7 +1076,7 @@ impl Parser<'_> {
             self.stack.pop();
         }
 
-        Ok(Some(TemplateNode::SnippetBlock(SnippetBlock {
+        Ok(Some(TemplateNode::SnippetBlock(Box::new(SnippetBlock {
             start: start as u32,
             end: self.index as u32,
             expression,
@@ -1084,7 +1084,7 @@ impl Parser<'_> {
             parameters,
             body,
             metadata: Default::default(),
-        })))
+        }))))
     }
 
     /// Parse special tag ({@html}, {@debug}, etc.)
@@ -1256,12 +1256,12 @@ impl Parser<'_> {
 
                 let expression = self.parse_js_expression(expr_content.trim(), expr_start);
 
-                Ok(Some(TemplateNode::HtmlTag(HtmlTag {
+                Ok(Some(TemplateNode::HtmlTag(Box::new(HtmlTag {
                     start: start as u32,
                     end: self.index as u32,
                     expression,
                     metadata: Default::default(),
-                })))
+                }))))
             }
             "render" => {
                 // {@render snippet(...)}
@@ -1320,12 +1320,12 @@ impl Parser<'_> {
 
                 let expression = self.parse_js_expression(trimmed, expr_start);
 
-                Ok(Some(TemplateNode::RenderTag(RenderTag {
+                Ok(Some(TemplateNode::RenderTag(Box::new(RenderTag {
                     start: start as u32,
                     end: self.index as u32,
                     expression,
                     metadata: crate::ast::template::RenderTagMetadata::default(),
-                })))
+                }))))
             }
             "const" => {
                 // {@const foo = bar}
@@ -1486,12 +1486,12 @@ impl Parser<'_> {
                     self.parse_js_expression(trimmed, expr_start)
                 };
 
-                Ok(Some(TemplateNode::ConstTag(ConstTag {
+                Ok(Some(TemplateNode::ConstTag(Box::new(ConstTag {
                     start: start as u32,
                     end: self.index as u32,
                     declaration,
                     metadata: Default::default(),
-                })))
+                }))))
             }
             "debug" => {
                 // Parse {@debug} tag
@@ -1552,12 +1552,12 @@ impl Parser<'_> {
 
                 self.advance(); // consume '}'
 
-                Ok(Some(TemplateNode::DebugTag(DebugTag {
+                Ok(Some(TemplateNode::DebugTag(Box::new(DebugTag {
                     start: start as u32,
                     end: self.index as u32,
                     identifiers,
                     metadata: Default::default(),
-                })))
+                }))))
             }
             "attach" => {
                 // Skip to closing brace (attach not fully implemented yet)

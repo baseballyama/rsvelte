@@ -102,38 +102,42 @@ pub enum FragmentType {
 // =============================================================================
 
 /// A node in the template AST.
+///
+/// Large variants are boxed to keep the enum small (~128 bytes instead of ~1056).
+/// This improves cache efficiency for the common case (Text, Comment) and reduces
+/// memory usage for Vec<TemplateNode> by ~8x.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum TemplateNode {
+    // Small variants (inline, <= 128 bytes)
     Text(Text),
     Comment(Comment),
-    ExpressionTag(ExpressionTag),
-    HtmlTag(HtmlTag),
-    ConstTag(ConstTag),
-    DebugTag(DebugTag),
-    RenderTag(RenderTag),
-    AttachTag(AttachTag),
-    // Blocks
-    IfBlock(IfBlock),
-    EachBlock(EachBlock),
-    AwaitBlock(AwaitBlock),
-    KeyBlock(KeyBlock),
-    SnippetBlock(SnippetBlock),
-    // Elements
-    RegularElement(RegularElement),
-    Component(Component),
     TitleElement(TitleElement),
     SlotElement(SlotElement),
     SvelteBody(SvelteElement),
-    SvelteComponent(SvelteComponentElement),
     SvelteDocument(SvelteElement),
-    SvelteElement(SvelteDynamicElement),
     SvelteFragment(SvelteElement),
     SvelteBoundary(SvelteElement),
     SvelteHead(SvelteElement),
     SvelteOptions(SvelteElement),
     SvelteSelf(SvelteElement),
     SvelteWindow(SvelteElement),
+    // Large variants (boxed to reduce enum size)
+    ExpressionTag(Box<ExpressionTag>),
+    HtmlTag(Box<HtmlTag>),
+    ConstTag(Box<ConstTag>),
+    DebugTag(Box<DebugTag>),
+    RenderTag(Box<RenderTag>),
+    AttachTag(Box<AttachTag>),
+    IfBlock(Box<IfBlock>),
+    EachBlock(Box<EachBlock>),
+    AwaitBlock(Box<AwaitBlock>),
+    KeyBlock(Box<KeyBlock>),
+    SnippetBlock(Box<SnippetBlock>),
+    RegularElement(Box<RegularElement>),
+    Component(Box<Component>),
+    SvelteComponent(Box<SvelteComponentElement>),
+    SvelteElement(Box<SvelteDynamicElement>),
 }
 
 impl AsRef<TemplateNode> for TemplateNode {
@@ -511,21 +515,24 @@ pub struct SvelteDynamicElement {
 // =============================================================================
 
 /// An attribute or directive on an element.
+///
+/// All variants are boxed to keep the enum small (~16 bytes instead of ~368).
+/// This reduces memory for Vec<Attribute> on elements by ~23x.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum Attribute {
-    Attribute(AttributeNode),
-    SpreadAttribute(SpreadAttribute),
-    AttachTag(AttachTag),
+    Attribute(Box<AttributeNode>),
+    SpreadAttribute(Box<SpreadAttribute>),
+    AttachTag(Box<AttachTag>),
     // Directives
-    BindDirective(BindDirective),
-    OnDirective(OnDirective),
-    ClassDirective(ClassDirective),
-    StyleDirective(StyleDirective),
-    TransitionDirective(TransitionDirective),
-    AnimateDirective(AnimateDirective),
-    UseDirective(UseDirective),
-    LetDirective(LetDirective),
+    BindDirective(Box<BindDirective>),
+    OnDirective(Box<OnDirective>),
+    ClassDirective(Box<ClassDirective>),
+    StyleDirective(Box<StyleDirective>),
+    TransitionDirective(Box<TransitionDirective>),
+    AnimateDirective(Box<AnimateDirective>),
+    UseDirective(Box<UseDirective>),
+    LetDirective(Box<LetDirective>),
 }
 
 impl serde::Serialize for Attribute {

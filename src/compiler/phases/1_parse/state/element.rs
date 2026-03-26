@@ -392,7 +392,7 @@ impl Parser<'_> {
                 attributes,
                 fragment,
             }),
-            ElementType::Component => TemplateNode::Component(Component {
+            ElementType::Component => TemplateNode::Component(Box::new(Component {
                 start: start as u32,
                 end,
                 name: name.clone(),
@@ -400,7 +400,7 @@ impl Parser<'_> {
                 attributes,
                 fragment,
                 metadata: Default::default(),
-            }),
+            })),
             ElementType::SvelteHead => TemplateNode::SvelteHead(SvelteElement {
                 start: start as u32,
                 end,
@@ -481,7 +481,7 @@ impl Parser<'_> {
                     })
                     .collect();
 
-                TemplateNode::SvelteComponent(SvelteComponentElement {
+                TemplateNode::SvelteComponent(Box::new(SvelteComponentElement {
                     start: start as u32,
                     end,
                     name: name.clone(),
@@ -490,7 +490,7 @@ impl Parser<'_> {
                     fragment,
                     expression,
                     ignored_codes: Vec::new(),
-                })
+                }))
             }
             ElementType::SvelteElement => {
                 // Check if the "this" attribute is a string value (not an expression)
@@ -532,7 +532,7 @@ impl Parser<'_> {
                     })
                     .collect();
 
-                TemplateNode::SvelteElement(SvelteDynamicElement {
+                TemplateNode::SvelteElement(Box::new(SvelteDynamicElement {
                     start: start as u32,
                     end,
                     name: name.clone(),
@@ -541,9 +541,9 @@ impl Parser<'_> {
                     fragment,
                     tag,
                     metadata: Default::default(),
-                })
+                }))
             }
-            _ => TemplateNode::RegularElement(RegularElement {
+            _ => TemplateNode::RegularElement(Box::new(RegularElement {
                 start: start as u32,
                 end,
                 name: name.clone(),
@@ -551,7 +551,7 @@ impl Parser<'_> {
                 attributes,
                 fragment,
                 metadata: Default::default(),
-            }),
+            })),
         };
 
         Ok(Some(node))
@@ -985,13 +985,13 @@ impl Parser<'_> {
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
                 let expression = self.parse_js_expression(expr_content.trim(), expr_start);
-                return Ok(Some(crate::ast::Attribute::SpreadAttribute(
+                return Ok(Some(crate::ast::Attribute::SpreadAttribute(Box::new(
                     crate::ast::template::SpreadAttribute {
                         start: start as u32,
                         end: self.index as u32,
                         expression,
                     },
-                )));
+                ))));
             }
 
             // Expression shorthand {expr} or empty {} in loose mode
@@ -1059,13 +1059,15 @@ impl Parser<'_> {
                     expression: expression.clone(),
                 });
 
-                return Ok(Some(crate::ast::Attribute::Attribute(AttributeNode {
-                    start: start as u32,
-                    end: self.index as u32,
-                    name: CompactString::from(""),
-                    name_loc: Some(name_loc),
-                    value,
-                })));
+                return Ok(Some(crate::ast::Attribute::Attribute(Box::new(
+                    AttributeNode {
+                        start: start as u32,
+                        end: self.index as u32,
+                        name: CompactString::from(""),
+                        name_loc: Some(name_loc),
+                        value,
+                    },
+                ))));
             }
 
             // Create the expression
@@ -1098,13 +1100,15 @@ impl Parser<'_> {
                 expression: expression.clone(),
             });
 
-            return Ok(Some(crate::ast::Attribute::Attribute(AttributeNode {
-                start: start as u32,
-                end: self.index as u32,
-                name: CompactString::from(name),
-                name_loc: Some(name_loc),
-                value,
-            })));
+            return Ok(Some(crate::ast::Attribute::Attribute(Box::new(
+                AttributeNode {
+                    start: start as u32,
+                    end: self.index as u32,
+                    name: CompactString::from(name),
+                    name_loc: Some(name_loc),
+                    value,
+                },
+            ))));
         }
 
         // Read attribute name
@@ -1172,13 +1176,15 @@ impl Parser<'_> {
             (AttributeValue::True(true), name_end)
         };
 
-        Ok(Some(crate::ast::Attribute::Attribute(AttributeNode {
-            start: start as u32,
-            end: attr_end as u32,
-            name: name.clone(),
-            name_loc: Some(name_loc),
-            value,
-        })))
+        Ok(Some(crate::ast::Attribute::Attribute(Box::new(
+            AttributeNode {
+                start: start as u32,
+                end: attr_end as u32,
+                name: name.clone(),
+                name_loc: Some(name_loc),
+                value,
+            },
+        ))))
     }
 
     /// Parse an on: directive (event handler).
@@ -1252,7 +1258,7 @@ impl Parser<'_> {
             (None, name_end)
         };
 
-        Ok(Some(crate::ast::Attribute::OnDirective(
+        Ok(Some(crate::ast::Attribute::OnDirective(Box::new(
             crate::ast::template::OnDirective {
                 start: start as u32,
                 end: end_pos as u32,
@@ -1261,7 +1267,7 @@ impl Parser<'_> {
                 expression,
                 modifiers,
             },
-        )))
+        ))))
     }
 
     /// Parse a bind: directive (two-way binding).
@@ -1362,7 +1368,7 @@ impl Parser<'_> {
             )
         };
 
-        Ok(Some(crate::ast::Attribute::BindDirective(
+        Ok(Some(crate::ast::Attribute::BindDirective(Box::new(
             crate::ast::template::BindDirective {
                 start: start as u32,
                 end: end_pos as u32,
@@ -1371,7 +1377,7 @@ impl Parser<'_> {
                 expression,
                 modifiers,
             },
-        )))
+        ))))
     }
 
     /// Parse a use: directive (action): `use:action`, `use:action={expression}`, or `use:action="{expression}"`.
@@ -1448,7 +1454,7 @@ impl Parser<'_> {
             (None, name_end)
         };
 
-        Ok(Some(crate::ast::Attribute::UseDirective(
+        Ok(Some(crate::ast::Attribute::UseDirective(Box::new(
             crate::ast::template::UseDirective {
                 start: start as u32,
                 end: end_pos as u32,
@@ -1456,7 +1462,7 @@ impl Parser<'_> {
                 name_loc: Some(name_loc),
                 expression,
             },
-        )))
+        ))))
     }
 
     /// Parse a class: directive: `class:name` or `class:name={expression}`.
@@ -1523,7 +1529,7 @@ impl Parser<'_> {
             )
         };
 
-        Ok(Some(crate::ast::Attribute::ClassDirective(
+        Ok(Some(crate::ast::Attribute::ClassDirective(Box::new(
             crate::ast::template::ClassDirective {
                 start: start as u32,
                 end: self.index as u32,
@@ -1531,7 +1537,7 @@ impl Parser<'_> {
                 name_loc: Some(name_loc),
                 expression,
             },
-        )))
+        ))))
     }
 
     /// Parse a style: directive: `style:property={expression}` or `style:property="value"`.
@@ -1687,7 +1693,7 @@ impl Parser<'_> {
             AttributeValue::True(true)
         };
 
-        Ok(Some(crate::ast::Attribute::StyleDirective(
+        Ok(Some(crate::ast::Attribute::StyleDirective(Box::new(
             crate::ast::template::StyleDirective {
                 start: start as u32,
                 end: self.index as u32,
@@ -1696,7 +1702,7 @@ impl Parser<'_> {
                 value,
                 modifiers,
             },
-        )))
+        ))))
     }
 
     /// Parse a transition: / in: / out: directive.
@@ -1771,7 +1777,7 @@ impl Parser<'_> {
             (None, name_end)
         };
 
-        Ok(Some(crate::ast::Attribute::TransitionDirective(
+        Ok(Some(crate::ast::Attribute::TransitionDirective(Box::new(
             crate::ast::template::TransitionDirective {
                 start: start as u32,
                 end: end_pos as u32,
@@ -1783,7 +1789,7 @@ impl Parser<'_> {
                 outro,
                 metadata: None,
             },
-        )))
+        ))))
     }
 
     /// Helper to extract name and modifiers from "name|mod1|mod2".
@@ -1842,7 +1848,7 @@ impl Parser<'_> {
             None
         };
 
-        Ok(Some(crate::ast::Attribute::AnimateDirective(
+        Ok(Some(crate::ast::Attribute::AnimateDirective(Box::new(
             crate::ast::template::AnimateDirective {
                 start: start as u32,
                 end: self.index as u32,
@@ -1851,7 +1857,7 @@ impl Parser<'_> {
                 expression,
                 metadata: None, // Populated during Phase 2 analysis
             },
-        )))
+        ))))
     }
 
     /// Parse a let: directive: `let:item` or `let:item={expression}`.
@@ -1896,7 +1902,7 @@ impl Parser<'_> {
             None
         };
 
-        Ok(Some(crate::ast::Attribute::LetDirective(
+        Ok(Some(crate::ast::Attribute::LetDirective(Box::new(
             crate::ast::template::LetDirective {
                 start: start as u32,
                 end: self.index as u32,
@@ -1904,7 +1910,7 @@ impl Parser<'_> {
                 name_loc: Some(name_loc),
                 expression,
             },
-        )))
+        ))))
     }
 
     /// Parse an @attach attribute: `{@attach expression}`.
@@ -1923,14 +1929,14 @@ impl Parser<'_> {
 
         let expression = self.parse_js_expression(expr_content.trim(), expr_start);
 
-        Ok(Some(crate::ast::Attribute::AttachTag(
+        Ok(Some(crate::ast::Attribute::AttachTag(Box::new(
             crate::ast::template::AttachTag {
                 start: start as u32,
                 end: self.index as u32,
                 expression,
                 metadata: Default::default(),
             },
-        )))
+        ))))
     }
 
     /// Parse attribute value.

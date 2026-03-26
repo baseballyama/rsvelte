@@ -229,25 +229,25 @@ impl<'a> ComponentContext<'a> {
                     style_directives.push(dir);
                 }
                 Attribute::OnDirective(dir) => {
-                    on_directives.push(dir.clone());
+                    on_directives.push((**dir).clone());
                 }
                 Attribute::TransitionDirective(dir) => {
-                    transition_directives.push(dir.clone());
+                    transition_directives.push((**dir).clone());
                 }
                 Attribute::UseDirective(dir) => {
-                    use_directives.push(dir.clone());
+                    use_directives.push((**dir).clone());
                 }
                 Attribute::LetDirective(dir) => {
-                    let_directives.push(dir.clone());
+                    let_directives.push((**dir).clone());
                 }
                 Attribute::BindDirective(dir) => {
-                    bind_directives.push(dir.clone());
+                    bind_directives.push((**dir).clone());
                 }
                 Attribute::AnimateDirective(dir) => {
-                    animate_directives.push(dir.clone());
+                    animate_directives.push((**dir).clone());
                 }
                 Attribute::AttachTag(tag) => {
-                    attach_tags.push(tag.clone());
+                    attach_tags.push((**tag).clone());
                 }
             }
         }

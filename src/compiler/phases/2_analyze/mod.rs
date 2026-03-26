@@ -789,7 +789,7 @@ fn synthesize_for_element_attrs(
     // NOTE: We do NOT synthesize for scoped-only elements (no class directives) because
     // the transform phase handles CSS hash injection for those elements directly.
     if !has_spread && !has_class && has_class_directive {
-        attributes.push(Attribute::Attribute(AttributeNode {
+        attributes.push(Attribute::Attribute(Box::new(AttributeNode {
             start: u32::MAX, // synthetic marker (uses -1 in JS, we use u32::MAX)
             end: u32::MAX,
             name: "class".into(),
@@ -800,12 +800,12 @@ fn synthesize_for_element_attrs(
                 raw: "".into(),
                 data: "".into(),
             })]),
-        }));
+        })));
     }
 
     // We need an empty style to generate the set_style() correctly
     if !has_spread && !has_style && has_style_directive {
-        attributes.push(Attribute::Attribute(AttributeNode {
+        attributes.push(Attribute::Attribute(Box::new(AttributeNode {
             start: u32::MAX,
             end: u32::MAX,
             name: "style".into(),
@@ -816,7 +816,7 @@ fn synthesize_for_element_attrs(
                 raw: "".into(),
                 data: "".into(),
             })]),
-        }));
+        })));
     }
 }
 
@@ -2966,7 +2966,7 @@ fn mark_group_bindings_in_node(
     match node {
         TemplateNode::EachBlock(each) => {
             // Push this each block onto the ancestor stack
-            let each_ptr: *mut crate::ast::template::EachBlock = each as *mut _;
+            let each_ptr: *mut crate::ast::template::EachBlock = &mut **each as *mut _;
             ancestor_stack.push(each_ptr);
 
             // Visit body (and fallback)

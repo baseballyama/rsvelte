@@ -125,7 +125,7 @@ impl Parser<'_> {
                     // In production, this would emit a warning
                 }
 
-                attr_nodes.push(attr_node.clone());
+                attr_nodes.push((**attr_node).clone());
 
                 match attr_name {
                     "runes" => {

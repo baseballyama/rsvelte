@@ -369,18 +369,18 @@ fn create_textarea_value_attribute(nodes: Vec<TemplateNode>) -> Attribute {
         .into_iter()
         .filter_map(|node| match node {
             TemplateNode::Text(text) => Some(AttributeValuePart::Text(text)),
-            TemplateNode::ExpressionTag(expr) => Some(AttributeValuePart::ExpressionTag(expr)),
+            TemplateNode::ExpressionTag(expr) => Some(AttributeValuePart::ExpressionTag(*expr)),
             _ => None,
         })
         .collect();
 
-    Attribute::Attribute(crate::ast::template::AttributeNode {
+    Attribute::Attribute(Box::new(crate::ast::template::AttributeNode {
         start,
         end,
         name: "value".into(),
         name_loc: None,
         value: AttributeValue::Sequence(parts),
-    })
+    }))
 }
 
 /// Visit a regular element.
@@ -794,7 +794,7 @@ pub fn visit(
     {
         // Set metadata.synthetic_value_node to the expression tag child
         if let TemplateNode::ExpressionTag(expr_tag) = &element.fragment.nodes[0] {
-            element.metadata.synthetic_value_node = Some(Box::new(expr_tag.clone()));
+            element.metadata.synthetic_value_node = Some(expr_tag.clone());
         }
     }
 

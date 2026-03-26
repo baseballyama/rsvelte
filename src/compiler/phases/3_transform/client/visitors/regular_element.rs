@@ -857,7 +857,7 @@ pub fn visit_regular_element(
             .iter()
             .filter_map(|n| match n.as_ref() {
                 TemplateNode::Text(t) => Some(TextOrExpr::Text(t.clone())),
-                TemplateNode::ExpressionTag(e) => Some(TextOrExpr::Expr(e.clone())),
+                TemplateNode::ExpressionTag(e) => Some(TextOrExpr::Expr((**e).clone())),
                 _ => None,
             })
             .collect();

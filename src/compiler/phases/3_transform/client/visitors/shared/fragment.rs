@@ -397,7 +397,7 @@ pub fn process_children<F>(
                 sequence.push(TextOrExpr::Text(text.clone()));
             }
             TemplateNode::ExpressionTag(expr) => {
-                sequence.push(TextOrExpr::Expr(expr.clone()));
+                sequence.push(TextOrExpr::Expr((**expr).clone()));
             }
             // ConstTag doesn't produce DOM nodes - just visit it to add declarations
             TemplateNode::ConstTag(_) => {
