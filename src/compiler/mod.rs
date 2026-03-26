@@ -48,6 +48,8 @@ pub mod utils;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use crate::ast::arena::{clear_serialize_arena, set_serialize_arena};
+
 #[cfg(feature = "native")]
 use rayon::prelude::*;
 
@@ -546,15 +548,35 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
         options.preserve_whitespace = pw;
     }
 
+    // Set the thread-local serialize arena so that any Expression::as_json() ->
+    // JsNode::to_value() calls during analysis/transform can resolve JsNodeIds.
+    // SAFETY: `ast.arena` lives for the duration of both phase 2 and phase 3 below,
+    // and we clear it before `ast` can be dropped or moved.
+    unsafe { set_serialize_arena(&ast.arena as *const _) };
+
     // Phase 2: Analyze
-    let analysis = phases::phase2_analyze::analyze_component(&mut ast, source, &options)?;
+    let analysis = match phases::phase2_analyze::analyze_component(&mut ast, source, &options) {
+        Ok(a) => a,
+        Err(e) => {
+            clear_serialize_arena();
+            return Err(e.into());
+        }
+    };
 
     // Determine if runes mode was used
     let runes_mode = options.runes.unwrap_or(analysis.runes);
 
     // Phase 3: Transform (pass AST to avoid re-parsing)
     let mut transform_result =
-        phases::phase3_transform::transform_component(&analysis, &ast, source, &options)?;
+        match phases::phase3_transform::transform_component(&analysis, &ast, source, &options) {
+            Ok(r) => r,
+            Err(e) => {
+                clear_serialize_arena();
+                return Err(e.into());
+            }
+        };
+
+    clear_serialize_arena();
 
     // Emit options_deprecated_accessors warning when accessors option is used in runes mode.
     // Reference: svelte/packages/svelte/src/compiler/validate-options.js line 52

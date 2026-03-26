@@ -230,6 +230,24 @@ where
     })
 }
 
+/// Set the thread-local serialize arena. Caller must ensure the arena outlives
+/// the period until `clear_serialize_arena` is called.
+///
+/// # Safety
+/// The arena pointer must remain valid until `clear_serialize_arena()` is called.
+pub unsafe fn set_serialize_arena(arena: *const ParseArena) {
+    SERIALIZE_ARENA.with(|cell| {
+        cell.set(Some(arena));
+    });
+}
+
+/// Clear the thread-local serialize arena.
+pub fn clear_serialize_arena() {
+    SERIALIZE_ARENA.with(|cell| {
+        cell.set(None);
+    });
+}
+
 /// Check if a serialize arena is currently set.
 #[inline(always)]
 pub fn has_serialize_arena() -> bool {

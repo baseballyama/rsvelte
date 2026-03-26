@@ -1181,13 +1181,16 @@ mod tests {
 
     #[test]
     fn test_snippet_params_with_defaults() {
+        use crate::ast::arena::with_serialize_arena;
         use crate::{ParseOptions, parse};
         let input = r#"{#snippet one(a, b = 1, c = (2, 3))}
   {a}{b}{c}
 {/snippet}
 {@render one(0)}"#;
         let result = parse(input, ParseOptions::default()).unwrap();
-        let json = serde_json::to_string_pretty(&result).unwrap();
+        let json = with_serialize_arena(&result.arena, || {
+            serde_json::to_string_pretty(&result).unwrap()
+        });
         assert!(
             json.contains("AssignmentPattern"),
             "Parser should produce AssignmentPattern for default params"

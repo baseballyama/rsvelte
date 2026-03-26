@@ -1148,6 +1148,7 @@ mod tests {
 
     #[test]
     fn test_detect_store_subscriptions_integration() {
+        use crate::ast::arena::{clear_serialize_arena, set_serialize_arena};
         use crate::compiler::CompileOptions;
         use crate::compiler::phases::phase1_parse::{ParseOptions, parse};
         use crate::compiler::phases::phase2_analyze::analyze_component;
@@ -1164,7 +1165,9 @@ mod tests {
 "#;
         let mut ast = parse(source, parse_opts.clone()).unwrap();
         let options = CompileOptions::default();
+        unsafe { set_serialize_arena(&ast.arena as *const _) };
         let analysis = analyze_component(&mut ast, source, &options).unwrap();
+        clear_serialize_arena();
 
         // Should have a StoreSub binding for $count
         let has_store_sub = analysis
@@ -1182,7 +1185,9 @@ mod tests {
 <p>{value}</p>
 "#;
         let mut ast2 = parse(source2, parse_opts.clone()).unwrap();
+        unsafe { set_serialize_arena(&ast2.arena as *const _) };
         let analysis2 = analyze_component(&mut ast2, source2, &options).unwrap();
+        clear_serialize_arena();
 
         // Should NOT have a StoreSub binding for $state (it's a rune)
         let has_state_store = analysis2
@@ -1204,7 +1209,9 @@ mod tests {
 <button onclick={() => $items.push('new')}>Add</button>
 "#;
         let mut ast3 = parse(source3, parse_opts).unwrap();
+        unsafe { set_serialize_arena(&ast3.arena as *const _) };
         let analysis3 = analyze_component(&mut ast3, source3, &options).unwrap();
+        clear_serialize_arena();
 
         // Should have a StoreSub binding for $items
         let has_items_store = analysis3

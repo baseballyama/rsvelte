@@ -314,6 +314,17 @@ fn extract_call_arguments(
     if expr.node_type() != Some("CallExpression") {
         return Vec::new();
     }
+    // Fast path for Expression::Value: extract directly from JSON to avoid
+    // JsNode conversion that allocates into a different (DESER) arena.
+    if let Expression::Value(val) = expr {
+        if let Some(args) = val.get("arguments").and_then(|a| a.as_array()) {
+            return args
+                .iter()
+                .map(|arg| Expression::Value(arg.clone()))
+                .collect();
+        }
+        return Vec::new();
+    }
     let node = expr.as_node();
     match &*node {
         JsNode::CallExpression { arguments, .. } => arena
@@ -342,6 +353,11 @@ fn extract_call_callee(
     use crate::ast::typed_expr::JsNode;
     if expr.node_type() != Some("CallExpression") {
         return None;
+    }
+    // Fast path for Expression::Value: extract directly from JSON to avoid
+    // JsNode conversion that allocates into a different (DESER) arena.
+    if let Expression::Value(val) = expr {
+        return val.get("callee").map(|c| Expression::Value(c.clone()));
     }
     let node = expr.as_node();
     match &*node {
