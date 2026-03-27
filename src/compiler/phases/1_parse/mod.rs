@@ -57,6 +57,7 @@ mod parser;
 pub(crate) mod read;
 #[allow(dead_code)]
 pub mod remove_typescript_nodes;
+pub(crate) mod resolve_lazy;
 mod state;
 pub(crate) mod utils;
 
@@ -95,6 +96,18 @@ pub fn parse(source: &str, options: ParseOptions) -> ParseResult<Root> {
     let mut parser = Parser::new(source, options);
     // Set the parser's arena as the serialize context so that any to_value()
     // calls during parsing (e.g., build_const_variable_declaration) can resolve JsNodeIds.
+    let arena_ptr = &parser.arena as *const crate::ast::arena::ParseArena;
+    crate::ast::arena::with_serialize_arena(unsafe { &*arena_ptr }, || parser.parse())
+}
+
+/// Parse with a reusable parser instance for reduced per-file overhead.
+/// The parser is reset between calls, reusing internal allocations.
+pub fn parse_reuse<'a>(
+    parser: &mut Parser<'a>,
+    source: &'a str,
+    options: ParseOptions,
+) -> ParseResult<Root> {
+    parser.reset(source, options);
     let arena_ptr = &parser.arena as *const crate::ast::arena::ParseArena;
     crate::ast::arena::with_serialize_arena(unsafe { &*arena_ptr }, || parser.parse())
 }

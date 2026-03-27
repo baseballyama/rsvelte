@@ -144,8 +144,38 @@ fn process_file(source: &str, filename: &str, task: &Task) {
 }
 
 fn run_single_threaded(files: &[(String, String)], task: &Task) {
-    for (path, content) in files {
-        process_file(content, path, task);
+    match task {
+        Task::Parse => {
+            // Reuse parser instance across files for reduced per-file overhead
+            let dummy_source = "";
+            let mut parser = svelte_compiler_rust::compiler::phases::phase1_parse::Parser::new(
+                dummy_source,
+                ParseOptions {
+                    modern: true,
+                    skip_expression_loc: true,
+                    defer_script_parse: true,
+                    ..Default::default()
+                },
+            );
+            let options = ParseOptions {
+                modern: true,
+                skip_expression_loc: true,
+                defer_script_parse: true,
+                ..Default::default()
+            };
+            for (_path, content) in files {
+                let _ = svelte_compiler_rust::compiler::phases::phase1_parse::parse_reuse(
+                    &mut parser,
+                    content,
+                    options.clone(),
+                );
+            }
+        }
+        _ => {
+            for (path, content) in files {
+                process_file(content, path, task);
+            }
+        }
     }
 }
 

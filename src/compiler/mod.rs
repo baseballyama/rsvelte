@@ -532,27 +532,22 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
     };
     let mut ast = phases::phase1_parse::parse(source, parse_options)?;
 
+    // Set the thread-local serialize arena FIRST — needed by resolve_lazy and strip_ts.
+    unsafe { set_serialize_arena(&ast.arena as *const _) };
+
+    // Resolve lazy expressions (deferred template expressions)
+    phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(&mut ast, source);
+
     // Remove TypeScript nodes from script content if TypeScript is detected.
-    // This matches the official Svelte compiler behavior where remove_typescript_nodes()
-    // is called during compile() but NOT during parse().
-    // See: svelte/packages/svelte/src/compiler/index.js
     remove_typescript_from_ast(&mut ast)?;
 
-    // Merge parsed <svelte:options> into compile options, matching the official compiler's behavior:
-    //   const combined_options = { ...validated, ...parsed_options, customElementOptions };
-    // See: svelte/packages/svelte/src/compiler/index.js
+    // Merge parsed <svelte:options> into compile options
     let mut options = options;
     if let Some(ref parsed_options) = ast.options
         && let Some(pw) = parsed_options.preserve_whitespace
     {
         options.preserve_whitespace = pw;
     }
-
-    // Set the thread-local serialize arena so that any Expression::as_json() ->
-    // JsNode::to_value() calls during analysis/transform can resolve JsNodeIds.
-    // SAFETY: `ast.arena` lives for the duration of both phase 2 and phase 3 below,
-    // and we clear it before `ast` can be dropped or moved.
-    unsafe { set_serialize_arena(&ast.arena as *const _) };
 
     // Phase 2: Analyze
     let analysis = match phases::phase2_analyze::analyze_component(&mut ast, source, &options) {
@@ -952,8 +947,8 @@ fn remove_typescript_from_ast(ast: &mut crate::ast::Root) -> Result<(), crate::e
     ) -> Result<(), crate::error::ParseError> {
         let val = match &mut script.content {
             crate::ast::js::Expression::Value(v) => v,
-            crate::ast::js::Expression::Typed(_) => {
-                // Convert Typed to Value for mutation
+            crate::ast::js::Expression::Typed(_) | crate::ast::js::Expression::Lazy { .. } => {
+                // Convert Typed/Lazy to Value for mutation
                 let json = script.content.as_json().clone();
                 script.content = crate::ast::js::Expression::Value(json);
                 match &mut script.content {

@@ -877,6 +877,9 @@ pub fn source_expression_to_string(
                     return src[start..end].to_string();
                 }
             }
+            crate::ast::js::Expression::Lazy { .. } => {
+                panic!("Expression::Lazy must be resolved before printing");
+            }
         }
     }
     expression_to_string(expr)

@@ -64,6 +64,9 @@ fn expr_to_node(expr: Expression) -> JsNode {
     match expr {
         Expression::Typed(te) => te.node,
         Expression::Value(v) => JsNode::Raw(v),
+        Expression::Lazy { .. } => {
+            panic!("Expression::Lazy must be resolved before converting to JsNode")
+        }
     }
 }
 

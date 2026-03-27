@@ -149,6 +149,7 @@ fn expr_only_uses_params(
     match expr {
         Expression::Typed(te) => expression_only_uses_params_node(&te.node, param_names, context),
         Expression::Value(v) => expression_only_uses_params(v, param_names, context),
+        Expression::Lazy { .. } => panic!("Expression::Lazy must be resolved before analysis"),
     }
 }
 
@@ -171,6 +172,7 @@ fn check_pattern_defaults_for_expr(
             check_pattern_defaults_hoistable_node(&te.node, param_names, context)
         }
         Expression::Value(v) => check_pattern_defaults_hoistable(v, param_names, context),
+        Expression::Lazy { .. } => panic!("Expression::Lazy must be resolved before analysis"),
     }
 }
 
@@ -573,6 +575,7 @@ fn check_params_hoistable(
                     }
                 }
             }
+            Expression::Lazy { .. } => panic!("Expression::Lazy must be resolved before analysis"),
         }
     }
     true

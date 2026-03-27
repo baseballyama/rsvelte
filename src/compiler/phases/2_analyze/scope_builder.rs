@@ -1674,6 +1674,9 @@ impl<'a> ScopeBuilder<'a> {
                 self.track_json_expression_updates(json);
                 collect_arrow_param_names(json, &mut self.template_expression_params);
             }
+            Expression::Lazy { .. } => {
+                panic!("Expression::Lazy must be resolved before analysis");
+            }
         }
     }
 

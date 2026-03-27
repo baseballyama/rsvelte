@@ -184,6 +184,42 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Reset the parser for a new source, reusing internal allocations.
+    /// This avoids the cost of creating new Vec/HashMap/Arena instances.
+    pub fn reset(&mut self, source: &'a str, options: ParseOptions) {
+        self.source = source;
+        self.bytes = source.as_bytes();
+        self.index = 0;
+        self.options = options.clone();
+
+        self.stack.clear();
+        self.stack.push(StackEntry::Root);
+
+        // Recompute line offsets only if needed
+        self.line_offsets.clear();
+        if !options.skip_expression_loc {
+            self.line_offsets.push(0);
+            let bytes = source.as_bytes();
+            let mut pos = 0;
+            while let Some(offset) = memchr::memchr(b'\n', &bytes[pos..]) {
+                let abs = pos + offset;
+                self.line_offsets.push(abs + 1);
+                pos = abs + 1;
+            }
+        }
+
+        self.ts = Self::detect_typescript_mode(source);
+        self.instance_script = None;
+        self.module_script = None;
+        self.stylesheet = None;
+        self.svelte_options = None;
+        self.pending_leading_comments.clear();
+        self.meta_tags.clear();
+        self.last_auto_closed_tag = None;
+        self.parse_warnings.clear();
+        self.arena = ParseArena::new(); // Fresh arena per file
+    }
+
     /// Detect TypeScript mode by looking for `lang="ts"` or `lang='ts'` in script tags.
     ///
     /// Uses SIMD-accelerated search for `<script` followed by byte-level attribute scanning.

@@ -67,6 +67,9 @@ pub fn analyze_component(
     // During parse(), script content is stored as raw text for performance.
     // Here we invoke OXC to produce the full AST into the Root's arena.
     let line_offsets = crate::compiler::phases::phase1_parse::compute_line_offsets(source, false);
+    // Resolve deferred lazy expressions in template AST
+    crate::compiler::phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(ast, source);
+
     if let Some(ref mut instance) = ast.instance {
         crate::compiler::phases::phase1_parse::read::script::ensure_script_parsed(
             &ast.arena,

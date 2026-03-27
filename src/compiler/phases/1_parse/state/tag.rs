@@ -1601,6 +1601,10 @@ impl Parser<'_> {
         disallow_loose: bool,
         opening_token: char,
     ) -> Expression {
+        // NOTE: This method does NOT create Lazy expressions because it's used
+        // by @const tag which calls as_json() during parse. Only
+        // parse_js_expression_strict() creates Lazy expressions.
+
         // Adjust offset for leading whitespace that gets trimmed
         let leading_ws = content.len() - content.trim_start().len();
         let trimmed = content.trim();
@@ -1630,6 +1634,19 @@ impl Parser<'_> {
         content: &str,
         offset: usize,
     ) -> crate::error::ParseResult<Expression> {
+        // In deferred mode, create a Lazy expression
+        if self.options.defer_script_parse {
+            let trimmed = content.trim();
+            if !trimmed.is_empty() {
+                let leading_ws = content.len() - content.trim_start().len();
+                return Ok(Expression::Lazy {
+                    start: (offset + leading_ws) as u32,
+                    end: (offset + leading_ws + trimmed.len()) as u32,
+                    ts: self.ts,
+                });
+            }
+        }
+
         // Adjust offset for leading whitespace that gets trimmed
         let leading_ws = content.len() - content.trim_start().len();
         let trimmed = content.trim();

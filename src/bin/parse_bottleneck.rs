@@ -89,6 +89,52 @@ fn main() {
         "Script parsing/file: {:.2}µs",
         (no_loc - both) / files.len() as f64 * 1000.0
     );
+
+    // Parser reuse benchmark
+    println!("\n=== With Parser reuse ===");
+    let reuse = bench_reuse(
+        &files,
+        ParseOptions {
+            modern: true,
+            defer_script_parse: true,
+            skip_expression_loc: true,
+            ..Default::default()
+        },
+        "Reuse: defer+skip_loc",
+    );
+    println!(
+        "Per-file (reuse):    {:.2}µs (vs {:.2}µs new parser each time)",
+        reuse / files.len() as f64 * 1000.0,
+        both / files.len() as f64 * 1000.0
+    );
+}
+
+fn bench_reuse(files: &[(String, String)], options: ParseOptions, label: &str) -> f64 {
+    use svelte_compiler_rust::compiler::phases::phase1_parse::{Parser, parse_reuse};
+
+    let mut parser = Parser::new("", options.clone());
+
+    // Warmup
+    for _ in 0..3 {
+        for (_, content) in files {
+            let _ = parse_reuse(&mut parser, content, options.clone());
+        }
+    }
+    // Measure
+    let mut times = Vec::with_capacity(10);
+    for _ in 0..10 {
+        let start = Instant::now();
+        for (_, content) in files {
+            let _ = parse_reuse(&mut parser, content, options.clone());
+        }
+        times.push(start.elapsed().as_secs_f64() * 1000.0);
+    }
+    times.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let median = times[times.len() / 2];
+    let total_bytes: usize = files.iter().map(|(_, c)| c.len()).sum();
+    let throughput = total_bytes as f64 / (median / 1000.0) / 1_000_000.0;
+    println!("{:35} {:.2}ms  ({:.1} MB/s)", label, median, throughput);
+    median
 }
 
 fn bench(files: &[(String, String)], options: ParseOptions, label: &str) -> f64 {
