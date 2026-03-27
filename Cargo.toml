@@ -116,6 +116,10 @@ name = "samply_target"
 path = "src/bin/samply_target.rs"
 
 [[bin]]
+name = "min_parse_cost"
+path = "src/bin/min_parse_cost.rs"
+
+[[bin]]
 name = "oxc_call_counter"
 path = "src/bin/oxc_call_counter.rs"
 
