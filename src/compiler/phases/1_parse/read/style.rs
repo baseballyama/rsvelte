@@ -225,8 +225,12 @@ impl Parser<'_> {
             }
         }
 
-        // Parse CSS content
-        let css_children = parse_css(style_content, content_start);
+        // Parse CSS content (deferred when defer_script_parse is enabled)
+        let css_children = if self.options.defer_script_parse {
+            Vec::new() // Will be resolved by ensure_css_parsed() before analysis
+        } else {
+            parse_css(style_content, content_start)
+        };
 
         // Capture the preceding HTML comment for svelte-ignore support.
         // In the official Svelte compiler (element.js L351), the parser stores the preceding

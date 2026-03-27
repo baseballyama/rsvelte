@@ -10,7 +10,8 @@ use crate::ast::template::{
     Attribute, AttributeValue, AttributeValuePart, Fragment, Root, TemplateNode,
 };
 
-/// Resolve all lazy expressions in the AST. Must be called before analysis.
+/// Resolve all lazy expressions and deferred CSS in the AST.
+/// Must be called before analysis.
 pub fn resolve_lazy_expressions(ast: &mut Root, source: &str) {
     let line_offsets = super::compute_line_offsets(source, false);
     resolve_fragment(&ast.arena, &mut ast.fragment, &line_offsets, source);
@@ -21,6 +22,17 @@ pub fn resolve_lazy_expressions(ast: &mut Root, source: &str) {
     }
     if let Some(ref mut module) = ast.module {
         resolve_expression(&ast.arena, &mut module.content, &line_offsets, source);
+    }
+
+    // Resolve deferred CSS parsing
+    if let Some(ref mut stylesheet) = ast.css
+        && stylesheet.children.is_empty()
+        && !stylesheet.content.styles.is_empty()
+    {
+        stylesheet.children = super::read::style::parse_css(
+            &stylesheet.content.styles,
+            stylesheet.content.start as usize,
+        );
     }
 }
 
