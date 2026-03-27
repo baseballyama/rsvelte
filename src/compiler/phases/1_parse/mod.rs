@@ -96,8 +96,10 @@ pub fn parse(source: &str, options: ParseOptions) -> ParseResult<Root> {
     let mut parser = Parser::new(source, options);
     // Set the parser's arena as the serialize context so that any to_value()
     // calls during parsing (e.g., build_const_variable_declaration) can resolve JsNodeIds.
-    let arena_ptr = &parser.arena as *const crate::ast::arena::ParseArena;
-    crate::ast::arena::with_serialize_arena(unsafe { &*arena_ptr }, || parser.parse())
+    unsafe { crate::ast::arena::set_serialize_arena(&parser.arena as *const _) };
+    let result = parser.parse();
+    crate::ast::arena::clear_serialize_arena();
+    result
 }
 
 /// Parse with a reusable parser instance for reduced per-file overhead.
@@ -108,8 +110,10 @@ pub fn parse_reuse<'a>(
     options: ParseOptions,
 ) -> ParseResult<Root> {
     parser.reset(source, options);
-    let arena_ptr = &parser.arena as *const crate::ast::arena::ParseArena;
-    crate::ast::arena::with_serialize_arena(unsafe { &*arena_ptr }, || parser.parse())
+    unsafe { crate::ast::arena::set_serialize_arena(&parser.arena as *const _) };
+    let result = parser.parse();
+    crate::ast::arena::clear_serialize_arena();
+    result
 }
 
 /// Compute line offsets for a source string (used for deferred script parsing).

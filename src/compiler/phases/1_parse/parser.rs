@@ -177,7 +177,7 @@ impl<'a> Parser<'a> {
             svelte_options: None,
             pending_leading_comments: Vec::new(),
             ts,
-            meta_tags: FxHashMap::with_capacity_and_hasher(4, Default::default()),
+            meta_tags: FxHashMap::default(),
             last_auto_closed_tag: None,
             parse_warnings: Vec::new(),
             arena: ParseArena::new(),

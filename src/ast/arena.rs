@@ -63,11 +63,12 @@ pub struct ParseArena {
 unsafe impl Send for ParseArena {}
 
 impl ParseArena {
-    /// Create a new arena with default capacity.
+    /// Create a new arena with minimal initial capacity.
+    /// Capacity grows on demand during parsing.
     pub fn new() -> Self {
         Self {
-            js_nodes: UnsafeCell::new(Vec::with_capacity(256)),
-            js_children: UnsafeCell::new(Vec::with_capacity(128)),
+            js_nodes: UnsafeCell::new(Vec::new()),
+            js_children: UnsafeCell::new(Vec::new()),
         }
     }
 
