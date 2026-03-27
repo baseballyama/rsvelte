@@ -203,7 +203,7 @@ pub fn convert_to_legacy(source: &str, ast: Root) -> Value {
             attributes: options
                 .attributes
                 .iter()
-                .map(|a| Attribute::Attribute(Box::new(a.clone())))
+                .map(|a| Attribute::Attribute(a.clone()))
                 .collect(),
             fragment: Fragment::default(),
         });

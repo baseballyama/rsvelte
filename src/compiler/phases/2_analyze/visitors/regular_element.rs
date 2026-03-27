@@ -374,13 +374,13 @@ fn create_textarea_value_attribute(nodes: Vec<TemplateNode>) -> Attribute {
         })
         .collect();
 
-    Attribute::Attribute(Box::new(crate::ast::template::AttributeNode {
+    Attribute::Attribute(crate::ast::template::AttributeNode {
         start,
         end,
         name: "value".into(),
         name_loc: None,
         value: AttributeValue::Sequence(parts),
-    }))
+    })
 }
 
 /// Visit a regular element.

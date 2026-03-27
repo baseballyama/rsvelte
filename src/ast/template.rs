@@ -526,18 +526,18 @@ pub struct SvelteDynamicElement {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum Attribute {
-    Attribute(Box<AttributeNode>),
-    SpreadAttribute(Box<SpreadAttribute>),
-    AttachTag(Box<AttachTag>),
+    Attribute(AttributeNode),
+    SpreadAttribute(SpreadAttribute),
+    AttachTag(AttachTag),
     // Directives
-    BindDirective(Box<BindDirective>),
-    OnDirective(Box<OnDirective>),
-    ClassDirective(Box<ClassDirective>),
-    StyleDirective(Box<StyleDirective>),
-    TransitionDirective(Box<TransitionDirective>),
-    AnimateDirective(Box<AnimateDirective>),
-    UseDirective(Box<UseDirective>),
-    LetDirective(Box<LetDirective>),
+    BindDirective(BindDirective),
+    OnDirective(OnDirective),
+    ClassDirective(ClassDirective),
+    StyleDirective(StyleDirective),
+    TransitionDirective(TransitionDirective),
+    AnimateDirective(AnimateDirective),
+    UseDirective(UseDirective),
+    LetDirective(LetDirective),
 }
 
 impl serde::Serialize for Attribute {

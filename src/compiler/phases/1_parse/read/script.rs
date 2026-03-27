@@ -189,7 +189,7 @@ impl Parser<'_> {
                 } else if attr_node.name.as_str() == "module" {
                     // `module` attribute (boolean or with value) indicates module context
                     context = ScriptContext::Module;
-                    script_attributes.push(*attr_node);
+                    script_attributes.push(attr_node.clone());
                     continue;
                 } else if attr_node.name.as_str() == "lang" {
                     if let AttributeValue::Sequence(parts) = &attr_node.value
@@ -200,9 +200,9 @@ impl Parser<'_> {
                             is_typescript = true;
                         }
                     }
-                    script_attributes.push(*attr_node);
+                    script_attributes.push(attr_node.clone());
                 } else {
-                    script_attributes.push(*attr_node);
+                    script_attributes.push(attr_node.clone());
                 }
             }
         }
