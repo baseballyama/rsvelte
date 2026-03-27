@@ -226,7 +226,7 @@ impl Parser<'_> {
         use super::super::parser::StackEntry;
         use super::super::utils::is_void_element;
 
-        let mut nodes = Vec::with_capacity(8);
+        let mut nodes = Vec::new();
 
         while self.index < self.bytes.len() {
             // Fast dispatch on first byte to avoid redundant match_str calls

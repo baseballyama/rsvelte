@@ -161,8 +161,7 @@ impl<'a> Parser<'a> {
         let ts = Self::detect_typescript_mode(source);
 
         // Pre-allocate with small capacity since most files use few meta tags
-        let mut stack = Vec::with_capacity(8);
-        stack.push(StackEntry::Root);
+        let stack = vec![StackEntry::Root];
 
         Self {
             source,

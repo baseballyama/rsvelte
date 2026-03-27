@@ -841,7 +841,7 @@ impl Parser<'_> {
 
     /// Parse attributes.
     pub fn parse_attributes(&mut self) -> ParseResult<Vec<crate::ast::Attribute>> {
-        let mut attributes = Vec::with_capacity(4);
+        let mut attributes = Vec::new();
 
         loop {
             // Track position before whitespace skip for unclosed elements
@@ -1984,7 +1984,7 @@ impl Parser<'_> {
             None
         };
 
-        let mut parts = Vec::with_capacity(2);
+        let mut parts = Vec::new();
         let value_start = self.index;
 
         loop {
