@@ -72,11 +72,13 @@ impl Parser<'_> {
         if self.match_byte(b'/') {
             let close_start = self.index - 1; // start includes '<'
             self.advance(); // consume '/'
-            let name = self.read_tag_name();
+            let name_start_idx = self.index;
+            self.read_tag_name();
+            let name_end_idx = self.index;
             self.skip_whitespace();
 
             // Check if closing a void element (which is invalid)
-            if is_void_element(&name) {
+            if is_void_element(&self.source[name_start_idx..name_end_idx]) {
                 return Err(crate::error::ParseError::svelte(
                     "void_element_invalid_content",
                     "Void elements cannot have children or closing tags",
@@ -96,7 +98,7 @@ impl Parser<'_> {
 
         // Parse opening tag
         let name_start = self.index;
-        let name = self.read_tag_name();
+        let name = CompactString::from(self.read_tag_name());
         let name_end = self.index;
 
         // Validate svelte: tag names using first-byte dispatch on suffix
@@ -240,11 +242,14 @@ impl Parser<'_> {
             if self.match_str("</") {
                 let close_start = self.index;
                 self.advance_by(2); // consume '</'
-                let closing_name = self.read_tag_name();
+                let cn_start = self.index;
+                self.read_tag_name();
+                let cn_end = self.index;
                 self.skip_whitespace();
 
                 // Verify matching tag
-                if closing_name == name {
+                let closing_name = &self.source[cn_start..cn_end];
+                if closing_name == name.as_str() {
                     found_closing_tag = true;
                     // For raw text elements, the closing tag might have garbage before >
                     // (e.g., </textarea\n\n\n</textarea\n\n>)
@@ -1124,7 +1129,7 @@ impl Parser<'_> {
 
         // Read attribute name
         let name_start = self.index;
-        let name = self.read_attribute_name();
+        let name = CompactString::from(self.read_attribute_name());
         let name_end = self.index;
 
         if name.is_empty() {

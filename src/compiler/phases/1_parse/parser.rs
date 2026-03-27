@@ -657,7 +657,8 @@ impl<'a> Parser<'a> {
 
     /// Read a tag name.
     #[inline]
-    pub fn read_tag_name(&mut self) -> CompactString {
+    /// Read a tag name and return as a source slice (zero-copy).
+    pub fn read_tag_name(&mut self) -> &str {
         let start = self.index;
 
         // Fast path: tag name characters are ASCII (stop at whitespace, >, /, =)
@@ -683,12 +684,12 @@ impl<'a> Parser<'a> {
             }
         }
 
-        CompactString::from(&self.source[start..self.index])
+        &self.source[start..self.index]
     }
 
-    /// Read an attribute name.
+    /// Read an attribute name and return as a source slice (zero-copy).
     #[inline]
-    pub fn read_attribute_name(&mut self) -> CompactString {
+    pub fn read_attribute_name(&mut self) -> &str {
         let start = self.index;
 
         // Fast path: attribute name characters are ASCII (stop at whitespace, =, >, /, ", ')
@@ -716,7 +717,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        CompactString::from(&self.source[start..self.index])
+        &self.source[start..self.index]
     }
 
     /// Peek at the next n characters.
