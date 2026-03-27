@@ -112,12 +112,12 @@ fn main() {
 fn bench_reuse(files: &[(String, String)], options: ParseOptions, label: &str) -> f64 {
     use svelte_compiler_rust::compiler::phases::phase1_parse::{Parser, parse_reuse};
 
-    let mut parser = Parser::new("", options.clone());
+    let mut parser = Parser::new("", options);
 
     // Warmup
     for _ in 0..3 {
         for (_, content) in files {
-            let _ = parse_reuse(&mut parser, content, options.clone());
+            let _ = parse_reuse(&mut parser, content, options);
         }
     }
     // Measure
@@ -125,7 +125,7 @@ fn bench_reuse(files: &[(String, String)], options: ParseOptions, label: &str) -
     for _ in 0..10 {
         let start = Instant::now();
         for (_, content) in files {
-            let _ = parse_reuse(&mut parser, content, options.clone());
+            let _ = parse_reuse(&mut parser, content, options);
         }
         times.push(start.elapsed().as_secs_f64() * 1000.0);
     }
@@ -141,7 +141,7 @@ fn bench(files: &[(String, String)], options: ParseOptions, label: &str) -> f64 
     // Warmup
     for _ in 0..3 {
         for (_, content) in files {
-            let _ = parse(content, options.clone());
+            let _ = parse(content, options);
         }
     }
     // Measure
@@ -149,7 +149,7 @@ fn bench(files: &[(String, String)], options: ParseOptions, label: &str) -> f64 
     for _ in 0..10 {
         let start = Instant::now();
         for (_, content) in files {
-            let _ = parse(content, options.clone());
+            let _ = parse(content, options);
         }
         times.push(start.elapsed().as_secs_f64() * 1000.0);
     }

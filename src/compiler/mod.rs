@@ -526,7 +526,6 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
     let parse_options = crate::ParseOptions {
         modern: true,
         loose: false,
-        filename: options.filename.clone(),
         skip_expression_loc: true,
         defer_script_parse: true,
     };

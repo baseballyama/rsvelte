@@ -78,7 +78,6 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
         let options = ParseOptions {
             modern: true,
             loose,
-            filename: Some(name.clone()),
             ..Default::default()
         };
 

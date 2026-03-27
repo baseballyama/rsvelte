@@ -108,7 +108,6 @@ fn bench_phase1_parse(c: &mut Criterion) {
                 let options = ParseOptions {
                     modern: true,
                     loose: false,
-                    filename: None,
                     ..Default::default()
                 };
                 parse(black_box(source), options)
@@ -139,10 +138,9 @@ fn bench_phase2_analyze(c: &mut Criterion) {
         let parse_options = ParseOptions {
             modern: true,
             loose: false,
-            filename: None,
             ..Default::default()
         };
-        let ast_result = parse(content, parse_options.clone());
+        let ast_result = parse(content, parse_options);
         if ast_result.is_err() {
             continue;
         }
@@ -154,7 +152,7 @@ fn bench_phase2_analyze(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("analyze", name), content, |b, source| {
             b.iter(|| {
-                let mut ast = parse(source, parse_options.clone()).unwrap();
+                let mut ast = parse(source, parse_options).unwrap();
                 analyze_component(black_box(&mut ast), black_box(source), &compile_options)
             });
         });
@@ -183,10 +181,9 @@ fn bench_phase3_transform_client(c: &mut Criterion) {
         let parse_options = ParseOptions {
             modern: true,
             loose: false,
-            filename: None,
             ..Default::default()
         };
-        let ast_result = parse(content, parse_options.clone());
+        let ast_result = parse(content, parse_options);
         if ast_result.is_err() {
             continue;
         }
@@ -242,10 +239,9 @@ fn bench_phase3_transform_server(c: &mut Criterion) {
         let parse_options = ParseOptions {
             modern: true,
             loose: false,
-            filename: None,
             ..Default::default()
         };
-        let ast_result = parse(content, parse_options.clone());
+        let ast_result = parse(content, parse_options);
         if ast_result.is_err() {
             continue;
         }

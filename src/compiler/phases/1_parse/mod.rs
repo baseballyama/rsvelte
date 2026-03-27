@@ -73,14 +73,12 @@ use crate::error::ParseResult;
 pub use parser::Parser;
 
 /// Parse options.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct ParseOptions {
     /// Use the modern AST format.
     pub modern: bool,
     /// Continue parsing on errors (loose mode).
     pub loose: bool,
-    /// Optional filename for error messages.
-    pub filename: Option<String>,
     /// Skip creating loc objects in Expression JSON values.
     /// When true, loc fields are set to null instead of creating nested objects.
     /// This saves significant allocations during compilation where loc is never used.
@@ -89,6 +87,13 @@ pub struct ParseOptions {
     /// When true, script blocks store raw content and parse lazily in the analysis phase.
     /// Set to false for tests that compare parse output directly.
     pub defer_script_parse: bool,
+}
+
+/// Extended parse options with filename (separate to keep ParseOptions Copy).
+#[derive(Debug, Clone, Default)]
+pub struct ParseOptionsWithFilename {
+    pub options: ParseOptions,
+    pub filename: Option<String>,
 }
 
 /// Parse a Svelte component source into an AST.
@@ -151,8 +156,7 @@ where
         .collect::<Vec<_>>()
         .into_par_iter()
         .map(|(filename, source)| {
-            let mut opts = options.clone();
-            opts.filename = Some(filename.to_string());
+            let opts = options;
             (filename, parse(source, opts))
         })
         .collect()

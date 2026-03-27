@@ -190,7 +190,7 @@ impl<'a> Parser<'a> {
         self.source = source;
         self.bytes = source.as_bytes();
         self.index = 0;
-        self.options = options.clone();
+        self.options = options;
 
         self.stack.clear();
         self.stack.push(StackEntry::Root);

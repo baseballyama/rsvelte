@@ -27,11 +27,11 @@ fn main() {
     let iters = 50000;
     for (label, source) in &files {
         for _ in 0..2000 {
-            let _ = parse(source, options.clone());
+            let _ = parse(source, options);
         }
         let start = Instant::now();
         for _ in 0..iters {
-            let _ = parse(source, options.clone());
+            let _ = parse(source, options);
         }
         let ns = start.elapsed().as_nanos() as f64 / iters as f64;
         println!("{:30} {:6.0}ns ({:.2}µs)", label, ns, ns / 1000.0);
@@ -39,14 +39,14 @@ fn main() {
 
     // Compare: parse_reuse (skip Parser::new overhead)
     println!("\n=== With Parser reuse (skip new()) ===");
-    let mut parser = Parser::new("", options.clone());
+    let mut parser = Parser::new("", options);
     for (label, source) in &files {
         for _ in 0..2000 {
-            let _ = parse_reuse(&mut parser, source, options.clone());
+            let _ = parse_reuse(&mut parser, source, options);
         }
         let start = Instant::now();
         for _ in 0..iters {
-            let _ = parse_reuse(&mut parser, source, options.clone());
+            let _ = parse_reuse(&mut parser, source, options);
         }
         let ns = start.elapsed().as_nanos() as f64 / iters as f64;
         println!("{:30} {:6.0}ns ({:.2}µs)", label, ns, ns / 1000.0);
@@ -55,11 +55,11 @@ fn main() {
     // Measure Parser::new() cost alone
     println!("\n=== Parser::new() cost ===");
     for _ in 0..1000 {
-        let _ = Parser::new("", options.clone());
+        let _ = Parser::new("", options);
     }
     let start = Instant::now();
     for _ in 0..iters {
-        let _p = Parser::new("", options.clone());
+        let _p = Parser::new("", options);
     }
     let ns = start.elapsed().as_nanos() as f64 / iters as f64;
     println!(
@@ -70,11 +70,11 @@ fn main() {
 
     let big = "<script lang=\"ts\">let x = 1;</script><div class=\"foo\">hello</div>";
     for _ in 0..1000 {
-        let _ = Parser::new(big, options.clone());
+        let _ = Parser::new(big, options);
     }
     let start = Instant::now();
     for _ in 0..iters {
-        let _p = Parser::new(big, options.clone());
+        let _p = Parser::new(big, options);
     }
     let ns = start.elapsed().as_nanos() as f64 / iters as f64;
     println!(

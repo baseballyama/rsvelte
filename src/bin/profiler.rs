@@ -402,7 +402,6 @@ fn profile_file(config: &Config, filename: &str, content: &str) -> FileMetrics {
     let parse_options = ParseOptions {
         modern: true,
         loose: false,
-        filename: Some(filename.to_string()),
         skip_expression_loc: true,
         defer_script_parse: false,
     };
@@ -419,7 +418,7 @@ fn profile_file(config: &Config, filename: &str, content: &str) -> FileMetrics {
     // For transform-only or analyze-only profiling, parse once and reuse
     if config.phase == "transform" || config.phase == "analyze" {
         // Parse once
-        let parse_result = parse(content, parse_options.clone());
+        let parse_result = parse(content, parse_options);
         if parse_result.is_err() {
             for _ in 0..total_iterations {
                 metrics.total.add_time(Duration::ZERO, false);
@@ -443,7 +442,7 @@ fn profile_file(config: &Config, filename: &str, content: &str) -> FileMetrics {
 
             if config.phase == "analyze" {
                 // Re-parse each time for analyze profiling since analyze mutates ast
-                let parse_result = parse(content, parse_options.clone());
+                let parse_result = parse(content, parse_options);
                 if let Ok(mut ast2) = parse_result {
                     let analyze_start = Instant::now();
                     let analyze_result = analyze_component(&mut ast2, content, &compile_options);
@@ -481,7 +480,7 @@ fn profile_file(config: &Config, filename: &str, content: &str) -> FileMetrics {
 
             // Phase 1: Parse
             let parse_start = Instant::now();
-            let parse_result = parse(content, parse_options.clone());
+            let parse_result = parse(content, parse_options);
             let parse_duration = parse_start.elapsed();
 
             if !is_warmup {

@@ -171,7 +171,6 @@ fn run_parser_tests(test_type: &str, modern: bool) -> Category {
         let options = ParseOptions {
             modern,
             loose: false,
-            filename: Some(test_name.clone()),
             ..Default::default()
         };
 
@@ -340,7 +339,6 @@ fn run_snapshot_tests() -> Category {
             let expected = fs::read_to_string(&expected_client).unwrap_or_default();
             let options = CompileOptions {
                 generate: GenerateMode::Client,
-                filename: Some(format!("{}/index.svelte", test_name)),
                 ..Default::default()
             };
 
@@ -363,7 +361,6 @@ fn run_snapshot_tests() -> Category {
             let expected = fs::read_to_string(&expected_server).unwrap_or_default();
             let options = CompileOptions {
                 generate: GenerateMode::Server,
-                filename: Some(format!("{}/index.svelte", test_name)),
                 ..Default::default()
             };
 

@@ -24,7 +24,6 @@ fn main() {
 
     let options = ParseOptions {
         modern: true,
-        filename: Some(path.display().to_string()),
         ..Default::default()
     };
 

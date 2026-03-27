@@ -167,7 +167,7 @@ fn run_single_threaded(files: &[(String, String)], task: &Task) {
                 let _ = svelte_compiler_rust::compiler::phases::phase1_parse::parse_reuse(
                     &mut parser,
                     content,
-                    options.clone(),
+                    options,
                 );
             }
         }

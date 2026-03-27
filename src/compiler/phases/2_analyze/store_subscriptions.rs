@@ -1163,7 +1163,7 @@ mod tests {
 
 <p>{$count}</p>
 "#;
-        let mut ast = parse(source, parse_opts.clone()).unwrap();
+        let mut ast = parse(source, parse_opts).unwrap();
         let options = CompileOptions::default();
         unsafe { set_serialize_arena(&ast.arena as *const _) };
         let analysis = analyze_component(&mut ast, source, &options).unwrap();
@@ -1184,7 +1184,7 @@ mod tests {
 
 <p>{value}</p>
 "#;
-        let mut ast2 = parse(source2, parse_opts.clone()).unwrap();
+        let mut ast2 = parse(source2, parse_opts).unwrap();
         unsafe { set_serialize_arena(&ast2.arena as *const _) };
         let analysis2 = analyze_component(&mut ast2, source2, &options).unwrap();
         clear_serialize_arena();
