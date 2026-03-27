@@ -2463,7 +2463,7 @@ pub fn decode_vlq_mappings(mappings: &str) -> DecodedMappings {
         }
 
         // Decode a segment
-        let mut segment = Vec::with_capacity(5);
+        let mut segment = Vec::new();
 
         // Field 1: gen_col (relative)
         let (val, consumed) = vlq_decode(&bytes[i..]);

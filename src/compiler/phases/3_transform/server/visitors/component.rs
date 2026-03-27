@@ -46,7 +46,7 @@ impl<'a> ServerCodeGenerator<'a> {
         // Extract interleaved props/spreads and bindings
         let mut props_and_spreads: Vec<ComponentPropItem> =
             Vec::with_capacity(component.attributes.len());
-        let mut bindings = Vec::with_capacity(2);
+        let mut bindings = Vec::new();
         // CSS custom properties (attributes starting with `--`) are extracted and
         // used to wrap the component call in $.css_props()
         let mut css_custom_props: Vec<(String, String)> = Vec::new();
@@ -504,8 +504,8 @@ impl<'a> ServerCodeGenerator<'a> {
     > {
         // Pre-allocate based on typical usage patterns
         // (name, params, body_parts, is_true_snippet)
-        let mut snippets: Vec<(String, Vec<String>, Vec<OutputPart>, bool)> = Vec::with_capacity(4);
-        let mut slot_names: Vec<String> = Vec::with_capacity(4);
+        let mut snippets: Vec<(String, Vec<String>, Vec<OutputPart>, bool)> = Vec::new();
+        let mut slot_names: Vec<String> = Vec::new();
 
         // Group children by slot name
         // Key: slot name, Value: (nodes, let_directive_names)

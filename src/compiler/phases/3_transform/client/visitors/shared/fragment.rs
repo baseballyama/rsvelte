@@ -257,7 +257,7 @@ pub fn process_children<F>(
     let mut skipped = 0usize;
 
     // Sequence of Text/ExpressionTag nodes - pre-allocate with a reasonable capacity
-    let mut sequence: Vec<TextOrExpr> = Vec::with_capacity(4);
+    let mut sequence: Vec<TextOrExpr> = Vec::new();
 
     // SAFETY: Extract a reference to the arena that outlives the closures.
     // The arena uses UnsafeCell internally and only appends, so holding a

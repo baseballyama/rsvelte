@@ -186,8 +186,8 @@ where
     use super::utils::get_literal_value;
 
     // Pre-allocate for typical attribute value complexity
-    let mut quasis = Vec::with_capacity(4);
-    let mut expressions = Vec::with_capacity(4);
+    let mut quasis = Vec::new();
+    let mut expressions = Vec::new();
     let mut has_state = false;
     let mut current_text = String::with_capacity(64);
 
@@ -575,7 +575,7 @@ pub fn build_style_directives_object_with_memoizer(
     external_memoizer: Option<&mut Memoizer>,
 ) -> JsExpr {
     let mut normal_properties = Vec::with_capacity(style_directives.len());
-    let mut important_properties = Vec::with_capacity(2);
+    let mut important_properties = Vec::new();
     let mut has_call = false;
     let mut has_state = false;
     let mut has_await = false;
@@ -1292,7 +1292,7 @@ pub fn build_attribute_effect(
 
     // Pre-allocate based on number of attributes
     let mut properties: Vec<JsObjectMember> = Vec::with_capacity(attributes.len());
-    let mut event_handler_decls: Vec<JsStatement> = Vec::with_capacity(4);
+    let mut event_handler_decls: Vec<JsStatement> = Vec::new();
 
     for attribute in attributes {
         match attribute {

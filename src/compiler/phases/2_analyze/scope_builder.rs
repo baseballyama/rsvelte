@@ -95,16 +95,12 @@ impl<'a> ScopeBuilder<'a> {
         // Pre-allocate with reasonable capacities based on typical Svelte components.
         // Most components have a modest number of scopes, bindings, and updates.
         Self {
-            scopes: {
-                let mut v = Vec::with_capacity(16);
-                v.push(Scope::new(None));
-                v
-            },
-            bindings: Vec::with_capacity(16),
+            scopes: { vec![Scope::new(None)] },
+            bindings: Vec::new(),
             current_scope: 0,
             source,
             arena,
-            updates: Vec::with_capacity(8),
+            updates: Vec::new(),
             // Initialize function_depth to 1 to match the official Svelte compiler's scope structure:
             // In the official compiler, scope.function_depth = parent.function_depth + 1 for non-porous
             // scopes. The root scope has depth 0, the instance scope has depth 1. This means:
@@ -514,12 +510,19 @@ impl<'a> ScopeBuilder<'a> {
             SourceType::default()
         };
 
-        let allocator = Allocator::default();
-        let ret = OxcParser::new(&allocator, content, source_type).parse();
-
-        if ret.errors.is_empty() {
-            self.process_program(&ret.program);
+        // Reuse thread-local OXC allocator (same pattern as Phase 1 expression parsing)
+        use std::cell::RefCell;
+        thread_local! {
+            static SCOPE_OXC_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
         }
+        SCOPE_OXC_ALLOC.with(|cell| {
+            let mut alloc = cell.borrow_mut();
+            alloc.reset();
+            let ret = OxcParser::new(&alloc, content, source_type).parse();
+            if ret.errors.is_empty() {
+                self.process_program(&ret.program);
+            }
+        });
     }
 
     /// Process an OXC program AST.

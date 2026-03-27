@@ -1357,12 +1357,12 @@ impl<'a> ServerCodeGenerator<'a> {
             source,
             // Pre-allocate capacity based on typical component sizes
             // Average component has ~50-100 output parts
-            output_parts: Vec::with_capacity(64),
+            output_parts: Vec::new(),
             instance_script,
             module_script,
             constant_vars,
             // Most components have 0-5 snippets
-            snippets: Vec::with_capacity(4),
+            snippets: Vec::new(),
             analysis,
             uses_store_subs,
             use_async,
@@ -1390,7 +1390,7 @@ impl<'a> ServerCodeGenerator<'a> {
         Self {
             component_name: self.component_name.clone(),
             source: self.source.clone(),
-            output_parts: Vec::with_capacity(32),
+            output_parts: Vec::new(),
             instance_script: None,
             module_script: None,
             constant_vars: self.constant_vars.clone(),

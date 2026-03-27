@@ -1174,7 +1174,7 @@ fn try_parse_ident_or_member(
 
     // Check for dotted member expression: ident.ident.ident or ident?.ident
     // Build segments: (name, start_in_content, end_in_content)
-    let mut segments: Vec<(&str, usize, usize)> = Vec::with_capacity(4);
+    let mut segments: Vec<(&str, usize, usize)> = Vec::new();
     segments.push((&content[..first_ident_end], 0, first_ident_end));
 
     while pos < len {

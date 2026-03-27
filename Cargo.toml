@@ -116,6 +116,10 @@ name = "samply_target"
 path = "src/bin/samply_target.rs"
 
 [[bin]]
+name = "compile_profile"
+path = "src/bin/compile_profile.rs"
+
+[[bin]]
 name = "min_parse_cost"
 path = "src/bin/min_parse_cost.rs"
 

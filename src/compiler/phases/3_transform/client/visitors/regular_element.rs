@@ -179,8 +179,8 @@ pub fn visit_regular_element(
     // Categorize attributes in a single pass - also detect spread/use directives
     let attr_count = node.attributes.len();
     let mut attributes: Vec<&Attribute> = Vec::with_capacity(attr_count);
-    let mut class_directives: Vec<&ClassDirective> = Vec::with_capacity(4);
-    let mut style_directives: Vec<&StyleDirective> = Vec::with_capacity(4);
+    let mut class_directives: Vec<&ClassDirective> = Vec::new();
+    let mut style_directives: Vec<&StyleDirective> = Vec::new();
     let mut element_let_directives: Vec<&LetDirective> = Vec::new();
     let mut bindings: FxHashMap<String, &BindDirective> = FxHashMap::default();
     let mut has_spread = false;
@@ -249,8 +249,8 @@ pub fn visit_regular_element(
     // Create separate vectors for element-level state (directives that apply to this element)
     // Following JS implementation: element_state = { ...context.state, init: [], after_update: [] }
     // These will be merged AFTER child processing to ensure correct statement order.
-    let mut element_state_init: Vec<JsStatement> = Vec::with_capacity(8);
-    let mut element_state_after_update: Vec<JsStatement> = Vec::with_capacity(4);
+    let mut element_state_init: Vec<JsStatement> = Vec::new();
+    let mut element_state_after_update: Vec<JsStatement> = Vec::new();
 
     // Process other_directives in SOURCE ORDER to match the official compiler.
     // The official code collects all non-attribute directives into `other_directives`

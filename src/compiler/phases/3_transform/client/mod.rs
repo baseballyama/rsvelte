@@ -741,7 +741,7 @@ fn transform_client_with_visitors(
 
     // Build component function body
     // Pre-allocate for typical component body size
-    let mut component_body: Vec<JsStatement> = Vec::with_capacity(32);
+    let mut component_body: Vec<JsStatement> = Vec::new();
 
     // Add legacy $$sanitized_props / $$restProps / $$slots declarations at the top.
     // These must come BEFORE $.push().
@@ -1551,7 +1551,7 @@ fn transform_client_with_visitors(
 
     // Build program body
     // Pre-allocate for typical program structure
-    let mut body: Vec<JsStatement> = Vec::with_capacity(16);
+    let mut body: Vec<JsStatement> = Vec::new();
 
     // Add componentApi: 4 import (must come first)
     // Reference: transform-client.js line 570

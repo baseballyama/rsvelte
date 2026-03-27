@@ -52,7 +52,7 @@ pub struct JsArena {
 unsafe impl Send for JsArena {}
 
 impl JsArena {
-    /// Create a new arena with default capacity.
+    /// Create a new arena with pre-allocated capacity for typical component size.
     pub fn new() -> Self {
         Self {
             exprs: UnsafeCell::new(Vec::with_capacity(256)),
