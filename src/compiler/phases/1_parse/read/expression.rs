@@ -6991,47 +6991,46 @@ fn convert_variable_declarator_for_program(
     let end = offset + decl.span.end as usize;
     let loc = create_typed_loc(start, end, line_offsets);
 
-    // Convert the id (pattern) - convert to Value for potential mutation
-    let mut id_value = convert_binding_pattern(arena, &decl.id, offset, line_offsets).to_value();
+    // Convert the id (pattern).
+    // Only use JsNode::Raw when TypeScript type annotation is present,
+    // otherwise keep the typed JsNode so the scope builder's typed path works.
+    let id_pattern = convert_binding_pattern(arena, &decl.id, offset, line_offsets);
+    let id_node = if let Some(type_annotation) = &decl.type_annotation {
+        let mut id_value = id_pattern.to_value();
+        if let Value::Object(ref mut id_obj) = id_value {
+            let ts_start = type_annotation.span.start as usize + offset;
+            let ts_end = type_annotation.span.end as usize + offset;
 
-    // Add TypeScript type annotation if present on the declarator
-    if let Some(type_annotation) = &decl.type_annotation
-        && let Value::Object(ref mut id_obj) = id_value
-    {
-        let ts_start = type_annotation.span.start as usize + offset;
-        let ts_end = type_annotation.span.end as usize + offset;
+            let mut ts_obj = Map::new();
+            ts_obj.insert(
+                "type".to_string(),
+                Value::String("TSTypeAnnotation".to_string()),
+            );
+            ts_obj.insert("start".to_string(), Value::Number((ts_start as i64).into()));
+            ts_obj.insert("end".to_string(), Value::Number((ts_end as i64).into()));
+            if let Some(loc) = create_loc(ts_start, ts_end, line_offsets) {
+                ts_obj.insert("loc".to_string(), loc);
+            }
 
-        // Create TSTypeAnnotation object
-        let mut ts_obj = Map::new();
-        ts_obj.insert(
-            "type".to_string(),
-            Value::String("TSTypeAnnotation".to_string()),
-        );
-        ts_obj.insert("start".to_string(), Value::Number((ts_start as i64).into()));
-        ts_obj.insert("end".to_string(), Value::Number((ts_end as i64).into()));
-        if let Some(loc) = create_loc(ts_start, ts_end, line_offsets) {
-            ts_obj.insert("loc".to_string(), loc);
+            let type_value =
+                convert_ts_type(&type_annotation.type_annotation, offset, line_offsets);
+            ts_obj.insert("typeAnnotation".to_string(), type_value);
+
+            id_obj.insert("typeAnnotation".to_string(), Value::Object(ts_obj));
+
+            id_obj.insert("end".to_string(), Value::Number((ts_end as i64).into()));
+            if let Some(loc) = create_loc(
+                id_obj.get("start").and_then(|v| v.as_i64()).unwrap_or(0) as usize,
+                ts_end,
+                line_offsets,
+            ) {
+                id_obj.insert("loc".to_string(), loc);
+            }
         }
-
-        // Convert the actual TypeScript type
-        let type_value = convert_ts_type(&type_annotation.type_annotation, offset, line_offsets);
-        ts_obj.insert("typeAnnotation".to_string(), type_value);
-
-        id_obj.insert("typeAnnotation".to_string(), Value::Object(ts_obj));
-
-        // Update end position to include type annotation
-        id_obj.insert("end".to_string(), Value::Number((ts_end as i64).into()));
-        if let Some(loc) = create_loc(
-            id_obj.get("start").and_then(|v| v.as_i64()).unwrap_or(0) as usize,
-            ts_end,
-            line_offsets,
-        ) {
-            id_obj.insert("loc".to_string(), loc);
-        }
-    }
-
-    // Use JsNode::Raw for the id to preserve all fields (including typeAnnotation)
-    let id_node = arena.alloc_js_node(JsNode::Raw(id_value));
+        arena.alloc_js_node(JsNode::Raw(id_value))
+    } else {
+        arena.alloc_js_node(id_pattern)
+    };
 
     // Convert init if present
     let init_node = decl.init.as_ref().map(|init| {

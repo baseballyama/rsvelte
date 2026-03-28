@@ -953,6 +953,109 @@ impl<'a> ScopeBuilder<'a> {
                 let arg_node = self.arena.get_js_node(*argument);
                 self.process_binding_pattern_typed(arg_node, None, decl_kind);
             }
+            JsNode::Raw(json) => {
+                // Fallback for patterns stored as JSON (e.g., with TypeScript annotations).
+                let json_type = json.get("type").and_then(|t| t.as_str());
+                match json_type {
+                    Some("Identifier") => {
+                        if let Some(name) = json.get("name").and_then(|n| n.as_str()) {
+                            let kind = if let Some(init_id) = init {
+                                let init_node = self.arena.get_js_node(init_id);
+                                self.detect_binding_kind_from_node(init_node)
+                            } else {
+                                BindingKind::Normal
+                            };
+                            let start_val =
+                                json.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
+                            let idx = self.declare_binding(name.to_string(), kind, decl_kind);
+                            self.bindings[idx].declaration_start = Some(start_val);
+                            if let Some(init_id) = init {
+                                let init_node = self.arena.get_js_node(init_id);
+                                if matches!(
+                                    init_node,
+                                    JsNode::ArrowFunctionExpression { .. }
+                                        | JsNode::FunctionExpression { .. }
+                                ) {
+                                    self.bindings[idx].initial_is_function = true;
+                                }
+                            }
+                        }
+                    }
+                    Some("ObjectPattern") => {
+                        let is_props_init = init
+                            .map(|init_id| {
+                                let init_node = self.arena.get_js_node(init_id);
+                                matches!(
+                                    self.detect_binding_kind_from_node(init_node),
+                                    BindingKind::Prop
+                                )
+                            })
+                            .unwrap_or(false);
+                        if let Some(props) = json.get("properties").and_then(|p| p.as_array()) {
+                            for prop in props {
+                                let prop_type = prop.get("type").and_then(|t| t.as_str());
+                                match prop_type {
+                                    Some("Property") => {
+                                        if let Some(value) = prop.get("value") {
+                                            let node = JsNode::Raw(value.clone());
+                                            let node_id = self.arena.alloc_js_node(node);
+                                            let node_ref = self.arena.get_js_node(node_id);
+                                            self.process_binding_pattern_typed(
+                                                node_ref, None, decl_kind,
+                                            );
+                                        }
+                                    }
+                                    Some("RestElement") | Some("SpreadElement") => {
+                                        if is_props_init {
+                                            if let Some(arg) = prop.get("argument")
+                                                && arg.get("type").and_then(|t| t.as_str())
+                                                    == Some("Identifier")
+                                                && let Some(name) =
+                                                    arg.get("name").and_then(|n| n.as_str())
+                                            {
+                                                self.declare_binding(
+                                                    name.to_string(),
+                                                    BindingKind::RestProp,
+                                                    decl_kind,
+                                                );
+                                            }
+                                        } else if let Some(arg) = prop.get("argument") {
+                                            let node = JsNode::Raw(arg.clone());
+                                            let node_id = self.arena.alloc_js_node(node);
+                                            let node_ref = self.arena.get_js_node(node_id);
+                                            self.process_binding_pattern_typed(
+                                                node_ref, None, decl_kind,
+                                            );
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                    Some("ArrayPattern") => {
+                        if let Some(elements) = json.get("elements").and_then(|e| e.as_array()) {
+                            for elem in elements {
+                                if !elem.is_null() {
+                                    let node = JsNode::Raw(elem.clone());
+                                    let node_id = self.arena.alloc_js_node(node);
+                                    let node_ref = self.arena.get_js_node(node_id);
+                                    self.process_binding_pattern_typed(node_ref, None, decl_kind);
+                                }
+                            }
+                        }
+                    }
+                    Some("AssignmentPattern") => {
+                        if let Some(left) = json.get("left") {
+                            let node = JsNode::Raw(left.clone());
+                            let node_id = self.arena.alloc_js_node(node);
+                            let node_ref = self.arena.get_js_node(node_id);
+                            self.process_binding_pattern_typed(node_ref, init, decl_kind);
+                        }
+                    }
+                    _ => {}
+                }
+            }
             _ => {}
         }
     }

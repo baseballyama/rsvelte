@@ -10,14 +10,14 @@
 use crate::ast::template::{
     AttachTag, Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock,
     BindDirective, ClassDirective, Comment, Component, ConstTag, DebugTag, EachBlock,
-    ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, OnDirective, RegularElement, RenderTag,
-    SlotElement, SnippetBlock, SpreadAttribute, StyleDirective, SvelteComponentElement,
+    ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, LetDirective, OnDirective, RegularElement,
+    RenderTag, SlotElement, SnippetBlock, SpreadAttribute, StyleDirective, SvelteComponentElement,
     SvelteDynamicElement, SvelteElement, TemplateNode, Text, TitleElement, TransitionDirective,
     UseDirective,
 };
 
 use super::magic_string::MagicString;
-use super::svelte2tsx::Svelte2TsxOptions;
+use super::svelte2tsx::{Svelte2TsxOptions, SvelteVersion};
 
 // =============================================================================
 // TemplateNode position helpers
@@ -115,12 +115,18 @@ fn get_expression_text<'a>(expr: &crate::ast::js::Expression, source: &'a str) -
     }
 }
 
-/// Generate a reversed component variable name.
-/// Component → $$_tnenopmoC0C
+/// Generate a reversed component constructor variable name.
+/// Component → $$_tnenopmoC0C (always ends with 'C' for Constructor)
 fn reversed_component_name(name: &str, index: u32) -> String {
     let reversed: String = name.chars().rev().collect();
-    let first_char = name.chars().next().unwrap_or('C');
-    format!("$$_{}{}{}", reversed, index, first_char)
+    format!("$$_{}{}C", reversed, index)
+}
+
+/// Generate a reversed component instance variable name.
+/// Component → $$_tnenopmoC0 (no suffix)
+fn reversed_component_instance_name(name: &str, index: u32) -> String {
+    let reversed: String = name.chars().rev().collect();
+    format!("$$_{}{}", reversed, index)
 }
 
 /// Counter for generating unique variable names.
@@ -847,7 +853,23 @@ fn handle_regular_element(
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
 
     // Build attribute string
-    let attrs_str = build_attributes_string(&el.attributes, source);
+    let mut attrs_str = build_attributes_string(&el.attributes, source);
+
+    // Add extra whitespace to match JS svelte2tsx position-preserving behavior.
+    // The JS MagicString preserves whitespace between tag name and first attribute,
+    // plus the attribute handling adds an additional space. We replicate this by
+    // counting the original whitespace and using it as the leading padding.
+    if !el.attributes.is_empty() && !attrs_str.is_empty() {
+        let extra_spaces = count_tag_to_attr_spaces(&el.name, el.start, source);
+        // Replace the default leading space with the original whitespace
+        // The extra_spaces count represents spaces from the source; the JS svelte2tsx
+        // preserves these spaces plus adds its own leading space.
+        if extra_spaces > 1 {
+            let mut padded = " ".repeat(extra_spaces);
+            padded.push_str(attrs_str.trim_start());
+            attrs_str = padded;
+        }
+    }
 
     // Overwrite the entire opening tag.
     // Leading space preserves approximate column positions (matching JS svelte2tsx).
@@ -863,20 +885,22 @@ fn handle_regular_element(
     // Find and overwrite the closing tag
     let closing_tag_start = find_closing_tag_start(source, el.end);
     if closing_tag_start < el.end {
+        // Non-self-closing: preserve space before closing brace
         str.overwrite(closing_tag_start, el.end, " }");
     } else {
-        // Self-closing element - append closing brace
-        str.append_left(el.end, " }");
+        // Self-closing element: close block without leading space
+        str.append_left(el.end, "}");
     }
 }
 
 /// Handle a Svelte component: `<Component ...>`.
 ///
-/// Generates:
-/// ```text
-/// { const $$_tnenopmoC0C = __sveltets_2_ensureComponent(Component);
-///   new $$_tnenopmoC0C({ target: __sveltets_2_any(), props: {"prop":val,}});}
-/// ```
+/// Supports:
+/// - `on:` directives → instance variable + `.$on()` calls
+/// - `let:` directives → instance variable + `$$slot_def` destructuring
+/// - Svelte 5 `children` prop when component has children
+/// - Named slots via `slot="name"` on children
+/// - Component name in closing tag for non-self-closing components
 fn handle_component(
     comp: &Component,
     source: &str,
@@ -889,32 +913,429 @@ fn handle_component(
     }
 
     let idx = counter.next();
-    let var_name = reversed_component_name(&comp.name, idx);
+    let ctor_var = reversed_component_name(&comp.name, idx);
 
     // Find the end of the opening tag
     let opening_tag_end = find_opening_tag_end(source, comp.start, comp.end);
 
-    // Build attribute/props string
-    let attrs_str = build_attributes_string(&comp.attributes, source);
+    // Collect on: directives and let: directives
+    let on_directives = get_on_directives(&comp.attributes);
+    let has_events = !on_directives.is_empty();
+    let let_directives = get_let_directives(&comp.attributes);
+    let has_lets = !let_directives.is_empty();
+
+    // Check if component has meaningful children
+    let has_children = has_component_slot_children(&comp.fragment, source);
+
+    // Check if any children have named slots with let: directives
+    let children_have_named_slots = has_named_slot_children(&comp.fragment, source);
+
+    // An instance variable is needed when:
+    // - there are on: directives
+    // - there are let: directives on the component
+    // - there are children with slot="name" that have let: directives
+    let needs_instance = has_events || has_lets || children_have_named_slots;
+
+    // Check if Svelte 5 children prop is needed
+    let is_svelte5 = matches!(options.version, SvelteVersion::V5);
+
+    // Build attribute/props string (excluding on: and let: directives)
+    let mut attrs_str = build_component_props_string(&comp.attributes, source);
+
+    // Add extra whitespace to match JS svelte2tsx position-preserving behavior
+    if !comp.attributes.is_empty() && !attrs_str.is_empty() {
+        let extra_spaces = count_tag_to_attr_spaces(&comp.name, comp.start, source);
+        if extra_spaces >= 1 {
+            let total_spaces = extra_spaces + 1;
+            let mut padded = " ".repeat(total_spaces);
+            padded.push_str(attrs_str.trim_start());
+            attrs_str = padded;
+        }
+    }
+
+    // Add children prop for Svelte 5 if component has children
+    let children_prop = if is_svelte5 && has_children {
+        "children:() => { return __sveltets_2_any(0); },"
+    } else {
+        ""
+    };
 
     // Build the replacement for the opening tag
-    // Leading space preserves approximate column positions (matching JS svelte2tsx).
-    let opener = format!(
-        " {{ const {} = __sveltets_2_ensureComponent({}); new {}({{ target: __sveltets_2_any(), props: {{{}}}}});",
-        var_name, comp.name, var_name, attrs_str
-    );
+    let inst_var = reversed_component_instance_name(&comp.name, idx);
+    let opener = if needs_instance {
+        let on_calls = if has_events {
+            build_on_calls(&inst_var, &on_directives, source)
+        } else {
+            String::new()
+        };
+        format!(
+            " {{ const {} = __sveltets_2_ensureComponent({}); const {} = new {}({{ target: __sveltets_2_any(), props: {{{}{}}}}});{}",
+            ctor_var, comp.name, inst_var, ctor_var, attrs_str, children_prop, on_calls
+        )
+    } else {
+        format!(
+            " {{ const {} = __sveltets_2_ensureComponent({}); new {}({{ target: __sveltets_2_any(), props: {{{}{}}}}});",
+            ctor_var, comp.name, ctor_var, attrs_str, children_prop
+        )
+    };
     str.overwrite(comp.start, opening_tag_end, &opener);
 
-    // Process children (slot content)
-    process_fragment_inplace(&comp.fragment, source, options, str, counter);
+    // Handle children with slot awareness
+    if has_lets || children_have_named_slots {
+        // Process children with slot scoping
+        process_component_children_with_slots(
+            comp,
+            &inst_var,
+            &let_directives,
+            source,
+            options,
+            str,
+            counter,
+        );
+    } else {
+        // Simple children processing (no slot scoping needed)
+        process_fragment_inplace(&comp.fragment, source, options, str, counter);
+    }
 
     // Handle closing tag
     let closing_tag_start = find_closing_tag_start(source, comp.end);
-    if closing_tag_start < comp.end {
-        str.overwrite(closing_tag_start, comp.end, "}");
+    let is_self_closing = closing_tag_start >= comp.end;
+
+    if !is_self_closing {
+        // Non-self-closing: output component name before closing brace
+        // A space before the name matches JS svelte2tsx output
+        str.overwrite(closing_tag_start, comp.end, &format!(" {}}}", comp.name));
     } else {
         str.append_left(comp.end, "}");
     }
+}
+
+/// Check if a component's fragment has meaningful children for slot purposes.
+///
+/// Returns true if the component has any non-text children, or text children
+/// with non-whitespace content.
+fn has_component_slot_children(fragment: &Fragment, source: &str) -> bool {
+    for node in &fragment.nodes {
+        match node {
+            TemplateNode::Text(text) => {
+                // Check if text has non-whitespace content
+                if text.start < text.end {
+                    let content = &source[text.start as usize..text.end as usize];
+                    if content.chars().any(|c| !c.is_whitespace()) {
+                        return true;
+                    }
+                }
+            }
+            _ => return true,
+        }
+    }
+    false
+}
+
+/// Check if any children have `slot="name"` attributes (named slots).
+fn has_named_slot_children(fragment: &Fragment, source: &str) -> bool {
+    for node in &fragment.nodes {
+        match node {
+            TemplateNode::RegularElement(el) => {
+                if get_slot_attr_value(&el.attributes, source).is_some() {
+                    return true;
+                }
+            }
+            TemplateNode::Component(comp) => {
+                if get_slot_attr_value(&comp.attributes, source).is_some() {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+/// Process component children with slot awareness.
+///
+/// This handles:
+/// - Default slot wrapping with `let:` destructuring
+/// - Named slot wrapping with `slot="name"` children
+fn process_component_children_with_slots(
+    comp: &Component,
+    inst_var: &str,
+    let_directives: &[&LetDirective],
+    source: &str,
+    options: &Svelte2TsxOptions,
+    str: &mut MagicString,
+    counter: &mut Counter,
+) {
+    let has_lets = !let_directives.is_empty();
+
+    // Build the default slot destructuring if needed
+    let let_destructure = build_let_destructure_string(let_directives, source);
+
+    // Group children into default slot and named slots
+    // For each child, determine if it belongs to a named slot or the default slot
+    // Named slot children get their own $$slot_def blocks
+    // Default slot children are wrapped in a single block with the component's let: destructuring
+
+    // We need to track which children are named slots and process them specially.
+    // The approach: iterate over children, and for each named-slot child, emit
+    // a separate $$slot_def block. Non-named-slot children are part of the default slot.
+    //
+    // The default slot block is opened before the first default slot child and closed
+    // after the last one (or before the first named slot child).
+
+    let mut default_slot_opened = false;
+    let mut prev_end: Option<u32> = None;
+
+    // If there are let: directives, we need to open the default slot block
+    // before any children (including text nodes).
+    if has_lets {
+        // We'll open the default slot block at the position of the first child
+        // or immediately after the opening tag
+        let block_open = format!(
+            "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
+            let_destructure, inst_var
+        );
+
+        // Find where to insert the block open
+        if let Some(first_node) = comp.fragment.nodes.first() {
+            let first_start = first_node.start();
+            // Insert the block opening before the first child
+            str.append_left(first_start, &block_open);
+        }
+        default_slot_opened = true;
+    }
+
+    for (i, node) in comp.fragment.nodes.iter().enumerate() {
+        let is_named_slot = match node {
+            TemplateNode::RegularElement(el) => {
+                get_slot_attr_value(&el.attributes, source).is_some()
+            }
+            TemplateNode::Component(child_comp) => {
+                get_slot_attr_value(&child_comp.attributes, source).is_some()
+            }
+            _ => false,
+        };
+
+        if is_named_slot {
+            // Close the default slot block if it's open, before this named slot child
+            if default_slot_opened && has_lets {
+                // Close the default slot block before this named slot
+                str.append_left(node.start(), "}");
+                default_slot_opened = false;
+            }
+
+            // Process the named slot child
+            match node {
+                TemplateNode::RegularElement(el) => {
+                    handle_named_slot_element(el, inst_var, source, options, str, counter);
+                }
+                TemplateNode::Component(child_comp) => {
+                    handle_named_slot_component(
+                        child_comp, inst_var, source, options, str, counter,
+                    );
+                }
+                _ => {
+                    process_node_inplace(node, source, options, str, counter);
+                }
+            }
+
+            // Re-open default slot block after this named slot child if needed
+            if has_lets {
+                // Check if there are more non-named-slot children after this
+                let has_more_default = comp.fragment.nodes[i + 1..].iter().any(|n| match n {
+                    TemplateNode::RegularElement(el) => {
+                        get_slot_attr_value(&el.attributes, source).is_none()
+                    }
+                    TemplateNode::Component(c) => {
+                        get_slot_attr_value(&c.attributes, source).is_none()
+                    }
+                    TemplateNode::Text(_) => true,
+                    _ => true,
+                });
+
+                // Don't re-open if there are no more default slot children
+                // Actually, we should re-open for any remaining children
+                // We'll handle this below
+            }
+        } else {
+            // Default slot child - process normally
+            // If the default slot block was closed for a named slot, re-open it
+            if has_lets && !default_slot_opened {
+                let block_open = format!(
+                    "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
+                    let_destructure, inst_var
+                );
+                str.append_left(node.start(), &block_open);
+                default_slot_opened = true;
+            }
+            process_node_inplace(node, source, options, str, counter);
+        }
+
+        prev_end = Some(node.end());
+    }
+
+    // Close the default slot block if still open
+    if default_slot_opened && has_lets {
+        // Find the position to close: after the last node, before the closing tag
+        if let Some(end) = prev_end {
+            let closing_tag_start = find_closing_tag_start(source, comp.end);
+            if closing_tag_start < comp.end {
+                str.append_left(closing_tag_start, "}");
+            } else {
+                str.append_left(end, "}");
+            }
+        }
+    }
+}
+
+/// Handle a regular element child with `slot="name"` attribute inside a component.
+///
+/// Wraps the element in a `$$slot_def["name"]` destructuring block.
+fn handle_named_slot_element(
+    el: &RegularElement,
+    inst_var: &str,
+    source: &str,
+    options: &Svelte2TsxOptions,
+    str: &mut MagicString,
+    counter: &mut Counter,
+) {
+    let slot_name = get_slot_attr_value(&el.attributes, source).unwrap_or_default();
+    let let_directives = get_let_directives(&el.attributes);
+    let let_destructure =
+        build_let_destructure_string(&let_directives.iter().copied().collect::<Vec<_>>(), source);
+
+    // Build the slot def block opener
+    let block_open = format!(
+        "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def[\"{}\"];$$_$$;",
+        let_destructure, inst_var, slot_name
+    );
+
+    // Build attributes string excluding `slot` and `let:` directives
+    let attrs_str = build_named_slot_element_attrs(&el.attributes, source);
+
+    let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
+
+    // Build the let variable expressions (for class: directives referencing let vars)
+    let let_var_exprs = build_let_var_expressions(&let_directives, source);
+
+    let opener = format!(
+        "{}{{ svelteHTML.createElement(\"{}\", {{{}}});{}",
+        block_open, el.name, attrs_str, let_var_exprs
+    );
+    str.overwrite(el.start, opening_tag_end, &opener);
+
+    process_fragment_inplace(&el.fragment, source, options, str, counter);
+
+    let closing_tag_start = find_closing_tag_start(source, el.end);
+    if closing_tag_start < el.end {
+        str.overwrite(closing_tag_start, el.end, " }}");
+    } else {
+        str.append_left(el.end, " }}");
+    }
+}
+
+/// Handle a component child with `slot="name"` attribute inside a parent component.
+fn handle_named_slot_component(
+    comp: &Component,
+    inst_var: &str,
+    source: &str,
+    options: &Svelte2TsxOptions,
+    str: &mut MagicString,
+    counter: &mut Counter,
+) {
+    let slot_name = get_slot_attr_value(&comp.attributes, source).unwrap_or_default();
+    let let_directives = get_let_directives(&comp.attributes);
+    let let_destructure =
+        build_let_destructure_string(&let_directives.iter().copied().collect::<Vec<_>>(), source);
+
+    // Build the slot def block opener
+    let block_open = format!(
+        "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def[\"{}\"];$$_$$;",
+        let_destructure, inst_var, slot_name
+    );
+
+    // Insert the block opener before the component
+    str.append_left(comp.start, &block_open);
+
+    // Process the component normally (but without the slot/let: attributes affecting it)
+    handle_component(comp, source, options, str, counter);
+
+    // Close the named slot block
+    str.append_left(comp.end, "}");
+}
+
+/// Build attribute string for a named slot element, excluding `slot` and `let:` directives.
+fn build_named_slot_element_attrs(attributes: &[Attribute], source: &str) -> String {
+    let mut parts: Vec<String> = Vec::new();
+
+    for attr in attributes {
+        match attr {
+            Attribute::Attribute(node) => {
+                if node.name == "slot" {
+                    continue;
+                }
+                if let Some(s) = format_attribute_node(node, source) {
+                    parts.push(s);
+                }
+            }
+            Attribute::SpreadAttribute(spread) => {
+                if let Some(s) = format_spread_attribute(spread, source) {
+                    parts.push(s);
+                }
+            }
+            Attribute::BindDirective(bind) => {
+                parts.push(format_bind_directive(bind, source));
+            }
+            Attribute::OnDirective(on) => {
+                parts.push(format_on_directive(on, source));
+            }
+            Attribute::ClassDirective(class) => {
+                // For named slots, class directives using let vars become just the var name
+                parts.push(format_class_directive(class, source));
+            }
+            Attribute::StyleDirective(style) => {
+                parts.push(format_style_directive(style, source));
+            }
+            Attribute::TransitionDirective(transition) => {
+                if let Some(s) = format_transition_directive(transition, source) {
+                    parts.push(s);
+                }
+            }
+            Attribute::UseDirective(use_dir) => {
+                if let Some(s) = format_use_directive(use_dir, source) {
+                    parts.push(s);
+                }
+            }
+            // Skip let: directives and animate
+            Attribute::AnimateDirective(_) | Attribute::LetDirective(_) => {}
+            Attribute::AttachTag(_) => {}
+        }
+    }
+
+    let result = parts.join("");
+    if result.is_empty() {
+        result
+    } else {
+        format!(" {}", result)
+    }
+}
+
+/// Build expression statements for let: directive variables.
+///
+/// For `let:slotvar={newvar}`, the class:newvar directive may reference `newvar`,
+/// which needs to appear as a statement `newvar;` after the element opener.
+fn build_let_var_expressions(let_directives: &[&LetDirective], source: &str) -> String {
+    let mut result = String::new();
+    for let_dir in let_directives {
+        if let Some(ref expr) = let_dir.expression {
+            let expr_text = get_expression_text(expr, source);
+            result.push_str(expr_text);
+            result.push(';');
+        } else {
+            // The shorthand let:name doesn't produce an expression
+        }
+    }
+    result
 }
 
 /// Handle `<svelte:component this={expr}>`.
@@ -931,14 +1352,43 @@ fn handle_svelte_component(
 
     let expr_text = get_expression_text(&comp.expression, source);
     let idx = counter.next();
+    // Use "svelte:component" as the name for variable naming, with ':' replaced by '_'
+    let scomp_name = "svelte:component".replace(':', "_");
 
     let opening_tag_end = find_opening_tag_end(source, comp.start, comp.end);
-    let attrs_str = build_attributes_string(&comp.attributes, source);
 
-    let opener = format!(
-        " {{ const $$_scomp{} = __sveltets_2_ensureComponent({}); new $$_scomp{}({{ target: __sveltets_2_any(), props: {{{}}}}});",
-        idx, expr_text, idx, attrs_str
-    );
+    // Collect on: directives
+    let on_directives = get_on_directives(&comp.attributes);
+    let has_events = !on_directives.is_empty();
+
+    // Build attribute/props string (excluding on: directives)
+    let mut attrs_str = build_component_props_string(&comp.attributes, source);
+
+    // Add extra whitespace to match JS svelte2tsx position-preserving behavior
+    if !comp.attributes.is_empty() && !attrs_str.is_empty() {
+        let extra_spaces = count_tag_to_attr_spaces("svelte:component", comp.start, source);
+        if extra_spaces >= 1 {
+            let total_spaces = extra_spaces + 1;
+            let mut padded = " ".repeat(total_spaces);
+            padded.push_str(attrs_str.trim_start());
+            attrs_str = padded;
+        }
+    }
+
+    let ctor_var = reversed_component_name(&scomp_name, idx);
+    let opener = if has_events {
+        let inst_var = reversed_component_instance_name(&scomp_name, idx);
+        let on_calls = build_on_calls(&inst_var, &on_directives, source);
+        format!(
+            " {{ const {} = __sveltets_2_ensureComponent({}); const {} = new {}({{ target: __sveltets_2_any(), props: {{{}}}}});{}",
+            ctor_var, expr_text, inst_var, ctor_var, attrs_str, on_calls
+        )
+    } else {
+        format!(
+            " {{ const {} = __sveltets_2_ensureComponent({}); new {}({{ target: __sveltets_2_any(), props: {{{}}}}});",
+            ctor_var, expr_text, ctor_var, attrs_str
+        )
+    };
     str.overwrite(comp.start, opening_tag_end, &opener);
 
     process_fragment_inplace(&comp.fragment, source, options, str, counter);
@@ -1015,6 +1465,11 @@ fn handle_title_element(
 }
 
 /// Handle `<slot>` element.
+///
+/// Generates `{ __sveltets_createSlot("name", { attrs }); fallback_children }`.
+///
+/// The slot name is determined by the `name` attribute (default: "default").
+/// Other attributes become slot props. `bind:this` gets special handling.
 fn handle_slot_element(
     el: &SlotElement,
     source: &str,
@@ -1027,18 +1482,66 @@ fn handle_slot_element(
     }
 
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
-    let attrs_str = build_attributes_string(&el.attributes, source);
 
-    let opener = format!(" {{ svelteHTML.createElement(\"slot\", {{{}}});", attrs_str);
+    // Extract the slot name from attributes (default: "default")
+    let slot_name = get_slot_name(&el.attributes, source);
+
+    // Check for bind:this directive
+    let bind_this_expr = get_bind_this_expr(&el.attributes, source);
+
+    // Build slot props string (excluding `name` attribute and `bind:this`)
+    let slot_props = build_slot_props_string(&el.attributes, source);
+
+    // Build the slot call
+    let opener = if bind_this_expr.is_some() {
+        format!(
+            " {{ const $$_slot{} = __sveltets_createSlot(\"{}\", {{{}}});",
+            counter.next(),
+            slot_name,
+            slot_props
+        )
+    } else {
+        format!(
+            " {{ __sveltets_createSlot(\"{}\", {{{}}});",
+            slot_name, slot_props
+        )
+    };
     str.overwrite(el.start, opening_tag_end, &opener);
 
+    // Process fallback children
     process_fragment_inplace(&el.fragment, source, options, str, counter);
 
+    // Handle closing tag
     let closing_tag_start = find_closing_tag_start(source, el.end);
     if closing_tag_start < el.end {
-        str.overwrite(closing_tag_start, el.end, " }");
+        if let Some(ref bind_expr) = bind_this_expr {
+            // For bind:this, assign the slot variable: `s = $$_slot0;}
+            str.overwrite(
+                closing_tag_start,
+                el.end,
+                &format!(
+                    "{} = $$_slot{};}}",
+                    bind_expr,
+                    counter.value.saturating_sub(1) // use the counter value from the opener
+                ),
+            );
+        } else {
+            str.overwrite(closing_tag_start, el.end, " }");
+        }
     } else {
-        str.append_left(el.end, " }");
+        // Self-closing slot
+        if let Some(ref bind_expr) = bind_this_expr {
+            let slot_idx = counter.value.saturating_sub(1);
+            str.overwrite(
+                el.end - 2, // rewrite the `/>` portion
+                el.end,
+                &format!("{} = $$_slot{};}}", bind_expr, slot_idx),
+            );
+        } else {
+            // Self-closing without bind:this - just close the block
+            // The `/>` is part of the opening tag which was already overwritten
+            str.append_left(el.end, "}");
+        }
     }
 }
 
@@ -1055,7 +1558,18 @@ fn handle_svelte_special_element(
     }
 
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
-    let attrs_str = build_attributes_string(&el.attributes, source);
+    let mut attrs_str = build_attributes_string(&el.attributes, source);
+
+    // Add extra whitespace to match JS svelte2tsx position-preserving behavior
+    if !el.attributes.is_empty() && !attrs_str.is_empty() {
+        let extra_spaces = count_tag_to_attr_spaces(&el.name, el.start, source);
+        if extra_spaces >= 1 {
+            let total_spaces = extra_spaces + 1;
+            let mut padded = " ".repeat(total_spaces);
+            padded.push_str(attrs_str.trim_start());
+            attrs_str = padded;
+        }
+    }
 
     let opener = format!(
         " {{ svelteHTML.createElement(\"{}\", {{{}}});",
@@ -1069,7 +1583,7 @@ fn handle_svelte_special_element(
     if closing_tag_start < el.end {
         str.overwrite(closing_tag_start, el.end, " }");
     } else {
-        str.append_left(el.end, " }");
+        str.append_left(el.end, "}");
     }
 }
 
@@ -1137,7 +1651,122 @@ fn build_attributes_string(attributes: &[Attribute], source: &str) -> String {
     }
 }
 
+/// Build the attributes/props string for a component, excluding `on:` directives.
+///
+/// `on:` directives on components become `.$on()` calls instead of props,
+/// so they are filtered out here.
+///
+/// When `on:` directives are present but filtered out, a space is added inside
+/// the empty braces to match the JS svelte2tsx output: `props: { }`.
+fn build_component_props_string(attributes: &[Attribute], source: &str) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    let mut has_on_directives = false;
+    let mut let_count = 0u32;
+
+    for attr in attributes {
+        match attr {
+            Attribute::Attribute(node) => {
+                // Skip the `slot` attribute on components (it's for named slot targeting)
+                if node.name == "slot" {
+                    continue;
+                }
+                if let Some(s) = format_attribute_node(node, source) {
+                    parts.push(s);
+                }
+            }
+            Attribute::SpreadAttribute(spread) => {
+                if let Some(s) = format_spread_attribute(spread, source) {
+                    parts.push(s);
+                }
+            }
+            Attribute::BindDirective(bind) => {
+                parts.push(format_bind_directive(bind, source));
+            }
+            Attribute::OnDirective(_) => {
+                // Excluded from component props - handled as $on() calls
+                has_on_directives = true;
+            }
+            Attribute::ClassDirective(class) => {
+                parts.push(format_class_directive(class, source));
+            }
+            Attribute::StyleDirective(style) => {
+                parts.push(format_style_directive(style, source));
+            }
+            Attribute::TransitionDirective(transition) => {
+                if let Some(s) = format_transition_directive(transition, source) {
+                    parts.push(s);
+                }
+            }
+            Attribute::UseDirective(use_dir) => {
+                if let Some(s) = format_use_directive(use_dir, source) {
+                    parts.push(s);
+                }
+            }
+            Attribute::LetDirective(_) => {
+                // Let directives don't produce props but add a space to match
+                // JS svelte2tsx whitespace behavior
+                let_count += 1;
+            }
+            Attribute::AnimateDirective(_) => {
+                // Animate directives don't produce TSX output
+            }
+            Attribute::AttachTag(_) => {
+                // Attach tags on elements don't produce TSX attribute output
+            }
+        }
+    }
+
+    let result = parts.join("");
+    let let_spaces = " ".repeat(let_count as usize);
+    if result.is_empty() {
+        if has_on_directives && let_count == 0 {
+            // When only on: directives were filtered out, add a space inside the
+            // empty braces to match JS svelte2tsx output: `props: { }`
+            " ".to_string()
+        } else if let_count > 0 {
+            // Each let: directive adds a space to match JS svelte2tsx whitespace
+            let_spaces
+        } else {
+            result
+        }
+    } else {
+        // Add let: directive spaces before the regular props
+        format!(" {}{}", let_spaces, result)
+    }
+}
+
+/// Collect references to all `on:` directives from an attribute list.
+fn get_on_directives(attributes: &[Attribute]) -> Vec<&OnDirective> {
+    attributes
+        .iter()
+        .filter_map(|attr| match attr {
+            Attribute::OnDirective(on) => Some(on),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Build `.$on()` call strings for a set of on directives.
+///
+/// Each directive becomes `inst.$on("eventName", handler);`
+/// If no handler expression, uses `() => {}`.
+fn build_on_calls(inst_var: &str, on_directives: &[&OnDirective], source: &str) -> String {
+    let mut calls = String::new();
+    for on in on_directives {
+        let handler = if let Some(ref expr) = on.expression {
+            get_expression_text(expr, source).to_string()
+        } else {
+            "() => {}".to_string()
+        };
+        calls.push_str(&format!("{}.$on(\"{}\", {});", inst_var, on.name, handler));
+    }
+    calls
+}
+
 /// Format a regular attribute: `name="value"` → `"name":\`value\`,`
+///
+/// Shorthand attributes like `{propB}` (where name equals expression text)
+/// produce `propB,` instead of `"propB":propB,`.
 fn format_attribute_node(node: &AttributeNode, source: &str) -> Option<String> {
     let name = &node.name;
 
@@ -1149,9 +1778,23 @@ fn format_attribute_node(node: &AttributeNode, source: &str) -> Option<String> {
         AttributeValue::Expression(expr) => {
             // Expression value: `name={expr}` → `"name":expr,`
             let expr_text = get_expression_text(&expr.expression, source);
-            Some(format!("\"{}\":{},", name, expr_text))
+            // Check for shorthand: `{propB}` where name equals expression text
+            if name.as_str() == expr_text {
+                Some(format!("{},", name))
+            } else {
+                Some(format!("\"{}\":{},", name, expr_text))
+            }
         }
         AttributeValue::Sequence(parts) => {
+            // Special case: if the sequence is a single expression like `e="{b}"`,
+            // output `"e":b,` (just the expression value) instead of `"e":\`${b}\`,`
+            if parts.len() == 1 {
+                if let AttributeValuePart::ExpressionTag(expr) = &parts[0] {
+                    let expr_text = get_expression_text(&expr.expression, source);
+                    return Some(format!("\"{}\":{},", name, expr_text));
+                }
+            }
+
             // Text or mixed content: `name="text {expr} text"` → `"name":\`text ${expr} text\`,`
             let mut value_parts = Vec::new();
             for part in parts {
@@ -1263,6 +1906,205 @@ fn format_use_directive(use_dir: &UseDirective, source: &str) -> Option<String> 
     }
 }
 
+/// Count the number of whitespace characters between the tag name and the
+/// first attribute in the opening tag source. This preserves whitespace
+/// that the JS svelte2tsx would keep via MagicString in-place editing.
+///
+/// For `<Test b="6" />`, returns 1 (the space between `Test` and `b`).
+/// For `<div class="foo">`, returns 1.
+/// For `<Component\n  prop>`, returns 3 (newline + 2 spaces).
+fn count_tag_to_attr_spaces(tag_name: &str, el_start: u32, source: &str) -> usize {
+    let name_end = el_start as usize + 1 + tag_name.len(); // +1 for '<'
+    let bytes = source.as_bytes();
+    let mut count = 0;
+    let mut i = name_end;
+    let end = source.len();
+    while i < end {
+        let ch = bytes[i];
+        if ch == b' ' || ch == b'\t' || ch == b'\n' || ch == b'\r' {
+            count += 1;
+            i += 1;
+        } else {
+            break;
+        }
+    }
+    count
+}
+
+// =============================================================================
+// Slot Helpers
+// =============================================================================
+
+/// Extract the slot name from a `<slot>` element's attributes.
+/// Returns "default" if no `name` attribute is present.
+fn get_slot_name(attributes: &[Attribute], source: &str) -> String {
+    for attr in attributes {
+        if let Attribute::Attribute(node) = attr {
+            if node.name == "name" {
+                match &node.value {
+                    AttributeValue::Sequence(parts) => {
+                        // name="header" → parts is a single Text
+                        let mut name = String::new();
+                        for part in parts {
+                            if let AttributeValuePart::Text(text) = part {
+                                name.push_str(&text.raw);
+                            }
+                        }
+                        if !name.is_empty() {
+                            return name;
+                        }
+                    }
+                    AttributeValue::Expression(expr) => {
+                        // name={expr} - use the expression text
+                        return get_expression_text(&expr.expression, source).to_string();
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    "default".to_string()
+}
+
+/// Get the `bind:this` expression text from a slot element's attributes.
+fn get_bind_this_expr<'a>(attributes: &'a [Attribute], source: &'a str) -> Option<String> {
+    for attr in attributes {
+        if let Attribute::BindDirective(bind) = attr {
+            if bind.name == "this" {
+                return Some(get_expression_text(&bind.expression, source).to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Build the props string for a `<slot>` element.
+///
+/// Excludes the `name` attribute and `bind:this` directive.
+/// Format matches `__sveltets_createSlot("name", { props })`.
+fn build_slot_props_string(attributes: &[Attribute], source: &str) -> String {
+    let mut parts: Vec<String> = Vec::new();
+
+    for attr in attributes {
+        match attr {
+            Attribute::Attribute(node) => {
+                // Skip the `name` attribute - it determines the slot name, not a prop
+                if node.name == "name" {
+                    continue;
+                }
+                if let Some(s) = format_attribute_node(node, source) {
+                    parts.push(s);
+                }
+            }
+            Attribute::SpreadAttribute(spread) => {
+                if let Some(s) = format_spread_attribute(spread, source) {
+                    parts.push(s);
+                }
+            }
+            Attribute::BindDirective(bind) => {
+                // Skip bind:this on slot elements
+                if bind.name == "this" {
+                    continue;
+                }
+                parts.push(format_bind_directive(bind, source));
+            }
+            _ => {
+                // Other directives are not typical on slot elements
+            }
+        }
+    }
+
+    let result = parts.join("");
+    if result.is_empty() {
+        // Empty props: `{ }` with a space
+        " ".to_string()
+    } else {
+        format!(" {}", result)
+    }
+}
+
+/// Collect `let:` directives from an attribute list.
+fn get_let_directives(attributes: &[Attribute]) -> Vec<&LetDirective> {
+    attributes
+        .iter()
+        .filter_map(|attr| match attr {
+            Attribute::LetDirective(let_dir) => Some(let_dir),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Build the `let:` destructuring string for slot definitions.
+///
+/// Given `let:name={n} let:thing let:whatever={{ bla }}`, produces:
+/// `name:n,thing,whatever:{ bla },`
+fn build_let_destructure_string(let_directives: &[&LetDirective], source: &str) -> String {
+    let mut parts = Vec::new();
+    for let_dir in let_directives {
+        if let Some(ref expr) = let_dir.expression {
+            let expr_text = get_expression_text(expr, source);
+            parts.push(format!("{}:{},", let_dir.name, expr_text));
+        } else {
+            // Shorthand: `let:thing` → `thing,`
+            parts.push(format!("{},", let_dir.name));
+        }
+    }
+    parts.join("")
+}
+
+/// Check if a component has meaningful children (non-whitespace content).
+fn has_meaningful_children(fragment: &Fragment) -> bool {
+    for node in &fragment.nodes {
+        match node {
+            TemplateNode::Text(text) => {
+                // Check if text contains non-whitespace
+                if text.start < text.end {
+                    return true;
+                }
+            }
+            _ => return true,
+        }
+    }
+    false
+}
+
+/// Get the `slot` attribute value from a regular element's attributes.
+/// Returns None if no `slot` attribute is present.
+fn get_slot_attr_value(attributes: &[Attribute], source: &str) -> Option<String> {
+    for attr in attributes {
+        if let Attribute::Attribute(node) = attr {
+            if node.name == "slot" {
+                match &node.value {
+                    AttributeValue::Sequence(parts) => {
+                        let mut name = String::new();
+                        for part in parts {
+                            if let AttributeValuePart::Text(text) = part {
+                                name.push_str(&text.raw);
+                            }
+                        }
+                        if !name.is_empty() {
+                            return Some(name);
+                        }
+                    }
+                    AttributeValue::Expression(expr) => {
+                        return Some(get_expression_text(&expr.expression, source).to_string());
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Count the number of `let:` directives in an attribute list.
+fn count_let_directives(attributes: &[Attribute]) -> usize {
+    attributes
+        .iter()
+        .filter(|attr| matches!(attr, Attribute::LetDirective(_)))
+        .count()
+}
+
 // =============================================================================
 // Source Position Helpers
 // =============================================================================
@@ -1362,6 +2204,16 @@ mod tests {
     #[test]
     fn test_reversed_component_name() {
         assert_eq!(reversed_component_name("Component", 0), "$$_tnenopmoC0C");
-        assert_eq!(reversed_component_name("Foo", 1), "$$_ooF1F");
+        assert_eq!(reversed_component_name("Foo", 1), "$$_ooF1C");
+        assert_eq!(reversed_component_name("Button", 0), "$$_nottuB0C");
+    }
+
+    #[test]
+    fn test_reversed_component_instance_name() {
+        assert_eq!(
+            reversed_component_instance_name("Component", 0),
+            "$$_tnenopmoC0"
+        );
+        assert_eq!(reversed_component_instance_name("Button", 0), "$$_nottuB0");
     }
 }

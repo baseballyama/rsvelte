@@ -179,8 +179,8 @@ pub fn svelte2tsx(
     // Step 2: Determine component name from filename
     let component_name = derive_component_name(&options.filename);
 
-    // Step 3: Detect runes mode
-    let _uses_runes = options.runes.unwrap_or_else(|| detect_runes_mode(&ast));
+    // Step 3: Detect runes mode (preliminary check from svelte:options)
+    let explicit_runes = options.runes.unwrap_or_else(|| detect_runes_mode(&ast));
 
     // Step 4: Create the MagicString for in-place source manipulation
     let mut str = MagicString::new(source);
@@ -188,6 +188,10 @@ pub fn svelte2tsx(
     // Step 5: Initialize tracking structures
     let mut exported_names = ExportedNames::new();
     let mut events = ComponentEvents::new();
+
+    if explicit_runes {
+        exported_names.set_uses_runes(true);
+    }
 
     // Step 6: Process module script (<script context="module">)
     if let Some(ref module) = ast.module {
@@ -211,6 +215,10 @@ pub fn svelte2tsx(
             str.overwrite(css.start, css.end, "");
         }
     }
+
+    // Step 8.5: Detect $$props, $$restProps usage in source (before wrapping)
+    let uses_dollar_props = source.contains("$$props");
+    let uses_dollar_rest_props = source.contains("$$restProps");
 
     // Step 9: Process template nodes in-place via MagicString
     template::process_template_inplace(&ast.fragment, source, &options, &mut str);
@@ -261,6 +269,15 @@ pub fn svelte2tsx(
         if mod_start == 0 {
             instance_script_target = mod_end;
         }
+    }
+
+    // Build $$props/$$restProps declaration text for injection into $$render() header
+    let mut dollar_decls = String::new();
+    if uses_dollar_props {
+        dollar_decls.push_str(" let $$props = __sveltets_2_allPropsType();");
+    }
+    if uses_dollar_rest_props {
+        dollar_decls.push_str(" let $$restProps = __sveltets_2_restPropsType();");
     }
 
     // Phase 2: Overwrite instance script tags and lift imports (before any moves)
@@ -329,7 +346,7 @@ pub fn svelte2tsx(
                 script_replacement.push('\n');
             }
             script_replacement.push_str(&import_text);
-            script_replacement.push_str("function $$render() {\n");
+            script_replacement.push_str(&format!("function $$render() {{{}\n", dollar_decls));
 
             if script_start < content_start {
                 str.overwrite(script_start, content_start, &script_replacement);
@@ -337,7 +354,11 @@ pub fn svelte2tsx(
         } else {
             // No imports: overwrite the entire <script> tag at once
             if script_start < content_start {
-                str.overwrite(script_start, content_start, ";function $$render() {\n");
+                str.overwrite(
+                    script_start,
+                    content_start,
+                    &format!(";function $$render() {{{}\n", dollar_decls),
+                );
             }
         }
 
@@ -405,56 +426,109 @@ pub fn svelte2tsx(
         // Module script but no instance script
         let module = ast.module.as_ref().unwrap();
         let mod_end = module.end;
-        str.append_left(mod_end, ";function $$render() {\nasync () => {");
+
+        // For module-script-only components, inject store subscriptions for
+        // module-level imports at the start of the $$render async wrapper.
+        let store_decls = super::script::collect_module_import_store_declarations(source);
+        let render_open = format!(
+            ";function $$render() {{{}\nasync () => {{{}",
+            dollar_decls, store_decls
+        );
+        str.append_left(mod_end, &render_open);
         str.prepend_str("///<reference types=\"svelte\" />\n");
     } else {
         // No script tags at all: prepend the full wrapper
-        str.prepend_str("///<reference types=\"svelte\" />\n;function $$render() {\nasync () => {");
+        let wrapper = format!(
+            "///<reference types=\"svelte\" />\n;function $$render() {{{}\nasync () => {{",
+            dollar_decls
+        );
+        str.prepend_str(&wrapper);
     }
 
     // Append the closing of async wrapper, return statement, and component export
-    let props_str = build_props_return(&exported_names, &options);
+    let use_partial_with_any = uses_dollar_props || uses_dollar_rest_props;
+    let props_str = if use_partial_with_any {
+        // When $$props or $$restProps is used, props is just an empty object
+        "{}".to_string()
+    } else {
+        exported_names.create_props_str()
+    };
+    let is_svelte5 = matches!(options.version, SvelteVersion::V5);
+    let exports_str = exported_names.create_exports_str(is_svelte5);
+    let bindings_str = exported_names.create_bindings_str(is_svelte5);
     let safe_name = format!("{}__SvelteComponent_", component_name);
+
+    // Extract @component documentation from HTML comments
+    let component_doc = extract_component_documentation(&ast.fragment);
 
     let mut closing = String::new();
     closing.push_str("};\n");
     closing.push_str(&format!(
-        "return {{ props: {}, slots: {{}}, events: {{}} }}}}\n",
-        props_str
+        "return {{ props: {}{}{}, slots: {{}}, events: {{}} }}}}\n",
+        props_str, exports_str, bindings_str,
     ));
+
+    // Add component documentation as JSDoc comment before the component export
+    if let Some(ref doc) = component_doc {
+        closing.push_str(doc);
+        closing.push('\n');
+    }
+
+    // Helper: build the prop_def string for the component export.
+    // When $$props or $$restProps is used, use __sveltets_2_partial_with_any.
+    let build_prop_def = |exported_names: &ExportedNames| -> String {
+        if use_partial_with_any {
+            "__sveltets_2_partial_with_any(__sveltets_2_with_any_event($$render()))".to_string()
+        } else {
+            let optional_props = exported_names.create_optional_props_array();
+            if optional_props.is_empty() {
+                "__sveltets_2_partial(__sveltets_2_with_any_event($$render()))".to_string()
+            } else {
+                format!(
+                    "__sveltets_2_partial([{}], __sveltets_2_with_any_event($$render()))",
+                    optional_props.join(",")
+                )
+            }
+        }
+    };
 
     match options.version {
         SvelteVersion::V4 => {
+            let prop_def = build_prop_def(&exported_names);
             closing.push_str(&format!(
-                "\nexport default class {} extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {{\n}}",
-                safe_name
+                "\nexport default class {} extends __sveltets_2_createSvelte2TsxComponent({}) {{\n}}",
+                safe_name, prop_def
             ));
         }
         SvelteVersion::V5 => {
-            let prop_names = exported_names.get_prop_names();
-            let props_array = if prop_names.is_empty() {
-                String::new()
+            if exported_names.is_runes_mode() {
+                closing.push_str(&format!(
+                    "const {} = __sveltets_2_fn_component($$render());\n",
+                    safe_name
+                ));
+                closing.push_str(&format!(
+                    "/*\u{03A9}ignore_start\u{03A9}*/type {} = ReturnType<typeof {}>;\n",
+                    safe_name, safe_name
+                ));
+                closing.push_str(&format!(
+                    "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
+                    safe_name
+                ));
             } else {
-                let names: Vec<String> = prop_names.iter().map(|n| format!("'{}'", n)).collect();
-                format!("[{}], ", names.join(","))
-            };
-
-            closing.push_str(&format!(
-                "const {} = __sveltets_2_isomorphic_component({});\n",
-                safe_name,
-                format!(
-                    "__sveltets_2_partial({}__sveltets_2_with_any_event($$render()))",
-                    props_array
-                )
-            ));
-            closing.push_str(&format!(
-                "/*\u{03A9}ignore_start\u{03A9}*/type {} = InstanceType<typeof {}>;\n",
-                safe_name, safe_name
-            ));
-            closing.push_str(&format!(
-                "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
-                safe_name
-            ));
+                let prop_def = build_prop_def(&exported_names);
+                closing.push_str(&format!(
+                    "const {} = __sveltets_2_isomorphic_component({});\n",
+                    safe_name, prop_def
+                ));
+                closing.push_str(&format!(
+                    "/*\u{03A9}ignore_start\u{03A9}*/type {} = InstanceType<typeof {}>;\n",
+                    safe_name, safe_name
+                ));
+                closing.push_str(&format!(
+                    "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
+                    safe_name
+                ));
+            }
         }
     }
 
@@ -468,6 +542,87 @@ pub fn svelte2tsx(
         exported_names,
         events,
     })
+}
+
+/// Extract `@component` documentation from HTML comments in the template.
+///
+/// Looks for comments like `<!-- @component This is documentation -->` and
+/// converts them to JSDoc format: `/** This is documentation */`.
+///
+/// Also handles multiline comments:
+/// ```html
+/// <!--
+///   @component
+///   Multi-line documentation
+/// -->
+/// ```
+fn extract_component_documentation(fragment: &crate::ast::template::Fragment) -> Option<String> {
+    use crate::ast::template::TemplateNode;
+
+    for node in &fragment.nodes {
+        if let TemplateNode::Comment(comment) = node {
+            let data = comment.data.as_str().trim();
+            if data.starts_with("@component") {
+                // Extract the documentation text after @component
+                let after_tag = data.strip_prefix("@component").unwrap();
+
+                // If the text after @component starts with a newline, it's multiline
+                let is_multiline = after_tag.contains('\n');
+
+                if is_multiline {
+                    // Collect all lines after @component
+                    let mut lines: Vec<&str> = after_tag.lines().collect();
+
+                    // Remove leading empty line (from the newline right after @component)
+                    if !lines.is_empty() && lines[0].trim().is_empty() {
+                        lines.remove(0);
+                    }
+                    // Remove trailing empty lines
+                    while !lines.is_empty() && lines.last().unwrap().trim().is_empty() {
+                        lines.pop();
+                    }
+
+                    if lines.is_empty() {
+                        return Some("/** */".to_string());
+                    }
+
+                    // Detect base indentation from the first non-empty line
+                    let base_indent = lines
+                        .iter()
+                        .filter(|l| !l.trim().is_empty())
+                        .map(|l| l.len() - l.trim_start().len())
+                        .min()
+                        .unwrap_or(0);
+
+                    let mut result = String::from("/**\n");
+                    for line in &lines {
+                        if line.trim().is_empty() {
+                            result.push_str(" *\n");
+                        } else {
+                            let stripped = if line.len() > base_indent {
+                                &line[base_indent..]
+                            } else {
+                                line.trim_start()
+                            };
+                            result.push_str(" * ");
+                            result.push_str(stripped);
+                            result.push('\n');
+                        }
+                    }
+                    result.push_str(" */");
+                    return Some(result);
+                } else {
+                    let doc_text = after_tag.trim();
+                    if doc_text.is_empty() {
+                        return Some("/** */".to_string());
+                    }
+                    return Some(format!("/** {} */", doc_text));
+                }
+            }
+        }
+    }
+
+    None
 }
 
 /// Get the start position of a template node.
@@ -585,11 +740,11 @@ fn find_instance_imports(script: &crate::ast::template::Script, source: &str) ->
     let raw_content = &source[content_start..content_end];
 
     let allocator = Allocator::default();
-    let source_type = if script.is_typescript {
-        SourceType::ts()
-    } else {
-        SourceType::mjs()
-    };
+    // Always use TypeScript source type for import detection.
+    // TypeScript is a superset of JavaScript, so TS parsing handles
+    // both `import type` (TS syntax) and regular imports correctly,
+    // even when the script doesn't have `lang="ts"`.
+    let source_type = SourceType::ts();
     let parser = OxcParser::new(&allocator, raw_content, source_type);
     let result = parser.parse();
 
@@ -664,27 +819,8 @@ fn detect_runes_mode(ast: &Root) -> bool {
         return runes;
     }
 
-    // TODO: Check for rune usage in script content ($props, $state, $derived, etc.)
-    // For now, default to Svelte 5 runes mode
-    true
-}
-
-/// Build the props return expression.
-///
-/// For components with no props: `/** @type {Record<string, never>} */ ({})`
-/// For components with props: `{ prop1: prop1, prop2: prop2 }`
-fn build_props_return(exported_names: &ExportedNames, _options: &Svelte2TsxOptions) -> String {
-    let prop_names = exported_names.get_prop_names();
-    if prop_names.is_empty() {
-        "/** @type {Record<string, never>} */ ({})".to_string()
-    } else {
-        let entries: Vec<String> = prop_names
-            .iter()
-            .map(|name| format!("{}: {}", name, name))
-            .collect();
-        // Match JS svelte2tsx format: {a: a , b: b , c: c}
-        format!("{{{}}}", entries.join(" , "))
-    }
+    // Don't default to runes mode; let process_instance_script detect rune usage
+    false
 }
 
 #[cfg(test)]
