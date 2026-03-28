@@ -477,7 +477,7 @@ pub fn is_passive_event(name: &str) -> Option<bool> {
 ///
 /// TODO: Use proper expression metadata from the AST.
 fn expression_has_call(expression: &crate::ast::js::Expression) -> bool {
-    json_value_has_call(&expression.as_json())
+    json_value_has_call(expression.as_json())
 }
 
 /// Recursively check if a JSON value (ESTree node) contains a CallExpression.
@@ -537,7 +537,7 @@ fn expression_has_side_effects(expr: &crate::ast::js::Expression) -> bool {
         Some("SequenceExpression") => {
             // Fall back to JSON for recursive check on sequence expressions
             let json = expr.as_json();
-            json_has_side_effects(&json)
+            json_has_side_effects(json)
         }
         _ => false,
     }

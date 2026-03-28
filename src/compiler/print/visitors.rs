@@ -92,7 +92,7 @@ fn visit_script(context: &mut Context, script: &crate::ast::Script) {
         format_program_from_source(&script.content, source)
     } else {
         let program = script.content.as_json();
-        format_program(&program)
+        format_program(program)
     };
 
     if !content.is_empty() {

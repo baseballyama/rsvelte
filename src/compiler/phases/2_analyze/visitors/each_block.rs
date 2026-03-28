@@ -138,7 +138,7 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     // The official Svelte's zimmerframe walker automatically visits the context pattern,
     // but our implementation needs to explicitly walk the default values.
     if let Some(ref context_expr) = block.context {
-        walk_pattern_defaults(&context_expr.as_json(), context)?;
+        walk_pattern_defaults(context_expr.as_json(), context)?;
     }
 
     // Visit the body and fallback

@@ -386,7 +386,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     strip_ts_type_annotation(&source[start..end])
                 } else {
                     // Fallback: try to get name from JSON
-                    Self::extract_param_name_from_json(&json, source).unwrap_or_default()
+                    Self::extract_param_name_from_json(json, source).unwrap_or_default()
                 }
             }
         }

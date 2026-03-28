@@ -100,7 +100,7 @@ pub fn convert_arrow_to_named_function(handler: JsExpr, name: CompactString) -> 
 /// Check if a JSON expression contains a call expression.
 /// This is used to determine if an event handler needs to be memoized.
 fn expression_has_call(expr: &Expression) -> bool {
-    json_value_has_call(&expr.as_json())
+    json_value_has_call(expr.as_json())
 }
 
 /// Check if a JSON value contains a call expression.

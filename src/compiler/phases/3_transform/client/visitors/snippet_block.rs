@@ -181,7 +181,7 @@ struct ParameterInfo {
 fn extract_param_names(param: &Expression) -> Vec<String> {
     let val = param.as_json();
     let mut names = Vec::new();
-    extract_param_names_from_json(&val, &mut names);
+    extract_param_names_from_json(val, &mut names);
     names
 }
 
@@ -242,7 +242,7 @@ fn process_parameter(
 ) -> Option<ParameterInfo> {
     let val = param.as_json();
 
-    if let serde_json::Value::Object(ref obj) = val {
+    if let serde_json::Value::Object(obj) = val {
         let param_type = obj.get("type").and_then(|v| v.as_str())?;
 
         if param_type == "Identifier" {

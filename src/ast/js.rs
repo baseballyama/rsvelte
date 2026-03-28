@@ -11,21 +11,29 @@ use super::arena::{IdRange, JsNodeId};
 use super::span::SourceLocation;
 use super::typed_expr::{JsNode, Loc, SourcePosition};
 
-/// Wrapper for a typed JsNode. JSON conversion is done on-demand without caching.
-/// This eliminates the 40-byte OnceCell overhead per expression.
+/// Wrapper for a typed JsNode with lazy JSON cache.
+/// The cache is only populated when `as_json()` is first called (during Phase 2/3),
+/// not during parsing. This saves 40 bytes per expression during parse,
+/// while still avoiding repeated serialization during analysis/transform.
 pub struct TypedExpr {
     pub node: JsNode,
+    json_cache: std::cell::OnceCell<serde_json::Value>,
 }
 
 impl TypedExpr {
     #[inline(always)]
     pub fn new(node: JsNode) -> Self {
-        TypedExpr { node }
+        TypedExpr {
+            node,
+            json_cache: std::cell::OnceCell::new(),
+        }
     }
 
+    /// Get JSON value, caching for subsequent calls.
+    /// First call is expensive (serde serialization), subsequent calls are O(1).
     #[inline]
-    pub fn as_json(&self) -> serde_json::Value {
-        self.node.to_value()
+    pub fn as_json(&self) -> &serde_json::Value {
+        self.json_cache.get_or_init(|| self.node.to_value())
     }
 }
 
@@ -34,6 +42,7 @@ impl Clone for TypedExpr {
     fn clone(&self) -> Self {
         TypedExpr {
             node: self.node.clone(),
+            json_cache: std::cell::OnceCell::new(), // Cache not shared on clone
         }
     }
 }
@@ -112,11 +121,10 @@ impl Expression {
         Expression::Typed(TypedExpr::new(node))
     }
 
-    /// Get the underlying JSON value. For Typed variant, creates a new Value each time.
-    /// For performance-critical paths, prefer working with JsNode directly via as_node().
-    pub fn as_json(&self) -> serde_json::Value {
+    /// Get the underlying JSON value. Cached for Typed variant.
+    pub fn as_json(&self) -> &serde_json::Value {
         match self {
-            Expression::Value(v) => v.clone(),
+            Expression::Value(v) => v,
             Expression::Typed(te) => te.as_json(),
             Expression::Lazy { .. } => panic!(
                 "Expression::Lazy must be resolved before access. Call ensure_expressions_parsed() first."

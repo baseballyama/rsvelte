@@ -114,8 +114,8 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
         );
     } else {
         let value = block.expression.as_json();
-        walk_js_expression(&value, context, &mut block.metadata.expression)?;
-        collect_pickled_awaits(&value, &mut context.analysis.pickled_awaits);
+        walk_js_expression(value, context, &mut block.metadata.expression)?;
+        collect_pickled_awaits(value, &mut context.analysis.pickled_awaits);
     }
 
     // Walk the value pattern's computed property key expressions to detect mutations.
@@ -126,7 +126,7 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
         if let Some(node_ref) = value_pattern.try_as_node_ref() {
             walk_pattern_computed_keys_node(node_ref, context, &mut dummy_metadata)?;
         } else {
-            walk_pattern_computed_keys(&value_pattern.as_json(), context, &mut dummy_metadata)?;
+            walk_pattern_computed_keys(value_pattern.as_json(), context, &mut dummy_metadata)?;
         }
     }
 
@@ -136,7 +136,7 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
         if let Some(node_ref) = error_pattern.try_as_node_ref() {
             walk_pattern_computed_keys_node(node_ref, context, &mut dummy_metadata)?;
         } else {
-            walk_pattern_computed_keys(&error_pattern.as_json(), context, &mut dummy_metadata)?;
+            walk_pattern_computed_keys(error_pattern.as_json(), context, &mut dummy_metadata)?;
         }
     }
 

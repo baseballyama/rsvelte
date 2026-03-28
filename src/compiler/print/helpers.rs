@@ -841,7 +841,7 @@ pub fn is_shorthand_identifier(expr: &crate::ast::js::Expression, name: &str) ->
 /// Returns the formatted JavaScript code as a string.
 pub fn expression_to_string(expr: &crate::ast::js::Expression) -> String {
     let value = expr.as_json();
-    estree_to_string(&value)
+    estree_to_string(value)
 }
 
 /// Convert an Expression to string using source text when available.
@@ -951,7 +951,7 @@ pub fn format_program_from_source(program: &crate::ast::js::Expression, source: 
 
     if positions.is_empty() {
         // Fallback
-        return format_program(&program.as_json());
+        return format_program(program.as_json());
     }
 
     let mut lines = Vec::new();
@@ -984,7 +984,7 @@ pub fn format_program_from_source(program: &crate::ast::js::Expression, source: 
     }
 
     if lines.is_empty() {
-        format_program(&program.as_json())
+        format_program(program.as_json())
     } else {
         lines.join("\n")
     }

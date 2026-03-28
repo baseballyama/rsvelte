@@ -217,7 +217,7 @@ pub fn analyze_component(
         .map(|inst| {
             let val = inst.content.as_json();
             let empty_subs: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
-            let r = json_check_features(&val, &empty_subs);
+            let r = json_check_features(val, &empty_subs);
             (r.has_await, r.has_rune_reference)
         })
         .unwrap_or((false, false));
@@ -231,7 +231,7 @@ pub fn analyze_component(
             .map(|module| {
                 let val = module.content.as_json();
                 let empty_subs: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
-                json_check_features(&val, &empty_subs).has_rune_reference
+                json_check_features(val, &empty_subs).has_rune_reference
             })
             .unwrap_or(false)
     } else {
@@ -2594,7 +2594,7 @@ fn expression_check_features(
 ) -> JsonCheckResults {
     // TODO: migrate json_check_features to JsNode walker
     let value = expr.as_json();
-    json_check_features(&value, store_subs)
+    json_check_features(value, store_subs)
 }
 
 /// Check if a name is a rune identifier.

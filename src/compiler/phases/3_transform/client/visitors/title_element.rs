@@ -304,7 +304,7 @@ fn build_title_content(
 
 /// Check if an expression has a function call (has_call metadata).
 fn expression_has_call(expr: &crate::ast::js::Expression) -> bool {
-    has_call_json(&expr.as_json())
+    has_call_json(expr.as_json())
 }
 
 fn has_call_json(json_value: &serde_json::Value) -> bool {

@@ -314,9 +314,9 @@ fn extract_metadata_from_tag(expr_tag: &ExpressionTag) -> ExpressionMetadata {
     let mut has_assignment = false;
     let mut has_await = false;
 
-    if !is_literal_value(&val) {
+    if !is_literal_value(val) {
         ast_extract_metadata_flags(
-            &val,
+            val,
             &mut has_call,
             &mut has_member,
             &mut has_assignment,
@@ -1676,7 +1676,7 @@ mod tests {
 
                             // Should be recognized as a literal
                             assert!(
-                                is_literal_value(&val),
+                                is_literal_value(val),
                                 "Numeric literal should be detected as literal"
                             );
 

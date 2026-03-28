@@ -745,7 +745,8 @@ pub fn compile_module(
 
     // Remove TypeScript nodes if needed
     let program = if is_typescript {
-        let mut val_clone = crate::ast::arena::with_serialize_arena(&arena, || program.as_json());
+        let mut val_clone =
+            crate::ast::arena::with_serialize_arena(&arena, || program.as_json()).clone();
         let _ = phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(
             &mut val_clone,
             &[],

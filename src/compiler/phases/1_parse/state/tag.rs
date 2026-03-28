@@ -1747,8 +1747,8 @@ fn build_const_variable_declaration(
         "type".to_string(),
         Value::String("VariableDeclarator".to_string()),
     );
-    declarator.insert("id".to_string(), pattern_value);
-    declarator.insert("init".to_string(), init_value);
+    declarator.insert("id".to_string(), pattern_value.clone());
+    declarator.insert("init".to_string(), init_value.clone());
     declarator.insert("start".to_string(), Value::Number((id_start as i64).into()));
     declarator.insert("end".to_string(), Value::Number((init_end as i64).into()));
 

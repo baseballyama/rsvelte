@@ -26,9 +26,9 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
     let expr_json = tag.expression.as_json();
     let expression_json =
         if expr_json.get("type").and_then(|t| t.as_str()) == Some("ChainExpression") {
-            expr_json.get("expression").unwrap_or(&expr_json)
+            expr_json.get("expression").unwrap_or(expr_json)
         } else {
-            &expr_json
+            expr_json
         };
 
     // Get the callee from the call expression

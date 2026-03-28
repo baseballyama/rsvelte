@@ -158,7 +158,7 @@ fn extract_pattern_names_for_expr(expr: &Expression) -> Option<Vec<String>> {
     // Use JSON-based approach for both variants to avoid arena dependency.
     // The Typed path converts to JSON once (cheap for pattern nodes).
     let json = expr.as_json();
-    extract_pattern_names(&json)
+    extract_pattern_names(json)
 }
 
 /// Dispatch to JsNode or JSON version of check_pattern_defaults_hoistable.

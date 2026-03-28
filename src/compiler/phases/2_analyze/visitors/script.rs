@@ -31,9 +31,7 @@ pub fn visit_script_expr(
             if let JsNode::Program { body, .. } = &te.node {
                 // Fast path: push a lazily-computed Value for js_path, then walk body typed
                 let program_value = te.as_json();
-                context
-                    .js_path
-                    .push(super::JsPathEntry::new(&program_value));
+                context.js_path.push(super::JsPathEntry::new(program_value));
 
                 let arena = context.parse_arena;
                 for stmt in arena.get_js_children(*body) {
@@ -55,10 +53,10 @@ pub fn visit_script_expr(
                 Ok(())
             } else {
                 // Not a Program - fall back to JSON path
-                visit_script(&script_expr.as_json(), context)
+                visit_script(script_expr.as_json(), context)
             }
         }
-        Expression::Value(_) => visit_script(&script_expr.as_json(), context),
+        Expression::Value(_) => visit_script(script_expr.as_json(), context),
         Expression::Lazy { .. } => panic!("Expression::Lazy must be resolved before analysis"),
     }
 }
@@ -576,7 +574,7 @@ pub fn walk_expression(
     // Always use walk_js_node with the JSON representation for now.
     // walk_js_node_typed is available for future optimization once
     // all individual JS visitors are converted to accept JsNode directly.
-    walk_js_node(&expr.as_json(), context)
+    walk_js_node(expr.as_json(), context)
 }
 
 /// Recursively walk typed JavaScript AST nodes.
