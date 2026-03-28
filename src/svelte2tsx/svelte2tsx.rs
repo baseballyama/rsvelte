@@ -252,7 +252,10 @@ pub fn svelte2tsx(
         str.prepend_str("///<reference types=\"svelte\" />\n");
     } else {
         // No script tag: prepend the full wrapper
-        str.prepend_str("///<reference types=\"svelte\" />\n;function $$render() {\nasync () => {");
+        // Note: trailing space after `{` is needed to separate from template content (e.g., element braces)
+        str.prepend_str(
+            "///<reference types=\"svelte\" />\n;function $$render() {\nasync () => { ",
+        );
     }
 
     // Append the closing of async wrapper, return statement, and component export
@@ -376,6 +379,13 @@ fn derive_component_name(filename: &str) -> String {
         name.insert(0, '_');
     }
 
+    // Capitalize the first letter (matches JS svelte2tsx behavior)
+    let mut chars = name.chars();
+    if let Some(first) = chars.next() {
+        let capitalized: String = first.to_uppercase().chain(chars).collect();
+        return capitalized;
+    }
+
     name
 }
 
@@ -420,7 +430,7 @@ mod tests {
     #[test]
     fn test_derive_component_name() {
         assert_eq!(derive_component_name("App.svelte"), "App");
-        assert_eq!(derive_component_name("my-component.svelte"), "my_component");
+        assert_eq!(derive_component_name("my-component.svelte"), "My_component");
         assert_eq!(derive_component_name("path/to/Input.svelte"), "Input");
         assert_eq!(derive_component_name("123.svelte"), "_123");
         assert_eq!(derive_component_name(".svelte"), "Component");

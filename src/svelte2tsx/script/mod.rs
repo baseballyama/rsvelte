@@ -4,22 +4,18 @@
 //! Extracts exported names, component events, and prop declarations to generate
 //! proper TypeScript type information.
 //!
-//! Script AST is obtained by parsing the raw script content via OXC and converting
-//! to `serde_json::Value`. This avoids dependency on the thread-local ParseArena
+//! Script AST is obtained by re-parsing the raw script content via OXC and walking
+//! the OXC AST directly. This avoids dependency on the thread-local ParseArena
 //! used by the main compiler, keeping svelte2tsx self-contained.
 
 use std::collections::HashMap;
 
 use oxc_allocator::Allocator;
-#[allow(unused_imports)]
 use oxc_ast::ast as oxc;
 use oxc_parser::Parser as OxcParser;
-#[allow(unused_imports)]
 use oxc_span::{GetSpan, SourceType};
-use serde_json::Value;
 
 use crate::ast::template::Script;
-use crate::compiler::phases::phase1_parse::estree_compat;
 
 use super::magic_string::MagicString;
 
@@ -201,35 +197,24 @@ pub fn process_instance_script(
     exported_names: &mut ExportedNames,
     _events: &mut ComponentEvents,
 ) {
-    let program = parse_script_to_json(script, source);
+    let offset = script.content_offset;
 
-    #[cfg(test)]
-    eprintln!(
-        "PROGRAM JSON: {}",
-        serde_json::to_string_pretty(&program).unwrap_or_default()
-    );
-
-    if let Some(body) = program.get("body").and_then(|b| b.as_array()) {
-        for statement in body {
-            let stmt_type = statement.get("type").and_then(|t| t.as_str()).unwrap_or("");
-            match stmt_type {
-                "ExportNamedDeclaration" => {
-                    handle_export_named_declaration(statement, source, str, exported_names, true);
+    with_parsed_script(script, source, |program| {
+        for stmt in program.body.iter() {
+            match stmt {
+                oxc::Statement::ExportNamedDeclaration(export) => {
+                    handle_export_named_decl(export, offset, str, exported_names, true);
                 }
-                "VariableDeclaration" => {
-                    // Check for $props() usage in non-exported variable declarations
-                    if let Some(declarators) =
-                        statement.get("declarations").and_then(|d| d.as_array())
-                    {
-                        for declarator in declarators {
-                            detect_props_rune(declarator, exported_names);
-                        }
+                oxc::Statement::VariableDeclaration(var_decl) => {
+                    // Check for $props() in non-exported variable declarations
+                    for declarator in var_decl.declarations.iter() {
+                        detect_props_rune_oxc(declarator, exported_names);
                     }
                 }
                 _ => {}
             }
         }
-    }
+    });
 
     // TODO: Store subscriptions ($store references)
     // TODO: Event dispatchers (createEventDispatcher)
@@ -253,32 +238,33 @@ pub fn process_module_script(
     str: &mut MagicString,
     exported_names: &mut ExportedNames,
 ) {
-    let program = parse_script_to_json(script, source);
+    let offset = script.content_offset;
 
-    if let Some(body) = program.get("body").and_then(|b| b.as_array()) {
-        for statement in body {
-            let stmt_type = statement.get("type").and_then(|t| t.as_str()).unwrap_or("");
-            if stmt_type == "ExportNamedDeclaration" {
+    with_parsed_script(script, source, |program| {
+        for stmt in program.body.iter() {
+            if let oxc::Statement::ExportNamedDeclaration(export) = stmt {
                 // Module-level exports are never props
-                handle_export_named_declaration(statement, source, str, exported_names, false);
+                handle_export_named_decl(export, offset, str, exported_names, false);
             }
         }
-    }
+    });
 }
 
 // =============================================================================
 // Script content parsing
 // =============================================================================
 
-/// Parse script content to an ESTree-compatible JSON AST using OXC.
+/// Extract the raw script content from the source and parse it with OXC,
+/// then invoke the callback with the parsed program.
 ///
-/// This produces a standalone `serde_json::Value` without requiring the
-/// thread-local ParseArena. Positions in the returned AST are absolute
-/// (mapped to the original source) thanks to estree_compat's position handling.
-fn parse_script_to_json(script: &Script, source: &str) -> Value {
+/// This approach avoids lifetime issues since the OXC allocator and parsed
+/// program are created and consumed within the closure scope.
+fn with_parsed_script<F>(script: &Script, source: &str, f: F)
+where
+    F: FnOnce(&oxc::Program),
+{
     let content_start = script.content_offset as usize;
     // Find the end of script content: from content_offset to the start of </script>
-    // The script.end includes the closing tag, so we search backward for it.
     let script_source = &source[script.start as usize..script.end as usize];
     let close_tag_offset = script_source
         .rfind("</script>")
@@ -286,12 +272,6 @@ fn parse_script_to_json(script: &Script, source: &str) -> Value {
         .unwrap_or(script_source.len());
     let content_end = script.start as usize + close_tag_offset;
     let raw_content = &source[content_start..content_end];
-
-    #[cfg(test)]
-    eprintln!(
-        "PARSE_SCRIPT: content_start={}, content_end={}, raw_content='{}'",
-        content_start, content_end, raw_content
-    );
 
     let allocator = Allocator::default();
     let source_type = if script.is_typescript {
@@ -302,54 +282,16 @@ fn parse_script_to_json(script: &Script, source: &str) -> Value {
     let parser = OxcParser::new(&allocator, raw_content, source_type);
     let result = parser.parse();
 
-    // Compute line offsets for ESTree position conversion
-    let line_offsets = estree_compat::compute_line_offsets(raw_content);
-
-    // Convert to ESTree-compatible JSON with proper positions
-    let mut json =
-        estree_compat::convert_program_to_estree(&result.program, raw_content, &line_offsets);
-
-    // The estree_compat positions are relative to raw_content (starting at 0).
-    // Adjust them to be absolute in the original source.
-    adjust_positions(&mut json, content_start as u64);
-
-    json
-}
-
-/// Recursively adjust all `start` and `end` positions in a JSON AST by an offset.
-fn adjust_positions(value: &mut Value, offset: u64) {
-    match value {
-        Value::Object(obj) => {
-            if let Some(start) = obj.get_mut("start")
-                && let Some(n) = start.as_u64()
-            {
-                *start = Value::Number((n + offset).into());
-            }
-            if let Some(end) = obj.get_mut("end")
-                && let Some(n) = end.as_u64()
-            {
-                *end = Value::Number((n + offset).into());
-            }
-            for (_, v) in obj.iter_mut() {
-                adjust_positions(v, offset);
-            }
-        }
-        Value::Array(arr) => {
-            for v in arr.iter_mut() {
-                adjust_positions(v, offset);
-            }
-        }
-        _ => {}
-    }
+    f(&result.program);
 }
 
 // =============================================================================
-// Internal helpers
+// OXC AST walkers
 // =============================================================================
 
-/// Handle an `ExportNamedDeclaration` AST node.
+/// Handle an `ExportNamedDeclaration` from the OXC AST.
 ///
-/// This covers:
+/// Covers:
 /// - `export let count = 0;` (prop in instance, non-prop in module)
 /// - `export const MAX = 10;` (non-prop)
 /// - `export function fn() {}` (non-prop)
@@ -360,67 +302,59 @@ fn adjust_positions(value: &mut Value, offset: u64) {
 /// exported names are recorded in `exported_names`.
 ///
 /// `is_instance` controls whether `export let` is treated as a prop.
-fn handle_export_named_declaration(
-    node: &Value,
-    source: &str,
+///
+/// `offset` is the content_offset that maps OXC positions (relative to script
+/// content) back to the original source.
+fn handle_export_named_decl(
+    export: &oxc::ExportNamedDeclaration,
+    offset: u32,
     str: &mut MagicString,
     exported_names: &mut ExportedNames,
     is_instance: bool,
 ) {
-    let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
+    let node_start = export.span.start + offset;
 
     // Case 1: export with declaration (export let/const/function/class ...)
-    if let Some(decl) = node.get("declaration") {
-        let decl_type = decl.get("type").and_then(|t| t.as_str()).unwrap_or("");
-        let decl_start = decl.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
+    if let Some(ref decl) = export.declaration {
+        let decl_start = decl.span().start + offset;
 
         // Remove the 'export ' keyword: overwrite from node start to declaration start
-        // This handles varying whitespace between 'export' and the declaration.
         if decl_start > node_start {
             str.overwrite(node_start, decl_start, "");
         }
 
-        match decl_type {
-            "VariableDeclaration" => {
-                let kind = decl.get("kind").and_then(|k| k.as_str()).unwrap_or("let");
-                // In instance script, `export let` creates props; `export const` does not
-                let is_prop = is_instance && kind == "let";
+        match decl {
+            oxc::Declaration::VariableDeclaration(var_decl) => {
+                let kind = var_decl.kind;
+                let is_prop = is_instance
+                    && matches!(
+                        kind,
+                        oxc::VariableDeclarationKind::Var | oxc::VariableDeclarationKind::Let
+                    );
 
-                if let Some(declarators) = decl.get("declarations").and_then(|d| d.as_array()) {
-                    for declarator in declarators {
-                        // First check if this is a $props() declaration
-                        if is_props_call(declarator) {
-                            extract_props_from_pattern(
-                                declarator.get("id").unwrap_or(&Value::Null),
-                                exported_names,
-                            );
-                        } else {
-                            // Regular export: extract the name(s) from the declarator id
-                            let has_default = declarator
-                                .get("init")
-                                .map(|v| !v.is_null())
-                                .unwrap_or(false);
-                            let type_annotation = extract_type_annotation(declarator);
-                            extract_names_from_pattern(
-                                declarator.get("id").unwrap_or(&Value::Null),
-                                exported_names,
-                                has_default,
-                                type_annotation.as_deref(),
-                                is_prop,
-                            );
-                        }
+                for declarator in var_decl.declarations.iter() {
+                    if is_props_call_oxc(declarator) {
+                        extract_props_from_binding_pattern(&declarator.id, exported_names);
+                    } else {
+                        let has_default = declarator.init.is_some();
+                        extract_names_from_binding_pattern(
+                            &declarator.id,
+                            exported_names,
+                            has_default,
+                            is_prop,
+                        );
                     }
                 }
             }
-            "FunctionDeclaration" => {
-                let name = get_identifier_name(decl.get("id").unwrap_or(&Value::Null));
-                if let Some(name) = name {
+            oxc::Declaration::FunctionDeclaration(func) => {
+                if let Some(ref id) = func.id {
+                    let name = id.name.to_string();
                     exported_names.add(name.clone(), name, false, None, false);
                 }
             }
-            "ClassDeclaration" => {
-                let name = get_identifier_name(decl.get("id").unwrap_or(&Value::Null));
-                if let Some(name) = name {
+            oxc::Declaration::ClassDeclaration(class) => {
+                if let Some(ref id) = class.id {
+                    let name = id.name.to_string();
                     exported_names.add(name.clone(), name, false, None, false);
                 }
             }
@@ -429,99 +363,70 @@ fn handle_export_named_declaration(
     }
 
     // Case 2: export with specifiers (export { a, b as c };)
-    if let Some(specifiers) = node.get("specifiers").and_then(|s| s.as_array())
-        && !specifiers.is_empty()
-    {
-        // Check if there is a source (re-export from another module)
-        let has_source = node.get("source").map(|s| !s.is_null()).unwrap_or(false);
+    if !export.specifiers.is_empty() && export.source.is_none() {
+        // Local re-exports: remove the entire export statement
+        let node_end = export.span.end + offset;
+        str.overwrite(node_start, node_end, "");
 
-        if !has_source {
-            // Local re-exports: remove the entire export statement
-            let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as u32;
-
-            // Remove the entire `export { ... };` statement
-            // We need to be careful to also eat the trailing semicolon and newline
-            let end = skip_trailing_whitespace(source, node_end);
-            if node_start < end {
-                str.overwrite(node_start, end, "");
-            }
-
-            for spec in specifiers {
-                let local_name = get_export_specifier_local(spec);
-                let exported_name = get_export_specifier_exported(spec);
-                if let (Some(local), Some(exported)) = (local_name, exported_name) {
-                    let is_prop = is_instance && local == exported;
-                    exported_names.add(exported, local, false, None, is_prop);
-                }
-            }
+        for spec in export.specifiers.iter() {
+            let local = module_export_name_to_string(&spec.local);
+            let exported = module_export_name_to_string(&spec.exported);
+            let is_prop = is_instance && local == exported;
+            exported_names.add(exported, local, false, None, is_prop);
         }
-        // If has_source, this is `export { x } from 'y'` - keep as-is, just record names
     }
 }
 
 /// Check if a variable declarator's init is a `$props()` call.
-fn is_props_call(declarator: &Value) -> bool {
-    if let Some(init) = declarator.get("init")
-        && init.get("type").and_then(|t| t.as_str()) == Some("CallExpression")
-        && let Some(callee) = init.get("callee")
-    {
-        return callee.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-            && callee.get("name").and_then(|n| n.as_str()) == Some("$props");
+fn is_props_call_oxc(declarator: &oxc::VariableDeclarator) -> bool {
+    if let Some(ref init) = declarator.init {
+        if let oxc::Expression::CallExpression(call) = init {
+            if let oxc::Expression::Identifier(ref callee) = call.callee {
+                return callee.name == "$props";
+            }
+        }
     }
     false
 }
 
 /// Detect `$props()` usage in a variable declarator and extract prop names.
-///
-/// Handles: `let { a, b = 1, ...rest } = $props();`
-fn detect_props_rune(declarator: &Value, exported_names: &mut ExportedNames) {
-    if is_props_call(declarator) {
-        extract_props_from_pattern(declarator.get("id").unwrap_or(&Value::Null), exported_names);
+fn detect_props_rune_oxc(declarator: &oxc::VariableDeclarator, exported_names: &mut ExportedNames) {
+    if is_props_call_oxc(declarator) {
+        extract_props_from_binding_pattern(&declarator.id, exported_names);
     }
 }
 
 /// Extract prop names from a destructuring pattern used with `$props()`.
 ///
 /// Handles ObjectPattern: `{ a, b = 1, ...rest }`
-fn extract_props_from_pattern(pattern: &Value, exported_names: &mut ExportedNames) {
-    let pat_type = pattern.get("type").and_then(|t| t.as_str()).unwrap_or("");
-
-    match pat_type {
-        "ObjectPattern" => {
-            if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
-                for prop in properties {
-                    let prop_type = prop.get("type").and_then(|t| t.as_str()).unwrap_or("");
-                    match prop_type {
-                        "Property" => {
-                            // { a } or { a = 1 } or { a: b } or { a: b = 1 }
-                            let key_name =
-                                get_identifier_name(prop.get("key").unwrap_or(&Value::Null));
-                            let value = prop.get("value").unwrap_or(&Value::Null);
-                            let has_default = is_assignment_pattern(value);
-
-                            // The value can be an Identifier (simple) or AssignmentPattern (default)
-                            let local_name = if is_assignment_pattern(value) {
-                                // { a = 1 } -> value is AssignmentPattern, left is the local name
-                                get_identifier_name(value.get("left").unwrap_or(&Value::Null))
-                            } else {
-                                get_identifier_name(value)
-                            };
-
-                            if let Some(name) = key_name {
-                                let local = local_name.unwrap_or_else(|| name.clone());
-                                exported_names.add(name, local, has_default, None, true);
-                            }
-                        }
-                        "RestElement" => {
-                            // { ...rest } - rest props, not added as individual props
-                            // The rest element captures all remaining props
-                        }
-                        _ => {}
+fn extract_props_from_binding_pattern(
+    pattern: &oxc::BindingPattern,
+    exported_names: &mut ExportedNames,
+) {
+    match pattern {
+        oxc::BindingPattern::ObjectPattern(obj_pat) => {
+            for prop in obj_pat.properties.iter() {
+                let key_name = property_key_to_string(&prop.key);
+                let (local_name, has_default) = match &prop.value {
+                    oxc::BindingPattern::AssignmentPattern(assign) => {
+                        // { a = 1 } -> local name is the left side
+                        let name = binding_pattern_simple_name(&assign.left);
+                        (name, true)
                     }
+                    _ => {
+                        let name = binding_pattern_simple_name(&prop.value);
+                        (name, false)
+                    }
+                };
+
+                if let Some(key) = key_name {
+                    let local = local_name.unwrap_or_else(|| key.clone());
+                    exported_names.add(key, local, has_default, None, true);
                 }
             }
+            // Rest element ({ ...rest }) is intentionally not added as a prop
         }
-        "Identifier" => {
+        oxc::BindingPattern::BindingIdentifier(_) => {
             // `let props = $props();` - entire props object, not destructured
             // No individual prop names to extract
         }
@@ -529,156 +434,97 @@ fn extract_props_from_pattern(pattern: &Value, exported_names: &mut ExportedName
     }
 }
 
-/// Extract names from a binding pattern (Identifier, ObjectPattern, ArrayPattern).
+/// Extract names from a binding pattern for regular export declarations.
 ///
-/// Used for regular `export let/const` declarations (not $props).
-fn extract_names_from_pattern(
-    pattern: &Value,
+/// Used for `export let/const` (not $props).
+fn extract_names_from_binding_pattern(
+    pattern: &oxc::BindingPattern,
     exported_names: &mut ExportedNames,
     has_default: bool,
-    type_annotation: Option<&str>,
     is_prop: bool,
 ) {
-    let pat_type = pattern.get("type").and_then(|t| t.as_str()).unwrap_or("");
-
-    match pat_type {
-        "Identifier" => {
-            if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
-                exported_names.add(
-                    name.to_string(),
-                    name.to_string(),
-                    has_default,
-                    type_annotation.map(|s| s.to_string()),
-                    is_prop,
-                );
-            }
+    match pattern {
+        oxc::BindingPattern::BindingIdentifier(id) => {
+            let name = id.name.to_string();
+            exported_names.add(name.clone(), name, has_default, None, is_prop);
         }
-        "ObjectPattern" => {
-            if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
-                for prop in properties {
-                    let prop_type = prop.get("type").and_then(|t| t.as_str()).unwrap_or("");
-                    if prop_type == "Property" {
-                        let value = prop.get("value").unwrap_or(&Value::Null);
-                        let prop_has_default = is_assignment_pattern(value) || has_default;
-                        let actual_pattern = if is_assignment_pattern(value) {
-                            value.get("left").unwrap_or(&Value::Null)
-                        } else {
-                            value
-                        };
-                        extract_names_from_pattern(
-                            actual_pattern,
+        oxc::BindingPattern::ObjectPattern(obj_pat) => {
+            for prop in obj_pat.properties.iter() {
+                match &prop.value {
+                    oxc::BindingPattern::AssignmentPattern(assign) => {
+                        extract_names_from_binding_pattern(
+                            &assign.left,
                             exported_names,
-                            prop_has_default,
-                            None,
+                            true,
+                            is_prop,
+                        );
+                    }
+                    _ => {
+                        extract_names_from_binding_pattern(
+                            &prop.value,
+                            exported_names,
+                            has_default,
                             is_prop,
                         );
                     }
                 }
             }
         }
-        "ArrayPattern" => {
-            if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
-                for element in elements {
-                    if !element.is_null() {
-                        let el_has_default = is_assignment_pattern(element) || has_default;
-                        let actual_pattern = if is_assignment_pattern(element) {
-                            element.get("left").unwrap_or(&Value::Null)
-                        } else {
-                            element
-                        };
-                        extract_names_from_pattern(
-                            actual_pattern,
-                            exported_names,
-                            el_has_default,
-                            None,
-                            is_prop,
-                        );
+        oxc::BindingPattern::ArrayPattern(arr_pat) => {
+            for element in arr_pat.elements.iter() {
+                if let Some(el) = element {
+                    match el {
+                        oxc::BindingPattern::AssignmentPattern(assign) => {
+                            extract_names_from_binding_pattern(
+                                &assign.left,
+                                exported_names,
+                                true,
+                                is_prop,
+                            );
+                        }
+                        _ => {
+                            extract_names_from_binding_pattern(
+                                el,
+                                exported_names,
+                                has_default,
+                                is_prop,
+                            );
+                        }
                     }
                 }
             }
         }
-        _ => {}
-    }
-}
-
-/// Get the name from an Identifier AST node.
-fn get_identifier_name(node: &Value) -> Option<String> {
-    if node.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
-        node.get("name")
-            .and_then(|n| n.as_str())
-            .map(|s| s.to_string())
-    } else {
-        None
-    }
-}
-
-/// Check if a node is an AssignmentPattern (i.e., has a default value).
-fn is_assignment_pattern(node: &Value) -> bool {
-    node.get("type").and_then(|t| t.as_str()) == Some("AssignmentPattern")
-}
-
-/// Extract TypeScript type annotation from a variable declarator.
-///
-/// Checks `id.typeAnnotation.typeAnnotation` for the type string.
-fn extract_type_annotation(declarator: &Value) -> Option<String> {
-    let id = declarator.get("id")?;
-    let type_ann = id.get("typeAnnotation")?;
-    let inner = type_ann.get("typeAnnotation")?;
-
-    // For now, extract the raw type as a string from the source positions
-    // This is a simplification; a full implementation would reconstruct the type string
-    let type_name = inner.get("type").and_then(|t| t.as_str())?;
-
-    // Map common TSTypeAnnotation types to their string representation
-    match type_name {
-        "TSNumberKeyword" => Some("number".to_string()),
-        "TSStringKeyword" => Some("string".to_string()),
-        "TSBooleanKeyword" => Some("boolean".to_string()),
-        "TSAnyKeyword" => Some("any".to_string()),
-        "TSVoidKeyword" => Some("void".to_string()),
-        "TSNullKeyword" => Some("null".to_string()),
-        "TSUndefinedKeyword" => Some("undefined".to_string()),
-        "TSObjectKeyword" => Some("object".to_string()),
-        "TSNeverKeyword" => Some("never".to_string()),
-        "TSUnknownKeyword" => Some("unknown".to_string()),
-        _ => None, // Complex types not yet handled
-    }
-}
-
-/// Get the local name from an export specifier.
-fn get_export_specifier_local(spec: &Value) -> Option<String> {
-    let local = spec.get("local")?;
-    get_identifier_name(local)
-}
-
-/// Get the exported name from an export specifier.
-fn get_export_specifier_exported(spec: &Value) -> Option<String> {
-    let exported = spec.get("exported")?;
-    get_identifier_name(exported)
-}
-
-/// Skip trailing whitespace (spaces, tabs) after a position, but stop before newlines.
-fn skip_trailing_whitespace(source: &str, pos: u32) -> u32 {
-    let bytes = source.as_bytes();
-    let mut i = pos as usize;
-    while i < bytes.len() {
-        match bytes[i] {
-            b' ' | b'\t' => i += 1,
-            b'\n' => {
-                i += 1;
-                break;
-            }
-            b'\r' => {
-                i += 1;
-                if i < bytes.len() && bytes[i] == b'\n' {
-                    i += 1;
-                }
-                break;
-            }
-            _ => break,
+        oxc::BindingPattern::AssignmentPattern(assign) => {
+            extract_names_from_binding_pattern(&assign.left, exported_names, true, is_prop);
         }
     }
-    i as u32
+}
+
+/// Get a simple name from a binding pattern (only works for BindingIdentifier).
+fn binding_pattern_simple_name(pattern: &oxc::BindingPattern) -> Option<String> {
+    match pattern {
+        oxc::BindingPattern::BindingIdentifier(id) => Some(id.name.to_string()),
+        _ => None,
+    }
+}
+
+/// Convert a PropertyKey to a string name.
+fn property_key_to_string(key: &oxc::PropertyKey) -> Option<String> {
+    match key {
+        oxc::PropertyKey::StaticIdentifier(id) => Some(id.name.to_string()),
+        oxc::PropertyKey::StringLiteral(lit) => Some(lit.value.to_string()),
+        oxc::PropertyKey::NumericLiteral(lit) => Some(lit.value.to_string()),
+        _ => None,
+    }
+}
+
+/// Convert a ModuleExportName to a string.
+fn module_export_name_to_string(name: &oxc::ModuleExportName) -> String {
+    match name {
+        oxc::ModuleExportName::IdentifierName(id) => id.name.to_string(),
+        oxc::ModuleExportName::IdentifierReference(id) => id.name.to_string(),
+        oxc::ModuleExportName::StringLiteral(lit) => lit.value.to_string(),
+    }
 }
 
 #[cfg(test)]
@@ -752,16 +598,12 @@ mod tests {
 
     #[test]
     fn test_export_let_simple() {
-        let source = r#"<script>
-export let count = 0;
-</script>"#;
+        let source = "<script>\nexport let count = 0;\n</script>";
         let result = run_svelte2tsx(source);
 
-        // `count` should be a prop
         assert!(result.exported_names.has("count"));
         assert_eq!(result.exported_names.get_prop_names(), vec!["count"]);
 
-        // The info should record has_default = true (because of `= 0`)
         let info = result.exported_names.get("count").unwrap();
         assert!(info.is_prop);
         assert!(info.has_default);
@@ -769,9 +611,7 @@ export let count = 0;
 
     #[test]
     fn test_export_let_no_default() {
-        let source = r#"<script>
-export let name;
-</script>"#;
+        let source = "<script>\nexport let name;\n</script>";
         let result = run_svelte2tsx(source);
 
         assert!(result.exported_names.has("name"));
@@ -782,15 +622,11 @@ export let name;
 
     #[test]
     fn test_export_let_multiple() {
-        let source = r#"<script>
-export let a = 1;
-export let b;
-export let c = "hello";
-</script>"#;
+        let source =
+            "<script>\nexport let a = 1;\nexport let b;\nexport let c = \"hello\";\n</script>";
         let result = run_svelte2tsx(source);
 
         assert_eq!(result.exported_names.get_prop_names(), vec!["a", "b", "c"]);
-
         assert!(result.exported_names.get("a").unwrap().has_default);
         assert!(!result.exported_names.get("b").unwrap().has_default);
         assert!(result.exported_names.get("c").unwrap().has_default);
@@ -800,87 +636,68 @@ export let c = "hello";
 
     #[test]
     fn test_export_const() {
-        let source = r#"<script>
-export const MAX = 100;
-</script>"#;
+        let source = "<script>\nexport const MAX = 100;\n</script>";
         let result = run_svelte2tsx(source);
 
         assert!(result.exported_names.has("MAX"));
-        let info = result.exported_names.get("MAX").unwrap();
-        assert!(!info.is_prop); // const exports are not props
+        assert!(!result.exported_names.get("MAX").unwrap().is_prop);
     }
 
     // -- export function --
 
     #[test]
     fn test_export_function() {
-        let source = r#"<script>
-export function greet() { return "hello"; }
-</script>"#;
+        let source = "<script>\nexport function greet() { return \"hello\"; }\n</script>";
         let result = run_svelte2tsx(source);
 
         assert!(result.exported_names.has("greet"));
-        let info = result.exported_names.get("greet").unwrap();
-        assert!(!info.is_prop);
+        assert!(!result.exported_names.get("greet").unwrap().is_prop);
     }
 
     // -- $props() rune (Svelte 5) --
 
     #[test]
     fn test_props_rune_simple() {
-        let source = r#"<script>
-let { a, b } = $props();
-</script>"#;
+        let source = "<script>\nlet { a, b } = $props();\n</script>";
         let result = run_svelte2tsx(source);
 
         assert!(result.exported_names.has("a"));
         assert!(result.exported_names.has("b"));
         assert_eq!(result.exported_names.get_prop_names(), vec!["a", "b"]);
-
-        // No defaults
         assert!(!result.exported_names.get("a").unwrap().has_default);
         assert!(!result.exported_names.get("b").unwrap().has_default);
     }
 
     #[test]
     fn test_props_rune_with_defaults() {
-        let source = r#"<script>
-let { count = 0, name = "world" } = $props();
-</script>"#;
+        let source = "<script>\nlet { count = 0, name = \"world\" } = $props();\n</script>";
         let result = run_svelte2tsx(source);
 
         assert!(result.exported_names.has("count"));
         assert!(result.exported_names.has("name"));
-
         assert!(result.exported_names.get("count").unwrap().has_default);
         assert!(result.exported_names.get("name").unwrap().has_default);
     }
 
     #[test]
     fn test_props_rune_with_rest() {
-        let source = r#"<script>
-let { a, b, ...rest } = $props();
-</script>"#;
+        let source = "<script>\nlet { a, b, ...rest } = $props();\n</script>";
         let result = run_svelte2tsx(source);
 
         assert!(result.exported_names.has("a"));
         assert!(result.exported_names.has("b"));
-        // rest is not added as an individual prop
         assert!(!result.exported_names.has("rest"));
         assert_eq!(result.exported_names.get_prop_names(), vec!["a", "b"]);
     }
 
-    // -- Empty script --
+    // -- Empty / no script --
 
     #[test]
     fn test_empty_script() {
-        let source = r#"<script>
-</script>"#;
+        let source = "<script>\n</script>";
         let result = run_svelte2tsx(source);
         assert!(result.exported_names.is_empty());
     }
-
-    // -- No script --
 
     #[test]
     fn test_no_script() {
@@ -893,21 +710,16 @@ let { a, b, ...rest } = $props();
 
     #[test]
     fn test_module_script_export_const() {
-        let source = r#"<script context="module">
-export const CONSTANT = 42;
-</script>"#;
+        let source = "<script context=\"module\">\nexport const CONSTANT = 42;\n</script>";
         let result = run_svelte2tsx(source);
 
         assert!(result.exported_names.has("CONSTANT"));
-        let info = result.exported_names.get("CONSTANT").unwrap();
-        assert!(!info.is_prop); // Module exports are never props
+        assert!(!result.exported_names.get("CONSTANT").unwrap().is_prop);
     }
 
     #[test]
     fn test_module_script_export_function() {
-        let source = r#"<script context="module">
-export function helper() {}
-</script>"#;
+        let source = "<script context=\"module\">\nexport function helper() {}\n</script>";
         let result = run_svelte2tsx(source);
 
         assert!(result.exported_names.has("helper"));
@@ -916,10 +728,7 @@ export function helper() {}
 
     #[test]
     fn test_module_script_export_let_not_prop() {
-        // In module script, even `export let` is NOT a prop
-        let source = r#"<script context="module">
-export let shared = 0;
-</script>"#;
+        let source = "<script context=\"module\">\nexport let shared = 0;\n</script>";
         let result = run_svelte2tsx(source);
 
         assert!(result.exported_names.has("shared"));
@@ -930,24 +739,15 @@ export let shared = 0;
 
     #[test]
     fn test_both_scripts() {
-        let source = r#"<script context="module">
-export const VERSION = "1.0";
-</script>
-
-<script>
-export let name;
-</script>"#;
+        let source = "<script context=\"module\">\nexport const VERSION = \"1.0\";\n</script>\n\n<script>\nexport let name;\n</script>";
         let result = run_svelte2tsx(source);
 
-        // Module export
         assert!(result.exported_names.has("VERSION"));
         assert!(!result.exported_names.get("VERSION").unwrap().is_prop);
 
-        // Instance export (prop)
         assert!(result.exported_names.has("name"));
         assert!(result.exported_names.get("name").unwrap().is_prop);
 
-        // Only instance `export let` is a prop
         assert_eq!(result.exported_names.get_prop_names(), vec!["name"]);
     }
 
@@ -955,13 +755,9 @@ export let name;
 
     #[test]
     fn test_export_let_props_in_output() {
-        let source = r#"<script>
-export let count = 0;
-export let name;
-</script>"#;
+        let source = "<script>\nexport let count = 0;\nexport let name;\n</script>";
         let result = run_svelte2tsx(source);
 
-        // The output should include the prop names in the return statement
         assert!(
             result.code.contains("count: count"),
             "Output should contain 'count: count' in props return"
@@ -974,12 +770,9 @@ export let name;
 
     #[test]
     fn test_props_rune_props_in_output() {
-        let source = r#"<script>
-let { x, y } = $props();
-</script>"#;
+        let source = "<script>\nlet { x, y } = $props();\n</script>";
         let result = run_svelte2tsx(source);
 
-        // Props from $props() should appear in the output
         assert!(
             result.code.contains("x: x"),
             "Output should contain 'x: x' in props return"
@@ -992,12 +785,9 @@ let { x, y } = $props();
 
     #[test]
     fn test_no_props_empty_return() {
-        let source = r#"<script>
-const internal = 5;
-</script>"#;
+        let source = "<script>\nconst internal = 5;\n</script>";
         let result = run_svelte2tsx(source);
 
-        // No props: should use the empty record type
         assert!(
             result.code.contains("Record<string, never>"),
             "Output should contain empty record type when there are no props"

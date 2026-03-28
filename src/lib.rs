@@ -24,7 +24,7 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 pub mod ast;
 pub mod compiler;
 pub mod error;
-#[cfg(not(feature = "native"))]
+#[cfg(any(not(feature = "native"), feature = "napi"))]
 pub mod svelte2tsx;
 
 #[cfg(feature = "napi")]

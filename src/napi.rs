@@ -10,6 +10,10 @@ use crate::compiler::{
     CompileOptions, CssMode, ExperimentalOptions, GenerateMode, ModuleCompileOptions, Namespace,
     compile as rust_compile, compile_module as rust_compile_module,
 };
+use crate::svelte2tsx::{
+    Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion,
+    svelte2tsx as rust_svelte2tsx,
+};
 
 /// Compile a Svelte component.
 ///
@@ -304,4 +308,90 @@ pub fn napi_compile_module(source: String, options: Value) -> napi::Result<Value
         }
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
     }
+}
+
+/// Convert a Svelte component to TypeScript/TSX for type checking.
+///
+/// This is the NAPI binding for `svelte2tsx`, used by the Svelte language server
+/// and other tooling to get TypeScript representations of Svelte components.
+#[napi(js_name = "svelte2tsx")]
+pub fn napi_svelte2tsx(source: String, options: Value) -> napi::Result<Value> {
+    let opts = parse_svelte2tsx_options(&options);
+
+    match rust_svelte2tsx(&source, opts) {
+        Ok(result) => {
+            let props: Vec<Value> = result
+                .exported_names
+                .get_prop_names()
+                .iter()
+                .map(|n: &&str| Value::String(n.to_string()))
+                .collect();
+
+            let all: Vec<Value> = result
+                .exported_names
+                .get_all_names()
+                .iter()
+                .map(|n: &&str| Value::String(n.to_string()))
+                .collect();
+
+            let output = serde_json::json!({
+                "code": result.code,
+                "map": Value::Null,
+                "exportedNames": {
+                    "props": props,
+                    "all": all,
+                },
+                "events": {},
+            });
+
+            Ok(output)
+        }
+        Err(e) => Err(napi::Error::from_reason(format!("{e}"))),
+    }
+}
+
+/// Parse JS options object into Svelte2TsxOptions.
+fn parse_svelte2tsx_options(options: &Value) -> Svelte2TsxOptions {
+    let mut opts = Svelte2TsxOptions::default();
+
+    let Some(obj) = options.as_object() else {
+        return opts;
+    };
+
+    if let Some(v) = obj.get("filename").and_then(|v| v.as_str()) {
+        opts.filename = v.to_string();
+    }
+
+    if let Some(v) = obj.get("isTsFile").and_then(|v| v.as_bool()) {
+        opts.is_ts_file = v;
+    }
+
+    if let Some(v) = obj.get("mode").and_then(|v| v.as_str()) {
+        opts.mode = match v {
+            "dts" => Svelte2TsxMode::Dts,
+            _ => Svelte2TsxMode::Ts,
+        };
+    }
+
+    if let Some(v) = obj.get("accessors").and_then(|v| v.as_bool()) {
+        opts.accessors = v;
+    }
+
+    if let Some(v) = obj.get("namespace").and_then(|v| v.as_str()) {
+        opts.namespace = match v {
+            "svg" => Svelte2TsxNamespace::Svg,
+            "mathml" => Svelte2TsxNamespace::Mathml,
+            _ => Svelte2TsxNamespace::Html,
+        };
+    }
+
+    if let Some(v) = obj.get("version").and_then(|v| v.as_str()) {
+        opts.version = if v.starts_with('5') {
+            SvelteVersion::V5
+        } else {
+            SvelteVersion::V4
+        };
+    }
+
+    opts
 }

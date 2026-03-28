@@ -226,15 +226,21 @@ fn process_node_inplace(
 /// Handle a text node.
 ///
 /// Text nodes in svelte2tsx have their non-whitespace characters removed
-/// (replaced with spaces). At least 1 space is preserved if text existed.
-fn handle_text(text: &Text, _source: &str, str: &mut MagicString) {
+/// (replaced with empty). Whitespace characters are kept as-is.
+/// If the result is empty but the original text had content, at least 1
+/// space is preserved (to prevent hover artifacts in the language server).
+fn handle_text(text: &Text, source: &str, str: &mut MagicString) {
     if text.start >= text.end {
         return;
     }
-    // Overwrite the text node with a single space
-    // (text nodes don't affect types but we need to maintain position)
-    let replacement = " ";
-    str.overwrite(text.start, text.end, replacement);
+    let raw = &source[text.start as usize..text.end as usize];
+    // Remove non-whitespace, keep whitespace
+    let mut replacement: String = raw.chars().filter(|c| c.is_whitespace()).collect();
+    if replacement.is_empty() && !raw.is_empty() {
+        // Minimum of 1 space
+        replacement = " ".to_string();
+    }
+    str.overwrite(text.start, text.end, &replacement);
 }
 
 /// Handle an HTML comment node.

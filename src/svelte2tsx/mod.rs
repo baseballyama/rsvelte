@@ -1,4 +1,4 @@
-#[allow(warnings)]
+#[allow(warnings, clippy::inherent_to_string_shadow_display)]
 pub mod magic_string;
 #[allow(warnings)]
 pub mod script;
@@ -8,5 +8,6 @@ pub mod svelte2tsx;
 pub mod template;
 
 pub use svelte2tsx::{
-    Svelte2TsxError, Svelte2TsxMode, Svelte2TsxOptions, Svelte2TsxResult, SvelteVersion, svelte2tsx,
+    Svelte2TsxError, Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions, Svelte2TsxResult,
+    SvelteVersion, svelte2tsx,
 };
