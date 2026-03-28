@@ -6,3 +6,6 @@
 	path = vite-plugin-svelte
 	url = git@github.com:baseballyama/vite-plugin-svelte.git
 	branch = rsvelte
+[submodule "language-tools"]
+	path = language-tools
+	url = https://github.com/sveltejs/language-tools.git

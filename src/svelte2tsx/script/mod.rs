@@ -318,9 +318,10 @@ fn handle_export_named_decl(
     if let Some(ref decl) = export.declaration {
         let decl_start = decl.span().start + offset;
 
-        // Remove the 'export ' keyword: overwrite from node start to declaration start
-        if decl_start > node_start {
-            str.overwrite(node_start, decl_start, "");
+        // For instance scripts: remove the 'export ' keyword (replace with space).
+        // For module scripts: keep the 'export' keyword (it's a real module export).
+        if is_instance && decl_start > node_start {
+            str.overwrite(node_start, decl_start, " ");
         }
 
         match decl {
@@ -343,6 +344,20 @@ fn handle_export_named_decl(
                             has_default,
                             is_prop,
                         );
+
+                        // For exported variables without initializers, inject
+                        // __sveltets_2_any to ensure TypeScript treats them as `any`.
+                        // This matches the JS svelte2tsx behavior:
+                        //   export let a; → let a/*Ωignore_startΩ*/;a = __sveltets_2_any(a);/*Ωignore_endΩ*/;
+                        if is_prop && !has_default {
+                            if let Some(name) = binding_pattern_simple_name(&declarator.id) {
+                                let inject = format!(
+                                    "/*\u{03A9}ignore_start\u{03A9}*/;{name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/",
+                                );
+                                let inject_pos = declarator.span.end + offset;
+                                str.append_left(inject_pos, &inject);
+                            }
+                        }
                     }
                 }
             }

@@ -5,6 +5,7 @@
 //! Corresponds to Svelte's `2-analyze/visitors/AwaitExpression.js`.
 
 use super::{JsPathEntry, VisitorContext};
+use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use serde_json::Value;
 
@@ -44,6 +45,42 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     // Visit the argument expression
     if let Some(argument) = node.get("argument") {
         super::script::walk_js_node(argument, context)?;
+    }
+
+    Ok(())
+}
+
+/// Visit an await expression (typed JsNode path).
+pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    let tla = context.ast_type == super::AstType::Instance && context.function_depth == 1;
+
+    let in_derived = context.derived_function_depth == context.function_depth
+        && context.derived_function_depth > 0;
+    let in_reactive = in_derived || context.expression.is_some();
+
+    if in_reactive {
+        // Need Value for is_last_evaluated_expression_js comparison
+        let value = node.to_value();
+        if !is_last_evaluated_expression_js(&context.js_path, &value) {
+            let start = node.start().unwrap_or(0);
+            context.analysis.pickled_awaits.insert(start);
+        }
+    }
+
+    let suspend = tla;
+
+    if suspend && !context.analysis.runes {
+        return Err(AnalysisError::ValidationWithCode {
+            code: "legacy_await_invalid".to_string(),
+            message: "Top-level await is only allowed in Svelte 5 with runes mode".to_string(),
+        });
+    }
+
+    // Visit the argument expression using typed traversal
+    if let JsNode::AwaitExpression { argument, .. } = node {
+        let arena = context.parse_arena;
+        let arg_node = arena.get_js_node(*argument);
+        super::script::walk_js_node_typed(arg_node, context)?;
     }
 
     Ok(())

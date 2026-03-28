@@ -334,8 +334,12 @@ impl MagicString {
     // -----------------------------------------------------------------
 
     /// Replace the content in `[start, end)` with `content`.
+    ///
+    /// If `start >= end`, this is a no-op (returns self without modification).
     pub fn overwrite(&mut self, start: u32, end: u32, content: &str) -> &mut Self {
-        assert!(start < end, "overwrite: start must be < end");
+        if start >= end {
+            return self;
+        }
         assert!(
             (end as usize) <= self.original.len(),
             "overwrite: end ({}) > source length ({})",

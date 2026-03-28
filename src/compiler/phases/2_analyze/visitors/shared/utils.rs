@@ -2261,6 +2261,20 @@ pub fn object(expression: &Value) -> Option<Value> {
 // JsNode-based helper functions (mirrors of JSON-based functions above)
 // =============================================================================
 
+/// JsNode version of `object`. Gets the leftmost identifier name from a MemberExpression chain.
+/// Returns None if not found or base is not an Identifier.
+pub fn object_node(expression: &JsNode, arena: &crate::ast::arena::ParseArena) -> Option<String> {
+    let mut current = expression;
+    while let JsNode::MemberExpression { object, .. } = current {
+        current = arena.get_js_node(*object);
+    }
+    if let JsNode::Identifier { name, .. } = current {
+        Some(name.to_string())
+    } else {
+        None
+    }
+}
+
 /// JsNode version of `get_name`.
 /// Extracts the name from an Identifier, PrivateIdentifier, or Literal node.
 fn get_name_node(node: &JsNode) -> Option<String> {

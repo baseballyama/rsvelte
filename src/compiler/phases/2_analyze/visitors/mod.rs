@@ -113,17 +113,39 @@ pub struct EachBlockContext {
     pub child_count: usize,
 }
 
-/// A wrapper that provides access to a `serde_json::Value` on the js_path.
+/// A wrapper that provides access to an AST node on the js_path.
 ///
-/// Supports two modes:
+/// Supports three modes:
 /// - **Borrowed**: a raw pointer to a `Value` whose lifetime is managed by the caller
 ///   (used by `walk_js_node` where the `&Value` outlives the push/pop).
-/// - **Owned**: a `Box<Value>` for cases where the value is created on the fly
-///   (used by `walk_js_node_typed` which converts `JsNode` to `Value`).
-#[derive(Clone)]
+/// - **Owned**: a `Box<Value>` for cases where the value is created on the fly.
+/// - **TypedNode**: a raw pointer to a `JsNode` with a lazily-materialized `Value`
+///   (used by `walk_js_node_typed` to avoid the expensive `to_value()` conversion
+///   for the vast majority of nodes that are never inspected via js_path).
 pub enum JsPathEntry {
     Borrowed(*const serde_json::Value),
     Owned(Box<serde_json::Value>),
+    TypedNode {
+        node: *const crate::ast::typed_expr::JsNode,
+        /// Lazily materialized Value. Only created when `as_value()` / `Deref` is called.
+        cached_value: std::cell::UnsafeCell<Option<Box<serde_json::Value>>>,
+    },
+}
+
+impl Clone for JsPathEntry {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Borrowed(ptr) => Self::Borrowed(*ptr),
+            Self::Owned(boxed) => Self::Owned(boxed.clone()),
+            Self::TypedNode { node, cached_value } => {
+                let cached = unsafe { &*cached_value.get() };
+                Self::TypedNode {
+                    node: *node,
+                    cached_value: std::cell::UnsafeCell::new(cached.clone()),
+                }
+            }
+        }
+    }
 }
 
 impl JsPathEntry {
@@ -139,7 +161,19 @@ impl JsPathEntry {
         Self::Owned(Box::new(value))
     }
 
+    /// Create a new `JsPathEntry` from a `JsNode` reference (zero-cost).
+    /// The Value will be lazily materialized only if `as_value()` or `Deref` is called.
+    #[inline]
+    pub fn new_typed(node: &crate::ast::typed_expr::JsNode) -> Self {
+        Self::TypedNode {
+            node: node as *const _,
+            cached_value: std::cell::UnsafeCell::new(None),
+        }
+    }
+
     /// Get a reference to the underlying `Value`.
+    ///
+    /// For `TypedNode` entries, lazily converts the JsNode to Value on first access.
     #[inline]
     pub fn as_value(&self) -> &serde_json::Value {
         match self {
@@ -148,7 +182,81 @@ impl JsPathEntry {
                 unsafe { &**ptr }
             }
             Self::Owned(boxed) => boxed,
+            Self::TypedNode { node, cached_value } => {
+                // SAFETY: Single-threaded access; walk_js_node_typed is not concurrent.
+                let cached = unsafe { &mut *cached_value.get() };
+                if cached.is_none() {
+                    let js_node = unsafe { &**node };
+                    *cached = Some(Box::new(js_node.to_value()));
+                }
+                cached.as_ref().unwrap()
+            }
         }
+    }
+
+    /// Get the underlying `JsNode` reference, if this is a `TypedNode` entry.
+    #[inline]
+    pub fn as_js_node(&self) -> Option<&crate::ast::typed_expr::JsNode> {
+        match self {
+            Self::TypedNode { node, .. } => Some(unsafe { &**node }),
+            _ => None,
+        }
+    }
+
+    /// Get the ESTree type string for this entry.
+    ///
+    /// Works across all variants without converting TypedNode to Value.
+    #[inline]
+    pub fn get_type_str(&self) -> Option<&str> {
+        match self {
+            Self::TypedNode { node, .. } => {
+                let js_node = unsafe { &**node };
+                Some(js_node.type_str())
+            }
+            _ => self.as_value().get("type").and_then(|t| t.as_str()),
+        }
+    }
+
+    /// Get a string field value by name.
+    ///
+    /// For Value entries, does `node.get(field).and_then(|v| v.as_str())`.
+    /// For TypedNode entries, handles known fields like "name", "operator", "kind".
+    pub fn get_field_str(&self, field: &str) -> Option<&str> {
+        match self {
+            Self::TypedNode { node, .. } => {
+                let js_node = unsafe { &**node };
+                js_node.get_field_str(field)
+            }
+            _ => self.as_value().get(field).and_then(|v| v.as_str()),
+        }
+    }
+
+    /// Get a boolean field value by name.
+    pub fn get_field_bool(&self, field: &str) -> Option<bool> {
+        match self {
+            Self::TypedNode { node, .. } => {
+                let js_node = unsafe { &**node };
+                js_node.get_field_bool(field)
+            }
+            _ => self.as_value().get(field).and_then(|v| v.as_bool()),
+        }
+    }
+
+    /// Get a u64 field value by name (for start/end positions).
+    pub fn get_field_u64(&self, field: &str) -> Option<u64> {
+        match self {
+            Self::TypedNode { node, .. } => {
+                let js_node = unsafe { &**node };
+                js_node.get_field_u64(field)
+            }
+            _ => self.as_value().get(field).and_then(|v| v.as_u64()),
+        }
+    }
+
+    /// Check if this entry is a specific ESTree node type.
+    #[inline]
+    pub fn is_type(&self, type_name: &str) -> bool {
+        self.get_type_str() == Some(type_name)
     }
 }
 

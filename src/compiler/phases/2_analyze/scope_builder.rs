@@ -5,12 +5,12 @@
 use super::errors;
 use super::scope::{Binding, BindingKind, DeclarationKind, Scope, ScopeRoot};
 use super::visitors::shared::utils::validate_identifier_name;
-use crate::ast::arena::ParseArena;
+use crate::ast::arena::{JsNodeId, ParseArena};
 use crate::ast::template::{
     AwaitBlock, ConstTag, EachBlock, Fragment, IfBlock, KeyBlock, RegularElement, Root, Script,
     SnippetBlock, TemplateNode,
 };
-use crate::ast::typed_expr::JsNode;
+use crate::ast::typed_expr::{JsNode, LiteralValue};
 use rustc_hash::FxHashMap;
 
 use oxc_allocator::Allocator;
@@ -484,7 +484,10 @@ impl<'a> ScopeBuilder<'a> {
         idx
     }
 
-    /// Visit a script block and extract variable declarations using OXC.
+    /// Visit a script block and extract variable declarations.
+    ///
+    /// Tries the typed path first (using the JsNode from the parse arena),
+    /// falling back to OXC re-parse if the content is not in typed form.
     fn visit_script(&mut self, script: &Script) {
         let start = script.content.start().unwrap_or(0) as usize;
         let end = script.content.end().unwrap_or(0) as usize;
@@ -496,6 +499,13 @@ impl<'a> ScopeBuilder<'a> {
         // Store the script content offset so process_statement can use it
         // to record correct full-source positions in function_scope_map
         self.current_script_offset = start;
+
+        // Fast path: if the script content is already a typed JsNode::Program,
+        // process it directly without re-parsing with OXC.
+        if let crate::ast::js::Expression::Typed(te) = &script.content {
+            self.process_program_typed(&te.node);
+            return;
+        }
 
         let content = &self.source[start..end];
 
@@ -523,6 +533,638 @@ impl<'a> ScopeBuilder<'a> {
                 self.process_program(&ret.program);
             }
         });
+    }
+
+    /// Process a typed JsNode::Program AST.
+    fn process_program_typed(&mut self, node: &JsNode) {
+        if let JsNode::Program { body, .. } = node {
+            for stmt in self.arena.get_js_children(*body) {
+                self.process_statement_typed(stmt);
+            }
+        }
+    }
+
+    /// Process a statement from a typed JsNode.
+    /// Mirrors the logic of `process_statement` but using JsNode pattern matching.
+    fn process_statement_typed(&mut self, node: &JsNode) {
+        match node {
+            JsNode::VariableDeclaration {
+                declarations, kind, ..
+            } => {
+                let decl_kind = match kind.as_str() {
+                    "const" => DeclarationKind::Const,
+                    "let" => DeclarationKind::Let,
+                    "var" => DeclarationKind::Var,
+                    // using/await using treated as const
+                    _ => DeclarationKind::Const,
+                };
+                let declarations = *declarations;
+                for decl_node in self.arena.get_js_children(declarations) {
+                    if let JsNode::VariableDeclarator { id, init, .. } = decl_node {
+                        let id_node = self.arena.get_js_node(*id);
+                        self.process_binding_pattern_typed(id_node, *init, decl_kind);
+                        // Also track updates in the initializer expression
+                        if let Some(init_id) = init {
+                            let init_node = self.arena.get_js_node(*init_id);
+                            self.track_node_expression_updates(init_node);
+                        }
+                    }
+                }
+            }
+            JsNode::ImportDeclaration {
+                specifiers,
+                source,
+                import_kind,
+                ..
+            } => {
+                // Skip type-only imports
+                if import_kind.as_deref() == Some("type") {
+                    return;
+                }
+                let source_val = {
+                    let src = self.arena.get_js_node(*source);
+                    match src {
+                        JsNode::Literal {
+                            value: LiteralValue::String(s),
+                            ..
+                        } => s.to_string(),
+                        _ => String::new(),
+                    }
+                };
+                let specifiers = *specifiers;
+                for spec_node in self.arena.get_js_children(specifiers) {
+                    self.process_import_specifier_typed(spec_node, &source_val);
+                }
+            }
+            JsNode::FunctionDeclaration {
+                id, params, body, ..
+            } => {
+                if let Some(id_ref) = id {
+                    let id_node = self.arena.get_js_node(*id_ref);
+                    if let JsNode::Identifier { name, .. } = id_node {
+                        let idx = self.declare_binding(
+                            name.to_string(),
+                            BindingKind::Normal,
+                            DeclarationKind::Function,
+                        );
+                        self.bindings[idx].initial_is_function = true;
+                    }
+                }
+                let params = *params;
+                let body = *body;
+                // Create a new scope for the function body (non-porous: function_depth + 1)
+                let old_scope = self.push_function_scope();
+                self.function_depth += 1;
+                // Record function body start -> scope index mapping for visitor phase
+                if let Some(body_id) = body {
+                    let body_node = self.arena.get_js_node(body_id);
+                    if let Some(start) = body_node.start() {
+                        let key = (self.current_script_offset + start as usize) as u32;
+                        self.function_scope_map.insert(key, self.current_scope);
+                    }
+                }
+                // Declare function parameters in the new scope
+                for param in self.arena.get_js_children(params) {
+                    self.declare_bindings_from_pattern_node(param, BindingKind::Normal, false);
+                }
+                // Process function body for assignments
+                if let Some(body_id) = body {
+                    self.process_body_typed(self.arena.get_js_node(body_id));
+                }
+                self.function_depth -= 1;
+                self.pop_scope(old_scope);
+            }
+            JsNode::ClassDeclaration { id, body, .. } => {
+                if let Some(id_ref) = id {
+                    let id_node = self.arena.get_js_node(*id_ref);
+                    if let JsNode::Identifier { name, .. } = id_node {
+                        self.declare_binding(
+                            name.to_string(),
+                            BindingKind::Normal,
+                            DeclarationKind::Let,
+                        );
+                    }
+                }
+                // Process class body to find assignments in methods, getters, setters, etc.
+                let body_id = *body;
+                self.process_class_body_typed(self.arena.get_js_node(body_id));
+            }
+            JsNode::ExportNamedDeclaration {
+                declaration,
+                export_kind,
+                ..
+            } => {
+                // Skip type-only exports
+                if export_kind.as_deref() == Some("type") {
+                    return;
+                }
+                if let Some(decl_id) = declaration {
+                    let decl_node = self.arena.get_js_node(*decl_id);
+                    self.process_statement_typed(decl_node);
+                }
+            }
+            JsNode::ExportDefaultDeclaration { .. } => {
+                // Export default doesn't create a named binding in the module scope
+            }
+            JsNode::ExpressionStatement { expression, .. } => {
+                let expr = self.arena.get_js_node(*expression);
+                self.track_node_expression_updates(expr);
+            }
+            JsNode::BlockStatement { body, .. } => {
+                let body = *body;
+                let old_scope = self.push_scope();
+                for stmt in self.arena.get_js_children(body) {
+                    self.process_statement_typed(stmt);
+                }
+                self.pop_scope(old_scope);
+            }
+            JsNode::IfStatement {
+                test,
+                consequent,
+                alternate,
+                ..
+            } => {
+                let test_node = self.arena.get_js_node(*test);
+                self.track_node_expression_updates(test_node);
+                let cons_node = self.arena.get_js_node(*consequent);
+                self.process_statement_typed(cons_node);
+                if let Some(alt_id) = alternate {
+                    let alt_node = self.arena.get_js_node(*alt_id);
+                    self.process_statement_typed(alt_node);
+                }
+            }
+            JsNode::ReturnStatement {
+                argument: Some(arg_id),
+                ..
+            } => {
+                let arg_node = self.arena.get_js_node(*arg_id);
+                self.track_node_expression_updates(arg_node);
+            }
+            JsNode::ReturnStatement { .. } => {}
+            JsNode::WhileStatement { test, body, .. } => {
+                self.track_node_expression_updates(self.arena.get_js_node(*test));
+                self.process_statement_typed(self.arena.get_js_node(*body));
+            }
+            JsNode::DoWhileStatement { test, body, .. } => {
+                self.process_statement_typed(self.arena.get_js_node(*body));
+                self.track_node_expression_updates(self.arena.get_js_node(*test));
+            }
+            JsNode::ForStatement {
+                init,
+                test,
+                update,
+                body,
+                ..
+            } => {
+                // Check if init is a let/const VariableDeclaration that needs its own scope
+                let needs_scope = if let Some(init_id) = init {
+                    let init_node = self.arena.get_js_node(*init_id);
+                    matches!(
+                        init_node,
+                        JsNode::VariableDeclaration { kind, .. }
+                            if kind.as_str() == "let" || kind.as_str() == "const"
+                    )
+                } else {
+                    false
+                };
+                let old_scope = if needs_scope {
+                    Some(self.push_scope())
+                } else {
+                    None
+                };
+                if let Some(init_id) = init {
+                    let init_node = self.arena.get_js_node(*init_id);
+                    if matches!(init_node, JsNode::VariableDeclaration { .. }) {
+                        self.process_statement_typed(init_node);
+                    } else {
+                        self.track_node_expression_updates(init_node);
+                    }
+                }
+                if let Some(test_id) = test {
+                    self.track_node_expression_updates(self.arena.get_js_node(*test_id));
+                }
+                if let Some(update_id) = update {
+                    self.track_node_expression_updates(self.arena.get_js_node(*update_id));
+                }
+                self.process_statement_typed(self.arena.get_js_node(*body));
+                if let Some(old) = old_scope {
+                    self.pop_scope(old);
+                }
+            }
+            JsNode::ForInStatement { right, body, .. } => {
+                self.track_node_expression_updates(self.arena.get_js_node(*right));
+                self.process_statement_typed(self.arena.get_js_node(*body));
+            }
+            JsNode::ForOfStatement { right, body, .. } => {
+                self.track_node_expression_updates(self.arena.get_js_node(*right));
+                self.process_statement_typed(self.arena.get_js_node(*body));
+            }
+            JsNode::TryStatement {
+                block,
+                handler,
+                finalizer,
+                ..
+            } => {
+                // Process try block
+                let block_node = self.arena.get_js_node(*block);
+                if let JsNode::BlockStatement { body, .. } = block_node {
+                    let body = *body;
+                    for stmt in self.arena.get_js_children(body) {
+                        self.process_statement_typed(stmt);
+                    }
+                }
+                // Process catch clause if present
+                if let Some(handler_id) = handler {
+                    let handler_node = self.arena.get_js_node(*handler_id);
+                    if let JsNode::CatchClause { param, body, .. } = handler_node {
+                        let param = *param;
+                        let body = *body;
+                        let old_scope = self.push_scope();
+                        // Declare catch parameter if present
+                        if let Some(param_id) = param {
+                            let param_node = self.arena.get_js_node(param_id);
+                            self.declare_bindings_from_pattern_node(
+                                param_node,
+                                BindingKind::Normal,
+                                false,
+                            );
+                        }
+                        let body_node = self.arena.get_js_node(body);
+                        if let JsNode::BlockStatement {
+                            body: stmts_range, ..
+                        } = body_node
+                        {
+                            let stmts_range = *stmts_range;
+                            for stmt in self.arena.get_js_children(stmts_range) {
+                                self.process_statement_typed(stmt);
+                            }
+                        }
+                        self.pop_scope(old_scope);
+                    }
+                }
+                // Process finally block if present
+                if let Some(finalizer_id) = finalizer {
+                    let finalizer_node = self.arena.get_js_node(*finalizer_id);
+                    if let JsNode::BlockStatement { body, .. } = finalizer_node {
+                        let body = *body;
+                        for stmt in self.arena.get_js_children(body) {
+                            self.process_statement_typed(stmt);
+                        }
+                    }
+                }
+            }
+            JsNode::ThrowStatement { argument, .. } => {
+                self.track_node_expression_updates(self.arena.get_js_node(*argument));
+            }
+            JsNode::SwitchStatement {
+                discriminant,
+                cases,
+                ..
+            } => {
+                self.track_node_expression_updates(self.arena.get_js_node(*discriminant));
+                let cases = *cases;
+                for case in self.arena.get_js_children(cases) {
+                    if let JsNode::SwitchCase {
+                        test, consequent, ..
+                    } = case
+                    {
+                        if let Some(test_id) = test {
+                            self.track_node_expression_updates(self.arena.get_js_node(*test_id));
+                        }
+                        let consequent = *consequent;
+                        for stmt in self.arena.get_js_children(consequent) {
+                            self.process_statement_typed(stmt);
+                        }
+                    }
+                }
+            }
+            JsNode::LabeledStatement { label, body, .. } => {
+                let label_id = *label;
+                let body_id = *body;
+                // Check for `$:` reactive declarations in legacy mode
+                let label_node = self.arena.get_js_node(label_id);
+                if let JsNode::Identifier { name, .. } = label_node
+                    && name.as_str() == "$"
+                    && !self.runes_mode
+                {
+                    let body_node = self.arena.get_js_node(body_id);
+                    if let JsNode::ExpressionStatement { expression, .. } = body_node {
+                        let expr = self.arena.get_js_node(*expression);
+                        // Handle AssignmentExpression directly
+                        if let JsNode::AssignmentExpression { left, .. } = expr {
+                            let left_node = self.arena.get_js_node(*left);
+                            self.collect_assignment_lhs_identifiers_typed(left_node);
+                        }
+                    }
+                }
+                let body_node = self.arena.get_js_node(body_id);
+                self.process_statement_typed(body_node);
+            }
+            // Empty, debugger, break, continue — no bindings or updates
+            JsNode::EmptyStatement { .. }
+            | JsNode::DebuggerStatement { .. }
+            | JsNode::BreakStatement { .. }
+            | JsNode::ContinueStatement { .. } => {}
+            _ => {}
+        }
+    }
+
+    /// Process a binding pattern from a typed JsNode (for variable declarations).
+    /// This mirrors `process_binding_pattern` but works with JsNode.
+    fn process_binding_pattern_typed(
+        &mut self,
+        pattern: &JsNode,
+        init: Option<JsNodeId>,
+        decl_kind: DeclarationKind,
+    ) {
+        match pattern {
+            JsNode::Identifier { name, start, .. } => {
+                let kind = if let Some(init_id) = init {
+                    let init_node = self.arena.get_js_node(init_id);
+                    self.detect_binding_kind_from_node(init_node)
+                } else {
+                    BindingKind::Normal
+                };
+                let idx = self.declare_binding(name.to_string(), kind, decl_kind);
+                // Store declaration position for var hoisting analysis
+                self.bindings[idx].declaration_start = Some(*start);
+                // Check if initializer is a function expression
+                if let Some(init_id) = init {
+                    let init_node = self.arena.get_js_node(init_id);
+                    if matches!(
+                        init_node,
+                        JsNode::ArrowFunctionExpression { .. } | JsNode::FunctionExpression { .. }
+                    ) {
+                        self.bindings[idx].initial_is_function = true;
+                    }
+                }
+            }
+            JsNode::ObjectPattern { properties, .. } => {
+                // Detect if this ObjectPattern is initialized from $props()
+                let is_props_init = init
+                    .map(|init_id| {
+                        let init_node = self.arena.get_js_node(init_id);
+                        matches!(
+                            self.detect_binding_kind_from_node(init_node),
+                            BindingKind::Prop
+                        )
+                    })
+                    .unwrap_or(false);
+                let properties = *properties;
+                for prop in self.arena.get_js_children(properties) {
+                    match prop {
+                        JsNode::Property { value, .. } => {
+                            let value_node = self.arena.get_js_node(*value);
+                            self.process_binding_pattern_typed(value_node, None, decl_kind);
+                        }
+                        JsNode::RestElement { argument, .. }
+                        | JsNode::SpreadElement { argument, .. } => {
+                            if is_props_init {
+                                // For `let { ...rest } = $props()`, the rest binding must be RestProp
+                                let arg_node = self.arena.get_js_node(*argument);
+                                if let JsNode::Identifier { name, .. } = arg_node {
+                                    self.declare_binding(
+                                        name.to_string(),
+                                        BindingKind::RestProp,
+                                        decl_kind,
+                                    );
+                                } else {
+                                    self.process_binding_pattern_typed(arg_node, None, decl_kind);
+                                }
+                            } else {
+                                let arg_node = self.arena.get_js_node(*argument);
+                                self.process_binding_pattern_typed(arg_node, None, decl_kind);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            JsNode::ArrayPattern { elements, .. } => {
+                for elem in elements.iter().flatten() {
+                    self.process_binding_pattern_typed(elem, None, decl_kind);
+                }
+            }
+            JsNode::AssignmentPattern { left, .. } => {
+                let left_node = self.arena.get_js_node(*left);
+                self.process_binding_pattern_typed(left_node, init, decl_kind);
+            }
+            JsNode::RestElement { argument, .. } => {
+                let arg_node = self.arena.get_js_node(*argument);
+                self.process_binding_pattern_typed(arg_node, None, decl_kind);
+            }
+            _ => {}
+        }
+    }
+
+    /// Process an import specifier from a typed JsNode.
+    fn process_import_specifier_typed(&mut self, node: &JsNode, source_val: &str) {
+        let (name, specifier_type) = match node {
+            JsNode::ImportSpecifier {
+                local, import_kind, ..
+            } => {
+                // Skip type-only specifiers
+                if import_kind.as_deref() == Some("type") {
+                    return;
+                }
+                let local_node = self.arena.get_js_node(*local);
+                if let JsNode::Identifier { name, .. } = local_node {
+                    (name.to_string(), "ImportSpecifier")
+                } else {
+                    return;
+                }
+            }
+            JsNode::ImportDefaultSpecifier { local, .. } => {
+                let local_node = self.arena.get_js_node(*local);
+                if let JsNode::Identifier { name, .. } = local_node {
+                    (name.to_string(), "ImportDefaultSpecifier")
+                } else {
+                    return;
+                }
+            }
+            JsNode::ImportNamespaceSpecifier { local, .. } => {
+                let local_node = self.arena.get_js_node(*local);
+                if let JsNode::Identifier { name, .. } = local_node {
+                    (name.to_string(), "ImportNamespaceSpecifier")
+                } else {
+                    return;
+                }
+            }
+            _ => return,
+        };
+        let binding_idx =
+            self.declare_binding(name.clone(), BindingKind::Normal, DeclarationKind::Import);
+        // Store the ImportDeclaration as a JSON string on binding.initial,
+        // matching the official Svelte compiler where binding.initial is the
+        // ImportDeclaration AST node.
+        let import_json = serde_json::json!({
+            "type": "ImportDeclaration",
+            "source": { "value": source_val },
+            "specifiers": [{
+                "type": specifier_type,
+                "local": { "name": name }
+            }]
+        });
+        self.bindings[binding_idx].initial = Some(import_json.to_string());
+    }
+
+    /// Process a function body (BlockStatement) from a typed JsNode.
+    fn process_body_typed(&mut self, node: &JsNode) {
+        if let JsNode::BlockStatement { body, .. } = node {
+            let body = *body;
+            for stmt in self.arena.get_js_children(body) {
+                self.process_statement_typed(stmt);
+            }
+        }
+    }
+
+    /// Process a class body from a typed JsNode.
+    fn process_class_body_typed(&mut self, node: &JsNode) {
+        if let JsNode::ClassBody { body, .. } = node {
+            let body = *body;
+            for elem in self.arena.get_js_children(body) {
+                match elem {
+                    JsNode::MethodDefinition { value, .. } => {
+                        let value_node = self.arena.get_js_node(*value);
+                        if let JsNode::FunctionExpression { body, params, .. } = value_node {
+                            let body = *body;
+                            let params = *params;
+                            let old_scope = self.push_function_scope();
+                            self.function_depth += 1;
+                            // Declare function parameters
+                            for param in self.arena.get_js_children(params) {
+                                self.declare_bindings_from_pattern_node(
+                                    param,
+                                    BindingKind::Normal,
+                                    false,
+                                );
+                            }
+                            // Process method body
+                            if let Some(body_id) = body {
+                                self.process_body_typed(self.arena.get_js_node(body_id));
+                            }
+                            self.function_depth -= 1;
+                            self.pop_scope(old_scope);
+                        }
+                    }
+                    JsNode::PropertyDefinition {
+                        value: Some(value), ..
+                    } => {
+                        self.track_node_expression_updates(self.arena.get_js_node(*value));
+                    }
+                    JsNode::StaticBlock { body, .. } => {
+                        let body = *body;
+                        let old_scope = self.push_scope();
+                        for stmt in self.arena.get_js_children(body) {
+                            self.process_statement_typed(stmt);
+                        }
+                        self.pop_scope(old_scope);
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    /// Collect identifiers from the LHS of an assignment expression (typed path).
+    /// Used to find possible implicit `legacy_reactive` declarations from `$: x = expr`.
+    fn collect_assignment_lhs_identifiers_typed(&mut self, node: &JsNode) {
+        match node {
+            JsNode::Identifier { name, .. } => {
+                if !name.starts_with('$') {
+                    self.possible_implicit_declarations.push(name.to_string());
+                }
+            }
+            JsNode::ArrayPattern { elements, .. } => {
+                for elem in elements.iter().flatten() {
+                    self.collect_assignment_lhs_identifiers_typed(elem);
+                }
+            }
+            JsNode::ObjectPattern { properties, .. } => {
+                let properties = *properties;
+                for prop in self.arena.get_js_children(properties) {
+                    match prop {
+                        JsNode::Property {
+                            value, shorthand, ..
+                        } => {
+                            if *shorthand {
+                                // Shorthand property: { x } means x is both key and value
+                                let value_node = self.arena.get_js_node(*value);
+                                self.collect_assignment_lhs_identifiers_typed(value_node);
+                            } else {
+                                let value_node = self.arena.get_js_node(*value);
+                                self.collect_assignment_lhs_identifiers_typed(value_node);
+                            }
+                        }
+                        JsNode::RestElement { argument, .. }
+                        | JsNode::SpreadElement { argument, .. } => {
+                            let arg_node = self.arena.get_js_node(*argument);
+                            self.collect_assignment_lhs_identifiers_typed(arg_node);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            JsNode::AssignmentPattern { left, .. } => {
+                let left_node = self.arena.get_js_node(*left);
+                self.collect_assignment_lhs_identifiers_typed(left_node);
+            }
+            // MemberExpression, etc. - not implicit declarations
+            _ => {}
+        }
+    }
+
+    /// Detect the binding kind from a JsNode expression (e.g., $state(), $derived()).
+    fn detect_binding_kind_from_node(&self, expr: &JsNode) -> BindingKind {
+        if let JsNode::CallExpression { callee, .. } = expr {
+            let callee_node = self.arena.get_js_node(*callee);
+            // Handle direct calls like $state(), $derived(), $props()
+            if let JsNode::Identifier { name, .. } = callee_node {
+                let callee_name = name.as_str();
+                let unprefixed = callee_name.strip_prefix('$').unwrap_or(callee_name);
+                let has_unprefixed_binding = self.find_binding_in_scope_chain(unprefixed).is_some();
+                let has_prefixed_binding = self.find_binding_in_scope_chain(callee_name).is_some();
+                if !has_unprefixed_binding && !has_prefixed_binding {
+                    match callee_name {
+                        "$state" => return BindingKind::State,
+                        "$derived" => return BindingKind::Derived,
+                        "$props" => return BindingKind::Prop,
+                        _ => {}
+                    }
+                }
+            } else if let JsNode::MemberExpression {
+                object, property, ..
+            } = callee_node
+            {
+                // Handle $state.raw() and $derived.by()
+                let obj_node = self.arena.get_js_node(*object);
+                if let JsNode::Identifier { name: obj_name, .. } = obj_node {
+                    let unprefixed = obj_name
+                        .as_str()
+                        .strip_prefix('$')
+                        .unwrap_or(obj_name.as_str());
+                    let has_unprefixed_binding =
+                        self.find_binding_in_scope_chain(unprefixed).is_some();
+                    let has_prefixed_binding = self
+                        .find_binding_in_scope_chain(obj_name.as_str())
+                        .is_some();
+                    if !has_unprefixed_binding && !has_prefixed_binding {
+                        let prop_node = self.arena.get_js_node(*property);
+                        if let JsNode::Identifier {
+                            name: prop_name, ..
+                        } = prop_node
+                        {
+                            match (obj_name.as_str(), prop_name.as_str()) {
+                                ("$state", "raw") => return BindingKind::RawState,
+                                ("$derived", "by") => return BindingKind::Derived,
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        BindingKind::Normal
     }
 
     /// Process an OXC program AST.

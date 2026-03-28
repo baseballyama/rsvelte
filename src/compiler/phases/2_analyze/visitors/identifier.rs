@@ -8,6 +8,7 @@ use super::VisitorContext;
 use super::shared::fragment::mark_subtree_dynamic;
 use super::shared::function::is_rune;
 use super::shared::utils::is_reference;
+use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::{AnalysisError, BindingKind, errors, warnings};
 use serde_json::Value;
 
@@ -434,6 +435,15 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     }
 
     Ok(())
+}
+
+/// Visit an identifier (typed JsNode path).
+///
+/// Converts the JsNode to Value and delegates to the existing visit function.
+/// The js_path entries use lazy conversion so only inspected ancestors pay the cost.
+pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    let value = node.to_value();
+    visit(&value, context)
 }
 
 /// Validate rune usage (member expressions, call expressions).

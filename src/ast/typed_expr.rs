@@ -3433,6 +3433,181 @@ impl JsNode {
         }
     }
 
+    /// Return the ESTree "type" string for this node.
+    #[inline]
+    pub fn type_str(&self) -> &str {
+        match self {
+            JsNode::Identifier { .. } => "Identifier",
+            JsNode::PrivateIdentifier { .. } => "PrivateIdentifier",
+            JsNode::Literal { .. } => "Literal",
+            JsNode::BinaryExpression { .. } => "BinaryExpression",
+            JsNode::LogicalExpression { .. } => "LogicalExpression",
+            JsNode::UnaryExpression { .. } => "UnaryExpression",
+            JsNode::ConditionalExpression { .. } => "ConditionalExpression",
+            JsNode::CallExpression { .. } => "CallExpression",
+            JsNode::MemberExpression { .. } => "MemberExpression",
+            JsNode::NewExpression { .. } => "NewExpression",
+            JsNode::FunctionExpression { .. } => "FunctionExpression",
+            JsNode::ClassExpression { .. } => "ClassExpression",
+            JsNode::ArrowFunctionExpression { .. } => "ArrowFunctionExpression",
+            JsNode::AssignmentExpression { .. } => "AssignmentExpression",
+            JsNode::UpdateExpression { .. } => "UpdateExpression",
+            JsNode::SequenceExpression { .. } => "SequenceExpression",
+            JsNode::ArrayExpression { .. } => "ArrayExpression",
+            JsNode::ObjectExpression { .. } => "ObjectExpression",
+            JsNode::TemplateLiteral { .. } => "TemplateLiteral",
+            JsNode::TaggedTemplateExpression { .. } => "TaggedTemplateExpression",
+            JsNode::TemplateElement { .. } => "TemplateElement",
+            JsNode::ThisExpression { .. } => "ThisExpression",
+            JsNode::Super { .. } => "Super",
+            JsNode::ImportExpression { .. } => "ImportExpression",
+            JsNode::AwaitExpression { .. } => "AwaitExpression",
+            JsNode::YieldExpression { .. } => "YieldExpression",
+            JsNode::ChainExpression { .. } => "ChainExpression",
+            JsNode::MetaProperty { .. } => "MetaProperty",
+            JsNode::SpreadElement { .. } => "SpreadElement",
+            JsNode::ObjectPattern { .. } => "ObjectPattern",
+            JsNode::ArrayPattern { .. } => "ArrayPattern",
+            JsNode::AssignmentPattern { .. } => "AssignmentPattern",
+            JsNode::RestElement { .. } => "RestElement",
+            JsNode::Property { .. } => "Property",
+            JsNode::Program { .. } => "Program",
+            JsNode::ExpressionStatement { .. } => "ExpressionStatement",
+            JsNode::BlockStatement { .. } => "BlockStatement",
+            JsNode::VariableDeclaration { .. } => "VariableDeclaration",
+            JsNode::VariableDeclarator { .. } => "VariableDeclarator",
+            JsNode::FunctionDeclaration { .. } => "FunctionDeclaration",
+            JsNode::ClassDeclaration { .. } => "ClassDeclaration",
+            JsNode::ReturnStatement { .. } => "ReturnStatement",
+            JsNode::ThrowStatement { .. } => "ThrowStatement",
+            JsNode::IfStatement { .. } => "IfStatement",
+            JsNode::ForStatement { .. } => "ForStatement",
+            JsNode::ForOfStatement { .. } => "ForOfStatement",
+            JsNode::ForInStatement { .. } => "ForInStatement",
+            JsNode::WhileStatement { .. } => "WhileStatement",
+            JsNode::DoWhileStatement { .. } => "DoWhileStatement",
+            JsNode::TryStatement { .. } => "TryStatement",
+            JsNode::CatchClause { .. } => "CatchClause",
+            JsNode::SwitchStatement { .. } => "SwitchStatement",
+            JsNode::SwitchCase { .. } => "SwitchCase",
+            JsNode::LabeledStatement { .. } => "LabeledStatement",
+            JsNode::BreakStatement { .. } => "BreakStatement",
+            JsNode::ContinueStatement { .. } => "ContinueStatement",
+            JsNode::EmptyStatement { .. } => "EmptyStatement",
+            JsNode::DebuggerStatement { .. } => "DebuggerStatement",
+            JsNode::ImportDeclaration { .. } => "ImportDeclaration",
+            JsNode::ImportSpecifier { .. } => "ImportSpecifier",
+            JsNode::ImportDefaultSpecifier { .. } => "ImportDefaultSpecifier",
+            JsNode::ImportNamespaceSpecifier { .. } => "ImportNamespaceSpecifier",
+            JsNode::ExportNamedDeclaration { .. } => "ExportNamedDeclaration",
+            JsNode::ExportDefaultDeclaration { .. } => "ExportDefaultDeclaration",
+            JsNode::ExportSpecifier { .. } => "ExportSpecifier",
+            JsNode::ClassBody { .. } => "ClassBody",
+            JsNode::MethodDefinition { .. } => "MethodDefinition",
+            JsNode::PropertyDefinition { .. } => "PropertyDefinition",
+            JsNode::StaticBlock { .. } => "StaticBlock",
+            JsNode::Decorator { .. } => "Decorator",
+            JsNode::TSTypeAnnotation { .. } => "TSTypeAnnotation",
+            JsNode::TSEnumDeclaration { .. } => "TSEnumDeclaration",
+            JsNode::TSModuleDeclaration { .. } => "TSModuleDeclaration",
+            JsNode::Comment { .. } => "Comment",
+            JsNode::Raw(v) => v.get("type").and_then(|t| t.as_str()).unwrap_or("Unknown"),
+            JsNode::Null => "Null",
+        }
+    }
+
+    /// Get a string field by name (for js_path queries).
+    ///
+    /// Supports common fields: "name", "operator", "kind", "sourceType", "exportKind", "importKind".
+    pub fn get_field_str(&self, field: &str) -> Option<&str> {
+        match field {
+            "name" => match self {
+                JsNode::Identifier { name, .. } | JsNode::PrivateIdentifier { name, .. } => {
+                    Some(name.as_str())
+                }
+                _ => None,
+            },
+            "operator" => match self {
+                JsNode::BinaryExpression { operator, .. }
+                | JsNode::LogicalExpression { operator, .. }
+                | JsNode::UnaryExpression { operator, .. }
+                | JsNode::AssignmentExpression { operator, .. }
+                | JsNode::UpdateExpression { operator, .. } => Some(operator.as_str()),
+                _ => None,
+            },
+            "kind" => match self {
+                JsNode::VariableDeclaration { kind, .. }
+                | JsNode::Property { kind, .. }
+                | JsNode::MethodDefinition { kind, .. } => Some(kind.as_str()),
+                _ => None,
+            },
+            "sourceType" => match self {
+                JsNode::Program { source_type, .. } => Some(source_type.as_str()),
+                _ => None,
+            },
+            "type" => Some(self.type_str()),
+            _ => None,
+        }
+    }
+
+    /// Get a boolean field by name (for js_path queries).
+    pub fn get_field_bool(&self, field: &str) -> Option<bool> {
+        match field {
+            "computed" => match self {
+                JsNode::MemberExpression { computed, .. }
+                | JsNode::Property { computed, .. }
+                | JsNode::MethodDefinition { computed, .. }
+                | JsNode::PropertyDefinition { computed, .. } => Some(*computed),
+                _ => None,
+            },
+            "optional" => match self {
+                JsNode::CallExpression { optional, .. }
+                | JsNode::MemberExpression { optional, .. } => Some(*optional),
+                _ => None,
+            },
+            "generator" => match self {
+                JsNode::FunctionDeclaration { generator, .. }
+                | JsNode::FunctionExpression { generator, .. }
+                | JsNode::ArrowFunctionExpression { generator, .. } => Some(*generator),
+                _ => None,
+            },
+            "async" => match self {
+                JsNode::FunctionDeclaration { r#async, .. }
+                | JsNode::FunctionExpression { r#async, .. }
+                | JsNode::ArrowFunctionExpression { r#async, .. } => Some(*r#async),
+                _ => None,
+            },
+            "static" => match self {
+                JsNode::MethodDefinition { r#static, .. }
+                | JsNode::PropertyDefinition { r#static, .. } => Some(*r#static),
+                _ => None,
+            },
+            "prefix" => match self {
+                JsNode::UnaryExpression { prefix, .. }
+                | JsNode::UpdateExpression { prefix, .. } => Some(*prefix),
+                _ => None,
+            },
+            "shorthand" => match self {
+                JsNode::Property { shorthand, .. } => Some(*shorthand),
+                _ => None,
+            },
+            "method" => match self {
+                JsNode::Property { method, .. } => Some(*method),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    /// Get a u64 field by name (for start/end positions).
+    pub fn get_field_u64(&self, field: &str) -> Option<u64> {
+        match field {
+            "start" => self.start().map(|v| v as u64),
+            "end" => self.end().map(|v| v as u64),
+            _ => None,
+        }
+    }
+
     pub fn to_value(&self) -> Value {
         use crate::ast::arena::{has_serialize_arena, with_serialize_arena};
         if has_serialize_arena() {

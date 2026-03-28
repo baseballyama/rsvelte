@@ -155,6 +155,19 @@ pub fn process_template_inplace(
 ) {
     let mut counter = Counter::new();
     process_fragment_inplace(fragment, source, _options, str, &mut counter);
+
+    // Blank out any trailing whitespace-only content after the last template node.
+    // This prevents stray newlines from the source appearing between the template
+    // output and the appended async wrapper closing `};`.
+    if let Some(last_node) = fragment.nodes.last() {
+        let last_end = last_node.end() as usize;
+        if last_end < source.len() {
+            let trailing = &source[last_end..];
+            if !trailing.is_empty() && trailing.chars().all(|c| c.is_whitespace()) {
+                str.overwrite(last_end as u32, source.len() as u32, "");
+            }
+        }
+    }
 }
 
 /// Process a fragment's child nodes in-place.
@@ -206,12 +219,17 @@ fn process_node_inplace(
         }
         TemplateNode::TitleElement(el) => handle_title_element(el, source, options, str, counter),
         TemplateNode::SlotElement(el) => handle_slot_element(el, source, options, str, counter),
+        TemplateNode::SvelteOptions(el) => {
+            // <svelte:options> is blanked out in TSX output
+            if el.start < el.end {
+                str.overwrite(el.start, el.end, "");
+            }
+        }
         TemplateNode::SvelteBody(el)
         | TemplateNode::SvelteDocument(el)
         | TemplateNode::SvelteFragment(el)
         | TemplateNode::SvelteBoundary(el)
         | TemplateNode::SvelteHead(el)
-        | TemplateNode::SvelteOptions(el)
         | TemplateNode::SvelteSelf(el)
         | TemplateNode::SvelteWindow(el) => {
             handle_svelte_special_element(el, source, options, str, counter)
@@ -312,9 +330,9 @@ fn handle_const_tag(tag: &ConstTag, _source: &str, str: &mut MagicString) {
     }
 
     if let Some((decl_start, decl_end)) = get_expression_range(&tag.declaration) {
-        // Overwrite `{@const ` prefix with empty
+        // Overwrite `{@const ` prefix with `const `
         if tag.start < decl_start {
-            str.overwrite(tag.start, decl_start, "");
+            str.overwrite(tag.start, decl_start, "const ");
         }
         // Overwrite closing `}` with `;`
         if decl_end < tag.end {
@@ -326,12 +344,22 @@ fn handle_const_tag(tag: &ConstTag, _source: &str, str: &mut MagicString) {
 }
 
 /// Handle a debug tag: `{@debug identifiers}`.
-fn handle_debug_tag(tag: &DebugTag, _source: &str, str: &mut MagicString) {
+///
+/// `{@debug myfile}` → `;myfile;`
+/// `{@debug a, b}` → `;a;b;`
+fn handle_debug_tag(tag: &DebugTag, source: &str, str: &mut MagicString) {
     if tag.start >= tag.end {
         return;
     }
-    // Debug tags are replaced with empty (they don't affect types)
-    str.overwrite(tag.start, tag.end, "");
+    // Build the replacement: each identifier as a statement
+    let mut replacement = String::new();
+    replacement.push(';');
+    for ident in &tag.identifiers {
+        let text = get_expression_text(ident, source);
+        replacement.push_str(text);
+        replacement.push(';');
+    }
+    str.overwrite(tag.start, tag.end, &replacement);
 }
 
 /// Handle a render tag: `{@render snippet(args)}`.
@@ -821,9 +849,10 @@ fn handle_regular_element(
     // Build attribute string
     let attrs_str = build_attributes_string(&el.attributes, source);
 
-    // Overwrite the entire opening tag
+    // Overwrite the entire opening tag.
+    // Leading space preserves approximate column positions (matching JS svelte2tsx).
     let opener = format!(
-        "{{ svelteHTML.createElement(\"{}\", {{{}}});",
+        " {{ svelteHTML.createElement(\"{}\", {{{}}});",
         el.name, attrs_str
     );
     str.overwrite(el.start, opening_tag_end, &opener);
@@ -837,7 +866,6 @@ fn handle_regular_element(
         str.overwrite(closing_tag_start, el.end, " }");
     } else {
         // Self-closing element - append closing brace
-        // The opening tag end already includes `/>`, so just append
         str.append_left(el.end, " }");
     }
 }
@@ -870,8 +898,9 @@ fn handle_component(
     let attrs_str = build_attributes_string(&comp.attributes, source);
 
     // Build the replacement for the opening tag
+    // Leading space preserves approximate column positions (matching JS svelte2tsx).
     let opener = format!(
-        "{{ const {} = __sveltets_2_ensureComponent({}); new {}({{ target: __sveltets_2_any(), props: {{{}}}}});",
+        " {{ const {} = __sveltets_2_ensureComponent({}); new {}({{ target: __sveltets_2_any(), props: {{{}}}}});",
         var_name, comp.name, var_name, attrs_str
     );
     str.overwrite(comp.start, opening_tag_end, &opener);
@@ -907,7 +936,7 @@ fn handle_svelte_component(
     let attrs_str = build_attributes_string(&comp.attributes, source);
 
     let opener = format!(
-        "{{ const $$_scomp{} = __sveltets_2_ensureComponent({}); new $$_scomp{}({{ target: __sveltets_2_any(), props: {{{}}}}});",
+        " {{ const $$_scomp{} = __sveltets_2_ensureComponent({}); new $$_scomp{}({{ target: __sveltets_2_any(), props: {{{}}}}});",
         idx, expr_text, idx, attrs_str
     );
     str.overwrite(comp.start, opening_tag_end, &opener);
@@ -939,7 +968,7 @@ fn handle_svelte_dynamic_element(
     let attrs_str = build_attributes_string(&el.attributes, source);
 
     let opener = format!(
-        "{{ svelteHTML.createElement({}, {{{}}});",
+        " {{ svelteHTML.createElement({}, {{{}}});",
         tag_text, attrs_str
     );
     str.overwrite(el.start, opening_tag_end, &opener);
@@ -969,7 +998,10 @@ fn handle_title_element(
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
     let attrs_str = build_attributes_string(&el.attributes, source);
 
-    let opener = format!("{{ svelteHTML.createElement(\"title\", {{{}}});", attrs_str);
+    let opener = format!(
+        " {{ svelteHTML.createElement(\"title\", {{{}}});",
+        attrs_str
+    );
     str.overwrite(el.start, opening_tag_end, &opener);
 
     process_fragment_inplace(&el.fragment, source, options, str, counter);
@@ -997,7 +1029,7 @@ fn handle_slot_element(
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
     let attrs_str = build_attributes_string(&el.attributes, source);
 
-    let opener = format!("{{ svelteHTML.createElement(\"slot\", {{{}}});", attrs_str);
+    let opener = format!(" {{ svelteHTML.createElement(\"slot\", {{{}}});", attrs_str);
     str.overwrite(el.start, opening_tag_end, &opener);
 
     process_fragment_inplace(&el.fragment, source, options, str, counter);
@@ -1026,7 +1058,7 @@ fn handle_svelte_special_element(
     let attrs_str = build_attributes_string(&el.attributes, source);
 
     let opener = format!(
-        "{{ svelteHTML.createElement(\"{}\", {{{}}});",
+        " {{ svelteHTML.createElement(\"{}\", {{{}}});",
         el.name, attrs_str
     );
     str.overwrite(el.start, opening_tag_end, &opener);
@@ -1094,7 +1126,15 @@ fn build_attributes_string(attributes: &[Attribute], source: &str) -> String {
         }
     }
 
-    parts.join("")
+    let result = parts.join("");
+    if result.is_empty() {
+        result
+    } else {
+        // Add leading space: `{ "attr":val,}` (not `{"attr":val,}`)
+        // Note: JS svelte2tsx may produce variable whitespace due to MagicString
+        // position arithmetic, but a single space is the most common case.
+        format!(" {}", result)
+    }
 }
 
 /// Format a regular attribute: `name="value"` → `"name":\`value\`,`

@@ -112,14 +112,14 @@ mod svelte2tsx_tests {
             Some(pos) => pos,
             None => return false,
         };
-        let expected_body = &expected[..expect_cut];
+        let expected_body = expected[..expect_cut].trim_end();
 
         // Strip V5-style const export from actual
         let actual_cut = match actual.rfind("\nconst ") {
             Some(pos) => pos,
             None => return false,
         };
-        let actual_body = &actual[..actual_cut];
+        let actual_body = actual[..actual_cut].trim_end();
 
         // Remove V5-specific additions that V4 doesn't have
         let actual_cleaned = actual_body
@@ -264,9 +264,11 @@ mod svelte2tsx_tests {
                     let actual = normalize(&output.code);
                     if actual == expected {
                         passed += 1;
+                        println!("PASS (exact): {}", sample_name);
                     } else if !has_svelte5_expected && relaxed_compare(&actual, &expected) {
                         // Relaxed match: render body matches, only component export differs
                         passed += 1;
+                        println!("PASS (relaxed): {}", sample_name);
                     } else {
                         failed += 1;
                         let diff = first_diff_snippet(&actual, &expected, 5);
@@ -304,12 +306,19 @@ mod svelte2tsx_tests {
         println!("Total:   {}", passed + failed + skipped);
 
         if !failures.is_empty() {
-            println!("\nFailures (first 20):");
-            for err in failures.iter().take(20) {
+            println!("\nFailure names:");
+            for err in &failures {
+                // Just print the first line (name) of each failure
+                if let Some(first_line) = err.lines().next() {
+                    println!("  {}", first_line);
+                }
+            }
+            println!("\nFirst 100 detailed failures:");
+            for err in failures.iter().take(100) {
                 println!("  {}", err);
             }
-            if failures.len() > 20 {
-                println!("  ... and {} more", failures.len() - 20);
+            if failures.len() > 50 {
+                println!("  ... and {} more", failures.len() - 50);
             }
         }
 

@@ -154,6 +154,59 @@ fn get_member_expression_root_name(expr: &Value) -> Option<String> {
     }
 }
 
+/// Visit an assignment expression (typed JsNode path).
+pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    if let JsNode::AssignmentExpression { left, right, .. } = node {
+        let arena = context.parse_arena;
+        let left_node = arena.get_js_node(*left);
+        let right_node = arena.get_js_node(*right);
+
+        // Validate assignment using typed node
+        super::shared::utils::validate_assignment_node(left_node, context, false)?;
+
+        // Track mutations
+        mark_binding_mutation_node(left_node, context);
+
+        // Track assignments in reactive statements (legacy mode)
+        if let Some(reactive_stmt_ptr) = context.reactive_statement {
+            let id = if matches!(left_node, JsNode::MemberExpression { .. }) {
+                super::shared::utils::object_node(left_node, arena)
+            } else {
+                None
+            };
+
+            let identifier_names = super::shared::utils::extract_identifiers_node(left_node, arena);
+            let reactive_stmt = unsafe { &mut *reactive_stmt_ptr };
+
+            for name in identifier_names {
+                if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(&name) {
+                    reactive_stmt.assignments.insert(binding_idx);
+                }
+            }
+
+            // If left is not MemberExpression, also check the left node directly
+            if id.is_none()
+                && let JsNode::Identifier { name, .. } = left_node
+                && let Some(&binding_idx) =
+                    context.analysis.root.scope.declarations.get(name.as_str())
+            {
+                reactive_stmt.assignments.insert(binding_idx);
+            }
+        }
+
+        // Mark expression as having assignment
+        if let Some(expression) = context.current_expression() {
+            expression.set_has_assignment(true);
+        }
+
+        // Visit children
+        super::script::walk_js_node_typed(left_node, context)?;
+        super::script::walk_js_node_typed(right_node, context)?;
+    }
+
+    Ok(())
+}
+
 /// JsNode-based version of mark_binding_mutation.
 pub fn mark_binding_mutation_node(target: &JsNode, context: &mut VisitorContext) {
     match target {

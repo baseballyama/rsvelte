@@ -5,6 +5,7 @@
 //! Corresponds to Svelte's `2-analyze/visitors/TemplateElement.js`.
 
 use super::VisitorContext;
+use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::{AnalysisError, warnings};
 use regex::Regex;
 use serde_json::Value;
@@ -66,5 +67,16 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
+    Ok(())
+}
+
+/// Visit a template element (typed JsNode path).
+pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    if let JsNode::TemplateElement { value, .. } = node
+        && let Some(cooked) = &value.cooked
+        && get_bidirectional_regex().is_match(cooked.as_str())
+    {
+        context.emit_warning(warnings::bidirectional_control_characters());
+    }
     Ok(())
 }

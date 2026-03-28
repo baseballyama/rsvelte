@@ -5,6 +5,7 @@
 //! Corresponds to Svelte's `2-analyze/visitors/Literal.js`.
 
 use super::VisitorContext;
+use crate::ast::typed_expr::{JsNode, LiteralValue};
 use crate::compiler::phases::phase2_analyze::{AnalysisError, warnings};
 use regex::Regex;
 use serde_json::Value;
@@ -62,5 +63,16 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
+    Ok(())
+}
+
+/// Visit a literal value (typed JsNode path).
+pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    if let JsNode::Literal { value, .. } = node
+        && let LiteralValue::String(s) = value
+        && get_bidirectional_regex().is_match(s.as_str())
+    {
+        context.emit_warning(warnings::bidirectional_control_characters());
+    }
     Ok(())
 }

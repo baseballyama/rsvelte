@@ -5,6 +5,7 @@
 //! Corresponds to Svelte's `2-analyze/visitors/ExportDefaultDeclaration.js`.
 
 use super::VisitorContext;
+use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use crate::compiler::phases::phase2_analyze::errors;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
@@ -30,6 +31,26 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         // In Svelte component scripts, default exports are not allowed
         // This applies to both <script> and <script module> contexts
         Err(errors::module_illegal_default_export())
+    }
+}
+
+/// Visit an export default declaration (typed JsNode path).
+pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    if let JsNode::ExportDefaultDeclaration { declaration, .. } = node {
+        let arena = context.parse_arena;
+        let decl_node = arena.get_js_node(*declaration);
+
+        if context.analysis.is_module_file {
+            // In .svelte.js module files, check for invalid state/derived exports
+            if let JsNode::Identifier { name, .. } = decl_node {
+                validate_export(name.as_str(), context)?;
+            }
+            Ok(())
+        } else {
+            Err(errors::module_illegal_default_export())
+        }
+    } else {
+        Ok(())
     }
 }
 

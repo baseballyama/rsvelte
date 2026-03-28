@@ -205,42 +205,140 @@ pub fn svelte2tsx(
         );
     }
 
-    // Step 8: Process template nodes in-place via MagicString
+    // Step 8: Blank out <style> tag (CSS is not relevant for TSX type checking)
+    if let Some(ref css) = ast.css {
+        if css.start < css.end {
+            str.overwrite(css.start, css.end, "");
+        }
+    }
+
+    // Step 9: Process template nodes in-place via MagicString
     template::process_template_inplace(&ast.fragment, source, &options, &mut str);
 
-    // Step 9: Wrap in $$render() and add component export
+    // Step 10: Wrap in $$render() and add component export
     //
-    // The key insight from the JS svelte2tsx is that it modifies the source
-    // in-place. For components WITH a script tag, the <script> opening tag
-    // becomes the function declaration and the </script> closing tag becomes
-    // the async wrapper start. The script CONTENT stays in place.
-    //
-    // For template-only components (no script), we prepend/append the wrapper.
-    //
-    // For now, we use the simpler approach of prepend/append for all cases,
-    // since script processing (Step 7) is still a TODO.
+    // The JS svelte2tsx moves the script tag to position 0 (or after module script),
+    // then overwrites <script> and </script> with the function wrapper.
+    // We replicate this by:
+    //   - Moving the script to position 0 if needed
+    //   - Overwriting the <script> opening tag with `;function $$render() {\n`
+    //   - Overwriting </script> with `;\nasync () => {`
+    //   - For template-only components, prepending the wrapper
 
     let has_instance_script = ast.instance.is_some();
-    let _has_module_script = ast.module.is_some();
+    let has_module_script = ast.module.is_some();
 
+    // Determine the target position for the instance script.
+    // If there's a module script, the instance script goes after it.
+    let mut instance_script_target: u32 = 0;
+
+    // IMPORTANT: All overwrites on script tag chunks must happen BEFORE any
+    // move_range calls. MagicString.overwrite walks the linked list and after
+    // a move, chunks from other parts of the source can appear between the
+    // start and end positions, causing them to be blanked out.
+
+    // Phase 1: Overwrite module script tags with `;` (before any moves)
+    if has_module_script {
+        let module = ast.module.as_ref().unwrap();
+        let mod_start = module.start;
+        let mod_end = module.end;
+        let mod_content_start = module.content_offset;
+        let mod_content_end = find_script_close_tag_start(source, mod_end);
+
+        // Overwrite <script context="module"> with `;`
+        if mod_start < mod_content_start {
+            str.overwrite(mod_start, mod_content_start, ";");
+        }
+
+        // Overwrite </script> with `;`
+        if mod_content_end < mod_end {
+            str.overwrite(mod_content_end, mod_end, ";");
+        }
+
+        // When module is already at 0, instance goes right after it.
+        // When module will be moved to 0, instance also goes to 0 (module
+        // will be moved after instance, ending up before it).
+        if mod_start == 0 {
+            instance_script_target = mod_end;
+        }
+    }
+
+    // Phase 2: Overwrite instance script tags and lift imports (before any moves)
+    //
+    // Import declarations inside the instance script are lifted above the
+    // $$render() function so they appear at module scope in the output.
+    // This matches the JS svelte2tsx behavior.
     if has_instance_script {
         let instance = ast.instance.as_ref().unwrap();
-
-        // Find the <script> opening tag end and </script> closing tag start
         let script_start = instance.start;
         let script_end = instance.end;
-
-        // The raw_content_offset tells us where the script content starts
         let content_start = instance.content_offset;
-
-        // Find the end of the script content (start of </script>)
-        // We need to find `</script>` before script_end
         let content_end = find_script_close_tag_start(source, script_end);
 
-        // Overwrite `<script...>` with `;function $$render() {\n`
-        // The script content stays in place
-        if script_start < content_start {
-            str.overwrite(script_start, content_start, ";function $$render() {\n");
+        // Find import declarations in the instance script content
+        let imports = find_instance_imports(instance, source);
+
+        if !imports.is_empty() {
+            // Lift imports above $$render(). Each import is collected
+            // individually (without leading whitespace), then inserted
+            // into the <script> tag replacement. The original import
+            // positions are blanked with whitespace-preserving content.
+
+            let mut import_text = String::new();
+            for (i, &(import_start, import_end)) in imports.iter().enumerate() {
+                let abs_start = import_start + content_start;
+                let abs_end = import_end + content_start;
+                let text = &source[abs_start as usize..abs_end as usize];
+
+                // Check if there's a blank line before this import
+                // (indicates an import group boundary)
+                if i > 0 {
+                    let prev_end = imports[i - 1].1 + content_start;
+                    let between = &source[prev_end as usize..abs_start as usize];
+                    let newline_count = between.chars().filter(|&c| c == '\n').count();
+                    if newline_count >= 2 {
+                        // Preserve blank line between import groups
+                        import_text.push('\n');
+                    }
+                }
+
+                import_text.push_str(text);
+
+                // Add semicolon to the last import if it doesn't have one
+                if i == imports.len() - 1 {
+                    let last_char = text.as_bytes()[text.len() - 1];
+                    if last_char != b';' {
+                        import_text.push_str(";\n");
+                    } else {
+                        import_text.push('\n');
+                    }
+                } else {
+                    import_text.push('\n');
+                }
+
+                // Blank out the import in its original position.
+                // The indentation before the import stays because it's
+                // outside the import span.
+                str.overwrite(abs_start, abs_end, "");
+            }
+
+            // Build the <script> replacement:
+            //   `<script...>` → `;\nimports\nfunction $$render() {\n`
+            let mut script_replacement = String::from(";\n");
+            if has_module_script {
+                script_replacement.push('\n');
+            }
+            script_replacement.push_str(&import_text);
+            script_replacement.push_str("function $$render() {\n");
+
+            if script_start < content_start {
+                str.overwrite(script_start, content_start, &script_replacement);
+            }
+        } else {
+            // No imports: overwrite the entire <script> tag at once
+            if script_start < content_start {
+                str.overwrite(script_start, content_start, ";function $$render() {\n");
+            }
         }
 
         // Overwrite `</script>` with `;\nasync () => {`
@@ -248,14 +346,70 @@ pub fn svelte2tsx(
             str.overwrite(content_end, script_end, ";\nasync () => {");
         }
 
-        // Prepend the reference types before everything
+        // Blank out trailing whitespace after </script> that is not part
+        // of any template content. Must be done BEFORE moves, since the
+        // overwrite walks the linked list.
+        if (script_end as usize) < source.len() {
+            let bytes = source.as_bytes();
+            let mut trailing_end = script_end;
+            while (trailing_end as usize) < bytes.len() {
+                let b = bytes[trailing_end as usize];
+                if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
+                    trailing_end += 1;
+                } else {
+                    break;
+                }
+            }
+            let has_template_node_after_script = ast.fragment.nodes.iter().any(|node| {
+                let ns = node_start_pos(node);
+                ns >= script_end && ns < trailing_end
+            });
+            if !has_template_node_after_script && trailing_end > script_end {
+                str.overwrite(script_end, trailing_end, "");
+            }
+        }
+    }
+
+    // Phase 3: Move scripts to their target positions (after all overwrites)
+    //
+    // The target layout is: module script → instance script → template
+    //
+    // We must move instance FIRST, then module. When both move to position 0,
+    // the second move (module) goes before the first (instance), giving the
+    // correct ordering: module → instance → rest.
+    if has_instance_script {
+        let instance = ast.instance.as_ref().unwrap();
+        let script_start = instance.start;
+        let script_end = instance.end;
+
+        if script_start != instance_script_target {
+            str.move_range(script_start, script_end, instance_script_target);
+        }
+    }
+
+    if has_module_script {
+        let module = ast.module.as_ref().unwrap();
+        let mod_start = module.start;
+        let mod_end = module.end;
+
+        if mod_start > 0 {
+            str.move_range(mod_start, mod_end, 0);
+        }
+    }
+
+    // Phase 4: Add reference types and component wrapper
+    if has_instance_script {
+        // Prepend the reference types
+        str.prepend_str("///<reference types=\"svelte\" />\n");
+    } else if has_module_script {
+        // Module script but no instance script
+        let module = ast.module.as_ref().unwrap();
+        let mod_end = module.end;
+        str.append_left(mod_end, ";function $$render() {\nasync () => {");
         str.prepend_str("///<reference types=\"svelte\" />\n");
     } else {
-        // No script tag: prepend the full wrapper
-        // Note: trailing space after `{` is needed to separate from template content (e.g., element braces)
-        str.prepend_str(
-            "///<reference types=\"svelte\" />\n;function $$render() {\nasync () => { ",
-        );
+        // No script tags at all: prepend the full wrapper
+        str.prepend_str("///<reference types=\"svelte\" />\n;function $$render() {\nasync () => {");
     }
 
     // Append the closing of async wrapper, return statement, and component export
@@ -268,12 +422,11 @@ pub fn svelte2tsx(
         "return {{ props: {}, slots: {{}}, events: {{}} }}}}\n",
         props_str
     ));
-    closing.push('\n');
 
     match options.version {
         SvelteVersion::V4 => {
             closing.push_str(&format!(
-                "export default class {} extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {{\n}}\n",
+                "\nexport default class {} extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {{\n}}",
                 safe_name
             ));
         }
@@ -299,7 +452,7 @@ pub fn svelte2tsx(
                 safe_name, safe_name
             ));
             closing.push_str(&format!(
-                "/*\u{03A9}ignore_end\u{03A9}*/export default {};\n",
+                "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
                 safe_name
             ));
         }
@@ -315,6 +468,74 @@ pub fn svelte2tsx(
         exported_names,
         events,
     })
+}
+
+/// Get the start position of a template node.
+fn node_start_pos(node: &crate::ast::template::TemplateNode) -> u32 {
+    use crate::ast::template::TemplateNode;
+    match node {
+        TemplateNode::Text(n) => n.start,
+        TemplateNode::Comment(n) => n.start,
+        TemplateNode::RegularElement(n) => n.start,
+        TemplateNode::Component(n) => n.start,
+        TemplateNode::ExpressionTag(n) => n.start,
+        TemplateNode::IfBlock(n) => n.start,
+        TemplateNode::EachBlock(n) => n.start,
+        TemplateNode::AwaitBlock(n) => n.start,
+        TemplateNode::KeyBlock(n) => n.start,
+        TemplateNode::SnippetBlock(n) => n.start,
+        TemplateNode::HtmlTag(n) => n.start,
+        TemplateNode::ConstTag(n) => n.start,
+        TemplateNode::DebugTag(n) => n.start,
+        TemplateNode::RenderTag(n) => n.start,
+        TemplateNode::AttachTag(n) => n.start,
+        TemplateNode::TitleElement(n) => n.start,
+        TemplateNode::SlotElement(n) => n.start,
+        TemplateNode::SvelteComponent(n) => n.start,
+        TemplateNode::SvelteElement(n) => n.start,
+        TemplateNode::SvelteBody(n)
+        | TemplateNode::SvelteDocument(n)
+        | TemplateNode::SvelteFragment(n)
+        | TemplateNode::SvelteBoundary(n)
+        | TemplateNode::SvelteHead(n)
+        | TemplateNode::SvelteOptions(n)
+        | TemplateNode::SvelteSelf(n)
+        | TemplateNode::SvelteWindow(n) => n.start,
+    }
+}
+
+/// Get the end position of a template node.
+fn node_end_pos(node: &crate::ast::template::TemplateNode) -> u32 {
+    use crate::ast::template::TemplateNode;
+    match node {
+        TemplateNode::Text(n) => n.end,
+        TemplateNode::Comment(n) => n.end,
+        TemplateNode::RegularElement(n) => n.end,
+        TemplateNode::Component(n) => n.end,
+        TemplateNode::ExpressionTag(n) => n.end,
+        TemplateNode::IfBlock(n) => n.end,
+        TemplateNode::EachBlock(n) => n.end,
+        TemplateNode::AwaitBlock(n) => n.end,
+        TemplateNode::KeyBlock(n) => n.end,
+        TemplateNode::SnippetBlock(n) => n.end,
+        TemplateNode::HtmlTag(n) => n.end,
+        TemplateNode::ConstTag(n) => n.end,
+        TemplateNode::DebugTag(n) => n.end,
+        TemplateNode::RenderTag(n) => n.end,
+        TemplateNode::AttachTag(n) => n.end,
+        TemplateNode::TitleElement(n) => n.end,
+        TemplateNode::SlotElement(n) => n.end,
+        TemplateNode::SvelteComponent(n) => n.end,
+        TemplateNode::SvelteElement(n) => n.end,
+        TemplateNode::SvelteBody(n)
+        | TemplateNode::SvelteDocument(n)
+        | TemplateNode::SvelteFragment(n)
+        | TemplateNode::SvelteBoundary(n)
+        | TemplateNode::SvelteHead(n)
+        | TemplateNode::SvelteOptions(n)
+        | TemplateNode::SvelteSelf(n)
+        | TemplateNode::SvelteWindow(n) => n.end,
+    }
 }
 
 /// Find the start of `</script>` tag by scanning backwards from the script end position.
@@ -342,6 +563,48 @@ fn find_script_close_tag_start(source: &str, script_end: u32) -> u32 {
     }
 
     script_end
+}
+
+/// Find top-level import declarations in an instance script.
+///
+/// Returns a sorted list of (start, end) positions relative to the script
+/// content (i.e., relative to `script.content_offset`).
+fn find_instance_imports(script: &crate::ast::template::Script, source: &str) -> Vec<(u32, u32)> {
+    use oxc_allocator::Allocator;
+    use oxc_ast::ast as oxc;
+    use oxc_parser::Parser as OxcParser;
+    use oxc_span::SourceType;
+
+    let content_start = script.content_offset as usize;
+    let script_source = &source[script.start as usize..script.end as usize];
+    let close_tag_offset = script_source
+        .rfind("</script>")
+        .or_else(|| script_source.rfind("</Script>"))
+        .unwrap_or(script_source.len());
+    let content_end = script.start as usize + close_tag_offset;
+    let raw_content = &source[content_start..content_end];
+
+    let allocator = Allocator::default();
+    let source_type = if script.is_typescript {
+        SourceType::ts()
+    } else {
+        SourceType::mjs()
+    };
+    let parser = OxcParser::new(&allocator, raw_content, source_type);
+    let result = parser.parse();
+
+    let mut imports = Vec::new();
+    for stmt in result.program.body.iter() {
+        if let oxc::Statement::ImportDeclaration(import) = stmt {
+            // Include any leading whitespace/newlines that are part of the
+            // import's "full text" in the source.
+            let start = import.span.start;
+            let end = import.span.end;
+            imports.push((start, end));
+        }
+    }
+    imports.sort_by_key(|&(s, _)| s);
+    imports
 }
 
 // =============================================================================
@@ -419,7 +682,8 @@ fn build_props_return(exported_names: &ExportedNames, _options: &Svelte2TsxOptio
             .iter()
             .map(|name| format!("{}: {}", name, name))
             .collect();
-        format!("{{ {} }}", entries.join(", "))
+        // Match JS svelte2tsx format: {a: a , b: b , c: c}
+        format!("{{{}}}", entries.join(" , "))
     }
 }
 
@@ -431,6 +695,7 @@ mod tests {
     fn test_derive_component_name() {
         assert_eq!(derive_component_name("App.svelte"), "App");
         assert_eq!(derive_component_name("my-component.svelte"), "My_component");
+        assert_eq!(derive_component_name("my_component.svelte"), "My_component");
         assert_eq!(derive_component_name("path/to/Input.svelte"), "Input");
         assert_eq!(derive_component_name("123.svelte"), "_123");
         assert_eq!(derive_component_name(".svelte"), "Component");
@@ -614,6 +879,18 @@ mod tests {
         assert!(
             !result.code.contains("<!-- comment -->"),
             "Comments should be removed"
+        );
+    }
+
+    #[test]
+    fn test_svelte2tsx_module_and_script_inline() {
+        let source = "<script context=\"module\">let b = 5;</script><h1>hello {world}</h1><script>export let world = \"name\"</script>\n";
+        let result = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap();
+        eprintln!("OUTPUT:\n{}", result.code);
+        assert!(
+            result.code.contains("svelteHTML.createElement(\"h1\","),
+            "Should contain h1 element in output, got:\n{}",
+            result.code
         );
     }
 

@@ -571,10 +571,10 @@ pub fn walk_expression(
     expr: &Expression,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
-    // Always use walk_js_node with the JSON representation for now.
-    // walk_js_node_typed is available for future optimization once
-    // all individual JS visitors are converted to accept JsNode directly.
-    walk_js_node(expr.as_json(), context)
+    match expr {
+        Expression::Typed(te) => walk_js_node_typed(&te.node, context),
+        _ => walk_js_node(expr.as_json(), context),
+    }
 }
 
 /// Recursively walk typed JavaScript AST nodes.
@@ -591,76 +591,81 @@ pub fn walk_js_node_typed(
     // leadingComments are not stored in JsNode variants (only in Raw/Value),
     // so we skip that processing for typed nodes. The Raw fallback handles it.
 
-    // Convert to Value once. We store it locally so visitors can borrow it
-    // independently of `context`, avoiding borrow-checker conflicts.
-    let value = node.to_value();
+    // Push a TypedNode entry onto js_path. The Value will be lazily materialized
+    // only if code inspects this entry through Deref (which most entries never need).
+    // SAFETY: `node` lives until after the pop at the end of this function.
+    context.js_path.push(super::JsPathEntry::new_typed(node));
 
-    // Push a borrowed pointer to our local value onto js_path.
-    // SAFETY: `value` lives until after the pop at the end of this function.
-    context.js_path.push(super::JsPathEntry::new(&value));
-
-    // Visit specific node types by pattern matching.
-    // We pass `&value` directly to avoid borrowing from context.js_path.
+    // Convert to Value lazily: only visitors that need the full JSON representation
+    // will call node.to_value() internally. Most visitors now accept &JsNode directly.
+    //
+    // For visitors that still need &Value (complex ones with deep JSON introspection),
+    // they call node.to_value() themselves, which is still faster than converting
+    // unconditionally for every node.
     match node {
         JsNode::CallExpression { .. } => {
+            let value = node.to_value();
             super::call_expression::visit(&value, context)?;
         }
         JsNode::VariableDeclarator { .. } => {
+            let value = node.to_value();
             super::variable_declarator::visit(&value, context)?;
         }
         JsNode::FunctionDeclaration { .. } => {
-            super::function_declaration::visit(&value, context)?;
+            super::function_declaration::visit_typed(node, context)?;
         }
         JsNode::FunctionExpression { .. } | JsNode::ArrowFunctionExpression { .. } => {
-            super::function_expression::visit(&value, context)?;
+            super::function_expression::visit_typed(node, context)?;
         }
         JsNode::ClassDeclaration { .. } => {
-            super::class_declaration::visit(&value, context)?;
+            super::class_declaration::visit_typed(node, context)?;
         }
         JsNode::ClassBody { .. } => {
+            let value = node.to_value();
             super::class_body::visit(&value, context)?;
         }
         JsNode::PropertyDefinition { .. } => {
-            super::property_definition::visit(&value, context)?;
+            super::property_definition::visit_typed(node, context)?;
         }
         JsNode::AssignmentExpression { .. } => {
-            super::assignment_expression::visit(&value, context)?;
+            super::assignment_expression::visit_typed(node, context)?;
         }
         JsNode::AwaitExpression { .. } => {
-            super::await_expression::visit(&value, context)?;
+            super::await_expression::visit_typed(node, context)?;
         }
         JsNode::ExpressionStatement { .. } => {
-            super::expression_statement::visit(&value, context)?;
+            super::expression_statement::visit_typed(node, context)?;
         }
         JsNode::Identifier { .. } => {
-            super::identifier::visit(&value, context)?;
+            super::identifier::visit_typed(node, context)?;
         }
         JsNode::Literal { .. } => {
-            super::literal::visit(&value, context)?;
+            super::literal::visit_typed(node, context)?;
         }
         JsNode::TemplateElement { .. } => {
-            super::template_element::visit(&value, context)?;
+            super::template_element::visit_typed(node, context)?;
         }
         JsNode::MemberExpression { .. } => {
-            super::member_expression::visit(&value, context)?;
+            super::member_expression::visit_typed(node, context)?;
         }
         JsNode::NewExpression { .. } => {
-            super::new_expression::visit(&value, context)?;
+            super::new_expression::visit_typed(node, context)?;
         }
         JsNode::UpdateExpression { .. } => {
-            super::update_expression::visit(&value, context)?;
+            super::update_expression::visit_typed(node, context)?;
         }
         JsNode::LabeledStatement { .. } => {
-            super::labeled_statement::visit(&value, context)?;
+            super::labeled_statement::visit_typed(node, context)?;
         }
         JsNode::ExportDefaultDeclaration { .. } => {
-            super::export_default_declaration::visit(&value, context)?;
+            super::export_default_declaration::visit_typed(node, context)?;
         }
         JsNode::ExportNamedDeclaration { .. } => {
+            let value = node.to_value();
             super::export_named_declaration::visit(&value, context)?;
         }
         JsNode::ImportDeclaration { .. } => {
-            super::import_declaration::visit(&value, context)?;
+            super::import_declaration::visit_typed(node, context)?;
         }
         _ => {
             // For other node types, just visit their children
