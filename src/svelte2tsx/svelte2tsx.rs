@@ -348,6 +348,14 @@ pub fn svelte2tsx(
         let content_start = instance.content_offset;
         let content_end = find_script_close_tag_start(source, script_end);
 
+        // Detect `generics` attribute on the script tag
+        let script_tag_text = &source[script_start as usize..content_start as usize];
+        let generics_param = extract_generics_from_script_tag(script_tag_text);
+        let render_generics = generics_param
+            .as_ref()
+            .map(|g| format!("<{}>", g))
+            .unwrap_or_default();
+
         // Find import declarations in the instance script content
         let imports = find_instance_imports(instance, source);
 
@@ -415,7 +423,10 @@ pub fn svelte2tsx(
             if !ts_component_props_decl.is_empty() {
                 script_replacement.push_str(&ts_component_props_decl);
             }
-            script_replacement.push_str(&format!("function $$render() {{{}\n", dollar_decls));
+            script_replacement.push_str(&format!(
+                "function $$render{}() {{{}\n",
+                render_generics, dollar_decls
+            ));
 
             if script_start < content_start {
                 str.overwrite(script_start, content_start, &script_replacement);
@@ -435,8 +446,8 @@ pub fn svelte2tsx(
                     script_start,
                     content_start,
                     &format!(
-                        ";{}function $$render() {{{}\n",
-                        ts_component_props_decl, dollar_decls
+                        ";{}function $$render{}() {{{}\n",
+                        ts_component_props_decl, render_generics, dollar_decls
                     ),
                 );
             }
@@ -445,7 +456,15 @@ pub fn svelte2tsx(
         // Overwrite `</script>` with slot declaration + `async () => {`
         if content_end < script_end {
             if has_slot_elements {
-                let slot_decl = "\n/*\u{03A9}ignore_start\u{03A9}*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot();/*\u{03A9}ignore_end\u{03A9}*/;";
+                let slot_generic = if exported_names.has_slots_type {
+                    "<$$Slots>"
+                } else {
+                    ""
+                };
+                let slot_decl = format!(
+                    "\n/*\u{03A9}ignore_start\u{03A9}*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot{}();/*\u{03A9}ignore_end\u{03A9}*/;",
+                    slot_generic
+                );
                 str.overwrite(
                     content_end,
                     script_end,
@@ -944,10 +963,29 @@ fn count_tag_to_attr_spaces_in_source(tag_name: &str, el_start: u32, source: &st
     count
 }
 
+/// Extract the `generics` attribute value from a script tag text.
+fn extract_generics_from_script_tag(tag_text: &str) -> Option<String> {
+    if let Some(pos) = tag_text.find("generics=") {
+        let after = &tag_text[pos + 9..];
+        let trimmed = after.trim_start();
+        if let Some(quote_char) = trimmed.chars().next() {
+            if quote_char == '"' || quote_char == '\'' {
+                let content = &trimmed[1..];
+                if let Some(end) = content.find(quote_char) {
+                    return Some(content[..end].to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
 fn derive_component_name(filename: &str) -> String {
     // Extract the file stem (without directory and extension)
     let stem = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
     let stem = stem.strip_suffix(".svelte").unwrap_or(stem);
+    // Strip leading `+` (SvelteKit convention: +page.svelte -> Page)
+    let stem = stem.strip_prefix('+').unwrap_or(stem);
 
     // Replace invalid identifier characters with underscores
     let mut name = String::with_capacity(stem.len());
