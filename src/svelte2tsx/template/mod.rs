@@ -406,13 +406,13 @@ fn process_node_inplace(
         }
         TemplateNode::TitleElement(el) => handle_title_element(el, source, options, str, counter),
         TemplateNode::SlotElement(el) => handle_slot_element(el, source, options, str, counter),
+        TemplateNode::SvelteSelf(el) => handle_svelte_self(el, source, options, str, counter),
         TemplateNode::SvelteOptions(el)
         | TemplateNode::SvelteBody(el)
         | TemplateNode::SvelteDocument(el)
         | TemplateNode::SvelteFragment(el)
         | TemplateNode::SvelteBoundary(el)
         | TemplateNode::SvelteHead(el)
-        | TemplateNode::SvelteSelf(el)
         | TemplateNode::SvelteWindow(el) => {
             handle_svelte_special_element(el, source, options, str, counter)
         }
@@ -703,10 +703,22 @@ fn handle_each_block(
     // Build the for loop header.
     // The `{#` prefix of `{#each` is replaced with spaces to preserve
     // source positions (matching JS svelte2tsx behavior).
-    let mut header = format!(
-        "  for(let {} of __sveltets_2_ensureArray({})){{",
-        context_text, expr_text
-    );
+    //
+    // When the loop variable shadows the collection variable (e.g., `{#each items as items}`),
+    // a temporary variable is used to avoid the shadowing issue:
+    //   `{ const $$_each = __sveltets_2_ensureArray(items); for(let items of $$_each){`
+    let needs_temp_var = context_text == expr_text;
+    let mut header = if needs_temp_var {
+        format!(
+            "  {{ const $$_each = __sveltets_2_ensureArray({}); for(let {} of $$_each){{",
+            expr_text, context_text
+        )
+    } else {
+        format!(
+            "  for(let {} of __sveltets_2_ensureArray({})){{",
+            context_text, expr_text
+        )
+    };
 
     // Add index variable if present
     if let Some(ref index) = block.index {
@@ -757,8 +769,9 @@ fn handle_each_block(
         }
     } else {
         // Close the for loop
+        let closing = if needs_temp_var { "}}" } else { "}" };
         if body_end < block.end {
-            str.overwrite(body_end, block.end, "}");
+            str.overwrite(body_end, block.end, closing);
         }
     }
 }
@@ -819,13 +832,9 @@ fn handle_await_block(
             block.end
         };
 
-        // Opening: `{#await promise}` → `{  { try { const $$_value = await (promise);`
-        // or simpler pending: just show the expression
-        str.overwrite(
-            block.start,
-            pending_start,
-            &format!("   {{ try {{ const $$_value = await ({});", expr_text),
-        );
+        // Opening: `{#await promise}` → `   { `
+        // The `await` expression is placed at the {:then} boundary
+        str.overwrite(block.start, pending_start, "   { ");
 
         process_fragment_inplace(pending, source, options, str, counter);
 
@@ -847,10 +856,17 @@ fn handle_await_block(
                 str.overwrite(
                     prev_end,
                     then_start,
-                    &format!("{{ const {} = $$_value; ", value_text),
+                    &format!(
+                        "const $$_value = await ({});{{ const {} = $$_value; ",
+                        expr_text, value_text
+                    ),
                 );
             } else {
-                str.overwrite(prev_end, then_start, "{ ");
+                str.overwrite(
+                    prev_end,
+                    then_start,
+                    &format!("const $$_value = await ({});{{ ", expr_text),
+                );
             }
 
             process_fragment_inplace(then, source, options, str, counter);
@@ -894,14 +910,14 @@ fn handle_await_block(
                     str.overwrite(catch_end, block.end, "}}");
                 }
             } else {
-                // No catch
+                // No catch: close then scope + await block
                 let then_end = if !then.nodes.is_empty() {
                     then.nodes.last().unwrap().end()
                 } else {
                     then_start
                 };
                 if then_end < block.end {
-                    str.overwrite(then_end, block.end, "}}}");
+                    str.overwrite(then_end, block.end, "}}");
                 }
             }
         } else {
@@ -912,11 +928,12 @@ fn handle_await_block(
                 pending_start
             };
             if pending_end < block.end {
-                str.overwrite(pending_end, block.end, "}}}");
+                str.overwrite(pending_end, block.end, "}");
             }
         }
     } else if has_then {
         // Pattern: {#await promise then value} then {/await} (no pending)
+        // Or:      {#await promise then value} then {:catch error} catch {/await}
         let then = block.then.as_ref().unwrap();
         let then_start = if !then.nodes.is_empty() {
             then.nodes[0].start()
@@ -924,21 +941,42 @@ fn handle_await_block(
             block.end
         };
 
-        if !value_text.is_empty() {
-            str.overwrite(
-                block.start,
-                then_start,
-                &format!(
-                    "   {{ const $$_value = await ({});{{ const {} = $$_value; ",
-                    expr_text, value_text
-                ),
-            );
+        if has_catch {
+            // With catch: use try/catch format
+            if !value_text.is_empty() {
+                str.overwrite(
+                    block.start,
+                    then_start,
+                    &format!(
+                        "   {{ try {{ const $$_value = await ({});{{ const {} = $$_value; ",
+                        expr_text, value_text
+                    ),
+                );
+            } else {
+                str.overwrite(
+                    block.start,
+                    then_start,
+                    &format!("   {{ try {{ const $$_value = await ({});{{ ", expr_text),
+                );
+            }
         } else {
-            str.overwrite(
-                block.start,
-                then_start,
-                &format!("   {{ const $$_value = await ({});{{ ", expr_text),
-            );
+            // No catch: simple format
+            if !value_text.is_empty() {
+                str.overwrite(
+                    block.start,
+                    then_start,
+                    &format!(
+                        "   {{ const $$_value = await ({});{{ const {} = $$_value; ",
+                        expr_text, value_text
+                    ),
+                );
+            } else {
+                str.overwrite(
+                    block.start,
+                    then_start,
+                    &format!("   {{ const $$_value = await ({});{{ ", expr_text),
+                );
+            }
         }
 
         process_fragment_inplace(then, source, options, str, counter);
@@ -949,7 +987,40 @@ fn handle_await_block(
             then_start
         };
 
-        if then_end < block.end {
+        if has_catch {
+            // Handle catch after then
+            let catch = block.catch.as_ref().unwrap();
+            let catch_start = if !catch.nodes.is_empty() {
+                catch.nodes[0].start()
+            } else {
+                block.end
+            };
+
+            if !error_text.is_empty() {
+                str.overwrite(
+                    then_end,
+                    catch_start,
+                    &format!(
+                        "}}}} catch($$_e) {{ const {} = __sveltets_2_any();",
+                        error_text
+                    ),
+                );
+            } else {
+                str.overwrite(then_end, catch_start, "}}} catch {");
+            }
+
+            process_fragment_inplace(catch, source, options, str, counter);
+
+            let catch_end = if !catch.nodes.is_empty() {
+                catch.nodes.last().unwrap().end()
+            } else {
+                catch_start
+            };
+
+            if catch_end < block.end {
+                str.overwrite(catch_end, block.end, "}}");
+            }
+        } else if then_end < block.end {
             str.overwrite(then_end, block.end, "}}");
         }
     } else if has_catch {
@@ -1222,15 +1293,27 @@ fn handle_component(
     }
 
     // Add children prop for Svelte 5 if component has children.
-    // When there are let: directives, children are consumed by slot scoping,
-    // not as a children prop.
-    let children_prop = if is_svelte5 && has_children && !has_lets {
-        "children:() => { return __sveltets_2_any(0); },"
-    } else {
-        ""
-    };
+    // The children prop is inserted at the beginning of the props object,
+    // after any leading whitespace from the attribute spacing.
+    if is_svelte5 && has_children && !has_lets {
+        // Insert children prop: strip leading whitespace from attrs_str,
+        // prepend children, then re-add leading whitespace
+        let children_text = "children:() => { return __sveltets_2_any(0); },";
+        let trimmed = attrs_str.trim_start();
+        if trimmed.is_empty() {
+            // No other attrs: just children (no leading space)
+            attrs_str = children_text.to_string();
+        } else {
+            // Has other attrs: insert children before them, preserving leading whitespace
+            let leading_ws: String = attrs_str
+                .chars()
+                .take_while(|c| c.is_whitespace())
+                .collect();
+            attrs_str = format!("{}{}{}", leading_ws, children_text, trimmed);
+        }
+    }
 
-    // Build the replacement for the opening tag
+    // Build the replacement for the opening tag.
     let inst_var = reversed_component_instance_name(&comp.name, idx);
     let opener = if needs_instance {
         let on_calls = if has_events {
@@ -1239,13 +1322,13 @@ fn handle_component(
             String::new()
         };
         format!(
-            " {{ const {} = __sveltets_2_ensureComponent({}); const {} = new {}({{ target: __sveltets_2_any(), props: {{{}{}}}}});{}",
-            ctor_var, comp.name, inst_var, ctor_var, attrs_str, children_prop, on_calls
+            " {{ const {} = __sveltets_2_ensureComponent({}); const {} = new {}({{ target: __sveltets_2_any(), props: {{{}}}}});{}",
+            ctor_var, comp.name, inst_var, ctor_var, attrs_str, on_calls
         )
     } else {
         format!(
-            " {{ const {} = __sveltets_2_ensureComponent({}); new {}({{ target: __sveltets_2_any(), props: {{{}{}}}}});",
-            ctor_var, comp.name, ctor_var, attrs_str, children_prop
+            " {{ const {} = __sveltets_2_ensureComponent({}); new {}({{ target: __sveltets_2_any(), props: {{{}}}}});",
+            ctor_var, comp.name, ctor_var, attrs_str
         )
     };
     str.overwrite(comp.start, opening_tag_end, &opener);
@@ -1646,6 +1729,25 @@ fn handle_svelte_component(
         }
     }
 
+    // Check if component has meaningful children for Svelte 5 children prop
+    let has_children = has_component_slot_children(&comp.fragment, source);
+    let is_svelte5 = matches!(options.version, SvelteVersion::V5);
+    let let_directives_scomp = get_let_directives(&comp.attributes);
+    let has_lets_scomp = !let_directives_scomp.is_empty();
+    if is_svelte5 && has_children && !has_lets_scomp {
+        let children_text = "children:() => { return __sveltets_2_any(0); },";
+        let trimmed = attrs_str.trim_start();
+        if trimmed.is_empty() {
+            attrs_str = children_text.to_string();
+        } else {
+            let leading_ws: String = attrs_str
+                .chars()
+                .take_while(|c| c.is_whitespace())
+                .collect();
+            attrs_str = format!("{}{}{}", leading_ws, children_text, trimmed);
+        }
+    }
+
     let ctor_var = reversed_component_name(&scomp_name, idx);
     let opener = if has_events {
         let inst_var = reversed_component_instance_name(&scomp_name, idx);
@@ -1684,23 +1786,68 @@ fn handle_svelte_dynamic_element(
         return;
     }
 
-    let tag_text = get_expression_text(&el.tag, source);
+    let raw_tag_text = get_expression_text(&el.tag, source);
+    // If the `this` attribute value is a plain string literal (this="tag"),
+    // the parser stores just the text without quotes. We need to wrap it
+    // in quotes to produce valid JavaScript: createElement("tag", ...).
+    let tag_text = if let Some((start, _end)) = get_expression_range(&el.tag) {
+        let before = if start > 0 {
+            source.as_bytes()[(start - 1) as usize]
+        } else {
+            b'{'
+        };
+        if before == b'"' || before == b'\'' {
+            // String literal: wrap in quotes
+            format!("\"{}\"", raw_tag_text)
+        } else {
+            raw_tag_text.to_string()
+        }
+    } else {
+        raw_tag_text.to_string()
+    };
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
     let attrs_str = build_attributes_string(&el.attributes, source);
 
-    let opener = format!(
-        " {{ svelteHTML.createElement({}, {{{}}});",
-        tag_text, attrs_str
-    );
-    str.overwrite(el.start, opening_tag_end, &opener);
+    // Check if this is a self-closing element (no separate closing tag)
+    let is_self_closing = el.fragment.nodes.is_empty()
+        && source[el.start as usize..el.end as usize]
+            .trim_end()
+            .ends_with("/>");
 
-    process_fragment_inplace(&el.fragment, source, options, str, counter);
-
-    let closing_tag_start = find_closing_tag_start(source, el.end);
-    if closing_tag_start < el.end {
-        str.overwrite(closing_tag_start, el.end, " }");
+    if is_self_closing {
+        // Self-closing: emit everything in one go
+        let opener = format!(
+            " {{ svelteHTML.createElement({}, {{{}{}}});}}",
+            tag_text,
+            if attrs_str.is_empty() {
+                "  "
+            } else {
+                &attrs_str
+            },
+            ""
+        );
+        str.overwrite(el.start, el.end, &opener);
     } else {
-        str.append_left(el.end, " }");
+        let opener = format!(
+            " {{ svelteHTML.createElement({}, {{{}{}}});",
+            tag_text,
+            if attrs_str.is_empty() {
+                " "
+            } else {
+                &attrs_str
+            },
+            ""
+        );
+        str.overwrite(el.start, opening_tag_end, &opener);
+
+        process_fragment_inplace(&el.fragment, source, options, str, counter);
+
+        let closing_tag_start = find_closing_tag_start(source, el.end);
+        if closing_tag_start < el.end {
+            str.overwrite(closing_tag_start, el.end, " }");
+        } else {
+            str.append_left(el.end, " }");
+        }
     }
 }
 
@@ -1823,6 +1970,100 @@ fn handle_slot_element(
             // The `/>` is part of the opening tag which was already overwritten
             str.append_left(el.end, "}");
         }
+    }
+}
+
+/// Handle `<svelte:self>` element.
+///
+/// `<svelte:self>` becomes `__sveltets_2_createComponentAny({props})`.
+/// When there are event directives, a variable is created for `$on()` calls.
+fn handle_svelte_self(
+    el: &SvelteElement,
+    source: &str,
+    options: &Svelte2TsxOptions,
+    str: &mut MagicString,
+    counter: &mut Counter,
+) {
+    if el.start >= el.end {
+        return;
+    }
+
+    let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
+
+    // Separate on: directives from regular attributes
+    let mut has_on_directives = false;
+    let mut on_directives = Vec::new();
+    let mut prop_parts = Vec::new();
+
+    for attr in &el.attributes {
+        match attr {
+            Attribute::OnDirective(on) => {
+                has_on_directives = true;
+                on_directives.push(on);
+            }
+            _ => {
+                // Use the generic attribute formatting
+                match attr {
+                    Attribute::Attribute(node) => {
+                        if let Some(s) = format_attribute_node(node, source) {
+                            prop_parts.push(s);
+                        }
+                    }
+                    Attribute::SpreadAttribute(spread) => {
+                        if let Some(s) = format_spread_attribute(spread, source) {
+                            prop_parts.push(s);
+                        }
+                    }
+                    Attribute::BindDirective(bind) => {
+                        prop_parts.push(format_bind_directive(bind, source));
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    let props_inner = if prop_parts.is_empty() {
+        " ".to_string()
+    } else {
+        let extra_spaces = count_tag_to_attr_spaces(&el.name, el.start, source);
+        if extra_spaces >= 1 {
+            format!("{}{}", " ".repeat(extra_spaces + 1), prop_parts.join(""))
+        } else {
+            format!(" {}", prop_parts.join(""))
+        }
+    };
+
+    if has_on_directives {
+        let idx = counter.next_for("svelteself");
+        let var_name = format!("$$_svelteself{}", idx);
+
+        let mut result = format!(
+            " {{ const {} = __sveltets_2_createComponentAny({{{}}});",
+            var_name, props_inner
+        );
+
+        // Add $on() calls for each event directive
+        for on in &on_directives {
+            if let Some(ref expr) = on.expression {
+                let expr_text = get_expression_text(expr, source);
+                result.push_str(&format!(
+                    "{}.$on(\"{}\", {}); ",
+                    var_name, on.name, expr_text
+                ));
+            } else {
+                result.push_str(&format!("{}.$on(\"{}\", () => {{}}); ", var_name, on.name));
+            }
+        }
+
+        result.push('}');
+        str.overwrite(el.start, el.end, &result);
+    } else {
+        let result = format!(
+            " {{ __sveltets_2_createComponentAny({{{}}});}}",
+            props_inner
+        );
+        str.overwrite(el.start, el.end, &result);
     }
 }
 
@@ -2082,6 +2323,46 @@ fn format_attribute_node(node: &AttributeNode, source: &str) -> Option<String> {
                 match part {
                     AttributeValuePart::Text(text) => {
                         // Escape backtick characters in the text
+                        let escaped = text.raw.replace('`', "\\`").replace('$', "\\$");
+                        value_parts.push(escaped);
+                    }
+                    AttributeValuePart::ExpressionTag(expr) => {
+                        let expr_text = get_expression_text(&expr.expression, source);
+                        value_parts.push(format!("${{{}}}", expr_text));
+                    }
+                }
+            }
+            Some(format!("\"{}\":`{}`,", name, value_parts.join("")))
+        }
+    }
+}
+
+/// Format a slot prop attribute. Unlike regular attributes, slot props
+/// always use the full "key":value format (no shorthand).
+/// `err={err}` → `"err":err,` (not `err,`)
+fn format_slot_prop_node(node: &AttributeNode, source: &str) -> Option<String> {
+    let name = &node.name;
+
+    match &node.value {
+        AttributeValue::True(_) => Some(format!("\"{}\":true,", name)),
+        AttributeValue::Expression(expr) => {
+            let expr_text = get_expression_text(&expr.expression, source);
+            // Always use full "key":value format for slot props
+            Some(format!("\"{}\":{},", name, expr_text))
+        }
+        AttributeValue::Sequence(parts) => {
+            // Same as format_attribute_node for sequences
+            if parts.len() == 1 {
+                if let AttributeValuePart::ExpressionTag(expr) = &parts[0] {
+                    let expr_text = get_expression_text(&expr.expression, source);
+                    return Some(format!("\"{}\":{},", name, expr_text));
+                }
+            }
+
+            let mut value_parts = Vec::new();
+            for part in parts {
+                match part {
+                    AttributeValuePart::Text(text) => {
                         let escaped = text.raw.replace('`', "\\`").replace('$', "\\$");
                         value_parts.push(escaped);
                     }

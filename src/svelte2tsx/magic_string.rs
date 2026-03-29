@@ -67,21 +67,40 @@ impl Chunk {
         let original_before = self.original[..slice_index].to_string();
         let original_after = self.original[slice_index..].to_string();
 
+        // If the chunk was edited, preserve the edited state in both halves.
+        // An edited chunk with empty content should produce two edited chunks
+        // with empty content (not revert to original text).
+        let (content_before, content_after, new_edited) = if self.edited {
+            // For edited chunks, split the edited content proportionally.
+            // If content is empty (e.g., from a remove/overwrite with ""),
+            // both halves get empty content.
+            if self.content.is_empty() {
+                (String::new(), String::new(), true)
+            } else {
+                // If content was replaced, we can't meaningfully split it,
+                // so put all content in the first half and leave the second empty.
+                let content = std::mem::take(&mut self.content);
+                (content, String::new(), true)
+            }
+        } else {
+            (original_before.clone(), original_after.clone(), false)
+        };
+
         let new_chunk = Chunk {
             start: index,
             end: self.end,
-            original: original_after.clone(),
-            content: original_after,
+            original: original_after,
+            content: content_after,
             intro: String::new(),
             outro: std::mem::take(&mut self.outro),
-            edited: false,
+            edited: new_edited,
             next: self.next,
             previous: None, // caller sets this
         };
 
         self.end = index;
-        self.original = original_before.clone();
-        self.content = original_before;
+        self.original = original_before;
+        self.content = content_before;
 
         new_chunk
     }

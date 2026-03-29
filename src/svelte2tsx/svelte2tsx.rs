@@ -262,6 +262,12 @@ pub fn svelte2tsx(
     }
 
     // Step 8: Blank out <style> tag (CSS is not relevant for TSX type checking)
+    //
+    //
+    // First blank any style tag the parser captured in ast.css.
+    // Then ALWAYS run the fallback scanner to catch style tags the parser
+    // did not capture (e.g., <style global>, custom attributes).
+    let mut blanked_style_ranges: Vec<(usize, usize)> = Vec::new();
     if let Some(ref css) = ast.css {
         if css.start < css.end {
             // Also blank any trailing whitespace after the style tag
@@ -276,8 +282,10 @@ pub fn svelte2tsx(
                 }
             }
             str.overwrite(css.start, blank_end, "");
+            blanked_style_ranges.push((css.start as usize, blank_end as usize));
         }
-    } else {
+    }
+    {
         // Fallback: scan source for <style tags that the parser didn't
         // capture in ast.css (e.g., <style global>, <style lang="...">).
         // Blank them out by finding the matching </style>.
@@ -295,6 +303,11 @@ pub fn svelte2tsx(
         };
         let is_inside_script =
             |pos: usize| -> bool { script_ranges.iter().any(|&(s, e)| pos >= s && pos < e) };
+        let is_already_blanked = |pos: usize| -> bool {
+            blanked_style_ranges
+                .iter()
+                .any(|&(s, e)| pos >= s && pos < e)
+        };
 
         let src_lower = source.to_lowercase();
         let mut search_from = 0;
@@ -302,6 +315,11 @@ pub fn svelte2tsx(
             let abs_start = search_from + style_start;
             // Skip if inside a script tag
             if is_inside_script(abs_start) {
+                search_from = abs_start + 1;
+                continue;
+            }
+            // Skip if already blanked by the primary handler
+            if is_already_blanked(abs_start) {
                 search_from = abs_start + 1;
                 continue;
             }
@@ -339,9 +357,10 @@ pub fn svelte2tsx(
         }
     }
 
-    // Step 8.5: Detect $$props, $$restProps usage in source (before wrapping)
+    // Step 8.5: Detect $$props, $$restProps, $$slots usage in source (before wrapping)
     let uses_dollar_props = source.contains("$$props");
     let uses_dollar_rest_props = source.contains("$$restProps");
+    let uses_dollar_slots = source.contains("$$slots");
 
     // Step 9: Process template nodes in-place via MagicString
     template::process_template_inplace(&ast.fragment, source, &options, &mut str);
@@ -397,13 +416,25 @@ pub fn svelte2tsx(
         }
     }
 
-    // Build $$props/$$restProps declaration text for injection into $$render() header
+    // Build $$props/$$restProps/$$slots declaration text for injection into $$render() header
     let mut dollar_decls = String::new();
     if uses_dollar_props {
         dollar_decls.push_str(" let $$props = __sveltets_2_allPropsType();");
     }
     if uses_dollar_rest_props {
         dollar_decls.push_str(" let $$restProps = __sveltets_2_restPropsType();");
+    }
+    if uses_dollar_slots {
+        // Collect slot names from the template AST for $$slots declaration
+        let slot_names = collect_slot_names_from_ast(&ast.fragment);
+        let slots_obj: Vec<String> = slot_names
+            .iter()
+            .map(|name| format!("'{}': ''", name))
+            .collect();
+        dollar_decls.push_str(&format!(
+            " let $$slots = __sveltets_2_slotsType({{{}}});",
+            slots_obj.join(", ")
+        ));
     }
 
     // Detect generics attribute from the script tag (available for component export)
@@ -680,9 +711,15 @@ pub fn svelte2tsx(
     }
 
     // Phase 4: Add reference types and component wrapper
+    let is_dts_mode = matches!(options.mode, Svelte2TsxMode::Dts);
+    let header_str = if is_dts_mode {
+        "import { SvelteComponentTyped } from \"svelte\"\n\n"
+    } else {
+        "///<reference types=\"svelte\" />\n"
+    };
     if has_instance_script {
         // Prepend the reference types
-        str.prepend_str("///<reference types=\"svelte\" />\n");
+        str.prepend_str(header_str);
     } else if has_module_script {
         // Module script but no instance script
         let module = ast.module.as_ref().unwrap();
@@ -725,7 +762,7 @@ pub fn svelte2tsx(
             }
         }
 
-        str.prepend_str("///<reference types=\"svelte\" />\n");
+        str.prepend_str(header_str);
     } else {
         // No script tags at all: prepend the full wrapper
         let slot_decl_tmpl = if has_slot_elements {
@@ -734,8 +771,8 @@ pub fn svelte2tsx(
             ""
         };
         let wrapper = format!(
-            "///<reference types=\"svelte\" />\n;function $$render() {{{}{}\nasync () => {{",
-            dollar_decls, slot_decl_tmpl
+            "{};function $$render() {{{}{}\nasync () => {{",
+            header_str, dollar_decls, slot_decl_tmpl
         );
         str.prepend_str(&wrapper);
     }
@@ -964,9 +1001,15 @@ pub fn svelte2tsx(
                 ));
             } else {
                 let prop_def = build_prop_def(&exported_names);
+                let has_non_empty_slots = !template_info.slots.is_empty();
+                let component_fn = if has_non_empty_slots {
+                    "__sveltets_2_isomorphic_component_slots"
+                } else {
+                    "__sveltets_2_isomorphic_component"
+                };
                 closing.push_str(&format!(
-                    "const {} = __sveltets_2_isomorphic_component({});\n",
-                    safe_name, prop_def
+                    "const {} = {}({});\n",
+                    safe_name, component_fn, prop_def
                 ));
                 closing.push_str(&format!(
                     "/*\u{03A9}ignore_start\u{03A9}*/type {} = InstanceType<typeof {}>;\n",
@@ -990,6 +1033,109 @@ pub fn svelte2tsx(
         exported_names,
         events,
     })
+}
+
+/// Collect slot names from the template AST.
+///
+/// Walks the fragment tree looking for `<slot>` elements and collects their names.
+/// A slot without a `name` attribute is the "default" slot.
+fn collect_slot_names_from_ast(fragment: &crate::ast::template::Fragment) -> Vec<String> {
+    use crate::ast::template::TemplateNode;
+    let mut names = Vec::new();
+    collect_slot_names_recursive(&fragment.nodes, &mut names);
+    // Deduplicate while preserving order
+    let mut seen = std::collections::HashSet::new();
+    names.retain(|n| seen.insert(n.clone()));
+    names
+}
+
+fn collect_slot_names_recursive(
+    nodes: &[crate::ast::template::TemplateNode],
+    names: &mut Vec<String>,
+) {
+    use crate::ast::template::TemplateNode;
+    for node in nodes {
+        match node {
+            TemplateNode::SlotElement(el) => {
+                // Get slot name from the `name` attribute
+                let mut slot_name = "default".to_string();
+                for attr in &el.attributes {
+                    if let crate::ast::template::Attribute::Attribute(node) = attr {
+                        if node.name == "name" {
+                            if let crate::ast::template::AttributeValue::Sequence(parts) =
+                                &node.value
+                            {
+                                for part in parts {
+                                    if let crate::ast::template::AttributeValuePart::Text(text) =
+                                        part
+                                    {
+                                        slot_name = text.raw.to_string();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                names.push(slot_name);
+                collect_slot_names_recursive(&el.fragment.nodes, names);
+            }
+            TemplateNode::RegularElement(el) => {
+                collect_slot_names_recursive(&el.fragment.nodes, names);
+            }
+            TemplateNode::Component(comp) => {
+                collect_slot_names_recursive(&comp.fragment.nodes, names);
+            }
+            TemplateNode::IfBlock(block) => {
+                collect_slot_names_recursive(&block.consequent.nodes, names);
+                if let Some(ref alt) = block.alternate {
+                    collect_slot_names_recursive(&alt.nodes, names);
+                }
+            }
+            TemplateNode::EachBlock(block) => {
+                collect_slot_names_recursive(&block.body.nodes, names);
+                if let Some(ref fallback) = block.fallback {
+                    collect_slot_names_recursive(&fallback.nodes, names);
+                }
+            }
+            TemplateNode::AwaitBlock(block) => {
+                if let Some(ref pending) = block.pending {
+                    collect_slot_names_recursive(&pending.nodes, names);
+                }
+                if let Some(ref then) = block.then {
+                    collect_slot_names_recursive(&then.nodes, names);
+                }
+                if let Some(ref catch) = block.catch {
+                    collect_slot_names_recursive(&catch.nodes, names);
+                }
+            }
+            TemplateNode::KeyBlock(block) => {
+                collect_slot_names_recursive(&block.fragment.nodes, names);
+            }
+            TemplateNode::SnippetBlock(block) => {
+                collect_slot_names_recursive(&block.body.nodes, names);
+            }
+            TemplateNode::SvelteBody(el)
+            | TemplateNode::SvelteDocument(el)
+            | TemplateNode::SvelteFragment(el)
+            | TemplateNode::SvelteBoundary(el)
+            | TemplateNode::SvelteHead(el)
+            | TemplateNode::SvelteOptions(el)
+            | TemplateNode::SvelteSelf(el)
+            | TemplateNode::SvelteWindow(el) => {
+                collect_slot_names_recursive(&el.fragment.nodes, names);
+            }
+            TemplateNode::TitleElement(el) => {
+                collect_slot_names_recursive(&el.fragment.nodes, names);
+            }
+            TemplateNode::SvelteComponent(comp) => {
+                collect_slot_names_recursive(&comp.fragment.nodes, names);
+            }
+            TemplateNode::SvelteElement(el) => {
+                collect_slot_names_recursive(&el.fragment.nodes, names);
+            }
+            _ => {}
+        }
+    }
 }
 
 /// Extract `@component` documentation from HTML comments in the template.
