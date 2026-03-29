@@ -224,12 +224,14 @@ pub fn svelte2tsx(
         if options_node.start < options_node.end {
             // Build attribute string from options attributes
             let mut attrs_parts = Vec::new();
+            let mut has_expression_attr = false;
             for node in &options_node.attributes {
                 match &node.value {
                     crate::ast::template::AttributeValue::True(_) => {
                         attrs_parts.push(format!("\"{}\":true,", node.name));
                     }
                     crate::ast::template::AttributeValue::Expression(expr) => {
+                        has_expression_attr = true;
                         let expr_text = &source[expr.expression.start().unwrap_or(0) as usize
                             ..expr.expression.end().unwrap_or(0) as usize];
                         attrs_parts.push(format!("\"{}\":{},", node.name, expr_text));
@@ -239,13 +241,17 @@ pub fn svelte2tsx(
             }
             let attrs_str = if attrs_parts.is_empty() {
                 String::new()
-            } else {
+            } else if has_expression_attr {
+                // Expression attributes: preserve source spacing
                 let extra_spaces = count_tag_to_attr_spaces_in_source(
                     "svelte:options",
                     options_node.start,
                     source,
                 );
                 format!("{}{}", " ".repeat(extra_spaces + 1), attrs_parts.join(""))
+            } else {
+                // Bare boolean attributes only: no extra spacing
+                attrs_parts.join("")
             };
             let replacement = format!(
                 " {{ svelteHTML.createElement(\"svelte:options\", {{{}}});}}",
@@ -434,7 +440,18 @@ pub fn svelte2tsx(
         } else {
             generics_param
                 .as_ref()
-                .map(|g| format!("<{}>", g))
+                .map(|g| {
+                    if options.is_ts_file {
+                        // TS files: no ignore markers around generics
+                        format!("<{}>", g)
+                    } else {
+                        // JS files: wrap generics content in ignore markers
+                        format!(
+                            "</*\u{03A9}ignore_start\u{03A9}*/{}>/*\u{03A9}ignore_end\u{03A9}*/",
+                            g
+                        )
+                    }
+                })
                 .unwrap_or_default()
         };
 
@@ -451,7 +468,13 @@ pub fn svelte2tsx(
             for (i, &(import_start, import_end)) in imports.iter().enumerate() {
                 let abs_start = import_start + content_start;
                 let abs_end = import_end + content_start;
-                let text = &source[abs_start as usize..abs_end as usize];
+                let raw_text = &source[abs_start as usize..abs_end as usize];
+                // Strip leading indentation from each line of lifted imports
+                let text: String = raw_text
+                    .lines()
+                    .map(|line| line.trim_start())
+                    .collect::<Vec<_>>()
+                    .join("\n");
 
                 // Check if there's a blank line before this import
                 // (indicates an import group boundary)
@@ -465,7 +488,7 @@ pub fn svelte2tsx(
                     }
                 }
 
-                import_text.push_str(text);
+                import_text.push_str(&text);
 
                 // Add semicolon to the last import if it doesn't have one
                 if i == imports.len() - 1 {
@@ -837,18 +860,10 @@ pub fn svelte2tsx(
             .collect();
         (params.join(","), names.join(","))
     } else if let Some(ref g) = generics_attribute {
-        let params_str = g.clone();
-        let names: Vec<String> = g
-            .split(',')
-            .map(|p| {
-                let trimmed = p.trim();
-                trimmed
-                    .split_whitespace()
-                    .next()
-                    .unwrap_or(trimmed)
-                    .to_string()
-            })
-            .collect();
+        // Create compact params string (strip leading spaces from each param)
+        let params_str = compact_generic_params(g);
+        // Split generic params at top-level commas (not inside angle brackets)
+        let names = split_generic_param_names(g);
         (params_str, names.join(","))
     } else {
         (String::new(), String::new())
@@ -894,39 +909,58 @@ pub fn svelte2tsx(
                     ));
                 }
             } else if has_generics {
-                // Generics component export: use __sveltets_Render class pattern
-                closing.push_str(&format!(
-                    "class __sveltets_Render<{}> {{\n",
-                    generics_params
-                ));
+                // Generics component export: __sveltets_Render + $$IsomorphicComponent
+                let gp = &generics_params;
+                let gn = &generics_names;
+                let raw_bindings = exported_names.create_raw_bindings_str(is_svelte5);
+                let raw_exports = exported_names.create_raw_exports_str(
+                    is_svelte5,
+                    effective_accessors,
+                    options.is_ts_file,
+                );
+
+                // Build __sveltets_Render class
+                closing.push_str(&format!("class __sveltets_Render<{}> {{\n", gp));
                 closing.push_str(&format!(
                     "    props() {{\n        return $$render<{}>().props;\n    }}\n",
-                    generics_names
+                    gn
                 ));
-                closing.push_str(&format!(
-                    "    events() {{\n        return __sveltets_2_with_any_event($$render<{}>()).events;\n    }}\n",
-                    generics_names
-                ));
+                closing.push_str(&format!("    events() {{\n        return __sveltets_2_with_any_event($$render<{}>()).events;\n    }}\n", gn));
                 closing.push_str(&format!(
                     "    slots() {{\n        return $$render<{}>().slots;\n    }}\n",
-                    generics_names
+                    gn
                 ));
-                if !bindings_str.is_empty() {
-                    closing.push_str(&format!(
-                        "    bindings() {{ return {}; }}\n",
-                        exported_names
-                            .create_bindings_str(is_svelte5)
-                            .replace(", bindings: ", "")
-                    ));
-                }
+                closing.push_str(&format!("    bindings() {{ return {}; }}\n", raw_bindings));
+                closing.push_str(&format!("    exports() {{ return {}; }}\n", raw_exports));
                 closing.push_str("}\n\n");
+
+                // Build $$IsomorphicComponent interface
+                closing.push_str("interface $$IsomorphicComponent {\n");
                 closing.push_str(&format!(
-                    "\nimport {{ SvelteComponentTyped as __SvelteComponentTyped__ }} from \"svelte\" \n\
-                     export default class {}<{}> extends __SvelteComponentTyped__<\
-                     ReturnType<__sveltets_Render<{}>['props']>, \
-                     ReturnType<__sveltets_Render<{}>['events']>, \
-                     ReturnType<__sveltets_Render<{}>['slots']>> {{\n}}",
-                    safe_name, generics_params, generics_names, generics_names, generics_names
+                    "    new <{}>(options: import('svelte').ComponentConstructorOptions<ReturnType<__sveltets_Render<{}>['props']>>): import('svelte').SvelteComponent<ReturnType<__sveltets_Render<{}>['props']>, ReturnType<__sveltets_Render<{}>['events']>, ReturnType<__sveltets_Render<{}>['slots']>> & {{ $$bindings?: ReturnType<__sveltets_Render<{}>['bindings']> }} & ReturnType<__sveltets_Render<{}>['exports']>;\n",
+                    gp, gn, gn, gn, gn, gn, gn
+                ));
+                closing.push_str(&format!(
+                    "    <{}>(internal: unknown, props: ReturnType<__sveltets_Render<{}>['props']> & {{$$events?: ReturnType<__sveltets_Render<{}>['events']>}}): ReturnType<__sveltets_Render<{}>['exports']>;\n",
+                    gp, gn, gn, gn
+                ));
+                closing.push_str(
+                    "    z_$$bindings?: ReturnType<__sveltets_Render<any>['bindings']>;\n",
+                );
+                closing.push_str("}\n");
+
+                // Component export
+                closing.push_str(&format!(
+                    "const {}: $$IsomorphicComponent = null as any;\n",
+                    safe_name
+                ));
+                closing.push_str(&format!(
+                    "/*\u{03A9}ignore_start\u{03A9}*/type {}<{}> = InstanceType<typeof {}<{}>>;\n",
+                    safe_name, gp, safe_name, gn
+                ));
+                closing.push_str(&format!(
+                    "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
+                    safe_name
                 ));
             } else {
                 let prop_def = build_prop_def(&exported_names);
@@ -1219,6 +1253,87 @@ fn find_instance_imports(script: &crate::ast::template::Script, source: &str) ->
     }
     imports.sort_by_key(|&(s, _)| s);
     imports
+}
+
+/// Split a generics string like "T extends Record<string, any>, U" into
+/// just the type parameter names: ["T", "U"].
+/// Handles nested angle brackets and commas inside constraints.
+fn split_generic_param_names(generics: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    let mut depth = 0; // angle bracket depth
+    let mut current_start = 0;
+
+    for (i, ch) in generics.char_indices() {
+        match ch {
+            '<' => depth += 1,
+            '>' => {
+                if depth > 0 {
+                    depth -= 1;
+                }
+            }
+            ',' if depth == 0 => {
+                let param = generics[current_start..i].trim();
+                names.push(extract_param_name(param));
+                current_start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    // Handle the last parameter
+    let param = generics[current_start..].trim();
+    if !param.is_empty() {
+        names.push(extract_param_name(param));
+    }
+    names
+}
+
+/// Compact a generics string by stripping leading spaces from each top-level parameter.
+/// "A, B extends keyof A, C extends boolean" → "A,B extends keyof A,C extends boolean"
+fn compact_generic_params(generics: &str) -> String {
+    let mut result = String::new();
+    let mut depth = 0;
+    let mut after_comma = false;
+
+    for ch in generics.chars() {
+        match ch {
+            '<' => {
+                depth += 1;
+                result.push(ch);
+            }
+            '>' => {
+                if depth > 0 {
+                    depth -= 1;
+                }
+                result.push(ch);
+            }
+            ',' if depth == 0 => {
+                result.push(',');
+                after_comma = true;
+            }
+            ' ' | '\t' if after_comma => {
+                // Skip leading whitespace after comma at top level
+                continue;
+            }
+            _ => {
+                after_comma = false;
+                result.push(ch);
+            }
+        }
+    }
+    result
+}
+
+/// Extract the type parameter name from a parameter declaration,
+/// handling the `const` modifier (e.g., `const T extends ...` → `T`).
+fn extract_param_name(param: &str) -> String {
+    let mut words = param.split_whitespace();
+    let first = words.next().unwrap_or("");
+    if first == "const" {
+        // Skip `const` modifier, take the next word
+        words.next().unwrap_or(first).to_string()
+    } else {
+        first.to_string()
+    }
 }
 
 /// Detect whether a script content contains top-level `await` expressions.

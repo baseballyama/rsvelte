@@ -318,8 +318,22 @@ impl ExportedNames {
                     }
                 })
                 .collect();
+            // In runes mode, include values in the exports object
+            let val_str = if self.is_runes_mode() {
+                let val_entries: Vec<String> = others
+                    .iter()
+                    .map(|(en, info)| format!("{}: {}", en, info.local_name))
+                    .collect();
+                val_entries.join(",")
+            } else {
+                String::new()
+            };
             if is_ts {
-                format!(", exports: {{}} as any as {{ {} }}", te.join(","))
+                format!(
+                    ", exports: {{{}}} as any as {{ {} }}",
+                    val_str,
+                    te.join(",")
+                )
             } else {
                 format!(", exports: /** @type {{{{{}}}}} */ ({{}})", te.join(","))
             }
@@ -346,6 +360,39 @@ impl ExportedNames {
             ", bindings: \"\"".to_string()
         }
     }
+    /// Return just the raw bindings value (for __sveltets_Render class)
+    pub fn create_raw_bindings_str(&self, is_svelte5: bool) -> String {
+        if !is_svelte5 {
+            return "\"\"".to_string();
+        }
+        if self.is_runes_mode() {
+            if self.bindable_props.is_empty() {
+                "__sveltets_$$bindings('')".to_string()
+            } else {
+                let bindings: Vec<String> = self
+                    .bindable_props
+                    .iter()
+                    .map(|n| format!("'{}'", n))
+                    .collect();
+                format!("__sveltets_$$bindings({})", bindings.join(", "))
+            }
+        } else {
+            "\"\"".to_string()
+        }
+    }
+
+    /// Return just the raw exports value (for __sveltets_Render class)
+    pub fn create_raw_exports_str(
+        &self,
+        _is_svelte5: bool,
+        _accessors: bool,
+        _is_ts: bool,
+    ) -> String {
+        // For simplicity, return `{}` — the exports() method in __sveltets_Render
+        // returns the exports object value
+        "{}".to_string()
+    }
+
     pub fn create_optional_props_array(&self, is_ts: bool) -> Vec<String> {
         if self.is_runes_mode() {
             return Vec::new();
