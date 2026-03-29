@@ -1643,6 +1643,19 @@ fn get_rune_name(callee: &Value, context: &VisitorContext) -> Option<String> {
 /// * `expression` - The JavaScript expression to visit
 /// * `context` - The visitor context
 /// * `metadata` - Expression metadata to populate
+pub fn walk_template_expression(
+    expr: &crate::ast::js::Expression,
+    context: &mut VisitorContext,
+    metadata: &mut crate::ast::template::ExpressionMetadata,
+) -> Result<(), AnalysisError> {
+    match expr {
+        crate::ast::js::Expression::Typed(te) => {
+            walk_js_expression_node(&te.node, context, metadata)
+        }
+        _ => walk_js_expression(expr.as_json(), context, metadata),
+    }
+}
+
 pub fn walk_js_expression(
     expression: &Value,
     context: &mut VisitorContext,

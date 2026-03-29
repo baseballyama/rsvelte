@@ -72,6 +72,9 @@ mod svelte2tsx_tests {
 
         let version = SvelteVersion::V5;
 
+        // `jsdoc-*` samples enable JSDoc emit format (matching JS test runner)
+        let emit_jsdoc = sample_name.starts_with("jsdoc-") || sample_name.starts_with("js-jsdoc-");
+
         // Read config.json overrides if present
         let mut filename = svelte_filename.to_string();
         let config_path = sample_dir.join("config.json");
@@ -93,6 +96,7 @@ mod svelte2tsx_tests {
             namespace,
             version,
             runes: None,
+            emit_jsdoc,
         }
     }
 

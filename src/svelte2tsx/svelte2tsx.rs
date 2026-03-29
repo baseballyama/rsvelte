@@ -64,6 +64,9 @@ pub struct Svelte2TsxOptions {
     /// Whether to use the new Svelte 5 runes mode.
     /// When None, auto-detected from source.
     pub runes: Option<bool>,
+    /// Whether to emit JSDoc format for component export instead of TypeScript syntax.
+    /// When true and not a TS file, uses `export const` + `/** @typedef */` format.
+    pub emit_jsdoc: bool,
 }
 
 impl Default for Svelte2TsxOptions {
@@ -76,6 +79,7 @@ impl Default for Svelte2TsxOptions {
             namespace: Svelte2TsxNamespace::Html,
             version: SvelteVersion::V5,
             runes: None,
+            emit_jsdoc: false,
         }
     }
 }
@@ -267,6 +271,66 @@ pub fn svelte2tsx(
             }
             str.overwrite(css.start, blank_end, "");
         }
+    } else {
+        // Fallback: scan source for <style tags that the parser didn't
+        // capture in ast.css (e.g., <style global>, <style lang="...">).
+        // Blank them out by finding the matching </style>.
+        // Exclude positions inside script tags to avoid matching <style>
+        // inside template literals or string content.
+        let script_ranges: Vec<(usize, usize)> = {
+            let mut ranges = Vec::new();
+            if let Some(ref inst) = ast.instance {
+                ranges.push((inst.start as usize, inst.end as usize));
+            }
+            if let Some(ref module) = ast.module {
+                ranges.push((module.start as usize, module.end as usize));
+            }
+            ranges
+        };
+        let is_inside_script =
+            |pos: usize| -> bool { script_ranges.iter().any(|&(s, e)| pos >= s && pos < e) };
+
+        let src_lower = source.to_lowercase();
+        let mut search_from = 0;
+        while let Some(style_start) = src_lower[search_from..].find("<style") {
+            let abs_start = search_from + style_start;
+            // Skip if inside a script tag
+            if is_inside_script(abs_start) {
+                search_from = abs_start + 1;
+                continue;
+            }
+            // Make sure it's a tag (next char is space, >, /, or newline)
+            let after_tag = abs_start + 6;
+            if after_tag < source.len() {
+                let next_ch = source.as_bytes()[after_tag];
+                if next_ch == b' '
+                    || next_ch == b'>'
+                    || next_ch == b'\n'
+                    || next_ch == b'\r'
+                    || next_ch == b'\t'
+                    || next_ch == b'/'
+                {
+                    // Find the </style> closing tag
+                    if let Some(close_pos) = src_lower[abs_start..].find("</style>") {
+                        let abs_end = abs_start + close_pos + 8; // 8 = len("</style>")
+                        let mut blank_end = abs_end as u32;
+                        let bytes = source.as_bytes();
+                        while (blank_end as usize) < bytes.len() {
+                            let b = bytes[blank_end as usize];
+                            if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
+                                blank_end += 1;
+                            } else {
+                                break;
+                            }
+                        }
+                        str.overwrite(abs_start as u32, blank_end, "");
+                        search_from = abs_end;
+                        continue;
+                    }
+                }
+            }
+            search_from = abs_start + 1;
+        }
     }
 
     // Step 8.5: Detect $$props, $$restProps usage in source (before wrapping)
@@ -336,6 +400,14 @@ pub fn svelte2tsx(
         dollar_decls.push_str(" let $$restProps = __sveltets_2_restPropsType();");
     }
 
+    // Detect generics attribute from the script tag (available for component export)
+    let mut generics_attribute: Option<String> = None;
+    if has_instance_script {
+        let instance = ast.instance.as_ref().unwrap();
+        let script_tag_text = &source[instance.start as usize..instance.content_offset as usize];
+        generics_attribute = extract_generics_from_script_tag(script_tag_text);
+    }
+
     // Phase 2: Overwrite instance script tags and lift imports (before any moves)
     //
     // Import declarations inside the instance script are lifted above the
@@ -348,13 +420,23 @@ pub fn svelte2tsx(
         let content_start = instance.content_offset;
         let content_end = find_script_close_tag_start(source, script_end);
 
+        // Detect top-level `await` in the script content
+        let raw_content = &source[content_start as usize..content_end as usize];
+        let has_top_level_await = detect_top_level_await(raw_content);
+        let async_prefix = if has_top_level_await { "async " } else { "" };
+
         // Detect `generics` attribute on the script tag
         let script_tag_text = &source[script_start as usize..content_start as usize];
         let generics_param = extract_generics_from_script_tag(script_tag_text);
-        let render_generics = generics_param
-            .as_ref()
-            .map(|g| format!("<{}>", g))
-            .unwrap_or_default();
+        let render_generics = if !exported_names.dollar_generics.is_empty() {
+            // Use $$Generic declarations (wrapped in ignore markers)
+            exported_names.build_dollar_generics_str()
+        } else {
+            generics_param
+                .as_ref()
+                .map(|g| format!("<{}>", g))
+                .unwrap_or_default()
+        };
 
         // Find import declarations in the instance script content
         let imports = find_instance_imports(instance, source);
@@ -443,8 +525,12 @@ pub fn svelte2tsx(
                 ""
             };
             script_replacement.push_str(&format!(
-                "function $$render{}() {{{}{}{}",
-                render_generics, dollar_decls, ts_component_props_inside_render, trailing_newline
+                "{}function $$render{}() {{{}{}{}",
+                async_prefix,
+                render_generics,
+                dollar_decls,
+                ts_component_props_inside_render,
+                trailing_newline
             ));
 
             if script_start < content_start {
@@ -485,8 +571,9 @@ pub fn svelte2tsx(
                     script_start,
                     content_start,
                     &format!(
-                        ";{}function $$render{}() {{{}{}{}",
+                        ";{}{}function $$render{}() {{{}{}{}",
                         ts_component_props_before_render,
+                        async_prefix,
                         render_generics,
                         dollar_decls,
                         ts_component_props_inside_render,
@@ -727,6 +814,46 @@ pub fn svelte2tsx(
         }
     };
 
+    // Determine if this component has generics (either from generics= attribute or $$Generic)
+    let has_generics = !exported_names.dollar_generics.is_empty() || generics_attribute.is_some();
+
+    // Build generics strings for component export
+    let (generics_params, generics_names) = if !exported_names.dollar_generics.is_empty() {
+        let params: Vec<String> = exported_names
+            .dollar_generics
+            .iter()
+            .map(|(name, constraint)| {
+                if let Some(c) = constraint {
+                    format!("{} extends {}", name, c)
+                } else {
+                    name.clone()
+                }
+            })
+            .collect();
+        let names: Vec<String> = exported_names
+            .dollar_generics
+            .iter()
+            .map(|(name, _)| name.clone())
+            .collect();
+        (params.join(","), names.join(","))
+    } else if let Some(ref g) = generics_attribute {
+        let params_str = g.clone();
+        let names: Vec<String> = g
+            .split(',')
+            .map(|p| {
+                let trimmed = p.trim();
+                trimmed
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or(trimmed)
+                    .to_string()
+            })
+            .collect();
+        (params_str, names.join(","))
+    } else {
+        (String::new(), String::new())
+    };
+
     match options.version {
         SvelteVersion::V4 => {
             let prop_def = build_prop_def(&exported_names);
@@ -736,18 +863,70 @@ pub fn svelte2tsx(
             ));
         }
         SvelteVersion::V5 => {
+            let use_ts_syntax = options.is_ts_file || !options.emit_jsdoc;
             if exported_names.is_runes_mode() {
+                if !use_ts_syntax {
+                    // JS files with emitJsDoc: use `export const` and JSDoc typedef
+                    closing.push_str(&format!(
+                        "export const {} = __sveltets_2_fn_component($$render());\n",
+                        safe_name
+                    ));
+                    closing.push_str(&format!(
+                        "/*\u{03A9}ignore_start\u{03A9}*//** @typedef {{ReturnType<typeof {}>}} {} */\n",
+                        safe_name, safe_name
+                    ));
+                    closing.push_str(&format!(
+                        "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
+                        safe_name
+                    ));
+                } else {
+                    closing.push_str(&format!(
+                        "const {} = __sveltets_2_fn_component($$render());\n",
+                        safe_name
+                    ));
+                    closing.push_str(&format!(
+                        "/*\u{03A9}ignore_start\u{03A9}*/type {} = ReturnType<typeof {}>;\n",
+                        safe_name, safe_name
+                    ));
+                    closing.push_str(&format!(
+                        "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
+                        safe_name
+                    ));
+                }
+            } else if has_generics {
+                // Generics component export: use __sveltets_Render class pattern
                 closing.push_str(&format!(
-                    "const {} = __sveltets_2_fn_component($$render());\n",
-                    safe_name
+                    "class __sveltets_Render<{}> {{\n",
+                    generics_params
                 ));
                 closing.push_str(&format!(
-                    "/*\u{03A9}ignore_start\u{03A9}*/type {} = ReturnType<typeof {}>;\n",
-                    safe_name, safe_name
+                    "    props() {{\n        return $$render<{}>().props;\n    }}\n",
+                    generics_names
                 ));
                 closing.push_str(&format!(
-                    "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
-                    safe_name
+                    "    events() {{\n        return __sveltets_2_with_any_event($$render<{}>()).events;\n    }}\n",
+                    generics_names
+                ));
+                closing.push_str(&format!(
+                    "    slots() {{\n        return $$render<{}>().slots;\n    }}\n",
+                    generics_names
+                ));
+                if !bindings_str.is_empty() {
+                    closing.push_str(&format!(
+                        "    bindings() {{ return {}; }}\n",
+                        exported_names
+                            .create_bindings_str(is_svelte5)
+                            .replace(", bindings: ", "")
+                    ));
+                }
+                closing.push_str("}\n\n");
+                closing.push_str(&format!(
+                    "\nimport {{ SvelteComponentTyped as __SvelteComponentTyped__ }} from \"svelte\" \n\
+                     export default class {}<{}> extends __SvelteComponentTyped__<\
+                     ReturnType<__sveltets_Render<{}>['props']>, \
+                     ReturnType<__sveltets_Render<{}>['events']>, \
+                     ReturnType<__sveltets_Render<{}>['slots']>> {{\n}}",
+                    safe_name, generics_params, generics_names, generics_names, generics_names
                 ));
             } else {
                 let prop_def = build_prop_def(&exported_names);
@@ -986,15 +1165,104 @@ fn find_instance_imports(script: &crate::ast::template::Script, source: &str) ->
     let mut imports = Vec::new();
     for stmt in result.program.body.iter() {
         if let oxc::Statement::ImportDeclaration(import) = stmt {
-            // Include any leading whitespace/newlines that are part of the
-            // import's "full text" in the source.
-            let start = import.span.start;
+            // Only lift imports with a `from` source clause.
+            // `import A` (without from) and `import C = require('')`
+            // are not valid ES module imports and should stay in-place.
+            if import.source.value.is_empty()
+                && import.specifiers.as_ref().map_or(true, |s| s.is_empty())
+            {
+                continue;
+            }
+            if import.source.value.is_empty() {
+                continue;
+            }
+            let mut start = import.span.start;
             let end = import.span.end;
+
+            // Include leading comments (e.g., `// @ts-ignore` or `/*hi*/`)
+            // by scanning backwards from the import start.
+            let bytes = raw_content.as_bytes();
+            let mut pos = start as usize;
+            // Skip whitespace backwards (but not newlines for line comments)
+            while pos > 0 {
+                let prev = bytes[pos - 1];
+                if prev == b' ' || prev == b'\t' {
+                    pos -= 1;
+                } else {
+                    break;
+                }
+            }
+            // Check for block comment `*/`
+            if pos >= 2 && bytes[pos - 2] == b'*' && bytes[pos - 1] == b'/' {
+                // Find the opening `/*`
+                if let Some(comment_start) = raw_content[..pos - 2].rfind("/*") {
+                    start = comment_start as u32;
+                }
+            }
+            // Check for line comment on previous line: `// ...`
+            // Look backwards past the newline
+            if pos > 0 && bytes[pos - 1] == b'\n' {
+                let line_end = pos - 1;
+                let mut line_start = line_end;
+                while line_start > 0 && bytes[line_start - 1] != b'\n' {
+                    line_start -= 1;
+                }
+                let line = &raw_content[line_start..line_end];
+                let trimmed = line.trim();
+                if trimmed.starts_with("//") {
+                    start = line_start as u32;
+                }
+            }
+
             imports.push((start, end));
         }
     }
     imports.sort_by_key(|&(s, _)| s);
     imports
+}
+
+/// Detect whether a script content contains top-level `await` expressions.
+///
+/// Uses OXC to parse the content as a module (which allows top-level await)
+/// and checks for AwaitExpression at the top level of the program body.
+fn detect_top_level_await(content: &str) -> bool {
+    use oxc_allocator::Allocator;
+    use oxc_ast::ast as oxc;
+    use oxc_parser::Parser as OxcParser;
+    use oxc_span::SourceType;
+
+    let allocator = Allocator::default();
+    let source_type = SourceType::ts().with_module(true);
+    let parser = OxcParser::new(&allocator, content, source_type);
+    let result = parser.parse();
+
+    // Look for top-level variable declarations with await in their init,
+    // or top-level expression statements with await.
+    for stmt in result.program.body.iter() {
+        match stmt {
+            oxc::Statement::VariableDeclaration(decl) => {
+                for declarator in decl.declarations.iter() {
+                    if let Some(ref init) = declarator.init {
+                        if contains_await_expression(init) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            oxc::Statement::ExpressionStatement(expr) => {
+                if contains_await_expression(&expr.expression) {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+/// Check if an expression is or contains an AwaitExpression (shallow check).
+fn contains_await_expression(expr: &oxc_ast::ast::Expression) -> bool {
+    matches!(expr, oxc_ast::ast::Expression::AwaitExpression(_))
 }
 
 // =============================================================================
@@ -1033,6 +1301,14 @@ fn extract_generics_from_script_tag(tag_text: &str) -> Option<String> {
                 let content = &trimmed[1..];
                 if let Some(end) = content.find(quote_char) {
                     return Some(content[..end].to_string());
+                }
+            } else {
+                // Unquoted value: take until whitespace or `>`
+                let end = trimmed
+                    .find(|c: char| c.is_whitespace() || c == '>')
+                    .unwrap_or(trimmed.len());
+                if end > 0 {
+                    return Some(trimmed[..end].to_string());
                 }
             }
         }

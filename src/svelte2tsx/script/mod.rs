@@ -51,6 +51,11 @@ pub struct ExportedNames {
     /// Whether the $$ComponentProps type was already inserted by apply_props_typedef
     /// (for best-effort auto-generated types that go inside $$render, not before it)
     pub type_already_inserted: bool,
+    /// Generics collected from `type X = $$Generic<T>` declarations.
+    /// Each entry is (name, constraint) e.g., ("A", None), ("B", Some("keyof A")).
+    pub dollar_generics: Vec<(String, Option<String>)>,
+    /// Source positions of `type X = $$Generic...` statements to blank out.
+    pub dollar_generic_positions: Vec<(u32, u32)>,
 }
 
 #[derive(Debug, Clone)]
@@ -86,8 +91,34 @@ impl ExportedNames {
             has_slots_type: false,
             has_events_type: false,
             type_already_inserted: false,
+            dollar_generics: Vec::new(),
+            dollar_generic_positions: Vec::new(),
         }
     }
+    /// Build the generics string for `$$render` from `$$Generic` declarations.
+    /// Returns something like `/*Ωignore_startΩ*/<A,B extends keyof A,C extends boolean>/*Ωignore_endΩ*/`
+    /// or empty string if no $$Generic declarations.
+    pub fn build_dollar_generics_str(&self) -> String {
+        if self.dollar_generics.is_empty() {
+            return String::new();
+        }
+        let parts: Vec<String> = self
+            .dollar_generics
+            .iter()
+            .map(|(name, constraint)| {
+                if let Some(c) = constraint {
+                    format!("{} extends {}", name, c)
+                } else {
+                    name.clone()
+                }
+            })
+            .collect();
+        format!(
+            "/*\u{03A9}ignore_start\u{03A9}*/<{}>/*\u{03A9}ignore_end\u{03A9}*/",
+            parts.join(",")
+        )
+    }
+
     pub fn add(
         &mut self,
         name: String,
@@ -637,6 +668,24 @@ pub fn process_instance_script(
                     } else if type_alias.id.name == "$$Events" {
                         exported_names.has_events_type = true;
                     }
+                    // Detect `type X = $$Generic;` or `type X = $$Generic<constraint>;`
+                    let type_text = &raw_content[type_alias.type_annotation.span().start as usize
+                        ..type_alias.type_annotation.span().end as usize];
+                    if type_text == "$$Generic" || type_text.starts_with("$$Generic<") {
+                        let name = type_alias.id.name.to_string();
+                        let constraint = if type_text.starts_with("$$Generic<") {
+                            // Extract the constraint from $$Generic<constraint>
+                            let inner = &type_text[10..type_text.len() - 1]; // skip "$$Generic<" and ">"
+                            Some(inner.to_string())
+                        } else {
+                            None
+                        };
+                        exported_names.dollar_generics.push((name, constraint));
+                        // Record the position to blank out later
+                        exported_names
+                            .dollar_generic_positions
+                            .push((type_alias.span.start, type_alias.span.end));
+                    }
                 }
                 _ => {}
             }
@@ -662,6 +711,11 @@ pub fn process_instance_script(
                     is_ts,
                 );
             }
+        }
+
+        // Blank out $$Generic type alias declarations
+        for &(start, end) in &exported_names.dollar_generic_positions {
+            str.overwrite(start + offset, end + offset, "");
         }
 
         // Pass 2.5: Split multi-declarator let statements when variables are
@@ -1041,8 +1095,14 @@ fn handle_export_named_decl(
                         // For exported prop variables, inject __sveltets_2_any when:
                         // 1. No initializer: `export let a;`
                         // 2. Has a type annotation: `export let a: Type = value;`
+                        // 3. Initializer is a boolean literal: `export let a = true;`
+                        //    (prevents TS from narrowing to `true`/`false` literal type)
                         let has_type_annotation = declarator.type_annotation.is_some();
-                        if is_prop && (!has_default || has_type_annotation) {
+                        let has_boolean_init = declarator
+                            .init
+                            .as_ref()
+                            .is_some_and(|init| matches!(init, oxc::Expression::BooleanLiteral(_)));
+                        if is_prop && (!has_default || has_type_annotation || has_boolean_init) {
                             if let Some(name) = binding_pattern_simple_name(&declarator.id) {
                                 let inject = format!(
                                     "/*\u{03A9}ignore_start\u{03A9}*/;{name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/",
