@@ -147,17 +147,24 @@ fn reversed_component_instance_name(name: &str, index: u32) -> String {
 }
 
 /// Counter for generating unique variable names.
+/// Uses per-name counters so each unique component/element name gets its own counter.
 struct Counter {
-    value: u32,
+    counters: std::collections::HashMap<String, u32>,
 }
 
 impl Counter {
     fn new() -> Self {
-        Self { value: 0 }
+        Self {
+            counters: std::collections::HashMap::new(),
+        }
     }
     fn next(&mut self) -> u32 {
-        let v = self.value;
-        self.value += 1;
+        self.next_for("")
+    }
+    fn next_for(&mut self, name: &str) -> u32 {
+        let entry = self.counters.entry(name.to_string()).or_insert(0);
+        let v = *entry;
+        *entry += 1;
         v
     }
 }
@@ -1173,7 +1180,7 @@ fn handle_component(
         return;
     }
 
-    let idx = counter.next();
+    let idx = counter.next_for(&comp.name);
     let ctor_var = reversed_component_name(&comp.name, idx);
 
     // Find the end of the opening tag
@@ -1615,9 +1622,9 @@ fn handle_svelte_component(
     }
 
     let expr_text = get_expression_text(&comp.expression, source);
-    let idx = counter.next();
     // Use "svelte:component" as the name for variable naming, with ':' replaced by '_'
     let scomp_name = "svelte:component".replace(':', "_");
+    let idx = counter.next_for(&scomp_name);
 
     let opening_tag_end = find_opening_tag_end(source, comp.start, comp.end);
 
@@ -1760,7 +1767,7 @@ fn handle_slot_element(
     let opener = if bind_this_expr.is_some() {
         format!(
             " {{ const $$_slot{} = __sveltets_createSlot(\"{}\", {{{}}});",
-            counter.next(),
+            counter.next_for("slot"),
             slot_name,
             slot_props
         )
@@ -1786,7 +1793,12 @@ fn handle_slot_element(
                 &format!(
                     "{} = $$_slot{};}}",
                     bind_expr,
-                    counter.value.saturating_sub(1) // use the counter value from the opener
+                    counter
+                        .counters
+                        .get("slot")
+                        .copied()
+                        .unwrap_or(0)
+                        .saturating_sub(1)
                 ),
             );
         } else {
@@ -1795,7 +1807,12 @@ fn handle_slot_element(
     } else {
         // Self-closing slot
         if let Some(ref bind_expr) = bind_this_expr {
-            let slot_idx = counter.value.saturating_sub(1);
+            let slot_idx = counter
+                .counters
+                .get("slot")
+                .copied()
+                .unwrap_or(0)
+                .saturating_sub(1);
             str.overwrite(
                 el.end - 2, // rewrite the `/>` portion
                 el.end,

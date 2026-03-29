@@ -190,6 +190,13 @@ impl ExportedNames {
                 return format!("{{}} as any as {}", type_text);
             }
 
+            // JSDoc named type case: `/** @type {SomeType} */` → `/** @type {SomeType} */({})`
+            if let Some(ref jsdoc_type) = self.props_jsdoc_type {
+                if !self.has_component_props_typedef {
+                    return format!("/** @type {} */({{}})", jsdoc_type);
+                }
+            }
+
             // Otherwise, list the prop entries from $props() destructuring
             // In runes mode, named exports (export { x as y }) are NOT props
             let entries: Vec<String> = self
@@ -678,15 +685,12 @@ pub fn process_instance_script(
                     if any_exported {
                         for decl_idx in 0..num_declarators - 1 {
                             let decl_end_rel = var_decl.declarations[decl_idx].span.end;
-                            let next_decl_start_rel =
-                                var_decl.declarations[decl_idx + 1].span.start;
-                            // Replace `,` between declarators with `;let `
-                            // Preserve the original whitespace before the next declarator
-                            str.overwrite(
-                                decl_end_rel + offset,
-                                next_decl_start_rel + offset,
-                                ";let  ",
-                            );
+                            // Find the comma after the declarator end and overwrite just it
+                            let comma_pos = raw_content[decl_end_rel as usize..]
+                                .find(',')
+                                .map(|p| decl_end_rel + p as u32)
+                                .unwrap_or(decl_end_rel);
+                            str.overwrite(comma_pos + offset, comma_pos + 1 + offset, ";let ");
                         }
                     }
                 }
@@ -771,19 +775,33 @@ fn apply_props_typedef(
         // (props_type_text is already set by detect_props_rune_oxc)
         // Don't create $$ComponentProps
     } else if let Some(ref jsdoc_type) = info.jsdoc_type {
-        // JS case with JSDoc @type: transform `/** @type {Type} */` to
-        // `/** @typedef {Type}  $$ComponentProps *//** @type {$$ComponentProps} */`
-        if let (Some(jsdoc_start), Some(jsdoc_end)) = (info.jsdoc_start, info.jsdoc_end) {
-            let abs_start = jsdoc_start + offset;
-            let abs_end = jsdoc_end + offset;
-            let typedef = format!(
-                "/** @typedef {}  $$ComponentProps *//** @type {{$$ComponentProps}} */",
-                jsdoc_type
-            );
-            str.overwrite(abs_start, abs_end, &typedef);
+        // JS case with JSDoc @type
+        // Check if the type is an inline object type `{{ ... }}` or a named reference `{SomeType}`
+        let inner = jsdoc_type
+            .strip_prefix('{')
+            .and_then(|s| s.strip_suffix('}'))
+            .unwrap_or("");
+        let is_inline_object_type = inner.starts_with('{');
+
+        if is_inline_object_type {
+            // Inline object type: transform `/** @type {{ a: number }} */` to
+            // `/** @typedef {{ a: number }}  $$ComponentProps *//** @type {$$ComponentProps} */`
+            if let (Some(jsdoc_start), Some(jsdoc_end)) = (info.jsdoc_start, info.jsdoc_end) {
+                let abs_start = jsdoc_start + offset;
+                let abs_end = jsdoc_end + offset;
+                let typedef = format!(
+                    "/** @typedef {}  $$ComponentProps *//** @type {{$$ComponentProps}} */",
+                    jsdoc_type
+                );
+                str.overwrite(abs_start, abs_end, &typedef);
+            }
+            exported_names.has_component_props_typedef = true;
+            exported_names.props_jsdoc_type = Some(jsdoc_type.clone());
+        } else {
+            // Named type reference: keep `/** @type {SomeType} */` as-is
+            // Use the type name directly in create_props_str
+            exported_names.props_jsdoc_type = Some(jsdoc_type.clone());
         }
-        exported_names.has_component_props_typedef = true;
-        exported_names.props_jsdoc_type = Some(jsdoc_type.clone());
     } else if !info.prop_types.is_empty() || info.has_rest {
         // Auto-generate typedef from destructured props
         let type_entries: Vec<String> = info
@@ -1011,15 +1029,13 @@ fn handle_export_named_decl(
                             && decl_idx < num_declarators - 1
                         {
                             let decl_end_rel = declarator.span.end;
-                            let next_decl_start_rel =
-                                var_decl.declarations[decl_idx + 1].span.start;
-                            // Overwrite `,` (and any whitespace) with `;let `
-                            // and preserve the leading whitespace of the next declarator
-                            str.overwrite(
-                                decl_end_rel + offset,
-                                next_decl_start_rel + offset,
-                                ";let \n",
-                            );
+                            // Find the comma after the declarator end and overwrite just it
+                            // This preserves any comments/whitespace between declarators
+                            let comma_pos = raw_content[decl_end_rel as usize..]
+                                .find(',')
+                                .map(|p| decl_end_rel + p as u32)
+                                .unwrap_or(decl_end_rel);
+                            str.overwrite(comma_pos + offset, comma_pos + 1 + offset, ";let ");
                         }
 
                         // For exported prop variables, inject __sveltets_2_any when:

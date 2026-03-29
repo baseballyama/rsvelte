@@ -666,7 +666,7 @@ pub fn svelte2tsx(
             if props.is_empty() {
                 slot_parts.push(format!("'{}': {{}}", name));
             } else {
-                slot_parts.push(format!("'{}': {{{}}}", name, props.join(",")));
+                slot_parts.push(format!("'{}': {{{}}}", name, props.join(", ")));
             }
         }
         format!("{{{}}}", slot_parts.join(", "))
