@@ -1,10 +1,10 @@
-#[allow(warnings, clippy::inherent_to_string_shadow_display)]
+#[allow(warnings, clippy::all)]
 pub mod magic_string;
-#[allow(warnings)]
+#[allow(warnings, clippy::all)]
 pub mod script;
-#[allow(warnings)]
+#[allow(warnings, clippy::all)]
 pub mod svelte2tsx;
-#[allow(warnings)]
+#[allow(warnings, clippy::all)]
 pub mod template;
 
 pub use svelte2tsx::{

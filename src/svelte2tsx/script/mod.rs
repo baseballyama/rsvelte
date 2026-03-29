@@ -271,6 +271,18 @@ impl ComponentEvents {
     pub fn is_empty(&self) -> bool {
         self.events.is_empty()
     }
+
+    /// Get event entries for the return statement.
+    /// Returns (name, value) pairs like ("hi", "__sveltets_2_customEvent").
+    pub fn get_event_entries(&self) -> Vec<(String, String)> {
+        let mut entries: Vec<(String, String)> = self
+            .events
+            .iter()
+            .map(|(name, _info)| (name.clone(), "__sveltets_2_customEvent".to_string()))
+            .collect();
+        entries.sort_by(|a, b| a.0.cmp(&b.0));
+        entries
+    }
 }
 
 // =============================================================================
@@ -567,7 +579,8 @@ fn handle_export_named_decl(
                     oxc::VariableDeclarationKind::Var | oxc::VariableDeclarationKind::Let
                 );
                 let is_prop = is_instance && is_let;
-                for declarator in var_decl.declarations.iter() {
+                let num_declarators = var_decl.declarations.len();
+                for (decl_idx, declarator) in var_decl.declarations.iter().enumerate() {
                     if is_props_call_oxc(declarator) {
                         extract_props_from_binding_pattern(&declarator.id, exported_names);
                     } else {
@@ -596,6 +609,23 @@ fn handle_export_named_decl(
                                 let inject_pos = declarator.span.end + offset;
                                 str.append_left(inject_pos, &inject);
                             }
+                        }
+
+                        // For multi-declarator exports (export let a, b, c;),
+                        // replace the comma between declarators with `;let `.
+                        // This splits them into separate `let` statements,
+                        // matching JS svelte2tsx behavior.
+                        if is_instance && num_declarators > 1 && decl_idx < num_declarators - 1 {
+                            let decl_end_rel = declarator.span.end;
+                            let next_decl_start_rel =
+                                var_decl.declarations[decl_idx + 1].span.start;
+                            // Overwrite `,` (and any whitespace) with `;let `
+                            // and preserve the leading whitespace of the next declarator
+                            str.overwrite(
+                                decl_end_rel + offset,
+                                next_decl_start_rel + offset,
+                                ";let \n",
+                            );
                         }
                     }
                 }
@@ -823,6 +853,8 @@ fn is_props_call_oxc(declarator: &oxc::VariableDeclarator) -> bool {
 /// Detect `$props()` usage in a variable declarator and extract prop names.
 fn detect_props_rune_oxc(declarator: &oxc::VariableDeclarator, exported_names: &mut ExportedNames) {
     if is_props_call_oxc(declarator) {
+        exported_names.set_has_props_rune(true);
+        exported_names.set_uses_runes(true);
         extract_props_from_binding_pattern(&declarator.id, exported_names);
     }
 }

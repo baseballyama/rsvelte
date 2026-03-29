@@ -2350,7 +2350,7 @@ fn get_global_keypath_node(
 
 /// JsNode version of `get_rune_from_json`.
 /// Get the rune name from a CallExpression node, if it's a rune call.
-fn get_rune_from_node(
+pub fn get_rune_from_node(
     node: &JsNode,
     scope: &Scope,
     arena: &crate::ast::arena::ParseArena,

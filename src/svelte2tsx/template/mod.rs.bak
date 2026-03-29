@@ -16,25 +16,8 @@ use crate::ast::template::{
     UseDirective,
 };
 
-use std::collections::BTreeMap;
-
 use super::magic_string::MagicString;
 use super::svelte2tsx::{Svelte2TsxOptions, SvelteVersion};
-
-// =============================================================================
-// Template context for collecting slot/event information
-// =============================================================================
-
-/// Information collected during template processing.
-#[derive(Debug, Default)]
-pub struct TemplateInfo {
-    /// Slots used in the component: slot_name -> list of prop strings.
-    /// e.g., "default" -> ["a:b", "c:d"]
-    pub slots: BTreeMap<String, Vec<String>>,
-    /// Events forwarded from elements (on:event without handler).
-    /// e.g., "click" -> "__sveltets_2_mapElementEvent('click')"
-    pub element_events: Vec<(String, String)>,
-}
 
 // =============================================================================
 // TemplateNode position helpers
@@ -170,9 +153,6 @@ impl Counter {
 ///
 /// Walks the fragment's nodes and overwrites template node ranges with TSX
 /// equivalents. The MagicString is modified directly.
-///
-/// Returns `TemplateInfo` containing collected slot/event information for
-/// use in the return statement.
 pub fn process_template_inplace(
     fragment: &Fragment,
     source: &str,
@@ -194,160 +174,6 @@ pub fn process_template_inplace(
             }
         }
     }
-}
-
-/// Collect slot and event information from the template AST.
-///
-/// This is a pre-pass that walks the AST to collect:
-/// - Slot elements with their props (for the return statement `slots: {...}`)
-/// - Forwarded events (for the return statement `events: {...}`)
-pub fn collect_template_info(fragment: &Fragment, source: &str) -> TemplateInfo {
-    let mut info = TemplateInfo::default();
-    collect_info_from_fragment(fragment, source, &mut info);
-    info
-}
-
-fn collect_info_from_fragment(fragment: &Fragment, source: &str, info: &mut TemplateInfo) {
-    for node in &fragment.nodes {
-        collect_info_from_node(node, source, info);
-    }
-}
-
-fn collect_info_from_node(node: &TemplateNode, source: &str, info: &mut TemplateInfo) {
-    match node {
-        TemplateNode::SlotElement(el) => {
-            // Collect slot name and props
-            let slot_name = get_slot_name(&el.attributes, source);
-            let slot_props = collect_slot_prop_entries(&el.attributes, source);
-            let entry = info.slots.entry(slot_name).or_default();
-            for prop in slot_props {
-                if !entry.contains(&prop) {
-                    entry.push(prop);
-                }
-            }
-            collect_info_from_fragment(&el.fragment, source, info);
-        }
-        TemplateNode::RegularElement(el) => {
-            // Collect forwarded events (on:event without handler)
-            for attr in &el.attributes {
-                if let Attribute::OnDirective(on) = attr {
-                    if on.expression.is_none() {
-                        // Event forwarding: on:click (no handler)
-                        let event_name = on.name.to_string();
-                        let event_value = format!("__sveltets_2_mapElementEvent('{}')", event_name);
-                        if !info.element_events.iter().any(|(n, _)| n == &event_name) {
-                            info.element_events.push((event_name, event_value));
-                        }
-                    }
-                }
-            }
-            collect_info_from_fragment(&el.fragment, source, info);
-        }
-        TemplateNode::SvelteBody(el)
-        | TemplateNode::SvelteDocument(el)
-        | TemplateNode::SvelteFragment(el)
-        | TemplateNode::SvelteBoundary(el)
-        | TemplateNode::SvelteHead(el)
-        | TemplateNode::SvelteOptions(el)
-        | TemplateNode::SvelteSelf(el)
-        | TemplateNode::SvelteWindow(el) => {
-            // Also collect forwarded events from special elements
-            for attr in &el.attributes {
-                if let Attribute::OnDirective(on) = attr {
-                    if on.expression.is_none() {
-                        let event_name = on.name.to_string();
-                        let event_value = format!("__sveltets_2_mapElementEvent('{}')", event_name);
-                        if !info.element_events.iter().any(|(n, _)| n == &event_name) {
-                            info.element_events.push((event_name, event_value));
-                        }
-                    }
-                }
-            }
-            collect_info_from_fragment(&el.fragment, source, info);
-        }
-        TemplateNode::Component(comp) => {
-            collect_info_from_fragment(&comp.fragment, source, info);
-        }
-        TemplateNode::SvelteComponent(comp) => {
-            collect_info_from_fragment(&comp.fragment, source, info);
-        }
-        TemplateNode::IfBlock(block) => {
-            collect_info_from_fragment(&block.consequent, source, info);
-            if let Some(ref alt) = block.alternate {
-                collect_info_from_fragment(alt, source, info);
-            }
-        }
-        TemplateNode::EachBlock(block) => {
-            collect_info_from_fragment(&block.body, source, info);
-            if let Some(ref fallback) = block.fallback {
-                collect_info_from_fragment(fallback, source, info);
-            }
-        }
-        TemplateNode::AwaitBlock(block) => {
-            if let Some(ref pending) = block.pending {
-                collect_info_from_fragment(pending, source, info);
-            }
-            if let Some(ref then) = block.then {
-                collect_info_from_fragment(then, source, info);
-            }
-            if let Some(ref catch) = block.catch {
-                collect_info_from_fragment(catch, source, info);
-            }
-        }
-        TemplateNode::KeyBlock(block) => {
-            collect_info_from_fragment(&block.fragment, source, info);
-        }
-        TemplateNode::SnippetBlock(block) => {
-            collect_info_from_fragment(&block.body, source, info);
-        }
-        TemplateNode::TitleElement(el) => {
-            collect_info_from_fragment(&el.fragment, source, info);
-        }
-        TemplateNode::SvelteElement(el) => {
-            collect_info_from_fragment(&el.fragment, source, info);
-        }
-        // Leaf nodes don't have children to recurse into
-        _ => {}
-    }
-}
-
-/// Collect slot prop entries from a <slot> element's attributes.
-/// Returns props like ["a:b", "c:d"] for `<slot a={b} c={d}>`.
-fn collect_slot_prop_entries(attributes: &[Attribute], source: &str) -> Vec<String> {
-    let mut props = Vec::new();
-    for attr in attributes {
-        if let Attribute::Attribute(node) = attr {
-            if node.name == "name" {
-                continue; // Skip the name attribute
-            }
-            match &node.value {
-                AttributeValue::True(_) => {
-                    props.push(format!("{}:{}", node.name, node.name));
-                }
-                AttributeValue::Expression(expr) => {
-                    let expr_text = get_expression_text(&expr.expression, source);
-                    if node.name.as_str() == expr_text {
-                        // Shorthand {prop}
-                        props.push(format!("{}:{}", node.name, node.name));
-                    } else {
-                        props.push(format!("{}:{}", node.name, expr_text));
-                    }
-                }
-                AttributeValue::Sequence(parts) => {
-                    if parts.len() == 1 {
-                        if let AttributeValuePart::ExpressionTag(expr) = &parts[0] {
-                            let expr_text = get_expression_text(&expr.expression, source);
-                            props.push(format!("{}:{}", node.name, expr_text));
-                            continue;
-                        }
-                    }
-                    // String literal value - not common for slots
-                    props.push(format!("{}:{}", node.name, node.name));
-                }
-            }
-        }
-    }
-    props
 }
 
 /// Process a fragment's child nodes in-place.
@@ -698,11 +524,9 @@ fn handle_each_block(
         block.end
     };
 
-    // Build the for loop header.
-    // The `{#` prefix of `{#each` is replaced with spaces to preserve
-    // source positions (matching JS svelte2tsx behavior).
+    // Build the for loop header
     let mut header = format!(
-        "  for(let {} of __sveltets_2_ensureArray({})){{",
+        "for(let {} of __sveltets_2_ensureArray({})){{",
         context_text, expr_text
     );
 
@@ -762,14 +586,6 @@ fn handle_each_block(
 }
 
 /// Handle an await block: `{#await promise}...{:then value}...{:catch error}...{/await}`.
-///
-/// Generates patterns like:
-/// - `{#await promise}pending{:then value}resolved{/await}`
-///   → `{  { const $$_value = await (promise);{ const value = $$_value; resolved}}}`
-/// - `{#await promise then value}resolved{/await}`
-///   → `{  { const $$_value = await (promise);{ const value = $$_value; resolved}}`
-/// - `{#await promise catch error}rejected{/await}`
-///   → `{  { try { const $$_value = await (promise);} catch(error) { rejected}}`
 fn handle_await_block(
     block: &AwaitBlock,
     source: &str,
@@ -783,213 +599,133 @@ fn handle_await_block(
 
     let expr_text = get_expression_text(&block.expression, source);
 
-    // Determine the structure of the await block:
-    // 1. `{#await promise}` pending `{:then value}` then `{/await}` (has pending, then)
-    // 2. `{#await promise then value}` then `{/await}` (no pending, immediate then)
-    // 3. `{#await promise catch error}` catch `{/await}` (no pending, immediate catch)
-    // 4. `{#await promise}` pending `{:then value}` then `{:catch error}` catch `{/await}`
-
-    let has_pending = block
-        .pending
-        .as_ref()
-        .map_or(false, |p| !p.nodes.is_empty());
-    let has_then = block.then.is_some();
-    let has_catch = block.catch.is_some();
-
-    let value_text = block
-        .value
-        .as_ref()
-        .map(|v| get_expression_text(v, source).to_string())
-        .unwrap_or_default();
-
-    let error_text = block
-        .error
-        .as_ref()
-        .map(|e| get_expression_text(e, source).to_string())
-        .unwrap_or_default();
-
-    if has_pending {
-        // Pattern: {#await promise} pending {:then value} then {:catch error} catch {/await}
-        let pending = block.pending.as_ref().unwrap();
-        let pending_start = if !pending.nodes.is_empty() {
+    // For now, emit the expression and process all branches
+    // The pending branch is wrapped in a block, then/catch follow
+    let pending_start = if let Some(ref pending) = block.pending {
+        if !pending.nodes.is_empty() {
             pending.nodes[0].start()
         } else {
             block.end
-        };
-
-        // Opening: `{#await promise}` → `{  { try { const $$_value = await (promise);`
-        // or simpler pending: just show the expression
-        str.overwrite(
-            block.start,
-            pending_start,
-            &format!("   {{ try {{ const $$_value = await ({});", expr_text),
-        );
-
-        process_fragment_inplace(pending, source, options, str, counter);
-
-        // Handle then
-        if let Some(ref then) = block.then {
-            let then_start = if !then.nodes.is_empty() {
-                then.nodes[0].start()
-            } else {
-                block.end
-            };
-
-            let prev_end = if !pending.nodes.is_empty() {
-                pending.nodes.last().unwrap().end()
-            } else {
-                pending_start
-            };
-
-            if !value_text.is_empty() {
-                str.overwrite(
-                    prev_end,
-                    then_start,
-                    &format!("{{ const {} = $$_value; ", value_text),
-                );
-            } else {
-                str.overwrite(prev_end, then_start, "{ ");
-            }
-
-            process_fragment_inplace(then, source, options, str, counter);
-
-            // Handle catch after then
-            if let Some(ref catch) = block.catch {
-                let catch_start = if !catch.nodes.is_empty() {
-                    catch.nodes[0].start()
-                } else {
-                    block.end
-                };
-
-                let then_end = if !then.nodes.is_empty() {
-                    then.nodes.last().unwrap().end()
-                } else {
-                    then_start
-                };
-
-                if !error_text.is_empty() {
-                    str.overwrite(
-                        then_end,
-                        catch_start,
-                        &format!(
-                            "}}}} catch($$_e) {{ const {} = __sveltets_2_any();",
-                            error_text
-                        ),
-                    );
-                } else {
-                    str.overwrite(then_end, catch_start, "}}} catch {");
-                }
-
-                process_fragment_inplace(catch, source, options, str, counter);
-
-                let catch_end = if !catch.nodes.is_empty() {
-                    catch.nodes.last().unwrap().end()
-                } else {
-                    catch_start
-                };
-
-                if catch_end < block.end {
-                    str.overwrite(catch_end, block.end, "}}");
-                }
-            } else {
-                // No catch
-                let then_end = if !then.nodes.is_empty() {
-                    then.nodes.last().unwrap().end()
-                } else {
-                    then_start
-                };
-                if then_end < block.end {
-                    str.overwrite(then_end, block.end, "}}}");
-                }
-            }
-        } else {
-            // No then after pending
-            let pending_end = if !pending.nodes.is_empty() {
-                pending.nodes.last().unwrap().end()
-            } else {
-                pending_start
-            };
-            if pending_end < block.end {
-                str.overwrite(pending_end, block.end, "}}}");
-            }
         }
-    } else if has_then {
-        // Pattern: {#await promise then value} then {/await} (no pending)
-        let then = block.then.as_ref().unwrap();
+    } else {
+        block.end
+    };
+
+    // Overwrite the opening tag with the expression
+    str.overwrite(block.start, pending_start, &format!("{{{}; ", expr_text));
+
+    // Process pending
+    if let Some(ref pending) = block.pending {
+        process_fragment_inplace(pending, source, options, str, counter);
+    }
+
+    // Process then
+    if let Some(ref then) = block.then {
         let then_start = if !then.nodes.is_empty() {
             then.nodes[0].start()
         } else {
             block.end
         };
 
+        // Find where the previous section ends
+        let prev_end = if let Some(ref pending) = block.pending {
+            if !pending.nodes.is_empty() {
+                pending.nodes.last().unwrap().end()
+            } else {
+                pending_start
+            }
+        } else {
+            pending_start
+        };
+
+        let value_text = block
+            .value
+            .as_ref()
+            .map(|v| get_expression_text(v, source).to_string())
+            .unwrap_or_default();
+
         if !value_text.is_empty() {
             str.overwrite(
-                block.start,
+                prev_end,
                 then_start,
-                &format!(
-                    "   {{ const $$_value = await ({});{{ const {} = $$_value; ",
-                    expr_text, value_text
-                ),
+                &format!("}} let {} = await {}; {{", value_text, expr_text),
             );
         } else {
-            str.overwrite(
-                block.start,
-                then_start,
-                &format!("   {{ const $$_value = await ({});{{ ", expr_text),
-            );
+            str.overwrite(prev_end, then_start, "} {");
         }
 
         process_fragment_inplace(then, source, options, str, counter);
+    }
 
-        let then_end = if !then.nodes.is_empty() {
-            then.nodes.last().unwrap().end()
-        } else {
-            then_start
-        };
-
-        if then_end < block.end {
-            str.overwrite(then_end, block.end, "}}");
-        }
-    } else if has_catch {
-        // Pattern: {#await promise catch error} catch {/await} (no pending, no then)
-        let catch = block.catch.as_ref().unwrap();
+    // Process catch
+    if let Some(ref catch) = block.catch {
         let catch_start = if !catch.nodes.is_empty() {
             catch.nodes[0].start()
         } else {
             block.end
         };
 
-        if !error_text.is_empty() {
-            str.overwrite(
-                block.start,
-                catch_start,
-                &format!(
-                    "   {{ try {{ await ({});}} catch($$_e) {{ const {} = __sveltets_2_any();",
-                    expr_text, error_text
-                ),
-            );
-        } else {
-            str.overwrite(
-                block.start,
-                catch_start,
-                &format!("   {{ try {{ await ({});}} catch {{", expr_text),
-            );
-        }
-
-        process_fragment_inplace(catch, source, options, str, counter);
-
-        let catch_end = if !catch.nodes.is_empty() {
-            catch.nodes.last().unwrap().end()
+        // Find where the previous section ends
+        let prev_end = if let Some(ref then) = block.then {
+            if !then.nodes.is_empty() {
+                then.nodes.last().unwrap().end()
+            } else {
+                catch_start
+            }
+        } else if let Some(ref pending) = block.pending {
+            if !pending.nodes.is_empty() {
+                pending.nodes.last().unwrap().end()
+            } else {
+                catch_start
+            }
         } else {
             catch_start
         };
 
-        if catch_end < block.end {
-            str.overwrite(catch_end, block.end, "}}");
+        let error_text = block
+            .error
+            .as_ref()
+            .map(|e| get_expression_text(e, source).to_string())
+            .unwrap_or_default();
+
+        if !error_text.is_empty() {
+            str.overwrite(
+                prev_end,
+                catch_start,
+                &format!("}} catch({}) {{", error_text),
+            );
+        } else {
+            str.overwrite(prev_end, catch_start, "} catch {");
+        }
+
+        process_fragment_inplace(catch, source, options, str, counter);
+    }
+
+    // Close
+    let last_end = if let Some(ref catch) = block.catch {
+        if !catch.nodes.is_empty() {
+            catch.nodes.last().unwrap().end()
+        } else {
+            block.end
+        }
+    } else if let Some(ref then) = block.then {
+        if !then.nodes.is_empty() {
+            then.nodes.last().unwrap().end()
+        } else {
+            block.end
+        }
+    } else if let Some(ref pending) = block.pending {
+        if !pending.nodes.is_empty() {
+            pending.nodes.last().unwrap().end()
+        } else {
+            block.end
         }
     } else {
-        // Just the expression
-        str.overwrite(block.start, block.end, &format!("{{{};  }}", expr_text));
+        block.end
+    };
+
+    if last_end < block.end {
+        str.overwrite(last_end, block.end, "}");
     }
 }
 
@@ -1069,12 +805,9 @@ fn handle_snippet_block(
         block.end
     };
 
-    // Overwrite `{#snippet name(params)}` with function declaration.
-    // Position markers are added to help the language server:
-    // - `/*Ωignore_positionΩ*/` after the name and after `async ()`
-    // - Return type wrapped in `/*Ωignore_startΩ*/.../*Ωignore_endΩ*/`
+    // Overwrite `{#snippet name(params)}` with function declaration
     let header = format!(
-        "  const {}/*\u{03A9}ignore_position\u{03A9}*/ = ({})/*\u{03A9}ignore_start\u{03A9}*/: ReturnType<import('svelte').Snippet>/*\u{03A9}ignore_end\u{03A9}*/ => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
+        "const {} = ({}): ReturnType<import('svelte').Snippet> => {{ async () => {{",
         name_text, params_text
     );
     str.overwrite(block.start, body_start, &header);
@@ -1125,13 +858,14 @@ fn handle_regular_element(
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior.
     // The JS MagicString preserves whitespace between tag name and first attribute,
     // plus the attribute handling adds an additional space. We replicate this by
-    // counting the original whitespace and adding 1 for the inherent leading space.
+    // counting the original whitespace and using it as the leading padding.
     if !el.attributes.is_empty() && !attrs_str.is_empty() {
         let extra_spaces = count_tag_to_attr_spaces(&el.name, el.start, source);
-        if extra_spaces >= 1 {
-            // Total spaces = original whitespace + 1 (for the default leading space)
-            let total_spaces = extra_spaces + 1;
-            let mut padded = " ".repeat(total_spaces);
+        // Replace the default leading space with the original whitespace
+        // The extra_spaces count represents spaces from the source; the JS svelte2tsx
+        // preserves these spaces plus adds its own leading space.
+        if extra_spaces > 1 {
+            let mut padded = " ".repeat(extra_spaces);
             padded.push_str(attrs_str.trim_start());
             attrs_str = padded;
         }
@@ -1219,10 +953,8 @@ fn handle_component(
         }
     }
 
-    // Add children prop for Svelte 5 if component has children.
-    // When there are let: directives, children are consumed by slot scoping,
-    // not as a children prop.
-    let children_prop = if is_svelte5 && has_children && !has_lets {
+    // Add children prop for Svelte 5 if component has children
+    let children_prop = if is_svelte5 && has_children {
         "children:() => { return __sveltets_2_any(0); },"
     } else {
         ""
@@ -1270,9 +1002,8 @@ fn handle_component(
     let is_self_closing = closing_tag_start >= comp.end;
 
     if !is_self_closing {
-        // Non-self-closing: output component name before closing brace.
-        // A space before the name is included to preserve whitespace from
-        // the source closing tag.
+        // Non-self-closing: output component name before closing brace
+        // A space before the name matches JS svelte2tsx output
         str.overwrite(closing_tag_start, comp.end, &format!(" {}}}", comp.name));
     } else {
         str.append_left(comp.end, "}");
@@ -2285,8 +2016,8 @@ fn build_slot_props_string(attributes: &[Attribute], source: &str) -> String {
 
     let result = parts.join("");
     if result.is_empty() {
-        // Empty props: `{}` (no space)
-        String::new()
+        // Empty props: `{ }` with a space
+        " ".to_string()
     } else {
         format!(" {}", result)
     }

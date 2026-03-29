@@ -209,6 +209,9 @@ pub fn svelte2tsx(
         );
     }
 
+    // Step 7.5: Early slot detection (before script tag overwrites)
+    let has_slot_elements = source.contains("<slot") || source.contains("<slot>");
+
     // Step 8: Blank out <style> tag (CSS is not relevant for TSX type checking)
     if let Some(ref css) = ast.css {
         if css.start < css.end {
@@ -222,6 +225,9 @@ pub fn svelte2tsx(
 
     // Step 9: Process template nodes in-place via MagicString
     template::process_template_inplace(&ast.fragment, source, &options, &mut str);
+
+    // Step 9.5: Collect slot and event information from the template
+    let template_info = template::collect_template_info(&ast.fragment, source);
 
     // Step 10: Wrap in $$render() and add component export
     //
@@ -362,9 +368,18 @@ pub fn svelte2tsx(
             }
         }
 
-        // Overwrite `</script>` with `;\nasync () => {`
+        // Overwrite `</script>` with slot declaration + `async () => {`
         if content_end < script_end {
-            str.overwrite(content_end, script_end, ";\nasync () => {");
+            if has_slot_elements {
+                let slot_decl = "\n/*\u{03A9}ignore_start\u{03A9}*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot();/*\u{03A9}ignore_end\u{03A9}*/;";
+                str.overwrite(
+                    content_end,
+                    script_end,
+                    &format!("{}\nasync () => {{", slot_decl),
+                );
+            } else {
+                str.overwrite(content_end, script_end, ";\nasync () => {");
+            }
         }
 
         // Blank out trailing whitespace after </script> that is not part
@@ -430,17 +445,27 @@ pub fn svelte2tsx(
         // For module-script-only components, inject store subscriptions for
         // module-level imports at the start of the $$render async wrapper.
         let store_decls = super::script::collect_module_import_store_declarations(source);
+        let slot_decl_mod = if has_slot_elements {
+            "\n/*\u{03A9}ignore_start\u{03A9}*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot();/*\u{03A9}ignore_end\u{03A9}*/"
+        } else {
+            ""
+        };
         let render_open = format!(
-            ";function $$render() {{{}\nasync () => {{{}",
-            dollar_decls, store_decls
+            ";function $$render() {{{}\nasync () => {{{}{}",
+            dollar_decls, store_decls, slot_decl_mod
         );
         str.append_left(mod_end, &render_open);
         str.prepend_str("///<reference types=\"svelte\" />\n");
     } else {
         // No script tags at all: prepend the full wrapper
+        let slot_decl_tmpl = if has_slot_elements {
+            "\n/*\u{03A9}ignore_start\u{03A9}*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot();/*\u{03A9}ignore_end\u{03A9}*/"
+        } else {
+            ""
+        };
         let wrapper = format!(
-            "///<reference types=\"svelte\" />\n;function $$render() {{{}\nasync () => {{",
-            dollar_decls
+            "///<reference types=\"svelte\" />\n;function $$render() {{{}{}\nasync () => {{",
+            dollar_decls, slot_decl_tmpl
         );
         str.prepend_str(&wrapper);
     }
@@ -461,11 +486,44 @@ pub fn svelte2tsx(
     // Extract @component documentation from HTML comments
     let component_doc = extract_component_documentation(&ast.fragment);
 
+    // Build slots string from template info
+    let slots_str = if template_info.slots.is_empty() {
+        "{}".to_string()
+    } else {
+        let mut slot_parts = Vec::new();
+        for (name, props) in &template_info.slots {
+            if props.is_empty() {
+                slot_parts.push(format!("'{}': {{}}", name));
+            } else {
+                slot_parts.push(format!("'{}': {{{}}}", name, props.join(",")));
+            }
+        }
+        format!("{{{}}}", slot_parts.join(", "))
+    };
+
+    // Build events string from template info and component events
+    let events_str = {
+        let mut event_parts = Vec::new();
+        // Add element events (forwarded)
+        for (name, value) in &template_info.element_events {
+            event_parts.push(format!("'{}':{}", name, value));
+        }
+        // Add custom events from dispatchers (detected during script processing)
+        for (name, value) in events.get_event_entries() {
+            event_parts.push(format!("'{}': {}", name, value));
+        }
+        if event_parts.is_empty() {
+            "{}".to_string()
+        } else {
+            format!("{{{}}}", event_parts.join(", "))
+        }
+    };
+
     let mut closing = String::new();
     closing.push_str("};\n");
     closing.push_str(&format!(
-        "return {{ props: {}{}{}, slots: {{}}, events: {{}} }}}}\n",
-        props_str, exports_str, bindings_str,
+        "return {{ props: {}{}{}, slots: {}, events: {} }}}}\n",
+        props_str, exports_str, bindings_str, slots_str, events_str,
     ));
 
     // Add component documentation as JSDoc comment before the component export

@@ -6,6 +6,7 @@
 
 use super::super::errors;
 use super::VisitorContext;
+use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use serde_json::Value;
 
@@ -963,25 +964,229 @@ fn is_inspect_trace_valid_placement(context: &VisitorContext) -> bool {
 fn is_inside_generator_function(context: &VisitorContext) -> bool {
     // Walk up the JS path to find a function
     for node in context.js_path.iter().rev() {
-        let node_type = node.get("type").and_then(|t| t.as_str());
+        let node_type = node.get_type_str();
 
         if matches!(
             node_type,
             Some("FunctionDeclaration") | Some("FunctionExpression")
         ) {
-            // Check if it's a generator
-            if node
-                .get("generator")
-                .and_then(|g| g.as_bool())
-                .unwrap_or(false)
-            {
+            if node.get_field_bool("generator").unwrap_or(false) {
                 return true;
             }
-
-            // Stop at first function (don't check outer functions)
             return false;
         }
     }
 
     false
+}
+
+/// Visit a call expression (typed JsNode path).
+pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    let JsNode::CallExpression {
+        callee, arguments, ..
+    } = node
+    else {
+        return Ok(());
+    };
+
+    let arena = context.parse_arena;
+    let callee_node = arena.get_js_node(*callee);
+    let args = arena.get_js_children(*arguments);
+    let arg_count = args.len();
+
+    let rune = super::shared::utils::get_rune_from_node(node, &context.analysis.root.scope, arena);
+
+    // Check for spread arguments in runes (not allowed except for $inspect)
+    if let Some(ref rune_name) = rune
+        && rune_name != "$inspect"
+    {
+        for arg in args {
+            if matches!(arg, JsNode::SpreadElement { .. }) {
+                return Err(errors::rune_invalid_spread(rune_name));
+            }
+        }
+    }
+
+    // Validate specific runes
+    match rune.as_deref() {
+        None => {
+            if !super::shared::utils::is_safe_identifier_node(callee_node, context) {
+                context.analysis.needs_context = true;
+            }
+        }
+        Some("$bindable") => {
+            if arg_count > 1 {
+                return Err(errors::rune_invalid_arguments_length(
+                    "$bindable",
+                    "zero or one arguments",
+                ));
+            }
+            if !is_bindable_valid_placement(context) {
+                return Err(errors::bindable_invalid_location());
+            }
+            context.analysis.needs_context = true;
+        }
+        Some("$host") => {
+            if arg_count > 0 {
+                return Err(errors::rune_invalid_arguments("$host"));
+            } else if context.analysis.custom_element.is_none() {
+                return Err(errors::host_invalid_placement());
+            }
+        }
+        Some("$props") => {
+            if context.has_props_rune {
+                return Err(errors::props_duplicate("$props"));
+            }
+            context.has_props_rune = true;
+            if context.ast_type != super::AstType::Instance || !is_props_valid_placement(context) {
+                return Err(errors::props_invalid_placement());
+            }
+            if arg_count > 0 {
+                return Err(errors::rune_invalid_arguments("$props"));
+            }
+        }
+        Some("$props.id") => {
+            if context.analysis.props_id.is_some() {
+                return Err(errors::props_duplicate("$props.id"));
+            }
+            if !is_props_id_valid_placement(context) {
+                return Err(errors::props_id_invalid_placement());
+            }
+            if arg_count > 0 {
+                return Err(errors::rune_invalid_arguments("$props.id"));
+            }
+            // Get parent VariableDeclarator to extract id name
+            if let Some(parent) = get_parent(context, 1)
+                && let Some(id_name) = parent
+                    .get("id")
+                    .and_then(|id| id.get("name"))
+                    .and_then(|n| n.as_str())
+            {
+                context.analysis.props_id = Some(id_name.to_string());
+            }
+        }
+        Some("$state") | Some("$state.raw") | Some("$derived") | Some("$derived.by") => {
+            if !is_state_or_derived_valid_placement(context) {
+                return Err(errors::state_invalid_placement(rune.as_deref().unwrap()));
+            }
+            let rune_name = rune.as_deref().unwrap();
+            if rune_name == "$derived" || rune_name == "$derived.by" {
+                if arg_count != 1 {
+                    return Err(errors::rune_invalid_arguments_length(
+                        rune_name,
+                        "exactly one argument",
+                    ));
+                }
+            } else if arg_count > 1 {
+                return Err(errors::rune_invalid_arguments_length(
+                    rune_name,
+                    "zero or one arguments",
+                ));
+            }
+        }
+        Some("$effect") | Some("$effect.pre") => {
+            if !is_effect_valid_placement(context) {
+                return Err(errors::effect_invalid_placement());
+            }
+            if arg_count != 1 {
+                return Err(errors::rune_invalid_arguments_length(
+                    rune.as_deref().unwrap(),
+                    "exactly one argument",
+                ));
+            }
+            context.analysis.needs_context = true;
+        }
+        Some("$effect.tracking") => {
+            if arg_count != 0 {
+                return Err(errors::rune_invalid_arguments("$effect.tracking"));
+            }
+        }
+        Some("$effect.root") => {
+            if arg_count != 1 {
+                return Err(errors::rune_invalid_arguments_length(
+                    "$effect.root",
+                    "exactly one argument",
+                ));
+            }
+        }
+        Some("$effect.pending") => {}
+        Some("$inspect") => {
+            if arg_count < 1 {
+                return Err(errors::rune_invalid_arguments_length(
+                    "$inspect",
+                    "one or more arguments",
+                ));
+            }
+        }
+        Some("$inspect().with") => {
+            if arg_count != 1 {
+                return Err(errors::rune_invalid_arguments_length(
+                    "$inspect().with",
+                    "exactly one argument",
+                ));
+            }
+        }
+        Some("$inspect.trace") => {
+            if arg_count > 1 {
+                return Err(errors::rune_invalid_arguments_length(
+                    "$inspect.trace",
+                    "zero or one arguments",
+                ));
+            }
+            if !is_inspect_trace_valid_placement(context) {
+                return Err(errors::inspect_trace_invalid_placement());
+            }
+            if is_inside_generator_function(context) {
+                return Err(errors::inspect_trace_generator());
+            }
+            if context.analysis.dev {
+                context.analysis.tracing = true;
+            }
+        }
+        Some("$state.eager") => {
+            if arg_count != 1 {
+                return Err(errors::rune_invalid_arguments_length(
+                    "$state.eager",
+                    "exactly one argument",
+                ));
+            }
+        }
+        Some("$state.snapshot") => {
+            if arg_count != 1 {
+                return Err(errors::rune_invalid_arguments_length(
+                    "$state.snapshot",
+                    "exactly one argument",
+                ));
+            }
+        }
+        _ => {}
+    }
+
+    // Track expression metadata for non-rune calls
+    let is_pure_call = super::shared::utils::is_pure_node(callee_node, context);
+    if let Some(expression) = context.current_expression() {
+        let has_dependencies = !expression.dependencies.is_empty();
+        if !is_pure_call || has_dependencies {
+            expression.set_has_call(true);
+            expression.set_has_state(true);
+        }
+    }
+
+    // For $derived and $inspect, increment function_depth when visiting arguments
+    let increment_depth = matches!(rune.as_deref(), Some("$derived") | Some("$inspect"));
+
+    // Visit children (callee and arguments)
+    super::script::walk_js_node_typed(callee_node, context)?;
+
+    if increment_depth {
+        context.function_depth += 1;
+    }
+    for arg in args {
+        super::script::walk_js_node_typed(arg, context)?;
+    }
+    if increment_depth {
+        context.function_depth -= 1;
+    }
+
+    Ok(())
 }

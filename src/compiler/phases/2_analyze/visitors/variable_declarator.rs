@@ -8,6 +8,7 @@
 use super::super::{AnalysisError, errors, warnings};
 use super::VisitorContext;
 use super::shared::utils;
+use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::BindingKind;
 use serde_json::Value;
 
@@ -896,4 +897,677 @@ fn store_ignore_codes_on_bindings(
         }
         _ => {}
     }
+}
+
+// ---------------------------------------------------------------------------
+// Typed (JsNode) path — avoids `node.to_value()` on the hot path
+// ---------------------------------------------------------------------------
+
+/// Visit a variable declarator (typed JsNode path).
+pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    let JsNode::VariableDeclarator { id, init, .. } = node else {
+        return Ok(());
+    };
+    let arena = context.parse_arena;
+    let id_node = arena.get_js_node(*id);
+
+    // ensure_no_module_import_conflict (typed)
+    if matches!(context.ast_type, super::AstType::Instance) && context.function_depth == 1 {
+        let identifiers = utils::extract_identifiers_node(id_node, arena);
+        for name in identifiers {
+            if context
+                .analysis
+                .module_scope_declarations
+                .contains_key(&name)
+            {
+                return Err(errors::declaration_duplicate_module_import());
+            }
+        }
+    }
+
+    // Collect svelte-ignore codes from parent
+    let ignore_codes = collect_ignore_codes_from_parent(context);
+    if !ignore_codes.is_empty() {
+        store_ignore_codes_on_bindings_typed(id_node, &ignore_codes, context);
+    }
+
+    // Runes/non-runes mode processing (typed)
+    let init_node = init.map(|init_id| arena.get_js_node(init_id));
+    if context.analysis.runes {
+        visit_runes_mode_typed(id_node, init_node, context)?;
+    } else {
+        visit_non_runes_mode_typed(id_node, init_node, context)?;
+    }
+
+    // Handle visitation order with typed traversal
+    if let Some(init_node) = init_node {
+        let rune = super::shared::utils::get_rune_from_node(
+            init_node,
+            &context.analysis.root.scope,
+            arena,
+        );
+
+        if rune.as_deref() == Some("$props") {
+            let original_depth = context.function_depth;
+            context.function_depth += 1;
+            super::script::walk_js_node_typed(id_node, context)?;
+            context.function_depth = original_depth;
+            super::script::walk_js_node_typed(init_node, context)?;
+        } else {
+            super::script::walk_js_node_typed(id_node, context)?;
+            super::script::walk_js_node_typed(init_node, context)?;
+        }
+    } else {
+        super::script::walk_js_node_typed(id_node, context)?;
+    }
+
+    Ok(())
+}
+
+/// A lightweight path entry extracted from JsNode patterns.
+struct PathEntry {
+    name: String,
+    is_rest: bool,
+}
+
+/// Extract paths from a JsNode pattern (Identifier, ArrayPattern, ObjectPattern).
+fn extract_paths_typed(pattern: &JsNode, arena: &crate::ast::arena::ParseArena) -> Vec<PathEntry> {
+    let mut paths = Vec::new();
+    extract_paths_typed_recursive(pattern, &mut paths, false, arena);
+    paths
+}
+
+fn extract_paths_typed_recursive(
+    pattern: &JsNode,
+    paths: &mut Vec<PathEntry>,
+    is_rest: bool,
+    arena: &crate::ast::arena::ParseArena,
+) {
+    match pattern {
+        JsNode::Identifier { name, .. } => {
+            paths.push(PathEntry {
+                name: name.to_string(),
+                is_rest,
+            });
+        }
+        JsNode::ArrayPattern { elements, .. } => {
+            for element in elements.iter().flatten() {
+                if let JsNode::RestElement { argument, .. } = element {
+                    extract_paths_typed_recursive(arena.get_js_node(*argument), paths, true, arena);
+                } else {
+                    extract_paths_typed_recursive(element, paths, false, arena);
+                }
+            }
+        }
+        JsNode::ObjectPattern { properties, .. } => {
+            for prop in arena.get_js_children(*properties) {
+                if let JsNode::RestElement { argument, .. } = prop {
+                    extract_paths_typed_recursive(arena.get_js_node(*argument), paths, true, arena);
+                } else if let JsNode::Property { value, .. } = prop {
+                    extract_paths_typed_recursive(arena.get_js_node(*value), paths, false, arena);
+                }
+            }
+        }
+        JsNode::AssignmentPattern { left, .. } => {
+            extract_paths_typed_recursive(arena.get_js_node(*left), paths, is_rest, arena);
+        }
+        _ => {}
+    }
+}
+
+/// Extract a literal string representation from a JsNode.
+fn extract_literal_string_typed(node: &JsNode) -> Option<String> {
+    match node {
+        JsNode::Literal { raw, value, .. } => {
+            if !raw.is_empty() {
+                return Some(raw.to_string());
+            }
+            match value {
+                crate::ast::typed_expr::LiteralValue::String(s) => Some(format!("'{}'", s)),
+                crate::ast::typed_expr::LiteralValue::Number(n) => {
+                    if n.fract() == 0.0 && n.abs() < i64::MAX as f64 {
+                        Some(format!("{}", *n as i64))
+                    } else {
+                        Some(n.to_string())
+                    }
+                }
+                crate::ast::typed_expr::LiteralValue::Bool(b) => Some(b.to_string()),
+                crate::ast::typed_expr::LiteralValue::Null => Some("null".to_string()),
+                crate::ast::typed_expr::LiteralValue::Regex(_) => None,
+            }
+        }
+        JsNode::Identifier { name, .. } => {
+            if name == "undefined" {
+                Some("undefined".to_string())
+            } else {
+                None
+            }
+        }
+        JsNode::TemplateLiteral { expressions, .. } => {
+            if expressions.is_empty() {
+                Some(node.to_value().to_string())
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Check if a JsNode expression is guaranteed to produce a defined value.
+fn is_expression_defined_typed(node: &JsNode, arena: &crate::ast::arena::ParseArena) -> bool {
+    match node {
+        JsNode::Literal { value, raw, .. } => match value {
+            crate::ast::typed_expr::LiteralValue::Null => false,
+            _ => raw.as_str() != "null",
+        },
+        JsNode::BinaryExpression { operator, .. } => {
+            matches!(
+                operator.as_str(),
+                "==" | "!=" | "===" | "!==" | "<" | ">" | "<=" | ">=" | "instanceof" | "in"
+            )
+        }
+        JsNode::LogicalExpression {
+            operator, right, ..
+        } => {
+            if operator == "??" {
+                is_expression_defined_typed(arena.get_js_node(*right), arena)
+            } else {
+                false
+            }
+        }
+        JsNode::UnaryExpression { operator, .. } => operator != "void",
+        JsNode::ConditionalExpression {
+            consequent,
+            alternate,
+            ..
+        } => {
+            is_expression_defined_typed(arena.get_js_node(*consequent), arena)
+                && is_expression_defined_typed(arena.get_js_node(*alternate), arena)
+        }
+        JsNode::ArrayExpression { .. }
+        | JsNode::ObjectExpression { .. }
+        | JsNode::ArrowFunctionExpression { .. }
+        | JsNode::FunctionExpression { .. }
+        | JsNode::TemplateLiteral { .. }
+        | JsNode::NewExpression { .. } => true,
+        JsNode::AssignmentExpression { right, .. } => {
+            is_expression_defined_typed(arena.get_js_node(*right), arena)
+        }
+        JsNode::SequenceExpression { expressions, .. } => {
+            let exprs = arena.get_js_children(*expressions);
+            exprs
+                .last()
+                .map(|last| is_expression_defined_typed(last, arena))
+                .unwrap_or(false)
+        }
+        JsNode::Raw(value) => is_expression_defined(value),
+        _ => false,
+    }
+}
+
+/// Process variable declarator in runes mode (typed).
+fn visit_runes_mode_typed(
+    id_node: &JsNode,
+    init_node: Option<&JsNode>,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    let arena = context.parse_arena;
+    let rune = init_node.and_then(|i| {
+        super::shared::utils::get_rune_from_node(i, &context.analysis.root.scope, arena)
+    });
+
+    // Extract paths from the pattern
+    let paths = extract_paths_typed(id_node, arena);
+
+    // Validate identifier names
+    for path in &paths {
+        if let Some(&binding_idx) = context
+            .analysis
+            .root
+            .scope
+            .declarations
+            .get(path.name.as_str())
+        {
+            let binding = &context.analysis.root.bindings[binding_idx];
+            utils::validate_identifier_name(binding, None)?;
+        }
+    }
+
+    // Process rune initializers
+    if let Some(ref rune_name) = rune {
+        match rune_name.as_str() {
+            "$state" | "$state.raw" | "$derived" | "$derived.by" | "$props" => {
+                update_binding_kinds_typed(&paths, rune_name, id_node, context)?;
+            }
+            _ => {}
+        }
+        // For $state/$state.raw/$derived, extract the rune argument as
+        // the binding's initial value
+        if matches!(rune_name.as_str(), "$state" | "$state.raw" | "$derived")
+            && let Some(init) = init_node
+        {
+            let rune_arg = match init {
+                JsNode::CallExpression { arguments, .. } => {
+                    let args = arena.get_js_children(*arguments);
+                    args.first()
+                }
+                _ => None,
+            };
+            if let Some(arg) = rune_arg {
+                for path in &paths {
+                    if let Some(bi) = context.analysis.root.find_binding_any_scope(&path.name) {
+                        let b = &mut context.analysis.root.bindings[bi];
+                        b.initial = extract_literal_string_typed(arg).or_else(|| {
+                            if rune_name == "$derived" {
+                                Some(arg.to_value().to_string())
+                            } else {
+                                None
+                            }
+                        });
+                        b.initial_is_defined = is_expression_defined_typed(arg, arena);
+                        b.initial_node_type = Some(arg.type_str().to_string());
+                    }
+                }
+            }
+        }
+    } else if let Some(init) = init_node {
+        // Non-rune variable declaration - set initial value for constant folding
+        for path in &paths {
+            if let Some(binding_idx) = context.analysis.root.find_binding_any_scope(&path.name) {
+                let binding = &mut context.analysis.root.bindings[binding_idx];
+                binding.initial = extract_literal_string_typed(init);
+                binding.initial_is_defined = is_expression_defined_typed(init, arena);
+                binding.initial_node_type = Some(init.type_str().to_string());
+            }
+        }
+    }
+
+    // Handle $props() specifically
+    if rune.as_deref() == Some("$props") {
+        process_props_declaration_typed(id_node, context)?;
+    }
+
+    Ok(())
+}
+
+/// Update binding kinds based on rune type (typed).
+fn update_binding_kinds_typed(
+    paths: &[PathEntry],
+    rune: &str,
+    id_node: &JsNode,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    let arena = context.parse_arena;
+    for path in paths {
+        let binding_idx = if context.function_depth > 1 {
+            let mut found = None;
+            for scope in context.analysis.root.all_scopes.iter().rev() {
+                if let Some(&idx) = scope.declarations.get(path.name.as_str())
+                    && let Some(b) = context.analysis.root.bindings.get(idx)
+                    && b.scope_index > 1
+                {
+                    found = Some(idx);
+                    break;
+                }
+            }
+            found.or_else(|| {
+                context
+                    .analysis
+                    .root
+                    .scope
+                    .declarations
+                    .get(path.name.as_str())
+                    .copied()
+            })
+        } else {
+            context
+                .analysis
+                .root
+                .scope
+                .declarations
+                .get(path.name.as_str())
+                .copied()
+        };
+
+        let binding_idx = match binding_idx {
+            Some(idx) => idx,
+            None => continue,
+        };
+        let binding = &mut context.analysis.root.bindings[binding_idx];
+
+        binding.kind = match rune {
+            "$state" => BindingKind::State,
+            "$state.raw" => BindingKind::RawState,
+            "$derived" | "$derived.by" => BindingKind::Derived,
+            "$props" => {
+                if path.is_rest {
+                    BindingKind::RestProp
+                } else {
+                    BindingKind::Prop
+                }
+            }
+            _ => binding.kind,
+        };
+
+        // For rest props in ObjectPattern, track excluded properties
+        if rune == "$props"
+            && path.is_rest
+            && let JsNode::ObjectPattern { properties, .. } = id_node
+        {
+            let mut exclude_props = Vec::new();
+            for property in arena.get_js_children(*properties) {
+                if matches!(property, JsNode::RestElement { .. }) {
+                    continue;
+                }
+                if let JsNode::Property { key, .. } = property {
+                    let key_node = arena.get_js_node(*key);
+                    let key_name = match key_node {
+                        JsNode::Identifier { name, .. } => Some(name.to_string()),
+                        JsNode::Literal { value, .. } => match value {
+                            crate::ast::typed_expr::LiteralValue::String(s) => Some(s.to_string()),
+                            crate::ast::typed_expr::LiteralValue::Number(n) => {
+                                Some((*n as i64).to_string())
+                            }
+                            _ => None,
+                        },
+                        _ => None,
+                    };
+                    if let Some(name) = key_name {
+                        exclude_props.push(name);
+                    }
+                }
+            }
+            let binding = &mut context.analysis.root.bindings[binding_idx];
+            binding.exclude_props = exclude_props;
+        }
+    }
+
+    Ok(())
+}
+
+/// Process $props() declaration (typed).
+fn process_props_declaration_typed(
+    id_node: &JsNode,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    let arena = context.parse_arena;
+    let id_type = id_node.type_str();
+
+    if !matches!(id_type, "ObjectPattern" | "Identifier") {
+        return Err(errors::props_invalid_identifier());
+    }
+
+    // Warn about custom element configuration
+    let custom_elem_has_no_props = context
+        .analysis
+        .custom_element
+        .as_ref()
+        .is_some_and(|ce| ce.props.is_none());
+    if custom_elem_has_no_props {
+        let warn_on = if id_type == "Identifier" {
+            true
+        } else if let JsNode::ObjectPattern { properties, .. } = id_node {
+            arena
+                .get_js_children(*properties)
+                .iter()
+                .any(|p| matches!(p, JsNode::RestElement { .. }))
+        } else {
+            false
+        };
+
+        if warn_on {
+            context.emit_warning(warnings::custom_element_props_identifier_rest());
+        }
+    }
+
+    context.analysis.needs_props = true;
+
+    match id_node {
+        JsNode::Identifier { name, .. } => {
+            if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name.as_str())
+            {
+                let binding = &mut context.analysis.root.bindings[binding_idx];
+                binding.initial = None;
+                binding.kind = BindingKind::RestProp;
+            }
+        }
+        JsNode::ObjectPattern { .. } => {
+            process_props_object_pattern_typed(id_node, context)?;
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
+/// Process ObjectPattern in $props() declaration (typed).
+fn process_props_object_pattern_typed(
+    pattern: &JsNode,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    let arena = context.parse_arena;
+    let JsNode::ObjectPattern { properties, .. } = pattern else {
+        return Ok(());
+    };
+
+    for property in arena.get_js_children(*properties) {
+        // Handle RestElement
+        if let JsNode::RestElement { argument, .. } = property {
+            let arg_node = arena.get_js_node(*argument);
+            if let JsNode::Identifier { name, .. } = arg_node {
+                let binding_idx = context
+                    .analysis
+                    .root
+                    .scope
+                    .declarations
+                    .get(name.as_str())
+                    .copied()
+                    .or_else(|| context.analysis.root.find_binding_any_scope(name));
+                if let Some(idx) = binding_idx {
+                    context.analysis.root.bindings[idx].kind = BindingKind::RestProp;
+                }
+            }
+            continue;
+        }
+
+        let JsNode::Property {
+            computed,
+            key,
+            value,
+            ..
+        } = property
+        else {
+            continue;
+        };
+
+        if *computed {
+            return Err(errors::props_invalid_pattern());
+        }
+
+        let key_node = arena.get_js_node(*key);
+        if let JsNode::Identifier { name, .. } = key_node
+            && name.starts_with("$$")
+        {
+            return Err(errors::props_illegal_name());
+        }
+
+        let value_node = arena.get_js_node(*value);
+        let (binding_name_node, initial_node) = match value_node {
+            JsNode::AssignmentPattern { left, right, .. } => {
+                (arena.get_js_node(*left), Some(arena.get_js_node(*right)))
+            }
+            _ => (value_node, None),
+        };
+
+        let JsNode::Identifier {
+            name: value_name, ..
+        } = binding_name_node
+        else {
+            return Err(errors::props_invalid_pattern());
+        };
+
+        let alias = match key_node {
+            JsNode::Identifier { name, .. } => Some(name.to_string()),
+            JsNode::Literal { value, .. } => match value {
+                crate::ast::typed_expr::LiteralValue::String(s) => Some(s.to_string()),
+                crate::ast::typed_expr::LiteralValue::Number(n) => Some((*n as i64).to_string()),
+                _ => None,
+            },
+            _ => None,
+        }
+        .ok_or_else(errors::props_invalid_pattern)?;
+
+        if let Some(&binding_idx) = context
+            .analysis
+            .root
+            .scope
+            .declarations
+            .get(value_name.as_str())
+        {
+            let binding = &mut context.analysis.root.bindings[binding_idx];
+            binding.prop_alias = Some(alias);
+            binding.kind = BindingKind::Prop;
+
+            if let Some(init) = initial_node {
+                if let JsNode::CallExpression {
+                    callee, arguments, ..
+                } = init
+                {
+                    let callee_node = arena.get_js_node(*callee);
+                    if let JsNode::Identifier { name, .. } = callee_node
+                        && name == "$bindable"
+                    {
+                        let args = arena.get_js_children(*arguments);
+                        let bindable_arg = args.first();
+
+                        binding.initial = bindable_arg.map(|arg| format!("{:?}", arg.to_value()));
+                        binding.initial_node_type =
+                            bindable_arg.map(|arg| arg.type_str().to_string());
+                        binding.kind = BindingKind::BindableProp;
+                    } else {
+                        binding.initial = extract_literal_string_typed(init)
+                            .or_else(|| Some(init.to_value().to_string()));
+                        binding.initial_node_type = Some(init.type_str().to_string());
+                    }
+                } else {
+                    binding.initial = extract_literal_string_typed(init)
+                        .or_else(|| Some(init.to_value().to_string()));
+                    binding.initial_node_type = Some(init.type_str().to_string());
+                }
+            } else {
+                binding.initial = None;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Store ignore codes on all bindings using JsNode traversal.
+fn store_ignore_codes_on_bindings_typed(
+    id_node: &JsNode,
+    ignore_codes: &[String],
+    context: &mut VisitorContext,
+) {
+    let arena = context.parse_arena;
+    match id_node {
+        JsNode::Identifier { name, .. } => {
+            if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name.as_str())
+            {
+                context.analysis.root.bindings[binding_idx].ignore_codes = ignore_codes.to_vec();
+            }
+        }
+        JsNode::ObjectPattern { properties, .. } => {
+            for prop in arena.get_js_children(*properties) {
+                match prop {
+                    JsNode::Property { value, .. } => {
+                        store_ignore_codes_on_bindings_typed(
+                            arena.get_js_node(*value),
+                            ignore_codes,
+                            context,
+                        );
+                    }
+                    JsNode::RestElement { argument, .. } => {
+                        store_ignore_codes_on_bindings_typed(
+                            arena.get_js_node(*argument),
+                            ignore_codes,
+                            context,
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
+        JsNode::ArrayPattern { elements, .. } => {
+            for element in elements.iter().flatten() {
+                store_ignore_codes_on_bindings_typed(element, ignore_codes, context);
+            }
+        }
+        JsNode::RestElement { argument, .. } => {
+            store_ignore_codes_on_bindings_typed(
+                arena.get_js_node(*argument),
+                ignore_codes,
+                context,
+            );
+        }
+        JsNode::AssignmentPattern { left, .. } => {
+            store_ignore_codes_on_bindings_typed(arena.get_js_node(*left), ignore_codes, context);
+        }
+        _ => {}
+    }
+}
+
+/// Process variable declarator in non-runes mode (typed).
+fn visit_non_runes_mode_typed(
+    id_node: &JsNode,
+    init_node: Option<&JsNode>,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    let arena = context.parse_arena;
+    let paths = extract_paths_typed(id_node, arena);
+
+    // Check for invalid rune usage
+    if let Some(init) = init_node
+        && let JsNode::CallExpression { callee, .. } = init
+    {
+        let callee_node = arena.get_js_node(*callee);
+        if let JsNode::Identifier { name, .. } = callee_node
+            && matches!(name.as_str(), "$state" | "$derived" | "$props")
+        {
+            let is_store_sub = context
+                .analysis
+                .root
+                .scope
+                .declarations
+                .get(name.as_str())
+                .and_then(|&idx| context.analysis.root.bindings.get(idx))
+                .map(|binding| binding.kind == BindingKind::StoreSub)
+                .unwrap_or(false);
+
+            if !is_store_sub {
+                return Err(errors::rune_invalid_usage(name));
+            }
+        }
+    }
+
+    // Set initial value for constant folding
+    if let Some(init) = init_node {
+        for path in &paths {
+            if let Some(&binding_idx) = context
+                .analysis
+                .root
+                .scope
+                .declarations
+                .get(path.name.as_str())
+            {
+                let binding = &mut context.analysis.root.bindings[binding_idx];
+                binding.initial = extract_literal_string_typed(init);
+                binding.initial_is_defined = is_expression_defined_typed(init, arena);
+                binding.initial_node_type = Some(init.type_str().to_string());
+            }
+        }
+    }
+
+    Ok(())
 }

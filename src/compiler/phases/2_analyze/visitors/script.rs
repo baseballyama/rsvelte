@@ -604,12 +604,10 @@ pub fn walk_js_node_typed(
     // unconditionally for every node.
     match node {
         JsNode::CallExpression { .. } => {
-            let value = node.to_value();
-            super::call_expression::visit(&value, context)?;
+            super::call_expression::visit_typed(node, context)?;
         }
         JsNode::VariableDeclarator { .. } => {
-            let value = node.to_value();
-            super::variable_declarator::visit(&value, context)?;
+            super::variable_declarator::visit_typed(node, context)?;
         }
         JsNode::FunctionDeclaration { .. } => {
             super::function_declaration::visit_typed(node, context)?;
