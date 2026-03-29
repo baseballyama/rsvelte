@@ -586,6 +586,7 @@ pub fn process_instance_script(
                     true,
                     &possible_exports,
                     raw_content,
+                    is_ts,
                 );
             }
         }
@@ -837,6 +838,7 @@ fn handle_export_named_decl(
     is_instance: bool,
     possible_exports: &HashMap<String, PossibleExport>,
     raw_content: &str,
+    is_ts: bool,
 ) {
     let node_start = export.span.start + offset;
 
@@ -897,28 +899,13 @@ fn handle_export_named_decl(
                             }
                         }
 
-                        // For exported prop variables, inject __sveltets_2_any when:
-                        // 1. No initializer: `export let a;`
-                        // 2. Has a type annotation: `export let a: Type = value;`
-                        //
-                        // This matches the JS svelte2tsx behavior that ensures TypeScript
-                        // treats these variables with the correct (relaxed) type.
-                        let has_type_annotation = declarator.type_annotation.is_some();
-                        if is_prop && (!has_default || has_type_annotation) {
-                            if let Some(name) = binding_pattern_simple_name(&declarator.id) {
-                                let inject = format!(
-                                    "/*\u{03A9}ignore_start\u{03A9}*/;{name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/",
-                                );
-                                let inject_pos = declarator.span.end + offset;
-                                str.append_left(inject_pos, &inject);
-                            }
-                        }
-
                         // For multi-declarator let exports (export let a, b, c;),
                         // replace the comma between declarators with `;let `.
                         // This splits them into separate `let` statements,
                         // matching JS svelte2tsx behavior.
                         // Only split `let` declarations, not `const`.
+                        // NOTE: This must happen BEFORE the __sveltets_2_any injection
+                        // to avoid MagicString conflicts at the same position.
                         if is_instance
                             && is_let
                             && num_declarators > 1
@@ -934,6 +921,20 @@ fn handle_export_named_decl(
                                 next_decl_start_rel + offset,
                                 ";let \n",
                             );
+                        }
+
+                        // For exported prop variables, inject __sveltets_2_any when:
+                        // 1. No initializer: `export let a;`
+                        // 2. Has a type annotation: `export let a: Type = value;`
+                        let has_type_annotation = declarator.type_annotation.is_some();
+                        if is_prop && (!has_default || has_type_annotation) {
+                            if let Some(name) = binding_pattern_simple_name(&declarator.id) {
+                                let inject = format!(
+                                    "/*\u{03A9}ignore_start\u{03A9}*/;{name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/",
+                                );
+                                let inject_pos = declarator.span.end + offset;
+                                str.append_left(inject_pos, &inject);
+                            }
                         }
                     }
                 }

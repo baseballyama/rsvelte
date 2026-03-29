@@ -206,7 +206,7 @@ pub fn svelte2tsx(
             &mut str,
             &mut exported_names,
             &mut events,
-            false,
+            options.is_ts_file,
         );
     }
 
