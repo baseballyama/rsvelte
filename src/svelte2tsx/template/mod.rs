@@ -399,13 +399,8 @@ fn process_node_inplace(
         }
         TemplateNode::TitleElement(el) => handle_title_element(el, source, options, str, counter),
         TemplateNode::SlotElement(el) => handle_slot_element(el, source, options, str, counter),
-        TemplateNode::SvelteOptions(el) => {
-            // <svelte:options> is blanked out in TSX output
-            if el.start < el.end {
-                str.overwrite(el.start, el.end, "");
-            }
-        }
-        TemplateNode::SvelteBody(el)
+        TemplateNode::SvelteOptions(el)
+        | TemplateNode::SvelteBody(el)
         | TemplateNode::SvelteDocument(el)
         | TemplateNode::SvelteFragment(el)
         | TemplateNode::SvelteBoundary(el)

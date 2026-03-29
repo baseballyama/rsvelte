@@ -6,7 +6,7 @@
 //!
 //! Corresponds to the visitor pattern in Svelte's transform phase.
 
-use crate::ast::arena::ParseArena;
+use crate::ast::arena::{IdRange, ParseArena};
 use crate::ast::js::Expression;
 use crate::ast::typed_expr::{JsNode, LiteralValue};
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
@@ -660,17 +660,12 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             } else if let Some(prop_name) = get_jsnode_identifier_name(prop_node) {
                 JsMemberProperty::Identifier(prop_name.into())
             } else {
-                // Fallback: convert through Value path
-                let value = prop_node.to_value();
-                if let Some(obj) = value.as_object() {
-                    if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
-                        JsMemberProperty::Identifier(name.into())
-                    } else {
-                        JsMemberProperty::Identifier("unknown".into())
-                    }
-                } else {
-                    JsMemberProperty::Identifier("unknown".into())
-                }
+                // All typed JsNode variants with a `name` field (Identifier, PrivateIdentifier)
+                // are handled above. Convert as expression for any remaining node types.
+                JsMemberProperty::Expression({
+                    let __tmp = convert_js_node(prop_node, context);
+                    context.arena.alloc_expr(__tmp)
+                })
             };
 
             JsExpr::Member(JsMemberExpression {
@@ -688,12 +683,12 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             optional,
             ..
         } => {
-            // Check if this is a rune call - use Value fallback only for rune detection
-            if is_potential_rune_call(pa.get_js_node(*callee), context) {
+            // Detect rune name from JsNode directly; only serialize if rune detected (rare)
+            if is_potential_rune_call(pa.get_js_node(*callee), context)
+                && let Some(rune) = get_rune_from_call_jsnode(pa.get_js_node(*callee), pa, context)
+            {
                 let value = node.to_value();
-                if let Some(obj) = value.as_object()
-                    && let Some(rune) = get_rune_from_call(obj, context)
-                {
+                if let Some(obj) = value.as_object() {
                     return transform_rune_call(&rune, obj, context);
                 }
             }
@@ -788,13 +783,8 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             }
 
             let conv_body = match body_node {
-                JsNode::BlockStatement { .. } => {
-                    let body_value = body_node.to_value();
-                    if let Some(body_obj) = body_value.as_object() {
-                        JsArrowBody::Block(convert_block_statement(body_obj, context))
-                    } else {
-                        JsArrowBody::Block(JsBlockStatement::new())
-                    }
+                JsNode::BlockStatement { body, .. } => {
+                    JsArrowBody::Block(convert_block_statement_from_jsnode(body, context))
                 }
                 JsNode::Raw(v) => {
                     if let Some(obj) = v.as_object() {
@@ -868,13 +858,8 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 .map(|b| {
                     let b_node = pa.get_js_node(*b);
                     match b_node {
-                        JsNode::BlockStatement { .. } => {
-                            let body_value = b_node.to_value();
-                            if let Some(body_obj) = body_value.as_object() {
-                                convert_block_statement(body_obj, context)
-                            } else {
-                                JsBlockStatement::new()
-                            }
+                        JsNode::BlockStatement { body, .. } => {
+                            convert_block_statement_from_jsnode(body, context)
                         }
                         JsNode::Raw(v) => {
                             if let Some(obj) = v.as_object() {
@@ -977,14 +962,14 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             // Extract root identifier from original JsNode (before transforms)
             let original_root_name = extract_root_identifier_from_jsnode(left_node, pa);
 
-            // For should_proxy_value, we need the right JSON value
-            let right_json_val = right_node.to_value();
+            // Pre-compute proxy decision from the JsNode directly (no JSON serialization)
+            let should_proxy = Some(should_proxy_jsnode(right_node, pa, context));
 
             if let Some(transformed) = try_transform_assignment(
                 operator_str,
                 &conv_left,
                 &conv_right,
-                Some(&right_json_val),
+                should_proxy,
                 original_root_name.as_deref(),
                 context,
             ) {
@@ -1063,10 +1048,9 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             })
         }
 
-        // ObjectPattern / ArrayPattern: direct JsNode handling
+        // ObjectPattern / ArrayPattern: direct JsNode handling via typed path
         JsNode::ObjectPattern { .. } | JsNode::ArrayPattern { .. } => {
-            let value = node.to_value();
-            if let Some(pattern) = convert_param_pattern(&value, context) {
+            if let Some(pattern) = convert_param_pattern_from_node(node, context) {
                 JsExpr::Raw(pattern_to_string(&pattern).into())
             } else {
                 JsExpr::Raw("/* Unknown pattern */".into())
@@ -1598,7 +1582,7 @@ fn extract_param_names_from_node_refs(params: &[&JsNode]) -> Vec<String> {
     for param in params {
         // Top-level params are already resolved; just collect identifier names.
         // For simple identifier params, this doesn't need the arena.
-        collect_param_names(&param.to_value(), &mut names);
+        collect_param_names_from_jsnode(param, &mut names);
     }
     names
 }
@@ -3982,8 +3966,8 @@ fn convert_assignment_expression(
         })
         .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
-    // Get the raw right expression for should_proxy check
-    let right_json = obj.get("right");
+    // Pre-compute the proxy decision for the RHS
+    let should_proxy_rhs = Some(should_proxy_value(obj.get("right"), context));
 
     // Extract the root identifier from the ORIGINAL JSON (before conversion/transforms)
     // This is necessary because convert_json_value applies read transforms that turn
@@ -4013,7 +3997,7 @@ fn convert_assignment_expression(
         operator_str,
         &left_expr,
         &right_expr,
-        right_json,
+        should_proxy_rhs,
         original_root_name.as_deref(),
         context,
     ) {
@@ -4302,7 +4286,7 @@ fn try_transform_assignment(
     operator: &str,
     left: &JsExpr,
     right: &JsExpr,
-    right_json: Option<&Value>,
+    should_proxy_rhs: Option<bool>,
     original_root_name: Option<&str>,
     context: &mut ComponentContext,
 ) -> Option<JsExpr> {
@@ -4365,7 +4349,7 @@ fn try_transform_assignment(
             && !binding_kind_excludes_proxy
             && context.state.analysis.runes
             && is_non_coercive_operator(operator)
-            && should_proxy_value(right_json, context);
+            && should_proxy_rhs.unwrap_or(true);
 
         let result = assign_fn(&context.arena, b::id(&root_name), value, needs_proxy);
         let result = apply_store_ref_transform(result, &root_name, context);
@@ -5149,6 +5133,268 @@ fn should_proxy_value(value: Option<&Value>, context: &ComponentContext) -> bool
         "ObjectExpression" | "ArrayExpression" => true,
         // Other expressions might need proxy (e.g., function calls that return objects)
         _ => true,
+    }
+}
+
+/// JsNode-based version of `should_proxy_value`.
+/// Determines if a value should be wrapped in `$.proxy()` for deep reactivity
+/// by inspecting the JsNode directly, avoiding JSON serialization.
+fn should_proxy_jsnode(node: &JsNode, _pa: &ParseArena, context: &ComponentContext) -> bool {
+    match node {
+        JsNode::Literal { .. } => false,
+        JsNode::ArrowFunctionExpression { .. } | JsNode::FunctionExpression { .. } => false,
+        JsNode::UnaryExpression { .. } | JsNode::BinaryExpression { .. } => false,
+        JsNode::TemplateLiteral { .. } => false,
+        JsNode::Identifier { name, .. } => {
+            if name == "undefined" {
+                return false;
+            }
+            if let Some(init_type) = context.state.get_local_var_init_type(name) {
+                match init_type {
+                    "FunctionDeclaration"
+                    | "ClassDeclaration"
+                    | "ImportDeclaration"
+                    | "EachBlock"
+                    | "SnippetBlock" => return true,
+                    _ => return should_proxy_node_type_str(init_type),
+                }
+            }
+            if let Some(binding) = context.state.get_binding(name)
+                && !binding.reassigned
+                && let Some(ref initial_type) = binding.initial_node_type
+            {
+                match initial_type.as_str() {
+                    "FunctionDeclaration"
+                    | "ClassDeclaration"
+                    | "ImportDeclaration"
+                    | "EachBlock"
+                    | "SnippetBlock" => return true,
+                    _ => return should_proxy_node_type_str(initial_type),
+                }
+            }
+            true
+        }
+        JsNode::ObjectExpression { .. } | JsNode::ArrayExpression { .. } => true,
+        JsNode::Raw(v) => should_proxy_value(Some(v), context),
+        _ => !matches!(
+            node.node_type(),
+            Some(
+                "Literal"
+                    | "ArrowFunctionExpression"
+                    | "FunctionExpression"
+                    | "UnaryExpression"
+                    | "BinaryExpression"
+                    | "TemplateLiteral"
+            )
+        ),
+    }
+}
+
+/// JsNode-based version of `get_rune_from_call`.
+/// Extracts the rune name from a CallExpression's callee without JSON serialization.
+fn get_rune_from_call_jsnode(
+    callee_node: &JsNode,
+    pa: &ParseArena,
+    context: &ComponentContext,
+) -> Option<String> {
+    let rune_name = match callee_node {
+        JsNode::Identifier { name, .. } => name.to_string(),
+        JsNode::MemberExpression {
+            object, property, ..
+        } => {
+            let obj_node = pa.get_js_node(*object);
+            let prop_node = pa.get_js_node(*property);
+            let property_name = match prop_node {
+                JsNode::Identifier { name, .. } => name.as_str(),
+                _ => return None,
+            };
+            match obj_node {
+                JsNode::CallExpression { callee, .. } => {
+                    let inner_callee = pa.get_js_node(*callee);
+                    if let JsNode::Identifier { name, .. } = inner_callee {
+                        let keypath = format!("{}().{}", name, property_name);
+                        if RUNES.contains(&keypath.as_str()) {
+                            if context.state.get_binding(name).is_some() {
+                                return None;
+                            }
+                            return Some(keypath);
+                        }
+                    }
+                    return None;
+                }
+                JsNode::Identifier { name, .. } => {
+                    format!("{}.{}", name, property_name)
+                }
+                _ => return None,
+            }
+        }
+        _ => return None,
+    };
+    if !RUNES.contains(&rune_name.as_str()) {
+        return None;
+    }
+    let base_name = rune_name.split('.').next()?;
+    if context.state.get_binding(base_name).is_some() {
+        return None;
+    }
+    Some(rune_name)
+}
+
+/// Convert a BlockStatement from a typed JsNode, avoiding `to_value()` on the parent.
+fn convert_block_statement_from_jsnode(
+    body_range: &IdRange,
+    context: &mut ComponentContext,
+) -> JsBlockStatement {
+    let pa = context.state.parse_arena as *const ParseArena;
+    let pa: &ParseArena = unsafe { &*pa };
+    let children: Vec<&JsNode> = pa.get_js_children(*body_range).iter().collect();
+    let body: Vec<JsStatement> = children
+        .iter()
+        .filter_map(|child| convert_statement_from_jsnode(child, context))
+        .collect();
+    JsBlockStatement { body }
+}
+
+/// Convert a single statement from a JsNode.
+/// Handles common statement types directly; falls back to JSON for uncommon ones.
+fn convert_statement_from_jsnode(
+    node: &JsNode,
+    context: &mut ComponentContext,
+) -> Option<JsStatement> {
+    let pa = context.state.parse_arena as *const ParseArena;
+    let pa: &ParseArena = unsafe { &*pa };
+    match node {
+        JsNode::ExpressionStatement { expression, .. } => {
+            let expr = convert_js_node(pa.get_js_node(*expression), context);
+            Some(JsStatement::Expression(JsExpressionStatement {
+                expression: context.arena.alloc_expr(expr),
+            }))
+        }
+        JsNode::ReturnStatement { argument, .. } => {
+            let arg = argument.map(|a| {
+                let __tmp = convert_js_node(pa.get_js_node(a), context);
+                context.arena.alloc_expr(__tmp)
+            });
+            Some(JsStatement::Return(JsReturnStatement { argument: arg }))
+        }
+        JsNode::BlockStatement { body, .. } => {
+            let block = convert_block_statement_from_jsnode(body, context);
+            Some(JsStatement::Block(block))
+        }
+        JsNode::VariableDeclaration {
+            declarations, kind, ..
+        } => {
+            let decl_children: Vec<&JsNode> = pa.get_js_children(*declarations).iter().collect();
+            let decls: Vec<JsVariableDeclarator> = decl_children
+                .iter()
+                .filter_map(|decl_node| match decl_node {
+                    JsNode::VariableDeclarator { id, init, .. } => {
+                        let id_node = pa.get_js_node(*id);
+                        let pattern = convert_param_pattern_from_node(id_node, context)?;
+                        if !context.state.local_var_init_types.is_empty()
+                            && let Some(init_id) = init
+                        {
+                            let init_node = pa.get_js_node(*init_id);
+                            if let Some(nt) = init_node.node_type()
+                                && let JsPattern::Identifier(ref name) = pattern
+                            {
+                                context
+                                    .state
+                                    .register_local_var_init_type(name.to_string(), nt.to_string());
+                            }
+                        }
+                        let init_expr = init.map(|i| {
+                            let __tmp = convert_js_node(pa.get_js_node(i), context);
+                            context.arena.alloc_expr(__tmp)
+                        });
+                        Some(JsVariableDeclarator {
+                            id: pattern,
+                            init: init_expr,
+                        })
+                    }
+                    JsNode::Raw(v) => {
+                        let obj = v.as_object()?;
+                        let id_val = obj.get("id")?;
+                        let pattern = convert_param_pattern(id_val, context)?;
+                        if !context.state.local_var_init_types.is_empty()
+                            && let Some(init_json) = obj.get("init")
+                            && let Some(t) = unwrap_ts_expression_type(init_json)
+                            && let JsPattern::Identifier(ref name) = pattern
+                        {
+                            context
+                                .state
+                                .register_local_var_init_type(name.to_string(), t.to_string());
+                        }
+                        let init_expr = obj.get("init").filter(|i| !i.is_null()).map(|i| {
+                            let __tmp = convert_json_value(i, context);
+                            context.arena.alloc_expr(__tmp)
+                        });
+                        Some(JsVariableDeclarator {
+                            id: pattern,
+                            init: init_expr,
+                        })
+                    }
+                    _ => None,
+                })
+                .collect();
+            Some(JsStatement::VariableDeclaration(JsVariableDeclaration {
+                kind: match kind.as_str() {
+                    "const" => JsVariableKind::Const,
+                    "let" => JsVariableKind::Let,
+                    _ => JsVariableKind::Var,
+                },
+                declarations: decls,
+            }))
+        }
+        JsNode::IfStatement {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => {
+            let conv_test = {
+                let __tmp = convert_js_node(pa.get_js_node(*test), context);
+                context.arena.alloc_expr(__tmp)
+            };
+            let conv_consequent =
+                convert_statement_from_jsnode(pa.get_js_node(*consequent), context)
+                    .map(|s| context.arena.alloc_stmt(s))
+                    .unwrap_or_else(|| context.arena.alloc_stmt(JsStatement::Empty));
+            let conv_alternate = alternate.and_then(|a| {
+                convert_statement_from_jsnode(pa.get_js_node(a), context)
+                    .map(|s| context.arena.alloc_stmt(s))
+            });
+            Some(JsStatement::If(JsIfStatement {
+                test: conv_test,
+                consequent: conv_consequent,
+                alternate: conv_alternate,
+            }))
+        }
+        JsNode::ThrowStatement { argument, .. } => {
+            let expr = convert_js_node(pa.get_js_node(*argument), context);
+            Some(JsStatement::Throw(context.arena.alloc_expr(expr)))
+        }
+        JsNode::EmptyStatement { .. } => Some(JsStatement::Empty),
+        JsNode::Raw(v) => convert_statement(v, context),
+        _ => {
+            let value = node.to_value();
+            convert_statement(&value, context)
+        }
+    }
+}
+
+/// Collect parameter names from a JsNode, avoiding JSON serialization for simple identifiers.
+fn collect_param_names_from_jsnode(node: &JsNode, names: &mut Vec<String>) {
+    match node {
+        JsNode::Identifier { name, .. } => {
+            names.push(name.to_string());
+        }
+        JsNode::Raw(v) => {
+            collect_param_names(v, names);
+        }
+        _ => {
+            collect_param_names(&node.to_value(), names);
+        }
     }
 }
 

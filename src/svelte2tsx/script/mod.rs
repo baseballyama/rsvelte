@@ -36,6 +36,8 @@ pub struct ExportedNames {
     insertion_order: Vec<String>,
     uses_runes: bool,
     has_props_rune: bool,
+    /// Type annotation text for $props() (e.g., "Props" from `let {...}: Props = $props()`)
+    pub props_type_text: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -62,6 +64,7 @@ impl ExportedNames {
             insertion_order: Vec::new(),
             uses_runes: false,
             has_props_rune: false,
+            props_type_text: None,
         }
     }
     pub fn add(
@@ -147,7 +150,23 @@ impl ExportedNames {
     }
     pub fn create_props_str(&self) -> String {
         if self.is_runes_mode() {
-            return "/** @type {Record<string, never>} */ ({})".to_string();
+            // In runes mode, if there's an explicit type annotation from $props(),
+            // use `{} as any as TypeName` (for TS files)
+            if let Some(ref type_text) = self.props_type_text {
+                return format!("{{}} as any as {}", type_text);
+            }
+
+            // Otherwise, list the prop entries from $props() destructuring
+            let entries: Vec<String> = self
+                .get_ordered()
+                .iter()
+                .filter(|(_, info)| info.is_prop)
+                .map(|(en, info)| format!("{}: {}", en, info.local_name))
+                .collect();
+            if entries.is_empty() {
+                return "/** @type {Record<string, never>} */ ({})".to_string();
+            }
+            return format!("{{{}}}", entries.join(" , "));
         }
         let entries: Vec<String> = self
             .get_ordered()
@@ -167,7 +186,16 @@ impl ExportedNames {
         let others: Vec<(&str, &ExportedNameInfo)> = self
             .get_ordered()
             .into_iter()
-            .filter(|(_, info)| !info.is_let || (self.is_runes_mode() && info.is_named_export))
+            .filter(|(_, info)| {
+                // In exports, include:
+                // - Non-let declarations (const, function, class)
+                // - Named exports in runes mode
+                // BUT exclude props (from $props() destructuring)
+                if info.is_prop {
+                    return false;
+                }
+                !info.is_let || (self.is_runes_mode() && info.is_named_export)
+            })
             .collect();
         if !others.is_empty() {
             let te: Vec<String> = others
@@ -312,7 +340,7 @@ pub fn process_instance_script(
     _events: &mut ComponentEvents,
 ) {
     let offset = script.content_offset;
-    with_parsed_script(script, source, |program| {
+    with_parsed_script(script, source, |program, raw_content| {
         // Pass 1: collect top-level declared names and possible exports
         let mut possible_exports: HashMap<String, PossibleExport> = HashMap::new();
         let mut declared_names: HashSet<String> = HashSet::new();
@@ -326,7 +354,7 @@ pub fn process_instance_script(
                     );
                     for declarator in var_decl.declarations.iter() {
                         detect_runes_call(declarator, exported_names);
-                        detect_props_rune_oxc(declarator, exported_names);
+                        detect_props_rune_oxc(declarator, exported_names, raw_content);
                         let names = extract_all_names_from_binding_pattern(&declarator.id);
                         for name in &names {
                             declared_names.insert(name.clone());
@@ -508,7 +536,7 @@ pub fn process_module_script(
 /// program are created and consumed within the closure scope.
 fn with_parsed_script<F>(script: &Script, source: &str, f: F)
 where
-    F: FnOnce(&oxc::Program),
+    F: FnOnce(&oxc::Program, &str),
 {
     let content_start = script.content_offset as usize;
     // Find the end of script content: from content_offset to the start of </script>
@@ -528,7 +556,7 @@ where
     let parser = OxcParser::new(&allocator, raw_content, source_type);
     let result = parser.parse();
 
-    f(&result.program);
+    f(&result.program, raw_content);
 }
 
 // =============================================================================
@@ -851,10 +879,27 @@ fn is_props_call_oxc(declarator: &oxc::VariableDeclarator) -> bool {
 }
 
 /// Detect `$props()` usage in a variable declarator and extract prop names.
-fn detect_props_rune_oxc(declarator: &oxc::VariableDeclarator, exported_names: &mut ExportedNames) {
+fn detect_props_rune_oxc(
+    declarator: &oxc::VariableDeclarator,
+    exported_names: &mut ExportedNames,
+    raw_content: &str,
+) {
     if is_props_call_oxc(declarator) {
         exported_names.set_has_props_rune(true);
         exported_names.set_uses_runes(true);
+
+        // Extract type annotation if present (e.g., `: Props` in `let {...}: Props = $props()`)
+        // Check the declarator's own type_annotation field (OXC VariableDeclarator)
+        if let Some(ref ta) = declarator.type_annotation {
+            let ts_type = &ta.type_annotation;
+            let start = ts_type.span().start as usize;
+            let end = ts_type.span().end as usize;
+            if start < end && end <= raw_content.len() {
+                let type_text = &raw_content[start..end];
+                exported_names.props_type_text = Some(type_text.to_string());
+            }
+        }
+
         extract_props_from_binding_pattern(&declarator.id, exported_names);
     }
 }
@@ -1290,7 +1335,7 @@ fn inject_store_subscriptions(script: &Script, source: &str, str: &mut MagicStri
 
     let offset = script.content_offset;
 
-    with_parsed_script(script, source, |program| {
+    with_parsed_script(script, source, |program, _raw_content| {
         // First pass: detect rune-declared variables and remove them from accessed_stores.
         // This prevents `let state = $state(0)` from generating a store subscription
         // for `state`, matching the JS svelte2tsx behavior.
@@ -1541,7 +1586,7 @@ fn inject_store_subscriptions_vars_only(script: &Script, source: &str, str: &mut
 
     let offset = script.content_offset;
 
-    with_parsed_script(script, source, |program| {
+    with_parsed_script(script, source, |program, _raw_content| {
         // First pass: detect rune-declared variables
         for stmt in program.body.iter() {
             if let oxc::Statement::VariableDeclaration(var_decl) = stmt {

@@ -212,10 +212,59 @@ pub fn svelte2tsx(
     // Step 7.5: Early slot detection (before script tag overwrites)
     let has_slot_elements = source.contains("<slot") || source.contains("<slot>");
 
+    // Step 7.6: Process <svelte:options> tag as a createElement call
+    // The parser stores svelte:options in ast.options (not in fragment.nodes),
+    // so we need to handle it separately.
+    if let Some(ref options_node) = ast.options {
+        if options_node.start < options_node.end {
+            // Build attribute string from options attributes
+            let mut attrs_parts = Vec::new();
+            for node in &options_node.attributes {
+                match &node.value {
+                    crate::ast::template::AttributeValue::True(_) => {
+                        attrs_parts.push(format!("\"{}\":true,", node.name));
+                    }
+                    crate::ast::template::AttributeValue::Expression(expr) => {
+                        let expr_text = &source[expr.expression.start().unwrap_or(0) as usize
+                            ..expr.expression.end().unwrap_or(0) as usize];
+                        attrs_parts.push(format!("\"{}\":{},", node.name, expr_text));
+                    }
+                    _ => {}
+                }
+            }
+            let attrs_str = if attrs_parts.is_empty() {
+                String::new()
+            } else {
+                let extra_spaces = count_tag_to_attr_spaces_in_source(
+                    "svelte:options",
+                    options_node.start,
+                    source,
+                );
+                format!("{}{}", " ".repeat(extra_spaces + 1), attrs_parts.join(""))
+            };
+            let replacement = format!(
+                " {{ svelteHTML.createElement(\"svelte:options\", {{{}}});}}",
+                attrs_str
+            );
+            str.overwrite(options_node.start, options_node.end, &replacement);
+        }
+    }
+
     // Step 8: Blank out <style> tag (CSS is not relevant for TSX type checking)
     if let Some(ref css) = ast.css {
         if css.start < css.end {
-            str.overwrite(css.start, css.end, "");
+            // Also blank any trailing whitespace after the style tag
+            let mut blank_end = css.end;
+            let bytes = source.as_bytes();
+            while (blank_end as usize) < bytes.len() {
+                let b = bytes[blank_end as usize];
+                if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
+                    blank_end += 1;
+                } else {
+                    break;
+                }
+            }
+            str.overwrite(css.start, blank_end, "");
         }
     }
 
@@ -455,6 +504,30 @@ pub fn svelte2tsx(
             dollar_decls, store_decls, slot_decl_mod
         );
         str.append_left(mod_end, &render_open);
+
+        // Blank out trailing whitespace after the module script ONLY when
+        // there's no template content following. This ensures the async
+        // wrapper closes immediately for module-script-only components.
+        let has_non_whitespace_template = ast.fragment.nodes.iter().any(|node| {
+            !matches!(node, crate::ast::template::TemplateNode::Text(t)
+                if source[t.start as usize..t.end as usize].chars().all(|c| c.is_whitespace()))
+        });
+        if !has_non_whitespace_template && (mod_end as usize) < source.len() {
+            let bytes = source.as_bytes();
+            let mut trailing_end = mod_end;
+            while (trailing_end as usize) < bytes.len() {
+                let b = bytes[trailing_end as usize];
+                if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
+                    trailing_end += 1;
+                } else {
+                    break;
+                }
+            }
+            if trailing_end > mod_end {
+                str.overwrite(mod_end, trailing_end, "");
+            }
+        }
+
         str.prepend_str("///<reference types=\"svelte\" />\n");
     } else {
         // No script tags at all: prepend the full wrapper
@@ -828,6 +901,24 @@ fn find_instance_imports(script: &crate::ast::template::Script, source: &str) ->
 ///
 /// Converts "App.svelte" -> "App", "my-component.svelte" -> "My_component",
 /// handles path separators and special characters.
+/// Count whitespace between tag name and first attribute in source.
+fn count_tag_to_attr_spaces_in_source(tag_name: &str, el_start: u32, source: &str) -> usize {
+    let name_end = el_start as usize + 1 + tag_name.len(); // +1 for '<'
+    let bytes = source.as_bytes();
+    let mut count = 0;
+    let mut i = name_end;
+    while i < source.len() {
+        let ch = bytes[i];
+        if ch == b' ' || ch == b'\t' || ch == b'\n' || ch == b'\r' {
+            count += 1;
+            i += 1;
+        } else {
+            break;
+        }
+    }
+    count
+}
+
 fn derive_component_name(filename: &str) -> String {
     // Extract the file stem (without directory and extension)
     let stem = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
