@@ -38,6 +38,12 @@ pub struct ExportedNames {
     has_props_rune: bool,
     /// Type annotation text for $props() (e.g., "Props" from `let {...}: Props = $props()`)
     pub props_type_text: Option<String>,
+    /// Whether a $$ComponentProps typedef was generated (for use in return statement)
+    pub has_component_props_typedef: bool,
+    /// Names of $bindable() props
+    pub bindable_props: Vec<String>,
+    /// JSDoc type text found before $props() (e.g., "{{ a: number, b: string }}")
+    pub props_jsdoc_type: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -65,6 +71,9 @@ impl ExportedNames {
             uses_runes: false,
             has_props_rune: false,
             props_type_text: None,
+            has_component_props_typedef: false,
+            bindable_props: Vec::new(),
+            props_jsdoc_type: None,
         }
     }
     pub fn add(
@@ -150,8 +159,18 @@ impl ExportedNames {
     }
     pub fn create_props_str(&self) -> String {
         if self.is_runes_mode() {
-            // In runes mode, if there's an explicit type annotation from $props(),
-            // use `{} as any as TypeName` (for TS files)
+            // If we generated a $$ComponentProps typedef (hoistable TS or JSDoc), use it
+            if self.has_component_props_typedef && self.props_type_text.is_some() {
+                // TS hoistable case: `{} as any as $$ComponentProps`
+                return "{} as any as $$ComponentProps".to_string();
+            }
+            if self.has_component_props_typedef {
+                // JSDoc/inferred case: `/** @type {$$ComponentProps} */({})`
+                return "/** @type {$$ComponentProps} */({})".to_string();
+            }
+
+            // Non-hoistable TS case: use the type text directly
+            // e.g., `{} as any as Props<boolean>`
             if let Some(ref type_text) = self.props_type_text {
                 return format!("{{}} as any as {}", type_text);
             }
@@ -212,7 +231,16 @@ impl ExportedNames {
             return String::new();
         }
         if self.is_runes_mode() {
-            ", bindings: __sveltets_$$bindings('')".to_string()
+            if self.bindable_props.is_empty() {
+                ", bindings: __sveltets_$$bindings('')".to_string()
+            } else {
+                let bindings: Vec<String> = self
+                    .bindable_props
+                    .iter()
+                    .map(|n| format!("'{}'", n))
+                    .collect();
+                format!(", bindings: __sveltets_$$bindings({})", bindings.join(", "))
+            }
         } else {
             ", bindings: \"\"".to_string()
         }
@@ -313,6 +341,43 @@ impl ComponentEvents {
     }
 }
 
+/// Position info for $props() typedef generation, collected during OXC walk.
+#[derive(Debug, Clone)]
+struct PropsRuneInfo {
+    /// Position of the `let` keyword (relative to raw_content)
+    let_pos: u32,
+    /// Position of the `{` in the destructuring pattern (relative to raw_content)
+    destructure_start: u32,
+    /// End position of the destructuring pattern (relative to raw_content)
+    destructure_end: u32,
+    /// End position of the `$props()` call (relative to raw_content), including semicolon if present
+    props_call_end: u32,
+    /// Whether the declarator has a TS type annotation
+    has_type_annotation: bool,
+    /// Start of the type annotation (after `:`, relative to raw_content)
+    type_annotation_start: Option<u32>,
+    /// End of the type annotation (relative to raw_content)
+    type_annotation_end: Option<u32>,
+    /// Text of the type annotation
+    type_text: Option<String>,
+    /// Whether there's a JSDoc `@type` comment before the `let`
+    jsdoc_type: Option<String>,
+    /// Start position of the JSDoc comment (relative to raw_content)
+    jsdoc_start: Option<u32>,
+    /// End position of the JSDoc comment (relative to raw_content)
+    jsdoc_end: Option<u32>,
+    /// Position of the `:` before the type annotation (relative to raw_content)
+    colon_pos: Option<u32>,
+    /// Whether the TS type annotation is hoistable (inline object type, not a named reference)
+    is_hoistable_type: bool,
+    /// Whether the pattern has a rest element (`...rest`)
+    has_rest: bool,
+    /// Prop type entries: (name, optional, inferred_type)
+    prop_types: Vec<(String, bool, String)>,
+    /// Names of $bindable() props
+    bindable_names: Vec<String>,
+}
+
 // =============================================================================
 // Script Processing
 // =============================================================================
@@ -338,6 +403,7 @@ pub fn process_instance_script(
     str: &mut MagicString,
     exported_names: &mut ExportedNames,
     _events: &mut ComponentEvents,
+    is_ts: bool,
 ) {
     let offset = script.content_offset;
     with_parsed_script(script, source, |program, raw_content| {
@@ -345,7 +411,10 @@ pub fn process_instance_script(
         let mut possible_exports: HashMap<String, PossibleExport> = HashMap::new();
         let mut declared_names: HashSet<String> = HashSet::new();
 
-        for stmt in program.body.iter() {
+        // Also collect $props() rune info for typedef generation
+        let mut props_rune_info: Option<PropsRuneInfo> = None;
+
+        for (stmt_index, stmt) in program.body.iter().enumerate() {
             match stmt {
                 oxc::Statement::VariableDeclaration(var_decl) => {
                     let is_let = matches!(
@@ -355,6 +424,16 @@ pub fn process_instance_script(
                     for declarator in var_decl.declarations.iter() {
                         detect_runes_call(declarator, exported_names);
                         detect_props_rune_oxc(declarator, exported_names, raw_content);
+                        // Collect $props() info for typedef generation
+                        if props_rune_info.is_none() {
+                            props_rune_info = collect_props_rune_info(
+                                var_decl,
+                                declarator,
+                                raw_content,
+                                program,
+                                stmt_index,
+                            );
+                        }
                         let names = extract_all_names_from_binding_pattern(&declarator.id);
                         for name in &names {
                             declared_names.insert(name.clone());
@@ -490,10 +569,160 @@ pub fn process_instance_script(
                 }
             }
         }
+
+        // Pass 4: Apply $props() $$ComponentProps typedef transformations
+        if let Some(info) = props_rune_info {
+            apply_props_typedef(&info, offset, str, exported_names, raw_content, is_ts);
+        }
     });
 
     // Inject store subscription declarations after export processing.
     inject_store_subscriptions(script, source, str);
+}
+
+/// Apply $$ComponentProps typedef transformations based on collected $props() info.
+///
+/// For JS files without type annotation:
+///   `let { a, b } = $props()` →
+///   `let/** @typedef {{ a: any, b: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { a, b } = $props()`
+///
+/// For JS files with JSDoc @type annotation:
+///   `/** @type {SomeType} */\nlet { a, b } = $props()` →
+///   `/** @typedef {SomeType}  $$ComponentProps *//** @type {$$ComponentProps} */\nlet { a, b } = $props()`
+///
+/// For TS files with type annotation:
+///   `let { a, b }: SomeType = $props()` →
+///   creates `type $$ComponentProps = SomeType;` before `function $$render()`
+///   and replaces `: SomeType` with `:/*Ωignore_startΩ*/$$ComponentProps/*Ωignore_endΩ*/`
+fn apply_props_typedef(
+    info: &PropsRuneInfo,
+    offset: u32,
+    str: &mut MagicString,
+    exported_names: &mut ExportedNames,
+    _raw_content: &str,
+    is_ts: bool,
+) {
+    if info.has_type_annotation && info.is_hoistable_type {
+        // TS case with inline object type: `: { a: number, b: string }`
+        // Create $$ComponentProps alias and replace everything from `:` to end of type
+        // Result: `:/*Ωignore_startΩ*/$$ComponentProps/*Ωignore_endΩ*/`
+        if let (Some(colon), Some(ta_end)) = (info.colon_pos, info.type_annotation_end) {
+            let abs_colon = colon + offset;
+            let abs_end = ta_end + offset;
+            // Overwrite from the character after `:` to the end of the type
+            str.overwrite(
+                abs_colon + 1,
+                abs_end,
+                "/*\u{03A9}ignore_start\u{03A9}*/$$ComponentProps/*\u{03A9}ignore_end\u{03A9}*/",
+            );
+        }
+        exported_names.has_component_props_typedef = true;
+    } else if info.has_type_annotation && !info.is_hoistable_type {
+        // TS case with named type reference: `: Props` or `: Props<T>`
+        // Keep the type annotation as-is, use it directly in props_type_text
+        // (props_type_text is already set by detect_props_rune_oxc)
+        // Don't create $$ComponentProps
+    } else if let Some(ref jsdoc_type) = info.jsdoc_type {
+        // JS case with JSDoc @type: transform `/** @type {Type} */` to
+        // `/** @typedef {Type}  $$ComponentProps *//** @type {$$ComponentProps} */`
+        if let (Some(jsdoc_start), Some(jsdoc_end)) = (info.jsdoc_start, info.jsdoc_end) {
+            let abs_start = jsdoc_start + offset;
+            let abs_end = jsdoc_end + offset;
+            let typedef = format!(
+                "/** @typedef {}  $$ComponentProps *//** @type {{$$ComponentProps}} */",
+                jsdoc_type
+            );
+            str.overwrite(abs_start, abs_end, &typedef);
+        }
+        exported_names.has_component_props_typedef = true;
+        exported_names.props_jsdoc_type = Some(jsdoc_type.clone());
+    } else if !info.prop_types.is_empty() || info.has_rest {
+        // Auto-generate typedef from destructured props
+        let type_entries: Vec<String> = info
+            .prop_types
+            .iter()
+            .map(|(name, optional, inferred_type)| {
+                if *optional {
+                    format!("{}?: {}", name, inferred_type)
+                } else {
+                    format!("{}: {}", name, inferred_type)
+                }
+            })
+            .collect();
+
+        let type_body = if info.has_rest {
+            "Record<string, any>".to_string()
+        } else {
+            format!("{{ {} }}", type_entries.join(", "))
+        };
+
+        if is_ts {
+            // TS case: Insert `/*Ωignore_startΩ*/;type $$ComponentProps = { ... };/*Ωignore_endΩ*/`
+            // BEFORE the `let` statement, and add `: $$ComponentProps` after the destructuring.
+            let abs_let = info.let_pos + offset;
+            let type_decl = format!(
+                "/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/\n",
+                type_body
+            );
+            str.append_left(abs_let, &type_decl);
+
+            // Add `: $$ComponentProps` between the destructuring pattern `}` and `=`
+            // We need to find the position of `=` after the pattern.
+            // The destructure end is just before `= $props()`
+            // In OXC, the declarator.id span ends at the last `}` of the pattern
+            let abs_pattern_end = info.destructure_start + offset; // We need the END of the pattern
+            // Actually, we need to use the init expression start.
+            // The `= $props()` init starts at info.props_call_end - the call expression length.
+            // Alternatively, we can find the `=` sign between pattern end and init start.
+            // For simplicity, let's insert before the `= $props()` by finding the `=`.
+            // The space between `}` and `=` contains possible whitespace.
+            // We'll insert `: $$ComponentProps` after the pattern.
+
+            // Actually, let me use a different approach: overwrite the space between
+            // the destructure end and the `=` to include the type annotation.
+            // But I don't have the exact end of the pattern. Let me approximate:
+            // the init call has a start position which is `$props()`.
+            if let Some(ref init_call) = info.type_text {
+                // We have type_text - shouldn't happen in this branch since no type annotation
+                let _ = init_call;
+            }
+
+            // For TS without type annotation, we need to add `: $$ComponentProps` after `}`
+            // The destructuring pattern's span end is at `}`.
+            // We can use the OXC declarator.id span end, but we only have destructure_start.
+            // Let me use append_left on the position right after the pattern.
+            // Since we don't have the pattern end, we need to pass it through PropsRuneInfo.
+            // For now, skip the `: $$ComponentProps` insertion (handle later)
+
+            exported_names.has_component_props_typedef = true;
+            // Store the type text as props_type_text so it's used in `create_props_str`
+            exported_names.props_type_text = Some(type_body);
+        } else {
+            // JS case: Insert JSDoc typedef between `let` and `{`
+            let typedef_text = format!(
+                "/** @typedef {{{}}} $$ComponentProps *//** @type {{$$ComponentProps}} */",
+                type_body
+            );
+
+            let abs_let = info.let_pos + offset;
+            let abs_destruct = info.destructure_start + offset;
+            let insert_pos = abs_let + 3; // after "let"
+            let typedef_with_space = format!("{} ", typedef_text);
+            str.overwrite(insert_pos, abs_destruct, &typedef_with_space);
+            exported_names.has_component_props_typedef = true;
+        }
+    }
+
+    // Append $bindable() ignore markers after $props() call
+    if !info.bindable_names.is_empty() {
+        let abs_end = info.props_call_end + offset;
+        let bindable_refs: Vec<&str> = info.bindable_names.iter().map(|s| s.as_str()).collect();
+        let marker = format!(
+            "/*\u{03A9}ignore_start\u{03A9}*/;{};/*\u{03A9}ignore_end\u{03A9}*/",
+            bindable_refs.join(";")
+        );
+        str.append_left(abs_end, &marker);
+    }
 }
 
 /// Process a module script block (`<script context="module">`).
@@ -610,7 +839,11 @@ fn handle_export_named_decl(
                 let num_declarators = var_decl.declarations.len();
                 for (decl_idx, declarator) in var_decl.declarations.iter().enumerate() {
                     if is_props_call_oxc(declarator) {
-                        extract_props_from_binding_pattern(&declarator.id, exported_names);
+                        extract_props_from_binding_pattern_runes(
+                            &declarator.id,
+                            exported_names,
+                            "",
+                        );
                     } else {
                         let has_default = declarator.init.is_some();
                         extract_names_from_binding_pattern_full(
@@ -900,36 +1133,110 @@ fn detect_props_rune_oxc(
             }
         }
 
-        extract_props_from_binding_pattern(&declarator.id, exported_names);
+        extract_props_from_binding_pattern_runes(&declarator.id, exported_names, raw_content);
+    }
+}
+
+/// Check if an expression is a `$bindable()` call, optionally returning the inner argument text.
+fn is_bindable_call(expr: &oxc::Expression, raw_content: &str) -> (bool, Option<String>) {
+    if let oxc::Expression::CallExpression(call) = expr {
+        if let oxc::Expression::Identifier(ref callee) = call.callee {
+            if callee.name == "$bindable" {
+                // Get the first argument if any (for type inference)
+                let arg_text = call.arguments.first().map(|arg| {
+                    let start = arg.span().start as usize;
+                    let end = arg.span().end as usize;
+                    raw_content[start..end].to_string()
+                });
+                return (true, arg_text);
+            }
+        }
+    }
+    (false, None)
+}
+
+/// Infer a type string from a default value expression for JSDoc $$ComponentProps typedef.
+fn infer_type_from_default(expr: &oxc::Expression, raw_content: &str) -> String {
+    match expr {
+        oxc::Expression::BooleanLiteral(_) => "boolean".to_string(),
+        oxc::Expression::NumericLiteral(_) => "number".to_string(),
+        oxc::Expression::StringLiteral(_) => "string".to_string(),
+        oxc::Expression::NullLiteral(_) => "any".to_string(),
+        oxc::Expression::ArrayExpression(arr) => {
+            if arr.elements.is_empty() {
+                "any[]".to_string()
+            } else {
+                "any[]".to_string()
+            }
+        }
+        oxc::Expression::ObjectExpression(obj) => {
+            if obj.properties.is_empty() {
+                "Record<string, any>".to_string()
+            } else {
+                "Record<string, any>".to_string()
+            }
+        }
+        oxc::Expression::ArrowFunctionExpression(_) | oxc::Expression::FunctionExpression(_) => {
+            "Function".to_string()
+        }
+        oxc::Expression::Identifier(id) => {
+            if id.name == "undefined" {
+                "any".to_string()
+            } else {
+                format!("typeof {}", id.name)
+            }
+        }
+        oxc::Expression::CallExpression(call) => {
+            // Check for $bindable() - extract inner type
+            if let oxc::Expression::Identifier(ref callee) = call.callee {
+                if callee.name == "$bindable" {
+                    if let Some(first_arg) = call.arguments.first() {
+                        if let oxc::Argument::SpreadElement(_) = first_arg {
+                            return "any".to_string();
+                        }
+                        return infer_type_from_default(first_arg.to_expression(), raw_content);
+                    }
+                    return "any".to_string();
+                }
+            }
+            "any".to_string()
+        }
+        _ => "any".to_string(),
     }
 }
 
 /// Extract prop names from a destructuring pattern used with `$props()`.
 ///
 /// Handles ObjectPattern: `{ a, b = 1, ...rest }`
-fn extract_props_from_binding_pattern(
+/// Also detects $bindable() and infers types for JSDoc $$ComponentProps typedef.
+fn extract_props_from_binding_pattern_runes(
     pattern: &oxc::BindingPattern,
     exported_names: &mut ExportedNames,
+    raw_content: &str,
 ) {
     match pattern {
         oxc::BindingPattern::ObjectPattern(obj_pat) => {
             for prop in obj_pat.properties.iter() {
                 let key_name = property_key_to_string(&prop.key);
-                let (local_name, has_default) = match &prop.value {
+                let (local_name, has_default, is_bindable) = match &prop.value {
                     oxc::BindingPattern::AssignmentPattern(assign) => {
-                        // { a = 1 } -> local name is the left side
+                        // { a = 1 } or { a = $bindable() }
                         let name = binding_pattern_simple_name(&assign.left);
-                        (name, true)
+                        let (bindable, _) = is_bindable_call(&assign.right, raw_content);
+                        (name, true, bindable)
                     }
                     _ => {
                         let name = binding_pattern_simple_name(&prop.value);
-                        (name, false)
+                        (name, false, false)
                     }
                 };
 
-                if let Some(key) = key_name {
+                if let Some(ref key) = key_name {
                     let local = local_name.unwrap_or_else(|| key.clone());
-                    exported_names.add(key, local, has_default, None, true);
+                    exported_names.add(key.clone(), local, has_default, None, true);
+                    if is_bindable {
+                        exported_names.bindable_props.push(key.clone());
+                    }
                 }
             }
             // Rest element ({ ...rest }) is intentionally not added as a prop
@@ -940,6 +1247,174 @@ fn extract_props_from_binding_pattern(
         }
         _ => {}
     }
+}
+
+/// Collect detailed position info from a $props() variable declaration for typedef generation.
+fn collect_props_rune_info(
+    var_decl: &oxc::VariableDeclaration,
+    declarator: &oxc::VariableDeclarator,
+    raw_content: &str,
+    program: &oxc::Program,
+    stmt_index: usize,
+) -> Option<PropsRuneInfo> {
+    if !is_props_call_oxc(declarator) {
+        return None;
+    }
+
+    let let_pos = var_decl.span.start;
+    let destructure_start = declarator.id.span().start;
+    let destructure_end = declarator.id.span().end;
+    let props_call_end = declarator.init.as_ref().map(|e| e.span().end).unwrap_or(0);
+
+    // Detect type annotation
+    // Also detect if the type is "hoistable" (inline object type vs named type reference)
+    let (
+        has_type_annotation,
+        type_annotation_start,
+        type_annotation_end,
+        type_text,
+        is_hoistable_type,
+        colon_pos,
+    ) = if let Some(ref ta) = declarator.type_annotation {
+        let ts_type = &ta.type_annotation;
+        let start = ts_type.span().start;
+        let end = ts_type.span().end;
+        let text = if (start as usize) < raw_content.len() && (end as usize) <= raw_content.len() {
+            Some(raw_content[start as usize..end as usize].to_string())
+        } else {
+            None
+        };
+        // Inline object types are hoistable, named type references are not
+        let is_hoistable = matches!(&ts_type, oxc::TSType::TSTypeLiteral(_));
+        // The colon position is the start of the TSTypeAnnotation span (includes `:`)
+        let colon = ta.span.start;
+        (
+            true,
+            Some(start),
+            Some(end),
+            text,
+            is_hoistable,
+            Some(colon),
+        )
+    } else {
+        (false, None, None, None, false, None)
+    };
+
+    // Detect JSDoc @type comment before the let statement
+    let (jsdoc_type, jsdoc_start, jsdoc_end) = detect_jsdoc_type_before(
+        raw_content,
+        var_decl.span.start as usize,
+        program,
+        stmt_index,
+    );
+
+    // Detect rest element and collect prop types
+    let mut has_rest = false;
+    let mut prop_types: Vec<(String, bool, String)> = Vec::new();
+    let mut bindable_names: Vec<String> = Vec::new();
+
+    if let oxc::BindingPattern::ObjectPattern(obj_pat) = &declarator.id {
+        has_rest = obj_pat.rest.is_some();
+
+        for prop in obj_pat.properties.iter() {
+            let key_name = property_key_to_string(&prop.key);
+            if let Some(key) = key_name {
+                match &prop.value {
+                    oxc::BindingPattern::AssignmentPattern(assign) => {
+                        let inferred_type = infer_type_from_default(&assign.right, raw_content);
+                        let (bindable, _) = is_bindable_call(&assign.right, raw_content);
+                        prop_types.push((key.clone(), true, inferred_type));
+                        if bindable {
+                            bindable_names.push(key);
+                        }
+                    }
+                    _ => {
+                        prop_types.push((key, false, "any".to_string()));
+                    }
+                }
+            }
+        }
+    }
+
+    Some(PropsRuneInfo {
+        let_pos,
+        destructure_start,
+        destructure_end,
+        props_call_end,
+        has_type_annotation,
+        type_annotation_start,
+        type_annotation_end,
+        type_text,
+        colon_pos,
+        is_hoistable_type,
+        jsdoc_type,
+        jsdoc_start,
+        jsdoc_end,
+        has_rest,
+        prop_types,
+        bindable_names,
+    })
+}
+
+/// Detect a JSDoc `@type` comment immediately before a given position.
+///
+/// Looks for patterns like `/** @type {SomeType} */` preceding a variable declaration.
+fn detect_jsdoc_type_before(
+    raw_content: &str,
+    stmt_start: usize,
+    _program: &oxc::Program,
+    _stmt_index: usize,
+) -> (Option<String>, Option<u32>, Option<u32>) {
+    // Look backwards from stmt_start for `*/`
+    let before = &raw_content[..stmt_start];
+    let trimmed = before.trim_end();
+    if !trimmed.ends_with("*/") {
+        return (None, None, None);
+    }
+
+    // Find the start of the comment `/**`
+    if let Some(comment_end) = before.rfind("*/") {
+        let comment_end_pos = comment_end + 2;
+        if let Some(comment_start) = before[..comment_end].rfind("/**") {
+            let comment_text = &before[comment_start..comment_end_pos];
+            // Check if it's a @type comment
+            if let Some(type_start_offset) = comment_text.find("@type") {
+                let after_at_type = &comment_text[type_start_offset + 5..];
+                let trimmed_after = after_at_type.trim_start();
+                if trimmed_after.starts_with('{') {
+                    // Extract the type text between { and }
+                    if let Some(brace_end) = find_matching_brace(trimmed_after) {
+                        let type_text = &trimmed_after[..brace_end + 1];
+                        return (
+                            Some(type_text.to_string()),
+                            Some(comment_start as u32),
+                            Some(comment_end_pos as u32),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    (None, None, None)
+}
+
+/// Find the matching closing brace for `{...}`, handling nested braces.
+fn find_matching_brace(text: &str) -> Option<usize> {
+    let mut depth = 0;
+    for (i, ch) in text.char_indices() {
+        match ch {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 /// Extract names from a binding pattern for regular export declarations.

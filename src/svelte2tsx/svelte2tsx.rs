@@ -206,6 +206,7 @@ pub fn svelte2tsx(
             &mut str,
             &mut exported_names,
             &mut events,
+            false,
         );
     }
 
@@ -394,6 +395,16 @@ pub fn svelte2tsx(
                 str.overwrite(abs_start, abs_end, "");
             }
 
+            // Build $$ComponentProps type declaration for TS files
+            let ts_component_props_decl = if exported_names.has_component_props_typedef
+                && exported_names.props_type_text.is_some()
+            {
+                let type_text = exported_names.props_type_text.as_ref().unwrap();
+                format!(";type $$ComponentProps =  {};", type_text)
+            } else {
+                String::new()
+            };
+
             // Build the <script> replacement:
             //   `<script...>` → `;\nimports\nfunction $$render() {\n`
             let mut script_replacement = String::from(";\n");
@@ -401,6 +412,9 @@ pub fn svelte2tsx(
                 script_replacement.push('\n');
             }
             script_replacement.push_str(&import_text);
+            if !ts_component_props_decl.is_empty() {
+                script_replacement.push_str(&ts_component_props_decl);
+            }
             script_replacement.push_str(&format!("function $$render() {{{}\n", dollar_decls));
 
             if script_start < content_start {
@@ -408,11 +422,22 @@ pub fn svelte2tsx(
             }
         } else {
             // No imports: overwrite the entire <script> tag at once
+            let ts_component_props_decl = if exported_names.has_component_props_typedef
+                && exported_names.props_type_text.is_some()
+            {
+                let type_text = exported_names.props_type_text.as_ref().unwrap();
+                format!("\n;type $$ComponentProps =  {};", type_text)
+            } else {
+                String::new()
+            };
             if script_start < content_start {
                 str.overwrite(
                     script_start,
                     content_start,
-                    &format!(";function $$render() {{{}\n", dollar_decls),
+                    &format!(
+                        ";{}function $$render() {{{}\n",
+                        ts_component_props_decl, dollar_decls
+                    ),
                 );
             }
         }

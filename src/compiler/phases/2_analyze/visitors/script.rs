@@ -619,8 +619,7 @@ pub fn walk_js_node_typed(
             super::class_declaration::visit_typed(node, context)?;
         }
         JsNode::ClassBody { .. } => {
-            let value = node.to_value();
-            super::class_body::visit(&value, context)?;
+            super::class_body::visit_typed(node, context)?;
         }
         JsNode::PropertyDefinition { .. } => {
             super::property_definition::visit_typed(node, context)?;
@@ -659,8 +658,7 @@ pub fn walk_js_node_typed(
             super::export_default_declaration::visit_typed(node, context)?;
         }
         JsNode::ExportNamedDeclaration { .. } => {
-            let value = node.to_value();
-            super::export_named_declaration::visit(&value, context)?;
+            super::export_named_declaration::visit_typed(node, context)?;
         }
         JsNode::ImportDeclaration { .. } => {
             super::import_declaration::visit_typed(node, context)?;

@@ -13,6 +13,7 @@ use serde_json::Value;
 use super::super::errors;
 use super::super::types::StateField;
 use super::VisitorContext;
+use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 // Cached regex for sanitizing identifier names
@@ -420,4 +421,27 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     context.state_fields = saved_state_fields;
 
     Ok(())
+}
+
+/// Typed visitor for ClassBody.
+///
+/// For non-runes mode (the common case), walks children directly using the typed
+/// traversal path, avoiding the expensive `to_value()` conversion entirely.
+/// For runes mode, falls back to the Value-based `visit()` since class body analysis
+/// with state fields requires deep JSON introspection (and runes class bodies are rare).
+pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    if !context.analysis.runes {
+        // Non-runes fast path: just walk children using typed traversal
+        if let JsNode::ClassBody { body, .. } = node {
+            let arena = context.parse_arena;
+            for child in arena.get_js_children(*body) {
+                super::script::walk_js_node_typed(child, context)?;
+            }
+        }
+        return Ok(());
+    }
+
+    // Runes mode: delegate to Value-based visit() for full state field analysis
+    let value = node.to_value();
+    visit(&value, context)
 }
