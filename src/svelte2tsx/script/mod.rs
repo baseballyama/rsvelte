@@ -48,6 +48,9 @@ pub struct ExportedNames {
     pub has_slots_type: bool,
     /// Whether `$$Events` type/interface is declared in the script
     pub has_events_type: bool,
+    /// Whether the $$ComponentProps type was already inserted by apply_props_typedef
+    /// (for best-effort auto-generated types that go inside $$render, not before it)
+    pub type_already_inserted: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -66,6 +69,7 @@ struct PossibleExport {
     has_init: bool,
     has_type_annotation: bool,
     decl_end: u32,
+    type_annotation_text: Option<String>,
 }
 
 impl ExportedNames {
@@ -81,6 +85,7 @@ impl ExportedNames {
             props_jsdoc_type: None,
             has_slots_type: false,
             has_events_type: false,
+            type_already_inserted: false,
         }
     }
     pub fn add(
@@ -167,7 +172,7 @@ impl ExportedNames {
     pub fn is_empty(&self) -> bool {
         self.names.is_empty()
     }
-    pub fn create_props_str(&self) -> String {
+    pub fn create_props_str(&self, is_ts: bool) -> String {
         if self.is_runes_mode() {
             // If we generated a $$ComponentProps typedef (hoistable TS or JSDoc), use it
             if self.has_component_props_typedef && self.props_type_text.is_some() {
@@ -206,14 +211,41 @@ impl ExportedNames {
         if entries.is_empty() {
             "/** @type {Record<string, never>} */ ({})".to_string()
         } else {
-            format!("{{{}}}", entries.join(" , "))
+            let base = format!("{{{}}}", entries.join(" , "));
+            if is_ts {
+                // For TS files, add `as {name1?: type, ...}` type assertion
+                let type_entries: Vec<String> = self
+                    .get_ordered()
+                    .iter()
+                    .map(|(en, info)| {
+                        let optional = if info.has_default || !info.is_let {
+                            "?"
+                        } else {
+                            ""
+                        };
+                        if let Some(ref ta) = info.type_annotation {
+                            format!("{}{}: {}", en, optional, ta)
+                        } else {
+                            format!("{}{}: typeof {}", en, optional, info.local_name)
+                        }
+                    })
+                    .collect();
+                format!("{} as {{{}}}", base, type_entries.join(", "))
+            } else {
+                base
+            }
         }
     }
-    pub fn create_exports_str(&self, is_svelte5: bool) -> String {
-        self.create_exports_str_with_accessors(is_svelte5, false)
+    pub fn create_exports_str(&self, is_svelte5: bool, is_ts: bool) -> String {
+        self.create_exports_str_with_accessors(is_svelte5, false, is_ts)
     }
 
-    pub fn create_exports_str_with_accessors(&self, is_svelte5: bool, accessors: bool) -> String {
+    pub fn create_exports_str_with_accessors(
+        &self,
+        is_svelte5: bool,
+        accessors: bool,
+        is_ts: bool,
+    ) -> String {
         if !is_svelte5 {
             return String::new();
         }
@@ -226,11 +258,13 @@ impl ExportedNames {
                 // - Named exports in runes mode (even if marked as prop from export specifiers)
                 // - When accessors is true, also include `export let` props
                 // BUT exclude props from $props() destructuring (is_prop && !is_named_export)
-                if info.is_prop && !info.is_named_export {
-                    return false;
-                }
+
+                // When accessors is true, include all exported let props
                 if accessors && info.is_let {
                     return true;
+                }
+                if info.is_prop && !info.is_named_export {
+                    return false;
                 }
                 !info.is_let || (self.is_runes_mode() && info.is_named_export)
             })
@@ -246,7 +280,11 @@ impl ExportedNames {
                     }
                 })
                 .collect();
-            format!(", exports: /** @type {{{{{}}}}} */ ({{}})", te.join(","))
+            if is_ts {
+                format!(", exports: {{}} as any as {{ {} }}", te.join(","))
+            } else {
+                format!(", exports: /** @type {{{{{}}}}} */ ({{}})", te.join(","))
+            }
         } else {
             ", exports: {}".to_string()
         }
@@ -270,8 +308,13 @@ impl ExportedNames {
             ", bindings: \"\"".to_string()
         }
     }
-    pub fn create_optional_props_array(&self) -> Vec<String> {
+    pub fn create_optional_props_array(&self, is_ts: bool) -> Vec<String> {
         if self.is_runes_mode() {
+            return Vec::new();
+        }
+        // For TS files, the `as {...}` type assertion on props handles optionality,
+        // so __sveltets_2_partial is not needed
+        if is_ts {
             return Vec::new();
         }
         self.insertion_order
@@ -447,7 +490,7 @@ pub fn process_instance_script(
                         oxc::VariableDeclarationKind::Let | oxc::VariableDeclarationKind::Var
                     );
                     for declarator in var_decl.declarations.iter() {
-                        detect_runes_call(declarator, exported_names);
+                        detect_runes_call(declarator, exported_names, &declared_names);
                         detect_props_rune_oxc(declarator, exported_names, raw_content);
                         // Collect $props() info for typedef generation
                         if props_rune_info.is_none() {
@@ -464,6 +507,16 @@ pub fn process_instance_script(
                             declared_names.insert(name.clone());
                         }
                         if let Some(name) = binding_pattern_simple_name(&declarator.id) {
+                            let ta_text = declarator.type_annotation.as_ref().and_then(|ta| {
+                                let ts_type = &ta.type_annotation;
+                                let start = ts_type.span().start as usize;
+                                let end = ts_type.span().end as usize;
+                                if start < end && end <= raw_content.len() {
+                                    Some(raw_content[start..end].to_string())
+                                } else {
+                                    None
+                                }
+                            });
                             possible_exports.insert(
                                 name,
                                 PossibleExport {
@@ -471,6 +524,7 @@ pub fn process_instance_script(
                                     has_init: declarator.init.is_some(),
                                     has_type_annotation: declarator.type_annotation.is_some(),
                                     decl_end: declarator.span.end,
+                                    type_annotation_text: ta_text,
                                 },
                             );
                         }
@@ -522,6 +576,17 @@ pub fn process_instance_script(
                                     }
                                     if let Some(name) = binding_pattern_simple_name(&declarator.id)
                                     {
+                                        let ta_text =
+                                            declarator.type_annotation.as_ref().and_then(|ta| {
+                                                let ts_type = &ta.type_annotation;
+                                                let start = ts_type.span().start as usize;
+                                                let end = ts_type.span().end as usize;
+                                                if start < end && end <= raw_content.len() {
+                                                    Some(raw_content[start..end].to_string())
+                                                } else {
+                                                    None
+                                                }
+                                            });
                                         possible_exports.insert(
                                             name,
                                             PossibleExport {
@@ -531,6 +596,7 @@ pub fn process_instance_script(
                                                     .type_annotation
                                                     .is_some(),
                                                 decl_end: declarator.span.end,
+                                                type_annotation_text: ta_text,
                                             },
                                         );
                                     }
@@ -588,6 +654,42 @@ pub fn process_instance_script(
                     raw_content,
                     is_ts,
                 );
+            }
+        }
+
+        // Pass 2.5: Split multi-declarator let statements when variables are
+        // exported via specifiers (e.g., `let a = 1, b;` with `export { a, b }`)
+        for stmt in program.body.iter() {
+            if let oxc::Statement::VariableDeclaration(var_decl) = stmt {
+                let is_let = matches!(
+                    var_decl.kind,
+                    oxc::VariableDeclarationKind::Let | oxc::VariableDeclarationKind::Var
+                );
+                let num_declarators = var_decl.declarations.len();
+                if is_let && num_declarators > 1 {
+                    // Check if any declarator in this statement is exported
+                    let any_exported = var_decl.declarations.iter().any(|d| {
+                        if let Some(name) = binding_pattern_simple_name(&d.id) {
+                            exported_names.has(&name)
+                        } else {
+                            false
+                        }
+                    });
+                    if any_exported {
+                        for decl_idx in 0..num_declarators - 1 {
+                            let decl_end_rel = var_decl.declarations[decl_idx].span.end;
+                            let next_decl_start_rel =
+                                var_decl.declarations[decl_idx + 1].span.start;
+                            // Replace `,` between declarators with `;let `
+                            // Preserve the original whitespace before the next declarator
+                            str.overwrite(
+                                decl_end_rel + offset,
+                                next_decl_start_rel + offset,
+                                ";let  ",
+                            );
+                        }
+                    }
+                }
             }
         }
 
@@ -703,14 +805,9 @@ fn apply_props_typedef(
         };
 
         if is_ts {
-            // TS case: Insert `/*Ωignore_startΩ*/;type $$ComponentProps = { ... };/*Ωignore_endΩ*/`
-            // BEFORE the `let` statement, and add `: $$ComponentProps` after the destructuring.
-            let abs_let = info.let_pos + offset;
-            let type_decl = format!(
-                "/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/\n",
-                type_body
-            );
-            str.append_left(abs_let, &type_decl);
+            // TS case: The type declaration `/*Ωignore_startΩ*/;type $$ComponentProps = { ... };/*Ωignore_endΩ*/`
+            // will be inserted by svelte2tsx.rs as part of the $$render function body.
+            // Here we only add `: $$ComponentProps` after the destructuring pattern `}`.
 
             // Insert `: $$ComponentProps` after the destructuring pattern `}`
             let abs_pattern_end = info.destructure_end + offset;
@@ -719,6 +816,8 @@ fn apply_props_typedef(
             exported_names.has_component_props_typedef = true;
             // Store the type text as props_type_text so it's used in `create_props_str`
             exported_names.props_type_text = Some(type_body);
+            // Mark that this is a best-effort type that needs to go inside $$render
+            exported_names.type_already_inserted = true;
         } else {
             // JS case: Insert JSDoc typedef between `let` and `{`
             let typedef_text = format!(
@@ -965,12 +1064,13 @@ fn handle_export_named_decl(
             let possible = possible_exports.get(&local);
             let is_let = possible.map(|p| p.is_let).unwrap_or(false);
             let has_init = possible.map(|p| p.has_init).unwrap_or(true);
+            let type_ann = possible.and_then(|p| p.type_annotation_text.clone());
             let is_prop = is_instance && is_let;
             exported_names.add_full(
                 exported,
                 local.clone(),
                 has_init,
-                None,
+                type_ann,
                 is_prop,
                 is_let,
                 true,
@@ -1141,12 +1241,21 @@ fn handle_reactive_statement(
     }
 }
 
-fn detect_runes_call(declarator: &oxc::VariableDeclarator, exported_names: &mut ExportedNames) {
+fn detect_runes_call(
+    declarator: &oxc::VariableDeclarator,
+    exported_names: &mut ExportedNames,
+    declared_names: &HashSet<String>,
+) {
     if let Some(ref init) = declarator.init {
         if let oxc::Expression::CallExpression(call) = init {
             if let oxc::Expression::Identifier(ref callee) = call.callee {
                 if matches!(callee.name.as_str(), "$state" | "$derived" | "$effect") {
-                    exported_names.set_uses_runes(true);
+                    // Don't treat as rune if the base name (without $) is already declared
+                    // (e.g., `import { derived } from 'svelte/store'` means $derived is a store)
+                    let base_name = &callee.name[1..];
+                    if !declared_names.contains(base_name) {
+                        exported_names.set_uses_runes(true);
+                    }
                 }
             }
         }

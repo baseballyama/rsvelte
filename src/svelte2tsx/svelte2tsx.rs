@@ -404,11 +404,25 @@ pub fn svelte2tsx(
             }
 
             // Build $$ComponentProps type declaration for TS files
-            let ts_component_props_decl = if exported_names.has_component_props_typedef
+            let ts_component_props_before_render = if exported_names.has_component_props_typedef
                 && exported_names.props_type_text.is_some()
+                && !exported_names.type_already_inserted
             {
                 let type_text = exported_names.props_type_text.as_ref().unwrap();
                 format!(";type $$ComponentProps =  {};", type_text)
+            } else {
+                String::new()
+            };
+
+            // For best-effort auto-generated types, insert INSIDE $$render
+            let ts_component_props_inside_render = if exported_names.type_already_inserted
+                && exported_names.props_type_text.is_some()
+            {
+                let type_text = exported_names.props_type_text.as_ref().unwrap();
+                format!(
+                    "\n/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
+                    type_text
+                )
             } else {
                 String::new()
             };
@@ -420,12 +434,17 @@ pub fn svelte2tsx(
                 script_replacement.push('\n');
             }
             script_replacement.push_str(&import_text);
-            if !ts_component_props_decl.is_empty() {
-                script_replacement.push_str(&ts_component_props_decl);
+            if !ts_component_props_before_render.is_empty() {
+                script_replacement.push_str(&ts_component_props_before_render);
             }
+            let trailing_newline = if ts_component_props_inside_render.is_empty() {
+                "\n"
+            } else {
+                ""
+            };
             script_replacement.push_str(&format!(
-                "function $$render{}() {{{}\n",
-                render_generics, dollar_decls
+                "function $$render{}() {{{}{}{}",
+                render_generics, dollar_decls, ts_component_props_inside_render, trailing_newline
             ));
 
             if script_start < content_start {
@@ -433,21 +452,45 @@ pub fn svelte2tsx(
             }
         } else {
             // No imports: overwrite the entire <script> tag at once
-            let ts_component_props_decl = if exported_names.has_component_props_typedef
+            let ts_component_props_before_render = if exported_names.has_component_props_typedef
                 && exported_names.props_type_text.is_some()
+                && !exported_names.type_already_inserted
             {
                 let type_text = exported_names.props_type_text.as_ref().unwrap();
                 format!("\n;type $$ComponentProps =  {};", type_text)
             } else {
                 String::new()
             };
+
+            // For best-effort auto-generated types, insert INSIDE $$render
+            let ts_component_props_inside_render = if exported_names.type_already_inserted
+                && exported_names.props_type_text.is_some()
+            {
+                let type_text = exported_names.props_type_text.as_ref().unwrap();
+                format!(
+                    "\n/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
+                    type_text
+                )
+            } else {
+                String::new()
+            };
+
             if script_start < content_start {
+                let trailing_newline = if ts_component_props_inside_render.is_empty() {
+                    "\n"
+                } else {
+                    ""
+                };
                 str.overwrite(
                     script_start,
                     content_start,
                     &format!(
-                        ";{}function $$render{}() {{{}\n",
-                        ts_component_props_decl, render_generics, dollar_decls
+                        ";{}function $$render{}() {{{}{}{}",
+                        ts_component_props_before_render,
+                        render_generics,
+                        dollar_decls,
+                        ts_component_props_inside_render,
+                        trailing_newline
                     ),
                 );
             }
@@ -593,10 +636,21 @@ pub fn svelte2tsx(
         // When $$props or $$restProps is used, props is just an empty object
         "{}".to_string()
     } else {
-        exported_names.create_props_str()
+        exported_names.create_props_str(options.is_ts_file)
     };
     let is_svelte5 = matches!(options.version, SvelteVersion::V5);
-    let exports_str = exported_names.create_exports_str(is_svelte5);
+    // Determine effective accessors setting: from options OR <svelte:options accessors>
+    let effective_accessors = options.accessors
+        || ast
+            .options
+            .as_ref()
+            .and_then(|o| o.accessors)
+            .unwrap_or(false);
+    let exports_str = exported_names.create_exports_str_with_accessors(
+        is_svelte5,
+        effective_accessors,
+        options.is_ts_file,
+    );
     let bindings_str = exported_names.create_bindings_str(is_svelte5);
     let safe_name = format!("{}__SvelteComponent_", component_name);
 
@@ -655,9 +709,15 @@ pub fn svelte2tsx(
         if use_partial_with_any {
             "__sveltets_2_partial_with_any(__sveltets_2_with_any_event($$render()))".to_string()
         } else {
-            let optional_props = exported_names.create_optional_props_array();
+            let optional_props = exported_names.create_optional_props_array(options.is_ts_file);
             if optional_props.is_empty() {
-                "__sveltets_2_partial(__sveltets_2_with_any_event($$render()))".to_string()
+                if options.is_ts_file && !exported_names.is_empty() {
+                    // For TS files with `as {...}` type assertions on props,
+                    // don't wrap with __sveltets_2_partial
+                    "__sveltets_2_with_any_event($$render())".to_string()
+                } else {
+                    "__sveltets_2_partial(__sveltets_2_with_any_event($$render()))".to_string()
+                }
             } else {
                 format!(
                     "__sveltets_2_partial([{}], __sveltets_2_with_any_event($$render()))",

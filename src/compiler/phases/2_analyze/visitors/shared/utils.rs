@@ -1365,6 +1365,84 @@ fn nodes_equal(a: &Value, b: &Value) -> bool {
     false
 }
 
+/// Check if an Identifier node is a reference, using typed `JsPathEntry` accessors.
+///
+/// This is a specialized version of `is_reference` for Identifier nodes that avoids
+/// converting `JsPathEntry` to `Value`. It uses `get_type_str()`, `get_field_bool()`,
+/// and position-based child field comparison.
+///
+/// `ident_start` is the `start` position of the Identifier node.
+pub fn is_reference_for_identifier_typed(
+    ident_start: u32,
+    parent: Option<&super::super::JsPathEntry>,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    let parent = match parent {
+        Some(p) => p,
+        None => return true,
+    };
+
+    let parent_type = parent.get_type_str();
+
+    match parent_type {
+        // Disregard `bar` in `foo.bar`
+        Some("MemberExpression") => {
+            let computed = parent.get_field_bool("computed").unwrap_or(false);
+            if computed {
+                return true;
+            }
+            // Check if identifier is the object (not the property)
+            parent
+                .get_child_field_start("object", arena)
+                .is_some_and(|obj_start| ident_start == obj_start)
+        }
+
+        // Disregard the `foo` in `class {foo(){}}` but keep it in `class {[foo](){}}`
+        Some("MethodDefinition") => parent.get_field_bool("computed").unwrap_or(false),
+
+        // Disregard the `meta` in `import.meta`
+        Some("MetaProperty") => parent
+            .get_child_field_start("meta", arena)
+            .is_some_and(|meta_start| ident_start == meta_start),
+
+        // Disregard the `foo` in `class {foo=bar}` but keep in `class {[foo]=bar}` and `class {bar=foo}`
+        Some("PropertyDefinition") => {
+            let computed = parent.get_field_bool("computed").unwrap_or(false);
+            if computed {
+                return true;
+            }
+            // Check if identifier is the value (not the key)
+            parent
+                .get_child_field_start("value", arena)
+                .is_some_and(|val_start| ident_start == val_start)
+        }
+
+        // Disregard the `bar` in `{ bar: foo }`, but keep it in `{ [bar]: foo }`
+        Some("Property") => {
+            let computed = parent.get_field_bool("computed").unwrap_or(false);
+            if computed {
+                return true;
+            }
+            // Check if identifier is the value (not the key)
+            parent
+                .get_child_field_start("value", arena)
+                .is_some_and(|val_start| ident_start == val_start)
+        }
+
+        // Disregard the `bar` in `export { foo as bar }` or
+        // the foo in `import { foo as bar }`
+        Some("ExportSpecifier") | Some("ImportSpecifier") => parent
+            .get_child_field_start("local", arena)
+            .is_some_and(|local_start| ident_start == local_start),
+
+        // Disregard the `foo` in `foo: while (...) { ... break foo; ... continue foo;}`
+        Some("LabeledStatement") | Some("BreakStatement") | Some("ContinueStatement") => false,
+
+        // Default: it's a reference
+        _ => true,
+    }
+}
+
 /// Validate an attribute name.
 ///
 /// Checks for:

@@ -3608,6 +3608,86 @@ impl JsNode {
         }
     }
 
+    /// Get the start position of a child node field by name.
+    ///
+    /// Resolves the child `JsNodeId` through the given arena and returns
+    /// the child's start position. Used for positional equality checks
+    /// (e.g., "is this identifier the `object` of a MemberExpression?").
+    pub fn get_child_field_start(
+        &self,
+        field: &str,
+        arena: &crate::ast::arena::ParseArena,
+    ) -> Option<u32> {
+        match field {
+            "object" => match self {
+                JsNode::MemberExpression { object, .. } => arena.get_js_node(*object).start(),
+                _ => None,
+            },
+            "property" => match self {
+                JsNode::MemberExpression { property, .. } => arena.get_js_node(*property).start(),
+                _ => None,
+            },
+            "value" => match self {
+                JsNode::Property { value, .. } => arena.get_js_node(*value).start(),
+                JsNode::PropertyDefinition { value: Some(v), .. } => arena.get_js_node(*v).start(),
+                _ => None,
+            },
+            "meta" => match self {
+                JsNode::MetaProperty { meta, .. } => arena.get_js_node(*meta).start(),
+                _ => None,
+            },
+            "local" => match self {
+                JsNode::ExportSpecifier { local, .. }
+                | JsNode::ImportSpecifier { local, .. }
+                | JsNode::ImportDefaultSpecifier { local, .. }
+                | JsNode::ImportNamespaceSpecifier { local, .. } => {
+                    arena.get_js_node(*local).start()
+                }
+                _ => None,
+            },
+            "left" => match self {
+                JsNode::AssignmentExpression { left, .. } => arena.get_js_node(*left).start(),
+                _ => None,
+            },
+            "id" => match self {
+                JsNode::VariableDeclarator { id, .. } => arena.get_js_node(*id).start(),
+                _ => None,
+            },
+            "callee" => match self {
+                JsNode::CallExpression { callee, .. } => arena.get_js_node(*callee).start(),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    /// Get the end position of a child node field by name.
+    ///
+    /// Like `get_child_field_start` but returns end position.
+    pub fn get_child_field_end(
+        &self,
+        field: &str,
+        arena: &crate::ast::arena::ParseArena,
+    ) -> Option<u32> {
+        match field {
+            "id" => match self {
+                JsNode::VariableDeclarator { id, .. } => arena.get_js_node(*id).end(),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    /// Get the callee JsNode reference for a CallExpression.
+    ///
+    /// Returns the resolved callee node. Used for typed rune checks.
+    pub fn get_callee<'a>(&self, arena: &'a crate::ast::arena::ParseArena) -> Option<&'a JsNode> {
+        match self {
+            JsNode::CallExpression { callee, .. } => Some(arena.get_js_node(*callee)),
+            _ => None,
+        }
+    }
+
     pub fn to_value(&self) -> Value {
         use crate::ast::arena::{has_serialize_arena, with_serialize_arena};
         if has_serialize_arena() {

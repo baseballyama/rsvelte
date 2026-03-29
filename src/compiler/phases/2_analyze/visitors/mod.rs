@@ -253,6 +253,65 @@ impl JsPathEntry {
         }
     }
 
+    /// Get the start position of a named child field.
+    ///
+    /// For `TypedNode` entries, resolves the child `JsNodeId` through the arena.
+    /// For `Value` entries, does `node.get(field).get("start").as_u64()`.
+    pub fn get_child_field_start(
+        &self,
+        field: &str,
+        arena: &crate::ast::arena::ParseArena,
+    ) -> Option<u32> {
+        match self {
+            Self::TypedNode { node, .. } => {
+                let js_node = unsafe { &**node };
+                js_node.get_child_field_start(field, arena)
+            }
+            _ => self
+                .as_value()
+                .get(field)
+                .and_then(|v| v.get("start"))
+                .and_then(|s| s.as_u64())
+                .map(|n| n as u32),
+        }
+    }
+
+    /// Get the end position of a named child field.
+    pub fn get_child_field_end(
+        &self,
+        field: &str,
+        arena: &crate::ast::arena::ParseArena,
+    ) -> Option<u32> {
+        match self {
+            Self::TypedNode { node, .. } => {
+                let js_node = unsafe { &**node };
+                js_node.get_child_field_end(field, arena)
+            }
+            _ => self
+                .as_value()
+                .get(field)
+                .and_then(|v| v.get("end"))
+                .and_then(|e| e.as_u64())
+                .map(|n| n as u32),
+        }
+    }
+
+    /// Get the callee JsNode for a CallExpression entry, if typed.
+    ///
+    /// Falls back to None for non-typed entries.
+    pub fn get_callee_typed<'a>(
+        &self,
+        arena: &'a crate::ast::arena::ParseArena,
+    ) -> Option<&'a crate::ast::typed_expr::JsNode> {
+        match self {
+            Self::TypedNode { node, .. } => {
+                let js_node = unsafe { &**node };
+                js_node.get_callee(arena)
+            }
+            _ => None,
+        }
+    }
+
     /// Check if this entry is a specific ESTree node type.
     #[inline]
     pub fn is_type(&self, type_name: &str) -> bool {

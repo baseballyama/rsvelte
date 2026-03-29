@@ -16,7 +16,7 @@ use crate::ast::template::{
     UseDirective,
 };
 
-use std::collections::BTreeMap;
+use indexmap::IndexMap;
 
 use super::magic_string::MagicString;
 use super::svelte2tsx::{Svelte2TsxOptions, SvelteVersion};
@@ -30,7 +30,7 @@ use super::svelte2tsx::{Svelte2TsxOptions, SvelteVersion};
 pub struct TemplateInfo {
     /// Slots used in the component: slot_name -> list of prop strings.
     /// e.g., "default" -> ["a:b", "c:d"]
-    pub slots: BTreeMap<String, Vec<String>>,
+    pub slots: IndexMap<String, Vec<String>>,
     /// Events forwarded from elements (on:event without handler).
     /// e.g., "click" -> "__sveltets_2_mapElementEvent('click')"
     pub element_events: Vec<(String, String)>,
