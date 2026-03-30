@@ -1137,6 +1137,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eb3e6120999627ec9703025eab7c9f410ebb7e95557632a8902ca48210416c2b"
 dependencies = [
  "nonmax",
+ "rayon",
  "serde",
 ]
 
@@ -1644,6 +1645,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
+name = "string_wizard"
+version = "0.0.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "49077a960de0ac40075720160a3afb2bfac54ee2b744f245730b811c6fc95ed7"
+dependencies = [
+ "memchr",
+ "oxc_index",
+ "oxc_sourcemap",
+ "rustc-hash",
+ "serde",
+]
+
+[[package]]
 name = "supports-color"
 version = "3.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1701,6 +1715,7 @@ dependencies = [
  "serde_json",
  "smallvec",
  "sourcemap",
+ "string_wizard",
  "test-generator",
  "thiserror",
  "tikv-jemallocator",
