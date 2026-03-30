@@ -540,9 +540,37 @@ pub fn svelte2tsx(
             }
 
             // Build $$ComponentProps type declaration for TS files
+            //
+            // Determine if the $$ComponentProps type must go INSIDE $$render
+            // rather than before it. This is needed when the type references:
+            // - `typeof x` (runtime value dependency on instance variables)
+            // - generic type parameters from the `generics` attribute on <script>
+            // - types that shadow module-level types
+            let force_inside_render = exported_names.has_component_props_typedef
+                && exported_names.props_type_text.is_some()
+                && !exported_names.type_already_inserted
+                && {
+                    let type_text = exported_names.props_type_text.as_ref().unwrap();
+                    // Check if type references runtime values via `typeof`
+                    let has_typeof = type_text.contains("typeof ");
+                    // Check if type references generics from $$render
+                    let has_generic_dep = !render_generics.is_empty()
+                        && generics_param
+                            .as_ref()
+                            .map(|g| {
+                                // Extract generic param names and check if any appear in the type
+                                split_generic_param_names(g)
+                                    .iter()
+                                    .any(|name| type_text.contains(name.as_str()))
+                            })
+                            .unwrap_or(false);
+                    has_typeof || has_generic_dep
+                };
+
             let ts_component_props_before_render = if exported_names.has_component_props_typedef
                 && exported_names.props_type_text.is_some()
                 && !exported_names.type_already_inserted
+                && !force_inside_render
             {
                 let type_text = exported_names.props_type_text.as_ref().unwrap();
                 format!(";type $$ComponentProps =  {};", type_text)
@@ -551,14 +579,19 @@ pub fn svelte2tsx(
             };
 
             // For best-effort auto-generated types, insert INSIDE $$render
-            let ts_component_props_inside_render = if exported_names.type_already_inserted
+            let ts_component_props_inside_render = if (exported_names.type_already_inserted
+                || force_inside_render)
                 && exported_names.props_type_text.is_some()
             {
                 let type_text = exported_names.props_type_text.as_ref().unwrap();
-                format!(
-                    "\n/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
-                    type_text
-                )
+                if force_inside_render {
+                    format!("\n;type $$ComponentProps =  {};", type_text)
+                } else {
+                    format!(
+                        "\n/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
+                        type_text
+                    )
+                }
             } else {
                 String::new()
             };
@@ -592,9 +625,28 @@ pub fn svelte2tsx(
             }
         } else {
             // No imports: overwrite the entire <script> tag at once
+            let force_inside_render_no_imports = exported_names.has_component_props_typedef
+                && exported_names.props_type_text.is_some()
+                && !exported_names.type_already_inserted
+                && {
+                    let type_text = exported_names.props_type_text.as_ref().unwrap();
+                    let has_typeof = type_text.contains("typeof ");
+                    let has_generic_dep = !render_generics.is_empty()
+                        && generics_param
+                            .as_ref()
+                            .map(|g| {
+                                split_generic_param_names(g)
+                                    .iter()
+                                    .any(|name| type_text.contains(name.as_str()))
+                            })
+                            .unwrap_or(false);
+                    has_typeof || has_generic_dep
+                };
+
             let ts_component_props_before_render = if exported_names.has_component_props_typedef
                 && exported_names.props_type_text.is_some()
                 && !exported_names.type_already_inserted
+                && !force_inside_render_no_imports
             {
                 let type_text = exported_names.props_type_text.as_ref().unwrap();
                 format!("\n;type $$ComponentProps =  {};", type_text)
@@ -603,14 +655,19 @@ pub fn svelte2tsx(
             };
 
             // For best-effort auto-generated types, insert INSIDE $$render
-            let ts_component_props_inside_render = if exported_names.type_already_inserted
+            let ts_component_props_inside_render = if (exported_names.type_already_inserted
+                || force_inside_render_no_imports)
                 && exported_names.props_type_text.is_some()
             {
                 let type_text = exported_names.props_type_text.as_ref().unwrap();
-                format!(
-                    "\n/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
-                    type_text
-                )
+                if force_inside_render_no_imports {
+                    format!("\n;type $$ComponentProps =  {};", type_text)
+                } else {
+                    format!(
+                        "\n/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
+                        type_text
+                    )
+                }
             } else {
                 String::new()
             };
@@ -830,6 +887,13 @@ pub fn svelte2tsx(
         for (name, value) in events.get_event_entries() {
             event_parts.push(format!("'{}': {}", name, value));
         }
+        // Add generic event typing from createEventDispatcher<Type>()
+        if let Some(ref generic_type) = events.dispatcher_generic_type {
+            event_parts.push(format!(
+                "...__sveltets_2_toEventTypings<{}>()",
+                generic_type
+            ));
+        }
         if event_parts.is_empty() {
             "{}".to_string()
         } else {
@@ -956,6 +1020,9 @@ pub fn svelte2tsx(
                     options.is_ts_file,
                 );
 
+                // Determine if the component has exports (exported functions/consts)
+                let has_real_exports = raw_exports == "$$HAS_EXPORTS$$";
+
                 // Build __sveltets_Render class
                 closing.push_str(&format!("class __sveltets_Render<{}> {{\n", gp));
                 closing.push_str(&format!(
@@ -968,22 +1035,52 @@ pub fn svelte2tsx(
                     gn
                 ));
                 closing.push_str(&format!("    bindings() {{ return {}; }}\n", raw_bindings));
-                closing.push_str(&format!("    exports() {{ return {}; }}\n", raw_exports));
+                // exports() returns $$render().exports if there are real exports, {} otherwise
+                let exports_return = if has_real_exports {
+                    format!("$$render<{}>().exports", gn)
+                } else {
+                    raw_exports.clone()
+                };
+                closing.push_str(&format!("    exports() {{ return {}; }}\n", exports_return));
                 closing.push_str("}\n\n");
+
+                // Build `any` type params string: one `any` per generic param
+                let any_params = generics_names
+                    .split(',')
+                    .map(|_| "any")
+                    .collect::<Vec<_>>()
+                    .join(",");
+
+                // Determine if component has slot elements (for {children?: any} in constructor)
+                let children_type_suffix = if has_slot_elements {
+                    "& {children?: any}"
+                } else {
+                    ""
+                };
 
                 // Build $$IsomorphicComponent interface
                 closing.push_str("interface $$IsomorphicComponent {\n");
                 closing.push_str(&format!(
-                    "    new <{}>(options: import('svelte').ComponentConstructorOptions<ReturnType<__sveltets_Render<{}>['props']>>): import('svelte').SvelteComponent<ReturnType<__sveltets_Render<{}>['props']>, ReturnType<__sveltets_Render<{}>['events']>, ReturnType<__sveltets_Render<{}>['slots']>> & {{ $$bindings?: ReturnType<__sveltets_Render<{}>['bindings']> }} & ReturnType<__sveltets_Render<{}>['exports']>;\n",
-                    gp, gn, gn, gn, gn, gn, gn
+                    "    new <{}>(options: import('svelte').ComponentConstructorOptions<ReturnType<__sveltets_Render<{}>['props']>{}>): import('svelte').SvelteComponent<ReturnType<__sveltets_Render<{}>['props']>, ReturnType<__sveltets_Render<{}>['events']>, ReturnType<__sveltets_Render<{}>['slots']>> & {{ $$bindings?: ReturnType<__sveltets_Render<{}>['bindings']> }} & ReturnType<__sveltets_Render<{}>['exports']>;\n",
+                    gp, gn, children_type_suffix, gn, gn, gn, gn, gn
+                ));
+                // Functional call signature: add $$slots and children only when component has slots
+                let slots_children_suffix = if has_slot_elements {
+                    format!(
+                        ", $$slots?: ReturnType<__sveltets_Render<{}>['slots']>, children?: any",
+                        gn
+                    )
+                } else {
+                    String::new()
+                };
+                closing.push_str(&format!(
+                    "    <{}>(internal: unknown, props: ReturnType<__sveltets_Render<{}>['props']> & {{$$events?: ReturnType<__sveltets_Render<{}>['events']>{}}}): ReturnType<__sveltets_Render<{}>['exports']>;\n",
+                    gp, gn, gn, slots_children_suffix, gn
                 ));
                 closing.push_str(&format!(
-                    "    <{}>(internal: unknown, props: ReturnType<__sveltets_Render<{}>['props']> & {{$$events?: ReturnType<__sveltets_Render<{}>['events']>}}): ReturnType<__sveltets_Render<{}>['exports']>;\n",
-                    gp, gn, gn, gn
+                    "    z_$$bindings?: ReturnType<__sveltets_Render<{}>['bindings']>;\n",
+                    any_params
                 ));
-                closing.push_str(
-                    "    z_$$bindings?: ReturnType<__sveltets_Render<any>['bindings']>;\n",
-                );
                 closing.push_str("}\n");
 
                 // Component export
@@ -1345,17 +1442,9 @@ fn find_instance_imports(script: &crate::ast::template::Script, source: &str) ->
     let mut imports = Vec::new();
     for stmt in result.program.body.iter() {
         if let oxc::Statement::ImportDeclaration(import) = stmt {
-            // Only lift imports with a `from` source clause.
-            // `import A` (without from) and `import C = require('')`
-            // are not valid ES module imports and should stay in-place.
-            if import.source.value.is_empty()
-                && import.specifiers.as_ref().map_or(true, |s| s.is_empty())
-            {
-                continue;
-            }
-            if import.source.value.is_empty() {
-                continue;
-            }
+            // All import declarations (including side-effect imports like `import ''`)
+            // should be lifted. The parser only creates ImportDeclaration nodes for
+            // valid `import` statements with a source clause.
             let mut start = import.span.start;
             let end = import.span.end;
 

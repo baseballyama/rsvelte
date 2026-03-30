@@ -865,8 +865,257 @@ impl<'a> ScopeBuilder<'a> {
             | JsNode::DebuggerStatement { .. }
             | JsNode::BreakStatement { .. }
             | JsNode::ContinueStatement { .. } => {}
+            // Handle JsNode::Raw for statements stored as JSON values.
+            // This is needed because ExportNamedDeclaration wraps its declaration
+            // as JsNode::Raw(Value) in the parser, so the scope builder must be
+            // able to process it.
+            JsNode::Raw(json) => {
+                self.process_raw_statement(json);
+            }
             _ => {}
         }
+    }
+
+    /// Process a statement stored as a JSON Value (Raw fallback).
+    ///
+    /// This handles cases where the parser wraps declarations as JsNode::Raw(Value),
+    /// such as the declaration inside ExportNamedDeclaration.
+    fn process_raw_statement(&mut self, json: &serde_json::Value) {
+        let json_type = json.get("type").and_then(|t| t.as_str());
+        match json_type {
+            Some("VariableDeclaration") => {
+                let decl_kind = match json.get("kind").and_then(|k| k.as_str()) {
+                    Some("const") => DeclarationKind::Const,
+                    Some("let") => DeclarationKind::Let,
+                    Some("var") => DeclarationKind::Var,
+                    _ => DeclarationKind::Const,
+                };
+                if let Some(declarators) = json.get("declarations").and_then(|d| d.as_array()) {
+                    for declarator in declarators {
+                        let id = declarator.get("id");
+                        let init = declarator.get("init");
+                        self.process_raw_binding_pattern(id, init, decl_kind);
+                        // Track updates in the initializer expression
+                        if let Some(init_val) = init {
+                            self.track_json_expression_updates(init_val);
+                        }
+                    }
+                }
+            }
+            Some("FunctionDeclaration") => {
+                if let Some(id) = json.get("id")
+                    && let Some(name) = id.get("name").and_then(|n| n.as_str())
+                {
+                    let idx = self.declare_binding(
+                        name.to_string(),
+                        BindingKind::Normal,
+                        DeclarationKind::Function,
+                    );
+                    self.bindings[idx].initial_is_function = true;
+                }
+                // Process function body for updates
+                if let Some(body) = json.get("body")
+                    && let Some(body_stmts) = body.get("body").and_then(|b| b.as_array())
+                {
+                    let old_scope = self.push_function_scope();
+                    self.function_depth += 1;
+                    // Declare function parameters
+                    if let Some(params) = json.get("params").and_then(|p| p.as_array()) {
+                        for param in params {
+                            self.declare_raw_binding_names(param, BindingKind::Normal);
+                        }
+                    }
+                    for stmt in body_stmts {
+                        self.process_raw_statement(stmt);
+                    }
+                    self.function_depth -= 1;
+                    self.pop_scope(old_scope);
+                }
+            }
+            Some("ClassDeclaration") => {
+                if let Some(id) = json.get("id")
+                    && let Some(name) = id.get("name").and_then(|n| n.as_str())
+                {
+                    self.declare_binding(
+                        name.to_string(),
+                        BindingKind::Normal,
+                        DeclarationKind::Let,
+                    );
+                }
+            }
+            Some("ExpressionStatement") => {
+                if let Some(expression) = json.get("expression") {
+                    self.track_json_expression_updates(expression);
+                }
+            }
+            Some("BlockStatement") => {
+                if let Some(body) = json.get("body").and_then(|b| b.as_array()) {
+                    let old_scope = self.push_scope();
+                    for stmt in body {
+                        self.process_raw_statement(stmt);
+                    }
+                    self.pop_scope(old_scope);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Process a binding pattern from a JSON Value (Raw fallback for declarations
+    /// inside ExportNamedDeclaration).
+    fn process_raw_binding_pattern(
+        &mut self,
+        pattern: Option<&serde_json::Value>,
+        init: Option<&serde_json::Value>,
+        decl_kind: DeclarationKind,
+    ) {
+        let pattern = match pattern {
+            Some(p) => p,
+            None => return,
+        };
+        let pattern_type = pattern.get("type").and_then(|t| t.as_str());
+        match pattern_type {
+            Some("Identifier") => {
+                if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
+                    let kind = init
+                        .map(Self::detect_binding_kind_from_json)
+                        .unwrap_or(BindingKind::Normal);
+                    let start_val =
+                        pattern.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
+                    let idx = self.declare_binding(name.to_string(), kind, decl_kind);
+                    self.bindings[idx].declaration_start = Some(start_val);
+                    if let Some(init_val) = init {
+                        let init_type = init_val.get("type").and_then(|t| t.as_str());
+                        if init_type == Some("ArrowFunctionExpression")
+                            || init_type == Some("FunctionExpression")
+                        {
+                            self.bindings[idx].initial_is_function = true;
+                        }
+                    }
+                }
+            }
+            Some("ObjectPattern") => {
+                if let Some(props) = pattern.get("properties").and_then(|p| p.as_array()) {
+                    for prop in props {
+                        let prop_type = prop.get("type").and_then(|t| t.as_str());
+                        match prop_type {
+                            Some("Property") => {
+                                self.process_raw_binding_pattern(
+                                    prop.get("value"),
+                                    None,
+                                    decl_kind,
+                                );
+                            }
+                            Some("RestElement") | Some("SpreadElement") => {
+                                self.process_raw_binding_pattern(
+                                    prop.get("argument"),
+                                    None,
+                                    decl_kind,
+                                );
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            Some("ArrayPattern") => {
+                if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
+                    for elem in elements {
+                        if !elem.is_null() {
+                            self.process_raw_binding_pattern(Some(elem), None, decl_kind);
+                        }
+                    }
+                }
+            }
+            Some("AssignmentPattern") => {
+                self.process_raw_binding_pattern(pattern.get("left"), init, decl_kind);
+            }
+            _ => {}
+        }
+    }
+
+    /// Declare binding names from a JSON pattern (for function parameters in Raw paths).
+    fn declare_raw_binding_names(&mut self, pattern: &serde_json::Value, kind: BindingKind) {
+        let pattern_type = pattern.get("type").and_then(|t| t.as_str());
+        match pattern_type {
+            Some("Identifier") => {
+                if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
+                    self.declare_binding(name.to_string(), kind, DeclarationKind::Const);
+                }
+            }
+            Some("ObjectPattern") => {
+                if let Some(props) = pattern.get("properties").and_then(|p| p.as_array()) {
+                    for prop in props {
+                        let prop_type = prop.get("type").and_then(|t| t.as_str());
+                        if prop_type == Some("Property") {
+                            if let Some(value) = prop.get("value") {
+                                self.declare_raw_binding_names(value, kind);
+                            }
+                        } else if (prop_type == Some("RestElement")
+                            || prop_type == Some("SpreadElement"))
+                            && let Some(arg) = prop.get("argument")
+                        {
+                            self.declare_raw_binding_names(arg, kind);
+                        }
+                    }
+                }
+            }
+            Some("ArrayPattern") => {
+                if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
+                    for elem in elements {
+                        if !elem.is_null() {
+                            self.declare_raw_binding_names(elem, kind);
+                        }
+                    }
+                }
+            }
+            Some("AssignmentPattern") => {
+                if let Some(left) = pattern.get("left") {
+                    self.declare_raw_binding_names(left, kind);
+                }
+            }
+            Some("RestElement") => {
+                if let Some(arg) = pattern.get("argument") {
+                    self.declare_raw_binding_names(arg, kind);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Detect binding kind from a JSON expression value.
+    /// This is the JSON equivalent of `detect_binding_kind_from_node`.
+    fn detect_binding_kind_from_json(init: &serde_json::Value) -> BindingKind {
+        if init.get("type").and_then(|t| t.as_str()) == Some("CallExpression") {
+            let callee = match init.get("callee") {
+                Some(c) => c,
+                None => return BindingKind::Normal,
+            };
+            let callee_type = callee.get("type").and_then(|t| t.as_str());
+            if callee_type == Some("Identifier") {
+                if let Some(name) = callee.get("name").and_then(|n| n.as_str()) {
+                    match name {
+                        "$state" => return BindingKind::State,
+                        "$derived" => return BindingKind::Derived,
+                        "$props" => return BindingKind::Prop,
+                        _ => {}
+                    }
+                }
+            } else if callee_type == Some("MemberExpression") {
+                let obj = callee.get("object");
+                let prop = callee.get("property");
+                if let (Some(obj), Some(prop)) = (obj, prop) {
+                    let obj_name = obj.get("name").and_then(|n| n.as_str());
+                    let prop_name = prop.get("name").and_then(|n| n.as_str());
+                    match (obj_name, prop_name) {
+                        (Some("$state"), Some("raw")) => return BindingKind::RawState,
+                        (Some("$derived"), Some("by")) => return BindingKind::Derived,
+                        _ => {}
+                    }
+                }
+            }
+        }
+        BindingKind::Normal
     }
 
     /// Process a binding pattern from a typed JsNode (for variable declarations).
@@ -3088,6 +3337,19 @@ impl<'a> ScopeBuilder<'a> {
                     for stmt in self.arena.get_js_children(stmts) {
                         self.track_node_statement_updates(stmt);
                     }
+                } else if let JsNode::Raw(json) = body_node {
+                    // The parser wraps arrow function bodies as JsNode::Raw(Value).
+                    // Handle both BlockStatement and expression bodies from JSON.
+                    let body_type = json.get("type").and_then(|t| t.as_str());
+                    if body_type == Some("BlockStatement") {
+                        if let Some(stmts) = json.get("body").and_then(|b| b.as_array()) {
+                            for stmt in stmts {
+                                self.track_json_statement_updates(stmt);
+                            }
+                        }
+                    } else {
+                        self.track_json_expression_updates(json);
+                    }
                 } else {
                     self.track_node_expression_updates(body_node);
                 }
@@ -3114,6 +3376,15 @@ impl<'a> ScopeBuilder<'a> {
                         let stmts = *stmts;
                         for stmt in self.arena.get_js_children(stmts) {
                             self.track_node_statement_updates(stmt);
+                        }
+                    } else if let JsNode::Raw(json) = body_node {
+                        // Handle Raw BlockStatement body (from convert_function_body_for_program)
+                        if json.get("type").and_then(|t| t.as_str()) == Some("BlockStatement") {
+                            if let Some(stmts) = json.get("body").and_then(|b| b.as_array()) {
+                                for stmt in stmts {
+                                    self.track_json_statement_updates(stmt);
+                                }
+                            }
                         }
                     }
                 }

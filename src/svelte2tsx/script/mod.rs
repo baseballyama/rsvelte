@@ -56,6 +56,9 @@ pub struct ExportedNames {
     pub dollar_generics: Vec<(String, Option<String>)>,
     /// Source positions of `type X = $$Generic...` statements to blank out.
     pub dollar_generic_positions: Vec<(u32, u32)>,
+    /// Type/interface declarations from instance script that should be hoisted
+    /// before $$render(). Each entry is (start, end) relative to source (absolute positions).
+    pub hoistable_type_ranges: Vec<(u32, u32)>,
 }
 
 #[derive(Debug, Clone)]
@@ -93,6 +96,7 @@ impl ExportedNames {
             type_already_inserted: false,
             dollar_generics: Vec::new(),
             dollar_generic_positions: Vec::new(),
+            hoistable_type_ranges: Vec::new(),
         }
     }
     /// Build the generics string for `$$render` from `$$Generic` declarations.
@@ -384,13 +388,30 @@ impl ExportedNames {
     /// Return just the raw exports value (for __sveltets_Render class)
     pub fn create_raw_exports_str(
         &self,
-        _is_svelte5: bool,
-        _accessors: bool,
+        is_svelte5: bool,
+        accessors: bool,
         _is_ts: bool,
     ) -> String {
-        // For simplicity, return `{}` — the exports() method in __sveltets_Render
-        // returns the exports object value
-        "{}".to_string()
+        if !is_svelte5 {
+            return "{}".to_string();
+        }
+        // Check if there are actual exports (non-prop declarations)
+        let has_exports = self.get_ordered().iter().any(|(_, info)| {
+            if accessors && info.is_let {
+                return true;
+            }
+            if info.is_prop && !info.is_named_export {
+                return false;
+            }
+            !info.is_let || (self.is_runes_mode() && info.is_named_export)
+        });
+        if has_exports {
+            // Return a sentinel that signals "has exports" - the caller
+            // will use $$render<gn>().exports instead of {}
+            "$$HAS_EXPORTS$$".to_string()
+        } else {
+            "{}".to_string()
+        }
     }
 
     pub fn create_optional_props_array(&self, is_ts: bool) -> Vec<String> {
@@ -438,6 +459,9 @@ pub struct ComponentEvents {
     events: HashMap<String, EventInfo>,
     /// Whether the component forwards all events (uses `$$restProps` with event handlers).
     pub forwards_all_events: bool,
+    /// Generic type text from `createEventDispatcher<Type>()`, if any.
+    /// Used to generate `{...__sveltets_2_toEventTypings<Type>()}` in the events return.
+    pub dispatcher_generic_type: Option<String>,
 }
 
 /// Metadata about a single component event.
@@ -455,6 +479,7 @@ impl ComponentEvents {
         Self {
             events: HashMap::new(),
             forwards_all_events: false,
+            dispatcher_generic_type: None,
         }
     }
 
@@ -577,6 +602,8 @@ pub fn process_instance_script(
                     for declarator in var_decl.declarations.iter() {
                         detect_runes_call(declarator, exported_names, &declared_names);
                         detect_props_rune_oxc(declarator, exported_names, raw_content);
+                        // Detect createEventDispatcher<Type>() calls
+                        detect_create_event_dispatcher(declarator, raw_content, _events);
                         // Collect $props() info for typedef generation
                         if props_rune_info.is_none() {
                             props_rune_info = collect_props_rune_info(
@@ -1379,6 +1406,38 @@ fn detect_runes_call(
                     if !declared_names.contains(base_name) {
                         exported_names.set_uses_runes(true);
                     }
+                }
+            }
+        }
+    }
+}
+
+/// Detect `createEventDispatcher<Type>()` calls and extract the generic type.
+///
+/// Records the type text (e.g. `{a: A}`) in the events struct for use
+/// in the return statement's events field.
+fn detect_create_event_dispatcher(
+    declarator: &oxc::VariableDeclarator,
+    raw_content: &str,
+    events: &mut ComponentEvents,
+) {
+    if let Some(ref init) = declarator.init {
+        if let oxc::Expression::CallExpression(call) = init {
+            if let oxc::Expression::Identifier(ref callee) = call.callee {
+                if callee.name == "createEventDispatcher" {
+                    // Check for type arguments: createEventDispatcher<Type>()
+                    if let Some(ref type_args) = call.type_arguments {
+                        if let Some(first_param) = type_args.params.first() {
+                            let start = first_param.span().start as usize;
+                            let end = first_param.span().end as usize;
+                            if start < end && end <= raw_content.len() {
+                                let type_text = raw_content[start..end].to_string();
+                                events.dispatcher_generic_type = Some(type_text);
+                            }
+                        }
+                    }
+                    // Also detect dispatch('eventName') calls for individual events
+                    // (but that requires analyzing all call sites, which we skip here)
                 }
             }
         }

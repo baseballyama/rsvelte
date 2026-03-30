@@ -1295,7 +1295,7 @@ fn handle_component(
     // Add children prop for Svelte 5 if component has children.
     // The children prop is inserted at the beginning of the props object,
     // after any leading whitespace from the attribute spacing.
-    if is_svelte5 && has_children && !has_lets {
+    if is_svelte5 && has_children {
         // Insert children prop: strip leading whitespace from attrs_str,
         // prepend children, then re-add leading whitespace
         let children_text = "children:() => { return __sveltets_2_any(0); },";
