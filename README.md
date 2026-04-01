@@ -91,7 +91,7 @@ println!("{}", result.js.code);
 ## Highlights
 
 - **3,028 / 3,028 tests passing** — fully compatible with the official Svelte compiler test suite
-- **2.1x faster single-threaded, 15.8x faster multi-threaded** (vs the official JS compiler)
+- **1.9x faster single-threaded, 16.9x faster multi-threaded** (vs the official JS compiler)
 - **Drop-in replacement** — N-API bindings for seamless use with existing tools (Vite, etc.)
 - **WASM support** — runs in the browser
 
@@ -103,25 +103,25 @@ Benchmark of 3,654 Svelte files (average of 3 runs):
 
 | | Time | Throughput | Speedup |
 |---|---:|---:|---:|
-| **JavaScript (svelte/compiler)** | 717ms | 5,098 files/sec | 1.0x |
-| **Rust (single-threaded)** | 639ms | 5,720 files/sec | **1.1x** |
-| **Rust (multi-threaded)** | 119ms | 30,738 files/sec | **6.0x** |
+| **JavaScript (svelte/compiler)** | 656ms | 5,574 files/sec | 1.0x |
+| **Rust (single-threaded)** | 351ms | 10,402 files/sec | **1.9x** |
+| **Rust (multi-threaded)** | 39ms | 94,295 files/sec | **16.9x** |
 
 **Compile (SSR)**
 
 | | Time | Throughput | Speedup |
 |---|---:|---:|---:|
-| **JavaScript (svelte/compiler)** | 618ms | 5,915 files/sec | 1.0x |
-| **Rust (single-threaded)** | 331ms | 11,054 files/sec | **1.9x** |
-| **Rust (multi-threaded)** | 47ms | 77,277 files/sec | **13.1x** |
+| **JavaScript (svelte/compiler)** | 627ms | 5,831 files/sec | 1.0x |
+| **Rust (single-threaded)** | 358ms | 10,208 files/sec | **1.8x** |
+| **Rust (multi-threaded)** | 44ms | 82,971 files/sec | **14.2x** |
 
 **Parse**
 
 | | Time | Throughput | Speedup |
 |---|---:|---:|---:|
-| **JavaScript (svelte/compiler)** | 184ms | 19,897 files/sec | 1.0x |
-| **Rust (single-threaded)** | 113ms | 32,452 files/sec | **1.6x** |
-| **Rust (multi-threaded)** | 16ms | 226,978 files/sec | **11.4x** |
+| **JavaScript (svelte/compiler)** | 143ms | 25,561 files/sec | 1.0x |
+| **Rust (single-threaded)** | 6ms | 576,000 files/sec | **22.5x** |
+| **Rust (multi-threaded)** | 3ms | 1,278,621 files/sec | **50.0x** |
 
 > Benchmark environment: Apple M1 Max, 3,654 test files, average of 3 runs
 
