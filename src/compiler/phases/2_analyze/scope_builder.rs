@@ -957,6 +957,195 @@ impl<'a> ScopeBuilder<'a> {
                     self.pop_scope(old_scope);
                 }
             }
+            Some("ExportNamedDeclaration") => {
+                // Skip type-only exports
+                if json.get("exportKind").and_then(|k| k.as_str()) == Some("type") {
+                    return;
+                }
+                // Process the inner declaration (e.g., VariableDeclaration, FunctionDeclaration)
+                if let Some(declaration) = json.get("declaration")
+                    && !declaration.is_null()
+                {
+                    self.process_raw_statement(declaration);
+                }
+                // Also handle export specifiers to find re-exports:
+                // export { name as alias }
+                // These don't create new bindings but we handle them for completeness
+            }
+            Some("LabeledStatement") => {
+                // Check for `$:` reactive declarations in legacy mode
+                let label_name = json
+                    .get("label")
+                    .and_then(|l| l.get("name"))
+                    .and_then(|n| n.as_str());
+                if label_name == Some("$")
+                    && !self.runes_mode
+                    && let Some(body) = json.get("body")
+                    && body.get("type").and_then(|t| t.as_str()) == Some("ExpressionStatement")
+                    && let Some(expr) = body.get("expression")
+                {
+                    // Handle both direct AssignmentExpression and ParenthesizedExpression
+                    let inner_expr = if expr.get("type").and_then(|t| t.as_str())
+                        == Some("ParenthesizedExpression")
+                    {
+                        expr.get("expression").unwrap_or(expr)
+                    } else {
+                        expr
+                    };
+                    if inner_expr.get("type").and_then(|t| t.as_str())
+                        == Some("AssignmentExpression")
+                        && let Some(left) = inner_expr.get("left")
+                    {
+                        self.collect_raw_assignment_lhs_identifiers(left);
+                    }
+                }
+                // Process the body
+                if let Some(body) = json.get("body")
+                    && !body.is_null()
+                {
+                    self.process_raw_statement(body);
+                }
+            }
+            Some("IfStatement") => {
+                // Process consequent and alternate
+                if let Some(test) = json.get("test") {
+                    self.track_json_expression_updates(test);
+                }
+                if let Some(consequent) = json.get("consequent") {
+                    self.process_raw_statement(consequent);
+                }
+                if let Some(alternate) = json.get("alternate")
+                    && !alternate.is_null()
+                {
+                    self.process_raw_statement(alternate);
+                }
+            }
+            Some("ForStatement") => {
+                if let Some(init) = json.get("init")
+                    && !init.is_null()
+                {
+                    self.process_raw_statement(init);
+                }
+                if let Some(test) = json.get("test") {
+                    self.track_json_expression_updates(test);
+                }
+                if let Some(update) = json.get("update") {
+                    self.track_json_expression_updates(update);
+                }
+                if let Some(body) = json.get("body") {
+                    self.process_raw_statement(body);
+                }
+            }
+            Some("ForInStatement") | Some("ForOfStatement") => {
+                if let Some(right) = json.get("right") {
+                    self.track_json_expression_updates(right);
+                }
+                if let Some(body) = json.get("body") {
+                    self.process_raw_statement(body);
+                }
+            }
+            Some("WhileStatement") | Some("DoWhileStatement") => {
+                if let Some(test) = json.get("test") {
+                    self.track_json_expression_updates(test);
+                }
+                if let Some(body) = json.get("body") {
+                    self.process_raw_statement(body);
+                }
+            }
+            Some("ReturnStatement") | Some("ThrowStatement") => {
+                if let Some(argument) = json.get("argument")
+                    && !argument.is_null()
+                {
+                    self.track_json_expression_updates(argument);
+                }
+            }
+            Some("TryStatement") => {
+                if let Some(block) = json.get("block") {
+                    self.process_raw_statement(block);
+                }
+                if let Some(handler) = json.get("handler")
+                    && !handler.is_null()
+                {
+                    self.process_raw_statement(handler);
+                }
+                if let Some(finalizer) = json.get("finalizer")
+                    && !finalizer.is_null()
+                {
+                    self.process_raw_statement(finalizer);
+                }
+            }
+            Some("CatchClause") => {
+                if let Some(body) = json.get("body") {
+                    let old_scope = self.push_scope();
+                    // Declare catch parameter
+                    if let Some(param) = json.get("param")
+                        && !param.is_null()
+                    {
+                        self.declare_raw_binding_names(param, BindingKind::Normal);
+                    }
+                    self.process_raw_statement(body);
+                    self.pop_scope(old_scope);
+                }
+            }
+            Some("SwitchStatement") => {
+                if let Some(discriminant) = json.get("discriminant") {
+                    self.track_json_expression_updates(discriminant);
+                }
+                if let Some(cases) = json.get("cases").and_then(|c| c.as_array()) {
+                    for case in cases {
+                        if let Some(test) = case.get("test")
+                            && !test.is_null()
+                        {
+                            self.track_json_expression_updates(test);
+                        }
+                        if let Some(consequent) = case.get("consequent").and_then(|c| c.as_array())
+                        {
+                            for stmt in consequent {
+                                self.process_raw_statement(stmt);
+                            }
+                        }
+                    }
+                }
+            }
+            Some("ExportDefaultDeclaration") => {
+                // Export default doesn't create a named binding in the module scope
+            }
+            Some("ImportDeclaration") => {
+                // Process import specifiers for the Raw path
+                if json.get("importKind").and_then(|k| k.as_str()) == Some("type") {
+                    return;
+                }
+                let source_val = json
+                    .get("source")
+                    .and_then(|s| s.get("value"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                if let Some(specifiers) = json.get("specifiers").and_then(|s| s.as_array()) {
+                    for spec in specifiers {
+                        let spec_type = spec.get("type").and_then(|t| t.as_str());
+                        let local_name = spec
+                            .get("local")
+                            .and_then(|l| l.get("name"))
+                            .and_then(|n| n.as_str());
+                        if let Some(name) = local_name {
+                            match spec_type {
+                                Some("ImportDefaultSpecifier")
+                                | Some("ImportSpecifier")
+                                | Some("ImportNamespaceSpecifier") => {
+                                    let idx = self.declare_binding(
+                                        name.to_string(),
+                                        BindingKind::Normal,
+                                        DeclarationKind::Import,
+                                    );
+                                    self.bindings[idx].import_source = Some(source_val.clone());
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -1461,7 +1650,61 @@ impl<'a> ScopeBuilder<'a> {
                 let left_node = self.arena.get_js_node(*left);
                 self.collect_assignment_lhs_identifiers_typed(left_node);
             }
+            // Raw fallback - delegate to the JSON-based collector
+            JsNode::Raw(json) => {
+                self.collect_raw_assignment_lhs_identifiers(json);
+            }
             // MemberExpression, etc. - not implicit declarations
+            _ => {}
+        }
+    }
+
+    /// Collect identifiers from the LHS of an assignment expression (JSON path).
+    /// Used to find possible implicit `legacy_reactive` declarations from `$: x = expr`.
+    fn collect_raw_assignment_lhs_identifiers(&mut self, node: &serde_json::Value) {
+        let node_type = node.get("type").and_then(|t| t.as_str());
+        match node_type {
+            Some("Identifier") => {
+                if let Some(name) = node.get("name").and_then(|n| n.as_str())
+                    && !name.starts_with('$')
+                {
+                    self.possible_implicit_declarations.push(name.to_string());
+                }
+            }
+            Some("ArrayPattern") => {
+                if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
+                    for elem in elements {
+                        if !elem.is_null() {
+                            self.collect_raw_assignment_lhs_identifiers(elem);
+                        }
+                    }
+                }
+            }
+            Some("ObjectPattern") => {
+                if let Some(props) = node.get("properties").and_then(|p| p.as_array()) {
+                    for prop in props {
+                        let prop_type = prop.get("type").and_then(|t| t.as_str());
+                        match prop_type {
+                            Some("Property") => {
+                                if let Some(value) = prop.get("value") {
+                                    self.collect_raw_assignment_lhs_identifiers(value);
+                                }
+                            }
+                            Some("RestElement") | Some("SpreadElement") => {
+                                if let Some(arg) = prop.get("argument") {
+                                    self.collect_raw_assignment_lhs_identifiers(arg);
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            Some("AssignmentPattern") => {
+                if let Some(left) = node.get("left") {
+                    self.collect_raw_assignment_lhs_identifiers(left);
+                }
+            }
             _ => {}
         }
     }
@@ -2206,6 +2449,7 @@ impl<'a> ScopeBuilder<'a> {
     }
 
     /// Get the base identifier name from an expression (walking through member expressions).
+    #[allow(clippy::only_used_in_recursion)]
     fn get_base_identifier_name(&self, expr: &Expression) -> Option<String> {
         match expr {
             Expression::Identifier(ident) => Some(ident.name.to_string()),
@@ -3171,6 +3415,7 @@ impl<'a> ScopeBuilder<'a> {
     }
 
     /// Get the base identifier name from a JSON member expression.
+    #[allow(clippy::only_used_in_recursion)]
     fn get_json_base_identifier_name(&self, value: &serde_json::Value) -> Option<String> {
         let obj = value.as_object()?;
         let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");

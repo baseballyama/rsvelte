@@ -408,23 +408,7 @@ fn get_global_keypath(node: &Value, scope: &Scope) -> Option<String> {
 ///
 /// `true` if the name is a valid rune
 fn is_rune(name: &str) -> bool {
-    matches!(
-        name,
-        "$state"
-            | "$state.raw"
-            | "$state.snapshot"
-            | "$derived"
-            | "$derived.by"
-            | "$effect"
-            | "$effect.pre"
-            | "$effect.tracking"
-            | "$effect.root"
-            | "$props"
-            | "$bindable"
-            | "$inspect"
-            | "$inspect.trace"
-            | "$host"
-    )
+    super::function::is_rune(name)
 }
 
 /// Validate an assignment or update expression.
@@ -2402,13 +2386,15 @@ fn get_global_keypath_node(
                 return None;
             }
             // Property must be Identifier
-            let property_name = match arena.get_js_node(*property) {
+            let prop_node = arena.get_js_node(*property);
+            let property_name = match prop_node {
                 JsNode::Identifier { name, .. } => name.as_str(),
                 _ => return None,
             };
 
             // Recurse on object, then append .property
-            let mut base = get_global_keypath_node(arena.get_js_node(*object), scope, arena)?;
+            let obj_node = arena.get_js_node(*object);
+            let mut base = get_global_keypath_node(obj_node, scope, arena)?;
             base.push('.');
             base.push_str(property_name);
             Some(base)
@@ -2448,7 +2434,8 @@ pub fn get_rune_from_node(
 ) -> Option<String> {
     match node {
         JsNode::CallExpression { callee, .. } => {
-            let keypath = get_global_keypath_node(arena.get_js_node(*callee), scope, arena)?;
+            let callee_node = arena.get_js_node(*callee);
+            let keypath = get_global_keypath_node(callee_node, scope, arena)?;
             if !is_rune(&keypath) {
                 return None;
             }

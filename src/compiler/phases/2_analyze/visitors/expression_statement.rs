@@ -133,8 +133,27 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
 
         // For the complex `new Component({ target: ... })` warning detection,
         // fall back to Value-based logic
-        if matches!(expr_node, JsNode::NewExpression { .. }) {
+        let is_new_expr = match expr_node {
+            JsNode::NewExpression { .. } => true,
+            JsNode::Raw(v) => v.get("type").and_then(|t| t.as_str()) == Some("NewExpression"),
+            _ => false,
+        };
+        #[cfg(debug_assertions)]
+        if is_new_expr {
+            eprintln!(
+                "[DEBUG visit_typed ExpressionStatement] found NewExpression, converting to value..."
+            );
+        }
+        if is_new_expr {
             let value = node.to_value();
+            #[cfg(debug_assertions)]
+            eprintln!(
+                "[DEBUG] expression_statement value: {:?}",
+                value
+                    .get("expression")
+                    .and_then(|e| e.get("callee"))
+                    .and_then(|c| c.get("name"))
+            );
             if let Some(expr_val) = value.get("expression") {
                 check_legacy_component_creation(expr_val, context);
             }

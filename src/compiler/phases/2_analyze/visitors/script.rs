@@ -588,6 +588,14 @@ pub fn walk_js_node_typed(
     node: &JsNode,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
+    // For Raw nodes, delegate to the Value-based walker which properly dispatches
+    // visitors for all node types (FunctionDeclaration, FunctionExpression, etc.).
+    // Without this, Raw nodes would skip visitor dispatch and only visit children,
+    // missing critical state changes like function_depth increments.
+    if let JsNode::Raw(value) = node {
+        return walk_js_node(value, context);
+    }
+
     // leadingComments are not stored in JsNode variants (only in Raw/Value),
     // so we skip that processing for typed nodes. The Raw fallback handles it.
 

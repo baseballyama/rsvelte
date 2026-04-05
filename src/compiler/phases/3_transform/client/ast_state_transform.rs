@@ -1008,6 +1008,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     }
 
     /// Extract the root object name from a static member expression chain.
+    #[allow(clippy::only_used_in_recursion)]
     fn extract_root_object_from_static_member(
         &self,
         member: &StaticMemberExpression<'_>,
