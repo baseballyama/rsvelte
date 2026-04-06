@@ -153,6 +153,14 @@ fn convert_positions_to_utf16(value: &mut Value, pos_conv: &Utf8ToUtf16) {
 
 /// Convert a modern AST to legacy AST format.
 pub fn convert_to_legacy(source: &str, ast: Root) -> Value {
+    // Set the serialize arena so that as_json() calls can resolve JsNodeIds
+    unsafe { crate::ast::arena::set_serialize_arena(&ast.arena as *const _) };
+    let result = convert_to_legacy_inner(source, ast);
+    crate::ast::arena::clear_serialize_arena();
+    result
+}
+
+fn convert_to_legacy_inner(source: &str, ast: Root) -> Value {
     let mut result = Map::new();
 
     // Calculate html fragment start/end

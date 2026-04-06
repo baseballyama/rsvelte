@@ -68,7 +68,12 @@ pub fn analyze_component(
     // Here we invoke OXC to produce the full AST into the Root's arena.
     let line_offsets = crate::compiler::phases::phase1_parse::compute_line_offsets(source, false);
     // Resolve deferred lazy expressions in template AST
-    crate::compiler::phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(ast, source);
+    // If any expression has a parse error, return it immediately
+    if let Some(parse_err) =
+        crate::compiler::phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(ast, source)
+    {
+        return Err(parse_err.into());
+    }
 
     if let Some(ref mut instance) = ast.instance {
         crate::compiler::phases::phase1_parse::read::script::ensure_script_parsed(
@@ -1411,32 +1416,28 @@ fn promote_reassigned_store_variables(analysis: &mut ComponentAnalysis) {
 ///
 /// Corresponds to Svelte's 2-analyze/index.js L618-636
 fn promote_legacy_state_bindings(analysis: &mut ComponentAnalysis) {
-    // The instance scope index: bindings declared at scope >= instance_scope_index
-    // are in the instance script (or nested functions within it). Module-scope
-    // bindings (scope 0, when a <script module> block exists) should NOT be promoted
-    // because they are plain JavaScript variables, not reactive signals.
-    // In the official Svelte compiler, only instance-scope bindings are considered.
     let instance_scope_index = analysis.root.instance_scope_index;
 
     // If there's no instance script, no bindings should be promoted.
-    // This handles the case where there's only a <script module> tag.
-    // Module-level bindings are plain JavaScript, not reactive signals.
     if analysis.instance_script_content.is_none() {
         return;
     }
 
-    // Iterate over all bindings in the root scope (instance scope)
-    for binding in &mut analysis.root.bindings {
+    // Collect binding indices from the instance scope's declarations map.
+    // This mirrors the official Svelte compiler which iterates over
+    // `instance.scope.declarations.values()` - only bindings declared directly
+    // at the instance scope level, NOT bindings from nested functions.
+    let binding_indices: Vec<usize> = analysis.root.all_scopes[instance_scope_index]
+        .declarations
+        .values()
+        .copied()
+        .collect();
+
+    for binding_idx in binding_indices {
+        let binding = &analysis.root.bindings[binding_idx];
+
         // Only consider 'normal' bindings (not already state, derived, prop, etc.)
         if binding.kind != BindingKind::Normal {
-            continue;
-        }
-
-        // Skip module-scope bindings (declared in <script module> at scope 0).
-        // These are plain JS variables that should not become reactive signals.
-        // Only instance-scope bindings (scope_index >= instance_scope_index) are promoted.
-        // When instance_scope_index == 0 there is no module script, so all bindings qualify.
-        if instance_scope_index > 0 && binding.scope_index < instance_scope_index {
             continue;
         }
 
@@ -1463,7 +1464,7 @@ fn promote_legacy_state_bindings(analysis: &mut ComponentAnalysis) {
         }
 
         // Promote to 'state' kind
-        binding.kind = BindingKind::State;
+        analysis.root.bindings[binding_idx].kind = BindingKind::State;
     }
 }
 
@@ -2127,6 +2128,26 @@ impl std::fmt::Display for AnalysisError {
 }
 
 impl std::error::Error for AnalysisError {}
+
+impl From<crate::error::ParseError> for AnalysisError {
+    fn from(err: crate::error::ParseError) -> Self {
+        match err {
+            crate::error::ParseError::SvelteError { code, message, .. } => {
+                AnalysisError::ValidationWithCode { code, message }
+            }
+            crate::error::ParseError::TypeScriptInvalidFeature { feature, .. } => {
+                AnalysisError::ValidationWithCode {
+                    code: "typescript_invalid_feature".to_string(),
+                    message: format!(
+                        "TypeScript language features like {} are not natively supported",
+                        feature
+                    ),
+                }
+            }
+            other => AnalysisError::Validation(format!("{}", other)),
+        }
+    }
+}
 
 /// Reserved identifiers that cannot be declared.
 pub const RESERVED: &[&str] = &["$$props", "$$restProps", "$$slots"];

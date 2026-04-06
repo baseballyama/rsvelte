@@ -2056,6 +2056,121 @@ fn extract_shadowed_state_names(script: &str) -> std::collections::HashSet<Strin
 /// (like inside $effect callbacks) that aren't tracked in analysis.root.bindings.
 /// Returns Vec of (name, is_const, is_state) where is_state=true for $state vars,
 /// false for $derived vars.
+/// Check if a variable is reassigned (not just mutated) in the script text.
+/// Reassignment: `x = expr`, `x += expr`, `x++`, `++x`, etc.
+/// NOT reassignment: `x.foo = expr`, `x[0] = expr` (member mutation).
+pub(super) fn is_variable_reassigned_in_text(script: &str, var_name: &str) -> bool {
+    let bytes = script.as_bytes();
+    let var_bytes = var_name.as_bytes();
+    let var_len = var_bytes.len();
+
+    let mut i = 0;
+    while i + var_len <= bytes.len() {
+        // Find occurrences of the variable name
+        if let Some(pos) = memmem::find(&bytes[i..], var_bytes) {
+            let abs_pos = i + pos;
+
+            // Check word boundary before
+            let before_ok = if abs_pos == 0 {
+                true
+            } else {
+                let prev = bytes[abs_pos - 1];
+                !prev.is_ascii_alphanumeric() && prev != b'_' && prev != b'$'
+            };
+
+            // Check word boundary after
+            let after_pos = abs_pos + var_len;
+            let after_ok = if after_pos >= bytes.len() {
+                true
+            } else {
+                let next = bytes[after_pos];
+                !next.is_ascii_alphanumeric() && next != b'_' && next != b'$'
+            };
+
+            if before_ok && after_ok {
+                // Check if this is a reassignment (not member mutation)
+                // Look at what comes after the variable name (skip whitespace)
+                let mut j = after_pos;
+                while j < bytes.len() && bytes[j].is_ascii_whitespace() {
+                    j += 1;
+                }
+
+                if j < bytes.len() {
+                    let next_char = bytes[j];
+                    // Check for assignment operators: =, +=, -=, *=, /=, %=, etc.
+                    // But NOT == or => or =>{
+                    if next_char == b'=' {
+                        // Make sure it's not == or =>
+                        if j + 1 < bytes.len() && bytes[j + 1] != b'=' && bytes[j + 1] != b'>' {
+                            // Check that before the var, there's no `.` (which would mean member access)
+                            if abs_pos == 0 || bytes[abs_pos - 1] != b'.' {
+                                // This is `x = ...` which is a declaration or reassignment.
+                                // Check if it's the declaration itself (let x = $state(...))
+                                // by looking backwards for `let `, `const `, or `var `
+                                let before_text = &script[..abs_pos];
+                                let trimmed_before = before_text.trim_end();
+                                if trimmed_before.ends_with("let")
+                                    || trimmed_before.ends_with("const")
+                                    || trimmed_before.ends_with("var")
+                                {
+                                    // This is the declaration, not a reassignment
+                                } else {
+                                    return true;
+                                }
+                            }
+                        }
+                    } else if (next_char == b'+'
+                        || next_char == b'-'
+                        || next_char == b'*'
+                        || next_char == b'/'
+                        || next_char == b'%'
+                        || next_char == b'&'
+                        || next_char == b'|'
+                        || next_char == b'^')
+                        && j + 1 < bytes.len()
+                        && bytes[j + 1] == b'='
+                    {
+                        // Compound assignment: +=, -=, *=, /=, %=, &=, |=, ^=
+                        if abs_pos == 0 || bytes[abs_pos - 1] != b'.' {
+                            return true;
+                        }
+                    } else if next_char == b'+' && j + 1 < bytes.len() && bytes[j + 1] == b'+' {
+                        // x++ postfix increment
+                        if abs_pos == 0 || bytes[abs_pos - 1] != b'.' {
+                            return true;
+                        }
+                    } else if next_char == b'-' && j + 1 < bytes.len() && bytes[j + 1] == b'-' {
+                        // x-- postfix decrement
+                        if abs_pos == 0 || bytes[abs_pos - 1] != b'.' {
+                            return true;
+                        }
+                    }
+                }
+
+                // Also check for prefix ++/-- before the variable
+                if abs_pos >= 2 {
+                    let mut k = abs_pos - 1;
+                    while k > 0 && bytes[k].is_ascii_whitespace() {
+                        k -= 1;
+                    }
+                    if k > 0 && bytes[k] == b'+' && bytes[k - 1] == b'+' {
+                        return true;
+                    }
+                    if k > 0 && bytes[k] == b'-' && bytes[k - 1] == b'-' {
+                        return true;
+                    }
+                }
+            }
+
+            i = abs_pos + 1;
+        } else {
+            break;
+        }
+    }
+
+    false
+}
+
 pub(super) fn extract_local_reactive_vars(script: &str) -> Vec<(String, bool, bool)> {
     let mut vars = Vec::new();
 
@@ -2838,28 +2953,57 @@ fn transform_instance_script_for_visitors(
         .map(|b| b.name.as_str())
         .collect();
     let mut shadowed_local_reactive_vars: Vec<String> = Vec::new();
+    // Collect non-reactive shadowed vars to add to non_reactive_state_vars later
+    // (non_reactive_state_vars is declared after this loop).
+    let mut non_reactive_shadowed_vars: Vec<String> = Vec::new();
     for (var, is_const, is_state) in &local_reactive_vars {
-        // Check if this is a non-reactive const $state in runes mode
-        // $derived vars are never non-reactive (they always need $.get())
-        let is_non_reactive = if analysis.immutable && *is_const && *is_state {
-            let state_pattern = format!("const {}", var);
-            script_rest.contains(&format!("{} = $state(", state_pattern))
-                || script_rest.contains(&format!("{} = $state.raw(", state_pattern))
-                || script_rest.contains(&format!("{} = $state.frozen(", state_pattern))
+        // Skip top-level bindings - they are already handled by the analysis-based
+        // state_vars and non_reactive_state_vars collections above. The text-based
+        // reassignment check below only works for script-local code and misses
+        // template-level reassignments (e.g., onclick={()=>count++}).
+        if top_level_binding_names.contains(var.as_str()) {
+            // This local reactive var shadows a top-level binding.
+            // Check if the inner declaration is non-reactive (const $state, never reassigned).
+            // If it is non-reactive, we should add it to non_reactive_state_vars so the
+            // rune transform strips $state() to just the argument, and the AST-based
+            // scope-aware transform will handle shadowing correctly.
+            let is_non_reactive_shadowed = analysis.immutable && *is_state && *is_const;
+            if is_non_reactive_shadowed {
+                non_reactive_shadowed_vars.push(var.clone());
+                // Don't add to shadowed_local_reactive_vars - the AST-based transform
+                // handles the scope-aware shadowing, and the rune transform will strip
+                // $state() to just the argument.
+            } else {
+                // It can't be added to the global state_vars (would incorrectly wrap
+                // top-level references), so we'll handle it via scope-aware post-processing.
+                shadowed_local_reactive_vars.push(var.clone());
+            }
+            continue;
+        }
+
+        // Check if this is a non-reactive $state in runes mode.
+        // In runes mode (immutable=true), a $state variable is non-reactive when it's
+        // not reassigned (mirrors is_state_source logic). For const vars, they can never
+        // be reassigned. For let vars, check the script text for reassignment patterns.
+        // $derived vars are never non-reactive (they always need $.get()).
+        let is_non_reactive = if analysis.immutable && *is_state {
+            if *is_const {
+                let state_pattern = format!("const {}", var);
+                script_rest.contains(&format!("{} = $state(", state_pattern))
+                    || script_rest.contains(&format!("{} = $state.raw(", state_pattern))
+                    || script_rest.contains(&format!("{} = $state.frozen(", state_pattern))
+            } else {
+                // let/var $state: check if the variable is actually reassigned in the script.
+                // Member mutations (x.foo = ...) do NOT count as reassignment.
+                !is_variable_reassigned_in_text(&script_rest, var)
+            }
         } else {
             false
         };
         if is_non_reactive {
             continue;
         }
-        if !top_level_binding_names.contains(var.as_str()) {
-            state_vars.push(var.clone());
-        } else {
-            // This local reactive var shadows a top-level binding.
-            // It can't be added to the global state_vars (would incorrectly wrap
-            // top-level references), so we'll handle it via scope-aware post-processing.
-            shadowed_local_reactive_vars.push(var.clone());
-        }
+        state_vars.push(var.clone());
     }
 
     // Collect proxy vars - variables initialized with $state({ ... }) or $state([ ... ])
@@ -2905,25 +3049,44 @@ fn transform_instance_script_for_visitors(
         Vec::new()
     };
 
-    // Also add local const $state() vars to non_reactive_state_vars in runes mode
+    // Also add local non-reassigned $state() vars to non_reactive_state_vars in runes mode.
     // These are variables declared inside function bodies (like derived callbacks)
-    // that are const and thus never reassigned.
-    // Note: We do NOT filter by top_level_binding_names here because the variable name
-    // may shadow a top-level binding (e.g., `const value = $state(0)` inside a derived callback
-    // where the outer `value` is also a binding). The non_reactive list is used for $state()
-    // unwrapping which operates on the local scope.
+    // that are never reassigned (const vars, or let vars without reassignment).
+    // Only apply to LOCAL vars (not in top_level_binding_names) because the text-based
+    // reassignment check only sees script code, not template assignments.
+    // Top-level vars are already correctly handled by the analysis-based collection above.
     if analysis.immutable {
         for (var, is_const, is_state) in &local_reactive_vars {
+            // Skip top-level bindings - they're already handled above
+            if top_level_binding_names.contains(var.as_str()) {
+                continue;
+            }
             // Only $state vars can be non-reactive; $derived always needs $.get()
-            if *is_const && *is_state {
-                let state_pattern = format!("const {}", var);
-                let is_state_decl = script_rest.contains(&format!("{} = $state(", state_pattern))
-                    || script_rest.contains(&format!("{} = $state.raw(", state_pattern))
-                    || script_rest.contains(&format!("{} = $state.frozen(", state_pattern));
-                if is_state_decl && !non_reactive_state_vars.contains(var) {
+            if *is_state {
+                let is_not_reassigned = if *is_const {
+                    // const vars are never reassigned
+                    let state_pattern = format!("const {}", var);
+                    script_rest.contains(&format!("{} = $state(", state_pattern))
+                        || script_rest.contains(&format!("{} = $state.raw(", state_pattern))
+                        || script_rest.contains(&format!("{} = $state.frozen(", state_pattern))
+                } else {
+                    // let/var: check text for actual reassignment
+                    !is_variable_reassigned_in_text(&script_rest, var)
+                };
+                if is_not_reassigned && !non_reactive_state_vars.contains(var) {
                     non_reactive_state_vars.push(var.clone());
                 }
             }
+        }
+    }
+
+    // Add non-reactive shadowed vars to non_reactive_state_vars.
+    // These are inner-scope const $state() declarations that shadow a top-level
+    // state/derived binding. They should be treated as non-reactive so the rune
+    // transform strips $state() to just the argument value.
+    for var in &non_reactive_shadowed_vars {
+        if !non_reactive_state_vars.contains(var) {
+            non_reactive_state_vars.push(var.clone());
         }
     }
 

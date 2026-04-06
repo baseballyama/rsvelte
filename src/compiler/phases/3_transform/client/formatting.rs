@@ -422,6 +422,36 @@ pub(super) fn extract_destructured_prop_names(statement: &str) -> Vec<String> {
 
 /// Normalize raw JavaScript formatting using OXC parser and codegen.
 ///
+/// Detect the common base indentation shared by all non-empty, non-first lines.
+/// Skips the first line because normalize_js_with_oxc doesn't add indent to it
+/// (the codegen's emit_statement handles first-line indentation).
+/// After trim(), the first line often has 0 indent which would defeat detection.
+fn detect_base_indent(code: &str) -> usize {
+    let mut min_indent: Option<usize> = None;
+    for (i, line) in code.lines().enumerate() {
+        if i == 0 || line.trim().is_empty() {
+            continue;
+        }
+        let indent = line.len() - line.trim_start().len();
+        min_indent = Some(min_indent.map_or(indent, |m: usize| m.min(indent)));
+    }
+    min_indent.unwrap_or(0)
+}
+
+/// Strip `base_indent` characters from the start of a line.
+fn strip_indent(line: &str, base_indent: usize) -> &str {
+    if base_indent == 0 || line.len() <= base_indent {
+        return line;
+    }
+    // Only strip if the line has enough leading whitespace
+    let leading = line.len() - line.trim_start().len();
+    if leading >= base_indent {
+        &line[base_indent..]
+    } else {
+        line.trim_start()
+    }
+}
+
 /// Parses the input as JavaScript, then reprints it with OXC's codegen to normalize:
 /// - Spacing around operators (e.g., `let x=0` -> `let x = 0`)
 /// - Spacing before braces (e.g., `function f(){` -> `function f() {`)
@@ -448,6 +478,11 @@ pub(super) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
             return code;
         }
 
+        // Strip the common base indentation from the source before applying target indent.
+        // Script content retains its original indentation (e.g., tabs from Svelte source).
+        // We must remove that base indent first, then apply the target indent level.
+        let base_indent = detect_base_indent(&code);
+
         // Apply indentation for non-first lines
         // Build directly into a single String to avoid Vec<String> + join overhead
         let indent_str: &str = match indent_level {
@@ -463,17 +498,19 @@ pub(super) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
                 result.push('\n');
             }
             if i == 0 {
-                in_template_literal = update_template_literal_state(line, in_template_literal);
-                result.push_str(line);
+                let stripped = strip_indent(line, base_indent);
+                in_template_literal = update_template_literal_state(stripped, in_template_literal);
+                result.push_str(stripped);
             } else if line.is_empty() {
                 // empty line, nothing to push
             } else if in_template_literal {
                 in_template_literal = update_template_literal_state(line, in_template_literal);
                 result.push_str(line);
             } else {
-                in_template_literal = update_template_literal_state(line, in_template_literal);
+                let stripped = strip_indent(line, base_indent);
+                in_template_literal = update_template_literal_state(stripped, in_template_literal);
                 result.push_str(indent_str);
-                result.push_str(line);
+                result.push_str(stripped);
             }
         }
         return result;

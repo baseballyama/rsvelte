@@ -616,11 +616,12 @@ impl<'a> ScopeBuilder<'a> {
                 let old_scope = self.push_function_scope();
                 self.function_depth += 1;
                 // Record function body start -> scope index mapping for visitor phase
+                // JsNode positions are already full-source positions (offset-adjusted during
+                // parsing), so we use them directly without adding current_script_offset.
                 if let Some(body_id) = body {
                     let body_node = self.arena.get_js_node(body_id);
                     if let Some(start) = body_node.start() {
-                        let key = (self.current_script_offset + start as usize) as u32;
-                        self.function_scope_map.insert(key, self.current_scope);
+                        self.function_scope_map.insert(start, self.current_scope);
                     }
                 }
                 // Declare function parameters in the new scope
@@ -919,6 +920,11 @@ impl<'a> ScopeBuilder<'a> {
                 {
                     let old_scope = self.push_function_scope();
                     self.function_depth += 1;
+                    // Register function scope for visitor phase scope lookup
+                    if let Some(start) = body.get("start").and_then(|s| s.as_u64()) {
+                        let key = start as u32;
+                        self.function_scope_map.insert(key, self.current_scope);
+                    }
                     // Declare function parameters
                     if let Some(params) = json.get("params").and_then(|p| p.as_array()) {
                         for param in params {
@@ -941,6 +947,12 @@ impl<'a> ScopeBuilder<'a> {
                         BindingKind::Normal,
                         DeclarationKind::Let,
                     );
+                }
+                // Process class body to find declarations in methods, getters, setters, etc.
+                // This ensures that identifiers like constructor parameters are added to the
+                // conflicts set, preventing naming collisions with generated variables.
+                if let Some(body) = json.get("body") {
+                    self.process_raw_class_body(body);
                 }
             }
             Some("ExpressionStatement") => {
@@ -1133,12 +1145,24 @@ impl<'a> ScopeBuilder<'a> {
                                 Some("ImportDefaultSpecifier")
                                 | Some("ImportSpecifier")
                                 | Some("ImportNamespaceSpecifier") => {
+                                    let specifier_type = spec_type.unwrap_or("ImportSpecifier");
                                     let idx = self.declare_binding(
                                         name.to_string(),
                                         BindingKind::Normal,
                                         DeclarationKind::Import,
                                     );
                                     self.bindings[idx].import_source = Some(source_val.clone());
+                                    // Store initial as ImportDeclaration JSON for
+                                    // legacy_component_creation warning detection
+                                    let import_json = serde_json::json!({
+                                        "type": "ImportDeclaration",
+                                        "source": { "value": source_val },
+                                        "specifiers": [{
+                                            "type": specifier_type,
+                                            "local": { "name": name }
+                                        }]
+                                    });
+                                    self.bindings[idx].initial = Some(import_json.to_string());
                                 }
                                 _ => {}
                             }
@@ -1147,6 +1171,62 @@ impl<'a> ScopeBuilder<'a> {
                 }
             }
             _ => {}
+        }
+    }
+
+    /// Process a class body stored as a JSON Value.
+    /// This handles ClassDeclaration stored as JsNode::Raw(Value) by iterating
+    /// method definitions and declaring their parameters in inner scopes.
+    /// This ensures that identifiers like constructor parameters are added to the
+    /// conflicts set, preventing naming collisions with generated variables.
+    fn process_raw_class_body(&mut self, body: &serde_json::Value) {
+        let elements = match body.get("body").and_then(|b| b.as_array()) {
+            Some(elems) => elems,
+            None => return,
+        };
+        for element in elements {
+            let elem_type = element.get("type").and_then(|t| t.as_str());
+            match elem_type {
+                Some("MethodDefinition") => {
+                    if let Some(value) = element.get("value") {
+                        let old_scope = self.push_function_scope();
+                        self.function_depth += 1;
+                        // Declare function parameters
+                        if let Some(params) = value.get("params").and_then(|p| p.as_array()) {
+                            for param in params {
+                                self.declare_raw_binding_names(param, BindingKind::Normal);
+                            }
+                        }
+                        // Process method body for declarations and updates
+                        if let Some(fn_body) = value.get("body")
+                            && let Some(body_stmts) = fn_body.get("body").and_then(|b| b.as_array())
+                        {
+                            for stmt in body_stmts {
+                                self.process_raw_statement(stmt);
+                            }
+                        }
+                        self.function_depth -= 1;
+                        self.pop_scope(old_scope);
+                    }
+                }
+                Some("PropertyDefinition") => {
+                    if let Some(value) = element.get("value")
+                        && !value.is_null()
+                    {
+                        self.track_json_expression_updates(value);
+                    }
+                }
+                Some("StaticBlock") => {
+                    if let Some(body_stmts) = element.get("body").and_then(|b| b.as_array()) {
+                        let old_scope = self.push_scope();
+                        for stmt in body_stmts {
+                            self.process_raw_statement(stmt);
+                        }
+                        self.pop_scope(old_scope);
+                    }
+                }
+                _ => {}
+            }
         }
     }
 
@@ -3460,8 +3540,20 @@ impl<'a> ScopeBuilder<'a> {
                 }
             }
             "VariableDeclaration" => {
+                let decl_kind = match obj.get("kind").and_then(|k| k.as_str()) {
+                    Some("const") => DeclarationKind::Const,
+                    Some("let") => DeclarationKind::Let,
+                    Some("var") => DeclarationKind::Var,
+                    _ => DeclarationKind::Const,
+                };
                 if let Some(declarations) = obj.get("declarations").and_then(|d| d.as_array()) {
                     for decl in declarations {
+                        // Declare the variable binding so it's in the conflicts set
+                        self.process_raw_binding_pattern(
+                            decl.get("id"),
+                            decl.get("init"),
+                            decl_kind,
+                        );
                         if let Some(init) = decl.get("init") {
                             if !init.is_null() {
                                 self.track_json_expression_updates(init);

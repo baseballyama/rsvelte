@@ -73,15 +73,18 @@ pub fn print_with_source(
     _options: Option<PrintOptions>,
     source: Option<&str>,
 ) -> Result<PrintResult, PrintError> {
-    let allocator = Allocator::default();
-    let mut context = Context::new_with_source(&allocator, source);
+    // Set the serialize arena so that as_json() calls can resolve JsNodeIds
+    crate::ast::arena::with_serialize_arena(&ast.arena, || {
+        let allocator = Allocator::default();
+        let mut context = Context::new_with_source(&allocator, source);
 
-    // Visit the root node to generate the code
-    visitors::visit_root(&mut context, ast);
+        // Visit the root node to generate the code
+        visitors::visit_root(&mut context, ast);
 
-    Ok(PrintResult {
-        code: context.to_string(),
-        map: context.get_source_map(),
+        Ok(PrintResult {
+            code: context.to_string(),
+            map: context.get_source_map(),
+        })
     })
 }
 

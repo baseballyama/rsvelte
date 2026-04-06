@@ -373,6 +373,38 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             || self.rest_prop_vars.contains(name)
     }
 
+    /// Check if a binding pattern contains any name that is a non-reactive variable.
+    /// Used to detect when a nested $.state() declaration shadows a non-reactive outer variable.
+    fn has_non_reactive_binding_name(&self, pattern: &BindingPattern<'_>) -> bool {
+        match pattern {
+            BindingPattern::BindingIdentifier(id) => {
+                self.non_reactive_vars.contains(id.name.as_str())
+            }
+            BindingPattern::ObjectPattern(obj) => {
+                obj.properties
+                    .iter()
+                    .any(|prop| self.has_non_reactive_binding_name(&prop.value))
+                    || obj
+                        .rest
+                        .as_ref()
+                        .is_some_and(|r| self.has_non_reactive_binding_name(&r.argument))
+            }
+            BindingPattern::ArrayPattern(arr) => {
+                arr.elements
+                    .iter()
+                    .flatten()
+                    .any(|elem| self.has_non_reactive_binding_name(elem))
+                    || arr
+                        .rest
+                        .as_ref()
+                        .is_some_and(|r| self.has_non_reactive_binding_name(&r.argument))
+            }
+            BindingPattern::AssignmentPattern(assign) => {
+                self.has_non_reactive_binding_name(&assign.left)
+            }
+        }
+    }
+
     /// Inner implementation for collecting binding names.
     /// When `skip_state_vars` is true, names that are in `self.state_vars` are not registered.
     fn collect_binding_names_inner(&mut self, pattern: &BindingPattern<'_>, skip_state_vars: bool) {
@@ -428,10 +460,26 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         // it would cause is_shadowed() to return true, preventing all transforms.
         // Regular declarations with the same name (e.g., `let count = 0` inside
         // a nested function) correctly shadow the outer state variable.
+        //
+        // EXCEPTION: When we're in a nested scope and the variable name is ALREADY
+        // a non-reactive state variable (in non_reactive_vars), this inner declaration
+        // SHADOWS the outer one. In this case, register it normally so that references
+        // within the inner scope are not transformed with $.get()/$.set().
         for declarator in &decl.declarations {
             let is_state_decl = self.is_known_transform_declaration(declarator);
             if is_state_decl {
-                self.collect_binding_names_skip_state(&declarator.id);
+                // Check if any declared name in this declarator is a non-reactive var.
+                // Non-reactive vars are already stripped of $.state() by the rune transform,
+                // so they don't need transforms. If a same-named $.state() declaration
+                // appears in a nested scope, it's shadowing the outer non-reactive var
+                // and should be treated as a regular (shadowing) declaration.
+                let is_shadowing_non_reactive = self.scoped_vars.len() > 1
+                    && self.has_non_reactive_binding_name(&declarator.id);
+                if is_shadowing_non_reactive {
+                    self.collect_binding_names(&declarator.id);
+                } else {
+                    self.collect_binding_names_skip_state(&declarator.id);
+                }
             } else {
                 self.collect_binding_names(&declarator.id);
             }

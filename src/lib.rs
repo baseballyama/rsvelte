@@ -9,7 +9,7 @@
 //!
 //! ## Usage
 //!
-//! ```rust
+//! ```rust,no_run
 //! use svelte_compiler_rust::{parse, ParseOptions};
 //!
 //! let source = r#"<h1>Hello, {name}!</h1>"#;

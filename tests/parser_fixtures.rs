@@ -7,6 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use rayon::prelude::*;
+use svelte_compiler_rust::ast::arena::with_serialize_arena;
 use svelte_compiler_rust::{ParseOptions, convert_to_legacy, parse};
 use walkdir::WalkDir;
 
@@ -152,7 +153,7 @@ fn run_fixture_test(sample_dir: &Path, modern: bool, skip_tests: &[&str]) -> Opt
             // If modern mode is requested, use the AST as-is
             // Otherwise, convert to legacy format
             let actual_json = if modern {
-                serde_json::to_string_pretty(&ast).unwrap()
+                with_serialize_arena(&ast.arena, || serde_json::to_string_pretty(&ast).unwrap())
             } else {
                 let legacy_ast = convert_to_legacy(&input, ast);
                 serde_json::to_string_pretty(&legacy_ast).unwrap()

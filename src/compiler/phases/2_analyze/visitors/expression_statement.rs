@@ -62,8 +62,13 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
 
                         if has_target_property
                             && let Some(callee_name) = callee.get("name").and_then(|n| n.as_str())
-                            && let Some(&binding_idx) =
-                                context.analysis.root.scope.declarations.get(callee_name)
+                            && let Some(&binding_idx) = context.analysis.root.all_scopes
+                                [context.analysis.root.instance_scope_index]
+                                .declarations
+                                .get(callee_name)
+                                .or_else(|| {
+                                    context.analysis.root.scope.declarations.get(callee_name)
+                                })
                         {
                             let binding = &context.analysis.root.bindings[binding_idx];
 
@@ -138,22 +143,8 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             JsNode::Raw(v) => v.get("type").and_then(|t| t.as_str()) == Some("NewExpression"),
             _ => false,
         };
-        #[cfg(debug_assertions)]
-        if is_new_expr {
-            eprintln!(
-                "[DEBUG visit_typed ExpressionStatement] found NewExpression, converting to value..."
-            );
-        }
         if is_new_expr {
             let value = node.to_value();
-            #[cfg(debug_assertions)]
-            eprintln!(
-                "[DEBUG] expression_statement value: {:?}",
-                value
-                    .get("expression")
-                    .and_then(|e| e.get("callee"))
-                    .and_then(|c| c.get("name"))
-            );
             if let Some(expr_val) = value.get("expression") {
                 check_legacy_component_creation(expr_val, context);
             }
@@ -212,7 +203,12 @@ fn check_legacy_component_creation(expression: &Value, context: &mut VisitorCont
     let Some(callee_name) = callee.get("name").and_then(|n| n.as_str()) else {
         return;
     };
-    let Some(&binding_idx) = context.analysis.root.scope.declarations.get(callee_name) else {
+    let Some(&binding_idx) = context.analysis.root.all_scopes
+        [context.analysis.root.instance_scope_index]
+        .declarations
+        .get(callee_name)
+        .or_else(|| context.analysis.root.scope.declarations.get(callee_name))
+    else {
         return;
     };
 

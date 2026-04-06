@@ -16,7 +16,7 @@
 //!
 //! ## Architecture
 //!
-//! ```
+//! ```text
 //! OXC AST (Rust structs)
 //!     |
 //! [estree_compat conversion layer] <-- this module

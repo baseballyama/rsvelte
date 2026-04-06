@@ -1488,32 +1488,46 @@ pub fn check_js_parse_error(content: &str) -> Option<String> {
     wrapped.push(')');
 
     // Try TypeScript first
-    let ts_error = with_oxc_allocator(|allocator| {
+    let ts_result = with_oxc_allocator(|allocator| {
         let parser = OxcParser::new(allocator, &wrapped, SourceType::ts());
         let result = parser.parse();
-        if result.errors.is_empty() {
-            return None;
+        if !result.errors.is_empty() {
+            return Some(result.errors.first().unwrap().message.to_string());
         }
-        result.errors.first().map(|e| e.message.to_string())
+        // Check for invalid assignment targets that OXC doesn't report as errors
+        if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
+            result.program.body.first()
+            && is_invalid_assignment_expression(&expr_stmt.expression)
+        {
+            return Some("Assigning to rvalue".to_string());
+        }
+        None
     });
 
     // No TS errors means valid
-    ts_error.as_ref()?;
+    ts_result.as_ref()?;
 
     // Try JavaScript
-    let js_error = with_oxc_allocator(|allocator| {
+    let js_result = with_oxc_allocator(|allocator| {
         let parser = OxcParser::new(allocator, &wrapped, SourceType::mjs());
         let result = parser.parse();
-        if result.errors.is_empty() {
-            return None;
+        if !result.errors.is_empty() {
+            return Some(result.errors.first().unwrap().message.to_string());
         }
-        result.errors.first().map(|e| e.message.to_string())
+        // Check for invalid assignment targets that OXC doesn't report as errors
+        if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
+            result.program.body.first()
+            && is_invalid_assignment_expression(&expr_stmt.expression)
+        {
+            return Some("Assigning to rvalue".to_string());
+        }
+        None
     });
 
     // No JS errors means valid
-    js_error.as_ref()?;
+    js_result.as_ref()?;
 
-    js_error.or(ts_error)
+    js_result.or(ts_result)
 }
 
 /// Create an identifier for invalid expressions
@@ -1525,6 +1539,36 @@ fn create_invalid_identifier(start: usize, end: usize, _line_offsets: &[usize]) 
         loc: None,
         name: CompactString::from(""),
     })
+}
+
+/// Check if an expression is an assignment to an invalid target (e.g., `42 = nope`).
+/// OXC may parse these without errors, but they should be treated as parse errors.
+fn is_invalid_assignment_expression(expr: &oxc_ast::ast::Expression) -> bool {
+    // Unwrap parenthesized expressions
+    let inner = match expr {
+        oxc_ast::ast::Expression::ParenthesizedExpression(paren) => &paren.expression,
+        _ => expr,
+    };
+
+    if let oxc_ast::ast::Expression::AssignmentExpression(assign) = inner {
+        return !is_valid_assignment_target(&assign.left);
+    }
+    false
+}
+
+/// Check if an assignment target is valid (identifier, member expression, etc.)
+fn is_valid_assignment_target(target: &oxc_ast::ast::AssignmentTarget) -> bool {
+    match target {
+        oxc_ast::ast::AssignmentTarget::AssignmentTargetIdentifier(_) => true,
+        oxc_ast::ast::AssignmentTarget::StaticMemberExpression(_) => true,
+        oxc_ast::ast::AssignmentTarget::ComputedMemberExpression(_) => true,
+        oxc_ast::ast::AssignmentTarget::PrivateFieldExpression(_) => true,
+        // Destructuring patterns are valid
+        oxc_ast::ast::AssignmentTarget::ArrayAssignmentTarget(_) => true,
+        oxc_ast::ast::AssignmentTarget::ObjectAssignmentTarget(_) => true,
+        // TSAs and other targets
+        _ => false,
+    }
 }
 
 fn parse_expression_with_typescript(
@@ -1553,6 +1597,13 @@ fn parse_expression_with_typescript(
             && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
                 result.program.body.first()
         {
+            // Check for invalid assignment targets (e.g., `42 = nope`).
+            // OXC may parse these without errors, but acorn/the Svelte compiler
+            // treats them as parse errors ("Assigning to rvalue").
+            if is_invalid_assignment_expression(&expr_stmt.expression) {
+                return None;
+            }
+
             // Adjust positions: subtract 1 for the opening paren we added
             let mut expr = convert_expression(arena, &expr_stmt.expression, offset, line_offsets);
 
@@ -2333,11 +2384,12 @@ fn convert_property_key_for_param(
             Value::Object(obj)
         }
         _ => {
-            // For computed keys, convert the expression properly
+            // For computed keys, convert the expression properly.
+            // Must use with_serialize_arena to resolve IdRange children
+            // allocated in the parse arena during serialization.
             if let Some(expr) = key.as_expression() {
-                convert_expression(arena, expr, adjusted_offset, line_offsets)
-                    .as_json()
-                    .clone()
+                let converted = convert_expression(arena, expr, adjusted_offset, line_offsets);
+                crate::ast::arena::with_serialize_arena(arena, || converted.as_json().clone())
             } else {
                 // Fallback placeholder for truly unhandled cases
                 let mut obj = Map::new();
@@ -2376,10 +2428,12 @@ fn convert_binding_pattern_for_param(
             Value::Object(obj)
         }
         BindingPattern::ObjectPattern(obj_pat) => {
-            // Recursive call for nested object patterns
-            convert_object_pattern_to_expr(arena, obj_pat, adjusted_offset, line_offsets)
-                .as_json()
-                .clone()
+            // Recursive call for nested object patterns.
+            // Must use with_serialize_arena to resolve IdRange children
+            // allocated in the parse arena during serialization.
+            let expr =
+                convert_object_pattern_to_expr(arena, obj_pat, adjusted_offset, line_offsets);
+            crate::ast::arena::with_serialize_arena(arena, || expr.as_json().clone())
         }
         BindingPattern::ArrayPattern(arr_pat) => {
             let start = adjusted_offset + arr_pat.span.start as usize;
@@ -2464,11 +2518,13 @@ fn convert_binding_pattern_for_param(
             );
             obj.insert("left".to_string(), left);
 
-            // Convert right (the default value) using the full expression converter
+            // Convert right (the default value) using the full expression converter.
+            // Must use with_serialize_arena to resolve IdRange children
+            // allocated in the parse arena during serialization.
+            let right_expr =
+                convert_expression(arena, &assign_pat.right, adjusted_offset, line_offsets);
             let right_val =
-                convert_expression(arena, &assign_pat.right, adjusted_offset, line_offsets)
-                    .as_json()
-                    .clone();
+                crate::ast::arena::with_serialize_arena(arena, || right_expr.as_json().clone());
             obj.insert("right".to_string(), right_val);
 
             Value::Object(obj)
@@ -8724,6 +8780,24 @@ pub fn parse_binding_pattern(
     offset: usize,
     line_offsets: &[usize],
 ) -> Result<Expression, crate::error::ParseError> {
+    // Check for reserved words in simple identifier contexts
+    // (e.g., {#each cases as case} where "case" is a reserved word)
+    let trimmed = content.trim();
+    if !trimmed.is_empty()
+        && !trimmed.starts_with('{')
+        && !trimmed.starts_with('[')
+        && super::super::utils::is_reserved(trimmed)
+    {
+        return Err(crate::error::ParseError::svelte(
+            "unexpected_reserved_word",
+            format!(
+                "'{}' is a reserved word in JavaScript and cannot be used here",
+                trimmed
+            ),
+            (offset, offset),
+        ));
+    }
+
     with_oxc_allocator(|allocator| {
         let source_type = SourceType::mjs();
 

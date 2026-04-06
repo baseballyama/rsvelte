@@ -535,17 +535,52 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
     unsafe { set_serialize_arena(&ast.arena as *const _) };
 
     // Resolve lazy expressions (deferred template expressions)
-    phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(&mut ast, source);
+    // If any expression has a parse error, return it immediately
+    if let Some(parse_err) =
+        phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(&mut ast, source)
+    {
+        clear_serialize_arena();
+        return Err(parse_err.into());
+    }
+
+    // Ensure deferred script parsing is completed before TypeScript removal.
+    // When defer_script_parse is enabled, script content is stored as raw text.
+    // We need to parse it first so remove_typescript_nodes can inspect the AST.
+    {
+        let line_offsets = phases::phase1_parse::compute_line_offsets(source, false);
+        if let Some(ref mut instance) = ast.instance {
+            phases::phase1_parse::read::script::ensure_script_parsed(
+                &ast.arena,
+                instance,
+                source,
+                &line_offsets,
+            );
+        }
+        if let Some(ref mut module) = ast.module {
+            phases::phase1_parse::read::script::ensure_script_parsed(
+                &ast.arena,
+                module,
+                source,
+                &line_offsets,
+            );
+        }
+    }
 
     // Remove TypeScript nodes from script content if TypeScript is detected.
     remove_typescript_from_ast(&mut ast)?;
 
     // Merge parsed <svelte:options> into compile options
+    // Reference: svelte/packages/svelte/src/compiler/index.js
+    //   const combined_options = { ...validated, ...parsed_options, customElementOptions };
     let mut options = options;
-    if let Some(ref parsed_options) = ast.options
-        && let Some(pw) = parsed_options.preserve_whitespace
-    {
-        options.preserve_whitespace = pw;
+    if let Some(ref parsed_options) = ast.options {
+        if let Some(pw) = parsed_options.preserve_whitespace {
+            options.preserve_whitespace = pw;
+        }
+        // Handle <svelte:options css="injected" /> — override compile options
+        if parsed_options.css == Some(crate::ast::template::CssOption::Injected) {
+            options.css = CssMode::Injected;
+        }
     }
 
     // Phase 2: Analyze
@@ -732,6 +767,10 @@ pub fn compile_module(
     // Parse JS source into an AST using the same infrastructure as component scripts
     // Pass empty line_offsets to skip loc object creation (not needed during compilation)
     let arena = crate::ast::arena::ParseArena::new();
+    // Set serialize arena BEFORE parsing so that to_value() calls inside
+    // convert_declaration_for_program (used for ExportNamedDeclaration declarations)
+    // can resolve JsNodeIds from this arena.
+    unsafe { set_serialize_arena(&arena as *const _) };
     let program = phases::phase1_parse::read::expression::parse_program(
         &arena,
         source,
@@ -803,7 +842,7 @@ pub fn compile_module(
         ..Default::default()
     };
 
-    // Set serialize arena for analysis/transform phase JsNodeId resolution
+    // Update serialize arena pointer (arena was moved into ast)
     unsafe { set_serialize_arena(&ast.arena as *const _) };
 
     // Phase 2: Analyze (reuses component analysis infrastructure)

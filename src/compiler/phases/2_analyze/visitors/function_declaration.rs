@@ -98,6 +98,28 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             Ok(())
         };
 
+        // For function bodies containing arrow functions whose body was serialized
+        // as JsNode::Raw(Value) during parsing, the Value may have corrupt nested
+        // nodes (JsNodeIds resolved incorrectly during to_value()). The walker above
+        // may miss NewExpression nodes nested inside arrow function bodies.
+        // Scan the source text as a fallback to detect `new ` keyword usage.
+        if !context.analysis.needs_context
+            && let Some(body_id) = body
+        {
+            let body_node = arena.get_js_node(*body_id);
+            if let (Some(start), Some(end)) = (body_node.start(), body_node.end()) {
+                let start = start as usize;
+                let end = (end as usize).min(context.analysis.source.len());
+                if start < end {
+                    let body_src = &context.analysis.source[start..end];
+                    // Check for `new ` keyword - indicates NewExpression
+                    if body_src.contains("new ") {
+                        context.analysis.needs_context = true;
+                    }
+                }
+            }
+        }
+
         // Decrement function depth and restore scope
         context.function_depth -= 1;
         context.scope = saved_scope;

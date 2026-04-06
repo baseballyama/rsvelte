@@ -558,7 +558,7 @@ pub(super) fn wrap_prop_source_reads(
 /// Transform a `let` declaration that contains variables re-exported via `export { ... }`.
 ///
 /// For example: `let a, b, c, d;` with `export { a, c }` becomes:
-/// ```
+/// ```text
 /// let a = $.prop($$props, 'a', 8);
 /// let b;
 /// let c = $.prop($$props, 'c', 8);
