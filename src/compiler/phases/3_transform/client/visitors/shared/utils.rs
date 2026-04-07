@@ -459,25 +459,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // For state variables, `read` wraps `x` -> `$.get(x)`, which is different from props/stores
             // that wrap `x` -> `x()`. State variable calls like `saySomething('Tama')` SHOULD become
             // `$.get(saySomething)('Tama')`, not `saySomething('Tama')`.
-            let skip_callee_transform = if let JsExpr::Identifier(name) =
-                context.arena.get_expr(call.callee)
-                && !local_scope.contains(name)
-                && let Some(transform) = context.state.transform.get(name.as_str())
-            {
-                // Only skip callee transform for StoreSub setter calls (calls with arguments).
-                // Prop/BindableProp calls should ALWAYS have the callee transformed.
-                let binding = context.state.get_binding(name);
-                let is_store_sub = binding
-                    .map(|b| matches!(b.kind, BindingKind::StoreSub))
-                    .unwrap_or(false);
-
-                // Only skip for store subscriptions with setter calls (calls with arguments).
-                // For zero-arg calls, the callee should be transformed so that
-                // source `name()` becomes `name()()` (getter + invocation).
-                is_store_sub && transform.assign.is_some() && !call.arguments.is_empty()
-            } else {
-                false
-            };
+            let skip_callee_transform = false;
 
             // Apply transforms to callee and arguments
             // Skip callee transform for prop getter/setter calls to avoid double transformation
@@ -1780,6 +1762,118 @@ fn apply_transforms_to_statement_with_shadowed(
                 .alloc_expr(transform_expr(context.arena.get_expr(*expr_id))),
         ),
 
+        JsStatement::Try(try_stmt) => {
+            let transformed_block = JsBlockStatement {
+                body: try_stmt.block.body.iter().map(transform_stmt).collect(),
+            };
+            let transformed_handler = try_stmt.handler.as_ref().map(|handler| {
+                // The catch parameter shadows outer transforms
+                let mut catch_scope = local_scope.clone();
+                if let Some(param) = &handler.param {
+                    extract_pattern_names_to_scope(param, &mut catch_scope);
+                }
+                JsCatchClause {
+                    param: handler.param.clone(),
+                    body: JsBlockStatement {
+                        body: handler
+                            .body
+                            .body
+                            .iter()
+                            .map(|s| {
+                                apply_transforms_to_statement_with_shadowed(
+                                    s,
+                                    context,
+                                    &catch_scope,
+                                )
+                            })
+                            .collect(),
+                    },
+                }
+            });
+            let transformed_finalizer =
+                try_stmt
+                    .finalizer
+                    .as_ref()
+                    .map(|finalizer| JsBlockStatement {
+                        body: finalizer.body.iter().map(transform_stmt).collect(),
+                    });
+            JsStatement::Try(JsTryStatement {
+                block: transformed_block,
+                handler: transformed_handler,
+                finalizer: transformed_finalizer,
+            })
+        }
+
+        JsStatement::ForOf(for_of) => {
+            // The loop variable shadows outer transforms
+            let mut for_of_scope = local_scope.clone();
+            match &for_of.left {
+                JsForOfLeft::Variable(decl) => {
+                    for d in &decl.declarations {
+                        extract_pattern_names_to_scope(&d.id, &mut for_of_scope);
+                    }
+                }
+                JsForOfLeft::Pattern(pat) => {
+                    extract_pattern_names_to_scope(pat, &mut for_of_scope);
+                }
+            }
+            let transformed_right = context
+                .arena
+                .alloc_expr(transform_expr(context.arena.get_expr(for_of.right)));
+            let transformed_body = {
+                let s = context.arena.get_stmt(for_of.body).clone();
+                context
+                    .arena
+                    .alloc_stmt(apply_transforms_to_statement_with_shadowed(
+                        &s,
+                        context,
+                        &for_of_scope,
+                    ))
+            };
+            JsStatement::ForOf(JsForOfStatement {
+                left: for_of.left.clone(),
+                right: transformed_right,
+                body: transformed_body,
+                is_await: for_of.is_await,
+            })
+        }
+
+        JsStatement::Labeled(labeled) => {
+            let s = context.arena.get_stmt(labeled.body).clone();
+            JsStatement::Labeled(JsLabeledStatement {
+                label: labeled.label.clone(),
+                body: context.arena.alloc_stmt(transform_stmt(&s)),
+            })
+        }
+
+        JsStatement::FunctionDeclaration(func_decl) => {
+            // Function parameters shadow outer transforms
+            let mut func_scope = local_scope.clone();
+            for param in &func_decl.params {
+                extract_pattern_names_to_scope(param, &mut func_scope);
+            }
+            // Also add the function name itself to scope (function declarations are hoisted)
+            if let Some(ref id) = func_decl.id {
+                func_scope.vars.insert(id.to_string(), None);
+            }
+            register_block_local_vars(&func_decl.body.body, &context.arena, &mut func_scope);
+            let transformed_body = JsBlockStatement {
+                body: func_decl
+                    .body
+                    .body
+                    .iter()
+                    .map(|s| apply_transforms_to_statement_with_shadowed(s, context, &func_scope))
+                    .collect(),
+            };
+            JsStatement::FunctionDeclaration(JsFunctionDeclaration {
+                id: func_decl.id.clone(),
+                params: func_decl.params.clone(),
+                body: transformed_body,
+                is_async: func_decl.is_async,
+                is_generator: func_decl.is_generator,
+            })
+        }
+
         // Statements that don't need transformation
         JsStatement::Empty
         | JsStatement::Break(_)
@@ -1788,7 +1882,6 @@ fn apply_transforms_to_statement_with_shadowed(
         | JsStatement::Raw(_) => stmt.clone(),
 
         // For other statement types, just clone for now
-        // TODO: Add more comprehensive handling as needed
         _ => stmt.clone(),
     }
 }

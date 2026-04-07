@@ -1262,9 +1262,13 @@ fn collapse_multiline_destructuring(script: &str) -> String {
             result.push_str(line);
             result.push('\n');
         } else {
-            // Accumulating lines of a multi-line destructure
-            accum.push_str(trimmed);
-            accum.push(' ');
+            // Skip pure comment lines when collapsing (they can't be on one line with code after them)
+            if trimmed.starts_with("//") {
+                // Don't include line comments in the collapsed output
+            } else {
+                accum.push_str(trimmed);
+                accum.push(' ');
+            }
             if trimmed.contains('}') {
                 in_destructure = false;
                 // Clean up extra whitespace
@@ -1296,6 +1300,7 @@ pub(crate) fn transform_props_spread_ex(
     let script = collapse_multiline_destructuring(script);
     let mut result = String::new();
     let mut in_template_literal = false;
+    let mut template_brace_depth: i32 = 0;
     let target_indent = "\t".repeat(1 + extra_tabs); // base 1 tab + extra
     let slots_part = if rename_slots {
         "$$slots: $$slots_"
@@ -1362,18 +1367,22 @@ pub(crate) fn transform_props_spread_ex(
 
         if trimmed.is_empty() {
             result.push('\n');
-        } else if in_template_literal {
-            // Inside template literal - preserve content exactly
-            in_template_literal =
-                update_template_literal_state_for_indent(line, in_template_literal);
+        } else if in_template_literal || template_brace_depth > 0 {
+            // Inside template literal or ${...} expression - preserve content exactly
+            let (new_in_template, new_brace_depth) =
+                update_template_literal_state_full(line, in_template_literal, template_brace_depth);
+            in_template_literal = new_in_template;
+            template_brace_depth = new_brace_depth;
             result.push_str(line);
             result.push('\n');
         } else {
             // Preserve relative indentation: detect leading tabs and add extra tabs
             let leading_tabs = line.chars().take_while(|c| *c == '\t').count();
             let indent = "\t".repeat(leading_tabs + extra_tabs);
-            in_template_literal =
-                update_template_literal_state_for_indent(line, in_template_literal);
+            let (new_in_template, new_brace_depth) =
+                update_template_literal_state_full(line, in_template_literal, template_brace_depth);
+            in_template_literal = new_in_template;
+            template_brace_depth = new_brace_depth;
             result.push_str(&format!("{}{}\n", indent, trimmed));
         }
     }
@@ -2558,12 +2567,62 @@ fn is_js_keyword_or_builtin(s: &str) -> bool {
 /// Track whether we're inside a template literal by counting unescaped backticks on a line.
 ///
 /// Used to avoid adding indentation to content inside template literals.
+/// Track template literal state across lines.
+/// `state` is (in_template, brace_depth) where brace_depth > 0 means inside ${...}.
 pub fn update_template_literal_state_for_indent(line: &str, currently_in_template: bool) -> bool {
+    let (result, _) = update_template_literal_state_full(line, currently_in_template, 0);
+    result
+}
+
+/// Full template literal state tracking with brace depth for ${...} expressions.
+/// Returns (in_template, brace_depth).
+pub fn update_template_literal_state_full(
+    line: &str,
+    currently_in_template: bool,
+    current_brace_depth: i32,
+) -> (bool, i32) {
     let mut in_template = currently_in_template;
+    let mut brace_depth = current_brace_depth;
     let chars: Vec<char> = line.chars().collect();
     let mut i = 0;
     while i < chars.len() {
         let c = chars[i];
+
+        // If we're inside a ${...} expression (brace_depth > 0)
+        if brace_depth > 0 {
+            if c == '\'' || c == '"' {
+                // Skip string literals inside the expression
+                let quote = c;
+                i += 1;
+                while i < chars.len() {
+                    if chars[i] == '\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if chars[i] == quote {
+                        break;
+                    }
+                    i += 1;
+                }
+            } else if c == '`' {
+                // Nested template literal inside ${...}
+                // For simplicity, skip it by counting backticks
+                // (nested template literals are rare in practice)
+                i += 1;
+                continue;
+            } else if c == '{' {
+                brace_depth += 1;
+            } else if c == '}' {
+                brace_depth -= 1;
+                if brace_depth == 0 {
+                    // Closed the ${...} expression, back to template literal text
+                    // in_template remains true
+                }
+            }
+            i += 1;
+            continue;
+        }
+
         if in_template {
             if c == '\\' {
                 i += 2;
@@ -2571,16 +2630,8 @@ pub fn update_template_literal_state_for_indent(line: &str, currently_in_templat
             } else if c == '`' {
                 in_template = false;
             } else if c == '$' && i + 1 < chars.len() && chars[i + 1] == '{' {
+                brace_depth = 1;
                 i += 2;
-                let mut brace_depth = 1;
-                while i < chars.len() && brace_depth > 0 {
-                    if chars[i] == '{' {
-                        brace_depth += 1;
-                    } else if chars[i] == '}' {
-                        brace_depth -= 1;
-                    }
-                    i += 1;
-                }
                 continue;
             }
         } else if c == '\'' || c == '"' {
@@ -2603,5 +2654,5 @@ pub fn update_template_literal_state_for_indent(line: &str, currently_in_templat
         }
         i += 1;
     }
-    in_template
+    (in_template, brace_depth)
 }

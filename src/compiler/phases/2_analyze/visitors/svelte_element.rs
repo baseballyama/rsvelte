@@ -249,6 +249,34 @@ pub fn visit(
     context.analysis.component_namespace_is_svg = element.metadata.svg;
     context.analysis.component_namespace_is_mathml = element.metadata.mathml;
 
+    // Analyze attribute expressions to detect needs_context, expression metadata, etc.
+    // This is needed because attribute expressions may reference props, stores, etc.
+    for attr in &element.attributes {
+        match attr {
+            Attribute::Attribute(attr_node) => {
+                super::attribute::visit(attr_node, context)?;
+            }
+            Attribute::ClassDirective(cd) => {
+                super::script::walk_expression(&cd.expression, context)?;
+            }
+            Attribute::StyleDirective(sd) => {
+                super::style_directive::visit(sd, context)?;
+            }
+            Attribute::BindDirective(bd) => {
+                super::script::walk_expression(&bd.expression, context)?;
+            }
+            Attribute::SpreadAttribute(spread) => {
+                super::spread_attribute::visit(spread, context)?;
+            }
+            Attribute::OnDirective(on) => {
+                if let Some(ref expr) = on.expression {
+                    super::script::walk_expression(expr, context)?;
+                }
+            }
+            _ => {}
+        }
+    }
+
     // Analyze children
     fragment::analyze(&mut element.fragment, context)?;
 

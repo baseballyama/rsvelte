@@ -1298,18 +1298,28 @@ impl<'a> JsCodegen<'a> {
     }
 
     /// Check if an operand of a logical expression needs parentheses.
-    /// JavaScript requires parentheses when mixing `??` with `||` or `&&`.
-    /// It also requires them for assignment and conditional sub-expressions.
+    /// JavaScript requires parentheses when:
+    /// - Mixing `??` with `||` or `&&`
+    /// - `||` is nested inside `&&` (because `&&` binds tighter)
+    /// - Assignment or conditional sub-expressions
     fn logical_operand_needs_parens(&self, operand: &JsExpr, parent_op: &JsLogicalOp) -> bool {
         match operand {
             // Assignment and conditional expressions always need parens inside logical
             JsExpr::Assignment(_) | JsExpr::Conditional(_) => true,
-            // Mixing ?? with || or && is a syntax error in JS; parentheses are required
             JsExpr::Logical(inner) => {
                 let is_parent_nullish = matches!(parent_op, JsLogicalOp::NullishCoalescing);
                 let is_inner_nullish = matches!(inner.operator, JsLogicalOp::NullishCoalescing);
                 // If one is ?? and the other is ||/&&, they cannot be mixed
-                is_parent_nullish != is_inner_nullish
+                if is_parent_nullish != is_inner_nullish {
+                    return true;
+                }
+                // `||` inside `&&` needs parens: (a || b) && c
+                if matches!(parent_op, JsLogicalOp::And)
+                    && matches!(inner.operator, JsLogicalOp::Or)
+                {
+                    return true;
+                }
+                false
             }
             _ => false,
         }

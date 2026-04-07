@@ -653,6 +653,14 @@ pub fn analyze_component(
         if !analysis.css.hash.is_empty() {
             let css_selectors = css_scoping::extract_css_selectors(stylesheet);
             css_scoping::mark_elements_scoped(&mut ast.fragment, &css_selectors);
+
+            // When @keyframes rules exist, scope ALL elements in the component.
+            // This matches the official Svelte compiler behavior: keyframe names are
+            // prefixed with the component hash, and since any element could potentially
+            // use that animation (e.g., via JS), all elements need the hash class.
+            if !analysis.css.keyframes.is_empty() {
+                css_scoping::mark_all_elements_scoped(&mut ast.fragment);
+            }
         }
     }
 

@@ -65,60 +65,29 @@ fn collapse_leading_trailing_whitespace(
 /// If all are MathML, returns "mathml".
 /// Otherwise returns the parent namespace.
 fn infer_namespace_from_nodes(nodes: &[&TemplateNode], parent_namespace: &str) -> String {
-    // Check if all RegularElement children share the same namespace
+    // Check if all RegularElement children share the same namespace.
+    // Only consider direct RegularElement children, not elements nested inside
+    // control flow blocks (IfBlock, EachBlock). Elements inside those blocks
+    // are in their own fragment scope and don't affect the parent namespace.
     let mut found_namespace: Option<&str> = None;
 
     for node in nodes {
-        match node {
-            TemplateNode::RegularElement(el) => {
-                if el.metadata.svg {
-                    match found_namespace {
-                        None => found_namespace = Some("svg"),
-                        Some("svg") => {}
-                        _ => return "html".to_string(),
-                    }
-                } else if el.metadata.mathml {
-                    match found_namespace {
-                        None => found_namespace = Some("mathml"),
-                        Some("mathml") => {}
-                        _ => return "html".to_string(),
-                    }
-                } else {
-                    return "html".to_string();
+        if let TemplateNode::RegularElement(el) = node {
+            if el.metadata.svg {
+                match found_namespace {
+                    None => found_namespace = Some("svg"),
+                    Some("svg") => {}
+                    _ => return "html".to_string(),
                 }
-            }
-            // Recurse into control flow blocks to check their children
-            TemplateNode::IfBlock(if_block) => {
-                for node in &if_block.consequent.nodes {
-                    if let TemplateNode::RegularElement(el) = node {
-                        if el.metadata.svg {
-                            match found_namespace {
-                                None => found_namespace = Some("svg"),
-                                Some("svg") => {}
-                                _ => return "html".to_string(),
-                            }
-                        } else if !el.metadata.mathml {
-                            return "html".to_string();
-                        }
-                    }
+            } else if el.metadata.mathml {
+                match found_namespace {
+                    None => found_namespace = Some("mathml"),
+                    Some("mathml") => {}
+                    _ => return "html".to_string(),
                 }
+            } else {
+                return "html".to_string();
             }
-            TemplateNode::EachBlock(each_block) => {
-                for node in &each_block.body.nodes {
-                    if let TemplateNode::RegularElement(el) = node {
-                        if el.metadata.svg {
-                            match found_namespace {
-                                None => found_namespace = Some("svg"),
-                                Some("svg") => {}
-                                _ => return "html".to_string(),
-                            }
-                        } else if !el.metadata.mathml {
-                            return "html".to_string();
-                        }
-                    }
-                }
-            }
-            _ => {}
         }
     }
 
@@ -560,22 +529,9 @@ impl<'a> ServerCodeGenerator<'a> {
             return Ok(None);
         }
 
-        // Generate body parts
-        let mut body_generator = ServerCodeGenerator::new(
-            self.component_name.clone(),
-            self.source.clone(),
-            None,
-            None,
-            None,
-            self.use_async,
-        );
-        body_generator.constant_vars = self.constant_vars.clone();
-        body_generator.namespace = self.namespace.clone();
-        body_generator.preserve_whitespace = self.preserve_whitespace;
-        body_generator.preserve_comments = self.preserve_comments;
-        body_generator.dev = self.dev;
-        body_generator.const_promises_counter = self.const_promises_counter.clone();
-        body_generator.const_blocker_map = self.const_blocker_map.clone();
+        // Generate body parts using new_child_generator to forward analysis,
+        // store subscription info, and other context from the parent generator.
+        let mut body_generator = self.new_child_generator(false);
 
         // Check if first visible content is text/expression
         // If so, add <!---> anchor to prevent text fusion during hydration.

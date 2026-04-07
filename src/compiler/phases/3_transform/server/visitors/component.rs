@@ -473,6 +473,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 bindings,
                 has_prior_content,
                 children,
+                snippets,
+                slot_names,
                 dynamic: is_dynamic,
                 css_custom_props,
                 css_props_is_html,

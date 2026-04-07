@@ -152,6 +152,9 @@ fn transform_script_content_inner(
     };
 
     let mut result = String::with_capacity(script.len());
+    // Track whether we're inside a multi-line template literal.
+    // When inside, lines should be passed through as-is without formatting.
+    let mut in_template_literal = false;
 
     for line in script.lines() {
         let trimmed = line.trim();
@@ -160,8 +163,27 @@ fn transform_script_content_inner(
             continue;
         }
 
+        // If we're inside a multi-line template literal, pass through as-is
+        if in_template_literal {
+            // Check if this line closes the template literal
+            in_template_literal = !line_closes_template_literal(line);
+            if line.starts_with('\t') {
+                result.push_str(line);
+            } else if trimmed.is_empty() {
+                // skip empty lines
+            } else {
+                result.push('\t');
+                result.push_str(trimmed);
+            }
+            result.push('\n');
+            continue;
+        }
+
         let line = format_js_line(line);
         let line = add_statement_semicolon(&line);
+
+        // Check if this line opens a template literal that doesn't close on this line
+        in_template_literal = line_opens_unclosed_template_literal(&line);
 
         if line.starts_with('\t') {
             result.push_str(&line);
@@ -177,6 +199,10 @@ fn transform_script_content_inner(
     if result.ends_with('\n') {
         result.pop();
     }
+
+    // Collapse multi-line template literals to single lines, matching esrap behavior.
+    // This is safe for script content (user code only, not template renderer pushes).
+    result = collapse_multiline_template_literals(&result);
 
     // Post-processing: add missing semicolons to multi-line let/const/var declarations.
     // When a declaration spans multiple lines (e.g., `let b = (() => {\n...\n})()`),
@@ -199,6 +225,131 @@ fn transform_script_content_inner(
     } else {
         result
     }
+}
+
+/// Collapse multi-line `${}` interpolation expressions within template literals.
+/// Only collapses lines that are inside `${...}` (brace_depth > 0), NOT raw template
+/// text lines. This matches esrap behavior: expressions within interpolations are
+/// normalized to single lines, but the template structure (including multiline HTML
+/// in createRawSnippet) is preserved.
+fn collapse_multiline_template_literals(script: &str) -> String {
+    let mut result = String::with_capacity(script.len());
+    let mut in_template = false;
+    let mut template_brace_depth: i32 = 0;
+
+    for line in script.lines() {
+        if template_brace_depth > 0 {
+            // Inside a ${...} interpolation that spans multiple lines - collapse
+            result.push(' ');
+            result.push_str(line.trim());
+            let (new_in_template, new_brace_depth) =
+                super::helpers::update_template_literal_state_full(
+                    line,
+                    in_template,
+                    template_brace_depth,
+                );
+            in_template = new_in_template;
+            template_brace_depth = new_brace_depth;
+            if template_brace_depth == 0 && !in_template {
+                result.push('\n');
+            }
+        } else if in_template {
+            // Inside template literal text (not in ${}) - preserve as-is
+            result.push_str(line);
+            let (new_in_template, new_brace_depth) =
+                super::helpers::update_template_literal_state_full(
+                    line,
+                    in_template,
+                    template_brace_depth,
+                );
+            in_template = new_in_template;
+            template_brace_depth = new_brace_depth;
+            result.push('\n');
+        } else {
+            // Normal line - check if it opens a template literal
+            result.push_str(line);
+            let (new_in_template, new_brace_depth) =
+                super::helpers::update_template_literal_state_full(
+                    line,
+                    in_template,
+                    template_brace_depth,
+                );
+            in_template = new_in_template;
+            template_brace_depth = new_brace_depth;
+            if !in_template && template_brace_depth == 0 {
+                result.push('\n');
+            } else if template_brace_depth > 0 {
+                // Opened a ${} that doesn't close on this line - don't add newline
+                // (will be collapsed with the next line)
+            } else {
+                // Inside template text - add newline
+                result.push('\n');
+            }
+        }
+    }
+    if result.ends_with('\n') {
+        result.pop();
+    }
+    result
+}
+
+/// Check if a line opens a template literal that doesn't close on the same line.
+/// Counts backticks while respecting string literals and escaped backticks.
+fn line_opens_unclosed_template_literal(line: &str) -> bool {
+    let mut backtick_count = 0;
+    let mut in_str = false;
+    let mut str_ch = ' ';
+    let chars: Vec<char> = line.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let ch = chars[i];
+        if in_str {
+            if ch == str_ch && (i == 0 || chars[i - 1] != '\\') {
+                in_str = false;
+            }
+            i += 1;
+            continue;
+        }
+        if ch == '\'' || ch == '"' {
+            in_str = true;
+            str_ch = ch;
+        } else if ch == '`' && (i == 0 || chars[i - 1] != '\\') {
+            backtick_count += 1;
+        }
+        i += 1;
+    }
+    // Odd number of backticks means the template literal is still open
+    backtick_count % 2 != 0
+}
+
+/// Check if a line closes an open template literal.
+/// Returns true if the line contains a closing backtick.
+fn line_closes_template_literal(line: &str) -> bool {
+    // Simple check: does the line contain a backtick?
+    // This is an approximation - a more accurate check would track
+    // nested template expressions, but this handles common cases.
+    let mut in_str = false;
+    let mut str_ch = ' ';
+    let chars: Vec<char> = line.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let ch = chars[i];
+        if in_str {
+            if ch == str_ch && (i == 0 || chars[i - 1] != '\\') {
+                in_str = false;
+            }
+            i += 1;
+            continue;
+        }
+        if ch == '\'' || ch == '"' {
+            in_str = true;
+            str_ch = ch;
+        } else if ch == '`' && (i == 0 || chars[i - 1] != '\\') {
+            return true;
+        }
+        i += 1;
+    }
+    false
 }
 
 fn format_js_line(line: &str) -> String {
@@ -1111,7 +1262,14 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
                     result.push_str(&inner);
                     result.push_str(")()");
                 } else {
-                    result.push_str(&inner);
+                    // Strip trailing comma from the extracted expression.
+                    // $derived(expr,) is valid JS (trailing comma in function args),
+                    // but after stripping $derived(), `let x = expr,` would be invalid.
+                    // We must preserve leading whitespace/newlines to maintain multi-line
+                    // structure (so that `add_statement_semicolon` doesn't prematurely
+                    // terminate the expression).
+                    let cleaned = inner.trim_end().trim_end_matches(',').trim_end();
+                    result.push_str(cleaned);
                 }
 
                 i = end + 1;

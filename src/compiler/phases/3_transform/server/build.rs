@@ -1383,6 +1383,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     bindings,
                     has_prior_content,
                     children,
+                    snippets,
+                    slot_names,
                     dynamic,
                     css_custom_props,
                     css_props_is_html,
@@ -1483,6 +1485,8 @@ impl<'a> ServerCodeGenerator<'a> {
                                 bindings: bindings.clone(),
                                 has_prior_content: false,
                                 children: wrapped_children,
+                                snippets: snippets.clone(),
+                                slot_names: slot_names.clone(),
                                 dynamic: *dynamic,
                                 css_custom_props: css_custom_props.clone(),
                                 css_props_is_html: *css_props_is_html,
@@ -1497,6 +1501,8 @@ impl<'a> ServerCodeGenerator<'a> {
                             bindings: bindings.clone(),
                             has_prior_content: *has_prior_content,
                             children: wrapped_children,
+                            snippets: snippets.clone(),
+                            slot_names: slot_names.clone(),
                             dynamic: *dynamic,
                             css_custom_props: css_custom_props.clone(),
                             css_props_is_html: *css_props_is_html,
@@ -2771,6 +2777,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     bindings,
                     has_prior_content,
                     children,
+                    snippets,
+                    slot_names,
                     dynamic,
                     css_custom_props: _, // TODO: Handle CSS custom props for components with bindings
                     css_props_is_html: _,
@@ -2880,43 +2888,103 @@ impl<'a> ServerCodeGenerator<'a> {
                     } else {
                         // No spreads, use simple object literal
                         let all_props = collect_all_props(props_and_spreads);
+
+                        // Separate snippets into true snippets (hoisted functions) and slot children
+                        #[allow(clippy::type_complexity)]
+                        let (true_snippets, slot_children_binding): (
+                            Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
+                            Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
+                        ) = snippets
+                            .iter()
+                            .partition(|(_, _, _, is_true_snippet)| *is_true_snippet);
+
+                        let has_true_snippets = !true_snippets.is_empty();
+                        let has_children = children.is_some();
+                        let has_any_slots = !slot_names.is_empty() || has_children;
+
+                        // Extra indent for true snippets (wrapped in block)
+                        let inner_indent = if has_true_snippets {
+                            format!("{}\t", indent)
+                        } else {
+                            indent.to_string()
+                        };
+
+                        // Open block if we have true snippets
+                        if has_true_snippets {
+                            body_code.push_str(&format!("{}{{\n", indent));
+
+                            // Generate snippet function declarations inside the block
+                            for (snippet_name, params, body_parts, _) in &true_snippets {
+                                let params_str = if params.is_empty() {
+                                    "$$renderer".to_string()
+                                } else {
+                                    format!("$$renderer, {}", params.join(", "))
+                                };
+                                body_code.push_str(&format!(
+                                    "{}\tfunction {}({}) {{\n",
+                                    indent, snippet_name, params_str
+                                ));
+                                let snippet_body = Self::build_parts_with_store_subs(
+                                    body_parts,
+                                    indent_level + 2,
+                                    each_counter,
+                                    store_subs,
+                                );
+                                body_code.push_str(&snippet_body);
+                                body_code.push_str(&format!("{}\t}}\n\n", indent));
+                            }
+                        }
+
                         body_code.push_str(&format!(
                             "{}{}{}($$renderer, {{\n",
-                            indent, name, call_syntax
+                            inner_indent, name, call_syntax
                         ));
 
                         // Regular props first
                         for prop in &all_props {
-                            body_code.push_str(&format!("{}\t{},\n", indent, prop));
+                            body_code.push_str(&format!("{}\t{},\n", inner_indent, prop));
                         }
 
                         // Generate getter/setter for each binding
-                        let has_children = children.is_some();
                         let binding_count = bindings.len();
                         for (idx, binding) in bindings.iter().enumerate() {
                             let (prop_name, getter_expr, setter_expr) =
                                 resolve_binding_exprs(binding, store_subs);
                             let is_seq =
                                 matches!(binding, ComponentBinding::SequenceExpression { .. });
-                            body_code.push_str(&format!("{}\tget {}() {{\n", indent, prop_name));
-                            body_code.push_str(&format!("{}\t\treturn {};\n", indent, getter_expr));
-                            body_code.push_str(&format!("{}\t}},\n\n", indent));
                             body_code
-                                .push_str(&format!("{}\tset {}($$value) {{\n", indent, prop_name));
-                            body_code.push_str(&format!("{}\t\t{};\n", indent, setter_expr));
+                                .push_str(&format!("{}\tget {}() {{\n", inner_indent, prop_name));
+                            body_code.push_str(&format!(
+                                "{}\t\treturn {};\n",
+                                inner_indent, getter_expr
+                            ));
+                            body_code.push_str(&format!("{}\t}},\n\n", inner_indent));
+                            body_code.push_str(&format!(
+                                "{}\tset {}($$value) {{\n",
+                                inner_indent, prop_name
+                            ));
+                            body_code.push_str(&format!("{}\t\t{};\n", inner_indent, setter_expr));
                             if !is_seq {
-                                body_code.push_str(&format!("{}\t\t$$settled = false;\n", indent));
+                                body_code
+                                    .push_str(&format!("{}\t\t$$settled = false;\n", inner_indent));
                             }
-                            if idx < binding_count - 1 || has_children {
-                                // Trailing comma + blank line between binding pairs
-                                body_code.push_str(&format!("{}\t}},\n\n", indent));
+                            if idx < binding_count - 1
+                                || has_children
+                                || has_true_snippets
+                                || has_any_slots
+                            {
+                                body_code.push_str(&format!("{}\t}},\n\n", inner_indent));
                             } else {
-                                // Last binding with no children - no trailing comma
-                                body_code.push_str(&format!("{}\t}}\n", indent));
+                                body_code.push_str(&format!("{}\t}}\n", inner_indent));
                             }
                         }
 
-                        // Add children callback and $$slots if there are children
+                        // Add true snippet names as shorthand props
+                        for (snippet_name, _, _, _) in &true_snippets {
+                            body_code.push_str(&format!("{}\t{},\n", inner_indent, snippet_name));
+                        }
+
+                        // Add children callback if there are children
                         if let Some(children_parts) = children {
                             let children_code = Self::build_parts_with_store_subs(
                                 children_parts,
@@ -2927,25 +2995,70 @@ impl<'a> ServerCodeGenerator<'a> {
                             if *component_dev {
                                 body_code.push_str(&format!(
                                     "{}\tchildren: $.prevent_snippet_stringification(($$renderer) => {{\n",
-                                    indent
+                                    inner_indent
                                 ));
                             } else {
                                 body_code.push_str(&format!(
                                     "{}\tchildren: ($$renderer) => {{\n",
-                                    indent
+                                    inner_indent
                                 ));
                             }
                             body_code.push_str(&children_code);
                             if *component_dev {
-                                body_code.push_str(&format!("{}\t}}),\n", indent));
+                                body_code.push_str(&format!("{}\t}}),\n", inner_indent));
                             } else {
-                                body_code.push_str(&format!("{}\t}},\n", indent));
+                                body_code.push_str(&format!("{}\t}},\n", inner_indent));
                             }
-                            body_code
-                                .push_str(&format!("{}\t$$slots: {{ default: true }}\n", indent));
                         }
 
-                        body_code.push_str(&format!("{}}});\n", indent));
+                        // Build $$slots object
+                        if has_any_slots {
+                            let mut slots_entries: Vec<String> = Vec::new();
+                            for slot_name in slot_names {
+                                let quoted_name = quote_prop_name(slot_name);
+                                if let Some((_, params, body_parts, _)) = slot_children_binding
+                                    .iter()
+                                    .find(|(n, _, _, _)| n == slot_name)
+                                {
+                                    let fn_body = Self::build_parts_with_store_subs(
+                                        body_parts,
+                                        0,
+                                        each_counter,
+                                        store_subs,
+                                    );
+                                    let fn_body_trimmed = fn_body.trim();
+                                    if params.is_empty() {
+                                        slots_entries.push(format!(
+                                            "{}: ($$renderer) => {{\n{}\t\t\t}}",
+                                            quoted_name, fn_body_trimmed
+                                        ));
+                                    } else {
+                                        let params_str = format!("{{ {} }}", params.join(", "));
+                                        slots_entries.push(format!(
+                                            "{}: ($$renderer, {}) => {{\n{}\t\t\t}}",
+                                            quoted_name, params_str, fn_body_trimmed
+                                        ));
+                                    }
+                                } else {
+                                    slots_entries.push(format!("{}: true", quoted_name));
+                                }
+                            }
+                            if has_children && !slot_names.contains(&"default".to_string()) {
+                                slots_entries.push("default: true".to_string());
+                            }
+                            let slots_str = slots_entries.join(", ");
+                            body_code.push_str(&format!(
+                                "{}\t$$slots: {{ {} }}\n",
+                                inner_indent, slots_str
+                            ));
+                        }
+
+                        body_code.push_str(&format!("{}}});\n", inner_indent));
+
+                        // Close block if we had true snippets
+                        if has_true_snippets {
+                            body_code.push_str(&format!("{}}}\n", indent));
+                        }
                     }
 
                     // Add <!---->  marker for hydration boundary after binding component

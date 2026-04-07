@@ -580,6 +580,9 @@ pub(super) fn transform_let_with_reexported_props(
         return None;
     }
 
+    // Preserve the leading whitespace from the original line
+    let leading_ws: &str = &line[..line.len() - line.trim_start().len()];
+
     let rest = trimmed[4..].trim();
     let rest = rest.trim_end_matches(';').trim();
 
@@ -633,20 +636,20 @@ pub(super) fn transform_let_with_reexported_props(
                 if let Some(rhs) = rhs_part.strip_prefix('=') {
                     let rhs = rhs.trim().trim_end_matches(';').trim();
                     // Create a tmp variable and flatten the destructuring
-                    results.push(format!("let tmp = {};", rhs));
+                    results.push(format!("{}let tmp = {};", leading_ws, rhs));
                     if let Some(flattened) =
                         flatten_destructured_let_with_reexported_props(pattern, "tmp", analysis)
                     {
                         results.push(flattened);
                     } else {
                         // Fallback: keep original
-                        results.push(format!("let {} = {};", pattern, rhs));
+                        results.push(format!("{}let {} = {};", leading_ws, pattern, rhs));
                     }
                     continue;
                 }
             }
             // Fallback
-            results.push(format!("let {};", decl));
+            results.push(format!("{}let {};", leading_ws, decl));
             continue;
         }
 
@@ -715,37 +718,37 @@ pub(super) fn transform_let_with_reexported_props(
                 let flags = calculate_prop_flags(name, analysis, !is_simple);
                 if is_simple {
                     results.push(format!(
-                        "let {} = $.prop($$props, '{}', {}, {});",
-                        name, prop_name, flags, val
+                        "{}let {} = $.prop($$props, '{}', {}, {});",
+                        leading_ws, name, prop_name, flags, val
                     ));
                 } else if is_prop_ref {
                     // Prop/state identifier: after transform it becomes val() (no-arg call).
                     // The official compiler unwraps no-arg calls to just the callee,
                     // so we pass the identifier directly.
                     results.push(format!(
-                        "let {} = $.prop($$props, '{}', {}, {});",
-                        name, prop_name, flags, val
+                        "{}let {} = $.prop($$props, '{}', {}, {});",
+                        leading_ws, name, prop_name, flags, val
                     ));
                 } else {
                     let lazy_arg = make_lazy_prop_arg(val);
                     results.push(format!(
-                        "let {} = $.prop($$props, '{}', {}, {});",
-                        name, prop_name, flags, lazy_arg
+                        "{}let {} = $.prop($$props, '{}', {}, {});",
+                        leading_ws, name, prop_name, flags, lazy_arg
                     ));
                 }
             } else {
                 let flags = calculate_prop_flags(name, analysis, false);
                 results.push(format!(
-                    "let {} = $.prop($$props, '{}', {});",
-                    name, prop_name, flags
+                    "{}let {} = $.prop($$props, '{}', {});",
+                    leading_ws, name, prop_name, flags
                 ));
             }
         } else {
             // Non-exported variable, keep as-is
             if let Some(val) = value {
-                results.push(format!("let {} = {};", name, val));
+                results.push(format!("{}let {} = {};", leading_ws, name, val));
             } else {
-                results.push(format!("let {};", name));
+                results.push(format!("{}let {};", leading_ws, name));
             }
         }
     }
@@ -911,6 +914,10 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
         return line.to_string();
     }
 
+    // Preserve the leading whitespace from the original line so that the
+    // generated $.prop() call keeps the same indentation as surrounding code.
+    let leading_ws: &str = &line[..line.len() - line.trim_start().len()];
+
     let rest = trimmed[11..].trim(); // After "export let "
     let rest = rest.trim_end_matches(';').trim();
 
@@ -957,8 +964,8 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
                 // Store accessor: pass the getter function directly with PROPS_IS_LAZY_INITIAL
                 let flags = calculate_prop_flags(name, analysis, true);
                 results.push(format!(
-                    "let {} = $.prop($$props, '{}', {}, {});",
-                    name, name, flags, value
+                    "{}let {} = $.prop($$props, '{}', {}, {});",
+                    leading_ws, name, name, flags, value
                 ));
             } else {
                 // Check if the value is a "simple expression" that can be passed directly
@@ -993,14 +1000,14 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
 
                 if is_simple {
                     results.push(format!(
-                        "let {} = $.prop($$props, '{}', {}, {});",
-                        name, name, flags, value
+                        "{}let {} = $.prop($$props, '{}', {}, {});",
+                        leading_ws, name, name, flags, value
                     ));
                 } else if is_prop_ref {
                     // Prop/state identifier: pass directly (official compiler unwraps no-arg calls)
                     results.push(format!(
-                        "let {} = $.prop($$props, '{}', {}, {});",
-                        name, name, flags, value
+                        "{}let {} = $.prop($$props, '{}', {}, {});",
+                        leading_ws, name, name, flags, value
                     ));
                 } else {
                     // Wrap non-simple values in a thunk: () => value
@@ -1009,8 +1016,8 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
                     // instead of arrow returning object literal
                     let lazy_arg = make_lazy_prop_arg(value);
                     results.push(format!(
-                        "let {} = $.prop($$props, '{}', {}, {});",
-                        name, name, flags, lazy_arg
+                        "{}let {} = $.prop($$props, '{}', {}, {});",
+                        leading_ws, name, name, flags, lazy_arg
                     ));
                 }
             }
@@ -1020,8 +1027,8 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
             let flags = calculate_prop_flags(name, analysis, false);
 
             results.push(format!(
-                "let {} = $.prop($$props, '{}', {});",
-                name, name, flags
+                "{}let {} = $.prop($$props, '{}', {});",
+                leading_ws, name, name, flags
             ));
         }
     }
@@ -1837,6 +1844,40 @@ pub(super) fn transform_props_destructuring(
 
     for prop_part in split_declarators(props_str) {
         let prop_part = prop_part.trim();
+        if prop_part.is_empty() {
+            continue;
+        }
+
+        // Strip leading comment lines (e.g., `// eslint-disable-next-line ...`)
+        // These can appear before prop names in destructuring patterns and must not
+        // be included in the prop name string.
+        let prop_part = {
+            let mut s = prop_part;
+            loop {
+                if s.starts_with("//") {
+                    // Single-line comment: skip to end of line
+                    if let Some(newline_pos) = s.find('\n') {
+                        s = s[newline_pos + 1..].trim();
+                        continue;
+                    } else {
+                        // Entire prop_part is a comment - skip it
+                        s = "";
+                        break;
+                    }
+                } else if s.starts_with("/*") {
+                    // Block comment: skip to closing */
+                    if let Some(end_pos) = s.find("*/") {
+                        s = s[end_pos + 2..].trim();
+                        continue;
+                    } else {
+                        s = "";
+                        break;
+                    }
+                }
+                break;
+            }
+            s
+        };
         if prop_part.is_empty() {
             continue;
         }

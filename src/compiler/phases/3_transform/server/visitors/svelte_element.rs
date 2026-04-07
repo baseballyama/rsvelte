@@ -141,12 +141,15 @@ impl<'a> ServerCodeGenerator<'a> {
                             let base_value =
                                 self.build_class_base_value(node, effective_css_hash)?;
                             let directives_obj = self.build_class_directives_obj(&class_directives);
-                            let css_hash_arg = if needs_clsx(&node.value) {
-                                // Dynamic class expression: $.attr_class($.clsx(expr), 'hash', { directives })
+                            // Determine if the base value is dynamic (template literal or clsx expression)
+                            let is_dynamic_base =
+                                needs_clsx(&node.value) || base_value.starts_with('`');
+                            let css_hash_arg = if is_dynamic_base {
+                                // Dynamic class expression: hash goes as separate argument
                                 if let Some(ref hash) = css_hash {
                                     format!(", '{}'", hash)
                                 } else {
-                                    String::new()
+                                    ", void 0".to_string()
                                 }
                             } else {
                                 // Static class: hash already baked into base_value, use void 0
@@ -368,7 +371,36 @@ impl<'a> ServerCodeGenerator<'a> {
             };
             Ok(format!("'{}'", val))
         } else {
-            // Dynamic class value
+            // Dynamic class value - check if it's a mixed text+expression sequence
+            if let AttributeValue::Sequence(parts) = &node.value {
+                let has_text = parts
+                    .iter()
+                    .any(|p| matches!(p, AttributeValuePart::Text(t) if !t.data.trim().is_empty()));
+                let has_expr = parts
+                    .iter()
+                    .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
+                if has_text && has_expr {
+                    // Mixed: build template literal `text ${$.stringify(expr)} text`
+                    let mut tmpl = String::new();
+                    for part in parts {
+                        match part {
+                            AttributeValuePart::Text(text) => {
+                                tmpl.push_str(&text.data);
+                            }
+                            AttributeValuePart::ExpressionTag(expr_tag) => {
+                                let es = expr_tag.expression.start().unwrap_or(0) as usize;
+                                let ee = expr_tag.expression.end().unwrap_or(0) as usize;
+                                if ee > es && ee <= self.source.len() {
+                                    let expr = self.source[es..ee].trim().to_string();
+                                    let expr = self.transform_store_refs(&expr);
+                                    tmpl.push_str(&format!("${{$.stringify({})}}", expr));
+                                }
+                            }
+                        }
+                    }
+                    return Ok(format!("`{}`", tmpl));
+                }
+            }
             let expr = self.extract_attribute_value_as_string(node)?;
             if needs_clsx(&node.value) {
                 Ok(format!("$.clsx({})", expr))

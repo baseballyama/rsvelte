@@ -1192,9 +1192,17 @@ fn build_style_attribute_value_with_memoization(
                             expr_has_state,
                         );
 
-                        // Add ?? '' for non-defined values
-                        let final_value =
-                            b::logical_str(&context.arena, "??", value, b::string(""));
+                        // Add ?? '' where necessary (only if not guaranteed to be defined)
+                        let is_defined = if let JsExpr::Identifier(_) = &value {
+                            super::utils::is_expression_defined(&expr_tag.expression, context)
+                        } else {
+                            super::utils::is_js_expr_defined(&value, &context.arena)
+                        };
+                        let final_value = if is_defined {
+                            value
+                        } else {
+                            b::logical_str(&context.arena, "??", value, b::string(""))
+                        };
                         expressions.push(final_value);
 
                         if has_call || expr_has_state {

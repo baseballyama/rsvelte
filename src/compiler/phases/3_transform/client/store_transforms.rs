@@ -444,6 +444,8 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
 
                 // Check if this is an object property key (e.g., `{ $userName4: 'user4' }`)
                 // In that case, `$userName4:` - the `:` following is a property separator, not a getter
+                // We must distinguish from ternary operator `:` (e.g., `cond ? $store : 0`)
+                // by checking if we're inside an unmatched `{` (object literal context).
                 let is_property_key = {
                     let after_idx2 = i + store_sub.len();
                     let mut k = after_idx2;
@@ -451,10 +453,23 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
                     while k < chars.len() && chars[k].is_whitespace() {
                         k += 1;
                     }
-                    // Check for `:` (property key separator) but not `::`
-                    k < chars.len()
+                    let has_colon = k < chars.len()
                         && chars[k] == ':'
-                        && (k + 1 >= chars.len() || chars[k + 1] != ':')
+                        && (k + 1 >= chars.len() || chars[k + 1] != ':');
+
+                    // Only treat as property key if followed by `:` AND we're inside an object literal
+                    // (i.e., there is an unmatched `{` before this position in `new_result`)
+                    has_colon && {
+                        let mut brace_depth: i32 = 0;
+                        for ch in new_result.chars() {
+                            match ch {
+                                '{' => brace_depth += 1,
+                                '}' => brace_depth -= 1,
+                                _ => {}
+                            }
+                        }
+                        brace_depth > 0
+                    }
                 };
 
                 // Check if this is inside a string literal (e.g., '$foo' in $.store_unsub(..., '$foo', ...))

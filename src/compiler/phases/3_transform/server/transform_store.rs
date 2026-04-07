@@ -286,7 +286,39 @@ pub(crate) fn replace_store_identifier_in_script(
                         // Check if the char immediately before $store (skipping whitespace back) is `(` or `,`
                         let prev_char = result.chars().rev().find(|c| !c.is_whitespace());
                         let preceded_by_paren_or_comma = matches!(prev_char, Some('(') | Some(','));
-                        if preceded_by_paren_or_comma {
+                        // Check if the opening `(` is preceded by a control flow keyword
+                        // like `if`, `while`, `for`, `switch` - if so, this is NOT a function param list
+                        let is_control_flow = if preceded_by_paren_or_comma {
+                            // Find the position of the `(` in result
+                            let result_bytes = result.as_bytes();
+                            let mut p = result_bytes.len();
+                            // Go back to find the `(` that contains our store ref
+                            let mut depth = 0i32;
+                            while p > 0 {
+                                p -= 1;
+                                match result_bytes[p] {
+                                    b')' => depth += 1,
+                                    b'(' => {
+                                        if depth == 0 {
+                                            // Found the opening paren
+                                            break;
+                                        }
+                                        depth -= 1;
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            // Now check what's before the `(`
+                            let before_paren = result[..p].trim_end();
+                            before_paren.ends_with("if")
+                                || before_paren.ends_with("while")
+                                || before_paren.ends_with("for")
+                                || before_paren.ends_with("switch")
+                                || before_paren.ends_with("catch")
+                        } else {
+                            false
+                        };
+                        if preceded_by_paren_or_comma && !is_control_flow {
                             // Look for `)` after $store, then `=>` or `{`
                             let mut k = j; // j is already at first non-whitespace after store_ref
                             // Skip past `)`, `,`, or whitespace to find the closing paren of param list
@@ -1412,6 +1444,13 @@ fn transform_store_assignments_once(script: &str) -> String {
             }
             "=" => {
                 let rest = &result[end..];
+                // Skip if this is a comparison operator (== or ===), not an assignment
+                if rest.starts_with('=') {
+                    // Push the matched text as-is and update last_end to skip past it
+                    new_result.push_str(&result[start..end]);
+                    last_end = end;
+                    continue;
+                }
                 // Skip if this is an arrow function parameter: `$name =>`
                 if rest.trim_start().starts_with('>') {
                     // The prefix result[last_end..start] was already pushed above.

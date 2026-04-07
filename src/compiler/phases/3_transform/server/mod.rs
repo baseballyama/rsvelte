@@ -1954,26 +1954,61 @@ impl<'a> ServerCodeGenerator<'a> {
                 if i + 1 < len && matches!(nodes[i + 1], TemplateNode::SvelteHead(_)) {
                     continue;
                 }
-                // Skip whitespace around SvelteWindow (these don't render in SSR)
-                if i > 0 && matches!(nodes[i - 1], TemplateNode::SvelteWindow(_)) {
-                    continue;
-                }
-                if i + 1 < len && matches!(nodes[i + 1], TemplateNode::SvelteWindow(_)) {
-                    continue;
-                }
-                // Skip whitespace around SvelteDocument (these don't render in SSR)
-                if i > 0 && matches!(nodes[i - 1], TemplateNode::SvelteDocument(_)) {
-                    continue;
-                }
-                if i + 1 < len && matches!(nodes[i + 1], TemplateNode::SvelteDocument(_)) {
-                    continue;
-                }
-                // Skip whitespace around SvelteBody (these don't render in SSR)
-                if i > 0 && matches!(nodes[i - 1], TemplateNode::SvelteBody(_)) {
-                    continue;
-                }
-                if i + 1 < len && matches!(nodes[i + 1], TemplateNode::SvelteBody(_)) {
-                    continue;
+                // Skip whitespace around SvelteWindow/SvelteDocument/SvelteBody
+                // (these don't render in SSR). But only skip if there's no visible
+                // content on the other side - if both sides have visible content,
+                // ONE whitespace node should be preserved to produce a space between them.
+                // We always skip whitespace AFTER non-rendering nodes, and conditionally
+                // keep whitespace BEFORE non-rendering nodes (to avoid double spaces).
+                {
+                    let is_non_rendering = |n: &TemplateNode| {
+                        matches!(n, TemplateNode::SvelteWindow(_))
+                            || matches!(n, TemplateNode::SvelteDocument(_))
+                            || matches!(n, TemplateNode::SvelteBody(_))
+                    };
+                    let prev_is_non_rendering = i > 0 && is_non_rendering(nodes[i - 1]);
+                    let next_is_non_rendering = i + 1 < len && is_non_rendering(nodes[i + 1]);
+
+                    if prev_is_non_rendering {
+                        // Always skip whitespace after a non-rendering node.
+                        // The whitespace before the non-rendering node (if any) provides the space.
+                        continue;
+                    }
+                    if next_is_non_rendering {
+                        // Whitespace before a non-rendering node: keep only if there's
+                        // visible content on both sides of the non-rendering group.
+                        let has_visible_before = nodes[..i].iter().any(|n| {
+                            !matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data))
+                                && !is_non_rendering(n)
+                                && !matches!(n, TemplateNode::SvelteHead(_))
+                                && !matches!(n, TemplateNode::SnippetBlock(_))
+                                && !matches!(n, TemplateNode::ConstTag(_))
+                                && !matches!(n, TemplateNode::DebugTag(_))
+                                && (!matches!(n, TemplateNode::Comment(_)) || self.preserve_comments)
+                        });
+                        // Look past all consecutive non-rendering nodes + whitespace for visible content
+                        let has_visible_after = {
+                            let mut found = false;
+                            let mut j = i + 1;
+                            while j < len {
+                                let n = nodes[j];
+                                if is_non_rendering(n)
+                                    || matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data))
+                                {
+                                    j += 1;
+                                    continue;
+                                }
+                                found = true;
+                                break;
+                            }
+                            found
+                        };
+
+                        if !has_visible_before || !has_visible_after {
+                            continue;
+                        }
+                        // Both sides have visible content - keep this whitespace
+                    }
                 }
                 // Skip whitespace around DebugTag ({@debug} generates JS code but no HTML)
                 if i > 0 && matches!(nodes[i - 1], TemplateNode::DebugTag(_)) {

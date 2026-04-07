@@ -268,6 +268,10 @@ pub(crate) enum OutputPart {
         // Always true for component bindings - comment marker handled in build_parts
         has_prior_content: bool,
         children: Option<Vec<OutputPart>>,
+        /// Named snippets: (name, params, body_parts, is_true_snippet)
+        snippets: Vec<(String, Vec<String>, Vec<OutputPart>, bool)>,
+        /// Slot names for $$slots object
+        slot_names: Vec<String>,
         /// Whether this component is dynamic (could be undefined/null)
         dynamic: bool,
         /// CSS custom properties (e.g., --color="red") to wrap in $.css_props()

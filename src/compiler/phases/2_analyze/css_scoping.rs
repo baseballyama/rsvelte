@@ -792,6 +792,93 @@ pub fn mark_elements_scoped(fragment: &mut Fragment, css_selectors: &[CssComplex
     mark_elements_in_fragment(fragment, css_selectors, &mut ancestors, &snippet_ancestors);
 }
 
+/// Mark ALL elements in the fragment as scoped (used when @keyframes rules exist).
+pub fn mark_all_elements_scoped(fragment: &mut Fragment) {
+    for node in &mut fragment.nodes {
+        mark_all_elements_scoped_node(node);
+    }
+}
+
+fn mark_all_elements_scoped_node(node: &mut TemplateNode) {
+    match node {
+        TemplateNode::RegularElement(el) => {
+            el.metadata.scoped = true;
+            for child in &mut el.fragment.nodes {
+                mark_all_elements_scoped_node(child);
+            }
+        }
+        TemplateNode::SvelteElement(el) => {
+            el.metadata.scoped = true;
+            for child in &mut el.fragment.nodes {
+                mark_all_elements_scoped_node(child);
+            }
+        }
+        TemplateNode::Component(comp) => {
+            for child in &mut comp.fragment.nodes {
+                mark_all_elements_scoped_node(child);
+            }
+        }
+        TemplateNode::IfBlock(if_block) => {
+            for child in &mut if_block.consequent.nodes {
+                mark_all_elements_scoped_node(child);
+            }
+            if let Some(alt) = &mut if_block.alternate {
+                for child in &mut alt.nodes {
+                    mark_all_elements_scoped_node(child);
+                }
+            }
+        }
+        TemplateNode::EachBlock(each) => {
+            for child in &mut each.body.nodes {
+                mark_all_elements_scoped_node(child);
+            }
+            if let Some(fallback) = &mut each.fallback {
+                for child in &mut fallback.nodes {
+                    mark_all_elements_scoped_node(child);
+                }
+            }
+        }
+        TemplateNode::AwaitBlock(await_block) => {
+            if let Some(pending) = &mut await_block.pending {
+                for child in &mut pending.nodes {
+                    mark_all_elements_scoped_node(child);
+                }
+            }
+            if let Some(then) = &mut await_block.then {
+                for child in &mut then.nodes {
+                    mark_all_elements_scoped_node(child);
+                }
+            }
+            if let Some(catch) = &mut await_block.catch {
+                for child in &mut catch.nodes {
+                    mark_all_elements_scoped_node(child);
+                }
+            }
+        }
+        TemplateNode::KeyBlock(key) => {
+            for child in &mut key.fragment.nodes {
+                mark_all_elements_scoped_node(child);
+            }
+        }
+        TemplateNode::SnippetBlock(snippet) => {
+            for child in &mut snippet.body.nodes {
+                mark_all_elements_scoped_node(child);
+            }
+        }
+        TemplateNode::SvelteHead(head) => {
+            for child in &mut head.fragment.nodes {
+                mark_all_elements_scoped_node(child);
+            }
+        }
+        TemplateNode::SvelteBoundary(boundary) => {
+            for child in &mut boundary.fragment.nodes {
+                mark_all_elements_scoped_node(child);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Walk a fragment and mark elements as scoped.
 fn mark_elements_in_fragment(
     fragment: &mut Fragment,

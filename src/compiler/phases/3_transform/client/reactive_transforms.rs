@@ -9,7 +9,8 @@ use super::{
     find_assignment_position, get_or_compile_regex, is_identifier_char, is_only_assignment_target,
     is_simple_identifier, lhs_starts_with_keyword, replace_with_word_boundary,
     transform_destructure_assignments_with_props, transform_prop_assignments,
-    transform_prop_reads_in_expr, transform_store_reads_client, wrap_state_vars_in_expr,
+    transform_prop_reads_in_expr, transform_store_reads_client, transform_store_sub_calls,
+    wrap_state_vars_in_expr,
 };
 
 /// Extract assigned variable names and dependency variable names from a raw `$:` reactive statement.
@@ -614,10 +615,11 @@ pub(super) fn transform_reactive_statement(
             wrap_state_vars_in_expr(&temp, state_vars, non_reactive_state_vars, proxy_vars);
     }
 
-    // Apply store subscription reads transformation to body.
-    // This converts `$foo` to `$foo()` in the reactive statement body,
-    // so `$.set(bar, $foo)` becomes `$.set(bar, $foo())`.
+    // Apply store subscription transformations to body.
+    // First, transform store sub calls: `$t('key')` -> `$t()('key')` (double-call for store getters).
+    // Then, transform store reads: `$foo` -> `$foo()` in the reactive statement body.
     let transformed_body = if !store_sub_vars.is_empty() {
+        let transformed_body = transform_store_sub_calls(&transformed_body, store_sub_vars);
         transform_store_reads_client(&transformed_body, store_sub_vars)
     } else {
         transformed_body

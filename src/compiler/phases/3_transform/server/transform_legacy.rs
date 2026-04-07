@@ -1054,6 +1054,60 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                     // This is a multi-line reactive statement; skip until balanced
                     in_reactive_multiline = true;
                     reactive_depth = depth;
+                } else {
+                    // Check if line ends with continuation char (e.g., `$: foo =\n\tbar();`)
+                    let last_ch = trimmed.chars().last().unwrap_or(' ');
+                    if matches!(
+                        last_ch,
+                        '=' | '+'
+                            | '-'
+                            | '*'
+                            | '/'
+                            | '?'
+                            | ':'
+                            | '&'
+                            | '|'
+                            | '>'
+                            | '<'
+                            | '^'
+                            | '~'
+                            | '!'
+                            | '%'
+                            | ','
+                    ) {
+                        // Skip continuation lines
+                        i += 1;
+                        while i < lines.len() {
+                            let nt = lines[i].trim();
+                            if nt.is_empty() || nt.starts_with("$:") || nt.starts_with("function ")
+                            {
+                                break;
+                            }
+                            i += 1;
+                            let nl = nt.chars().last().unwrap_or(' ');
+                            if !matches!(
+                                nl,
+                                '=' | '+'
+                                    | '-'
+                                    | '*'
+                                    | '/'
+                                    | '?'
+                                    | ':'
+                                    | '&'
+                                    | '|'
+                                    | '>'
+                                    | '<'
+                                    | '^'
+                                    | '~'
+                                    | '!'
+                                    | '%'
+                                    | ','
+                            ) {
+                                break;
+                            }
+                        }
+                        continue;
+                    }
                 }
                 // Skip continuation lines (method chaining starting with `.`)
                 i += 1;
@@ -1061,7 +1115,6 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                     i += 1;
                 }
                 continue;
-                // Single-line reactive statement (depth <= 0), stays as saw_reactive
             } else if saw_reactive && !trimmed.is_empty() {
                 // There is some non-reactive content after a reactive statement
                 needs = true;
@@ -1124,7 +1177,76 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                     i += 1;
                 }
             } else {
+                // Check if the line ends with a continuation character (e.g., `=`, `?`, operator)
+                // meaning the next line is part of the same statement.
+                // For example: `$: foo =\n\t\tbar();`
+                let last_char = trimmed.chars().last().unwrap_or(' ');
+                let is_continuation = matches!(
+                    last_char,
+                    '=' | '+'
+                        | '-'
+                        | '*'
+                        | '/'
+                        | '?'
+                        | ':'
+                        | '&'
+                        | '|'
+                        | '>'
+                        | '<'
+                        | '^'
+                        | '~'
+                        | '!'
+                        | '%'
+                        | ','
+                );
                 i += 1;
+                if is_continuation {
+                    // Collect continuation lines until we hit a line that looks complete
+                    while i < lines.len() {
+                        let next = lines[i];
+                        let next_trimmed = next.trim();
+                        if next_trimmed.is_empty()
+                            || next_trimmed.starts_with("$:")
+                            || next_trimmed.starts_with("function ")
+                            || next_trimmed.starts_with("//")
+                        {
+                            break;
+                        }
+                        stmt_lines.push(next);
+                        // Check if this line completes the statement
+                        let mut d: i32 = 0;
+                        for c in next_trimmed.chars() {
+                            match c {
+                                '{' | '(' | '[' => d += 1,
+                                '}' | ')' | ']' => d -= 1,
+                                _ => {}
+                            }
+                        }
+                        let next_last = next_trimmed.chars().last().unwrap_or(' ');
+                        let next_is_continuation = matches!(
+                            next_last,
+                            '=' | '+'
+                                | '-'
+                                | '*'
+                                | '/'
+                                | '?'
+                                | ':'
+                                | '&'
+                                | '|'
+                                | '>'
+                                | '<'
+                                | '^'
+                                | '~'
+                                | '!'
+                                | '%'
+                                | ','
+                        );
+                        i += 1;
+                        if !next_is_continuation && d <= 0 {
+                            break;
+                        }
+                    }
+                }
             }
 
             // Also collect continuation lines (method chaining that starts with `.`)
@@ -1209,17 +1331,70 @@ fn sort_reactive_in_place(script: &str) -> String {
                 }
             }
             i += 1;
-            while i < n && depth > 0 {
-                let next = lines[i];
-                stmt_lines.push(next);
-                for c in next.chars() {
-                    match c {
-                        '{' | '(' | '[' => depth += 1,
-                        '}' | ')' | ']' => depth -= 1,
-                        _ => {}
+            if depth > 0 {
+                while i < n && depth > 0 {
+                    let next = lines[i];
+                    stmt_lines.push(next);
+                    for c in next.chars() {
+                        match c {
+                            '{' | '(' | '[' => depth += 1,
+                            '}' | ')' | ']' => depth -= 1,
+                            _ => {}
+                        }
+                    }
+                    i += 1;
+                }
+            } else {
+                // Check if line ends with continuation char (e.g., `$: foo =\n\tbar();`)
+                let last_ch = trimmed.chars().last().unwrap_or(' ');
+                if matches!(
+                    last_ch,
+                    '=' | '+'
+                        | '-'
+                        | '*'
+                        | '/'
+                        | '?'
+                        | ':'
+                        | '&'
+                        | '|'
+                        | '>'
+                        | '<'
+                        | '^'
+                        | '~'
+                        | '!'
+                        | '%'
+                        | ','
+                ) {
+                    while i < n {
+                        let nt = lines[i].trim();
+                        if nt.is_empty() || nt.starts_with("$:") || nt.starts_with("function ") {
+                            break;
+                        }
+                        stmt_lines.push(lines[i]);
+                        i += 1;
+                        let nl = nt.chars().last().unwrap_or(' ');
+                        if !matches!(
+                            nl,
+                            '=' | '+'
+                                | '-'
+                                | '*'
+                                | '/'
+                                | '?'
+                                | ':'
+                                | '&'
+                                | '|'
+                                | '>'
+                                | '<'
+                                | '^'
+                                | '~'
+                                | '!'
+                                | '%'
+                                | ','
+                        ) {
+                            break;
+                        }
                     }
                 }
-                i += 1;
             }
             // Also collect continuation lines (method chaining starting with `.`)
             while i < n && lines[i].trim().starts_with('.') {

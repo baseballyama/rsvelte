@@ -22,7 +22,7 @@ use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use crate::compiler::phases::phase3_transform::utils::ParentRef;
 use crate::compiler::phases::phase3_transform::utils::{clean_nodes, infer_namespace};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 // Constants from svelte/src/constants.js
 const TEMPLATE_FRAGMENT: u32 = 1;
@@ -149,7 +149,7 @@ pub fn fragment(
         node: context.state.node.clone(),
         memoizer: Memoizer::with_parent_conflicts(&context.state.memoizer),
         transform: context.state.transform.clone(),
-        events: FxHashSet::default(), // Start empty, merge back later
+        events: indexmap::IndexSet::default(), // Start empty, merge back later
         metadata: ComponentMetadata {
             namespace: namespace.clone(),
             scoped: context.state.metadata.scoped,

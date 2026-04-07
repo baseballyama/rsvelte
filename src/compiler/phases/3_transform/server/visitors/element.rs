@@ -146,17 +146,45 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
                 }
                 Attribute::Attribute(node) if node.name.as_str() == "class" => {
-                    base_class = self.extract_attribute_text_value(node);
-                    // Also extract dynamic expression for class={expr} with class directives
-                    if base_class.is_none()
-                        && let AttributeValue::Expression(expr_tag) = &node.value
-                    {
+                    // Check for mixed text+expression sequence FIRST (before extract_attribute_text_value
+                    // which would only extract the text parts)
+                    if let AttributeValue::Sequence(parts) = &node.value {
+                        let has_expr = parts
+                            .iter()
+                            .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
+                        if has_expr {
+                            // Mixed text + expression: class="block {expr}"
+                            let mut tmpl = String::new();
+                            for part in parts {
+                                match part {
+                                    AttributeValuePart::Text(text) => {
+                                        tmpl.push_str(&text.data);
+                                    }
+                                    AttributeValuePart::ExpressionTag(expr_tag) => {
+                                        let es = expr_tag.expression.start().unwrap_or(0) as usize;
+                                        let ee = expr_tag.expression.end().unwrap_or(0) as usize;
+                                        if ee > es && ee <= self.source.len() {
+                                            let expr = self.source[es..ee].trim().to_string();
+                                            let expr = self.transform_store_refs(&expr);
+                                            tmpl.push_str(&format!("${{$.stringify({})}}", expr));
+                                        }
+                                    }
+                                }
+                            }
+                            base_class = Some(format!("__TMPL__:{}", tmpl));
+                        } else {
+                            base_class = self.extract_attribute_text_value(node);
+                        }
+                    } else if let AttributeValue::Expression(expr_tag) = &node.value {
+                        // Single expression: class={expr}
                         let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
                         let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                         if expr_end > expr_start && expr_end <= self.source.len() {
                             let raw_expr = self.source[expr_start..expr_end].trim().to_string();
                             base_class = Some(format!("__EXPR__:{}", raw_expr));
                         }
+                    } else {
+                        base_class = self.extract_attribute_text_value(node);
                     }
                 }
                 Attribute::Attribute(node) if node.name.as_str() == "style" => {
@@ -191,40 +219,44 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut tag = format!("<{}", name);
 
         // Track whether we've already emitted the attr_class and attr_style calls
-        let mut emitted_directives = false;
+        let mut emitted_class = false;
+        let mut emitted_style = false;
 
         // Attributes - handle class and style specially if directives exist
-        // When we encounter the first class/style directive or class/style attribute that
-        // has corresponding directives, emit BOTH attr_class and attr_style at that position
-        // (attr_class always before attr_style, regardless of source order).
+        // When there's an explicit class/style attribute with corresponding directives,
+        // emit attr_class/attr_style at the position of that attribute.
+        // When there's NO explicit class/style attribute (only directives), emit after
+        // all other attributes.
         for attr in &element.attributes {
-            // Check if this attribute is class/style related and should trigger directive emission
-            let is_class_related = matches!(attr, Attribute::ClassDirective(_))
-                || matches!(attr, Attribute::Attribute(node) if node.name.as_str() == "class" && !class_directives.is_empty());
-            let is_style_related = matches!(attr, Attribute::StyleDirective(_))
-                || matches!(attr, Attribute::Attribute(node) if node.name.as_str() == "style" && !style_directives.is_empty());
+            // Only trigger emission at an explicit class/style ATTRIBUTE position, not directives
+            let is_class_attr_with_directives = matches!(attr, Attribute::Attribute(node) if node.name.as_str() == "class" && !class_directives.is_empty());
+            let is_style_attr_with_directives = matches!(attr, Attribute::Attribute(node) if node.name.as_str() == "style" && !style_directives.is_empty());
 
-            if (is_class_related || is_style_related) && !emitted_directives {
-                emitted_directives = true;
-                // Emit attr_class first (if class directives exist)
-                if !class_directives.is_empty() {
-                    let attr_class_call = self.generate_attr_class_call(
-                        &class_directives,
-                        base_class.as_deref(),
-                        css_hash.as_deref(),
-                    )?;
-                    tag.push_str(&attr_class_call);
-                }
-                // Emit attr_style second (if style directives exist)
-                if !style_directives.is_empty() {
-                    let attr_style_call =
-                        self.generate_attr_style_call(&style_directives, base_style.as_deref())?;
-                    tag.push_str(&attr_style_call);
-                }
+            if is_class_attr_with_directives && !emitted_class {
+                emitted_class = true;
+                // Emit attr_class at the class attribute position
+                let attr_class_call = self.generate_attr_class_call(
+                    &class_directives,
+                    base_class.as_deref(),
+                    css_hash.as_deref(),
+                )?;
+                tag.push_str(&attr_class_call);
+                continue;
+            }
+            if is_style_attr_with_directives && !emitted_style {
+                emitted_style = true;
+                // Emit attr_style at the style attribute position
+                let attr_style_call =
+                    self.generate_attr_style_call(&style_directives, base_style.as_deref())?;
+                tag.push_str(&attr_style_call);
                 continue;
             }
 
             // Skip class/style directives and class/style attributes when directives exist
+            let is_class_related =
+                matches!(attr, Attribute::ClassDirective(_)) || is_class_attr_with_directives;
+            let is_style_related =
+                matches!(attr, Attribute::StyleDirective(_)) || is_style_attr_with_directives;
             if is_class_related || is_style_related {
                 continue;
             }
@@ -266,21 +298,19 @@ impl<'a> ServerCodeGenerator<'a> {
             tag.push_str(&format!(" class=\"{}\"", hash));
         }
 
-        // If directives weren't emitted (no class/style related attrs found in loop)
-        if (!class_directives.is_empty() || !style_directives.is_empty()) && !emitted_directives {
-            if !class_directives.is_empty() {
-                let attr_class_call = self.generate_attr_class_call(
-                    &class_directives,
-                    base_class.as_deref(),
-                    css_hash.as_deref(),
-                )?;
-                tag.push_str(&attr_class_call);
-            }
-            if !style_directives.is_empty() {
-                let attr_style_call =
-                    self.generate_attr_style_call(&style_directives, base_style.as_deref())?;
-                tag.push_str(&attr_style_call);
-            }
+        // Emit any remaining class/style directives that weren't handled in the loop
+        if !class_directives.is_empty() && !emitted_class {
+            let attr_class_call = self.generate_attr_class_call(
+                &class_directives,
+                base_class.as_deref(),
+                css_hash.as_deref(),
+            )?;
+            tag.push_str(&attr_class_call);
+        }
+        if !style_directives.is_empty() && !emitted_style {
+            let attr_style_call =
+                self.generate_attr_style_call(&style_directives, base_style.as_deref())?;
+            tag.push_str(&attr_style_call);
         }
 
         if is_void_element(name) {
@@ -1863,6 +1893,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
+                        let expr = self.transform_store_refs(&expr);
+                        let expr = self.strip_ts_from_expr(&expr);
                         return Ok(Some(make_attr_call(name, &expr)));
                     } else {
                         return Ok(None);
@@ -1884,7 +1916,14 @@ impl<'a> ServerCodeGenerator<'a> {
                             // sanitize for template literal context: escape \, `, and ${.
                             // This matches the official Svelte compiler's sanitize_template_string
                             // applied to quasi.value.cooked (build_attribute_value in utils.js).
-                            current_text.push_str(&sanitize_template_string(&text.data));
+                            // For style attributes, collapse whitespace (newlines/tabs to spaces)
+                            // to match the official compiler's single-line output.
+                            let text_data = if is_style_attr {
+                                super::super::helpers::collapse_whitespace(&text.data)
+                            } else {
+                                text.data.to_string()
+                            };
+                            current_text.push_str(&sanitize_template_string(&text_data));
                         }
                         AttributeValuePart::ExpressionTag(expr_tag) => {
                             has_expressions = true;
@@ -1897,6 +1936,7 @@ impl<'a> ServerCodeGenerator<'a> {
                             let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                             if expr_end > expr_start && expr_end <= self.source.len() {
                                 let expr = self.source[expr_start..expr_end].trim().to_string();
+                                let expr = self.transform_store_refs(&expr);
                                 // All attributes with expressions need $.stringify() for proper value coercion
                                 template_parts.push(format!("${{$.stringify({})}}", expr));
                             }
@@ -1952,6 +1992,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                 if expr_end > expr_start && expr_end <= self.source.len() {
                     let expr = self.source[expr_start..expr_end].trim().to_string();
+                    let expr = self.transform_store_refs(&expr);
+                    let expr = self.strip_ts_from_expr(&expr);
                     Ok(Some(make_attr_call(name, &expr)))
                 } else {
                     Ok(None)
@@ -2223,13 +2265,18 @@ impl<'a> ServerCodeGenerator<'a> {
 
                 if has_expr {
                     // Generate a template literal with $.stringify() for dynamic parts
+                    // Collapse whitespace (newlines/tabs/spaces) in text parts to single spaces,
+                    // matching the official Svelte compiler's behavior for style attributes.
                     let mut template = String::from("`");
                     for part in parts {
                         match part {
                             AttributeValuePart::Text(text) => {
+                                // Collapse runs of whitespace (including newlines/tabs)
+                                // to single spaces, matching official compiler behavior
+                                let collapsed =
+                                    super::super::helpers::collapse_whitespace(&text.data);
                                 template.push_str(
-                                    &text
-                                        .data
+                                    &collapsed
                                         .replace('\\', "\\\\")
                                         .replace('`', "\\`")
                                         .replace("${", "\\${"),
@@ -2267,7 +2314,7 @@ impl<'a> ServerCodeGenerator<'a> {
     }
 
     /// Generate a $.attr_class() call for class directives.
-    fn generate_attr_class_call(
+    pub(crate) fn generate_attr_class_call(
         &self,
         directives: &[&ClassDirective],
         base_class: Option<&str>,
@@ -2292,12 +2339,25 @@ impl<'a> ServerCodeGenerator<'a> {
 
         let directives_obj = format!("{{ {} }}", directive_props.join(", "));
 
-        // Check if base_class is a dynamic expression (marked with __EXPR__: prefix)
+        // Check if base_class is a dynamic expression or template literal
         let is_dynamic = base_class
             .map(|s| s.starts_with("__EXPR__:"))
             .unwrap_or(false);
+        let is_template = base_class
+            .map(|s| s.starts_with("__TMPL__:"))
+            .unwrap_or(false);
 
-        let (base_arg, hash_arg) = if is_dynamic {
+        let (base_arg, hash_arg) = if is_template {
+            // Template literal - hash goes as separate second argument
+            let tmpl = &base_class.unwrap()["__TMPL__:".len()..];
+            let base = format!("`{}`", tmpl);
+            let hash = if let Some(hash) = css_hash {
+                format!("'{}'", hash)
+            } else {
+                "void 0".to_string()
+            };
+            (base, hash)
+        } else if is_dynamic {
             // Dynamic expression - hash goes as separate second argument
             let expr = &base_class.unwrap()["__EXPR__:".len()..];
             let base = format!("$.clsx({})", expr);

@@ -3854,7 +3854,25 @@ fn transform_instance_script_for_visitors(
             // so checking its trailing char is equivalent to checking the full text's trailing char.
             let trailing_comma = is_var_decl && trimmed.ends_with(',');
 
-            if !trailing_comma {
+            // Check if the current trimmed line ends with a binary/assignment operator,
+            // indicating the expression continues on the next line.
+            // e.g., `$: overflow_has_selected_tab =\n\thandle_overflow_has_selected_tab(...)`
+            // Only check the most unambiguous operators to avoid false positives
+            // (e.g., `*/` ending a JSDoc comment, or `}` ending a block).
+            let trailing_operator = {
+                let t = trimmed.trim_end_matches(';');
+                t.ends_with('=')
+                    && !t.ends_with("==")
+                    && !t.ends_with("!=")
+                    && !t.ends_with("<=")
+                    && !t.ends_with(">=")
+                    && !t.ends_with("=>")
+                    || t.ends_with("&&")
+                    || t.ends_with("||")
+                    || t.ends_with("??")
+            };
+
+            if !trailing_comma && !trailing_operator {
                 // Before processing, check if the next non-empty line starts with '.'
                 // (method chaining continuation like `.fill(null).map(...)`)
                 let mut next_continues = false;

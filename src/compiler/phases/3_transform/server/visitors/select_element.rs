@@ -271,6 +271,70 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
+        // Collect class directives and add attr_class if needed
+        let class_directives: Vec<&crate::ast::template::ClassDirective> = element
+            .attributes
+            .iter()
+            .filter_map(|a| {
+                if let Attribute::ClassDirective(dir) = a {
+                    Some(dir)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let has_class_attr = element
+            .attributes
+            .iter()
+            .any(|a| matches!(a, Attribute::Attribute(node) if node.name.as_str() == "class"));
+        if !class_directives.is_empty() {
+            let css_hash = if element.metadata.scoped {
+                Some(
+                    self.analysis
+                        .as_ref()
+                        .map(|a| a.css.hash.as_str())
+                        .unwrap_or(""),
+                )
+            } else {
+                None
+            };
+            let base_class = if has_class_attr {
+                // Extract base class value from class attribute
+                element.attributes.iter().find_map(|a| {
+                    if let Attribute::Attribute(node) = a
+                        && node.name.as_str() == "class"
+                        && let AttributeValue::Sequence(parts) = &node.value
+                    {
+                        let text: String = parts
+                            .iter()
+                            .filter_map(|p| match p {
+                                crate::ast::template::AttributeValuePart::Text(t) => {
+                                    Some(t.data.to_string())
+                                }
+                                _ => None,
+                            })
+                            .collect::<Vec<_>>()
+                            .join("");
+                        if !text.is_empty() {
+                            return Some(text);
+                        }
+                    }
+                    None
+                })
+            } else {
+                None
+            };
+            let attr_class_call =
+                self.generate_attr_class_call(&class_directives, base_class.as_deref(), css_hash)?;
+            tag.push_str(&attr_class_call);
+        } else if !has_class_attr
+            && element.metadata.scoped
+            && let Some(hash) = self.analysis.as_ref().map(|a| a.css.hash.as_str())
+        {
+            // No class directives and no class attr - add CSS hash if scoped
+            tag.push_str(&format!(" class=\"{}\"", hash));
+        }
+
         tag.push('>');
         self.output_parts.push(OutputPart::Html(tag));
 

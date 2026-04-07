@@ -473,6 +473,52 @@ where
                     })));
             }
         }
+
+        // If there are class directives but no explicit `class` attribute was encountered,
+        // emit attr_class after all other attributes.
+        let has_class_attr = node
+            .get_attributes()
+            .iter()
+            .any(|a| matches!(a, Attribute::Attribute(attr) if attr.name == "class"));
+        if !class_directives.is_empty() && !has_class_attr {
+            // No explicit class attribute - use void 0 as the value
+            let void_expr = JsExpr::Unary(JsUnaryExpression {
+                operator: crate::compiler::phases::phase3_transform::js_ast::nodes::JsUnaryOp::Void,
+                argument: arena.alloc_expr(JsExpr::Literal(JsLiteral::Number(0.0))),
+                prefix: true,
+            });
+            state
+                .template
+                .push(TemplateItem::Expression(build_attr_class(
+                    &class_directives,
+                    void_expr,
+                    css_hash,
+                    transform.clone(),
+                    arena,
+                )));
+        }
+
+        // If there are style directives but no explicit `style` attribute was encountered,
+        // emit attr_style after all other attributes.
+        let has_style_attr = node
+            .get_attributes()
+            .iter()
+            .any(|a| matches!(a, Attribute::Attribute(attr) if attr.name == "style"));
+        if !style_directives.is_empty() && !has_style_attr {
+            let void_expr = JsExpr::Unary(JsUnaryExpression {
+                operator: crate::compiler::phases::phase3_transform::js_ast::nodes::JsUnaryOp::Void,
+                argument: arena.alloc_expr(JsExpr::Literal(JsLiteral::Number(0.0))),
+                prefix: true,
+            });
+            state
+                .template
+                .push(TemplateItem::Expression(build_attr_style(
+                    &style_directives,
+                    void_expr,
+                    transform.clone(),
+                    arena,
+                )));
+        }
     }
 
     // Add captured event handlers

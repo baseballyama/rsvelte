@@ -1834,8 +1834,8 @@ pub struct ComponentClientTransformState<'a> {
     /// Transform rules for identifiers (uses im::HashMap for O(1) clone)
     pub transform: ImHashMap<String, IdentifierTransform>,
 
-    /// Delegated events
-    pub events: FxHashSet<String>,
+    /// Delegated events (insertion-ordered to match official compiler's Set<string>)
+    pub events: indexmap::IndexSet<String>,
 
     /// Metadata about the component
     pub metadata: ComponentMetadata,
@@ -2112,7 +2112,7 @@ impl<'a> ComponentClientTransformState<'a> {
             // Use memoizer with scope declarations to avoid variable name collisions
             memoizer: Memoizer::with_scope_declarations(scope, scope_root),
             transform: ImHashMap::new(),
-            events: FxHashSet::default(),
+            events: indexmap::IndexSet::default(),
             metadata: ComponentMetadata::default(),
             in_constructor: false,
             in_derived: false,

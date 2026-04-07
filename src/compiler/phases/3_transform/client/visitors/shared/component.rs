@@ -410,7 +410,18 @@ pub fn build_component(
                     b::member_path(arena, component_name)
                 }
             } else {
-                b::member_path(arena, component_name)
+                // For single-name components (like `Icon`), also apply read transforms
+                // so that e.g. legacy prop getters produce `Icon()(anchor, props)`
+                // instead of `Icon(anchor, props)`.
+                if let Some(transform) = ctx.state.transform.get(component_name) {
+                    if let Some(read_fn) = transform.read {
+                        read_fn(arena, b::id(component_name))
+                    } else {
+                        b::member_path(arena, component_name)
+                    }
+                } else {
+                    b::member_path(arena, component_name)
+                }
             }
         };
 
@@ -2691,7 +2702,33 @@ fn build_component_call(
     let callee = if is_component_dynamic {
         b::id(intermediate_name)
     } else {
-        b::member_path(&context.arena, component_name)
+        // Apply read transforms for single-name components (e.g. legacy prop getters)
+        let parts: Vec<&str> = component_name.split('.').collect();
+        if parts.len() > 1 {
+            let base_name = parts[0];
+            if let Some(transform) = context.state.transform.get(base_name) {
+                if let Some(read_fn) = transform.read {
+                    let base_expr = read_fn(&context.arena, b::id(base_name));
+                    let mut expr = base_expr;
+                    for part in &parts[1..] {
+                        expr = b::member(&context.arena, expr, part.to_string());
+                    }
+                    expr
+                } else {
+                    b::member_path(&context.arena, component_name)
+                }
+            } else {
+                b::member_path(&context.arena, component_name)
+            }
+        } else if let Some(transform) = context.state.transform.get(component_name) {
+            if let Some(read_fn) = transform.read {
+                read_fn(&context.arena, b::id(component_name))
+            } else {
+                b::member_path(&context.arena, component_name)
+            }
+        } else {
+            b::member_path(&context.arena, component_name)
+        }
     };
 
     let call = b::call(

@@ -493,6 +493,8 @@ pub fn visit_regular_element(
 
         // Track if style has been handled (when style attribute exists)
         let mut style_handled = false;
+        // Track if class directives have been handled inline (at source position)
+        let mut class_directives_handled = false;
 
         // Check if element needs CSS scoping (per-element flag set during analysis)
         let is_scoped = node.metadata.scoped;
@@ -514,8 +516,23 @@ pub fn visit_regular_element(
                     continue;
                 }
 
-                // Skip class attribute if there are class directives - will be handled separately
+                // Handle class attribute with class directives inline at source position
+                // (matching the official compiler's RegularElement.js which processes
+                // class at its source position, not post-loop)
                 if name == "class" && !class_directives.is_empty() {
+                    let is_html = context.state.metadata.namespace == "html" && node.name != "svg";
+                    let node_id_str = extract_node_id(&context.state.node);
+                    build_set_class(
+                        node,
+                        &node_id_str,
+                        Some(&attr.value),
+                        &class_directives,
+                        context,
+                        is_html,
+                        &context.state.analysis.css.hash.clone(),
+                        is_scoped,
+                    );
+                    class_directives_handled = true;
                     continue;
                 }
 
@@ -710,7 +727,8 @@ pub fn visit_regular_element(
         }
 
         // Handle class directives (with or without class attribute)
-        if !class_directives.is_empty() {
+        // Skip if already handled inline at source position
+        if !class_directives.is_empty() && !class_directives_handled {
             let node_id = extract_node_id(&context.state.node);
             let is_html = context.state.metadata.namespace == "html" && node.name != "svg";
 

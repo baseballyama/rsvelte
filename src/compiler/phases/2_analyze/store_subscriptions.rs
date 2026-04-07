@@ -571,6 +571,39 @@ fn is_dollar_ident_variable_declaration(chars: &[char], ident_start: usize) -> b
     false
 }
 
+/// Check if a `$$xxx` identifier is used in a TypeScript type declaration context
+/// (e.g., `type $$Props = ...` or `interface $$Props { ... }`).
+/// These are TypeScript-only constructs that should not be treated as store references.
+fn is_dollar_ident_type_declaration(chars: &[char], ident_start: usize) -> bool {
+    if ident_start == 0 {
+        return false;
+    }
+    // Skip backwards over whitespace
+    let mut k = ident_start as isize - 1;
+    while k >= 0 && (chars[k as usize] == ' ' || chars[k as usize] == '\t') {
+        k -= 1;
+    }
+    if k < 0 {
+        return false;
+    }
+    let pos = k as usize;
+    // Check for `type` keyword ending at position k
+    if pos >= 3 && &chars[pos - 3..=pos].iter().collect::<String>() == "type" {
+        let before = if pos >= 4 { chars[pos - 4] } else { ' ' };
+        if !before.is_alphanumeric() && before != '_' && before != '$' {
+            return true;
+        }
+    }
+    // Check for `interface` keyword ending at position k
+    if pos >= 8 && &chars[pos - 8..=pos].iter().collect::<String>() == "interface" {
+        let before = if pos >= 9 { chars[pos - 9] } else { ' ' };
+        if !before.is_alphanumeric() && before != '_' && before != '$' {
+            return true;
+        }
+    }
+    false
+}
+
 /// Collect $xxx identifiers from a JavaScript string with context.
 fn collect_dollar_identifiers_from_js_with_context(
     js: &str,
@@ -682,6 +715,7 @@ fn collect_dollar_identifiers_from_js_with_context(
                     if !is_dollar_ident_parameter(&chars, ident_start, i)
                         && !is_dollar_ident_variable_declaration(&chars, ident_start)
                         && !is_dollar_ident_object_property_key(&chars, i)
+                        && !is_dollar_ident_type_declaration(&chars, ident_start)
                     {
                         refs.push(StoreRef {
                             name: ident,
