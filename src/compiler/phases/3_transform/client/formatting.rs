@@ -545,6 +545,8 @@ pub(super) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
         result.code.trim_end().to_string()
     });
 
+    // Restore double-quoted strings that OXC normalized to single quotes
+    let code = restore_original_quotes(js, &code);
     let code = &code;
 
     // Rejoin consecutive `;` lines (from $inspect() removal) BEFORE any other
@@ -1394,4 +1396,165 @@ pub(super) fn remove_blank_lines_before_closing_braces(code: &str) -> String {
     }
 
     result.join("\n")
+}
+
+/// Restore double-quoted strings from the original code after OXC codegen.
+/// OXC with `single_quote: true` converts all string literals to single quotes.
+/// This function finds double-quoted strings in the original code and restores
+/// them in the OXC output to match the official Svelte compiler behavior (esrap),
+/// which preserves original quote style.
+fn restore_original_quotes(original: &str, oxc_output: &str) -> String {
+    // Collect all double-quoted string contents from the original code.
+    let mut double_quoted_contents: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
+    {
+        let bytes = original.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            if bytes[i] == b'"' {
+                i += 1;
+                let content_start = i;
+                while i < bytes.len() {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                    } else if bytes[i] == b'"' {
+                        let content = &original[content_start..i];
+                        double_quoted_contents.insert(content.to_string());
+                        i += 1;
+                        break;
+                    } else {
+                        i += 1;
+                    }
+                }
+            } else if bytes[i] == b'\'' {
+                i += 1;
+                while i < bytes.len() {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                    } else if bytes[i] == b'\'' {
+                        i += 1;
+                        break;
+                    } else {
+                        i += 1;
+                    }
+                }
+            } else if bytes[i] == b'`' {
+                i += 1;
+                let mut depth = 0u32;
+                while i < bytes.len() {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == b'$' && i + 1 < bytes.len() && bytes[i + 1] == b'{' {
+                        depth += 1;
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == b'}' && depth > 0 {
+                        depth -= 1;
+                        i += 1;
+                        continue;
+                    }
+                    if bytes[i] == b'`' && depth == 0 {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
+                }
+            } else if bytes[i] == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            } else if bytes[i] == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'*' {
+                i += 2;
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i += 2;
+            } else {
+                i += 1;
+            }
+        }
+    }
+
+    if double_quoted_contents.is_empty() {
+        return oxc_output.to_string();
+    }
+
+    // Now scan the OXC output and restore double quotes for matching strings
+    let bytes = oxc_output.as_bytes();
+    let mut result = Vec::with_capacity(oxc_output.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'\'' {
+            let start = i;
+            i += 1;
+            let content_start = i;
+            while i < bytes.len() {
+                if bytes[i] == b'\\' {
+                    i += 2;
+                } else if bytes[i] == b'\'' {
+                    break;
+                } else {
+                    i += 1;
+                }
+            }
+            if i < bytes.len() {
+                let content = &oxc_output[content_start..i];
+                i += 1; // skip closing quote
+
+                // Unescape single quotes for comparison with original
+                let unescaped = content.replace("\\'", "'");
+                if double_quoted_contents.contains(&unescaped) {
+                    // Restore double quotes
+                    result.push(b'"');
+                    let re_escaped = unescaped.replace('"', "\\\"");
+                    result.extend_from_slice(re_escaped.as_bytes());
+                    result.push(b'"');
+                } else {
+                    // Keep single quotes
+                    result.extend_from_slice(&oxc_output.as_bytes()[start..i]);
+                }
+            } else {
+                result.extend_from_slice(&oxc_output.as_bytes()[start..]);
+            }
+        } else if bytes[i] == b'`' {
+            // Skip template literals verbatim
+            result.push(bytes[i]);
+            i += 1;
+            let mut depth = 0u32;
+            while i < bytes.len() {
+                result.push(bytes[i]);
+                if bytes[i] == b'\\' && i + 1 < bytes.len() {
+                    i += 1;
+                    result.push(bytes[i]);
+                    i += 1;
+                    continue;
+                }
+                if bytes[i] == b'$' && i + 1 < bytes.len() && bytes[i + 1] == b'{' {
+                    depth += 1;
+                    i += 1;
+                    result.push(bytes[i]);
+                    i += 1;
+                    continue;
+                }
+                if bytes[i] == b'}' && depth > 0 {
+                    depth -= 1;
+                    i += 1;
+                    continue;
+                }
+                if bytes[i] == b'`' && depth == 0 {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+        } else {
+            result.push(bytes[i]);
+            i += 1;
+        }
+    }
+
+    String::from_utf8(result).unwrap_or_else(|_| oxc_output.to_string())
 }

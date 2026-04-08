@@ -1983,12 +1983,10 @@ pub(super) fn transform_props_destructuring(
             let flags = calculate_prop_flags(local_name, analysis, !is_simple);
 
             // Check if the value needs $.proxy() wrapping.
-            // Only $bindable() defaults get proxy-wrapped (similar to $state).
-            // Regular prop defaults are not proxied.
-            let needs_proxy = was_bindable
-                && (default_value.trim().starts_with('[')
-                    || default_value.trim().starts_with('{')
-                    || default_value.trim().starts_with("new "));
+            // Only $bindable() defaults get proxy-wrapped when should_proxy returns true.
+            // Regular prop defaults are NOT proxied.
+            // Reference: VariableDeclaration.js lines 80-84
+            let needs_proxy = was_bindable && should_proxy_prop_default(default_value);
             let proxy_wrapped = if needs_proxy {
                 if dev {
                     format!("$.tag_proxy($.proxy({}), '{}')", default_value, local_name)
@@ -2757,6 +2755,58 @@ pub(super) fn all_args_are_literals(args: &str) -> bool {
         }
     }
 
+    true
+}
+
+/// Check if a prop default value should be wrapped in `$.proxy()`.
+/// This mirrors the official compiler's `should_proxy(initial, scope)` check for prop defaults.
+/// Returns `false` for values known to be primitives (literals, template literals,
+/// arrow functions, function expressions, unary/binary expressions, `undefined`).
+/// Returns `true` for everything else (identifiers, member expressions, call expressions, etc.).
+fn should_proxy_prop_default(value: &str) -> bool {
+    let v = value.trim();
+
+    // Empty value means no default
+    if v.is_empty() {
+        return false;
+    }
+
+    // Literals: numbers, strings, booleans, null, undefined
+    if v.parse::<f64>().is_ok() {
+        return false;
+    }
+    if (v.starts_with('"') && v.ends_with('"')) || (v.starts_with('\'') && v.ends_with('\'')) {
+        return false;
+    }
+    // Template literals (backtick strings)
+    if v.starts_with('`') && v.ends_with('`') {
+        return false;
+    }
+    if matches!(v, "true" | "false" | "null" | "undefined" | "void 0") {
+        return false;
+    }
+    // Arrow functions: starts with `(` or identifier then `=>`
+    if v.starts_with("() =>") || v.starts_with("(") && v.contains("=>") {
+        return false;
+    }
+    // Function expressions
+    if v.starts_with("function") {
+        return false;
+    }
+    // Unary expressions (!, -, +, ~, typeof, void, delete)
+    if v.starts_with('!')
+        || v.starts_with("typeof ")
+        || v.starts_with("void ")
+        || v.starts_with("delete ")
+    {
+        return false;
+    }
+    // Negative numbers/expressions: -expr
+    if v.starts_with('-') && v.len() > 1 {
+        return false;
+    }
+
+    // Everything else could be an object/array/identifier that should be proxied
     true
 }
 

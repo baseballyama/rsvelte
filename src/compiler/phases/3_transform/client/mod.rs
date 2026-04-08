@@ -1635,7 +1635,11 @@ fn transform_client_with_visitors(
         let (module_imports, rest) = extract_imports(&raw);
         // Add module script imports first (from module.body in official compiler)
         for import_line in module_imports {
-            let trimmed = import_line.trim();
+            let cleaned = cleanup_import_line(&import_line);
+            if cleaned.is_empty() {
+                continue;
+            }
+            let trimmed = cleaned.trim();
             // Ensure import statements end with semicolons, matching esrap behavior.
             let with_semi = if !trimmed.ends_with(';') {
                 format!("{};", trimmed)
@@ -1668,7 +1672,11 @@ fn transform_client_with_visitors(
     if let Some(ref instance_content) = analysis.instance_script_content {
         let (script_imports, _) = extract_imports(&instance_content.raw);
         for import_line in script_imports {
-            let trimmed = import_line.trim();
+            let cleaned = cleanup_import_line(&import_line);
+            if cleaned.is_empty() {
+                continue;
+            }
+            let trimmed = cleaned.trim();
             // Ensure import statements end with semicolons, matching esrap behavior.
             // User code may omit semicolons (ASI), but the Svelte compiler's esrap
             // printer always adds them.
@@ -1944,6 +1952,56 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
     }
 
     (imports, rest.join("\n"))
+}
+
+/// Clean up an import statement after TypeScript stripping.
+/// Removes empty specifier slots (trailing commas, double commas) that result from
+/// type-only specifier removal. Normalizes `import { A,  , C,  } from 'x'` to
+/// `import { A, C } from 'x'`.
+fn cleanup_import_line(import: &str) -> String {
+    // Normalize whitespace (join multi-line imports into a single line)
+    let single_line = import
+        .lines()
+        .map(|l| l.trim())
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    // Find the { ... } block
+    if let Some(open) = single_line.find('{')
+        && let Some(close_offset) = single_line[open..].find('}')
+    {
+        let close = open + close_offset;
+        let before = &single_line[..open + 1]; // "import { " or "import Default, {"
+        let specs_str = &single_line[open + 1..close];
+        let after = &single_line[close..]; // "} from '...'"
+
+        // Parse specifiers, filter out empty ones
+        let specs: Vec<&str> = specs_str
+            .split(',')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        if specs.is_empty() {
+            // All specifiers were removed - check if there's a default import before the {
+            let before_brace = single_line[..open].trim();
+            if before_brace.starts_with("import ") {
+                let after_import = before_brace.strip_prefix("import ").unwrap_or("").trim();
+                if after_import.is_empty() || after_import == "," {
+                    // No default import, remove entire statement
+                    return String::new();
+                }
+                // Has a default import, remove the { } part
+                let default_part = after_import.trim_end_matches(',').trim();
+                let from_part = after[1..].trim(); // skip '}'
+                return format!("import {} {}", default_part, from_part);
+            }
+        }
+
+        return format!("{} {} {}", before.trim(), specs.join(", "), after.trim());
+    }
+
+    single_line
 }
 
 /// Extract variable names from top-level (non-nested) declarations that are NOT
@@ -2574,10 +2632,13 @@ pub(crate) fn transform_module_script_runes(
                     &result[derived_start + content_end + 1..]
                 );
             } else {
+                // Apply unthunk optimization: `() => identifier()` -> `identifier`
+                // This matches the official compiler's thunk() + unthunk() pattern
+                let thunk_arg = crate::compiler::phases::phase3_transform::client::destructure_transforms::unthunk_string(&wrapped_content);
                 result = format!(
-                    "{}$.derived(() => {}){}",
+                    "{}$.derived({}){}",
                     &result[..pos],
-                    wrapped_content,
+                    thunk_arg,
                     &result[derived_start + content_end + 1..]
                 );
             }

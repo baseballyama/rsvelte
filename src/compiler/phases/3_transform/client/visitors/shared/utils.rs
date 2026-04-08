@@ -257,6 +257,12 @@ fn should_proxy_with_context(
                         | "SnippetBlock" => {
                             return true;
                         }
+                        "Identifier" => {
+                            // When the initial value is an Identifier, check if it's `undefined`
+                            // which is the only identifier that should NOT be proxied.
+                            // This matches: should_proxy(binding.initial, null) in the official compiler
+                            return binding.initial_identifier_name.as_deref() != Some("undefined");
+                        }
                         _ => {
                             // Recursively check if initial value type should be proxied
                             return should_proxy_node_type(initial_type);

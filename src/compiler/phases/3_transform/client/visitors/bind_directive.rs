@@ -425,7 +425,14 @@ fn bind_directive_inner(
         each_result
     } else {
         // Build getter and setter from the expression
-        build_getter_setter(&node.expression, &expression, context)
+        // Pass is_primitive=true for regular element bindings to skip proxy flag
+        // This matches: const is_primitive = path.at(-1) === 'BindDirective' && path.at(-2) === 'RegularElement'
+        build_getter_setter_with_primitive(
+            &node.expression,
+            &expression,
+            context,
+            is_regular_element(&parent),
+        )
     };
 
     // Get binding property configuration
@@ -1662,6 +1669,15 @@ fn build_getter_setter(
     expr: &JsExpr,
     context: &ComponentContext,
 ) -> (JsExpr, Option<JsExpr>) {
+    build_getter_setter_with_primitive(original_expr, expr, context, false)
+}
+
+fn build_getter_setter_with_primitive(
+    original_expr: &Expression,
+    expr: &JsExpr,
+    context: &ComponentContext,
+    is_primitive: bool,
+) -> (JsExpr, Option<JsExpr>) {
     // Check if this is a simple identifier that's a state variable
     // If so, we need to wrap with $.get() and $.set()
     let is_state_var = is_state_variable(original_expr, context);
@@ -1692,10 +1708,38 @@ fn build_getter_setter(
             b::thunk(&context.arena, get_call)
         };
 
+        // Add proxy flag for non-primitive bindings (e.g., window bindings).
+        // For regular element bindings (bind:value, bind:checked), the proxy flag is
+        // NOT added because the values are known primitives.
+        // This matches the official compiler's is_primitive check:
+        //   const is_primitive = path.at(-1) === 'BindDirective' && path.at(-2) === 'RegularElement';
+        let needs_proxy = !is_primitive
+            && if let JsExpr::Identifier(name) = expr {
+                if let Some(binding) = context.state.get_binding(name) {
+                    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                    context.state.analysis.runes
+                        && !matches!(
+                            binding.kind,
+                            BindingKind::RawState
+                                | BindingKind::Derived
+                                | BindingKind::Prop
+                                | BindingKind::BindableProp
+                                | BindingKind::StoreSub
+                        )
+                } else {
+                    context.state.analysis.runes
+                }
+            } else {
+                false
+            };
+        let mut set_args = vec![expr.clone(), b::id("$$value")];
+        if needs_proxy {
+            set_args.push(b::boolean(true));
+        }
         let set_call = b::call(
             &context.arena,
             b::member_path(&context.arena, "$.set"),
-            vec![expr.clone(), b::id("$$value")],
+            set_args,
         );
         let set = if dev {
             b::function_expr(

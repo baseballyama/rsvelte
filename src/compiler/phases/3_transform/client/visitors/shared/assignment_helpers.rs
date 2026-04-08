@@ -270,6 +270,76 @@ pub fn should_proxy_js_expr(expr: &JsExpr) -> bool {
     }
 }
 
+/// Context-aware version of `should_proxy_js_expr` that can trace through
+/// transformed expressions (like prop getter calls) to check binding initial values.
+///
+/// When a prop getter transform converts `identifier` to `identifier()`, the simple
+/// `should_proxy_js_expr` sees a CallExpression and returns true. This function
+/// detects that pattern and checks the original binding's initial value instead.
+pub fn should_proxy_js_expr_with_context(
+    expr: &JsExpr,
+    context: &crate::compiler::phases::phase3_transform::client::types::ComponentContext,
+) -> bool {
+    // Check if this is a simple call to a prop getter: `identifier()`
+    // This pattern results from prop source transforms: `assetId` -> `assetId()`
+    if let JsExpr::Call(call) = expr
+        && call.arguments.is_empty()
+        && let JsExpr::Identifier(callee_name) = context.arena.get_expr(call.callee)
+        && let Some(binding) = context.state.get_binding(callee_name.as_str())
+        && matches!(
+            binding.kind,
+            crate::compiler::phases::phase2_analyze::scope::BindingKind::Prop
+                | crate::compiler::phases::phase2_analyze::scope::BindingKind::BindableProp
+        )
+    {
+        // Trace through to the binding's initial value
+        if !binding.reassigned
+            && let Some(ref initial_type) = binding.initial_node_type
+        {
+            return check_initial_type_for_proxy(initial_type, binding);
+        }
+        // Fallback: conservatively proxy
+        return true;
+    }
+
+    // For identifiers, also check binding initial values
+    if let JsExpr::Identifier(name) = expr {
+        if name == "undefined" {
+            return false;
+        }
+        if let Some(binding) = context.state.get_binding(name)
+            && !binding.reassigned
+            && let Some(ref initial_type) = binding.initial_node_type
+        {
+            return check_initial_type_for_proxy(initial_type, binding);
+        }
+    }
+
+    should_proxy_js_expr(expr)
+}
+
+/// Helper to check if a binding's initial node type should be proxied.
+fn check_initial_type_for_proxy(
+    initial_type: &str,
+    binding: &crate::compiler::phases::phase2_analyze::scope::Binding,
+) -> bool {
+    match initial_type {
+        "FunctionDeclaration"
+        | "ClassDeclaration"
+        | "ImportDeclaration"
+        | "EachBlock"
+        | "SnippetBlock" => true,
+        "Identifier" => binding.initial_identifier_name.as_deref() != Some("undefined"),
+        "Literal"
+        | "TemplateLiteral"
+        | "ArrowFunctionExpression"
+        | "FunctionExpression"
+        | "UnaryExpression"
+        | "BinaryExpression" => false,
+        _ => true,
+    }
+}
+
 /// Builds the right-hand side value for an assignment based on the operator.
 ///
 /// Expands compound assignment operators like `+=` into their full form.

@@ -133,6 +133,10 @@ fn visit_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), An
                         // Store the AST node type of the initial value for should_proxy()
                         b.initial_node_type =
                             arg.get("type").and_then(|t| t.as_str()).map(String::from);
+                        if b.initial_node_type.as_deref() == Some("Identifier") {
+                            b.initial_identifier_name =
+                                arg.get("name").and_then(|n| n.as_str()).map(String::from);
+                        }
                     }
                 }
             }
@@ -149,6 +153,10 @@ fn visit_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), An
                 // Store the AST node type of the initial value for should_proxy()
                 binding.initial_node_type =
                     init.get("type").and_then(|t| t.as_str()).map(String::from);
+                if binding.initial_node_type.as_deref() == Some("Identifier") {
+                    binding.initial_identifier_name =
+                        init.get("name").and_then(|n| n.as_str()).map(String::from);
+                }
             }
         }
     }
@@ -467,13 +475,20 @@ fn process_props_object_pattern(
                             format!("{:?}", arg)
                         });
                         // For $bindable(), store the argument's type if available
-                        binding.initial_node_type = init
+                        let bindable_first_arg = init
                             .get("arguments")
                             .and_then(|args| args.as_array())
-                            .and_then(|args| args.first())
+                            .and_then(|args| args.first());
+                        binding.initial_node_type = bindable_first_arg
                             .and_then(|arg| arg.get("type"))
                             .and_then(|t| t.as_str())
                             .map(String::from);
+                        if binding.initial_node_type.as_deref() == Some("Identifier") {
+                            binding.initial_identifier_name = bindable_first_arg
+                                .and_then(|arg| arg.get("name"))
+                                .and_then(|n| n.as_str())
+                                .map(String::from);
+                        }
                         binding.kind = BindingKind::BindableProp;
                     } else {
                         // Regular initial value - extract literal if possible.
@@ -486,6 +501,10 @@ fn process_props_object_pattern(
                             extract_literal_string(init).or_else(|| Some(init.to_string()));
                         binding.initial_node_type =
                             init.get("type").and_then(|t| t.as_str()).map(String::from);
+                        if binding.initial_node_type.as_deref() == Some("Identifier") {
+                            binding.initial_identifier_name =
+                                init.get("name").and_then(|n| n.as_str()).map(String::from);
+                        }
                     }
                 } else {
                     binding.initial = None;
@@ -1167,6 +1186,11 @@ fn visit_runes_mode_typed(
                         });
                         b.initial_is_defined = is_expression_defined_typed(arg, arena);
                         b.initial_node_type = Some(arg.type_str().to_string());
+                        if b.initial_node_type.as_deref() == Some("Identifier")
+                            && let JsNode::Identifier { name, .. } = arg
+                        {
+                            b.initial_identifier_name = Some(name.to_string());
+                        }
                     }
                 }
             }
@@ -1179,6 +1203,11 @@ fn visit_runes_mode_typed(
                 binding.initial = extract_literal_string_typed(init);
                 binding.initial_is_defined = is_expression_defined_typed(init, arena);
                 binding.initial_node_type = Some(init.type_str().to_string());
+                if binding.initial_node_type.as_deref() == Some("Identifier")
+                    && let JsNode::Identifier { name, .. } = init
+                {
+                    binding.initial_identifier_name = Some(name.to_string());
+                }
             }
         }
     }
@@ -1444,16 +1473,35 @@ fn process_props_object_pattern_typed(
                         binding.initial = bindable_arg.map(|arg| format!("{:?}", arg.to_value()));
                         binding.initial_node_type =
                             bindable_arg.map(|arg| arg.type_str().to_string());
+                        if binding.initial_node_type.as_deref() == Some("Identifier") {
+                            binding.initial_identifier_name = bindable_arg.and_then(|arg| {
+                                if let JsNode::Identifier { name, .. } = arg {
+                                    Some(name.to_string())
+                                } else {
+                                    None
+                                }
+                            });
+                        }
                         binding.kind = BindingKind::BindableProp;
                     } else {
                         binding.initial = extract_literal_string_typed(init)
                             .or_else(|| Some(init.to_value().to_string()));
                         binding.initial_node_type = Some(init.type_str().to_string());
+                        if binding.initial_node_type.as_deref() == Some("Identifier")
+                            && let JsNode::Identifier { name, .. } = init
+                        {
+                            binding.initial_identifier_name = Some(name.to_string());
+                        }
                     }
                 } else {
                     binding.initial = extract_literal_string_typed(init)
                         .or_else(|| Some(init.to_value().to_string()));
                     binding.initial_node_type = Some(init.type_str().to_string());
+                    if binding.initial_node_type.as_deref() == Some("Identifier")
+                        && let JsNode::Identifier { name, .. } = init
+                    {
+                        binding.initial_identifier_name = Some(name.to_string());
+                    }
                 }
             } else {
                 binding.initial = None;
@@ -1565,6 +1613,11 @@ fn visit_non_runes_mode_typed(
                 binding.initial = extract_literal_string_typed(init);
                 binding.initial_is_defined = is_expression_defined_typed(init, arena);
                 binding.initial_node_type = Some(init.type_str().to_string());
+                if binding.initial_node_type.as_deref() == Some("Identifier")
+                    && let JsNode::Identifier { name, .. } = init
+                {
+                    binding.initial_identifier_name = Some(name.to_string());
+                }
             }
         }
     }

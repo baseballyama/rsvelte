@@ -212,7 +212,24 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                     JsExpr::Literal(JsLiteral::String(s.to_string().into()))
                 }
             }
-            LiteralValue::Number(n) => JsExpr::Literal(JsLiteral::Number(*n)),
+            LiteralValue::Number(n) => {
+                // Preserve the original raw representation for numeric literals
+                // from user source code. This keeps formats like 1_000_000, 0.5, etc.
+                // intact instead of normalizing them (e.g. to 1e6 or .5).
+                let raw_str = raw.as_str();
+                let i = *n as i64;
+                let is_simple_int = i >= 0 && *n == i as f64 && n.is_finite();
+                let codegen_str = if is_simple_int {
+                    itoa::Buffer::new().format(i).to_string()
+                } else {
+                    format!("{}", n)
+                };
+                if raw_str == codegen_str {
+                    JsExpr::Literal(JsLiteral::Number(*n))
+                } else {
+                    JsExpr::Raw(raw.to_string().into())
+                }
+            }
             LiteralValue::Bool(b) => JsExpr::Literal(JsLiteral::Boolean(*b)),
             LiteralValue::Null => {
                 // Check for regex
@@ -5119,6 +5136,9 @@ fn should_proxy_value(value: Option<&Value>, context: &ComponentContext) -> bool
                         | "SnippetBlock" => {
                             return true;
                         }
+                        "Identifier" => {
+                            return binding.initial_identifier_name.as_deref() != Some("undefined");
+                        }
                         _ => return should_proxy_node_type_str(initial_type),
                     }
                 }
@@ -5169,6 +5189,9 @@ fn should_proxy_jsnode(node: &JsNode, _pa: &ParseArena, context: &ComponentConte
                     | "ImportDeclaration"
                     | "EachBlock"
                     | "SnippetBlock" => return true,
+                    "Identifier" => {
+                        return binding.initial_identifier_name.as_deref() != Some("undefined");
+                    }
                     _ => return should_proxy_node_type_str(initial_type),
                 }
             }

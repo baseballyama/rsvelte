@@ -256,6 +256,9 @@ pub struct Binding {
     /// The AST node type of the initial value expression (e.g., "BinaryExpression", "Literal").
     /// Used by should_proxy() to determine if an identifier's initial value needs deep reactivity.
     pub initial_node_type: Option<String>,
+    /// When the initial value is an Identifier, stores its name (e.g., "undefined").
+    /// Used by should_proxy() to check if the initial value is `undefined`.
+    pub initial_identifier_name: Option<String>,
     /// Instance-level declarations may follow (or contain) a top-level `await`. In these cases,
     /// any reads that occur in the template must wait for the corresponding promise to resolve
     /// otherwise the initial value will not have been assigned.
@@ -345,6 +348,7 @@ impl Binding {
             initial_is_defined: false,
             initial_is_function: false,
             initial_node_type: None,
+            initial_identifier_name: None,
             references: SmallVec::new(),
             mutations: SmallVec::new(),
             prop_alias: None,
@@ -379,6 +383,7 @@ impl Binding {
             initial_is_defined: false,
             initial_is_function: false,
             initial_node_type: None,
+            initial_identifier_name: None,
             references: SmallVec::new(),
             mutations: SmallVec::new(),
             prop_alias: None,

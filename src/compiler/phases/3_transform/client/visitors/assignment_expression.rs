@@ -162,7 +162,7 @@ fn build_assignment(
             && !binding_kind_excludes_proxy
             && context.state.analysis.runes
             && is_non_coercive_operator(operator)
-            && should_proxy_js_expr(right);
+            && should_proxy_js_expr_with_context(right, context);
 
         return Some(assign_fn(
             &context.arena,

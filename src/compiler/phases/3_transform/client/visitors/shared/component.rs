@@ -1457,12 +1457,17 @@ fn process_bind_directive(
     // Check if this is a store member expression (e.g., $store.value)
     let is_store_member = is_store_member_expression(&bind.expression, context);
 
-    // Check if this is a state source binding that needs $.get/$.set
+    // Check if this is a state source or derived binding that needs $.get/$.set
+    // In the official compiler, the transform.assign for both State and Derived
+    // generates $.set(node, value), so both need the same treatment.
     let is_state_binding = if let JsExpr::Identifier(name) = &raw_expression {
         if let Some(binding) = context.state.get_binding(name) {
             crate::compiler::phases::phase3_transform::client::utils::is_state_source(
                 binding,
                 context.state.analysis,
+            ) || matches!(
+                binding.kind,
+                crate::compiler::phases::phase2_analyze::scope::BindingKind::Derived
             )
         } else {
             false
@@ -2672,6 +2677,30 @@ fn build_component_expression(
     match node {
         ComponentNode::Component(_) => {
             // For dynamic component identified by name
+            // Check if the identifier is a non-source prop that should be accessed via $$props.name
+            // This handles cases like `const { component: Test } = $props()` where
+            // <Test> should resolve to $$props.component (using prop_alias)
+            if let Some(binding) = context.state.get_binding(component_name) {
+                use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                if matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp) {
+                    let is_source =
+                        crate::compiler::phases::phase3_transform::client::utils::is_prop_source(
+                            binding,
+                            context.state.analysis,
+                        );
+                    if !is_source {
+                        let prop_name = binding.prop_alias.as_deref().unwrap_or(component_name);
+                        return JsExpr::Member(JsMemberExpression {
+                            object: context
+                                .arena
+                                .alloc_expr(JsExpr::Identifier("$$props".into())),
+                            property: JsMemberProperty::Identifier(prop_name.into()),
+                            computed: false,
+                            optional: false,
+                        });
+                    }
+                }
+            }
             // Apply transforms to handle derived values (const B = $derived(A) -> $.get(B))
             let id_expr = b::id(component_name);
             super::utils::apply_transforms_to_expression(&id_expr, context)
