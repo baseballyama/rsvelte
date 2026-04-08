@@ -2850,7 +2850,21 @@ fn transform_instance_script_for_visitors(
     };
 
     // Extract imports from script (they will be hoisted separately)
-    let (_script_imports, script_rest) = extract_imports(&script);
+    let (_script_imports, script_rest_raw) = extract_imports(&script);
+
+    // Strip unnecessary parentheses from arrow function expression bodies in the
+    // ORIGINAL source text, before any transforms run. The official Svelte compiler
+    // uses AST-based printing (esrap) which strips redundant parens automatically.
+    // Our text-based transform preserves source parens, so we strip them here.
+    // This must happen BEFORE transforms to avoid stripping parens from generated code
+    // patterns like `() => ($.deep_read_state(...))` in $.legacy_pre_effect.
+    let script_rest = if memmem::find(script_rest_raw.as_bytes(), b"=> (").is_some()
+        || memmem::find(script_rest_raw.as_bytes(), b"=>(").is_some()
+    {
+        strip_unnecessary_arrow_body_parens(&script_rest_raw)
+    } else {
+        script_rest_raw
+    };
 
     // Collect state variables from analysis for $.get() wrapping
     // LegacyReactive bindings (from `$: x = expr`) also need $.get()/$.set() transforms
@@ -4034,6 +4048,212 @@ fn transform_instance_script_for_visitors(
     }
 
     result
+}
+
+/// Strip unnecessary parentheses from arrow function expression bodies.
+///
+/// Transforms `=> (expr)` to `=> expr` when `expr` is not an object literal `{...}`.
+/// This matches the official Svelte compiler behavior where esrap strips redundant parens.
+fn strip_unnecessary_arrow_body_parens(code: &str) -> String {
+    let bytes = code.as_bytes();
+    let mut result = String::with_capacity(code.len());
+    let mut i = 0;
+
+    while i < bytes.len() {
+        // Look for "=> (" or "=>(" patterns (with or without space)
+        let (matched, paren_start, match_len) = if i + 4 <= bytes.len()
+            && bytes[i] == b'='
+            && bytes[i + 1] == b'>'
+            && bytes[i + 2] == b' '
+            && bytes[i + 3] == b'('
+        {
+            (true, i + 3, 4)
+        } else if i + 3 <= bytes.len()
+            && bytes[i] == b'='
+            && bytes[i + 1] == b'>'
+            && bytes[i + 2] == b'('
+        {
+            (true, i + 2, 3)
+        } else {
+            (false, 0, 0)
+        };
+
+        if matched {
+            let after_paren = paren_start + 1;
+            if after_paren < bytes.len() {
+                let first_char = bytes[after_paren];
+                // If the body starts with '{', it could be an object literal - keep parens
+                // Also keep parens if the paren is immediately followed by ')' (empty parens)
+                if first_char == b'{' || first_char == b')' {
+                    result.push_str(&code[i..i + match_len]);
+                    i += match_len;
+                    continue;
+                }
+
+                // Find the matching closing paren
+                if let Some(close_pos) = find_matching_paren_bytes(bytes, paren_start) {
+                    // Verify the expression is complete at the close paren:
+                    // After the `)`, the next non-whitespace should be something that
+                    // terminates the arrow body (`,`, `;`, `}`, `)`, newline, or EOF)
+                    let after_close = &code[close_pos + 1..];
+                    let next_char = after_close.chars().next();
+                    let is_end = match next_char {
+                        None => true,
+                        Some(c) => matches!(c, ',' | ';' | '}' | ')' | ']' | '\n' | '\r'),
+                    };
+                    // Check if the inner expression contains a top-level comma
+                    // (sequence expression). If so, keep the parens because they
+                    // are semantically required.
+                    let inner = &code[after_paren..close_pos];
+                    let has_top_level_comma = has_top_level_comma_in_expr(inner.as_bytes());
+                    if is_end && !has_top_level_comma {
+                        // Strip the parens: output "=> " + inner + skip the close paren
+                        result.push_str("=> ");
+                        result.push_str(inner);
+                        i = close_pos + 1;
+                        continue;
+                    }
+                }
+            }
+        }
+        result.push(bytes[i] as char);
+        i += 1;
+    }
+    result
+}
+
+/// Check if an expression (as bytes) contains a top-level comma operator.
+/// Top-level means not nested inside any `()`, `[]`, `{}`, or string/template literal.
+fn has_top_level_comma_in_expr(bytes: &[u8]) -> bool {
+    let mut depth = 0;
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b',' if depth == 0 => return true,
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => {
+                if depth > 0 {
+                    depth -= 1;
+                }
+            }
+            b'\'' => {
+                i += 1;
+                while i < bytes.len() && bytes[i] != b'\'' {
+                    if bytes[i] == b'\\' {
+                        i += 1;
+                    }
+                    i += 1;
+                }
+            }
+            b'"' => {
+                i += 1;
+                while i < bytes.len() && bytes[i] != b'"' {
+                    if bytes[i] == b'\\' {
+                        i += 1;
+                    }
+                    i += 1;
+                }
+            }
+            b'`' => {
+                i += 1;
+                let mut tpl_depth = 0;
+                while i < bytes.len() {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == b'$' && i + 1 < bytes.len() && bytes[i + 1] == b'{' {
+                        tpl_depth += 1;
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == b'}' && tpl_depth > 0 {
+                        tpl_depth -= 1;
+                        i += 1;
+                        continue;
+                    }
+                    if bytes[i] == b'`' && tpl_depth == 0 {
+                        break;
+                    }
+                    i += 1;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    false
+}
+
+/// Find the matching closing parenthesis for an opening paren in a byte slice.
+/// Returns the byte index of the closing ')' or None if not found.
+/// Handles nested parens, brackets, braces, and string/template literals.
+fn find_matching_paren_bytes(bytes: &[u8], open_pos: usize) -> Option<usize> {
+    let mut depth = 1;
+    let mut i = open_pos + 1;
+    while i < bytes.len() && depth > 0 {
+        match bytes[i] {
+            b'(' | b'[' => depth += 1,
+            b')' | b']' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i); // shouldn't happen for matching ()
+                }
+            }
+            b'\'' => {
+                i += 1;
+                while i < bytes.len() && bytes[i] != b'\'' {
+                    if bytes[i] == b'\\' {
+                        i += 1;
+                    }
+                    i += 1;
+                }
+            }
+            b'"' => {
+                i += 1;
+                while i < bytes.len() && bytes[i] != b'"' {
+                    if bytes[i] == b'\\' {
+                        i += 1;
+                    }
+                    i += 1;
+                }
+            }
+            b'`' => {
+                i += 1;
+                let mut tpl_depth = 0;
+                while i < bytes.len() {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == b'$' && i + 1 < bytes.len() && bytes[i + 1] == b'{' {
+                        tpl_depth += 1;
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == b'}' && tpl_depth > 0 {
+                        tpl_depth -= 1;
+                        i += 1;
+                        continue;
+                    }
+                    if bytes[i] == b'`' && tpl_depth == 0 {
+                        break;
+                    }
+                    i += 1;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
 }
 
 /// Transform shadowed local reactive variables within their enclosing function bodies.

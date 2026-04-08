@@ -1336,7 +1336,22 @@ impl<'a> JsCodegen<'a> {
             ) {
                 self.output.push(' ');
             }
-            self.emit_expression(self.arena.get_expr(unary.argument));
+            let arg = self.arena.get_expr(unary.argument);
+            let needs_parens = matches!(
+                arg,
+                JsExpr::Binary(_)
+                    | JsExpr::Logical(_)
+                    | JsExpr::Assignment(_)
+                    | JsExpr::Conditional(_)
+                    | JsExpr::Sequence(_)
+            );
+            if needs_parens {
+                self.output.push('(');
+            }
+            self.emit_expression(arg);
+            if needs_parens {
+                self.output.push(')');
+            }
         } else {
             self.emit_expression(self.arena.get_expr(unary.argument));
             self.output.push_str(op_str);

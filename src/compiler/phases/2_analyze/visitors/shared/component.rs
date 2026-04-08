@@ -258,7 +258,17 @@ pub fn visit_component(
     {
         context.scope = comp_scope;
     }
+    // Clear element_ancestors and parent_element when entering a component boundary.
+    // The official Svelte compiler breaks out of the ancestor loop when it hits a
+    // Component, SvelteComponent, SvelteElement, SvelteSelf, or SnippetBlock.
+    // This ensures that node_invalid_placement checks don't cross component boundaries.
+    let saved_element_ancestors = std::mem::take(&mut context.element_ancestors);
+    let saved_block_depth_at_element = std::mem::take(&mut context.block_depth_at_element);
+    let saved_parent_element = context.parent_element.take();
     fragment::analyze(&mut component.fragment, context)?;
+    context.element_ancestors = saved_element_ancestors;
+    context.block_depth_at_element = saved_block_depth_at_element;
+    context.parent_element = saved_parent_element;
     context.scope = scope_before_component;
     context.fragment_owner_stack.pop();
     context.slot_owner_ancestors.pop();

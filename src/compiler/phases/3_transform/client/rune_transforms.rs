@@ -2,6 +2,7 @@
 
 use memchr::memmem;
 
+use super::destructure_transforms::build_fallback_string;
 use super::{
     ARRAY_LOOKUP_COUNTER, SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER,
     contains_direct_await_in_expression, expression_needs_proxy, extract_enclosing_function_name,
@@ -554,7 +555,23 @@ pub(super) fn transform_client_runes_with_skip_and_state(
                             &result[derived_start + content_end + 1..]
                         );
                     } else {
-                        result = format!("{}$.derived({}", &result[..pos], &result[pos + 9..]);
+                        // Sync arrow function inside $derived():
+                        // $derived(() => { ... }) should become $.derived(() => () => { ... })
+                        // The official compiler wraps ALL $derived() args in b.thunk(), which
+                        // wraps the arrow function: () => (() => { ... })
+                        let wrapped_content = wrap_state_vars_in_expr(
+                            content,
+                            state_vars,
+                            non_reactive_vars,
+                            proxy_vars,
+                        );
+                        let new_derived = format!("$.derived(() => {})", wrapped_content);
+                        result = format!(
+                            "{}{}{}",
+                            &result[..pos],
+                            new_derived,
+                            &result[derived_start + content_end + 1..]
+                        );
                     }
                 }
             } else {
@@ -2144,7 +2161,7 @@ pub(super) fn process_derived_object_pattern(
                 // e.g., `measured: { width: w, height: h } = { width: 0, height: 0 }`
                 let (nested_pattern, default_val) = split_nested_pattern_default(value_pattern);
                 let effective_access = if let Some(dv) = default_val {
-                    format!("({} ?? {})", prop_access, dv)
+                    build_fallback_string(&prop_access, dv)
                 } else {
                     prop_access
                 };
@@ -2161,10 +2178,8 @@ pub(super) fn process_derived_object_pattern(
                 if let Some(eq_pos) = find_default_equals(value_pattern) {
                     let name = value_pattern[..eq_pos].trim();
                     let default_val = value_pattern[eq_pos + 1..].trim();
-                    declarations.push(format!(
-                        "{} = $.derived(() => {} ?? {})",
-                        name, prop_access, default_val
-                    ));
+                    let fallback = build_fallback_string(&prop_access, default_val);
+                    declarations.push(format!("{} = $.derived(() => {})", name, fallback));
                 } else {
                     declarations.push(format!(
                         "{} = $.derived(() => {})",
@@ -2178,10 +2193,9 @@ pub(super) fn process_derived_object_pattern(
             if let Some(eq_pos) = find_default_equals(prop) {
                 let name = prop[..eq_pos].trim();
                 let default_val = prop[eq_pos + 1..].trim();
-                declarations.push(format!(
-                    "{} = $.derived(() => {}.{} ?? {})",
-                    name, base_expr, name, default_val
-                ));
+                let member_access = format!("{}.{}", base_expr, name);
+                let fallback = build_fallback_string(&member_access, default_val);
+                declarations.push(format!("{} = $.derived(() => {})", name, fallback));
             } else {
                 declarations.push(format!(
                     "{} = $.derived(() => {}.{})",
@@ -2347,7 +2361,7 @@ pub(super) fn process_nested_pattern_elements(
                 if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
                     let (nested_pattern, default_val) = split_nested_pattern_default(value_pattern);
                     let effective_access = if let Some(dv) = default_val {
-                        format!("({} ?? {})", prop_access, dv)
+                        build_fallback_string(&prop_access, dv)
                     } else {
                         prop_access
                     };
@@ -2362,10 +2376,8 @@ pub(super) fn process_nested_pattern_elements(
                     if let Some(eq_pos) = find_default_equals(value_pattern) {
                         let name = value_pattern[..eq_pos].trim();
                         let default_val = value_pattern[eq_pos + 1..].trim();
-                        declarations.push(format!(
-                            "{} = $.derived(() => {} ?? {})",
-                            name, prop_access, default_val
-                        ));
+                        let fallback = build_fallback_string(&prop_access, default_val);
+                        declarations.push(format!("{} = $.derived(() => {})", name, fallback));
                     } else {
                         declarations.push(format!(
                             "{} = $.derived(() => {})",

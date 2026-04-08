@@ -278,7 +278,15 @@ pub fn visit(
     }
 
     // Analyze children
+    // Clear element_ancestors and parent_element when entering a svelte:element boundary.
+    // The official Svelte compiler breaks out of the ancestor loop at SvelteElement nodes.
+    let saved_element_ancestors = std::mem::take(&mut context.element_ancestors);
+    let saved_block_depth_at_element = std::mem::take(&mut context.block_depth_at_element);
+    let saved_parent_element = context.parent_element.take();
     fragment::analyze(&mut element.fragment, context)?;
+    context.element_ancestors = saved_element_ancestors;
+    context.block_depth_at_element = saved_block_depth_at_element;
+    context.parent_element = saved_parent_element;
 
     // Restore namespace state
     context.analysis.component_namespace_is_svg = saved_svg;

@@ -97,6 +97,10 @@ struct StateVarCollector<'a, 's> {
     state_vars_for_store: FxHashSet<String>,
     /// Prop vars needed for store access pattern (store base is a prop).
     prop_vars_for_store: FxHashSet<String>,
+    /// When visiting inside a ParenthesizedExpression, stores the outer span (start, end).
+    /// This allows inner expression transforms (e.g., assignment -> $.set) to extend their
+    /// replacement span to cover the redundant parens.
+    paren_expr_span: Option<(u32, u32)>,
 }
 
 impl<'a, 's> StateVarCollector<'a, 's> {
@@ -146,6 +150,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             rest_prop_vars: rest_prop_set,
             state_vars_for_store: state_set_for_store,
             prop_vars_for_store: prop_set_for_store,
+            paren_expr_span: None,
         }
     }
 
@@ -175,6 +180,16 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     fn declare_in_current_scope(&mut self, name: &str) {
         if let Some(scope) = self.scoped_vars.last_mut() {
             scope.insert(name.to_string());
+        }
+    }
+
+    /// If inside a ParenthesizedExpression, return (and consume) its span.
+    /// Otherwise return the given (start, end) as-is.
+    fn effective_span(&mut self, start: u32, end: u32) -> (u32, u32) {
+        if let Some((ps, pe)) = self.paren_expr_span.take() {
+            (ps, pe)
+        } else {
+            (start, end)
         }
     }
 
@@ -448,6 +463,37 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         self.pop_scope();
     }
 
+    fn visit_expression(&mut self, expr: &Expression<'ast>) {
+        // When we encounter a ParenthesizedExpression that directly wraps an
+        // assignment or update expression, record its span so that the inner
+        // transform can extend its replacement to cover the redundant outer parens.
+        // The official Svelte compiler uses AST-based printing (esrap) which
+        // automatically strips unnecessary parens; we need to handle it here
+        // because our AST transform replaces source spans directly.
+        //
+        // Only set paren_expr_span when the inner expression is directly an
+        // assignment or update expression. For other cases (e.g., arrow functions,
+        // call expressions), don't set it to avoid incorrectly consuming parens
+        // that wrap complex expressions like `(async () => { ... })([...])`.
+        if let Expression::ParenthesizedExpression(paren) = expr {
+            let inner = &paren.expression;
+            let is_direct_transform_target = matches!(
+                inner.without_parentheses(),
+                Expression::AssignmentExpression(_) | Expression::UpdateExpression(_)
+            );
+            if is_direct_transform_target {
+                let saved = self.paren_expr_span;
+                self.paren_expr_span = Some((paren.span.start, paren.span.end));
+                self.visit_expression(inner);
+                self.paren_expr_span = saved;
+            } else {
+                self.visit_expression(inner);
+            }
+            return;
+        }
+        walk::walk_expression(self, expr);
+    }
+
     // -----------------------------------------------------------------------
     // Track variable declarations for shadowing
     // -----------------------------------------------------------------------
@@ -658,8 +704,8 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
 
             // --- State variable assignments ---
             if self.is_any_state_var(name) {
-                let full_start = expr.span.start;
-                let full_end = expr.span.end;
+                // Use effective_span to cover any enclosing ParenthesizedExpression
+                let (full_start, full_end) = self.effective_span(expr.span.start, expr.span.end);
                 let rhs_start = expr.right.span().start;
                 let rhs_end = expr.right.span().end;
 
@@ -709,8 +755,7 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
 
             // --- Prop assignments ---
             if self.is_active_prop_var(name) {
-                let full_start = expr.span.start;
-                let full_end = expr.span.end;
+                let (full_start, full_end) = self.effective_span(expr.span.start, expr.span.end);
                 let rhs_start = expr.right.span().start;
                 let rhs_end = expr.right.span().end;
 
@@ -738,8 +783,7 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
 
             // --- Store subscription assignments ---
             if self.is_active_store_sub(name) {
-                let full_start = expr.span.start;
-                let full_end = expr.span.end;
+                let (full_start, full_end) = self.effective_span(expr.span.start, expr.span.end);
                 let rhs_start = expr.right.span().start;
                 let rhs_end = expr.right.span().end;
                 let store_access = self.store_access_for(name);
@@ -777,8 +821,7 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             let obj_name = member_target.as_str();
             if self.is_active_prop_var(obj_name) && !self.non_bindable_prop_vars.contains(obj_name)
             {
-                let full_start = expr.span.start;
-                let full_end = expr.span.end;
+                let (full_start, full_end) = self.effective_span(expr.span.start, expr.span.end);
 
                 // Walk both sides to transform inner reads (e.g., state vars, read-only props,
                 // store subs, and the prop getter in the LHS itself)
@@ -800,8 +843,7 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         if let Some(store_name) = self.extract_store_member_target(&expr.left)
             && self.is_active_store_sub(&store_name)
         {
-            let full_start = expr.span.start;
-            let full_end = expr.span.end;
+            let (full_start, full_end) = self.effective_span(expr.span.start, expr.span.end);
             let store_access = self.store_access_for(&store_name);
 
             // Walk the right side to transform inner reads
@@ -844,8 +886,7 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
     fn visit_update_expression(&mut self, expr: &UpdateExpression<'ast>) {
         if let SimpleAssignmentTarget::AssignmentTargetIdentifier(ident) = &expr.argument {
             let name = ident.name.as_str();
-            let full_start = expr.span.start;
-            let full_end = expr.span.end;
+            let (full_start, full_end) = self.effective_span(expr.span.start, expr.span.end);
 
             // --- State variable updates ---
             if self.is_any_state_var(name) {

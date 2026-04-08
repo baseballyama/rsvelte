@@ -981,8 +981,59 @@ fn collect_ts_removals_from_statement(
                     if type_specs.len() == specifiers.len() {
                         removals.push((import_decl.span.start, import_decl.span.end));
                     } else {
-                        for spec in type_specs {
-                            remove_specifier_with_comma(spec.span(), source, removals);
+                        // Check if all named ImportSpecifiers are type-only
+                        // (there may be a DefaultSpecifier or NamespaceSpecifier remaining)
+                        let named_specs: Vec<_> = specifiers
+                            .iter()
+                            .filter(|s| matches!(s, ImportDeclarationSpecifier::ImportSpecifier(_)))
+                            .collect();
+                        let all_named_are_type = !named_specs.is_empty()
+                            && named_specs.iter().all(|s| {
+                                if let ImportDeclarationSpecifier::ImportSpecifier(spec) = s {
+                                    spec.import_kind == ImportOrExportKind::Type
+                                } else {
+                                    false
+                                }
+                            });
+                        if all_named_are_type && named_specs.len() >= 2 {
+                            // Multiple named type specs: remove the whole { ... } block
+                            // including the preceding comma
+                            let first_span = named_specs.first().unwrap().span();
+                            let last_span = named_specs.last().unwrap().span();
+                            // Find the opening `{` before the first named spec
+                            let before = &source[..first_span.start as usize];
+                            if let Some(brace_pos) = before.rfind('{') {
+                                // Find the closing `}` after the last named spec
+                                let after = &source[last_span.end as usize..];
+                                if let Some(close_offset) = after.find('}') {
+                                    let close_pos = last_span.end as usize + close_offset + 1;
+                                    // Also remove the comma before `{`
+                                    let before_brace = &source[..brace_pos];
+                                    let comma_start = before_brace.rfind(',').unwrap_or(brace_pos);
+                                    removals.push((comma_start as u32, close_pos as u32));
+                                }
+                            }
+                        } else if all_named_are_type {
+                            // Single named type spec: remove it and clean up the braces + comma
+                            let spec = named_specs[0];
+                            let spec_span = spec.span();
+                            // Find the opening `{` before this spec
+                            let before = &source[..spec_span.start as usize];
+                            if let Some(brace_pos) = before.rfind('{') {
+                                // Find the closing `}` after this spec
+                                let after = &source[spec_span.end as usize..];
+                                if let Some(close_offset) = after.find('}') {
+                                    let close_pos = spec_span.end as usize + close_offset + 1;
+                                    // Also remove the comma before `{`
+                                    let before_brace = &source[..brace_pos];
+                                    let comma_start = before_brace.rfind(',').unwrap_or(brace_pos);
+                                    removals.push((comma_start as u32, close_pos as u32));
+                                }
+                            }
+                        } else {
+                            for spec in type_specs {
+                                remove_specifier_with_comma(spec.span(), source, removals);
+                            }
                         }
                     }
                 }
