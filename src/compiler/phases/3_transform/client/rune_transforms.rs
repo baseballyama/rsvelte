@@ -4,7 +4,7 @@ use memchr::memmem;
 
 use super::destructure_transforms::build_fallback_string;
 use super::{
-    ARRAY_LOOKUP_COUNTER, SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER,
+    ARRAY_LOOKUP_COUNTER, DERIVED_TMP_COUNTER, SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER,
     contains_direct_await_in_expression, expression_needs_proxy, extract_enclosing_function_name,
     extract_local_reactive_vars, extract_trace_call_label, find_matching_brace,
     find_matching_paren, find_trace_source_location, is_function_parameter_in_statement,
@@ -1677,6 +1677,20 @@ pub(super) fn transform_derived_destructuring(
     let mut array_counter = 0;
     let wrapped_source = wrap_state_vars_in_expr(source, state_vars, non_reactive_vars, proxy_vars);
     let contains_await = contains_direct_await_in_expression(source);
+    // Only allocate a unique $$d name if we actually need a temp (i.e., source is not a plain identifier)
+    let d_name = if source_is_identifier {
+        String::new()
+    } else {
+        DERIVED_TMP_COUNTER.with(|c| {
+            let n = c.get();
+            c.set(n + 1);
+            if n == 0 {
+                "$$d".to_string()
+            } else {
+                format!("$$d_{}", n)
+            }
+        })
+    };
     let base_expr = if source_is_identifier {
         wrapped_source.clone()
     } else if contains_await {
@@ -1690,13 +1704,13 @@ pub(super) fn transform_derived_destructuring(
             let is_object = saved_content.trim().starts_with('{');
             if is_object {
                 declarations.push(format!(
-                    "$$d = await $.async_derived(async () => ({}))",
-                    saved_content
+                    "{} = await $.async_derived(async () => ({}))",
+                    d_name, saved_content
                 ));
             } else {
                 declarations.push(format!(
-                    "$$d = await $.async_derived(async () => {})",
-                    saved_content
+                    "{} = await $.async_derived(async () => {})",
+                    d_name, saved_content
                 ));
             }
         } else {
@@ -1704,27 +1718,30 @@ pub(super) fn transform_derived_destructuring(
             let inner_is_object = inner_trimmed.starts_with('{');
             if inner_is_object {
                 declarations.push(format!(
-                    "$$d = await $.async_derived(() => ({}))",
-                    inner_expr
+                    "{} = await $.async_derived(() => ({}))",
+                    d_name, inner_expr
                 ));
             } else {
                 let thunk_arg = unthunk_string(&inner_expr);
-                declarations.push(format!("$$d = await $.async_derived({})", thunk_arg));
+                declarations.push(format!("{} = await $.async_derived({})", d_name, thunk_arg));
             }
         }
-        "$.get($$d)".to_string()
+        format!("$.get({})", d_name)
     } else {
         // When the source is an object literal (starts with {), we must wrap it in
         // parentheses to avoid the arrow function body being parsed as a block:
         // () => ({a, b}) instead of () => {a, b}
         if wrapped_source.trim_start().starts_with('{') {
-            declarations.push(format!("$$d = $.derived(() => ({}))", wrapped_source));
+            declarations.push(format!(
+                "{} = $.derived(() => ({}))",
+                d_name, wrapped_source
+            ));
         } else {
             // Apply unthunk optimization: $.derived(() => name()) -> $.derived(name)
             let derived_arg = unthunk_string(&wrapped_source);
-            declarations.push(format!("$$d = $.derived({})", derived_arg));
+            declarations.push(format!("{} = $.derived({})", d_name, derived_arg));
         }
-        "$.get($$d)".to_string()
+        format!("$.get({})", d_name)
     };
     process_derived_destructuring_pattern(
         pattern,
@@ -1773,8 +1790,17 @@ pub(super) fn transform_derived_by_destructuring(
     let mut array_counter = 0;
     let wrapped_source = wrap_state_vars_in_expr(source, state_vars, non_reactive_vars, proxy_vars);
     // $derived.by() always creates a $$d temp - the callback is passed directly to $.derived()
-    declarations.push(format!("$$d = $.derived({})", wrapped_source));
-    let base_expr = "$.get($$d)".to_string();
+    let d_name = DERIVED_TMP_COUNTER.with(|c| {
+        let n = c.get();
+        c.set(n + 1);
+        if n == 0 {
+            "$$d".to_string()
+        } else {
+            format!("$$d_{}", n)
+        }
+    });
+    declarations.push(format!("{} = $.derived({})", d_name, wrapped_source));
+    let base_expr = format!("$.get({})", d_name);
     process_derived_destructuring_pattern(
         pattern,
         &base_expr,

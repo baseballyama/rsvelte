@@ -662,37 +662,151 @@ impl Parser<'_> {
         let mut has_then = false;
         let mut has_catch = false;
 
-        // Find the end of the expression part
+        // Find the end of the expression part, tracking nesting of parentheses,
+        // brackets, braces, and strings/template literals so nested `}` and the
+        // words "then"/"catch" inside the expression (e.g. object literals, function
+        // calls, identifiers like `then`) don't prematurely terminate the scan.
+        let mut paren_depth: i32 = 0;
+        let mut bracket_depth: i32 = 0;
+        let mut brace_depth: i32 = 0;
+        #[derive(PartialEq)]
+        enum StrMode {
+            None,
+            Single,
+            Double,
+            Back,
+        }
+        let mut str_mode = StrMode::None;
         while !self.is_eof() {
             let c = self.current_char();
-            if c == '}' {
-                break;
+            // Handle strings and template literals
+            match str_mode {
+                StrMode::Single => {
+                    if c == '\\' {
+                        self.advance();
+                        if !self.is_eof() {
+                            self.advance();
+                        }
+                        continue;
+                    }
+                    if c == '\'' {
+                        str_mode = StrMode::None;
+                    }
+                    self.advance();
+                    continue;
+                }
+                StrMode::Double => {
+                    if c == '\\' {
+                        self.advance();
+                        if !self.is_eof() {
+                            self.advance();
+                        }
+                        continue;
+                    }
+                    if c == '"' {
+                        str_mode = StrMode::None;
+                    }
+                    self.advance();
+                    continue;
+                }
+                StrMode::Back => {
+                    if c == '\\' {
+                        self.advance();
+                        if !self.is_eof() {
+                            self.advance();
+                        }
+                        continue;
+                    }
+                    if c == '`' {
+                        str_mode = StrMode::None;
+                    }
+                    self.advance();
+                    continue;
+                }
+                StrMode::None => {}
             }
-            // Check for 'then' or 'catch' keyword
-            if self.match_str("then") {
-                let after_idx = self.index + 4;
-                let is_word_boundary = if after_idx >= self.source.len() {
-                    true
-                } else {
-                    let next_char = self.source.as_bytes()[after_idx] as char;
-                    next_char.is_whitespace() || next_char == '}'
-                };
-                if is_word_boundary {
-                    has_then = true;
+            if c == '\'' {
+                str_mode = StrMode::Single;
+                self.advance();
+                continue;
+            }
+            if c == '"' {
+                str_mode = StrMode::Double;
+                self.advance();
+                continue;
+            }
+            if c == '`' {
+                str_mode = StrMode::Back;
+                self.advance();
+                continue;
+            }
+            if c == '(' {
+                paren_depth += 1;
+                self.advance();
+                continue;
+            }
+            if c == ')' {
+                paren_depth -= 1;
+                self.advance();
+                continue;
+            }
+            if c == '[' {
+                bracket_depth += 1;
+                self.advance();
+                continue;
+            }
+            if c == ']' {
+                bracket_depth -= 1;
+                self.advance();
+                continue;
+            }
+            if c == '{' {
+                brace_depth += 1;
+                self.advance();
+                continue;
+            }
+            if c == '}' {
+                if brace_depth == 0 && paren_depth == 0 && bracket_depth == 0 {
                     break;
                 }
+                brace_depth -= 1;
+                self.advance();
+                continue;
             }
-            if self.match_str("catch") {
-                let after_idx = self.index + 5;
-                let is_word_boundary = if after_idx >= self.source.len() {
+            // Only honor `then`/`catch` at the top level of the expression
+            if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 {
+                // Require preceding character to be a word-boundary (whitespace or start)
+                let preceded_by_ws = if self.index == expr_start {
                     true
                 } else {
-                    let next_char = self.source.as_bytes()[after_idx] as char;
-                    next_char.is_whitespace() || next_char == '}'
+                    let prev = self.source.as_bytes()[self.index - 1] as char;
+                    prev.is_whitespace() || prev == ')' || prev == ']'
                 };
-                if is_word_boundary {
-                    has_catch = true;
-                    break;
+                if preceded_by_ws && self.match_str("then") {
+                    let after_idx = self.index + 4;
+                    let is_word_boundary = if after_idx >= self.source.len() {
+                        true
+                    } else {
+                        let next_char = self.source.as_bytes()[after_idx] as char;
+                        next_char.is_whitespace() || next_char == '}'
+                    };
+                    if is_word_boundary {
+                        has_then = true;
+                        break;
+                    }
+                }
+                if preceded_by_ws && self.match_str("catch") {
+                    let after_idx = self.index + 5;
+                    let is_word_boundary = if after_idx >= self.source.len() {
+                        true
+                    } else {
+                        let next_char = self.source.as_bytes()[after_idx] as char;
+                        next_char.is_whitespace() || next_char == '}'
+                    };
+                    if is_word_boundary {
+                        has_catch = true;
+                        break;
+                    }
                 }
             }
             self.advance();

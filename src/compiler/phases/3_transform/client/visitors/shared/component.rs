@@ -2289,33 +2289,6 @@ fn visit_slot_children(
         // SvelteFragment is a transparent wrapper - just visit it directly
         // and let it handle its own template/init/close.
         context.visit_node(cleaned.trimmed[0].as_ref(), None);
-    } else if cleaned.is_standalone {
-        // Handle standalone case: single component/render tag doesn't need template processing
-        // Set is_standalone on state so component/render-tag visitors know
-        // they need to emit $.next() after $.async() wrapping.
-        context.state.is_standalone = true;
-        // For standalone components, just visit them directly
-        for node in &cleaned.trimmed {
-            let result = context.visit_node(node.as_ref(), None);
-            match result {
-                crate::compiler::phases::phase3_transform::client::types::TransformResult::Statement(
-                    stmt,
-                ) => {
-                    context.state.init.push(stmt);
-                }
-                crate::compiler::phases::phase3_transform::client::types::TransformResult::Block(
-                    block,
-                ) => {
-                    context
-                        .state
-                        .init
-                        .push(crate::compiler::phases::phase3_transform::js_ast::JsStatement::Block(
-                            block,
-                        ));
-                }
-                _ => {}
-            }
-        }
     } else if cleaned.trimmed.len() == 1 && matches!(*cleaned.trimmed[0], TemplateNode::Text(_)) {
         // Special case: single text node
         // This mirrors the official Fragment.js behavior (lines 100-103):
@@ -2433,6 +2406,34 @@ fn visit_slot_children(
                     vec![b::id("$$anchor"), text_id],
                 ),
             ));
+        } else if cleaned.is_standalone {
+            // Standalone case: single component/render tag doesn't need template processing.
+            // Mirrors Fragment.js line 127-131: `process_children(trimmed, () => b.id('$$anchor'), ...)`
+            // The fragment_id generated above is intentionally discarded (matches official compiler
+            // which also discards the id in this branch, consuming a conflict slot).
+            context.state.is_standalone = true;
+            let _ = fragment_id; // Explicitly discard generated fragment id
+            for node in &cleaned.trimmed {
+                let result = context.visit_node(node.as_ref(), None);
+                match result {
+                    crate::compiler::phases::phase3_transform::client::types::TransformResult::Statement(
+                        stmt,
+                    ) => {
+                        context.state.init.push(stmt);
+                    }
+                    crate::compiler::phases::phase3_transform::client::types::TransformResult::Block(
+                        block,
+                    ) => {
+                        context
+                            .state
+                            .init
+                            .push(crate::compiler::phases::phase3_transform::js_ast::JsStatement::Block(
+                                block,
+                            ));
+                    }
+                    _ => {}
+                }
+            }
         } else {
             // Standard case: use fragment with $.first_child pattern
             //

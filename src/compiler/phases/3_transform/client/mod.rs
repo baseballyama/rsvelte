@@ -97,6 +97,9 @@ thread_local! {
     // Counter for generating unique tmp variable names for $state/$state.raw destructuring.
     // Generates tmp, tmp_1, tmp_2, etc.
     pub(super) static STATE_TMP_COUNTER: Cell<usize> = const { Cell::new(0) };
+    // Counter for generating unique $$d variable names for $derived/$derived.by destructuring.
+    // Generates $$d, $$d_1, $$d_2, etc. Matches official compiler's scope.generate('$$d').
+    pub(super) static DERIVED_TMP_COUNTER: Cell<usize> = const { Cell::new(0) };
     // Var-declared state/derived vars that need $.safe_get() instead of $.get()
     // var declarations are hoisted, so they can be read before initialization.
     // $.safe_get() handles this by returning undefined if not yet initialized.
@@ -2879,6 +2882,8 @@ fn transform_instance_script_for_visitors(
     ARRAY_LOOKUP_COUNTER.with(|c| c.set(0));
     // Reset the tmp counter for $state destructuring
     STATE_TMP_COUNTER.with(|c| c.set(0));
+    // Reset the $$d counter for $derived destructuring
+    DERIVED_TMP_COUNTER.with(|c| c.set(0));
 
     // Use Cow to avoid unnecessary String copies when no transformation is needed.
     // In runes mode, comments are safe to preserve (no store transforms that break on them).
