@@ -4079,10 +4079,40 @@ fn transform_instance_script_for_visitors(
             || !rest_prop_vars.is_empty();
 
         if has_transforms {
+            // Collect $derived / $derived.by binding names so AST assignment transforms
+            // can skip proxy wrapping on these (mirrors `binding.kind !== 'derived'` in JS).
+            // Exclude any name that is re-declared as a local $state() somewhere in the
+            // script — those inner shadowing declarations still need proxy on assignment.
+            let derived_vars: Vec<String> = analysis
+                .root
+                .scope
+                .declarations
+                .iter()
+                .filter_map(|(name, &binding_idx)| {
+                    if let Some(b) = analysis.root.bindings.get(binding_idx)
+                        && matches!(b.kind, BindingKind::Derived)
+                    {
+                        // Skip names that have an inner local `let/const/var <name> = $state(...)`
+                        // declaration (would be a shadowed local state variable).
+                        let local_state_pattern_1 = format!("let {} = $state(", name);
+                        let local_state_pattern_2 = format!("const {} = $state(", name);
+                        let local_state_pattern_3 = format!("var {} = $state(", name);
+                        if script_rest.contains(local_state_pattern_1.as_str())
+                            || script_rest.contains(local_state_pattern_2.as_str())
+                            || script_rest.contains(local_state_pattern_3.as_str())
+                        {
+                            return None;
+                        }
+                        return Some(name.clone());
+                    }
+                    None
+                })
+                .collect();
             let ast_config = ast_state_transform::AstTransformConfig {
                 state_vars: &state_vars,
                 non_reactive_vars: &non_reactive_state_vars,
                 raw_state_vars: &raw_state_vars,
+                derived_vars: &derived_vars,
                 non_proxy_vars: &non_proxy_vars,
                 is_runes: true,
                 prop_source_vars: &prop_source_vars,

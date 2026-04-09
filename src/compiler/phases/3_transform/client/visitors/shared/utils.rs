@@ -3679,6 +3679,30 @@ pub(crate) fn get_literal_value(
                 let obj = json_value.as_object()?;
                 get_literal_value_complex(expr_type, obj, context)
             }
+            "TemplateLiteral" => {
+                // Template literal with no expressions -> plain string
+                // Template literal with expressions -> try to fold each expression
+                let json_value = expr.as_json();
+                let obj = json_value.as_object()?;
+                let quasis = obj.get("quasis").and_then(|q| q.as_array())?;
+                let expressions = obj.get("expressions").and_then(|e| e.as_array())?;
+
+                if !expressions.is_empty() {
+                    return None; // Can't fold template literals with expressions here
+                }
+
+                let mut result = String::new();
+                for quasi in quasis {
+                    if let Some(cooked) = quasi
+                        .get("value")
+                        .and_then(|v| v.get("cooked"))
+                        .and_then(|c| c.as_str())
+                    {
+                        result.push_str(cooked);
+                    }
+                }
+                Some(Some(result))
+            }
             _ => None,
         }
     }

@@ -1112,61 +1112,44 @@ fn process_regular_attribute(
         return;
     }
 
-    // Check if this expression needs to be wrapped in $.derived() when it has state
-    // This happens when the expression is complex (not just Identifier or MemberExpression)
-    // For example, ternary expressions like `show ? foo : bar` need memoization
-    let memoize_if_state = should_memoize_attribute(&attr.value);
+    // Per Svelte JS:
+    //   const should_wrap_in_derived = metadata.has_await || get_attribute_chunks(...).some(n =>
+    //     n.type === 'ExpressionTag' && n.expression.type !== 'Identifier' && n.expression.type !== 'MemberExpression');
+    //   const memoized = memoizer.add(value, metadata, should_wrap_in_derived);
+    //   return value !== memoized ? b.call('$.get', memoized) : value;
+    //
+    // We compute should_wrap_in_derived once per attribute (covers all chunks).
+    let should_wrap_in_derived = attribute_has_complex_chunk(&attr.value);
 
-    // Build attribute value - this already applies transforms via build_expression internally
-    let result = build_attribute_value(&attr.value, context, |value, _metadata| value);
-
-    // The transformed value is already in result.value (transforms applied by build_attribute_value)
-    let transformed_value = result.value.clone();
-
-    // Determine if we should memoize
-    // Memoization happens when:
-    // - has_call is true AND has_state is true (function calls with reactive dependencies)
-    // - has_await is true (async expressions need memoization)
-    // - memoize_if_state is true AND has_state is true (complex stateful expressions)
-    // Note: Pure function calls with literal arguments (like encodeURIComponent('hello'))
-    // are NOT memoized because they have no state dependencies.
-    let has_call =
-        super::utils::expression_has_call(&get_original_expression(&attr.value), context);
-    let has_await = crate::compiler::phases::phase3_transform::js_ast::builders::js_expr_has_await(
-        &context.arena,
-        &transformed_value,
-    );
-    let should_memoize =
-        (has_call && result.has_state) || has_await || (memoize_if_state && result.has_state);
-
-    // Decide the final value based on memoization
-    let final_value = if should_memoize {
-        // Add to memoizer - pass the TRANSFORMED expression
+    // Build attribute value with per-chunk memoization (matches JS compiler).
+    // The closure is invoked for each chunk's transformed expression.
+    let arena_ptr = (&context.arena) as *const _;
+    let result = build_attribute_value(&attr.value, context, |value, metadata| {
+        let has_await = metadata.has_await();
+        let has_state = metadata.has_state();
+        let has_call = metadata.has_call();
+        // Use memoizer.add to determine if this chunk should become a derived
         let memo_id = memoizer.add(
-            transformed_value.clone(),
+            value.clone(),
             has_call,
             has_await,
-            memoize_if_state,
-            result.has_state,
+            should_wrap_in_derived,
+            has_state,
         );
-
-        // If memoization happened, wrap in $.get()
         if let JsExpr::Identifier(name) = &memo_id {
             if name.starts_with('$') && name.chars().skip(1).all(|c| c.is_ascii_digit()) {
-                b::call(
-                    &context.arena,
-                    b::member_path(&context.arena, "$.get"),
-                    vec![memo_id],
-                )
+                // SAFETY: arena reference is valid for the duration of this call
+                let arena = unsafe { &*arena_ptr };
+                b::call(arena, b::member_path(arena, "$.get"), vec![memo_id])
             } else {
-                memo_id
+                value
             }
         } else {
             memo_id
         }
-    } else {
-        transformed_value
-    };
+    });
+
+    let final_value = result.value.clone();
 
     // Check if this is a reference to a snippet
     // Snippet references should always use getters because snippets are treated as having state
@@ -1228,6 +1211,7 @@ fn get_original_expression(value: &AttributeValue) -> crate::ast::js::Expression
 /// - Call expressions
 /// - Array/Object expressions
 /// - etc.
+#[allow(dead_code)]
 fn should_memoize_attribute(value: &AttributeValue) -> bool {
     // Check if this is a single expression (not a template with multiple parts)
     match value {
@@ -1240,6 +1224,22 @@ fn should_memoize_attribute(value: &AttributeValue) -> bool {
             }
         }
         _ => false, // Multiple parts or text don't need memoization
+    }
+}
+
+/// Mirrors Svelte JS `should_wrap_in_derived` for component attribute values.
+/// Returns true if any chunk's expression is not a simple Identifier or MemberExpression.
+fn attribute_has_complex_chunk(value: &AttributeValue) -> bool {
+    match value {
+        AttributeValue::Expression(expr_tag) => is_complex_expression(&expr_tag.expression),
+        AttributeValue::Sequence(parts) => parts.iter().any(|p| {
+            if let AttributeValuePart::ExpressionTag(expr_tag) = p {
+                is_complex_expression(&expr_tag.expression)
+            } else {
+                false
+            }
+        }),
+        _ => false,
     }
 }
 
@@ -1642,11 +1642,20 @@ fn process_bind_directive(
                             binding,
                             context.state.analysis,
                         );
-                    let is_prop = !context.state.analysis.runes
-                        && crate::compiler::phases::phase3_transform::client::utils::is_prop_source(
+                    // In legacy mode: all prop sources wrap their mutation.
+                    // In runes mode: only bindable_prop wraps its mutation (to interop with legacy parent bindings).
+                    // See svelte Program.js Line 109 `mutate: (node, value) => { if (binding.kind === 'bindable_prop') ... }`
+                    let is_prop_source_flag =
+                        crate::compiler::phases::phase3_transform::client::utils::is_prop_source(
                             binding,
                             context.state.analysis,
                         );
+                    let is_prop = is_prop_source_flag
+                        && (!context.state.analysis.runes
+                            || matches!(
+                                binding.kind,
+                                crate::compiler::phases::phase2_analyze::scope::BindingKind::BindableProp
+                            ));
                     (name.clone(), is_state, is_prop)
                 })
             } else {

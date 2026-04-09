@@ -101,8 +101,11 @@ where
                 .has_blockers_for_expr(&transformed, &context.arena);
             let has_state = has_reactive_state || has_call || has_blockers;
 
-            // Update metadata with correct has_state value
+            // Update metadata with correct has_state and has_call values.
+            // has_call is stored with purity consideration so that downstream memoizers
+            // (e.g. per-chunk memoizer in process_regular_attribute) behave correctly.
             metadata.set_has_state(has_state);
+            metadata.set_has_call(has_call);
 
             // Memoize if needed
             let memoized = memoize(transformed, &metadata);
@@ -141,8 +144,9 @@ where
                         .has_blockers_for_expr(&transformed, &context.arena);
                     let has_state = has_reactive_state || has_call || has_blockers;
 
-                    // Update metadata with correct has_state value
+                    // Update metadata with correct has_state and has_call values.
                     metadata.set_has_state(has_state);
+                    metadata.set_has_call(has_call);
 
                     let memoized = memoize(transformed, &metadata);
 
@@ -214,17 +218,37 @@ where
 
                 // Build the expression using full context-aware conversion
                 let expression = extract_expression_from_tag_with_context(expr_tag, context);
-                let metadata = extract_metadata_from_tag(expr_tag);
+                let mut metadata = extract_metadata_from_tag(expr_tag);
+
+                // Use the purity-aware has_call check so that pure calls (like
+                // encodeURIComponent('hello')) are not treated as needing memoization.
+                let chunk_has_call =
+                    super::utils::expression_has_call(&expr_tag.expression, context);
+                metadata.set_has_call(chunk_has_call);
+
+                // Update metadata.has_state with comprehensive reactive state check
+                // (the analysis-phase metadata may not account for transforms registered later)
+                let chunk_has_state =
+                    super::utils::expression_has_reactive_state(&expr_tag.expression, context)
+                        || chunk_has_call;
+                metadata.set_has_state(chunk_has_state);
 
                 let built = build_expression(context, &expression, &metadata);
                 let memoized = memoize(built, &metadata);
 
-                // Add ?? '' where necessary (only if not guaranteed to be defined)
-                // Check both the original expression and the built expression.
-                // The built expression may be wrapped in a sequence (e.g., for deep_read_state),
-                // which changes the definedness of the result.
-                let is_defined = if let JsExpr::Identifier(_) = &memoized {
-                    super::utils::is_expression_defined(&expr_tag.expression, context)
+                // Matches Svelte JS: `if (!evaluated.is_defined) value = b.logical('??', value, b.literal(''))`.
+                // JS uses `scope.evaluate(value).is_defined` on the MEMOIZED form - for memoized placeholders
+                // like `$0` this evaluates as unknown, so `?? ''` is added.
+                let is_defined = if let JsExpr::Identifier(name) = &memoized {
+                    // Memoized placeholders ($0, $1, ...) are never statically defined
+                    let is_memo_placeholder = name.starts_with('$')
+                        && name.len() > 1
+                        && name.chars().skip(1).all(|c| c.is_ascii_digit());
+                    if is_memo_placeholder {
+                        false
+                    } else {
+                        super::utils::is_expression_defined(&expr_tag.expression, context)
+                    }
                 } else {
                     super::utils::is_js_expr_defined(&memoized, &context.arena)
                 };

@@ -63,6 +63,8 @@ struct StateVarCollector<'a, 's> {
     non_reactive_vars: &'a FxHashSet<&'a str>,
     /// Variables declared with `$state.raw()` (never need proxy wrapping).
     raw_state_vars: &'a FxHashSet<&'a str>,
+    /// Variables declared with `$derived()` / `$derived.by()` — assignments should never proxy.
+    derived_vars: FxHashSet<String>,
     /// Variables known to not need proxy wrapping (literals, non-object types).
     non_proxy_vars: &'a [String],
     /// Whether the component is in runes mode.
@@ -110,6 +112,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         state_vars: &'a FxHashSet<&'a str>,
         non_reactive_vars: &'a FxHashSet<&'a str>,
         raw_state_vars: &'a FxHashSet<&'a str>,
+        derived_vars: &[String],
         non_proxy_vars: &'a [String],
         is_runes: bool,
         prop_source_vars: &[String],
@@ -136,6 +139,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             state_vars,
             non_reactive_vars,
             raw_state_vars,
+            derived_vars: derived_vars.iter().cloned().collect(),
             non_proxy_vars,
             is_runes,
             var_state_vars,
@@ -717,8 +721,12 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
                 match expr.operator {
                     AssignmentOperator::Assign => {
                         let is_raw = self.raw_state_vars.contains(name);
+                        // In JS compiler, derived bindings never proxy their assigned values
+                        // (see AssignmentExpression.js `binding.kind !== 'derived'` check).
+                        let is_derived = self.derived_vars.contains(name);
                         let needs_proxy = self.is_runes
                             && !is_raw
+                            && !is_derived
                             && expression_needs_proxy_with_scope(
                                 original_rhs_text.trim(),
                                 self.non_proxy_vars,
@@ -1289,6 +1297,7 @@ pub(super) struct AstTransformConfig<'a> {
     pub state_vars: &'a [String],
     pub non_reactive_vars: &'a [String],
     pub raw_state_vars: &'a [String],
+    pub derived_vars: &'a [String],
     pub non_proxy_vars: &'a [String],
     pub is_runes: bool,
     pub prop_source_vars: &'a [String],
@@ -1307,6 +1316,7 @@ pub(super) fn transform_state_vars_ast(
     let state_vars = config.state_vars;
     let non_reactive_vars = config.non_reactive_vars;
     let raw_state_vars = config.raw_state_vars;
+    let derived_vars = config.derived_vars;
     let non_proxy_vars = config.non_proxy_vars;
     let is_runes = config.is_runes;
     let prop_source_vars = config.prop_source_vars;
@@ -1391,6 +1401,7 @@ pub(super) fn transform_state_vars_ast(
             &var_set,
             &non_reactive_set,
             &raw_set,
+            derived_vars,
             non_proxy_vars,
             is_runes,
             prop_source_vars,
@@ -1431,6 +1442,7 @@ mod tests {
             state_vars: &sv,
             non_reactive_vars: &[],
             raw_state_vars: &[],
+            derived_vars: &[],
             non_proxy_vars: &[],
             is_runes: true,
             prop_source_vars: &[],
@@ -1455,6 +1467,7 @@ mod tests {
             state_vars: &sv,
             non_reactive_vars: &nrv,
             raw_state_vars: &[],
+            derived_vars: &[],
             non_proxy_vars: &[],
             is_runes: true,
             prop_source_vars: &[],
@@ -1664,6 +1677,7 @@ mod tests {
             state_vars: &[],
             non_reactive_vars: &[],
             raw_state_vars: &[],
+            derived_vars: &[],
             non_proxy_vars: &[],
             is_runes: true,
             prop_source_vars: &[],

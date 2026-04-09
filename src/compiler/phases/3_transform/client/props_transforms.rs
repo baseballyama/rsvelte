@@ -1506,10 +1506,12 @@ pub(super) fn calculate_prop_flags(
 
     let mut flags = 0;
 
-    // Look up the binding to check its kind and update status
+    // Look up the binding in the instance scope (not module scope).
+    // Props always live in the instance scope; looking in any scope risks picking up
+    // shadowing variables in module/function scopes with the same name.
     let binding = analysis
         .root
-        .find_binding_any_scope(name)
+        .get_binding(name, analysis.root.instance_scope_index)
         .and_then(|idx| analysis.root.bindings.get(idx));
 
     // PROPS_IS_BINDABLE: only if binding.kind == BindableProp

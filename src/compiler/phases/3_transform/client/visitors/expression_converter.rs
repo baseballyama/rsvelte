@@ -2452,16 +2452,15 @@ fn transform_rune_call(
         }
 
         "$derived" => {
-            // $derived(expr) -> $.derived(() => expr)
+            // $derived(expr) -> $.derived(() => expr), with unthunk optimization:
+            // if expr is a simple 0-arg call, pass the callee directly: $.derived(value)
             if let Some(arg) = arguments.first() {
                 let converted = convert_json_value(arg, context);
-
-                // Wrap in thunk: () => expr
-                let thunk = JsExpr::Arrow(JsArrowFunction {
-                    params: vec![].into(),
-                    body: JsArrowBody::Expression(context.arena.alloc_expr(converted)),
-                    is_async: false,
-                });
+                // Apply thunk with unthunk optimization
+                let thunk = crate::compiler::phases::phase3_transform::js_ast::builders::thunk(
+                    &context.arena,
+                    converted,
+                );
 
                 JsExpr::Call(JsCallExpression {
                     callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {

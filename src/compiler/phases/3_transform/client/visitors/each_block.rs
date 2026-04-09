@@ -1786,8 +1786,24 @@ fn build_key_function(
         && let Some(key) = &node.key
     {
         let key_expr = convert_expression(key, context);
-        // Apply state transforms so that prop references like `id` become `id()`
-        let key_expr = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&key_expr, context);
+        // Apply state transforms while treating the each-block context variables
+        // (the item name(s) and optional index) as shadowed local parameters.
+        // In JS, `key_state.transform` has any transforms for context names deleted;
+        // we achieve the same effect here by adding them to the shadowed LocalScope
+        // so identifiers in the key expression matching these names aren't transformed.
+        use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
+            LocalScope, apply_transforms_to_expression_with_shadowed,
+        };
+        let mut shadowed_names: Vec<String> = Vec::new();
+        if let Some(context_expr) = &node.context {
+            collect_pattern_identifiers(context_expr, &mut shadowed_names);
+        }
+        if let Some(ref idx_name) = node.index {
+            shadowed_names.push(idx_name.to_string());
+        }
+        let local_scope = LocalScope::from_shadowed(shadowed_names.into_iter());
+        let key_expr =
+            apply_transforms_to_expression_with_shadowed(&key_expr, context, &local_scope);
 
         if let Some(context_expr) = &node.context {
             let pattern = convert_expression_to_pattern(&context.arena, context_expr);
@@ -1803,6 +1819,59 @@ fn build_key_function(
     }
 
     b::member_path(&context.arena, "$.index")
+}
+
+/// Collect all identifier names bound by a pattern (Identifier / ObjectPattern / ArrayPattern).
+fn collect_pattern_identifiers(expr: &Expression, out: &mut Vec<String>) {
+    let val = expr.as_json();
+    collect_pattern_identifiers_value(val, out);
+}
+
+fn collect_pattern_identifiers_value(val: &serde_json::Value, out: &mut Vec<String>) {
+    if let serde_json::Value::Object(obj) = val {
+        match obj.get("type").and_then(|t| t.as_str()) {
+            Some("Identifier") => {
+                if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+                    out.push(name.to_string());
+                }
+            }
+            Some("ObjectPattern") => {
+                if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+                    for prop in props {
+                        if let Some(po) = prop.as_object() {
+                            if po.get("type").and_then(|t| t.as_str()) == Some("RestElement") {
+                                if let Some(arg) = po.get("argument") {
+                                    collect_pattern_identifiers_value(arg, out);
+                                }
+                            } else if let Some(value) = po.get("value") {
+                                collect_pattern_identifiers_value(value, out);
+                            }
+                        }
+                    }
+                }
+            }
+            Some("ArrayPattern") => {
+                if let Some(elems) = obj.get("elements").and_then(|e| e.as_array()) {
+                    for elem in elems {
+                        if !elem.is_null() {
+                            collect_pattern_identifiers_value(elem, out);
+                        }
+                    }
+                }
+            }
+            Some("AssignmentPattern") => {
+                if let Some(left) = obj.get("left") {
+                    collect_pattern_identifiers_value(left, out);
+                }
+            }
+            Some("RestElement") => {
+                if let Some(arg) = obj.get("argument") {
+                    collect_pattern_identifiers_value(arg, out);
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 /// Check if an expression references an identifier with the given name.
