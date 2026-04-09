@@ -703,10 +703,26 @@ pub fn analyze_component(
         // that need deconfliction but may not be in scope references
         collect_template_component_names(&ast.fragment.nodes, &mut used_names);
 
+        // Walk script JSON to collect all identifier names that appear as references.
+        // This mirrors the official Svelte compiler's `scope.root.conflicts` set, which
+        // gets populated when a top-level identifier reference doesn't resolve to a
+        // declared binding (i.e., it's a global like `JSON`, `Math`, etc.).
+        // We only add identifiers that are NOT already declared, to approximate
+        // "unbound references at the top level".
+        let mut global_names: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
+        if let Some(script) = ast.instance.as_ref() {
+            collect_identifier_names_from_expression(&script.content, &mut global_names);
+        }
+        if let Some(script) = ast.module.as_ref() {
+            collect_identifier_names_from_expression(&script.content, &mut global_names);
+        }
+        // Filter to only those NOT already declared (true globals/unbound).
+        global_names.retain(|n| !used_names.contains(n.as_str()));
+
         let mut name = analysis.name.clone();
         let base = name.clone();
         let mut counter = 1u32;
-        while used_names.contains(name.as_str()) {
+        while used_names.contains(name.as_str()) || global_names.contains(&name) {
             name = format!("{}_{}", base, counter);
             counter += 1;
         }
@@ -3160,9 +3176,27 @@ fn mark_group_bindings_in_node(
             mark_group_bindings_in_fragment(&mut el.fragment, ancestor_stack, analysis);
         }
         TemplateNode::Component(comp) => {
+            // Components can also have bind:group, e.g. `<RadioButton bind:group={x} />`.
+            // The official Svelte compiler treats these the same as element bind:group
+            // and registers them in `analysis.binding_groups` so a `binding_group = []`
+            // declaration is emitted in the component output.
+            for attr in &comp.attributes {
+                if let Attribute::BindDirective(bind) = attr
+                    && bind.name == "group"
+                {
+                    register_standalone_bind_group(bind, analysis);
+                }
+            }
             mark_group_bindings_in_fragment(&mut comp.fragment, ancestor_stack, analysis);
         }
         TemplateNode::SvelteComponent(comp) => {
+            for attr in &comp.attributes {
+                if let Attribute::BindDirective(bind) = attr
+                    && bind.name == "group"
+                {
+                    register_standalone_bind_group(bind, analysis);
+                }
+            }
             mark_group_bindings_in_fragment(&mut comp.fragment, ancestor_stack, analysis);
         }
         TemplateNode::SvelteElement(el) => {
@@ -3464,6 +3498,103 @@ fn collect_template_component_names<'a>(
             }
             _ => {}
         }
+    }
+}
+
+/// Register a standalone bind:group directive (one not inside any matching each block)
+/// in `analysis.binding_groups`. This mirrors the standalone-registration branch of
+/// `mark_group_bindings_in_fragment` for RegularElement, but for Component-style hosts.
+fn register_standalone_bind_group(
+    bind: &crate::ast::template::BindDirective,
+    analysis: &mut ComponentAnalysis,
+) {
+    let bind_node = bind.expression.as_node();
+    let keypath = build_binding_keypath_node(&bind_node);
+    if !analysis.binding_groups.contains_key(&keypath) {
+        let group_count = analysis.binding_groups.len();
+        let group_name = if group_count == 0 {
+            "binding_group".to_string()
+        } else {
+            format!("binding_group_{}", group_count)
+        };
+        analysis.binding_groups.insert(keypath, group_name);
+    }
+}
+
+/// Walk a script Expression (program) and collect all `Identifier.name` strings.
+/// Used to populate the `conflicts` set for component name deconfliction.
+/// We collect ALL identifier names rather than only unbound references because
+/// (a) declared bindings are already in `used_names`, and (b) extracting only
+/// unbound references would require a full scope walk.
+fn collect_identifier_names_from_expression(
+    expr: &crate::ast::js::Expression,
+    out: &mut rustc_hash::FxHashSet<String>,
+) {
+    let json = expr.as_json();
+    collect_identifier_names_in_json(json, out);
+}
+
+fn collect_identifier_names_in_json(
+    value: &serde_json::Value,
+    out: &mut rustc_hash::FxHashSet<String>,
+) {
+    use serde_json::Value;
+    match value {
+        Value::Object(obj) => {
+            let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+            // If this is an Identifier node, collect its name.
+            if node_type == "Identifier"
+                && let Some(Value::String(name)) = obj.get("name")
+            {
+                out.insert(name.clone());
+            }
+
+            // Skip fields that are not references (matching official Svelte's
+            // `scope.reference()` semantics, which only registers actual
+            // identifier *uses*, not name slots like `imported` of an import
+            // specifier or `key` of a non-computed object property).
+            for (k, v) in obj.iter() {
+                let skip = match node_type {
+                    "ImportSpecifier" | "ExportSpecifier" => k == "imported" || k == "exported",
+                    "MemberExpression" => {
+                        // For non-computed member expressions, the property is a name slot, not a ref
+                        k == "property"
+                            && obj.get("computed").and_then(|c| c.as_bool()) != Some(true)
+                    }
+                    "Property" | "MethodDefinition" | "PropertyDefinition" => {
+                        // Non-computed object/class property keys are name slots, not refs
+                        k == "key" && obj.get("computed").and_then(|c| c.as_bool()) != Some(true)
+                    }
+                    "FunctionDeclaration"
+                    | "FunctionExpression"
+                    | "ArrowFunctionExpression"
+                    | "ClassDeclaration"
+                    | "ClassExpression" => {
+                        // The function/class id is a declaration name, not a ref
+                        k == "id"
+                    }
+                    "VariableDeclarator" => {
+                        // The id of a variable declarator is a declaration pattern
+                        k == "id"
+                    }
+                    "LabeledStatement" | "BreakStatement" | "ContinueStatement" => {
+                        // Labels are not identifier references
+                        k == "label"
+                    }
+                    _ => false,
+                };
+                if !skip {
+                    collect_identifier_names_in_json(v, out);
+                }
+            }
+        }
+        Value::Array(arr) => {
+            for item in arr {
+                collect_identifier_names_in_json(item, out);
+            }
+        }
+        _ => {}
     }
 }
 

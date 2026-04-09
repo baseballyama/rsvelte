@@ -403,6 +403,13 @@ fn collect_ts_removals_from_function(
         collect_ts_removals_from_binding_pattern(&param.pattern, source, removals);
     }
 
+    // Strip type annotation from rest param: `(...args: Type[])` → `(...args)`
+    if let Some(ref rest) = func.params.rest
+        && let Some(ref type_ann) = rest.type_annotation
+    {
+        removals.push((type_ann.span.start, type_ann.span.end));
+    }
+
     // Recurse into function body
     if let Some(ref body) = func.body {
         for stmt in &body.statements {
@@ -663,6 +670,16 @@ fn collect_ts_removals_from_expression(
             for prop in &obj.properties {
                 match prop {
                     oxc_ast::ast::ObjectPropertyKind::ObjectProperty(p) => {
+                        // Visit computed keys for TS expressions like `[foo as number]`
+                        if p.computed
+                            && let Some(key_expr) = match &p.key {
+                                oxc_ast::ast::PropertyKey::StaticIdentifier(_)
+                                | oxc_ast::ast::PropertyKey::PrivateIdentifier(_) => None,
+                                other => other.as_expression(),
+                            }
+                        {
+                            collect_ts_removals_from_expression(key_expr, source, removals);
+                        }
                         collect_ts_removals_from_expression(&p.value, source, removals);
                     }
                     oxc_ast::ast::ObjectPropertyKind::SpreadProperty(spread) => {
@@ -691,6 +708,12 @@ fn collect_ts_removals_from_expression(
                     removals.push((type_ann.span.start, type_ann.span.end));
                 }
                 collect_ts_removals_from_binding_pattern(&param.pattern, source, removals);
+            }
+            // Strip type annotation from rest param: `(...args: Type[])` → `(...args)`
+            if let Some(ref rest) = arrow.params.rest
+                && let Some(ref type_ann) = rest.type_annotation
+            {
+                removals.push((type_ann.span.start, type_ann.span.end));
             }
             for stmt in &arrow.body.statements {
                 collect_ts_removals_from_statement(stmt, source, removals);

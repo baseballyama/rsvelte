@@ -1135,6 +1135,10 @@ impl<'a> ScopeBuilder<'a> {
                     .to_string();
                 if let Some(specifiers) = json.get("specifiers").and_then(|s| s.as_array()) {
                     for spec in specifiers {
+                        // Skip per-specifier type imports: `import { type Foo, Bar }`
+                        if spec.get("importKind").and_then(|k| k.as_str()) == Some("type") {
+                            continue;
+                        }
                         let spec_type = spec.get("type").and_then(|t| t.as_str());
                         let local_name = spec
                             .get("local")
@@ -2743,11 +2747,19 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Process an import declaration.
     fn process_import_declaration(&mut self, import_decl: &oxc_ast::ast::ImportDeclaration) {
+        // Skip type-only imports: `import type { ... } from '...'`
+        if import_decl.import_kind == oxc_ast::ast::ImportOrExportKind::Type {
+            return;
+        }
         let source_val = import_decl.source.value.as_str();
         if let Some(specifiers) = &import_decl.specifiers {
             for specifier in specifiers {
                 let (name, specifier_type) = match specifier {
                     oxc_ast::ast::ImportDeclarationSpecifier::ImportSpecifier(spec) => {
+                        // Skip per-specifier type imports: `import { type Foo, Bar }`
+                        if spec.import_kind == oxc_ast::ast::ImportOrExportKind::Type {
+                            continue;
+                        }
                         (spec.local.name.to_string(), "ImportSpecifier")
                     }
                     oxc_ast::ast::ImportDeclarationSpecifier::ImportDefaultSpecifier(spec) => {

@@ -1192,8 +1192,25 @@ fn build_style_attribute_value_with_memoization(
                             expr_has_state,
                         );
 
-                        // Add ?? '' where necessary (only if not guaranteed to be defined)
-                        let is_defined = if let JsExpr::Identifier(_) = &value {
+                        // Add ?? '' where necessary (only if not guaranteed to be defined).
+                        //
+                        // The official Svelte compiler checks `state.scope.evaluate(value).is_defined`
+                        // on the *post-transform* value. For memoized values (`$N` identifiers
+                        // produced by `memoizer.add(...)`), the scope can't evaluate the
+                        // synthetic name, so it falls through to "not defined" and adds `?? ''`.
+                        //
+                        // We mirror that here: if the value is a memoized synthetic identifier
+                        // (`$0`, `$1`, ...), treat it as not-defined.
+                        let is_memo_id = if let JsExpr::Identifier(name) = &value {
+                            name.starts_with('$')
+                                && name.len() > 1
+                                && name.chars().skip(1).all(|c| c.is_ascii_digit())
+                        } else {
+                            false
+                        };
+                        let is_defined = if is_memo_id {
+                            false
+                        } else if let JsExpr::Identifier(_) = &value {
                             super::utils::is_expression_defined(&expr_tag.expression, context)
                         } else {
                             super::utils::is_js_expr_defined(&value, &context.arena)

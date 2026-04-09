@@ -1,6 +1,5 @@
-//! Compare two JS files using OXC canonicalization (same as test suite).
-//! Usage: canonicalize_and_compare <file1> <file2>
-//! Exits 0 if semantically equal, 1 if different, prints first diff.
+//! Canonicalize a JS file using OXC and print to stdout.
+//! Usage: canon_dump <file>
 
 use oxc_allocator::Allocator;
 use oxc_codegen::{Codegen, CodegenOptions, CommentOptions, LegalComment};
@@ -9,12 +8,19 @@ use oxc_span::SourceType;
 use std::env;
 use std::fs;
 
-fn canonicalize(code: &str) -> String {
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 2 {
+        eprintln!("Usage: {} <file>", args[0]);
+        std::process::exit(2);
+    }
+    let code = fs::read_to_string(&args[1]).unwrap_or_default();
     let allocator = Allocator::new();
     let source_type = SourceType::mjs();
-    let parsed = Parser::new(&allocator, code, source_type).parse();
+    let parsed = Parser::new(&allocator, &code, source_type).parse();
     if parsed.panicked {
-        return code.to_string();
+        print!("{}", code);
+        return;
     }
     let options = CodegenOptions {
         single_quote: true,
@@ -29,22 +35,13 @@ fn canonicalize(code: &str) -> String {
     let out = Codegen::new()
         .with_options(options)
         .build(&parsed.program)
-        .code
-        .trim()
-        .to_string();
-
-    // OXC's `single_quote: true` doesn't always normalize import-source string
-    // literals (it leaves the original quote style for some imports). We
-    // post-process to convert any remaining double-quoted import sources to
-    // single quotes so that two semantically-equal files with different quote
-    // styles compare equal.
-    normalize_import_quotes(&out)
+        .code;
+    let normalized = normalize_import_quotes(&out);
+    print!("{}", normalized);
 }
 
-/// Normalize `import ... from "..."` to `import ... from '...'` and similar for
-/// bare `import "..."` and re-exports `export ... from "..."`. Does a simple
-/// line-based scan, only touching import/export-from lines, and only if the
-/// string has no embedded single quotes.
+/// Normalize `import ... from "..."` to single quotes (post-processing for
+/// OXC's incomplete `single_quote: true` support).
 fn normalize_import_quotes(code: &str) -> String {
     let mut out = String::with_capacity(code.len());
     for (i, line) in code.lines().enumerate() {
@@ -62,13 +59,11 @@ fn normalize_import_quotes(code: &str) -> String {
             out.push_str(line);
             continue;
         }
-        // Convert all "..." substrings on this line to '...' if no embedded single quote.
         let bytes = line.as_bytes();
         let mut i = 0;
         let mut buf = String::with_capacity(line.len());
         while i < bytes.len() {
             if bytes[i] == b'"' {
-                // Find matching close quote, respecting backslash escapes.
                 let mut j = i + 1;
                 let mut has_escape = false;
                 while j < bytes.len() {
@@ -101,33 +96,4 @@ fn normalize_import_quotes(code: &str) -> String {
         out.push_str(&buf);
     }
     out
-}
-
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 3 {
-        eprintln!("Usage: {} <file1> <file2>", args[0]);
-        std::process::exit(2);
-    }
-    let f1 = fs::read_to_string(&args[1]).unwrap_or_default();
-    let f2 = fs::read_to_string(&args[2]).unwrap_or_default();
-    let c1 = canonicalize(&f1);
-    let c2 = canonicalize(&f2);
-    if c1 == c2 {
-        println!("MATCH");
-    } else {
-        println!("DIFF");
-        // Find first diff position
-        let b1 = c1.as_bytes();
-        let b2 = c2.as_bytes();
-        let mut pos = 0;
-        while pos < b1.len() && pos < b2.len() && b1[pos] == b2[pos] {
-            pos += 1;
-        }
-        let start = pos.saturating_sub(30);
-        let end1 = (pos + 80).min(c1.len());
-        let end2 = (pos + 80).min(c2.len());
-        println!("F1: {}", &c1[start..end1]);
-        println!("F2: {}", &c2[start..end2]);
-    }
 }

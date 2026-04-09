@@ -1617,6 +1617,11 @@ impl<'a> ComponentContext<'a> {
                         crate::compiler::phases::phase3_transform::utils::ParentRef::None,
                     );
                 }
+                Attribute::AttachTag(attach) => {
+                    // Handle {@attach ...} directives on special elements like
+                    // `<svelte:body {@attach swipe} />`. Mirrors RegularElement.js behavior.
+                    crate::compiler::phases::phase3_transform::client::visitors::attach_tag::attach_tag(attach, self);
+                }
                 Attribute::Attribute(_attr_node) => {
                     // Handle event attributes like onclick={...} on special elements
                     if let Some(event_attr) = is_event_attribute(attribute) {

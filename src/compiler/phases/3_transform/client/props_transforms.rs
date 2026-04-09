@@ -1590,6 +1590,33 @@ pub(super) fn is_simple_expression_str(value: &str) -> bool {
         return false;
     }
 
+    // Unary expressions (e.g., `-1`, `+x`, `!foo`, `~bar`) are NOT simple.
+    // The official Svelte compiler's `is_simple_expression()` only treats `Literal`,
+    // `Identifier`, `ArrowFunctionExpression`, `FunctionExpression`, and recursively
+    // `ConditionalExpression`/`BinaryExpression`/`LogicalExpression` as simple.
+    // Numeric literals like `-1` parse as `UnaryExpression(-, Literal(1))`, which
+    // is NOT simple. We approximate by detecting a leading unary operator that is
+    // followed by a non-digit/non-identifier character is too hard at the string
+    // level, so we treat any leading `-` or `+` (other than just whitespace) as
+    // non-simple ONLY when it cannot be parsed as a pure numeric literal.
+    // Actually, the simplest correct rule: if the expression starts with `-` or
+    // `+` and the rest is a valid number literal, it's a UnaryExpression and
+    // therefore NOT simple.
+    if (trimmed.starts_with('-') || trimmed.starts_with('+'))
+        && trimmed[1..].trim_start().parse::<f64>().is_ok()
+    {
+        return false;
+    }
+
+    // Other unary operators
+    if trimmed.starts_with('!')
+        || trimmed.starts_with('~')
+        || trimmed.starts_with("void ")
+        || trimmed.starts_with("typeof ")
+    {
+        return false;
+    }
+
     // Array literals are NOT simple
     if trimmed.starts_with('[') {
         return false;
