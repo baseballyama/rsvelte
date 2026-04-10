@@ -1101,8 +1101,10 @@ const FLAG_HAS_ASSIGNMENT: u8 = 1 << 4;
 pub struct ExpressionMetadata {
     /// Bit-packed flags for has_state, has_call, has_await, has_member_expression, has_assignment
     flags: u8,
-    /// Bindings that this expression depends on (indices into analysis bindings)
-    pub dependencies: FxHashSet<usize>,
+    /// Bindings that this expression depends on (indices into analysis bindings).
+    /// Uses IndexSet to preserve insertion order (matching JavaScript Set behavior),
+    /// which determines the order of dependency tracking in invalidate_inner_signals().
+    pub dependencies: IndexSet<usize>,
     /// Bindings that this expression references (indices into analysis bindings).
     /// Uses IndexSet to preserve insertion order (matching JavaScript Set behavior).
     pub references: IndexSet<usize>,
@@ -1249,7 +1251,7 @@ impl<'de> Deserialize<'de> for ExpressionMetadata {
             #[serde(default)]
             has_assignment: bool,
             #[serde(default)]
-            dependencies: FxHashSet<usize>,
+            dependencies: IndexSet<usize>,
             #[serde(default)]
             references: IndexSet<usize>,
         }

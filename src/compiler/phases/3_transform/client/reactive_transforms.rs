@@ -313,11 +313,71 @@ pub(super) fn transform_reactive_statement(
     //       .map((_, i) => 'id-' + i)
     // Join continuation lines (starting with '.') onto the previous line to ensure
     // the entire expression is treated as a single unit during assignment detection.
+    //
+    // IMPORTANT: we must not collapse `.` lines that live inside string/template
+    // literals (e.g., a Markdown `...` on its own line within a backtick template).
+    // Track string/template-literal state while scanning characters.
     let body_owned = {
         let mut collapsed = String::new();
+        let mut in_single = false;
+        let mut in_double = false;
+        let mut in_template = 0u32; // depth of backtick template literals
+        let mut template_expr_depth = 0i32; // depth of ${...} inside templates
+        // Helper to update string state for a given line's characters
+        let update_state = |line: &str,
+                            in_single: &mut bool,
+                            in_double: &mut bool,
+                            in_template: &mut u32,
+                            template_expr_depth: &mut i32| {
+            let bytes = line.as_bytes();
+            let mut i = 0;
+            while i < bytes.len() {
+                let c = bytes[i];
+                if c == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                if *in_template > 0 && *template_expr_depth == 0 {
+                    if c == b'`' {
+                        *in_template -= 1;
+                    } else if c == b'$' && i + 1 < bytes.len() && bytes[i + 1] == b'{' {
+                        *template_expr_depth += 1;
+                        i += 2;
+                        continue;
+                    }
+                } else if *in_single {
+                    if c == b'\'' {
+                        *in_single = false;
+                    }
+                } else if *in_double {
+                    if c == b'"' {
+                        *in_double = false;
+                    }
+                } else {
+                    // not in any string or inside template expr
+                    match c {
+                        b'\'' => *in_single = true,
+                        b'"' => *in_double = true,
+                        b'`' => *in_template += 1,
+                        b'{' if *in_template > 0 && *template_expr_depth > 0 => {
+                            *template_expr_depth += 1
+                        }
+                        b'}' if *in_template > 0 && *template_expr_depth > 0 => {
+                            *template_expr_depth -= 1
+                        }
+                        _ => {}
+                    }
+                }
+                i += 1;
+            }
+        };
         for line in body.lines() {
             let t = line.trim();
-            if t.starts_with('.') && !collapsed.is_empty() {
+            // Only collapse a leading-dot line if we're not currently inside a
+            // string/template literal at the start of this line.
+            let in_string_like =
+                in_single || in_double || (in_template > 0 && template_expr_depth == 0);
+            if t.starts_with('.') && !collapsed.is_empty() && !in_string_like {
                 // Append chain continuation without newline
                 collapsed.push_str(t);
             } else {
@@ -326,6 +386,16 @@ pub(super) fn transform_reactive_statement(
                 }
                 collapsed.push_str(line);
             }
+            update_state(
+                line,
+                &mut in_single,
+                &mut in_double,
+                &mut in_template,
+                &mut template_expr_depth,
+            );
+            // Newline terminates single/double-quoted strings in JS source
+            in_single = false;
+            in_double = false;
         }
         collapsed
     };

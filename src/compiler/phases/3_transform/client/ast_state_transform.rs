@@ -1240,6 +1240,10 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                 if let Expression::StaticMemberExpression(inner) = &member.object {
                     return self.extract_root_object_from_static_member(inner);
                 }
+                // Chained with computed: prop[i].y = z -> need root object
+                if let Expression::ComputedMemberExpression(inner) = &member.object {
+                    return Self::extract_root_object_from_expr(&inner.object);
+                }
                 if let Expression::CallExpression(call) = &member.object
                     && let Expression::Identifier(obj) = &call.callee
                 {
@@ -1251,12 +1255,39 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                 if let Expression::Identifier(obj) = &member.object {
                     return Some(obj.name.to_string());
                 }
+                // Chained with static: prop.x[i] = z -> need root object
+                if let Expression::StaticMemberExpression(inner) = &member.object {
+                    return self.extract_root_object_from_static_member(inner);
+                }
+                // Chained with computed: prop[i][j] = z -> need root object
+                if let Expression::ComputedMemberExpression(inner) = &member.object {
+                    return Self::extract_root_object_from_expr(&inner.object);
+                }
                 if let Expression::CallExpression(call) = &member.object
                     && let Expression::Identifier(obj) = &call.callee
                 {
                     return Some(obj.name.to_string());
                 }
                 None
+            }
+            _ => None,
+        }
+    }
+
+    /// Walk an arbitrary expression down to its root identifier, if any.
+    fn extract_root_object_from_expr(expr: &Expression<'_>) -> Option<String> {
+        match expr {
+            Expression::Identifier(ident) => Some(ident.name.to_string()),
+            Expression::StaticMemberExpression(m) => Self::extract_root_object_from_expr(&m.object),
+            Expression::ComputedMemberExpression(m) => {
+                Self::extract_root_object_from_expr(&m.object)
+            }
+            Expression::CallExpression(call) => {
+                if let Expression::Identifier(ident) = &call.callee {
+                    Some(ident.name.to_string())
+                } else {
+                    Self::extract_root_object_from_expr(&call.callee)
+                }
             }
             _ => None,
         }

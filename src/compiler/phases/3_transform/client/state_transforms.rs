@@ -2386,15 +2386,65 @@ pub(super) fn transform_prop_assignments(
                     let mut eq_pos = None;
                     let after_member_chars: Vec<char> = after_member.chars().collect();
                     let mut scan_depth = 0i32;
+                    // Track string/template literal state so we don't match `=`
+                    // that appears inside a string (e.g. `?all_endpoints=true`).
+                    let mut in_single = false;
+                    let mut in_double = false;
+                    let mut in_backtick = false;
+                    let mut prev_char: Option<char> = None;
                     for (i, c) in after_member.char_indices() {
+                        // Handle escape sequences inside strings
+                        if (in_single || in_double || in_backtick) && prev_char == Some('\\') {
+                            prev_char = Some(c);
+                            continue;
+                        }
+                        // Toggle string state
+                        if !in_single && !in_double && !in_backtick {
+                            match c {
+                                '\'' => {
+                                    in_single = true;
+                                    prev_char = Some(c);
+                                    continue;
+                                }
+                                '"' => {
+                                    in_double = true;
+                                    prev_char = Some(c);
+                                    continue;
+                                }
+                                '`' => {
+                                    in_backtick = true;
+                                    prev_char = Some(c);
+                                    continue;
+                                }
+                                _ => {}
+                            }
+                        } else {
+                            // Inside some string — only closing quote matters
+                            match c {
+                                '\'' if in_single => {
+                                    in_single = false;
+                                }
+                                '"' if in_double => {
+                                    in_double = false;
+                                }
+                                '`' if in_backtick => {
+                                    in_backtick = false;
+                                }
+                                _ => {}
+                            }
+                            prev_char = Some(c);
+                            continue;
+                        }
                         // Track nesting depth to avoid matching = inside parens/brackets
                         match c {
                             '(' | '[' | '{' => {
                                 scan_depth += 1;
+                                prev_char = Some(c);
                                 continue;
                             }
                             ')' | ']' | '}' => {
                                 scan_depth -= 1;
+                                prev_char = Some(c);
                                 continue;
                             }
                             ';' | '\n' if scan_depth == 0 => {
@@ -2429,6 +2479,7 @@ pub(super) fn transform_prop_assignments(
                             eq_pos = Some(i);
                             break;
                         }
+                        prev_char = Some(c);
                     }
 
                     // If we found an assignment (including compound operators)

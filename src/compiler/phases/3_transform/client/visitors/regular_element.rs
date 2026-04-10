@@ -330,6 +330,14 @@ pub fn visit_regular_element(
 
     // Add $.replay_events() for load/error elements with spreads, use directives, or event handlers
     // Reference: RegularElement.js lines 279-284
+    //
+    // Note: the official compiler pushes this to the OUTER `context.state.after_update`.
+    // For top-level single-element fragments the final merge order produces
+    // [replay_events, ...events], matching the observed JS output (e.g. ImageEl, Image).
+    // Elements wrapped in an {#if}/{#each} branch can sometimes produce the opposite
+    // order; that's an upstream Fragment/IfBlock merge-order detail we don't yet
+    // fully mirror, and it regresses only a couple of files, while fixing several
+    // more. See asset-cover for a known discrepancy.
     if is_load_error_element(&node.name)
         && (has_spread
             || has_use
@@ -338,9 +346,14 @@ pub fn visit_regular_element(
             }))
     {
         let node_id = extract_node_id(&context.state.node);
-        element_state_after_update.push(b::stmt(&context.arena, b::call(&context.arena, b::member_path(&context.arena, "$.replay_events"),
-            vec![b::id(&node_id)],
-        )));
+        context.state.after_update.push(b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.replay_events"),
+                vec![b::id(&node_id)],
+            ),
+        ));
     }
 
     // For input elements, add $.remove_input_defaults() call when needed

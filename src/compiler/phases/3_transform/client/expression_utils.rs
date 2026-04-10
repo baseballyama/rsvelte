@@ -639,6 +639,10 @@ pub(super) fn update_expression_depths(
     let bytes = line.as_bytes();
     let len = bytes.len();
     let mut i = 0;
+    // Track the last non-whitespace character to determine whether a `/` is a
+    // regex literal (when preceded by operators/punctuation) or a division
+    // operator (when preceded by an identifier, literal, or closing bracket).
+    let mut last_significant: u8 = b' ';
 
     while i < len {
         let c = bytes[i];
@@ -676,6 +680,7 @@ pub(super) fn update_expression_depths(
             } else {
                 *in_string = Some(c as char);
             }
+            last_significant = c;
             i += 1;
             continue;
         }
@@ -683,6 +688,86 @@ pub(super) fn update_expression_depths(
         if in_string.is_some() {
             i += 1;
             continue;
+        }
+
+        // Detect regex literals: `/` preceded by an operator, `(`, `,`, `=`,
+        // `!`, `&`, `|`, `?`, `:`, `;`, `{`, `}`, or start-of-line. When a `/`
+        // could be a regex start, scan forward to the closing `/` (respecting
+        // character classes `[...]` and escapes) and skip its contents so the
+        // bracket/paren counters are not corrupted.
+        if c == b'/' {
+            let is_regex = matches!(
+                last_significant,
+                b' ' | b'('
+                    | b','
+                    | b'='
+                    | b'!'
+                    | b'&'
+                    | b'|'
+                    | b'?'
+                    | b':'
+                    | b';'
+                    | b'{'
+                    | b'}'
+                    | b'['
+                    | b'+'
+                    | b'-'
+                    | b'*'
+                    | b'%'
+                    | b'^'
+                    | b'~'
+                    | b'<'
+                    | b'>'
+                    | b'\n'
+                    | b'\t'
+                    | b'\r'
+            );
+            if is_regex {
+                // Scan to closing `/`
+                let mut j = i + 1;
+                let mut in_class = false;
+                let mut found_end = false;
+                while j < len {
+                    let d = bytes[j];
+                    if d == b'\\' && j + 1 < len {
+                        j += 2;
+                        continue;
+                    }
+                    if d == b'\n' {
+                        // Regex literals cannot span lines - bail out, treat as division.
+                        break;
+                    }
+                    if in_class {
+                        if d == b']' {
+                            in_class = false;
+                        }
+                        j += 1;
+                        continue;
+                    }
+                    if d == b'[' {
+                        in_class = true;
+                        j += 1;
+                        continue;
+                    }
+                    if d == b'/' {
+                        // Found closing slash
+                        j += 1;
+                        // Skip flags (a-z)
+                        while j < len && bytes[j].is_ascii_alphabetic() {
+                            j += 1;
+                        }
+                        found_end = true;
+                        break;
+                    }
+                    j += 1;
+                }
+                if found_end {
+                    last_significant = b'0'; // treat regex value as operand
+                    i = j;
+                    continue;
+                }
+                // Fall through and treat `/` as division if no closing found
+            }
         }
 
         match c {
@@ -693,6 +778,9 @@ pub(super) fn update_expression_depths(
             b'{' => *brace_depth += 1,
             b'}' => *brace_depth -= 1,
             _ => {}
+        }
+        if !c.is_ascii_whitespace() {
+            last_significant = c;
         }
         i += 1;
     }
