@@ -594,6 +594,11 @@ pub(super) fn update_expression_depths(
                 i += 2;
                 continue;
             }
+            // Handle single-line comments: skip rest of line
+            if !*in_block_comment && c == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+                // Rest of line is a comment, skip it entirely
+                break;
+            }
         }
 
         if *in_block_comment {

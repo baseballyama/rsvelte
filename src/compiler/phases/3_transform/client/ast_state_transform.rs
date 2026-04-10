@@ -24,10 +24,58 @@ use oxc_syntax::scope::ScopeId;
 use rustc_hash::FxHashSet;
 
 use super::VAR_STATE_VARS;
-use super::expression_utils::expression_needs_proxy_with_scope;
 
 thread_local! {
     static AST_TRANSFORM_ALLOCATOR: RefCell<Allocator> = RefCell::new(Allocator::default());
+}
+
+/// AST-based should_proxy check, mirroring the official Svelte compiler's `should_proxy()`.
+/// Returns `false` for expression types that are known to produce non-proxyable values:
+///  - Literal, TemplateLiteral, ArrowFunctionExpression, FunctionExpression
+///  - UnaryExpression, BinaryExpression
+///  - Identifier named "undefined"
+///
+/// For Identifier nodes, looks up the non_proxy_vars list (which contains variables
+/// with known non-proxyable initial values).
+/// For all other expression types (CallExpression, MemberExpression, etc.), returns `true`.
+fn should_proxy_ast(expr: &Expression<'_>, non_proxy_vars: &[String]) -> bool {
+    match expr {
+        Expression::BooleanLiteral(_)
+        | Expression::NullLiteral(_)
+        | Expression::NumericLiteral(_)
+        | Expression::BigIntLiteral(_)
+        | Expression::RegExpLiteral(_)
+        | Expression::StringLiteral(_) => false,
+        Expression::TemplateLiteral(_) => false,
+        Expression::ArrowFunctionExpression(_) => false,
+        Expression::FunctionExpression(_) => false,
+        Expression::UnaryExpression(_) => false,
+        Expression::BinaryExpression(_) => false,
+        Expression::Identifier(ident) => {
+            if ident.name == "undefined" {
+                return false;
+            }
+            // Check if this identifier is in the non-proxy vars list
+            if non_proxy_vars.iter().any(|v| v == ident.name.as_str()) {
+                return false;
+            }
+            true
+        }
+        // ParenthesizedExpression: check inner expression
+        Expression::ParenthesizedExpression(paren) => {
+            should_proxy_ast(&paren.expression, non_proxy_vars)
+        }
+        // SequenceExpression (comma): check last expression
+        Expression::SequenceExpression(seq) => {
+            if let Some(last) = seq.expressions.last() {
+                should_proxy_ast(last, non_proxy_vars)
+            } else {
+                true
+            }
+        }
+        // Everything else (CallExpression, MemberExpression, etc.) might need proxy
+        _ => true,
+    }
 }
 
 /// Execute a closure with a freshly-reset thread-local OXC allocator.
@@ -729,7 +777,7 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
                 let rhs_start = expr.right.span().start;
                 let rhs_end = expr.right.span().end;
 
-                let original_rhs_text = &self.source[rhs_start as usize..rhs_end as usize];
+                let _original_rhs_text = &self.source[rhs_start as usize..rhs_end as usize];
 
                 self.visit_expression(&expr.right);
                 let rhs_text = self.apply_and_drain_inner_replacements(rhs_start, rhs_end);
@@ -743,10 +791,7 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
                         let needs_proxy = self.is_runes
                             && !is_raw
                             && !is_derived
-                            && expression_needs_proxy_with_scope(
-                                original_rhs_text.trim(),
-                                self.non_proxy_vars,
-                            );
+                            && should_proxy_ast(&expr.right, self.non_proxy_vars);
 
                         let replacement = if needs_proxy {
                             format!("$.set({}, {}, true)", name, rhs_text)
