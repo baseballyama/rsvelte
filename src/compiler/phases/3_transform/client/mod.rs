@@ -3390,6 +3390,64 @@ fn transform_instance_script_for_visitors(
         map
     };
 
+    // Names where EVERY binding of that name (across all inner scopes) has a
+    // known non-proxyable initial type. This enables safe non-proxy treatment
+    // even when the same local name is declared in multiple sibling scopes.
+    fn is_non_proxy_node_type(nt: &str) -> bool {
+        matches!(
+            nt,
+            "Literal"
+                | "TemplateLiteral"
+                | "ArrowFunctionExpression"
+                | "FunctionExpression"
+                | "UnaryExpression"
+                | "BinaryExpression"
+        )
+    }
+    let names_all_non_proxy: std::collections::HashSet<String> = {
+        use std::collections::HashMap;
+        let mut per_name: HashMap<String, (bool, usize)> = HashMap::new();
+        for b in &analysis.root.bindings {
+            // Only consider inner (non-top-level) non-reactive function-local bindings.
+            let is_top_level = b.scope_index == 0 || b.scope_index == instance_scope_for_proxy;
+            if is_top_level || b.reassigned {
+                per_name.insert(b.name.clone(), (false, 0));
+                continue;
+            }
+            if matches!(
+                b.kind,
+                BindingKind::State
+                    | BindingKind::RawState
+                    | BindingKind::Derived
+                    | BindingKind::Prop
+                    | BindingKind::BindableProp
+                    | BindingKind::StoreSub
+                    | BindingKind::Template
+            ) {
+                per_name.insert(b.name.clone(), (false, 0));
+                continue;
+            }
+            if reactive_mut_binding_names.contains(&b.name) {
+                per_name.insert(b.name.clone(), (false, 0));
+                continue;
+            }
+            let ok = b
+                .initial_node_type
+                .as_deref()
+                .map(is_non_proxy_node_type)
+                .unwrap_or(false);
+            let entry = per_name.entry(b.name.clone()).or_insert((true, 0));
+            if !ok {
+                entry.0 = false;
+            }
+            entry.1 += 1;
+        }
+        per_name
+            .into_iter()
+            .filter_map(|(n, (ok, cnt))| if ok && cnt > 0 { Some(n) } else { None })
+            .collect()
+    };
+
     let non_proxy_vars: Vec<String> = analysis
         .root
         .bindings
@@ -3438,7 +3496,8 @@ fn transform_instance_script_for_visitors(
                         | BindingKind::StoreSub
                         | BindingKind::Template // @const, each items, etc. handled below
                 )
-                && name_occurrences.get(&b.name).copied().unwrap_or(0) == 1
+                && (name_occurrences.get(&b.name).copied().unwrap_or(0) == 1
+                    || names_all_non_proxy.contains(&b.name))
                 && let Some(ref node_type) = b.initial_node_type
             {
                 match node_type.as_str() {
@@ -3470,6 +3529,23 @@ fn transform_instance_script_for_visitors(
                             return true;
                         }
                     }
+                    _ => {}
+                }
+            }
+
+            // Template bindings (@const declarations, let directive bindings) whose
+            // initial value is a known non-proxyable primitive expression. Matches the
+            // official compiler's should_proxy() tracing through template bindings.
+            if matches!(b.kind, BindingKind::Template)
+                && let Some(ref node_type) = b.initial_node_type
+            {
+                match node_type.as_str() {
+                    "Literal"
+                    | "TemplateLiteral"
+                    | "ArrowFunctionExpression"
+                    | "FunctionExpression"
+                    | "UnaryExpression"
+                    | "BinaryExpression" => return true,
                     _ => {}
                 }
             }

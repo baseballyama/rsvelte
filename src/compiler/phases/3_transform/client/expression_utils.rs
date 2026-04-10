@@ -571,7 +571,35 @@ pub(super) fn find_assignment_expr_end(s: &str, in_ternary: bool) -> usize {
                 }
             }
             ';' if depth == 0 => return byte_idx,
-            '\n' if depth == 0 => return byte_idx,
+            '\n' if depth == 0 => {
+                // Don't end the expression if the next non-whitespace character
+                // continues the expression (e.g., multi-line ternaries or binary
+                // operators on the next line). Only infix continuation operators
+                // count — closing brackets/parens must terminate the expression.
+                let rest = &s[byte_idx + 1..];
+                let next_nonws = rest.chars().find(|c| !c.is_whitespace());
+                if matches!(
+                    next_nonws,
+                    Some('?')
+                        | Some(':')
+                        | Some('+')
+                        | Some('-')
+                        | Some('*')
+                        | Some('/')
+                        | Some('%')
+                        | Some('&')
+                        | Some('|')
+                        | Some('^')
+                        | Some('=')
+                        | Some('<')
+                        | Some('>')
+                        | Some('.')
+                ) {
+                    prev_char = Some(c);
+                    continue;
+                }
+                return byte_idx;
+            }
             // Stop at ',' at depth 0 (e.g., inside object literal: {id: eid = expr, name: ...})
             ',' if depth == 0 => return byte_idx,
             // Track nested ternaries

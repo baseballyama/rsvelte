@@ -144,18 +144,34 @@ fn visit_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), An
     } else if let Some(init) = init {
         // Non-rune variable declaration - set initial value for constant folding
         for path in &paths {
-            if let Some(name) = path.get("name").and_then(|n| n.as_str())
-                && let Some(binding_idx) = context.analysis.root.find_binding_any_scope(name)
-            {
-                let binding = &mut context.analysis.root.bindings[binding_idx];
-                binding.initial = extract_literal_string(init);
-                binding.initial_is_defined = is_expression_defined(init);
-                // Store the AST node type of the initial value for should_proxy()
-                binding.initial_node_type =
-                    init.get("type").and_then(|t| t.as_str()).map(String::from);
-                if binding.initial_node_type.as_deref() == Some("Identifier") {
-                    binding.initial_identifier_name =
-                        init.get("name").and_then(|n| n.as_str()).map(String::from);
+            if let Some(name) = path.get("name").and_then(|n| n.as_str()) {
+                // Prefer a position-based lookup so that identical names in
+                // sibling block scopes each get their own `initial_node_type`
+                // populated (e.g., several `const newText = \`...\`` in different
+                // if-branches). Fall back to scope-chain / any-scope lookup.
+                let id_start = path.get("start").and_then(|s| s.as_u64()).map(|s| s as u32);
+                let binding_idx = id_start
+                    .and_then(|pos| {
+                        context
+                            .analysis
+                            .root
+                            .bindings
+                            .iter()
+                            .position(|b| b.name == name && b.declaration_start == Some(pos))
+                    })
+                    .or_else(|| context.analysis.root.get_binding(name, context.scope))
+                    .or_else(|| context.analysis.root.find_binding_any_scope(name));
+                if let Some(binding_idx) = binding_idx {
+                    let binding = &mut context.analysis.root.bindings[binding_idx];
+                    binding.initial = extract_literal_string(init);
+                    binding.initial_is_defined = is_expression_defined(init);
+                    // Store the AST node type of the initial value for should_proxy()
+                    binding.initial_node_type =
+                        init.get("type").and_then(|t| t.as_str()).map(String::from);
+                    if binding.initial_node_type.as_deref() == Some("Identifier") {
+                        binding.initial_identifier_name =
+                            init.get("name").and_then(|n| n.as_str()).map(String::from);
+                    }
                 }
             }
         }
@@ -663,6 +679,7 @@ fn extract_paths_recursive(pattern: &Value, paths: &mut Vec<Value>, is_rest: boo
         Some("Identifier") => {
             paths.push(serde_json::json!({
                 "name": pattern.get("name"),
+                "start": pattern.get("start"),
                 "is_rest": is_rest,
             }));
         }
@@ -987,6 +1004,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
 struct PathEntry {
     name: String,
     is_rest: bool,
+    start: u32,
 }
 
 /// Extract paths from a JsNode pattern (Identifier, ArrayPattern, ObjectPattern).
@@ -1003,10 +1021,11 @@ fn extract_paths_typed_recursive(
     arena: &crate::ast::arena::ParseArena,
 ) {
     match pattern {
-        JsNode::Identifier { name, .. } => {
+        JsNode::Identifier { name, start, .. } => {
             paths.push(PathEntry {
                 name: name.to_string(),
                 is_rest,
+                start: *start,
             });
         }
         JsNode::ArrayPattern { elements, .. } => {
@@ -1198,7 +1217,17 @@ fn visit_runes_mode_typed(
     } else if let Some(init) = init_node {
         // Non-rune variable declaration - set initial value for constant folding
         for path in &paths {
-            if let Some(binding_idx) = context.analysis.root.find_binding_any_scope(&path.name) {
+            // Prefer position-based lookup to disambiguate same-name bindings
+            // declared in sibling block scopes.
+            let binding_idx = context
+                .analysis
+                .root
+                .bindings
+                .iter()
+                .position(|b| b.name == path.name && b.declaration_start == Some(path.start))
+                .or_else(|| context.analysis.root.get_binding(&path.name, context.scope))
+                .or_else(|| context.analysis.root.find_binding_any_scope(&path.name));
+            if let Some(binding_idx) = binding_idx {
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string_typed(init);
                 binding.initial_is_defined = is_expression_defined_typed(init, arena);

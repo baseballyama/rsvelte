@@ -1408,8 +1408,11 @@ impl<'a> ScopeBuilder<'a> {
                     BindingKind::Normal
                 };
                 let idx = self.declare_binding(name.to_string(), kind, decl_kind);
-                // Store declaration position for var hoisting analysis
-                self.bindings[idx].declaration_start = Some(*start);
+                // Store declaration position for var hoisting analysis.
+                // Add current_script_offset so positions align with the JSON AST
+                // positions used by the visitor phase.
+                self.bindings[idx].declaration_start =
+                    Some(*start + self.current_script_offset as u32);
                 // Check if initializer is a function expression
                 if let Some(init_id) = init {
                     let init_node = self.arena.get_js_node(init_id);
@@ -2283,6 +2286,38 @@ impl<'a> ScopeBuilder<'a> {
             Expression::ParenthesizedExpression(paren_expr) => {
                 self.track_expression_updates(&paren_expr.expression);
             }
+            Expression::ChainExpression(chain_expr) => {
+                // Convert ChainElement back to Expression-like tracking.
+                // A ChainElement is either a CallExpression or a MemberExpression.
+                match &chain_expr.expression {
+                    oxc_ast::ast::ChainElement::CallExpression(call_expr) => {
+                        self.track_expression_updates(&call_expr.callee);
+                        for arg in &call_expr.arguments {
+                            match arg {
+                                oxc_ast::ast::Argument::SpreadElement(spread) => {
+                                    self.track_expression_updates(&spread.argument);
+                                }
+                                _ => {
+                                    if let Some(expr) = arg.as_expression() {
+                                        self.track_expression_updates(expr);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    oxc_ast::ast::ChainElement::ComputedMemberExpression(member_expr) => {
+                        self.track_expression_updates(&member_expr.object);
+                        self.track_expression_updates(&member_expr.expression);
+                    }
+                    oxc_ast::ast::ChainElement::StaticMemberExpression(member_expr) => {
+                        self.track_expression_updates(&member_expr.object);
+                    }
+                    oxc_ast::ast::ChainElement::PrivateFieldExpression(member_expr) => {
+                        self.track_expression_updates(&member_expr.object);
+                    }
+                    _ => {}
+                }
+            }
             Expression::ClassExpression(class_expr) => {
                 // Process class body to find assignments in methods, getters, setters, etc.
                 self.process_class_body(&class_expr.body);
@@ -2635,7 +2670,10 @@ impl<'a> ScopeBuilder<'a> {
                 // Store the declaration position for var hoisting analysis.
                 // Used by the state_referenced_locally warning to skip references
                 // that appear before the var declaration in source order.
-                self.bindings[idx].declaration_start = Some(ident.span.start);
+                // Add current_script_offset so positions align with the JSON AST
+                // positions used by the visitor phase.
+                self.bindings[idx].declaration_start =
+                    Some(ident.span.start + self.current_script_offset as u32);
                 // Check if the initializer is a function expression
                 if let Some(init_expr) = init
                     && matches!(

@@ -114,12 +114,24 @@ pub fn snippet_block(node: &SnippetBlock, context: &mut ComponentContext) {
         saved
     };
 
+    // Save and adjust shadowed_prop_names for snippet body. Snippet parameters
+    // can shadow outer props (e.g., `{#snippet foo(options)}` where `options`
+    // is also a prop). References to `options` inside the snippet body should
+    // refer to the parameter, not the prop.
+    let saved_shadowed = context.state.shadowed_prop_names.clone();
+    for param in &node.parameters {
+        for name in extract_param_names(param) {
+            context.state.shadowed_prop_names.insert(name);
+        }
+    }
+
     // Visit the snippet body
     let body_statements = visit_fragment(&node.body, context);
 
     // Restore the transform map and blocker_map to the outer scope
     context.state.transform = saved_transform;
     *context.state.blocker_map.borrow_mut() = saved_blocker_map;
+    context.state.shadowed_prop_names = saved_shadowed;
 
     // Build the full body with declarations and visited body
     let mut full_body = Vec::new();
