@@ -319,22 +319,63 @@ pub(super) fn transform_store_sub_calls(line: &str, store_sub_vars: &[String]) -
             }
 
             // Check if this is inside a function parameter declaration
-            // e.g., `function bar($state, $effect)` - skip these
+            // e.g., `function bar($state, $effect)` - skip these.
+            // Only applies to the IMMEDIATELY enclosing unmatched `(`; a nested
+            // call like `function go() { handleError($t(...)) }` must NOT be
+            // treated as being in function params.
             let before_text = &result[..abs_pos];
             let is_in_func_params = {
-                // Look back for "function xxx(" pattern where our position is inside the parens
-                let mut in_params = false;
-                if let Some(last_func) = memchr::memmem::rfind(before_text.as_bytes(), b"function ")
-                {
-                    let after_func = &result[last_func..abs_pos];
-                    // Count parens to see if we're inside function params
-                    let open_count = after_func.chars().filter(|c| *c == '(').count();
-                    let close_count = after_func.chars().filter(|c| *c == ')').count();
-                    if open_count > close_count {
-                        in_params = true;
+                // Find the nearest unmatched `(` before our position.
+                let bytes = before_text.as_bytes();
+                let mut depth: i32 = 0;
+                let mut open_paren_pos: Option<usize> = None;
+                let mut i = bytes.len();
+                while i > 0 {
+                    i -= 1;
+                    let ch = bytes[i] as char;
+                    if ch == ')' {
+                        depth += 1;
+                    } else if ch == '(' {
+                        if depth == 0 {
+                            open_paren_pos = Some(i);
+                            break;
+                        }
+                        depth -= 1;
                     }
                 }
-                in_params
+                if let Some(p) = open_paren_pos {
+                    // Check what is immediately before the `(`, skipping whitespace
+                    // and an optional identifier (the function name).
+                    let mut k = p;
+                    while k > 0 && (bytes[k - 1] as char).is_whitespace() {
+                        k -= 1;
+                    }
+                    // Skip an optional identifier (function name) before `(`
+                    while k > 0 && {
+                        let ch = bytes[k - 1] as char;
+                        ch.is_alphanumeric() || ch == '_' || ch == '$'
+                    } {
+                        k -= 1;
+                    }
+                    // Skip whitespace before identifier
+                    while k > 0 && (bytes[k - 1] as char).is_whitespace() {
+                        k -= 1;
+                    }
+                    // Now check if preceded by `function` keyword
+                    if k >= 8 {
+                        let prefix = &before_text[k - 8..k];
+                        prefix == "function"
+                            && (k == 8
+                                || !{
+                                    let c = bytes[k - 9] as char;
+                                    c.is_alphanumeric() || c == '_' || c == '$'
+                                })
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
             };
 
             if is_in_func_params {
