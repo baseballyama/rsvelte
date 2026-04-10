@@ -654,37 +654,37 @@ pub fn visit_regular_element(
                     //       (value, metadata) => context.state.memoizer.add(value, metadata)
                     //   );
                     //   (has_state ? context.state.update : context.state.init).push(b.stmt(update));
-                    let mut captured_metadata = ExpressionMetadata::default();
+                    //
+                    // The memoize closure is called PER-EXPRESSION inside template
+                    // chunks, so we must actually call memoizer.add inside the
+                    // closure rather than wrapping the whole result. We temporarily
+                    // take the memoizer out of context.state to satisfy the borrow
+                    // checker (the closure captures a separate &mut reference to
+                    // the local memoizer while context is still borrowed).
+                    let mut local_memoizer = std::mem::take(&mut context.state.memoizer);
                     let result = build_attribute_value(&attr.value, context, |expr, metadata| {
-                        captured_metadata = metadata.clone();
-                        expr
+                        local_memoizer.add(
+                            expr,
+                            metadata.has_call(),
+                            metadata.has_await(),
+                            false,
+                            metadata.has_state(),
+                        )
                     });
-                    let meta_has_call = captured_metadata.has_call();
-                    let meta_has_await = captured_metadata.has_await();
-                    // Memoize the value when needed (has_call or has_await),
-                    // following the JS Memoizer.add() logic.
-                    let memoized_value = context.state.memoizer.add(
-                        result.value,
-                        meta_has_call,
-                        meta_has_await,
-                        false,
-                        result.has_state,
-                    );
+                    context.state.memoizer = local_memoizer;
 
                     let update = build_element_attribute_update(
                         &context.arena,
                         node,
                         &extract_node_id(&context.state.node),
                         &name,
-                        memoized_value,
+                        result.value,
                         &attributes,
                         context.state.options.dev,
                     );
 
-                    // Route to update (template_effect) when the expression has state
-                    // or was memoized (has_call/has_await means value is a $N parameter
-                    // that only exists inside template_effect).
-                    if result.has_state || meta_has_call || meta_has_await {
+                    // Route to update (template_effect) when the expression has state.
+                    if result.has_state {
                         context.state.update.push(b::stmt(&context.arena, update));
                     } else {
                         context.state.init.push(b::stmt(&context.arena, update));

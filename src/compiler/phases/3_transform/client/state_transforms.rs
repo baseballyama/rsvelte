@@ -3149,6 +3149,37 @@ pub(super) fn transform_legacy_state_declarations(
                         matched = true;
                         break;
                     }
+                    // Check if there's an `=` after whitespace (initializer present
+                    // but pattern_with_init didn't match, e.g. due to extra spaces
+                    // left by TypeScript annotation stripping: `var x  = value`).
+                    // Handle this as an initializer case rather than producing the
+                    // invalid `var x = $.mutable_source() = value`.
+                    let rest_after = &result[after_pos..];
+                    let trimmed_rest = rest_after.trim_start();
+                    if trimmed_rest.starts_with('=')
+                        && !trimmed_rest.starts_with("==")
+                        && !trimmed_rest.starts_with("=>")
+                    {
+                        // Find where the `=` character is in `rest_after`
+                        let eq_offset = rest_after.len() - trimmed_rest.len();
+                        let after_eq = after_pos + eq_offset + 1;
+                        let after = &result[after_eq..];
+                        let expr_end = find_statement_end_client(after);
+                        let expr = after[..expr_end].trim().trim_end_matches(';').trim();
+                        let replacement = if immutable {
+                            format!("{} {} = $.mutable_source({}, true)", keyword, var, expr)
+                        } else {
+                            format!("{} {} = $.mutable_source({})", keyword, var, expr)
+                        };
+                        result = format!(
+                            "{}{}{}",
+                            &result[..pos],
+                            replacement,
+                            &result[after_eq + expr_end..]
+                        );
+                        matched = true;
+                        break;
+                    }
                     let replacement = if immutable {
                         format!("{} {} = $.mutable_source(undefined, true)", keyword, var)
                     } else {
