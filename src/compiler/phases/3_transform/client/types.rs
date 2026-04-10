@@ -1660,6 +1660,7 @@ impl<'a> ComponentContext<'a> {
                             handler,
                             capture,
                             passive,
+                            false,
                         );
                         self.state.init.push(b::stmt(&self.arena, event_call));
                     }

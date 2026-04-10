@@ -39,6 +39,7 @@ pub fn build_event(
     handler: JsExpr,
     capture: bool,
     passive: Option<bool>,
+    delegated: bool,
 ) -> JsExpr {
     let mut args = vec![b::string(event_name), node.clone(), handler];
 
@@ -48,12 +49,13 @@ pub fn build_event(
 
     if let Some(passive_val) = passive {
         if !capture {
-            args.push(b::literal(JsLiteral::Undefined));
+            args.push(b::undefined(arena));
         }
         args.push(b::boolean(passive_val));
     }
 
-    b::call(arena, b::member_path(arena, "$.event"), args)
+    let callee = if delegated { "$.delegated" } else { "$.event" };
+    b::call(arena, b::member_path(arena, callee), args)
 }
 
 /// Build a delegated event assignment: `element.__eventname = handler`

@@ -813,6 +813,13 @@ pub fn visit_regular_element(
     let saved_child_after_update = std::mem::take(&mut context.state.after_update);
     let saved_child_snippets = std::mem::take(&mut context.state.snippets);
 
+    // Propagate preserve_whitespace to child processing so that `pre`/`textarea`
+    // whitespace is preserved for ExpressionTag/Text content within nested elements.
+    // This mirrors the official compiler's state spread:
+    //   preserve_whitespace: context.state.preserve_whitespace || name === 'pre' || name === 'textarea'
+    let saved_preserve_whitespace = context.state.preserve_whitespace;
+    context.state.preserve_whitespace = preserve_whitespace;
+
     // Process hoisted nodes (e.g., SnippetBlocks inside this element)
     // We increment the nesting level so place_snippet_declaration knows we're not at root
     context.state.template_nesting_level += 1;
@@ -1306,6 +1313,9 @@ pub fn visit_regular_element(
 
     // Decrement nesting level (we incremented it before processing hoisted nodes)
     context.state.template_nesting_level -= 1;
+
+    // Restore preserve_whitespace after processing children
+    context.state.preserve_whitespace = saved_preserve_whitespace;
 
     // Restore namespace after processing children
     context.state.metadata.namespace = saved_namespace;

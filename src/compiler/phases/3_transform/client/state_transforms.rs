@@ -404,7 +404,7 @@ pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) ->
             let after_ident = pos + pat.len();
             if after_ident < result.len() {
                 let next_char = result.as_bytes()[after_ident] as char;
-                if next_char != ',' && next_char != ')' && next_char != ' ' {
+                if next_char != ',' && next_char != ')' && next_char != ' ' && next_char != ':' {
                     // Not a word boundary - the pattern is a prefix of a longer name
                     // Replace just this occurrence to prevent infinite loop
                     result.replace_range(pos..pos + 1, " ");
@@ -500,7 +500,7 @@ pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) ->
                 break;
             }
             let next_char = result.as_bytes()[after_ident] as char;
-            if next_char != ',' && next_char != ')' && next_char != ' ' {
+            if next_char != ',' && next_char != ')' && next_char != ' ' && next_char != ':' {
                 search_from = pos + 1;
                 continue;
             }
@@ -577,9 +577,62 @@ pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) ->
                         let spaces = " ".repeat(end_pos - pos);
                         result.replace_range(pos..end_pos, &spaces);
                     } else {
-                        // Expression body arrow - harder to determine end
-                        // Just skip for now, expression arrows are less common in $: statements
-                        search_from = body_offset;
+                        // Expression body arrow: scan forward from body_offset to find the
+                        // end of the expression (top-level `,` `)` `]` `;` or end of string).
+                        let bytes = result.as_bytes();
+                        let mut p = body_offset;
+                        let mut pdepth = 0i32;
+                        let mut bdepth = 0i32;
+                        let mut brdepth = 0i32;
+                        let mut in_s: Option<u8> = None;
+                        while p < bytes.len() {
+                            let c = bytes[p];
+                            if let Some(q) = in_s {
+                                if c == b'\\' && p + 1 < bytes.len() {
+                                    p += 2;
+                                    continue;
+                                }
+                                if c == q {
+                                    in_s = None;
+                                }
+                                p += 1;
+                                continue;
+                            }
+                            match c {
+                                b'\'' | b'"' | b'`' => in_s = Some(c),
+                                b'(' => pdepth += 1,
+                                b')' => {
+                                    if pdepth == 0 && bdepth == 0 && brdepth == 0 {
+                                        break;
+                                    }
+                                    pdepth -= 1;
+                                }
+                                b'{' => bdepth += 1,
+                                b'}' => {
+                                    if bdepth == 0 && pdepth == 0 && brdepth == 0 {
+                                        break;
+                                    }
+                                    bdepth -= 1;
+                                }
+                                b'[' => brdepth += 1,
+                                b']' => {
+                                    if brdepth == 0 && pdepth == 0 && bdepth == 0 {
+                                        break;
+                                    }
+                                    brdepth -= 1;
+                                }
+                                b',' | b';' => {
+                                    if pdepth == 0 && bdepth == 0 && brdepth == 0 {
+                                        break;
+                                    }
+                                }
+                                _ => {}
+                            }
+                            p += 1;
+                        }
+                        let end_pos = p;
+                        let spaces = " ".repeat(end_pos - pos);
+                        result.replace_range(pos..end_pos, &spaces);
                     }
                 } else {
                     search_from = paren_close + 1;

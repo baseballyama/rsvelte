@@ -95,5 +95,6 @@ pub fn on_directive(node: &OnDirective, context: &mut ComponentContext) -> JsExp
         handler,
         capture,
         passive,
+        false,
     )
 }

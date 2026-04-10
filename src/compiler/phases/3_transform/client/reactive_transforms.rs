@@ -275,6 +275,7 @@ pub(super) fn transform_reactive_statement(
     prop_assignment_transform_vars: &[String],
     store_sub_vars: &[String],
     import_names: &[String],
+    var_state_vars: &[String],
     _analysis: &ComponentAnalysis,
 ) -> String {
     let trimmed = statement.trim();
@@ -685,7 +686,12 @@ pub(super) fn transform_reactive_statement(
         }
         for dep in &state_dependencies {
             let pos = find_pos(dep);
-            unified_deps.push((pos, format!("$.get({})", dep)));
+            let getter = if var_state_vars.iter().any(|v| v == dep) {
+                "$.safe_get"
+            } else {
+                "$.get"
+            };
+            unified_deps.push((pos, format!("{}({})", getter, dep)));
         }
         // Store subscription vars: `$foo()` - call the getter to track dependency
         for dep in &store_sub_dependencies {

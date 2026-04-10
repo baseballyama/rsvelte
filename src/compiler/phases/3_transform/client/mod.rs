@@ -3534,6 +3534,11 @@ fn transform_instance_script_for_visitors(
                 store_sub_vars,
             );
 
+            let var_state_vars: Vec<String> = legacy_state_vars
+                .iter()
+                .filter(|(_, _, kind)| *kind == DeclarationKind::Var)
+                .map(|(n, _, _)| n.clone())
+                .collect();
             let transformed = transform_reactive_statement(
                 &statement,
                 state_vars,
@@ -3542,6 +3547,7 @@ fn transform_instance_script_for_visitors(
                 prop_assignment_transform_vars,
                 store_sub_vars,
                 import_names,
+                &var_state_vars,
                 analysis,
             );
             // Also apply state assignment transformations to the reactive statement body

@@ -6,7 +6,7 @@
 use crate::ast::template::{Attribute, AttributeNode};
 use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::events::{
-    build_delegated_event_assignment, build_event, convert_arrow_to_named_function,
+    build_event, convert_arrow_to_named_function,
 };
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 use crate::compiler::utils::can_delegate_event;
@@ -220,29 +220,18 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
         handler
     };
 
-    let statement = if delegated {
-        b::stmt(
+    let statement = b::stmt(
+        &context.arena,
+        build_event(
             &context.arena,
-            build_delegated_event_assignment(
-                &context.arena,
-                event_name,
-                &context.state.node,
-                handler,
-            ),
-        )
-    } else {
-        b::stmt(
-            &context.arena,
-            build_event(
-                &context.arena,
-                event_name,
-                &context.state.node,
-                handler,
-                capture,
-                if passive == Some(true) { passive } else { None },
-            ),
-        )
-    };
+            event_name,
+            &context.state.node,
+            handler,
+            capture,
+            if passive == Some(true) { passive } else { None },
+            delegated,
+        ),
+    );
 
     // Check if the parent is a special element (svelte:window, svelte:document, svelte:body)
     let is_special_element = context.current_parent().is_some_and(|parent| {

@@ -1669,6 +1669,15 @@ pub(super) fn is_simple_expression_str(value: &str) -> bool {
         return false;
     }
 
+    // Logical/binary expressions containing a call-with-IIFE are NOT simple.
+    // e.g., `brush_options && (() => {...})()` — the RHS is an IIFE call.
+    // Detect `)(` suffix pattern that indicates a call-after-expression.
+    if trimmed.ends_with(')') && memchr::memmem::find(trimmed.as_bytes(), b")(").is_some() {
+        // If there's a top-level binary/logical operator before an IIFE call,
+        // this is not a simple expression.
+        return false;
+    }
+
     // Call expressions are NOT simple (unless it's a no-arg function reference)
     // e.g., foo() is not simple, but foo is simple
     if trimmed.ends_with(')')

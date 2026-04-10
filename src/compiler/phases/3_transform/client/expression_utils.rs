@@ -393,7 +393,40 @@ pub(super) fn find_statement_end_client(s: &str) -> usize {
             }
             ';' if depth == 0 => return byte_pos,
             // Newline at depth 0 ends the statement (JavaScript ASI)
-            '\n' if depth == 0 => return byte_pos,
+            // UNLESS the next non-whitespace character continues the expression
+            // (e.g., `?` or `:` for ternary, `.` for chain, binary operators).
+            '\n' if depth == 0 => {
+                let rest = &s[byte_pos + 1..];
+                let next = rest
+                    .bytes()
+                    .find(|b| !matches!(b, b' ' | b'\t' | b'\r' | b'\n'))
+                    .map(|b| b as char);
+                if let Some(nc) = next {
+                    if matches!(
+                        nc,
+                        '?' | ':'
+                            | '.'
+                            | '+'
+                            | '-'
+                            | '*'
+                            | '/'
+                            | '%'
+                            | '&'
+                            | '|'
+                            | '^'
+                            | '<'
+                            | '>'
+                            | '='
+                            | ','
+                    ) {
+                        // continuation; keep scanning
+                    } else {
+                        return byte_pos;
+                    }
+                } else {
+                    return byte_pos;
+                }
+            }
             _ => {}
         }
         prev_char = c;
