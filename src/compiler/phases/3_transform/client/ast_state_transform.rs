@@ -669,6 +669,22 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
 
         // 3. Prop source reads: prop -> prop()
         if self.is_active_prop_var(name) {
+            // Exception: if this identifier is the sole argument to `$.derived(`,
+            // it's the unthunk optimization where the prop getter IS the derived
+            // function — do NOT append `()`.
+            let before_start = start as usize;
+            let trimmed_before = self.source[..before_start].trim_end();
+            let is_sole_derived_arg = if trimmed_before.ends_with("$.derived(") {
+                let after_end = end as usize;
+                let after = &self.source[after_end..];
+                let trimmed_after = after.trim_start();
+                trimmed_after.starts_with(')')
+            } else {
+                false
+            };
+            if is_sole_derived_arg {
+                return;
+            }
             if self.in_shorthand_property {
                 self.add_replacement(start, end, format!("{}: {}()", name, name));
             } else {

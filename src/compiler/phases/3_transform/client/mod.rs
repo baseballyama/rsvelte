@@ -3356,13 +3356,24 @@ fn transform_instance_script_for_visitors(
     // Pre-compute non-proxyable variables once (invariant across all statements).
     // This mirrors the official Svelte compiler's should_proxy() which resolves
     // identifiers to their binding's initial values.
+    let instance_scope_for_proxy = analysis.root.instance_scope_index;
     let non_proxy_vars: Vec<String> = analysis
         .root
         .bindings
         .iter()
         .filter(|b| {
-            !b.reassigned
-                && b.initial.is_some()
+            if b.reassigned {
+                return false;
+            }
+            // Only consider bindings declared at the top level (module scope or
+            // instance scope). Bindings inside nested scopes (each blocks, snippets,
+            // functions, etc.) may be shadowed by same-named locals elsewhere, so
+            // putting them in the global non_proxy_vars list would be unsafe.
+            if b.scope_index != 0 && b.scope_index != instance_scope_for_proxy {
+                return false;
+            }
+            // Regular non-reactive bindings with initial literal/primitive value.
+            if b.initial.is_some()
                 && !matches!(
                     b.kind,
                     BindingKind::State
@@ -3372,6 +3383,31 @@ fn transform_instance_script_for_visitors(
                         | BindingKind::BindableProp
                         | BindingKind::StoreSub
                 )
+            {
+                return true;
+            }
+            // Props with default values that are known non-proxyable types (literals,
+            // functions, `undefined`). This mirrors the official compiler's should_proxy
+            // which recurses into binding.initial when the reference is an identifier.
+            if matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp)
+                && let Some(ref node_type) = b.initial_node_type
+            {
+                match node_type.as_str() {
+                    "Literal"
+                    | "TemplateLiteral"
+                    | "ArrowFunctionExpression"
+                    | "FunctionExpression"
+                    | "UnaryExpression"
+                    | "BinaryExpression" => return true,
+                    "Identifier" => {
+                        if b.initial_identifier_name.as_deref() == Some("undefined") {
+                            return true;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            false
         })
         .map(|b| b.name.clone())
         .collect();

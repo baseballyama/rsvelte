@@ -1325,6 +1325,24 @@ fn process_bind_directive(
         return;
     }
 
+    // In runes mode, when a bind directive's expression is rooted at an each block
+    // item (e.g., bind:checked={partner.inTimeline}), flag the each block so it
+    // emits the $$index parameter. This mirrors the official compiler's `mutate`
+    // transform on each items which sets `uses_index = true`.
+    if context.state.analysis.runes && !context.state.each_binding_context.is_empty() {
+        use crate::compiler::phases::phase3_transform::client::visitors::bind_directive::get_expression_root_identifier;
+        let expr_root = get_expression_root_identifier(&raw_expression, &context.arena);
+        if let Some(ref root_name) = expr_root
+            && context
+                .state
+                .each_item_names
+                .iter()
+                .any(|n| n.as_str() == root_name.as_str())
+        {
+            context.state.each_item_assign_or_mutate.set(true);
+        }
+    }
+
     // In legacy mode, check if we're inside an each block and use the each-block-aware getter/setter.
     // This handles patterns like `bind:value={x}` inside `{#each a as x}` on components.
     // The getter/setter needs to use `a()[$$index] = $$value` instead of a simple `x = $$value`.

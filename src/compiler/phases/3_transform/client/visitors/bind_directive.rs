@@ -405,6 +405,26 @@ fn bind_directive_inner(
         }
     }
 
+    // In runes mode, when a bind directive's expression is rooted at an each block
+    // item (e.g., bind:checked={partner.inTimeline}), we need to flag it so that the
+    // each block emits the $$index parameter. This mirrors the official compiler's
+    // `mutate` transform on each items which sets `uses_index = true`.
+    if context.state.analysis.runes
+        && binding_name != "this"
+        && !context.state.each_binding_context.is_empty()
+    {
+        let expr_root = get_expression_root_identifier(&expression, &context.arena);
+        if let Some(ref root_name) = expr_root
+            && context
+                .state
+                .each_item_names
+                .iter()
+                .any(|n| n.as_str() == root_name.as_str())
+        {
+            context.state.each_item_assign_or_mutate.set(true);
+        }
+    }
+
     // Check if it's a sequence expression (getter/setter pair)
     let (get, set) = if is_sequence_expression(&expression) {
         let (raw_get, raw_set) = extract_getter_setter(&expression);
@@ -2571,7 +2591,7 @@ fn get_store_to_invalidate_from_context(context: &ComponentContext) -> Option<St
 /// For `selected` -> Some("selected"), for `selected.done` -> Some("selected"),
 /// for `items[0]` -> Some("items").
 /// Corresponds to the `object()` function call in the official compiler.
-fn get_expression_root_identifier(expr: &JsExpr, arena: &JsArena) -> Option<String> {
+pub fn get_expression_root_identifier(expr: &JsExpr, arena: &JsArena) -> Option<String> {
     match expr {
         JsExpr::Identifier(name) => Some(name.to_string()),
         JsExpr::Member(member) => {

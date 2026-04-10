@@ -3448,6 +3448,14 @@ pub(super) fn expression_needs_proxy(expr: &str) -> bool {
         return true;
     }
 
+    // General member access: starts with an identifier and contains only
+    // member access operators (`.`, `[...]`) — e.g. `foo.bar[i].baz` or
+    // `timelineManager.months[i + 1].yearMonth`. These always produce an
+    // unknown value that could be proxied.
+    if is_complex_member_access(trimmed) {
+        return true;
+    }
+
     // Ternary/conditional expressions (a ? b : c) need proxy if either branch
     // could produce a proxyable value. In the official Svelte compiler,
     // ConditionalExpression is not in the list of types that return false from
@@ -3498,6 +3506,77 @@ pub(super) fn is_simple_identifier(expr: &str) -> bool {
 
 /// Check if an expression is a member expression (e.g., foo.bar, foo.bar.baz)
 /// but not a function call (foo.bar()).
+/// Check whether an expression is a complex member access chain: starts with
+/// an identifier and contains only identifier characters, `.`, and balanced
+/// bracket expressions. The expression must NOT contain any top-level call
+/// parentheses (i.e. the only `(` allowed are inside `[...]` brackets).
+///
+/// Examples (true): `foo.bar`, `foo[x]`, `foo[x + 1].bar.baz[y]`
+/// Examples (false): `foo()`, `foo + bar`, `foo.bar()`, `x ? y : z`
+pub(super) fn is_complex_member_access(expr: &str) -> bool {
+    let trimmed = expr.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    let chars: Vec<char> = trimmed.chars().collect();
+    let len = chars.len();
+    // Must start with identifier char
+    let first = chars[0];
+    if !first.is_alphabetic() && first != '_' && first != '$' {
+        return false;
+    }
+    // Must end with identifier char or `]`
+    let last = chars[len - 1];
+    if !(last.is_alphanumeric() || last == '_' || last == '$' || last == ']') {
+        return false;
+    }
+    // Must contain at least one `.` or `[` for it to be a member access
+    if !trimmed.contains('.') && !trimmed.contains('[') {
+        return false;
+    }
+    let mut i = 0;
+    let mut bracket_depth: i32 = 0;
+    while i < len {
+        let c = chars[i];
+        if bracket_depth > 0 {
+            // Inside brackets: track nesting, allow anything
+            match c {
+                '[' => bracket_depth += 1,
+                ']' => bracket_depth -= 1,
+                '(' | ')' => {
+                    // balanced parens inside brackets are OK — we don't track them
+                }
+                _ => {}
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            '[' => {
+                bracket_depth = 1;
+                i += 1;
+            }
+            '.' => {
+                // Next must be identifier start
+                let j = i + 1;
+                if j >= len {
+                    return false;
+                }
+                let nc = chars[j];
+                if !nc.is_alphabetic() && nc != '_' && nc != '$' {
+                    return false;
+                }
+                i += 1;
+            }
+            c if c.is_alphanumeric() || c == '_' || c == '$' => {
+                i += 1;
+            }
+            _ => return false,
+        }
+    }
+    bracket_depth == 0
+}
+
 pub(super) fn is_member_expression(expr: &str) -> bool {
     let trimmed = expr.trim();
     if trimmed.is_empty() {
@@ -3791,14 +3870,36 @@ pub(super) fn is_top_level_function_call(expr: &str) -> bool {
         return false;
     }
 
-    // Collect the identifier path (could include dots for method calls)
+    // Collect the identifier path (could include dots for method calls, and
+    // whitespace around the dots for multi-line member chains like
+    // `people\n    .filter(...)`).
+    let mut seen_ident_char = false;
     while i < chars.len() {
         let c = chars[i];
-        if c.is_alphanumeric() || c == '_' || c == '$' || c == '.' {
+        if c.is_alphanumeric() || c == '_' || c == '$' {
+            seen_ident_char = true;
             i += 1;
+        } else if c == '.' && seen_ident_char {
+            i += 1;
+        } else if c.is_whitespace() && seen_ident_char {
+            // Whitespace is only part of the path when followed by `.`.
+            let mut j = i;
+            while j < chars.len() && chars[j].is_whitespace() {
+                j += 1;
+            }
+            if j < chars.len() && chars[j] == '.' {
+                i = j;
+            } else {
+                break;
+            }
         } else {
             break;
         }
+    }
+
+    // Allow whitespace before the opening `(` (some codebases put `(` on a new line).
+    while i < chars.len() && chars[i].is_whitespace() {
+        i += 1;
     }
 
     // After identifier, should be (

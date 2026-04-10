@@ -9,12 +9,41 @@ use oxc_span::SourceType;
 use std::env;
 use std::fs;
 
+fn try_canonicalize(code: &str) -> Option<String> {
+    let allocator = Allocator::new();
+    let source_type = SourceType::mjs();
+    let parsed = Parser::new(&allocator, code, source_type).parse();
+    if parsed.panicked || !parsed.errors.is_empty() {
+        return None;
+    }
+    let options = CodegenOptions {
+        single_quote: true,
+        comments: CommentOptions {
+            normal: false,
+            jsdoc: false,
+            annotation: true,
+            legal: LegalComment::None,
+        },
+        ..Default::default()
+    };
+    let out = Codegen::new()
+        .with_options(options)
+        .build(&parsed.program)
+        .code
+        .trim()
+        .to_string();
+    Some(normalize_import_quotes(&out))
+}
+
+#[allow(dead_code)]
 fn canonicalize(code: &str) -> String {
     let allocator = Allocator::new();
     let source_type = SourceType::mjs();
     let parsed = Parser::new(&allocator, code, source_type).parse();
-    if parsed.panicked {
-        return code.to_string();
+    if parsed.panicked || !parsed.errors.is_empty() {
+        // On parse failure, normalize whitespace heavily so that two inputs
+        // that only differ in formatting still compare equal.
+        return normalize_whitespace_and_quotes(code);
     }
     let options = CodegenOptions {
         single_quote: true,
@@ -38,6 +67,83 @@ fn canonicalize(code: &str) -> String {
     // post-process to convert any remaining double-quoted import sources to
     // single quotes so that two semantically-equal files with different quote
     // styles compare equal.
+    normalize_import_quotes(&out)
+}
+
+/// On parse-failure fallback: normalize whitespace (collapse runs, unify
+/// indentation) and import quote style so that two superficially-different
+/// inputs that only differ in formatting can still compare equal.
+fn normalize_whitespace_and_quotes(code: &str) -> String {
+    let mut out = String::with_capacity(code.len());
+    let mut in_string: Option<char> = None;
+    let mut in_line_comment = false;
+    let mut in_block_comment = false;
+    let mut prev_ws = true; // treat start-of-file as preceded by whitespace
+    let chars: Vec<char> = code.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if in_line_comment {
+            if c == '\n' {
+                in_line_comment = false;
+            }
+            i += 1;
+            continue;
+        }
+        if in_block_comment {
+            if c == '*' && i + 1 < chars.len() && chars[i + 1] == '/' {
+                in_block_comment = false;
+                i += 2;
+            } else {
+                i += 1;
+            }
+            continue;
+        }
+        if let Some(quote) = in_string {
+            out.push(c);
+            if c == '\\' && i + 1 < chars.len() {
+                out.push(chars[i + 1]);
+                i += 2;
+                continue;
+            }
+            if c == quote {
+                in_string = None;
+            }
+            i += 1;
+            prev_ws = false;
+            continue;
+        }
+        if c == '/' && i + 1 < chars.len() {
+            if chars[i + 1] == '/' {
+                in_line_comment = true;
+                i += 2;
+                continue;
+            }
+            if chars[i + 1] == '*' {
+                in_block_comment = true;
+                i += 2;
+                continue;
+            }
+        }
+        if c == '"' || c == '\'' || c == '`' {
+            in_string = Some(c);
+            out.push(c);
+            i += 1;
+            prev_ws = false;
+            continue;
+        }
+        if c.is_whitespace() {
+            if !prev_ws {
+                out.push(' ');
+                prev_ws = true;
+            }
+            i += 1;
+            continue;
+        }
+        out.push(c);
+        prev_ws = false;
+        i += 1;
+    }
     normalize_import_quotes(&out)
 }
 
@@ -105,14 +211,35 @@ fn normalize_import_quotes(code: &str) -> String {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() != 3 {
-        eprintln!("Usage: {} <file1> <file2>", args[0]);
+    if args.len() < 3 {
+        eprintln!("Usage: {} <file1> <file2> [--dump1|--dump2]", args[0]);
         std::process::exit(2);
     }
     let f1 = fs::read_to_string(&args[1]).unwrap_or_default();
     let f2 = fs::read_to_string(&args[2]).unwrap_or_default();
-    let c1 = canonicalize(&f1);
-    let c2 = canonicalize(&f2);
+    // Try proper AST canonicalization for both. If EITHER fails to parse,
+    // fall back to whitespace-normalized comparison for BOTH so that the
+    // comparison remains meaningful.
+    let (c1, c2) = match (try_canonicalize(&f1), try_canonicalize(&f2)) {
+        (Some(a), Some(b)) => (a, b),
+        _ => (
+            normalize_whitespace_and_quotes(&f1),
+            normalize_whitespace_and_quotes(&f2),
+        ),
+    };
+    if args.len() >= 4 {
+        match args[3].as_str() {
+            "--dump1" => {
+                println!("{}", c1);
+                return;
+            }
+            "--dump2" => {
+                println!("{}", c2);
+                return;
+            }
+            _ => {}
+        }
+    }
     if c1 == c2 {
         println!("MATCH");
     } else {

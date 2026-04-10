@@ -521,6 +521,9 @@ pub(super) fn transform_client_runes_with_skip_and_state(
                         let trimmed_wrapped = wrapped_content.trim();
                         if store_sub_vars.contains(&trimmed_wrapped.to_string()) {
                             format!("$.derived({})", trimmed_wrapped)
+                        } else if prop_source_vars.iter().any(|p| p == trimmed_wrapped) {
+                            // Prop source: $.derived(propName) - the prop getter IS the derived fn
+                            format!("$.derived({})", trimmed_wrapped)
                         } else {
                             // Apply unthunk optimization: $.derived(() => name()) -> $.derived(name)
                             // This matches the official compiler's b.thunk() + unthunk() behavior

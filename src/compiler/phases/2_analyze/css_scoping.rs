@@ -17,6 +17,173 @@ pub enum AttrValue {
     Static(String),
     /// Dynamic/expression value that can't be statically determined
     Dynamic,
+    /// A dynamic attribute with known possible values (e.g., `class={[...]}`).
+    /// Used to avoid false-positive matches when the class expression is an
+    /// array of literal strings.
+    PossibleValues(Vec<String>),
+}
+
+/// Gather all possible string values for a class expression.
+/// Returns `None` if any value cannot be statically determined (UNKNOWN).
+/// Mirrors `gather_possible_values` in the official compiler's utils.js.
+fn gather_possible_values(
+    node: &serde_json::Value,
+    is_class: bool,
+    is_nested: bool,
+    values: &mut Vec<String>,
+    unknown: &mut bool,
+) {
+    if *unknown {
+        return;
+    }
+    let ty = node.get("type").and_then(|t| t.as_str()).unwrap_or("");
+    match ty {
+        "Literal" => {
+            if let Some(v) = node.get("value") {
+                if let Some(s) = v.as_str() {
+                    values.push(s.to_string());
+                } else if let Some(b) = v.as_bool() {
+                    values.push(b.to_string());
+                } else if let Some(n) = v.as_i64() {
+                    values.push(n.to_string());
+                } else if let Some(n) = v.as_f64() {
+                    values.push(n.to_string());
+                } else if v.is_null() {
+                    values.push("null".to_string());
+                }
+            }
+        }
+        "TemplateLiteral" => {
+            // Only handle template literals with no interpolations
+            let expressions = node.get("expressions").and_then(|e| e.as_array());
+            let quasis = node.get("quasis").and_then(|q| q.as_array());
+            if let (Some(exprs), Some(qs)) = (expressions, quasis)
+                && exprs.is_empty()
+                && qs.len() == 1
+                && let Some(cooked) = qs[0]
+                    .get("value")
+                    .and_then(|v| v.get("cooked"))
+                    .and_then(|c| c.as_str())
+            {
+                values.push(cooked.to_string());
+                return;
+            }
+            *unknown = true;
+        }
+        "ConditionalExpression" => {
+            if let Some(cons) = node.get("consequent") {
+                gather_possible_values(cons, is_class, is_nested, values, unknown);
+            }
+            if let Some(alt) = node.get("alternate") {
+                gather_possible_values(alt, is_class, is_nested, values, unknown);
+            }
+        }
+        "LogicalExpression" => {
+            let op = node.get("operator").and_then(|o| o.as_str()).unwrap_or("");
+            if op == "&&" {
+                // Gather left values into a temp set to detect UNKNOWN
+                let mut left_values = Vec::new();
+                let mut left_unknown = false;
+                if let Some(l) = node.get("left") {
+                    gather_possible_values(
+                        l,
+                        is_class,
+                        is_nested,
+                        &mut left_values,
+                        &mut left_unknown,
+                    );
+                }
+                if left_unknown {
+                    // add non-nullish falsy values unless class+nested
+                    if !is_class || !is_nested {
+                        values.push(String::new());
+                        values.push("false".to_string());
+                        values.push("NaN".to_string());
+                        values.push("0".to_string());
+                    }
+                } else {
+                    for v in left_values {
+                        // Only falsy non-nullish values: empty string, "false", "NaN", "0"
+                        if (v.is_empty() || v == "false" || v == "NaN" || v == "0")
+                            && (!is_class || !is_nested)
+                        {
+                            values.push(v);
+                        }
+                    }
+                }
+                if let Some(r) = node.get("right") {
+                    gather_possible_values(r, is_class, is_nested, values, unknown);
+                }
+            } else {
+                if let Some(l) = node.get("left") {
+                    gather_possible_values(l, is_class, is_nested, values, unknown);
+                }
+                if let Some(r) = node.get("right") {
+                    gather_possible_values(r, is_class, is_nested, values, unknown);
+                }
+            }
+        }
+        "ArrayExpression" if is_class => {
+            if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
+                for entry in elements {
+                    if !entry.is_null() {
+                        gather_possible_values(entry, is_class, true, values, unknown);
+                    }
+                }
+            }
+        }
+        "ObjectExpression" if is_class => {
+            if let Some(properties) = node.get("properties").and_then(|p| p.as_array()) {
+                for property in properties {
+                    let prop_ty = property.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                    if prop_ty != "Property" {
+                        *unknown = true;
+                        continue;
+                    }
+                    let computed = property
+                        .get("computed")
+                        .and_then(|c| c.as_bool())
+                        .unwrap_or(false);
+                    if computed {
+                        *unknown = true;
+                        continue;
+                    }
+                    if let Some(key) = property.get("key") {
+                        let key_ty = key.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                        if key_ty == "Identifier" {
+                            if let Some(name) = key.get("name").and_then(|n| n.as_str()) {
+                                values.push(name.to_string());
+                                continue;
+                            }
+                        } else if key_ty == "Literal"
+                            && let Some(v) = key.get("value")
+                        {
+                            if let Some(s) = v.as_str() {
+                                values.push(s.to_string());
+                                continue;
+                            } else if let Some(n) = v.as_i64() {
+                                values.push(n.to_string());
+                                continue;
+                            }
+                        }
+                    }
+                    *unknown = true;
+                }
+            }
+        }
+        _ => {
+            *unknown = true;
+        }
+    }
+}
+
+/// Extract possible class values from an expression tag.
+fn get_possible_class_values(expr: &crate::ast::js::Expression) -> Option<Vec<String>> {
+    let json = expr.as_json();
+    let mut values = Vec::new();
+    let mut unknown = false;
+    gather_possible_values(json, true, false, &mut values, &mut unknown);
+    if unknown { None } else { Some(values) }
 }
 
 /// Info about a template element for CSS matching.
@@ -111,10 +278,27 @@ impl ElementInfo {
                                 }
                             }
                         }
-                        template::AttributeValue::Expression(_) => {
-                            attr_pairs.push((attr_name.clone(), AttrValue::Dynamic));
+                        template::AttributeValue::Expression(expr_tag) => {
                             if attr_name == "class" {
                                 has_dynamic_class = true;
+                                if let Some(possible) =
+                                    get_possible_class_values(&expr_tag.expression)
+                                {
+                                    // Extract class tokens from each possible value.
+                                    for value in &possible {
+                                        for class in value.split_whitespace() {
+                                            classes.push(class.to_string());
+                                        }
+                                    }
+                                    attr_pairs.push((
+                                        attr_name.clone(),
+                                        AttrValue::PossibleValues(possible),
+                                    ));
+                                } else {
+                                    attr_pairs.push((attr_name.clone(), AttrValue::Dynamic));
+                                }
+                            } else {
+                                attr_pairs.push((attr_name.clone(), AttrValue::Dynamic));
                             }
                         }
                     }
@@ -508,6 +692,24 @@ fn attribute_matches(
             AttrValue::Dynamic => {
                 // Dynamic attribute: can't determine the value, so assume it could match
                 return true;
+            }
+            AttrValue::PossibleValues(values) => {
+                // Dynamic attribute with known possible values - check if any match.
+                if expected_value.is_none() {
+                    return true;
+                }
+                if let (Some(op), Some(expected)) = (operator, expected_value) {
+                    // Reconstruct concatenated possible strings similar to official
+                    // `possible_values` logic. For a simple first-pass, treat each
+                    // value as an independent candidate (joined by space when class).
+                    let matches = values
+                        .iter()
+                        .any(|v| test_attribute(op, expected, case_insensitive, v));
+                    if !matches && (attr_name_lower == "class" || attr_name_lower == "style") {
+                        continue;
+                    }
+                    return matches;
+                }
             }
             AttrValue::Static(attr_val) => {
                 // Static attribute: check against the value

@@ -2921,6 +2921,64 @@ pub(super) fn transform_legacy_state_declarations(
                 }
             }
 
+            // Try to match `keyword varname: TYPE = value` pattern (with TS type annotation).
+            // Strip the TypeScript type annotation and treat as `keyword varname = value`.
+            let pattern_with_type = format!("{} {} : ", keyword, var);
+            let pattern_with_type_no_space = format!("{} {}: ", keyword, var);
+            for pat in [&pattern_with_type, &pattern_with_type_no_space] {
+                if matched {
+                    break;
+                }
+                if let Some(pos) = result.find(pat.as_str()) {
+                    // Find the `=` that ends the type annotation, respecting nested braces/brackets.
+                    let type_start = pos + pat.len();
+                    let chars: Vec<char> = result[type_start..].chars().collect();
+                    let mut depth = 0i32;
+                    let mut eq_pos: Option<usize> = None;
+                    let mut j = 0;
+                    while j < chars.len() {
+                        let c = chars[j];
+                        match c {
+                            '{' | '[' | '(' | '<' => depth += 1,
+                            '}' | ']' | ')' | '>' => depth -= 1,
+                            '=' if depth == 0 => {
+                                // Make sure it's not `==` or `=>`
+                                let next = chars.get(j + 1).copied();
+                                if !matches!(next, Some('=') | Some('>')) {
+                                    eq_pos = Some(j);
+                                    break;
+                                }
+                            }
+                            ';' | '\n' if depth == 0 => break,
+                            _ => {}
+                        }
+                        j += 1;
+                    }
+                    if let Some(eq) = eq_pos {
+                        let after_eq = type_start + eq + 1;
+                        let after = &result[after_eq..];
+                        let expr_end = find_statement_end_client(after);
+                        let expr = after[..expr_end].trim().trim_end_matches(';').trim();
+                        let replacement = if immutable {
+                            format!("{} {} = $.mutable_source({}, true)", keyword, var, expr)
+                        } else {
+                            format!("{} {} = $.mutable_source({})", keyword, var, expr)
+                        };
+                        result = format!(
+                            "{}{}{}",
+                            &result[..pos],
+                            replacement,
+                            &result[after_eq + expr_end..]
+                        );
+                        matched = true;
+                        break;
+                    }
+                }
+            }
+            if matched {
+                continue;
+            }
+
             // Then, try to match `keyword varname;` pattern (declaration without initializer)
             let pattern_no_init = format!("{} {};", keyword, var);
             {

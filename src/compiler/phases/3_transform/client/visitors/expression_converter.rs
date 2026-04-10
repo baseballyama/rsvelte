@@ -1716,6 +1716,25 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
                 "TemplateLiteral" => convert_template_literal(obj, context),
                 "TaggedTemplateExpression" => convert_tagged_template_expression(obj, context),
                 "ChainExpression" => convert_chain_expression(obj, context),
+                "ImportExpression" => {
+                    // Dynamic import: import('./module')
+                    // Convert the source argument and render as `import(source)`.
+                    use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr;
+                    let source_str = if let Some(source) = obj.get("source") {
+                        let source_expr = convert_json_value(source, context);
+                        generate_expr(&source_expr, &context.arena)
+                    } else {
+                        String::new()
+                    };
+                    // Handle optional options argument (second argument)
+                    if let Some(options) = obj.get("options").filter(|v| !v.is_null()) {
+                        let options_expr = convert_json_value(options, context);
+                        let options_str = generate_expr(&options_expr, &context.arena);
+                        JsExpr::Raw(format!("import({}, {})", source_str, options_str).into())
+                    } else {
+                        JsExpr::Raw(format!("import({})", source_str).into())
+                    }
+                }
                 "MetaProperty" => {
                     // ESTree MetaProperty: meta.property (e.g., import.meta, new.target)
                     let meta = obj

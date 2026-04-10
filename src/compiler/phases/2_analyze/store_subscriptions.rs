@@ -619,6 +619,16 @@ fn collect_dollar_identifiers_from_js_with_context(
     let mut in_string: Option<char> = None; // track if inside a string literal
     let mut in_line_comment = false; // track // comments
     let mut in_block_comment = false; // track /* */ comments
+    // Stack of template literal nesting levels. For each active template literal,
+    // we track the brace depth at which the template literal was entered. A `${`
+    // inside a template literal starts a JS expression context where we should
+    // resume scanning for identifiers; when the matching `}` is reached, we go
+    // back into the template literal.
+    // Entry in `template_stack` is the brace depth at which the template literal
+    // started; when we see `${`, we push the current brace depth; when we see `}`
+    // and brace depth matches, we pop back into template literal mode.
+    let mut template_stack: Vec<usize> = Vec::new();
+    let mut brace_depth: usize = 0;
 
     while i < len {
         let c = chars[i];
@@ -651,6 +661,16 @@ fn collect_dollar_identifiers_from_js_with_context(
                 continue;
             } else if c == quote {
                 in_string = None;
+                i += 1;
+                continue;
+            } else if quote == '`' && c == '$' && i + 1 < len && chars[i + 1] == '{' {
+                // Enter interpolation expression context — push current brace depth
+                // and exit template literal string mode.
+                template_stack.push(brace_depth);
+                brace_depth += 1;
+                in_string = None;
+                i += 2;
+                continue;
             }
             i += 1;
             continue;
@@ -667,6 +687,26 @@ fn collect_dollar_identifiers_from_js_with_context(
                 i += 2;
                 continue;
             }
+        }
+
+        // Track brace depth for template literal interpolations
+        if c == '{' {
+            brace_depth += 1;
+            i += 1;
+            continue;
+        }
+        if c == '}' {
+            brace_depth = brace_depth.saturating_sub(1);
+            // If we just closed a template interpolation, go back into template
+            // literal string mode.
+            if let Some(&enter_depth) = template_stack.last()
+                && brace_depth == enter_depth
+            {
+                template_stack.pop();
+                in_string = Some('`');
+            }
+            i += 1;
+            continue;
         }
 
         // Check for string starts

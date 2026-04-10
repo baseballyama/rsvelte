@@ -103,7 +103,10 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
                 // If the argument expression has a call, we need to memoize it with $.derived()
                 let has_call_from_expr = render_tag_has_call(arg);
                 if template_metadata.has_call() || has_call_from_expr {
-                    let id_name = context.state.memoizer.generate_id("$0");
+                    // Use literal `$0`, `$1`, etc. as the identifier. Each derived
+                    // decl is wrapped in its own block scope, so these names do not
+                    // need to be globally unique across render tags.
+                    let id_name = format!("${}", derived_decls.len());
                     derived_decls.push(b::let_decl(
                         &context.arena,
                         &id_name,

@@ -184,6 +184,28 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                         || prefix_str.ends_with("$.update_pre_prop(")
                 };
 
+                // Check if this identifier is the sole argument to `$.derived(`.
+                // The unthunk optimization converts `$derived(propName)` to `$.derived(propName)`
+                // where propName is a prop source (getter function) that's equivalent to the
+                // derived computation. In this case we must NOT append `()`.
+                let is_sole_derived_arg = {
+                    let prefix_str = &result[..result
+                        .char_indices()
+                        .nth(i)
+                        .map(|(idx, _)| idx)
+                        .unwrap_or(i)];
+                    if prefix_str.ends_with("$.derived(") {
+                        // Check that after the identifier is just `)` (possibly preceded by whitespace)
+                        let mut k = after_idx;
+                        while k < chars.len() && chars[k].is_whitespace() {
+                            k += 1;
+                        }
+                        k < chars.len() && chars[k] == ')'
+                    } else {
+                        false
+                    }
+                };
+
                 // Check if this identifier is shadowed by a function parameter
                 let is_shadowed = is_shadowed_by_function_param(&chars, i, prop_name);
 
@@ -193,6 +215,7 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                     && !is_assignment_target
                     && !is_inside_update_call
                     && !is_shadowed
+                    && !is_sole_derived_arg
                 {
                     // Check if this is a shorthand property in an object literal.
                     // e.g., `{ value }` should become `{ value: value() }` not `{ value() }`
@@ -509,6 +532,22 @@ pub(super) fn wrap_prop_source_reads(
                         let is_inside_update_call = new_result.ends_with("$.update_prop(")
                             || new_result.ends_with("$.update_pre_prop(");
 
+                        // Check if this identifier is the sole argument to `$.derived(`.
+                        // The unthunk optimization converts `$derived(propName)` to
+                        // `$.derived(propName)` where propName is a prop source (getter).
+                        // In this case we must NOT append `()`.
+                        let is_sole_derived_arg = {
+                            if new_result.ends_with("$.derived(") {
+                                let mut k = i + var_chars.len();
+                                while k < chars.len() && chars[k].is_whitespace() {
+                                    k += 1;
+                                }
+                                k < chars.len() && chars[k] == ')'
+                            } else {
+                                false
+                            }
+                        };
+
                         // Check if this variable is the base of a member expression being
                         // assigned to, e.g., `foo[bar] = 1` or `foo.prop = value`.
                         // In legacy mode, skip the read transform here and let
@@ -528,6 +567,7 @@ pub(super) fn wrap_prop_source_reads(
                             && !is_shadowed
                             && !is_inside_update_call
                             && !is_member_mutation
+                            && !is_sole_derived_arg
                         {
                             if is_shorthand_property {
                                 // Expand shorthand property: { answer } -> { answer: answer() }
