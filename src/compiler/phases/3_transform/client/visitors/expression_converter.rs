@@ -5310,7 +5310,28 @@ fn should_proxy_value(value: Option<&Value>, context: &ComponentContext) -> bool
                 }
 
                 // 2. Check analysis scope bindings (component-level declarations)
-                if let Some(binding) = context.state.get_binding(name)
+                let mut binding_opt = context.state.get_binding(name);
+                // Prefer a Template binding (@const) with a known initial type when the
+                // fallback found a same-named function param without initial info.
+                if binding_opt
+                    .map(|b| b.initial_node_type.is_none())
+                    .unwrap_or(true)
+                {
+                    for scope in &context.state.scope_root.all_scopes {
+                        if let Some(&idx) = scope.declarations.get(name)
+                            && let Some(b) = context.state.scope_root.bindings.get(idx)
+                            && matches!(
+                                b.kind,
+                                crate::compiler::phases::phase2_analyze::scope::BindingKind::Template
+                            )
+                            && b.initial_node_type.is_some()
+                        {
+                            binding_opt = Some(b);
+                            break;
+                        }
+                    }
+                }
+                if let Some(binding) = binding_opt
                     && !binding.reassigned
                     && let Some(ref initial_type) = binding.initial_node_type
                 {
@@ -5365,7 +5386,26 @@ fn should_proxy_jsnode(node: &JsNode, _pa: &ParseArena, context: &ComponentConte
                     _ => return should_proxy_node_type_str(init_type),
                 }
             }
-            if let Some(binding) = context.state.get_binding(name)
+            let mut binding_opt = context.state.get_binding(name);
+            if binding_opt
+                .map(|b| b.initial_node_type.is_none())
+                .unwrap_or(true)
+            {
+                for scope in &context.state.scope_root.all_scopes {
+                    if let Some(&idx) = scope.declarations.get(name.as_str())
+                        && let Some(b) = context.state.scope_root.bindings.get(idx)
+                        && matches!(
+                            b.kind,
+                            crate::compiler::phases::phase2_analyze::scope::BindingKind::Template
+                        )
+                        && b.initial_node_type.is_some()
+                    {
+                        binding_opt = Some(b);
+                        break;
+                    }
+                }
+            }
+            if let Some(binding) = binding_opt
                 && !binding.reassigned
                 && let Some(ref initial_type) = binding.initial_node_type
             {

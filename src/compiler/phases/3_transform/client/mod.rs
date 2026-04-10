@@ -3536,8 +3536,13 @@ fn transform_instance_script_for_visitors(
             // Template bindings (@const declarations, let directive bindings) whose
             // initial value is a known non-proxyable primitive expression. Matches the
             // official compiler's should_proxy() tracing through template bindings.
+            // Only include when the name is unique (or all same-named bindings are
+            // also known non-proxyable) — otherwise the text-based transform can't
+            // distinguish a template @const from a same-named function parameter.
             if matches!(b.kind, BindingKind::Template)
                 && let Some(ref node_type) = b.initial_node_type
+                && (name_occurrences.get(&b.name).copied().unwrap_or(0) == 1
+                    || names_all_non_proxy.contains(&b.name))
             {
                 match node_type.as_str() {
                     "Literal"

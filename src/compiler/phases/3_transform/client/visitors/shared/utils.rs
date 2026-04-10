@@ -239,8 +239,30 @@ fn should_proxy_with_context(
                 return proxy_needed;
             }
 
-            // Then check the analysis scope (component-level bindings)
-            if let Some(binding) = context.state.get_binding(name) {
+            // Then check the analysis scope (component-level bindings).
+            // For template @const bindings, prefer the one with a known initial type
+            // since phase3 doesn't track precise lexical scope inside each blocks.
+            let mut found_binding = context.state.get_binding(name);
+            if found_binding
+                .map(|b| b.initial_node_type.is_none())
+                .unwrap_or(true)
+            {
+                // Look for a template binding with this name (from {@const ...})
+                for scope in &context.state.scope_root.all_scopes {
+                    if let Some(&idx) = scope.declarations.get(name.as_str())
+                        && let Some(b) = context.state.scope_root.bindings.get(idx)
+                        && matches!(
+                            b.kind,
+                            crate::compiler::phases::phase2_analyze::scope::BindingKind::Template
+                        )
+                        && b.initial_node_type.is_some()
+                    {
+                        found_binding = Some(b);
+                        break;
+                    }
+                }
+            }
+            if let Some(binding) = found_binding {
                 // Only trace through if the binding is not reassigned and has an initial value.
                 // This matches the official compiler's check:
                 //   binding !== null && !binding.reassigned && binding.initial !== null

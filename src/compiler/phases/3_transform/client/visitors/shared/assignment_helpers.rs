@@ -310,15 +310,38 @@ pub fn should_proxy_js_expr_with_context(
         && let JsExpr::Identifier(callee_name) = context.arena.get_expr(call.callee)
         && callee_name.as_str() == "$.get"
         && let JsExpr::Identifier(arg_name) = &call.arguments[0]
-        && let Some(binding) = context.state.get_binding(arg_name.as_str())
     {
-        if !binding.reassigned
-            && let Some(ref initial_type) = binding.initial_node_type
+        let mut binding = context.state.get_binding(arg_name.as_str());
+        // Prefer a Template binding (from @const) with a known initial type, since
+        // phase3 doesn't precisely track lexical scope inside each blocks and may
+        // return a same-named function parameter instead.
+        if binding
+            .map(|b| b.initial_node_type.is_none())
+            .unwrap_or(true)
         {
-            return check_initial_type_for_proxy(initial_type, binding);
+            for scope in &context.state.scope_root.all_scopes {
+                if let Some(&idx) = scope.declarations.get(arg_name.as_str())
+                    && let Some(b) = context.state.scope_root.bindings.get(idx)
+                    && matches!(
+                        b.kind,
+                        crate::compiler::phases::phase2_analyze::scope::BindingKind::Template
+                    )
+                    && b.initial_node_type.is_some()
+                {
+                    binding = Some(b);
+                    break;
+                }
+            }
         }
-        // Fallback to conservative proxy
-        return true;
+        if let Some(binding) = binding {
+            if !binding.reassigned
+                && let Some(ref initial_type) = binding.initial_node_type
+            {
+                return check_initial_type_for_proxy(initial_type, binding);
+            }
+            // Fallback to conservative proxy
+            return true;
+        }
     }
 
     // For identifiers, also check binding initial values

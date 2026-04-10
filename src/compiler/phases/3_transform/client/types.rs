@@ -2169,7 +2169,23 @@ impl<'a> ComponentClientTransformState<'a> {
         if let Some(&index) = self.scope.declarations.get(name) {
             return self.scope_root.bindings.get(index);
         }
-        // Fall back to searching all scopes (including parent chain)
+        // Walk up the parent chain via Scope::parent indices, respecting lexical scoping.
+        let mut parent_idx = self.scope.parent;
+        while let Some(idx) = parent_idx {
+            if let Some(scope) = self.scope_root.all_scopes.get(idx) {
+                if let Some(&b_idx) = scope.declarations.get(name) {
+                    return self.scope_root.bindings.get(b_idx);
+                }
+                parent_idx = scope.parent;
+            } else {
+                break;
+            }
+        }
+        // Also check the root scope (instance module scope) if we haven't already
+        if let Some(&index) = self.scope_root.scope.declarations.get(name) {
+            return self.scope_root.bindings.get(index);
+        }
+        // Fall back to searching all scopes (handles cases where scope linkage is missing)
         let index = self.scope_root.find_binding_any_scope(name)?;
         self.scope_root.bindings.get(index)
     }
