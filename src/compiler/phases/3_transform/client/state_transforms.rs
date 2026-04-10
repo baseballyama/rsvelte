@@ -1642,6 +1642,108 @@ pub(super) fn transform_state_assignments(
                 continue;
             }
 
+            // Skip if this is a default parameter value of a function declaration.
+            // Detect pattern: `function name(...selection = [])` where the var
+            // follows `(` or `,` and the enclosing paren is preceded by an identifier
+            // (the function name) or by `function` keyword.
+            // This is a conservative check — only catches `function NAME(ARG = ...)`.
+            {
+                let before_bytes = before.as_bytes();
+                // Find the nearest preceding `(` or `,` on the same line (or wider, within 300 bytes).
+                let lookback = before_bytes.len().saturating_sub(300);
+                let mut found_param_context = false;
+                // Scan backwards from pos skipping whitespace to find either `(` or `,`
+                let mut i = before_bytes.len();
+                while i > lookback {
+                    i -= 1;
+                    let b = before_bytes[i];
+                    if b == b' ' || b == b'\t' {
+                        continue;
+                    }
+                    if b == b'(' {
+                        // This var is the first parameter. Check preceding char (skip ws).
+                        let mut j = i;
+                        while j > 0 && matches!(before_bytes[j - 1], b' ' | b'\t') {
+                            j -= 1;
+                        }
+                        if j > 0 && is_identifier_char(before_bytes[j - 1] as char) {
+                            // Identifier before `(`: function name or call.
+                            // Check if this is a function declaration — look back for `function` keyword.
+                            let slice = &before[..j];
+                            let last_fn = slice.rfind("function");
+                            if let Some(fn_pos) = last_fn {
+                                // Make sure `function` is a keyword (not part of an identifier)
+                                // and nothing significant is between it and the paren.
+                                let between = &slice[fn_pos + 8..];
+                                // Between should contain only whitespace, identifiers, `*`, `async`, etc.
+                                let is_decl = !between.contains('{')
+                                    && !between.contains(';')
+                                    && !between.contains(')');
+                                if is_decl
+                                    && (fn_pos == 0
+                                        || !is_identifier_char(
+                                            slice.as_bytes()[fn_pos - 1] as char,
+                                        ))
+                                {
+                                    found_param_context = true;
+                                }
+                            }
+                        }
+                        break;
+                    } else if b == b',' {
+                        // Check if the enclosing `(` is a function declaration.
+                        // Walk back balancing parens to find the opening `(`.
+                        let mut depth: i32 = 0;
+                        let mut k = i;
+                        while k > 0 {
+                            k -= 1;
+                            match before_bytes[k] {
+                                b')' => depth += 1,
+                                b'(' => {
+                                    if depth == 0 {
+                                        // Found the enclosing open paren at k.
+                                        let mut m = k;
+                                        while m > 0 && matches!(before_bytes[m - 1], b' ' | b'\t') {
+                                            m -= 1;
+                                        }
+                                        if m > 0 && is_identifier_char(before_bytes[m - 1] as char)
+                                        {
+                                            let slice = &before[..m];
+                                            if let Some(fn_pos) = slice.rfind("function") {
+                                                let between = &slice[fn_pos + 8..];
+                                                let is_decl = !between.contains('{')
+                                                    && !between.contains(';')
+                                                    && !between.contains(')');
+                                                if is_decl
+                                                    && (fn_pos == 0
+                                                        || !is_identifier_char(
+                                                            slice.as_bytes()[fn_pos - 1] as char,
+                                                        ))
+                                                {
+                                                    found_param_context = true;
+                                                }
+                                            }
+                                        }
+                                        break;
+                                    }
+                                    depth -= 1;
+                                }
+                                _ => {}
+                            }
+                        }
+                        break;
+                    } else {
+                        // Any other char means we're not directly after `(` or `,`.
+                        break;
+                    }
+                }
+
+                if found_param_context {
+                    search_start = pos + assignment_pattern.len();
+                    continue;
+                }
+            }
+
             // Skip if the variable is shadowed by a for-loop's let/const declaration
             {
                 let chars: Vec<char> = result.chars().collect();

@@ -3417,18 +3417,21 @@ fn create_call_expression(
     let args: Vec<JsNode> = call
         .arguments
         .iter()
-        .filter_map(|arg| {
-            match arg {
-                oxc_ast::ast::Argument::SpreadElement(_) => None, // Simplified
-                _ => {
-                    let expr = arg.to_expression();
-                    Some(expr_to_node(convert_expression(
-                        arena,
-                        expr,
-                        offset,
-                        line_offsets,
-                    )))
+        .map(|arg| match arg {
+            oxc_ast::ast::Argument::SpreadElement(spread) => {
+                let spread_start = offset + spread.span.start as usize - 1;
+                let spread_end = offset + spread.span.end as usize - 1;
+                let inner = convert_expression(arena, &spread.argument, offset, line_offsets);
+                JsNode::SpreadElement {
+                    start: spread_start as u32,
+                    end: spread_end as u32,
+                    loc: create_typed_loc(spread_start, spread_end, line_offsets),
+                    argument: arena.alloc_js_node(expr_to_node(inner)),
                 }
+            }
+            _ => {
+                let expr = arg.to_expression();
+                expr_to_node(convert_expression(arena, expr, offset, line_offsets))
             }
         })
         .collect();
@@ -3585,12 +3588,24 @@ fn create_function_expression(
     });
 
     // params
-    let params: Vec<JsNode> = func
+    let mut params: Vec<JsNode> = func
         .params
         .items
         .iter()
         .map(|param| convert_binding_pattern(arena, &param.pattern, offset, line_offsets))
         .collect();
+    // Handle rest parameter (`...args`).
+    if let Some(rest) = &func.params.rest {
+        let rest_start = offset + rest.span.start as usize - 1;
+        let rest_end = offset + rest.span.end as usize - 1;
+        let argument = convert_binding_pattern(arena, &rest.rest.argument, offset, line_offsets);
+        params.push(JsNode::RestElement {
+            start: rest_start as u32,
+            end: rest_end as u32,
+            loc: create_typed_loc(rest_start, rest_end, line_offsets),
+            argument: arena.alloc_js_node(argument),
+        });
+    }
 
     // body
     let body = func.body.as_ref().map(|body| {
@@ -4444,7 +4459,7 @@ fn create_arrow_function(
     line_offsets: &[usize],
 ) -> Expression {
     // Convert params - pass offset - 1 because we wrapped content in parens for parsing
-    let params: Vec<JsNode> = arrow
+    let mut params: Vec<JsNode> = arrow
         .params
         .items
         .iter()
@@ -4457,6 +4472,19 @@ fn create_arrow_function(
             ))
         })
         .collect();
+    // Handle rest parameter (`...args`) which is stored separately in OXC.
+    if let Some(rest) = &arrow.params.rest {
+        let rest_start = offset + rest.span.start as usize - 1;
+        let rest_end = offset + rest.span.end as usize - 1;
+        let argument =
+            convert_binding_pattern_for_param(arena, &rest.rest.argument, offset - 1, line_offsets);
+        params.push(JsNode::RestElement {
+            start: rest_start as u32,
+            end: rest_end as u32,
+            loc: create_typed_loc(rest_start, rest_end, line_offsets),
+            argument: arena.alloc_js_node(JsNode::Raw(argument)),
+        });
+    }
 
     // Convert body - check if this is an expression body or block body
     let body_node = if arrow.expression {
@@ -4771,7 +4799,7 @@ fn convert_statement(
                 )))
             });
 
-            let params: Vec<JsNode> = func_decl
+            let mut params: Vec<JsNode> = func_decl
                 .params
                 .items
                 .iter()
@@ -4784,6 +4812,22 @@ fn convert_statement(
                     ))
                 })
                 .collect();
+            if let Some(rest) = &func_decl.params.rest {
+                let rest_start = offset + rest.span.start as usize - 1;
+                let rest_end = offset + rest.span.end as usize - 1;
+                let argument = convert_binding_pattern_for_param(
+                    arena,
+                    &rest.rest.argument,
+                    offset - 1,
+                    line_offsets,
+                );
+                params.push(JsNode::RestElement {
+                    start: rest_start as u32,
+                    end: rest_end as u32,
+                    loc: create_typed_loc(rest_start, rest_end, line_offsets),
+                    argument: arena.alloc_js_node(JsNode::Raw(argument)),
+                });
+            }
 
             let body = func_decl.body.as_ref().map(|body| {
                 arena.alloc_js_node(convert_arrow_body(arena, body, offset, line_offsets))
@@ -4800,7 +4844,12 @@ fn convert_statement(
                 r#async: func_decl.r#async,
             })
         }
-        _ => None, // Skip other statement types for now
+        // Fallback to the program-context converter for other statement types
+        // (ForOfStatement, ForInStatement, WhileStatement, DoWhileStatement,
+        // SwitchStatement, BreakStatement, ContinueStatement, LabeledStatement,
+        // etc.). The program converter uses raw offsets; the template converter
+        // wraps content in parens so we pass `offset - 1` to compensate.
+        _ => convert_statement_for_program(arena, stmt, offset.saturating_sub(1), line_offsets),
     }
 }
 
@@ -6649,6 +6698,19 @@ fn convert_statement_for_program(
 
         // TypeScript module/namespace declarations - emit so remove_typescript_nodes can detect them
         oxc_ast::ast::Statement::TSModuleDeclaration(module_decl) => {
+            // `declare module`, `declare global`, `declare namespace` etc. are
+            // type-only and must be stripped.
+            if module_decl.declare {
+                return Some(JsNode::EmptyStatement {
+                    start: module_decl.span.start,
+                    end: module_decl.span.end,
+                    loc: create_typed_loc(
+                        module_decl.span.start as usize,
+                        module_decl.span.end as usize,
+                        line_offsets,
+                    ),
+                });
+            }
             let start = offset + module_decl.span.start as usize;
             let end = offset + module_decl.span.end as usize;
             let loc = create_typed_loc(start, end, line_offsets);
@@ -6787,7 +6849,7 @@ fn convert_declaration_for_program(
             obj.insert("async".to_string(), Value::Bool(func_decl.r#async));
 
             // Convert params
-            let params: Vec<Value> = func_decl
+            let mut params: Vec<Value> = func_decl
                 .params
                 .items
                 .iter()
@@ -6797,6 +6859,28 @@ fn convert_declaration_for_program(
                         .clone()
                 })
                 .collect();
+            if let Some(rest) = &func_decl.params.rest {
+                let rest_start = offset + rest.span.start as usize;
+                let rest_end = offset + rest.span.end as usize;
+                let argument = convert_binding_pattern_for_param(
+                    arena,
+                    &rest.rest.argument,
+                    offset,
+                    line_offsets,
+                );
+                let mut rest_obj = Map::new();
+                rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
+                rest_obj.insert(
+                    "start".to_string(),
+                    Value::Number((rest_start as i64).into()),
+                );
+                rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
+                if let Some(loc) = create_loc(rest_start, rest_end, line_offsets) {
+                    rest_obj.insert("loc".to_string(), loc);
+                }
+                rest_obj.insert("argument".to_string(), argument);
+                params.push(Value::Object(rest_obj));
+            }
             obj.insert("params".to_string(), Value::Array(params));
 
             // Convert body
@@ -6870,6 +6954,17 @@ fn convert_declaration_for_program(
         }
         // TypeScript module/namespace declarations
         oxc_ast::ast::Declaration::TSModuleDeclaration(module_decl) => {
+            // `declare module`, `declare global`, `declare namespace` etc. are
+            // type-only and must be stripped from output. Emit an EmptyStatement
+            // so remove_typescript_nodes can filter it out.
+            if module_decl.declare {
+                let mut empty_obj = Map::new();
+                empty_obj.insert(
+                    "type".to_string(),
+                    Value::String("EmptyStatement".to_string()),
+                );
+                return Value::Object(empty_obj);
+            }
             let start = offset + module_decl.span.start as usize;
             let end = offset + module_decl.span.end as usize;
             let mut obj = Map::new();
@@ -7300,15 +7395,46 @@ fn convert_expression_for_program(
             let start = offset + arrow.span.start as usize;
             let end = offset + arrow.span.end as usize;
 
-            let params: Vec<JsNode> = arrow
+            let mut params: Vec<JsNode> = arrow
                 .params
                 .items
                 .iter()
                 .map(|param| convert_binding_pattern(arena, &param.pattern, offset, line_offsets))
                 .collect();
+            if let Some(rest) = &arrow.params.rest {
+                let rest_start = offset + rest.span.start as usize;
+                let rest_end = offset + rest.span.end as usize;
+                let argument =
+                    convert_binding_pattern(arena, &rest.rest.argument, offset, line_offsets);
+                params.push(JsNode::RestElement {
+                    start: rest_start as u32,
+                    end: rest_end as u32,
+                    loc: create_typed_loc(rest_start, rest_end, line_offsets),
+                    argument: arena.alloc_js_node(argument),
+                });
+            }
 
-            let body_value =
-                convert_function_body_for_program(arena, &arrow.body, offset, line_offsets);
+            // For expression-body arrows (`(x) => x + 1`), emit the inner expression
+            // directly as the body (without a BlockStatement wrapper). Otherwise emit
+            // the full BlockStatement body.
+            let body_node = if arrow.expression
+                && let Some(oxc_ast::ast::Statement::ExpressionStatement(es)) =
+                    arrow.body.statements.first()
+            {
+                expr_to_node(convert_expression_for_program(
+                    arena,
+                    &es.expression,
+                    offset,
+                    line_offsets,
+                ))
+            } else {
+                JsNode::Raw(convert_function_body_for_program(
+                    arena,
+                    &arrow.body,
+                    offset,
+                    line_offsets,
+                ))
+            };
 
             Expression::from_node(JsNode::ArrowFunctionExpression {
                 start: start as u32,
@@ -7319,7 +7445,7 @@ fn convert_expression_for_program(
                 generator: false,
                 r#async: arrow.r#async,
                 params: arena.alloc_js_children(params),
-                body: arena.alloc_js_node(JsNode::Raw(body_value)),
+                body: arena.alloc_js_node(body_node),
             })
         }
         OxcExpression::FunctionExpression(func) => Expression::from_node(JsNode::Raw(
@@ -8095,7 +8221,7 @@ fn convert_function_expression_for_program(
     obj.insert("async".to_string(), Value::Bool(func.r#async));
 
     // params
-    let params: Vec<Value> = func
+    let mut params: Vec<Value> = func
         .params
         .items
         .iter()
@@ -8105,6 +8231,24 @@ fn convert_function_expression_for_program(
                 .clone()
         })
         .collect();
+    if let Some(rest) = &func.params.rest {
+        let rest_start = offset + rest.span.start as usize;
+        let rest_end = offset + rest.span.end as usize;
+        let argument =
+            convert_binding_pattern_for_param(arena, &rest.rest.argument, offset, line_offsets);
+        let mut rest_obj = Map::new();
+        rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
+        rest_obj.insert(
+            "start".to_string(),
+            Value::Number((rest_start as i64).into()),
+        );
+        rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
+        if let Some(loc) = create_loc(rest_start, rest_end, line_offsets) {
+            rest_obj.insert("loc".to_string(), loc);
+        }
+        rest_obj.insert("argument".to_string(), argument);
+        params.push(Value::Object(rest_obj));
+    }
     obj.insert("params".to_string(), Value::Array(params));
 
     // body
@@ -9666,17 +9810,42 @@ fn create_call_expression_with_adjustment(
     let args: Vec<Value> = call
         .arguments
         .iter()
-        .filter_map(|arg| match arg {
-            oxc_ast::ast::Argument::SpreadElement(_) => None,
+        .map(|arg| match arg {
+            oxc_ast::ast::Argument::SpreadElement(spread) => {
+                let spread_start = doc_offset + spread.span.start as usize - prefix_len;
+                let spread_end = doc_offset + spread.span.end as usize - prefix_len;
+                let inner = convert_expression_with_adjustment(
+                    arena,
+                    &spread.argument,
+                    doc_offset,
+                    prefix_len,
+                    line_offsets,
+                );
+                let mut spread_obj = Map::new();
+                spread_obj.insert(
+                    "type".to_string(),
+                    Value::String("SpreadElement".to_string()),
+                );
+                spread_obj.insert(
+                    "start".to_string(),
+                    Value::Number((spread_start as i64).into()),
+                );
+                spread_obj.insert("end".to_string(), Value::Number((spread_end as i64).into()));
+                if let Some(loc) = create_loc_for_binding(spread_start, spread_end, line_offsets) {
+                    spread_obj.insert("loc".to_string(), loc);
+                }
+                spread_obj.insert("argument".to_string(), inner);
+                Value::Object(spread_obj)
+            }
             _ => {
                 let expr = arg.to_expression();
-                Some(convert_expression_with_adjustment(
+                convert_expression_with_adjustment(
                     arena,
                     expr,
                     doc_offset,
                     prefix_len,
                     line_offsets,
-                ))
+                )
             }
         })
         .collect();
@@ -9709,7 +9878,44 @@ fn create_arrow_function_with_adjustment(
     obj.insert("expression".to_string(), Value::Bool(arrow.expression));
     obj.insert("generator".to_string(), Value::Bool(false));
     obj.insert("async".to_string(), Value::Bool(arrow.r#async));
-    obj.insert("params".to_string(), Value::Array(Vec::new())); // Simplified
+
+    // Convert params: iterate items and handle rest separately.
+    // `with_adjustment` callers operate on the doc_offset/prefix_len coordinate
+    // system; use convert_binding_pattern_for_param with (doc_offset - prefix_len)
+    // so that span positions map back to document coordinates.
+    let mut params: Vec<Value> = Vec::with_capacity(arrow.params.items.len() + 1);
+    let adjusted_offset = doc_offset.saturating_sub(prefix_len);
+    for param in &arrow.params.items {
+        params.push(convert_binding_pattern_for_param(
+            arena,
+            &param.pattern,
+            adjusted_offset,
+            line_offsets,
+        ));
+    }
+    if let Some(rest) = &arrow.params.rest {
+        let rest_start = doc_offset + rest.span.start as usize - prefix_len;
+        let rest_end = doc_offset + rest.span.end as usize - prefix_len;
+        let argument = convert_binding_pattern_for_param(
+            arena,
+            &rest.rest.argument,
+            adjusted_offset,
+            line_offsets,
+        );
+        let mut rest_obj = Map::new();
+        rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
+        rest_obj.insert(
+            "start".to_string(),
+            Value::Number((rest_start as i64).into()),
+        );
+        rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
+        if let Some(loc) = create_loc_for_binding(rest_start, rest_end, line_offsets) {
+            rest_obj.insert("loc".to_string(), loc);
+        }
+        rest_obj.insert("argument".to_string(), argument);
+        params.push(Value::Object(rest_obj));
+    }
+    obj.insert("params".to_string(), Value::Array(params));
 
     // Convert body - arrow.expression indicates if body is expression or block statement
     let body = convert_function_body_with_adjustment(

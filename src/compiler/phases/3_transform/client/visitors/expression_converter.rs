@@ -162,6 +162,12 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
         JsNode::Identifier { name, .. } => {
             // Check if this is a prop that needs special handling
             if context.state.analysis.runes
+                && !context.state.shadowed_prop_names.contains(name.as_str())
+                && !context
+                    .state
+                    .each_item_names
+                    .iter()
+                    .any(|n| n.as_str() == name.as_str())
                 && let Some(binding) = context.state.get_binding(name.as_str())
                 && matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp)
             {
@@ -3816,13 +3822,175 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             }))
         }
         "ForInStatement" | "ForOfStatement" => {
-            obj.get("body").and_then(|b| convert_statement(b, context))
+            let is_for_of = stmt_type == "ForOfStatement";
+
+            // Collect variable names declared in `left` to avoid transforming them
+            let mut left_var_names: Vec<String> = Vec::new();
+            if let Some(left_obj) = obj.get("left").and_then(|l| l.as_object())
+                && left_obj.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+                && let Some(decls) = left_obj.get("declarations").and_then(|d| d.as_array())
+            {
+                for decl in decls {
+                    if let Some(id_obj) = decl
+                        .as_object()
+                        .and_then(|d| d.get("id"))
+                        .and_then(|id| id.as_object())
+                        && let Some(name) = id_obj.get("name").and_then(|n| n.as_str())
+                    {
+                        left_var_names.push(name.to_string());
+                    }
+                }
+            }
+
+            let left = obj.get("left").and_then(|l| {
+                let l_obj = l.as_object()?;
+                let l_type = l_obj.get("type").and_then(|t| t.as_str())?;
+                if l_type == "VariableDeclaration" {
+                    let kind = l_obj.get("kind").and_then(|k| k.as_str()).unwrap_or("let");
+                    let declarations = l_obj
+                        .get("declarations")
+                        .and_then(|d| d.as_array())
+                        .map(|decls| {
+                            decls
+                                .iter()
+                                .filter_map(|decl| {
+                                    let decl_obj = decl.as_object()?;
+                                    let id_val = decl_obj.get("id")?;
+                                    let pattern = convert_param_pattern(id_val, context)?;
+                                    let init_val = decl_obj.get("init").map(|iv| {
+                                        let __tmp = convert_json_value(iv, context);
+                                        context.arena.alloc_expr(__tmp)
+                                    });
+                                    Some(JsVariableDeclarator {
+                                        id: pattern,
+                                        init: init_val,
+                                    })
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    Some(JsForOfLeft::Variable(JsVariableDeclaration {
+                        kind: match kind {
+                            "const" => JsVariableKind::Const,
+                            "let" => JsVariableKind::Let,
+                            _ => JsVariableKind::Var,
+                        },
+                        declarations,
+                    }))
+                } else {
+                    convert_param_pattern(l, context).map(JsForOfLeft::Pattern)
+                }
+            })?;
+
+            let right = obj
+                .get("right")
+                .map(|r| {
+                    let __tmp = convert_json_value(r, context);
+                    context.arena.alloc_expr(__tmp)
+                })
+                .unwrap_or_else(|| {
+                    context
+                        .arena
+                        .alloc_expr(JsExpr::Literal(JsLiteral::Undefined))
+                });
+
+            // Save transforms for loop variables
+            let saved_transform = if !left_var_names.is_empty() {
+                let saved = context.state.transform.clone();
+                for name in &left_var_names {
+                    context.state.transform.remove(name);
+                }
+                Some(saved)
+            } else {
+                None
+            };
+
+            let body = obj
+                .get("body")
+                .and_then(|b| convert_statement(b, context))
+                .map(|s| context.arena.alloc_stmt(s))
+                .unwrap_or_else(|| context.arena.alloc_stmt(JsStatement::Empty));
+
+            if let Some(saved) = saved_transform {
+                context.state.transform = saved;
+            }
+
+            let is_await = obj.get("await").and_then(|a| a.as_bool()).unwrap_or(false);
+            if is_for_of {
+                Some(JsStatement::ForOf(JsForOfStatement {
+                    left,
+                    right,
+                    body,
+                    is_await,
+                }))
+            } else {
+                // For-in uses the same JsForOfStatement with a different codegen
+                // path. Since we don't have a ForIn variant, emit as raw block for now.
+                Some(JsStatement::ForOf(JsForOfStatement {
+                    left,
+                    right,
+                    body,
+                    is_await: false,
+                }))
+            }
         }
-        "WhileStatement" | "DoWhileStatement" => {
-            obj.get("body").and_then(|b| convert_statement(b, context))
+        "WhileStatement" => {
+            let test = obj
+                .get("test")
+                .map(|t| {
+                    let __tmp = convert_json_value(t, context);
+                    context.arena.alloc_expr(__tmp)
+                })
+                .unwrap_or_else(|| {
+                    context
+                        .arena
+                        .alloc_expr(JsExpr::Literal(JsLiteral::Boolean(true)))
+                });
+            let body = obj
+                .get("body")
+                .and_then(|b| convert_statement(b, context))
+                .map(|s| context.arena.alloc_stmt(s))
+                .unwrap_or_else(|| context.arena.alloc_stmt(JsStatement::Empty));
+            Some(JsStatement::While(JsWhileStatement { test, body }))
+        }
+        "DoWhileStatement" => {
+            let test = obj
+                .get("test")
+                .map(|t| {
+                    let __tmp = convert_json_value(t, context);
+                    context.arena.alloc_expr(__tmp)
+                })
+                .unwrap_or_else(|| {
+                    context
+                        .arena
+                        .alloc_expr(JsExpr::Literal(JsLiteral::Boolean(true)))
+                });
+            let body = obj
+                .get("body")
+                .and_then(|b| convert_statement(b, context))
+                .map(|s| context.arena.alloc_stmt(s))
+                .unwrap_or_else(|| context.arena.alloc_stmt(JsStatement::Empty));
+            Some(JsStatement::DoWhile(JsDoWhileStatement { test, body }))
         }
         "LabeledStatement" => obj.get("body").and_then(|b| convert_statement(b, context)),
-        "BreakStatement" | "ContinueStatement" => Some(JsStatement::Empty),
+        "BreakStatement" => {
+            let label = obj
+                .get("label")
+                .and_then(|l| l.as_object())
+                .and_then(|l| l.get("name"))
+                .and_then(|n| n.as_str())
+                .map(CompactString::from);
+            Some(JsStatement::Break(label))
+        }
+        "ContinueStatement" => {
+            let label = obj
+                .get("label")
+                .and_then(|l| l.as_object())
+                .and_then(|l| l.get("name"))
+                .and_then(|n| n.as_str())
+                .map(CompactString::from);
+            Some(JsStatement::Continue(label))
+        }
         "SwitchStatement" => {
             let mut stmts = Vec::new();
             if let Some(cases) = obj.get("cases").and_then(|c| c.as_array()) {

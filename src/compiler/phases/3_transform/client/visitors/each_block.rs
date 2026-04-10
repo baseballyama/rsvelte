@@ -1785,7 +1785,25 @@ fn build_key_function(
     if node.metadata.keyed
         && let Some(key) = &node.key
     {
+        // Collect names of context variables (item, optional index) so that
+        // identifiers in the key expression matching these names are NOT
+        // transformed to prop accesses or state getters during conversion.
+        let mut shadowed_names: Vec<String> = Vec::new();
+        if let Some(context_expr) = &node.context {
+            collect_pattern_identifiers(context_expr, &mut shadowed_names);
+        }
+        if let Some(ref idx_name) = node.index {
+            shadowed_names.push(idx_name.to_string());
+        }
+        // Insert shadowed names BEFORE calling convert_expression so that the
+        // identifier conversion path skips prop rewriting for shadowed names.
+        let saved_shadowed = context.state.shadowed_prop_names.clone();
+        for name in &shadowed_names {
+            context.state.shadowed_prop_names.insert(name.clone());
+        }
         let key_expr = convert_expression(key, context);
+        context.state.shadowed_prop_names = saved_shadowed;
+
         // Apply state transforms while treating the each-block context variables
         // (the item name(s) and optional index) as shadowed local parameters.
         // In JS, `key_state.transform` has any transforms for context names deleted;
@@ -1794,13 +1812,6 @@ fn build_key_function(
         use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
             LocalScope, apply_transforms_to_expression_with_shadowed,
         };
-        let mut shadowed_names: Vec<String> = Vec::new();
-        if let Some(context_expr) = &node.context {
-            collect_pattern_identifiers(context_expr, &mut shadowed_names);
-        }
-        if let Some(ref idx_name) = node.index {
-            shadowed_names.push(idx_name.to_string());
-        }
         let local_scope = LocalScope::from_shadowed(shadowed_names.into_iter());
         let key_expr =
             apply_transforms_to_expression_with_shadowed(&key_expr, context, &local_scope);
