@@ -660,9 +660,18 @@ fn collect_ts_removals_from_expression(
             }
         }
         E::ArrayExpression(arr) => {
+            use oxc_ast::ast::ArrayExpressionElement as AEE;
             for elem in &arr.elements {
-                if let Some(e) = elem.as_expression() {
-                    collect_ts_removals_from_expression(e, source, removals);
+                match elem {
+                    AEE::SpreadElement(spread) => {
+                        collect_ts_removals_from_expression(&spread.argument, source, removals);
+                    }
+                    AEE::Elision(_) => {}
+                    _ => {
+                        if let Some(e) = elem.as_expression() {
+                            collect_ts_removals_from_expression(e, source, removals);
+                        }
+                    }
                 }
             }
         }

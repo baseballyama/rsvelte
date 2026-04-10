@@ -3712,6 +3712,16 @@ fn transform_instance_script_for_visitors(
                     proxy_vars,
                 )
             };
+            // Apply store subscription transformations to the default value expression
+            // (e.g. `export let value = $page.params` becomes `$.prop(..., () => $page().params)`).
+            // Only transform when the default value is wrapped in an arrow function — when
+            // the default is a bare store identifier (e.g. `$foo`), it's passed as a getter
+            // reference and must stay untransformed.
+            let transformed = if !store_sub_vars.is_empty() && !analysis.runes {
+                apply_store_reads_in_prop_default_values(&transformed, store_sub_vars)
+            } else {
+                transformed
+            };
             result.push_str(&transformed);
             result.push('\n');
             return;

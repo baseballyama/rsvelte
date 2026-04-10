@@ -946,6 +946,146 @@ pub(super) fn apply_prop_reads_in_prop_default_values(line: &str, prop_vars: &[S
     result
 }
 
+/// Apply store subscription read transforms (`$foo` -> `$foo()`) inside the
+/// default value of `$.prop()` calls, but only when the default is wrapped in
+/// an arrow function (`() => ...`). When the default is a bare store identifier
+/// like `$foo`, it's passed as a getter reference and must stay untransformed.
+pub(super) fn apply_store_reads_in_prop_default_values(
+    line: &str,
+    store_sub_vars: &[String],
+) -> String {
+    use super::store_transforms::{transform_store_reads_client, transform_store_sub_calls};
+
+    let mut result = String::new();
+    let mut search_from = 0;
+
+    while let Some(prop_pos) = memmem::find(&line.as_bytes()[search_from..], b"$.prop(") {
+        let abs_pos = search_from + prop_pos;
+        result.push_str(&line[search_from..abs_pos]);
+
+        let after_prop = &line[abs_pos + 7..];
+        let chars: Vec<char> = after_prop.chars().collect();
+        let mut i = 0usize;
+        let mut depth: i32 = 1;
+        let mut arg_count = 0usize;
+        let mut fourth_arg_start: Option<usize> = None;
+        let mut fourth_arg_end: Option<usize> = None;
+        let mut in_string: Option<char> = None;
+
+        let mut char_byte_positions: Vec<usize> = Vec::new();
+        {
+            let mut byte_pos = 0;
+            for ch in after_prop.chars() {
+                char_byte_positions.push(byte_pos);
+                byte_pos += ch.len_utf8();
+            }
+            char_byte_positions.push(byte_pos);
+        }
+
+        while i < chars.len() {
+            let c = chars[i];
+            if let Some(quote) = in_string {
+                if c == '\\' && i + 1 < chars.len() {
+                    i += 2;
+                    continue;
+                }
+                if c == quote {
+                    in_string = None;
+                }
+                i += 1;
+                continue;
+            }
+            match c {
+                '"' | '\'' | '`' => in_string = Some(c),
+                '(' | '[' | '{' => depth += 1,
+                ')' | ']' | '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        if fourth_arg_start.is_some() {
+                            fourth_arg_end = Some(i);
+                        }
+                        break;
+                    }
+                }
+                ',' if depth == 1 => {
+                    arg_count += 1;
+                    if arg_count == 3 {
+                        let mut j = i + 1;
+                        while j < chars.len() && chars[j].is_whitespace() {
+                            j += 1;
+                        }
+                        fourth_arg_start = Some(j);
+                    }
+                }
+                _ => {}
+            }
+            i += 1;
+        }
+
+        if let (Some(start_char), Some(end_char)) = (fourth_arg_start, fourth_arg_end) {
+            let start_byte = char_byte_positions[start_char];
+            let end_byte = char_byte_positions[end_char];
+            let before_default = &after_prop[..start_byte];
+            let default_val = &after_prop[start_byte..end_byte];
+
+            // Only transform if default is wrapped in an arrow function.
+            let trimmed_default = default_val.trim_start();
+            let is_wrapped =
+                trimmed_default.starts_with("() =>") || trimmed_default.starts_with("()=>");
+
+            let transformed_default = if is_wrapped {
+                let t = transform_store_sub_calls(default_val, store_sub_vars);
+                transform_store_reads_client(&t, store_sub_vars)
+            } else {
+                default_val.to_string()
+            };
+
+            result.push_str("$.prop(");
+            result.push_str(before_default);
+            result.push_str(&transformed_default);
+            let close_byte = char_byte_positions[end_char + 1];
+            result.push_str(&after_prop[end_byte..close_byte]);
+            search_from = abs_pos + 7 + close_byte;
+        } else {
+            result.push_str("$.prop(");
+            let mut d: i32 = 1;
+            let mut s: Option<char> = None;
+            let mut ec = None;
+            for (ci, ch) in chars.iter().enumerate() {
+                if let Some(q) = s {
+                    if *ch == q {
+                        s = None;
+                    }
+                    continue;
+                }
+                match ch {
+                    '"' | '\'' | '`' => s = Some(*ch),
+                    '(' | '[' | '{' => d += 1,
+                    ')' | ']' | '}' => {
+                        d -= 1;
+                        if d == 0 {
+                            ec = Some(ci);
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            if let Some(end_char) = ec {
+                let end_byte = char_byte_positions[end_char + 1];
+                result.push_str(&after_prop[..end_byte]);
+                search_from = abs_pos + 7 + end_byte;
+            } else {
+                result.push_str(after_prop);
+                search_from = line.len();
+            }
+        }
+    }
+
+    result.push_str(&line[search_from..]);
+    result
+}
+
 pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> String {
     let trimmed = line.trim();
 

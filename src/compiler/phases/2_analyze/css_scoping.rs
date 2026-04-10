@@ -186,6 +186,101 @@ fn get_possible_class_values(expr: &crate::ast::js::Expression) -> Option<Vec<St
     if unknown { None } else { Some(values) }
 }
 
+/// Compute the full set of possible concatenated values for a Sequence
+/// attribute (mix of text and expression parts). Mirrors the official
+/// compiler's `attribute_matches` chunk-combination logic.
+fn sequence_possible_values(
+    parts: &[template::AttributeValuePart],
+    is_class: bool,
+) -> Option<Vec<String>> {
+    let mut possible_values: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut prev_values: Vec<String> = Vec::new();
+
+    for part in parts {
+        // Determine the possible values for this chunk.
+        let chunk_possible: Vec<String> = match part {
+            template::AttributeValuePart::Text(text) => vec![text.data.to_string()],
+            template::AttributeValuePart::ExpressionTag(tag) => {
+                let mut values = Vec::new();
+                let mut unknown = false;
+                gather_possible_values(
+                    tag.expression.as_json(),
+                    true,
+                    is_class,
+                    &mut values,
+                    &mut unknown,
+                );
+                if unknown {
+                    return None;
+                }
+                values
+            }
+        };
+
+        if !prev_values.is_empty() {
+            let mut start_with_space: Vec<String> = Vec::new();
+            let mut remaining: Vec<String> = Vec::new();
+            for v in &chunk_possible {
+                if v.starts_with(|c: char| c.is_whitespace()) {
+                    start_with_space.push(v.clone());
+                } else {
+                    remaining.push(v.clone());
+                }
+            }
+
+            if !remaining.is_empty() {
+                if !start_with_space.is_empty() {
+                    for pv in &prev_values {
+                        possible_values.insert(pv.clone());
+                    }
+                }
+                let mut combined = Vec::new();
+                for pv in &prev_values {
+                    for v in &remaining {
+                        combined.push(format!("{}{}", pv, v));
+                    }
+                }
+                prev_values = combined;
+                for v in &start_with_space {
+                    if v.ends_with(|c: char| c.is_whitespace()) {
+                        possible_values.insert(v.clone());
+                    } else {
+                        prev_values.push(v.clone());
+                    }
+                }
+                if prev_values.len() > 20 {
+                    return None;
+                }
+                continue;
+            } else {
+                for pv in &prev_values {
+                    possible_values.insert(pv.clone());
+                }
+                prev_values = Vec::new();
+            }
+        }
+        for v in &chunk_possible {
+            if v.ends_with(|c: char| c.is_whitespace()) {
+                possible_values.insert(v.clone());
+            } else {
+                prev_values.push(v.clone());
+            }
+        }
+        if prev_values.len() < chunk_possible.len() {
+            prev_values.push(" ".to_string());
+        }
+        if prev_values.len() > 20 {
+            return None;
+        }
+    }
+
+    for pv in prev_values {
+        possible_values.insert(pv);
+    }
+
+    Some(possible_values.into_iter().collect())
+}
+
 /// Info about a template element for CSS matching.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -264,9 +359,23 @@ impl ElementInfo {
                                 } else if attr_name == "id" {
                                     ids.push(full_value);
                                 }
-                            } else {
-                                attr_pairs.push((attr_name.clone(), AttrValue::Dynamic));
-                                if attr_name == "class" {
+                            } else if attr_name == "class" {
+                                has_dynamic_class = true;
+                                // Try to compute possible values across all chunks, so
+                                // selectors like `.foo` can be pruned when `foo` isn't
+                                // a candidate token. Mirrors the official compiler's
+                                // `attribute_matches` logic in css-prune.js.
+                                if let Some(possible) = sequence_possible_values(parts, true) {
+                                    for value in &possible {
+                                        for class in value.split_whitespace() {
+                                            classes.push(class.to_string());
+                                        }
+                                    }
+                                    attr_pairs.push((
+                                        attr_name.clone(),
+                                        AttrValue::PossibleValues(possible),
+                                    ));
+                                } else {
                                     for part in parts {
                                         if let template::AttributeValuePart::Text(text) = part {
                                             for class in text.data.split_whitespace() {
@@ -274,8 +383,10 @@ impl ElementInfo {
                                             }
                                         }
                                     }
-                                    has_dynamic_class = true;
+                                    attr_pairs.push((attr_name.clone(), AttrValue::Dynamic));
                                 }
+                            } else {
+                                attr_pairs.push((attr_name.clone(), AttrValue::Dynamic));
                             }
                         }
                         template::AttributeValue::Expression(expr_tag) => {
@@ -856,15 +967,26 @@ fn is_relative_selector_global(rel: &CssRelativeSelector) -> bool {
         return true;
     }
 
-    // Check if it's a :global selector (with or without args) as the only simple selector
-    if rel.selectors.len() == 1
-        && let CssSimpleSelector::PseudoClass(name, _) = &rel.selectors[0]
-        && name == "global"
-    {
-        return true;
+    if rel.selectors.is_empty() {
+        return false;
     }
 
-    // Check for global-like pseudo-classes
+    // Mirror official compiler's `is_global`: the first selector must be :global,
+    // and if it has args, every selector in the relative must be either an
+    // unscoped pseudo-class or a pseudo-element.
+    let first = &rel.selectors[0];
+    if let CssSimpleSelector::PseudoClass(name, args) = first
+        && name == "global"
+    {
+        if args.is_none() {
+            return true;
+        }
+        // :global(...) with args: only if every other selector is a pseudo-element
+        // or a pseudo-class that does not scope (mirroring the official compiler).
+        return rel.selectors.iter().all(is_unscoped_or_pseudo_element);
+    }
+
+    // Check for global-like pseudo-classes (e.g. :host, :root) as the sole selector.
     if rel.selectors.len() == 1
         && let CssSimpleSelector::PseudoClass(name, args) = &rel.selectors[0]
         && is_unscoped_pseudo_class(name, args.is_some())
@@ -879,6 +1001,35 @@ fn is_relative_selector_global(rel: &CssRelativeSelector) -> bool {
 fn is_unscoped_pseudo_class(name: &str, has_args: bool) -> bool {
     match name {
         "host" | "root" => !has_args,
+        _ => false,
+    }
+}
+
+/// Mirror of the official compiler's `is_unscoped_pseudo_class`: returns `true`
+/// for pseudo-classes that don't add scoping (everything except `:has`, `:is`,
+/// `:where`, and some `:not` forms), or any pseudo-element.
+fn is_unscoped_or_pseudo_element(sel: &CssSimpleSelector) -> bool {
+    match sel {
+        CssSimpleSelector::PseudoElement | CssSimpleSelector::Nesting => true,
+        CssSimpleSelector::PseudoClass(name, args) => {
+            if name != "has" && name != "is" && name != "where" {
+                if name != "not" {
+                    return true;
+                }
+                // :not with args: unscoped if all inner children are single-element.
+                if let Some(cs_args) = args.as_ref() {
+                    return cs_args.iter().all(|cs| cs.children.len() == 1);
+                }
+                return true;
+            }
+            // :has/:is/:where: unscoped only if all inner relatives are themselves global.
+            if let Some(cs_args) = args.as_ref() {
+                return cs_args
+                    .iter()
+                    .all(|cs| cs.children.iter().all(is_relative_selector_global));
+            }
+            false
+        }
         _ => false,
     }
 }
