@@ -3357,6 +3357,39 @@ fn transform_instance_script_for_visitors(
     // This mirrors the official Svelte compiler's should_proxy() which resolves
     // identifiers to their binding's initial values.
     let instance_scope_for_proxy = analysis.root.instance_scope_index;
+    // First, collect names of bindings (state/derived/stores) that can be
+    // reassigned via $.set(). If a non-proxy inner-scope binding shadows one of
+    // these, treating it as non-proxy could wrongly strip the proxy flag from
+    // an assignment to the reactive one (since the text-based transform can't
+    // distinguish scopes). Note: Props with the same name as inner locals are
+    // not a concern because Svelte disallows that naming collision.
+    let reactive_mut_binding_names: std::collections::HashSet<String> = analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|b| {
+            matches!(
+                b.kind,
+                BindingKind::State
+                    | BindingKind::RawState
+                    | BindingKind::Derived
+                    | BindingKind::StoreSub
+            )
+        })
+        .map(|b| b.name.clone())
+        .collect();
+
+    // For inner-scope bindings, we additionally require that no OTHER binding
+    // with the same name exists. This prevents conflicts with function parameters
+    // or other scoped bindings that the text-based transform cannot distinguish.
+    let name_occurrences: std::collections::HashMap<String, usize> = {
+        let mut map: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        for b in &analysis.root.bindings {
+            *map.entry(b.name.clone()).or_insert(0) += 1;
+        }
+        map
+    };
+
     let non_proxy_vars: Vec<String> = analysis
         .root
         .bindings
@@ -3365,15 +3398,16 @@ fn transform_instance_script_for_visitors(
             if b.reassigned {
                 return false;
             }
-            // Only consider bindings declared at the top level (module scope or
-            // instance scope). Bindings inside nested scopes (each blocks, snippets,
-            // functions, etc.) may be shadowed by same-named locals elsewhere, so
-            // putting them in the global non_proxy_vars list would be unsafe.
-            if b.scope_index != 0 && b.scope_index != instance_scope_for_proxy {
+            // Never mark a variable as non-proxy if another binding with the same
+            // name is reactive (state/derived/store) — the text-based transform
+            // can't distinguish between them.
+            if reactive_mut_binding_names.contains(&b.name) {
                 return false;
             }
+            let is_top_level = b.scope_index == 0 || b.scope_index == instance_scope_for_proxy;
             // Regular non-reactive bindings with initial literal/primitive value.
-            if b.initial.is_some()
+            if is_top_level
+                && b.initial.is_some()
                 && !matches!(
                     b.kind,
                     BindingKind::State
@@ -3386,6 +3420,38 @@ fn transform_instance_script_for_visitors(
             {
                 return true;
             }
+            // Inner-scope non-reactive function-local bindings: include when the
+            // name is unique across all bindings (so the text-based transform can
+            // safely treat references to this name as non-proxy). Example:
+            //   function onTouchStart() {
+            //     const isHoverScrollbar = foo() !== undefined;
+            //     stateVar = isHoverScrollbar; // -> $.set(stateVar, isHoverScrollbar)
+            //   }
+            if !is_top_level
+                && !matches!(
+                    b.kind,
+                    BindingKind::State
+                        | BindingKind::RawState
+                        | BindingKind::Derived
+                        | BindingKind::Prop
+                        | BindingKind::BindableProp
+                        | BindingKind::StoreSub
+                        | BindingKind::Template // @const, each items, etc. handled below
+                )
+                && name_occurrences.get(&b.name).copied().unwrap_or(0) == 1
+                && let Some(ref node_type) = b.initial_node_type
+            {
+                match node_type.as_str() {
+                    "Literal"
+                    | "TemplateLiteral"
+                    | "ArrowFunctionExpression"
+                    | "FunctionExpression"
+                    | "UnaryExpression"
+                    | "BinaryExpression" => return true,
+                    _ => {}
+                }
+            }
+
             // Props with default values that are known non-proxyable types (literals,
             // functions, `undefined`). This mirrors the official compiler's should_proxy
             // which recurses into binding.initial when the reference is an identifier.
@@ -3989,15 +4055,27 @@ fn transform_instance_script_for_visitors(
             };
 
             if !trailing_comma && !trailing_operator {
-                // Before processing, check if the next non-empty line starts with '.'
-                // (method chaining continuation like `.fill(null).map(...)`)
+                // Before processing, check if the next non-empty line starts with a
+                // continuation token (`.` for method chains, `?`, `:`, `&&`, `||`,
+                // `??` for ternary/logical continuation). Example:
+                //   $: prev_obj =
+                //       cond
+                //           ? "a"
+                //           : "b";
+                // The `cond` line by itself looks balanced, but the next line starts
+                // with `?`, so the expression continues.
                 let mut next_continues = false;
                 for future_line in script_lines.iter().skip(line_idx + 1) {
                     let future_trimmed = future_line.trim();
                     if future_trimmed.is_empty() {
                         continue;
                     }
-                    if future_trimmed.starts_with('.') {
+                    let first_char = future_trimmed.chars().next().unwrap();
+                    if matches!(first_char, '.' | '?' | ':')
+                        || future_trimmed.starts_with("&&")
+                        || future_trimmed.starts_with("||")
+                        || future_trimmed.starts_with("??")
+                    {
                         next_continues = true;
                     }
                     break;

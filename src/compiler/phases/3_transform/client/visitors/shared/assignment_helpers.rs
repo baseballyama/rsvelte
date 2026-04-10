@@ -302,9 +302,40 @@ pub fn should_proxy_js_expr_with_context(
         return true;
     }
 
+    // Check if this is `$.get(name)` - the transform for state/derived/each-const reads.
+    // Trace through to the underlying binding's initial value, mirroring the JS
+    // compiler's `should_proxy` which operates on the untransformed AST.
+    if let JsExpr::Call(call) = expr
+        && call.arguments.len() == 1
+        && let JsExpr::Identifier(callee_name) = context.arena.get_expr(call.callee)
+        && callee_name.as_str() == "$.get"
+        && let JsExpr::Identifier(arg_name) = &call.arguments[0]
+        && let Some(binding) = context.state.get_binding(arg_name.as_str())
+    {
+        if !binding.reassigned
+            && let Some(ref initial_type) = binding.initial_node_type
+        {
+            return check_initial_type_for_proxy(initial_type, binding);
+        }
+        // Fallback to conservative proxy
+        return true;
+    }
+
     // For identifiers, also check binding initial values
     if let JsExpr::Identifier(name) = expr {
         if name == "undefined" {
+            return false;
+        }
+        // Check local var (function-scoped const/let) init types first.
+        if let Some(
+            "Literal"
+            | "TemplateLiteral"
+            | "ArrowFunctionExpression"
+            | "FunctionExpression"
+            | "UnaryExpression"
+            | "BinaryExpression",
+        ) = context.state.get_local_var_init_type(name)
+        {
             return false;
         }
         if let Some(binding) = context.state.get_binding(name)

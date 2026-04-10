@@ -3491,6 +3491,17 @@ pub(super) fn expression_needs_proxy_with_scope(expr: &str, non_proxy_vars: &[St
     if is_simple_identifier(trimmed) && non_proxy_vars.iter().any(|v| v == trimmed) {
         return false;
     }
+    // Handle `$.get(ident)` — the transform pattern for state/derived reads.
+    // Trace through to the underlying identifier and check the non-proxy list.
+    if let Some(inside) = trimmed
+        .strip_prefix("$.get(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        let inner = inside.trim();
+        if is_simple_identifier(inner) && non_proxy_vars.iter().any(|v| v == inner) {
+            return false;
+        }
+    }
     expression_needs_proxy(trimmed)
 }
 

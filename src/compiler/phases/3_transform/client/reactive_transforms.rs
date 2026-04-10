@@ -431,12 +431,17 @@ pub(super) fn transform_reactive_statement(
         // `while`, etc. -- these indicate the `=` is inside a nested statement, not
         // a top-level assignment.
         if lhs.contains('?') || lhs_starts_with_keyword(lhs) {
-            // Treat as non-assignment expression
-            let temp = transform_prop_assignments(body, prop_assignment_transform_vars, &[]);
-            let temp = transform_prop_update_expressions(&temp, prop_assignment_transform_vars);
+            // Treat as non-assignment expression.
+            // Transform order mirrors the non-reactive body flow in client/mod.rs:
+            //   update_expressions → prop_reads → prop_assignments → state transforms
+            // This ensures that a bare `value = null` is not first converted to
+            // `value(null)` and then mistakenly re-wrapped by the read pass as
+            // `value()(null)`.
+            let temp = transform_prop_update_expressions(body, prop_assignment_transform_vars);
             let temp =
                 transform_state_update_expressions(&temp, state_vars, non_reactive_state_vars);
             let temp = transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars);
+            let temp = transform_prop_assignments(&temp, prop_assignment_transform_vars, &[]);
             let temp = transform_state_set_in_reactive(&temp, state_vars, non_reactive_state_vars);
             transformed_body =
                 wrap_state_vars_in_expr(&temp, state_vars, non_reactive_state_vars, proxy_vars);
@@ -1050,9 +1055,12 @@ pub(super) fn transform_state_set_in_reactive(
             // Find the extent of the RHS expression
             let rhs_start = pos + assignment_pattern.len();
             let remaining = &result[rhs_start..];
-            // Find the end of the RHS - look for `;`, `}`, or `:` (ternary separator) at depth 0
+            // Find the end of the RHS - look for `;`, `}`, or `:` (ternary separator) at depth 0.
+            // We track a `ternary_depth` so the `:` that matches a ternary `?` inside the
+            // RHS is correctly consumed rather than terminating the expression early.
             // Use char_indices() to get BYTE positions, not char positions, to handle UTF-8 correctly.
             let mut depth = 0;
+            let mut ternary_depth: i32 = 0;
             let mut rhs_end = result.len();
             let mut in_string: Option<char> = None;
             let mut prev_ch = '\0';
@@ -1087,14 +1095,31 @@ pub(super) fn transform_state_set_in_reactive(
                         rhs_end = rhs_start + ci;
                         break;
                     }
-                    // `:` at depth 0 that is NOT `::` is a ternary separator - stop the RHS here
+                    // Ternary `?` at depth 0 (not `?.`): opens a new ternary nesting level.
+                    '?' if depth == 0 => {
+                        let next = if idx + 1 < len {
+                            remaining_chars[idx + 1].1
+                        } else {
+                            '\0'
+                        };
+                        if next != '.' {
+                            ternary_depth += 1;
+                        }
+                    }
+                    // `:` at depth 0: if we're inside a ternary, it pairs with a previous `?`
+                    // (consume it); otherwise it terminates the RHS (e.g. object literal shorthand
+                    // breaking out, case label, etc.).
                     ':' if depth == 0 => {
                         let next = if idx + 1 < len {
                             remaining_chars[idx + 1].1
                         } else {
                             '\0'
                         };
-                        if next != ':' {
+                        if next == ':' {
+                            // `::` — not a ternary separator
+                        } else if ternary_depth > 0 {
+                            ternary_depth -= 1;
+                        } else {
                             rhs_end = rhs_start + ci;
                             break;
                         }

@@ -4487,6 +4487,16 @@ impl<'a> ScopeBuilder<'a> {
         {
             self.bindings[idx].initial = Some(init.to_string());
             self.bindings[idx].initial_is_defined = true;
+            // Record the init node type so downstream transforms (e.g. should_proxy)
+            // can check whether the initial value is a primitive expression.
+            if let Some(ty) = init.get("type").and_then(|t| t.as_str()) {
+                self.bindings[idx].initial_node_type = Some(ty.to_string());
+                if ty == "Identifier"
+                    && let Some(n) = init.get("name").and_then(|n| n.as_str())
+                {
+                    self.bindings[idx].initial_identifier_name = Some(n.to_string());
+                }
+            }
         }
         // For destructuring patterns, we don't store initial per-binding
         // (the whole expression is too complex to decompose per-identifier)

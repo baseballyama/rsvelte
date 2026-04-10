@@ -1416,6 +1416,190 @@ pub(super) fn transform_state_assignments(
 
     let mut result = line.to_string();
 
+    // Pre-normalize multi-line assignments of state vars. Two issues need handling:
+    //   1. The head of the assignment may be broken across lines, e.g.:
+    //        msg =
+    //          "hello";
+    //      We collapse `{var} =\n<ws>` into `{var} = ` so the matcher below can find it.
+    //   2. The body of the assignment expression may itself span multiple lines
+    //      (ternaries, binary ops, method chains, etc.). If we only collapse the head,
+    //      `find_assignment_expr_end` would stop at the first `\n` and miss the rest.
+    //      We therefore also collapse continuation lines — lines whose first non-ws
+    //      token is an operator/continuation (`?`, `:`, `+`, `-`, `*`, `/`, `%`, `.`,
+    //      `&&`, `||`, `??`, `[`, `]`) and lines that follow a line ending in an
+    //      opening bracket or continuation operator.
+    for var in state_vars {
+        let needle_nl = format!("{} =\n", var);
+        if !result.contains(&needle_nl) {
+            continue;
+        }
+        let bytes = result.as_bytes();
+        let mut out = String::with_capacity(result.len());
+        let mut i = 0;
+        while i < result.len() {
+            if result[i..].starts_with(&needle_nl) {
+                let prev_ok = i == 0 || {
+                    let prev = bytes[i - 1];
+                    !(prev == b'.'
+                        || prev == b'#'
+                        || prev == b'_'
+                        || prev == b'$'
+                        || prev.is_ascii_alphanumeric())
+                };
+                if prev_ok {
+                    out.push_str(var);
+                    out.push_str(" = ");
+                    i += needle_nl.len();
+                    // Skip leading whitespace on next line
+                    while i < result.len() {
+                        let c = result.as_bytes()[i];
+                        if c == b' ' || c == b'\t' {
+                            i += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    // Now collapse any continuation lines that belong to this
+                    // expression. We stop when we hit a line that clearly ends a
+                    // statement at depth 0, a blank line, or a reasonable bound.
+                    let mut depth: i32 = 0;
+                    let mut in_str = false;
+                    let mut str_ch = b' ';
+                    let mut prev_nonws = b'=';
+                    loop {
+                        if i >= result.len() {
+                            break;
+                        }
+                        let c = result.as_bytes()[i];
+                        if in_str {
+                            if c == b'\\' && i + 1 < result.len() {
+                                out.push(c as char);
+                                out.push(result.as_bytes()[i + 1] as char);
+                                i += 2;
+                                continue;
+                            }
+                            if c == str_ch {
+                                in_str = false;
+                            }
+                            out.push(c as char);
+                            i += 1;
+                            continue;
+                        }
+                        if c == b'"' || c == b'\'' || c == b'`' {
+                            in_str = true;
+                            str_ch = c;
+                            out.push(c as char);
+                            prev_nonws = c;
+                            i += 1;
+                            continue;
+                        }
+                        if c == b'(' || c == b'[' || c == b'{' {
+                            depth += 1;
+                            out.push(c as char);
+                            prev_nonws = c;
+                            i += 1;
+                            continue;
+                        }
+                        if c == b')' || c == b']' || c == b'}' {
+                            depth -= 1;
+                            if depth < 0 {
+                                break;
+                            }
+                            out.push(c as char);
+                            prev_nonws = c;
+                            i += 1;
+                            continue;
+                        }
+                        if c == b'\n' {
+                            if depth > 0 {
+                                // Inside brackets, keep collapsing
+                                out.push(' ');
+                                i += 1;
+                                // skip leading ws on next line
+                                while i < result.len() {
+                                    let cc = result.as_bytes()[i];
+                                    if cc == b' ' || cc == b'\t' {
+                                        i += 1;
+                                    } else {
+                                        break;
+                                    }
+                                }
+                                continue;
+                            }
+                            // At depth 0: check if the previous non-ws char suggests
+                            // the expression continues (opening bracket, operator).
+                            let continues_prev = matches!(
+                                prev_nonws,
+                                b'?' | b':'
+                                    | b'+'
+                                    | b'-'
+                                    | b'*'
+                                    | b'/'
+                                    | b'%'
+                                    | b'&'
+                                    | b'|'
+                                    | b','
+                                    | b'.'
+                                    | b'='
+                                    | b'<'
+                                    | b'>'
+                                    | b'!'
+                                    | b'^'
+                                    | b'~'
+                            );
+                            // Peek ahead to find the next non-ws char on the next line
+                            let mut j = i + 1;
+                            while j < result.len() {
+                                let cc = result.as_bytes()[j];
+                                if cc == b' ' || cc == b'\t' || cc == b'\n' {
+                                    j += 1;
+                                } else {
+                                    break;
+                                }
+                            }
+                            let next_starts_continue = j < result.len()
+                                && matches!(
+                                    result.as_bytes()[j],
+                                    b'?' | b':'
+                                        | b'+'
+                                        | b'-'
+                                        | b'*'
+                                        | b'/'
+                                        | b'%'
+                                        | b'&'
+                                        | b'|'
+                                        | b'.'
+                                        | b'<'
+                                        | b'>'
+                                        | b'='
+                                        | b'^'
+                                        | b'~'
+                                        | b'['
+                                );
+                            if continues_prev || next_starts_continue {
+                                out.push(' ');
+                                i = j;
+                                continue;
+                            }
+                            // End of expression
+                            break;
+                        }
+                        if c != b' ' && c != b'\t' {
+                            prev_nonws = c;
+                        }
+                        out.push(c as char);
+                        i += 1;
+                    }
+                    continue;
+                }
+            }
+            let ch = result[i..].chars().next().unwrap();
+            out.push(ch);
+            i += ch.len_utf8();
+        }
+        result = out;
+    }
+
     // Pre-check: does the line contain any update operators at all?
     let rb = result.as_bytes();
     let has_inc_dec = memmem::find(rb, b"++").is_some() || memmem::find(rb, b"--").is_some();

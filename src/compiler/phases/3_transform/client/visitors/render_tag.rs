@@ -171,10 +171,14 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
             call_args,
         )
     } else {
-        // Static snippet: direct call
+        // Static snippet: direct call (optional if original was a ChainExpression)
         let mut call_args = vec![context.state.node.clone()];
         call_args.extend(args);
-        b::call(&context.arena, snippet_function, call_args)
+        if is_chain_expression {
+            b::optional_call(&context.arena, snippet_function, call_args)
+        } else {
+            b::call(&context.arena, snippet_function, call_args)
+        }
     };
 
     // Build the statements list (derived decls + call)
