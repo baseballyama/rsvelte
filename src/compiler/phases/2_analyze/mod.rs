@@ -639,7 +639,7 @@ pub fn analyze_component(
         analysis.analyze_css(stylesheet, options)?;
 
         // Run CSS analysis and validation
-        css::analyze_css(stylesheet, &mut analysis)?;
+        css::analyze::analyze_css_with_source(stylesheet, &mut analysis, Some(source))?;
 
         // Extract CSS selector information for per-element scoping
         css::extract_css_selector_info(stylesheet, &mut analysis);
@@ -654,11 +654,13 @@ pub fn analyze_component(
             let css_selectors = css_scoping::extract_css_selectors(stylesheet);
             css_scoping::mark_elements_scoped(&mut ast.fragment, &css_selectors);
 
-            // When @keyframes rules exist, scope ALL elements in the component.
-            // This matches the official Svelte compiler behavior: keyframe names are
-            // prefixed with the component hash, and since any element could potentially
-            // use that animation (e.g., via JS), all elements need the hash class.
-            if !analysis.css.keyframes.is_empty() {
+            // When a `@keyframes` rule contains a percentage step (`0%`, `50%`, ...),
+            // the official Svelte css-prune walker visits the `Percentage` selector
+            // and its logic treats it as a possible match for every element (it's
+            // explicitly skipped inside `relative_selector_might_apply_to_node`).
+            // The net effect: every element in the template gets `metadata.scoped = true`.
+            // Keyframes that use only `from`/`to` steps do NOT trigger this behavior.
+            if analysis.css.has_percentage_keyframe_step {
                 css_scoping::mark_all_elements_scoped(&mut ast.fragment);
             }
         }

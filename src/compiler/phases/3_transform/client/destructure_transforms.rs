@@ -1536,6 +1536,326 @@ pub(super) fn generate_destructure_iife(
 /// The subsequent `wrap_state_vars_in_expr` call will handle `$.get()` wrapping
 /// inside the mutation expression (the `in_mutate_first_arg` guard in that
 /// function ensures the first argument of `$.mutate()` is NOT double-wrapped).
+/// Walk backward from `pos` in `chars` to find any enclosing function or arrow
+/// function parameter list. If any such enclosing function has a parameter whose
+/// identifier matches `var`, return true (the identifier at `pos` is shadowed).
+///
+/// This is a best-effort text-level scope check for the legacy-mode member-mutation
+/// transform. It does NOT try to understand full JS scoping — it only checks direct
+/// function parameters of functions that currently wrap `pos`.
+fn is_var_shadowed_by_enclosing_param(chars: &[char], pos: usize, var: &str) -> bool {
+    // Walk backward from `pos` tracking brace/paren depth. Each time we cross an
+    // unmatched `{` or `(` going backward, we've entered an outer scope. After
+    // exiting a `{` (i.e. we're now just before it), peek backward to see if this
+    // brace opens a function body, and if so inspect its parameter list.
+    let mut i = pos;
+    let mut brace_depth = 0i32; // `}` seen but not yet matched (positive => we're inside an outer block)
+    let mut paren_depth = 0i32;
+    let mut bracket_depth = 0i32;
+    let mut in_string: Option<char> = None;
+
+    while i > 0 {
+        i -= 1;
+        let c = chars[i];
+
+        // Crude string handling (scanning backward is imprecise, but good enough for
+        // well-formed code).
+        if let Some(q) = in_string {
+            if c == q {
+                let escaped = {
+                    let mut bs = 0;
+                    let mut j = i;
+                    while j > 0 && chars[j - 1] == '\\' {
+                        bs += 1;
+                        j -= 1;
+                    }
+                    bs % 2 == 1
+                };
+                if !escaped {
+                    in_string = None;
+                }
+            }
+            continue;
+        }
+        if c == '\'' || c == '"' || c == '`' {
+            in_string = Some(c);
+            continue;
+        }
+
+        match c {
+            '}' => brace_depth += 1,
+            '{' => {
+                if brace_depth == 0 {
+                    // We've found a `{` that opens an outer block containing `pos`.
+                    // Check if this is a function body: look backward past whitespace
+                    // and any `=>` for a `)` that closes a parameter list.
+                    if let Some((params_start, params_end)) =
+                        find_function_params_before_brace(chars, i)
+                    {
+                        let params_text: String =
+                            chars[params_start + 1..params_end].iter().collect();
+                        if param_list_contains(&params_text, var) {
+                            return true;
+                        }
+                    }
+                    // Continue walking outward past this brace.
+                } else {
+                    brace_depth -= 1;
+                }
+            }
+            ')' => paren_depth += 1,
+            '(' => {
+                if paren_depth == 0 {
+                    // We're inside an unmatched `(` going backward — this might be
+                    // a function parameter list for an arrow expression like
+                    // `(iframe) => iframe.style...`. Check the text between `(` and
+                    // the matching `)` ahead for a parameter named `var`.
+                    let params_start = i;
+                    // Find matching `)` by scanning forward
+                    let mut depth = 0i32;
+                    let mut j = i + 1;
+                    let mut in_s: Option<char> = None;
+                    let mut params_end: Option<usize> = None;
+                    while j < chars.len() {
+                        let cj = chars[j];
+                        if let Some(q) = in_s {
+                            if cj == q {
+                                in_s = None;
+                            }
+                            j += 1;
+                            continue;
+                        }
+                        if cj == '\'' || cj == '"' || cj == '`' {
+                            in_s = Some(cj);
+                            j += 1;
+                            continue;
+                        }
+                        match cj {
+                            '(' | '[' | '{' => depth += 1,
+                            ')' => {
+                                if depth == 0 {
+                                    params_end = Some(j);
+                                    break;
+                                }
+                                depth -= 1;
+                            }
+                            ']' | '}' => depth -= 1,
+                            _ => {}
+                        }
+                        j += 1;
+                    }
+                    if let Some(pe) = params_end {
+                        // Check if this is followed (after whitespace) by `=>` — then
+                        // it IS an arrow function param list.
+                        let mut k = pe + 1;
+                        while k < chars.len() && chars[k].is_whitespace() {
+                            k += 1;
+                        }
+                        // Skip optional return type annotation `: Type` — scan until `=>`
+                        // or end of statement.
+                        let is_arrow =
+                            k + 1 < chars.len() && chars[k] == '=' && chars[k + 1] == '>';
+                        // Or `: ... =>` — look for `=>` before a statement terminator
+                        let is_arrow_with_type = !is_arrow && {
+                            let mut d = 0i32;
+                            let mut found = false;
+                            let mut kk = k;
+                            while kk + 1 < chars.len() {
+                                let ch = chars[kk];
+                                match ch {
+                                    '(' | '[' | '{' => d += 1,
+                                    ')' | ']' | '}' => {
+                                        if d == 0 {
+                                            break;
+                                        }
+                                        d -= 1;
+                                    }
+                                    ';' | ',' if d == 0 => break,
+                                    '=' if d == 0 && chars[kk + 1] == '>' => {
+                                        found = true;
+                                        break;
+                                    }
+                                    _ => {}
+                                }
+                                kk += 1;
+                            }
+                            found
+                        };
+                        if is_arrow || is_arrow_with_type {
+                            let params_text: String = chars[params_start + 1..pe].iter().collect();
+                            if param_list_contains(&params_text, var) {
+                                return true;
+                            }
+                        }
+                    }
+                    // Don't stop — continue outward.
+                } else {
+                    paren_depth -= 1;
+                }
+            }
+            ']' => bracket_depth += 1,
+            '[' => {
+                if bracket_depth > 0 {
+                    bracket_depth -= 1;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    false
+}
+
+/// Given the index of an opening brace `{`, look backward to see if it opens a
+/// function body. A function body is recognized by the pattern `...)  => {`
+/// (arrow with body) or `...)  {` (function declaration / method). Returns the
+/// `(`..`)` range of the parameter list if found.
+fn find_function_params_before_brace(chars: &[char], brace_idx: usize) -> Option<(usize, usize)> {
+    // Walk backward skipping whitespace and an optional `=>`
+    let mut i = brace_idx;
+    while i > 0 {
+        i -= 1;
+        if chars[i].is_whitespace() {
+            continue;
+        }
+        break;
+    }
+    // Optional `>` of `=>`
+    if chars[i] == '>' && i > 0 && chars[i - 1] == '=' {
+        i = i.saturating_sub(2);
+        while i > 0 && chars[i].is_whitespace() {
+            i -= 1;
+        }
+    }
+    // Optional return type annotation: `: Type` — handle simple identifiers
+    // (heuristic: skip back over identifier chars and a `:`).
+    // Actually we may also have `...)  : Type  => {`. Already handled `=>` above,
+    // so scan back skipping non-`)` characters until we hit `)` or give up.
+    // To keep it simple and safe, we only skip if we're currently on `)`.
+    if chars[i] != ')' {
+        // Try to skip a type annotation: scan back over identifier/dot/angle/space/colon
+        let mut j = i;
+        let mut ok = false;
+        while j > 0 {
+            let c = chars[j];
+            if c == ')' {
+                ok = true;
+                break;
+            }
+            if c.is_alphanumeric()
+                || c == '_'
+                || c == '$'
+                || c == '.'
+                || c == '<'
+                || c == '>'
+                || c == ','
+                || c == ' '
+                || c == '\t'
+                || c == '|'
+                || c == '&'
+                || c == ':'
+                || c == '['
+                || c == ']'
+                || c == '?'
+            {
+                j -= 1;
+                continue;
+            }
+            break;
+        }
+        if ok {
+            i = j;
+        } else {
+            return None;
+        }
+    }
+    if chars[i] != ')' {
+        return None;
+    }
+    let params_end = i;
+    // Find matching `(` backward
+    let mut depth = 0i32;
+    let mut j = params_end;
+    while j > 0 {
+        j -= 1;
+        let c = chars[j];
+        match c {
+            ')' | ']' | '}' => depth += 1,
+            '(' => {
+                if depth == 0 {
+                    return Some((j, params_end));
+                }
+                depth -= 1;
+            }
+            '[' | '{' => {
+                if depth > 0 {
+                    depth -= 1;
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Return true if `params_text` (the text inside the outer `(...)` of a parameter
+/// list) declares a parameter whose identifier name is exactly `var`.
+fn param_list_contains(params_text: &str, var: &str) -> bool {
+    // Split on top-level commas
+    let mut depth = 0i32;
+    let mut in_string: Option<char> = None;
+    let mut current = String::new();
+    let mut parts: Vec<String> = Vec::new();
+    for c in params_text.chars() {
+        if let Some(q) = in_string {
+            if c == q {
+                in_string = None;
+            }
+            current.push(c);
+            continue;
+        }
+        match c {
+            '\'' | '"' | '`' => {
+                in_string = Some(c);
+                current.push(c);
+            }
+            '(' | '[' | '{' | '<' => {
+                depth += 1;
+                current.push(c);
+            }
+            ')' | ']' | '}' | '>' => {
+                depth -= 1;
+                current.push(c);
+            }
+            ',' if depth == 0 => {
+                parts.push(std::mem::take(&mut current));
+            }
+            _ => current.push(c),
+        }
+    }
+    if !current.trim().is_empty() {
+        parts.push(current);
+    }
+    for part in parts {
+        let p = part.trim();
+        // Strip leading `...` rest parameter marker
+        let p = p.strip_prefix("...").unwrap_or(p);
+        // Extract leading identifier (up to `:`, `=`, whitespace, or punctuation).
+        let mut name = String::new();
+        for ch in p.chars() {
+            if ch.is_alphanumeric() || ch == '_' || ch == '$' {
+                name.push(ch);
+            } else {
+                break;
+            }
+        }
+        if name == var {
+            return true;
+        }
+    }
+    false
+}
+
 pub(super) fn transform_member_mutations(
     line: &str,
     state_vars: &[String],
@@ -1679,7 +1999,16 @@ pub(super) fn transform_member_mutations(
                         i > 0 && chars[i - 1] == '.'
                     };
 
-                    if before_ok && after_ok && !already_wrapped {
+                    // Scope-awareness: skip this mutation if `var` is shadowed by a
+                    // parameter of an enclosing function/arrow function. This handles
+                    // e.g. `let iframe = $state(...)` being shadowed by a callback
+                    // parameter `(iframe: HTMLIFrameElement) => { iframe.style... }`.
+                    let shadowed_by_param = !already_wrapped
+                        && before_ok
+                        && after_ok
+                        && is_var_shadowed_by_enclosing_param(&chars, i, var);
+
+                    if before_ok && after_ok && !already_wrapped && !shadowed_by_param {
                         // Scan forward to find the full member expression LHS and the `=` sign
                         let member_start = i + var_len;
                         let mut j = member_start;

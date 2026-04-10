@@ -372,7 +372,7 @@ pub struct CssComplexSelector {
 pub fn extract_css_selectors(stylesheet: &crate::ast::css::StyleSheet) -> Vec<CssComplexSelector> {
     let mut selectors = Vec::new();
     for child in &stylesheet.children {
-        extract_selectors_from_css_node(child, &mut selectors);
+        extract_selectors_from_css_node(child, &mut selectors, &[]);
     }
     selectors
 }
@@ -380,6 +380,7 @@ pub fn extract_css_selectors(stylesheet: &crate::ast::css::StyleSheet) -> Vec<Cs
 fn extract_selectors_from_css_node(
     node: &serde_json::Value,
     selectors: &mut Vec<CssComplexSelector>,
+    parent_selectors: &[CssComplexSelector],
 ) {
     let node_type = match node.get("type").and_then(|t| t.as_str()) {
         Some(t) => t,
@@ -395,20 +396,46 @@ fn extract_selectors_from_css_node(
             {
                 return;
             }
+            // Parse this rule's own prelude selectors
+            let mut own_selectors: Vec<CssComplexSelector> = Vec::new();
             if let Some(prelude) = node.get("prelude")
                 && let Some(complex_selectors) = prelude.get("children").and_then(|c| c.as_array())
             {
                 for cs in complex_selectors {
                     if let Some(parsed) = parse_complex_selector(cs) {
-                        selectors.push(parsed);
+                        own_selectors.push(parsed);
                     }
                 }
             }
+
+            // Determine the effective selectors for this rule, substituting `&`
+            // (NestingSelector) with the parent rule's selectors. If there is no
+            // parent rule, the selectors are used as-is. If the child selector
+            // contains an explicit `&`, we replace it. If it doesn't, and we have
+            // parents, the default is descendant of parent (like `parent &`).
+            let effective: Vec<CssComplexSelector> = if parent_selectors.is_empty() {
+                own_selectors.clone()
+            } else {
+                let mut out: Vec<CssComplexSelector> = Vec::new();
+                for own in &own_selectors {
+                    for parent in parent_selectors {
+                        out.push(substitute_nesting(own, parent));
+                    }
+                }
+                out
+            };
+
+            for sel in effective.iter().cloned() {
+                selectors.push(sel);
+            }
+
+            // Recurse into nested rules with the effective selectors as the new
+            // parent_selectors context.
             if let Some(block) = node.get("block")
                 && let Some(children) = block.get("children").and_then(|c| c.as_array())
             {
                 for child in children {
-                    extract_selectors_from_css_node(child, selectors);
+                    extract_selectors_from_css_node(child, selectors, &effective);
                 }
             }
         }
@@ -427,12 +454,104 @@ fn extract_selectors_from_css_node(
                 && let Some(children) = block.get("children").and_then(|c| c.as_array())
             {
                 for child in children {
-                    extract_selectors_from_css_node(child, selectors);
+                    extract_selectors_from_css_node(child, selectors, parent_selectors);
                 }
             }
         }
         _ => {}
     }
+}
+
+/// Substitute `&` in `child` with `parent`. If `child` has no explicit `&`, the
+/// substitution is `parent <child>` (descendant combinator). The returned selector
+/// represents the fully-resolved selector as if written at the top level.
+fn substitute_nesting(
+    child: &CssComplexSelector,
+    parent: &CssComplexSelector,
+) -> CssComplexSelector {
+    let has_nesting = child.children.iter().any(|rel| {
+        rel.selectors
+            .iter()
+            .any(|s| matches!(s, CssSimpleSelector::Nesting))
+    });
+
+    if !has_nesting {
+        // No explicit `&`: treat as descendant of parent
+        let mut combined = parent.children.clone();
+        // First child selector of `child` becomes descendant of parent
+        for (i, rel) in child.children.iter().enumerate() {
+            let mut r = rel.clone();
+            if i == 0 && r.combinator.is_none() {
+                r.combinator = Some(" ".to_string());
+            }
+            combined.push(r);
+        }
+        return CssComplexSelector { children: combined };
+    }
+
+    // Replace each relative selector that contains `&`:
+    // - If the relative selector is ONLY `&`, replace it with the full parent chain.
+    // - If it's `&.foo` or similar, replace the `&` simple selector with the
+    //   parent's LAST relative selector's simple selectors (so `&:hover` becomes
+    //   `.parent:hover`). Earlier relative selectors of parent are prepended.
+    let mut result: Vec<CssRelativeSelector> = Vec::new();
+    for rel in &child.children {
+        let has_nest = rel
+            .selectors
+            .iter()
+            .any(|s| matches!(s, CssSimpleSelector::Nesting));
+        if !has_nest {
+            result.push(rel.clone());
+            continue;
+        }
+
+        // If `&` is the ONLY simple selector, replace with parent's entire chain
+        if rel.selectors.len() == 1 {
+            // Inline parent selectors at this position
+            for (i, prel) in parent.children.iter().enumerate() {
+                let mut pr = prel.clone();
+                if i == 0 {
+                    // Preserve this child relative selector's combinator on the
+                    // first parent relative selector.
+                    pr.combinator = rel.combinator.clone();
+                }
+                result.push(pr);
+            }
+            continue;
+        }
+
+        // Otherwise `&.foo` or `&:hover`: prepend parent's earlier relatives,
+        // and merge parent's LAST relative's simple selectors with the non-`&`
+        // simple selectors in `rel`.
+        if let Some((last_parent, earlier_parent)) = parent.children.split_last() {
+            for (i, prel) in earlier_parent.iter().enumerate() {
+                let mut pr = prel.clone();
+                if i == 0 {
+                    pr.combinator = rel.combinator.clone();
+                }
+                result.push(pr);
+            }
+            let mut merged = last_parent.clone();
+            if earlier_parent.is_empty() {
+                merged.combinator = rel.combinator.clone();
+            }
+            // Append this rel's non-nesting simple selectors to parent's last
+            for s in &rel.selectors {
+                if !matches!(s, CssSimpleSelector::Nesting) {
+                    merged.selectors.push(s.clone());
+                }
+            }
+            result.push(merged);
+        } else {
+            // No parent to substitute with — keep the rel as-is minus the nesting
+            let mut r = rel.clone();
+            r.selectors
+                .retain(|s| !matches!(s, CssSimpleSelector::Nesting));
+            result.push(r);
+        }
+    }
+
+    CssComplexSelector { children: result }
 }
 
 fn parse_complex_selector(cs: &serde_json::Value) -> Option<CssComplexSelector> {

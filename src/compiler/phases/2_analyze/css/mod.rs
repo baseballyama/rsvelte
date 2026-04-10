@@ -8,7 +8,7 @@
 // Allow dead code for stub implementations that will be integrated later
 #![allow(dead_code)]
 
-mod analyze;
+pub mod analyze;
 mod prune;
 mod utils;
 mod warn;

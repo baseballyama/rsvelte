@@ -17,6 +17,8 @@ struct CssAnalysisState<'a> {
     parent_rule_has_parent: bool,
     /// Whether we're inside a pseudoclass selector context.
     in_pseudoclass: bool,
+    /// The original component source (for position-based lookups).
+    source: Option<&'a str>,
 }
 
 /// Analyze a CSS stylesheet.
@@ -24,10 +26,20 @@ pub fn analyze_css(
     stylesheet: &StyleSheet,
     analysis: &mut ComponentAnalysis,
 ) -> Result<(), AnalysisError> {
+    analyze_css_with_source(stylesheet, analysis, None)
+}
+
+/// Analyze a CSS stylesheet, with access to the original source text.
+pub fn analyze_css_with_source<'a>(
+    stylesheet: &'a StyleSheet,
+    analysis: &mut ComponentAnalysis,
+    source: Option<&'a str>,
+) -> Result<(), AnalysisError> {
     let state = CssAnalysisState {
         parent_rule: None,
         parent_rule_has_parent: false,
         in_pseudoclass: false,
+        source,
     };
     for child in &stylesheet.children {
         analyze_css_node(child, analysis, &state)?;
@@ -87,6 +99,33 @@ fn analyze_atrule(
         for child in children {
             if is_keyframes {
                 if child.get("type").and_then(|t| t.as_str()) == Some("Rule") {
+                    // Detect if this keyframe step has a percentage selector
+                    // (e.g. `0%`, `50%`). Steps like `from`/`to` don't count.
+                    // The rsvelte CSS parser does not emit a `Percentage` node for
+                    // keyframe steps (it produces an empty RelativeSelector), so we
+                    // detect percentage steps via the source substring using start/end.
+                    if !analysis.css.has_percentage_keyframe_step
+                        && let Some(prelude) = child.get("prelude")
+                        && let (Some(start), Some(end)) = (
+                            prelude.get("start").and_then(|v| v.as_u64()),
+                            prelude.get("end").and_then(|v| v.as_u64()),
+                        )
+                        && let Some(source) = state.source
+                        && let Some(text) = source.get(start as usize..end as usize)
+                    {
+                        // Split on commas (e.g. `0%, 100%`) and check if any fragment
+                        // is a percentage value
+                        if text.split(',').any(|s| {
+                            let t = s.trim();
+                            t.ends_with('%')
+                                && t[..t.len() - 1]
+                                    .trim()
+                                    .chars()
+                                    .all(|c| c.is_ascii_digit() || c == '.')
+                        }) {
+                            analysis.css.has_percentage_keyframe_step = true;
+                        }
+                    }
                     if let Some(prelude) = child.get("prelude")
                         && has_global_selector(prelude)
                     {
@@ -109,6 +148,34 @@ fn analyze_atrule(
         }
     }
     Ok(())
+}
+
+/// Returns true if a keyframe step's prelude contains any Percentage selector.
+/// E.g. `0% { ... }` or `50%, 100% { ... }` returns true, but `from { ... }` does not.
+fn keyframe_rule_has_percentage(prelude: &serde_json::Value) -> bool {
+    // prelude is a SelectorList with children -> Selector with children -> simple selectors
+    let children = match prelude.get("children").and_then(|c| c.as_array()) {
+        Some(c) => c,
+        None => return false,
+    };
+    for selector in children {
+        if let Some(sel_children) = selector.get("children").and_then(|c| c.as_array()) {
+            for simple in sel_children {
+                if simple.get("type").and_then(|t| t.as_str()) == Some("Percentage") {
+                    return true;
+                }
+                // RelativeSelector wraps selectors
+                if let Some(inner) = simple.get("selectors").and_then(|s| s.as_array()) {
+                    for s in inner {
+                        if s.get("type").and_then(|t| t.as_str()) == Some("Percentage") {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    false
 }
 
 /// Check if a simple selector is a `:global` block selector (without args).
@@ -276,6 +343,7 @@ fn analyze_rule(
         parent_rule: Some(node),
         parent_rule_has_parent: state.parent_rule.is_some(),
         in_pseudoclass: false,
+        source: state.source,
     };
     if let Some(block) = node.get("block")
         && let Some(children) = block.get("children").and_then(|c| c.as_array())
@@ -676,6 +744,7 @@ fn validate_complex_selector(
                             parent_rule: state.parent_rule,
                             parent_rule_has_parent: state.parent_rule_has_parent,
                             in_pseudoclass: true,
+                            source: state.source,
                         };
                         validate_selectors(args, &pseudo_state)?;
                     }

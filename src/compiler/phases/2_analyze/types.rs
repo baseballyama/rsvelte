@@ -1853,6 +1853,13 @@ pub struct CssAnalysis {
     /// Keyframe names for scoping
     pub keyframes: Vec<String>,
 
+    /// True if any `@keyframes` rule contains at least one step whose prelude is a
+    /// percentage (e.g. `0%`, `50%`). When true, the official compiler's css-prune
+    /// walker visits those `Percentage` selectors and treats them as possibly matching
+    /// any element, which effectively scopes ALL elements in the component. Keyframes
+    /// using only keyword steps (`from`, `to`) do NOT trigger this behavior.
+    pub has_percentage_keyframe_step: bool,
+
     /// Whether the CSS contains :global
     pub has_global: bool,
 
