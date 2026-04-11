@@ -222,10 +222,31 @@ pub fn detect_store_subscriptions(
                 //
                 // We replicate this by checking binding kind is Prop/RestProp/BindableProp
                 // (i.e., init was $props()) AND store_name == "props".
-                let is_props_rune_init = matches!(
+                // Also detect the `let { props } = $props()` case. Prop binding kinds are
+                // assigned during the later visitor walk, which runs AFTER store subscription
+                // detection, so at this point the binding kind may still be the default
+                // (Normal). As a fallback, scan the instance script source for any
+                // `= $props(` initializer — if one exists and `store_name == "props"`, then
+                // `$props` refers to the rune (not a store subscription).
+                let instance_has_props_rune_init = ast
+                    .instance
+                    .as_ref()
+                    .and_then(|inst| {
+                        let s = inst.content.start().unwrap_or(0) as usize;
+                        let e = inst.content.end().unwrap_or(0) as usize;
+                        if e > s && e <= analysis.source.len() {
+                            Some(&analysis.source[s..e])
+                        } else {
+                            None
+                        }
+                    })
+                    .map(|src| src.contains("$props(") || src.contains("$props.bindable("))
+                    .unwrap_or(false);
+                let is_props_rune_init = (matches!(
                     binding.kind,
                     BindingKind::Prop | BindingKind::RestProp | BindingKind::BindableProp
-                ) && store_name == "props";
+                ) || instance_has_props_rune_init)
+                    && store_name == "props";
 
                 if is_props_rune_init {
                     // The binding is `let props = $props()` - $props is the rune, not a store
