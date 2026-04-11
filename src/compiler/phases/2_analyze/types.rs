@@ -791,7 +791,27 @@ fn collect_ts_removals_from_expression(
             }
         }
         E::ParenthesizedExpression(paren) => {
-            collect_ts_removals_from_expression(&paren.expression, source, removals);
+            // When parens wrap a TS-only wrapper like `(X as T)` or `(X!)` whose
+            // runtime value is simply `X`, the outer parens become redundant once
+            // the type annotation is stripped. Collapse them together so that
+            // `((expr)?.filter(x) as T[])[0]` becomes `(expr)?.filter(x)[0]`,
+            // matching esrap/astring output. We only drop the outer parens when
+            // the inner expression is one of the single-value TS wrappers.
+            let inner = &paren.expression;
+            let is_ts_wrapper = matches!(
+                inner,
+                E::TSAsExpression(_)
+                    | E::TSSatisfiesExpression(_)
+                    | E::TSNonNullExpression(_)
+                    | E::TSTypeAssertion(_)
+                    | E::TSInstantiationExpression(_)
+            );
+            if is_ts_wrapper {
+                // Remove `(` and `)` surrounding the TS wrapper.
+                removals.push((paren.span.start, inner.span().start));
+                removals.push((inner.span().end, paren.span.end));
+            }
+            collect_ts_removals_from_expression(inner, source, removals);
         }
         E::AwaitExpression(await_expr) => {
             collect_ts_removals_from_expression(&await_expr.argument, source, removals);
