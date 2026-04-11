@@ -997,8 +997,16 @@ impl<'a> JsCodegen<'a> {
                     self.output.push(']');
                 }
 
+                // Auto-detect method shorthand: Init property with a non-arrow
+                // FunctionExpression value is emitted as `name(params) { body }`,
+                // mirroring esrap/astring. This applies for both explicit and
+                // implicit method shorthand.
+                let auto_method = !prop.computed
+                    && matches!(prop.kind, JsPropertyKind::Init)
+                    && matches!(self.arena.get_expr(prop.value), JsExpr::Function(_));
+
                 // Method shorthand: name(params) { body }
-                if prop.method {
+                if prop.method || auto_method {
                     if let JsExpr::Function(func) = self.arena.get_expr(prop.value) {
                         self.output.push('(');
                         self.emit_params(&func.params);
