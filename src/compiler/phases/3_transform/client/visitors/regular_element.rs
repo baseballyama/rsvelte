@@ -56,6 +56,7 @@ struct LetDirectiveResult {
         String,
         Option<crate::compiler::phases::phase3_transform::client::types::IdentifierTransform>,
     )>,
+    saved_transform_deep_read: im::HashMap<String, ()>,
 }
 
 fn process_element_let_directives(
@@ -68,6 +69,7 @@ fn process_element_let_directives(
         String,
         Option<crate::compiler::phases::phase3_transform::client::types::IdentifierTransform>,
     )> = Vec::new();
+    let saved_transform_deep_read = context.state.transform_deep_read.clone();
 
     for let_dir in let_directives {
         let prop_name = &let_dir.name;
@@ -122,10 +124,15 @@ fn process_element_let_directives(
                     replacement_id: None,
                 },
             );
+            // Let directive bindings are template-kind.
+            context.state.transform_deep_read.insert(name.clone(), ());
         }
     }
 
-    LetDirectiveResult { saved_transforms }
+    LetDirectiveResult {
+        saved_transforms,
+        saved_transform_deep_read,
+    }
 }
 
 /// Visit a regular element node.
@@ -1344,6 +1351,7 @@ pub fn visit_regular_element(
             context.state.transform.remove(name);
         }
     }
+    context.state.transform_deep_read = let_directive_result.saved_transform_deep_read;
 
     context.state.template.pop_element();
     TransformResult::None

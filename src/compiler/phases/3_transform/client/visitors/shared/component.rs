@@ -135,6 +135,7 @@ pub fn build_component(
     // Save transforms that will be shadowed by let directives when slot_scope_applies_to_itself.
     // This allows us to restore them after the component is processed.
     let mut saved_self_slot_transforms: Vec<(String, Option<IdentifierTransform>)> = Vec::new();
+    let saved_self_slot_deep_read = context.state.transform_deep_read.clone();
 
     // Process let directives first if slot scope applies to component itself
     // This must happen before attribute processing so transforms are available
@@ -167,6 +168,8 @@ pub fn build_component(
                     replacement_id: None,
                 },
             );
+            // Let directive bindings are template-kind.
+            context.state.transform_deep_read.insert(name.clone(), ());
         }
     }
 
@@ -608,6 +611,7 @@ pub fn build_component(
                 context.state.transform.remove(name);
             }
         }
+        context.state.transform_deep_read = saved_self_slot_deep_read;
     }
 
     // Wrap in $.async() if there are async memoized expressions or blockers
@@ -2076,6 +2080,7 @@ fn build_slot_function(
         String,
         Option<crate::compiler::phases::phase3_transform::client::types::IdentifierTransform>,
     )> = Vec::new();
+    let saved_deep_read = context.state.transform_deep_read.clone();
 
     // Register let directive transforms if this is the appropriate slot
     if should_apply_let_transforms {
@@ -2100,6 +2105,8 @@ fn build_slot_function(
                     replacement_id: None,
                 },
             );
+            // Let directive bindings are template-kind.
+            context.state.transform_deep_read.insert(name.clone(), ());
         }
     }
 
@@ -2119,6 +2126,7 @@ fn build_slot_function(
                 context.state.transform.remove(name);
             }
         }
+        context.state.transform_deep_read = saved_deep_read;
     }
 
     // If no statements were generated, return None

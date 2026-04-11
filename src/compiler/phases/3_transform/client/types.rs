@@ -999,6 +999,7 @@ impl<'a> ComponentContext<'a> {
             String,
             Option<crate::compiler::phases::phase3_transform::client::types::IdentifierTransform>,
         )> = Vec::new();
+        let saved_deep_read_for_let = self.state.transform_deep_read.clone();
 
         for binding_name in &let_binding_names {
             let existing = self.state.transform.get(binding_name).cloned();
@@ -1020,6 +1021,12 @@ impl<'a> ComponentContext<'a> {
                     replacement_id: None,
                 },
             );
+            // Let directive bindings are template-kind (BindingKind::Let) in
+            // the official compiler and require deep_read_state wrapping in
+            // legacy reactivity sequences.
+            self.state
+                .transform_deep_read
+                .insert(binding_name.clone(), ());
         }
 
         // Memoizer: track sync and async memoized expressions
@@ -1134,6 +1141,7 @@ impl<'a> ComponentContext<'a> {
                 self.state.transform.remove(name);
             }
         }
+        self.state.transform_deep_read = saved_deep_read_for_let;
 
         // Generate: $.slot(node, $$props, name, props_expression, fallback)
         let slot_call = b::call(
@@ -1291,6 +1299,7 @@ impl<'a> ComponentContext<'a> {
         // Save existing transforms that will be shadowed by let directives,
         // so we can restore them after visiting children.
         let mut saved_transforms: Vec<(String, Option<IdentifierTransform>)> = Vec::new();
+        let saved_deep_read_for_svelte_fragment = self.state.transform_deep_read.clone();
 
         for attribute in &frag.attributes {
             if let Attribute::LetDirective(let_dir) = attribute {
@@ -1350,6 +1359,8 @@ impl<'a> ComponentContext<'a> {
                             replacement_id: None,
                         },
                     );
+                    // Let directive bindings are template-kind.
+                    self.state.transform_deep_read.insert(name.clone(), ());
                 } else {
                     // Destructured case: let:x={{y, z}} or let:x={[a, b]}
                     // Generates: const derived_name = $.derived(() => { let {y, z} = $$slotProps.x; return {y, z}; })
@@ -1467,6 +1478,10 @@ impl<'a> ComponentContext<'a> {
                                             replacement_id: None,
                                         },
                                     );
+                                    // Destructured let directive binding is template-kind.
+                                    self.state
+                                        .transform_deep_read
+                                        .insert(binding_name.to_string(), ());
                                 }
 
                                 // Build the destructuring pattern
@@ -1555,6 +1570,7 @@ impl<'a> ComponentContext<'a> {
                 self.state.transform.remove(name);
             }
         }
+        self.state.transform_deep_read = saved_deep_read_for_svelte_fragment;
 
         TransformResult::None
     }
@@ -1840,6 +1856,15 @@ pub struct ComponentClientTransformState<'a> {
     /// Transform rules for identifiers (uses im::HashMap for O(1) clone)
     pub transform: ImHashMap<String, IdentifierTransform>,
 
+    /// Names whose current-scope binding kind requires `$.deep_read_state()`
+    /// wrapping in legacy reactivity sequences. Populated by visitors when
+    /// they install a transform for a `template` / `bindable_prop` / `import`
+    /// / `$$props` binding. Used by `collect_reactive_references` to avoid
+    /// relying on `get_binding()`, which can return a wrong-scope same-named
+    /// binding (e.g., an each item named `x` versus a `{@const x = ...}`
+    /// inside a sibling `{#if}`).
+    pub transform_deep_read: ImHashMap<String, ()>,
+
     /// Delegated events (insertion-ordered to match official compiler's Set<string>)
     pub events: indexmap::IndexSet<String>,
 
@@ -2118,6 +2143,7 @@ impl<'a> ComponentClientTransformState<'a> {
             // Use memoizer with scope declarations to avoid variable name collisions
             memoizer: Memoizer::with_scope_declarations(scope, scope_root),
             transform: ImHashMap::new(),
+            transform_deep_read: ImHashMap::new(),
             events: indexmap::IndexSet::default(),
             metadata: ComponentMetadata::default(),
             in_constructor: false,

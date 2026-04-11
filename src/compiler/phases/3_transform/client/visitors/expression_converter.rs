@@ -779,9 +779,11 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
             // Save transforms and remove for shadowed params
             let saved_transform = context.state.transform.clone();
+            let saved_transform_deep_read = context.state.transform_deep_read.clone();
             let param_names = extract_param_names_from_node_refs(&param_nodes);
             for name in &param_names {
                 context.state.transform.remove(name);
+                context.state.transform_deep_read.remove(name);
             }
 
             context.state.push_local_scope();
@@ -833,6 +835,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
             context.state.pop_local_scope();
             context.state.transform = saved_transform;
+            context.state.transform_deep_read = saved_transform_deep_read;
 
             JsExpr::Arrow(JsArrowFunction {
                 params: conv_params.into(),
@@ -869,9 +872,11 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
             // Save transforms and remove for shadowed params
             let saved_transform = context.state.transform.clone();
+            let saved_transform_deep_read = context.state.transform_deep_read.clone();
             let param_names = extract_param_names_from_node_refs(&param_nodes);
             for name in &param_names {
                 context.state.transform.remove(name);
+                context.state.transform_deep_read.remove(name);
             }
 
             context.state.push_local_scope();
@@ -905,6 +910,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
             context.state.pop_local_scope();
             context.state.transform = saved_transform;
+            context.state.transform_deep_read = saved_transform_deep_read;
 
             JsExpr::Function(JsFunctionExpression {
                 id: conv_id,
@@ -3198,10 +3204,12 @@ fn convert_arrow_function(
     // For example, in `createRawSnippet((count) => { ... })`, the `count` parameter
     // shadows the outer `$state` variable `count`, so `$.get()` should NOT be applied.
     let saved_transform = context.state.transform.clone();
+    let saved_transform_deep_read = context.state.transform_deep_read.clone();
     let saved_shadowed = context.state.shadowed_prop_names.clone();
     let param_names = extract_param_names_from_json(obj);
     for name in &param_names {
         context.state.transform.remove(name);
+        context.state.transform_deep_read.remove(name.as_str());
         context.state.shadowed_prop_names.insert(name.clone());
     }
 
@@ -3240,6 +3248,7 @@ fn convert_arrow_function(
 
     // Restore transforms and shadowed props
     context.state.transform = saved_transform;
+    context.state.transform_deep_read = saved_transform_deep_read;
     context.state.shadowed_prop_names = saved_shadowed;
 
     JsExpr::Arrow(JsArrowFunction {
@@ -3265,10 +3274,12 @@ fn convert_function_expression(
 
     // Save transforms and remove any for parameter names that shadow outer variables.
     let saved_transform = context.state.transform.clone();
+    let saved_transform_deep_read = context.state.transform_deep_read.clone();
     let saved_shadowed = context.state.shadowed_prop_names.clone();
     let param_names = extract_param_names_from_json(obj);
     for name in &param_names {
         context.state.transform.remove(name);
+        context.state.transform_deep_read.remove(name.as_str());
         context.state.shadowed_prop_names.insert(name.clone());
     }
 
@@ -3286,6 +3297,7 @@ fn convert_function_expression(
 
     // Restore transforms and shadowed props
     context.state.transform = saved_transform;
+    context.state.transform_deep_read = saved_transform_deep_read;
     context.state.shadowed_prop_names = saved_shadowed;
 
     let is_async = obj.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
@@ -4021,10 +4033,12 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
 
             // Save transforms and remove any for parameter names that shadow outer variables.
             let saved_transform = context.state.transform.clone();
+            let saved_transform_deep_read = context.state.transform_deep_read.clone();
             let saved_shadowed = context.state.shadowed_prop_names.clone();
             let param_names = extract_param_names_from_json(obj);
             for name in &param_names {
                 context.state.transform.remove(name);
+                context.state.transform_deep_read.remove(name.as_str());
                 context.state.shadowed_prop_names.insert(name.clone());
             }
 
@@ -4042,6 +4056,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
 
             // Restore transforms and shadowed props
             context.state.transform = saved_transform;
+            context.state.transform_deep_read = saved_transform_deep_read;
             context.state.shadowed_prop_names = saved_shadowed;
 
             let is_async = obj.get("async").and_then(|a| a.as_bool()).unwrap_or(false);

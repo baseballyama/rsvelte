@@ -87,6 +87,7 @@ pub fn snippet_block(node: &SnippetBlock, context: &mut ComponentContext) {
     // Without saving/restoring, these transforms would overwrite outer scope
     // transforms (e.g., a $state variable with the same name).
     let saved_transform = context.state.transform.clone();
+    let saved_transform_deep_read = context.state.transform_deep_read.clone();
 
     // Process each parameter
     for (i, param) in node.parameters.iter().enumerate() {
@@ -130,6 +131,7 @@ pub fn snippet_block(node: &SnippetBlock, context: &mut ComponentContext) {
 
     // Restore the transform map and blocker_map to the outer scope
     context.state.transform = saved_transform;
+    context.state.transform_deep_read = saved_transform_deep_read;
     *context.state.blocker_map.borrow_mut() = saved_blocker_map;
     context.state.shadowed_prop_names = saved_shadowed;
 
@@ -276,6 +278,7 @@ fn process_parameter(
                 .state
                 .transform
                 .insert(name.to_string(), create_call_transform());
+            context.state.transform_deep_read.remove(name);
 
             return Some(ParameterInfo {
                 pattern,
@@ -382,6 +385,7 @@ fn process_destructured_pattern(
                                     .state
                                     .transform
                                     .insert(key_name.to_string(), transform);
+                                context.state.transform_deep_read.remove(key_name);
 
                                 // In dev mode, eagerly evaluate to catch initialization errors
                                 if context.state.dev {
@@ -414,6 +418,7 @@ fn process_destructured_pattern(
                                     .state
                                     .transform
                                     .insert(name.to_string(), create_call_transform());
+                                context.state.transform_deep_read.remove(name);
                             }
                         }
                     }
@@ -498,6 +503,7 @@ fn process_destructured_pattern(
                                 .state
                                 .transform
                                 .insert(name.to_string(), create_call_transform());
+                            context.state.transform_deep_read.remove(name);
                         }
                         // RestElement handling would go here
                     }
@@ -562,6 +568,7 @@ fn process_assignment_pattern(
             .state
             .transform
             .insert(name.to_string(), create_get_value_transform());
+        context.state.transform_deep_read.remove(name);
 
         let pattern = b::id_pattern(&arg_alias);
 

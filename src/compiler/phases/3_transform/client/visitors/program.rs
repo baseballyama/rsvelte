@@ -64,6 +64,16 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                 .state
                 .transform
                 .insert("$$props".to_string(), transform);
+            // `$$props` is treated as template-kind in legacy reactivity:
+            // reads must be wrapped in `$.deep_read_state()`.
+            context
+                .state
+                .transform_deep_read
+                .insert("$$props".to_string(), ());
+            context
+                .state
+                .transform_deep_read
+                .insert("$$restProps".to_string(), ());
         }
 
         // Handle mutated imports in instance scope.
@@ -116,6 +126,9 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
             };
 
             context.state.transform.insert(name.clone(), transform);
+            // Legacy reactive imports need deep_read_state wrapping, matching
+            // the official compiler's `declaration_kind === 'import'` check.
+            context.state.transform_deep_read.insert(name.clone(), ());
 
             // Generate: var $$_import_X = $.reactive_import(() => X)
             let stmt = b::var_decl(
@@ -206,6 +219,11 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                         };
 
                         context.state.transform.insert(name.clone(), transform);
+                        // Bindable props are template-kind and require
+                        // deep_read_state wrapping in legacy reactivity.
+                        if matches!(binding.kind, BindingKind::BindableProp) {
+                            context.state.transform_deep_read.insert(name.clone(), ());
+                        }
                     } else {
                         // Non-source props: read from $$props.name
                         // Corresponds to Program.js lines 125-134:

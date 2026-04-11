@@ -2202,7 +2202,11 @@ fn collect_reactive_references_from_metadata(
             .transform
             .get(name.as_str())
             .is_some_and(|t| t.read.is_some());
-        let needs_deep_read = if name == "$$props" || name == "$$restProps" {
+        let deep_read_marked = context
+            .state
+            .transform_deep_read
+            .contains_key(name.as_str());
+        let needs_deep_read = if name == "$$props" || name == "$$restProps" || deep_read_marked {
             true
         } else {
             matches!(
@@ -2366,28 +2370,32 @@ fn collect_reactive_references_inner(
                 JsExpr::Identifier(name.clone())
             };
 
-            // Check if we need to wrap in $.deep_read_state()
-            // This is needed for:
-            // - bindable_prop (props that are sources)
-            // - template bindings
-            // - imports (declaration_kind === 'import')
-            // - $$props / $$restProps
+            // Check if we need to wrap in $.deep_read_state().
             //
-            // NOTE: In the official compiler, keyed each block indices have kind 'template'
-            // while non-keyed have kind 'static'. Our Rust code uses EachIndex for both.
-            // We distinguish by checking if a transform was registered: keyed indices have
-            // a $.get() transform, non-keyed indices don't.
-            let needs_deep_read = if name == "$$props" || name == "$$restProps" {
+            // `transform_deep_read` is the authoritative scope-aware source:
+            // visitors record names here when they install a template-kind /
+            // let-directive / `{@const}` transform, and clear them when an
+            // inner shadowing binding (each item/index, snippet param) is
+            // installed. This fixes cases where a sibling each-block and an
+            // inner `{@const}` share the same name — `get_binding()` alone
+            // cannot distinguish them because it walks the static scope tree
+            // while the transform map is actually scoped via save/restore.
+            //
+            // For bindings that aren't managed by the transform map (plain
+            // imports, bindable props that didn't go through the const/let
+            // path, etc.) we fall back to the binding-kind check mirroring
+            // the official compiler.
+            let deep_read_marked = context
+                .state
+                .transform_deep_read
+                .contains_key(name.as_str());
+            let needs_deep_read = if name == "$$props" || name == "$$restProps" || deep_read_marked
+            {
                 true
             } else if let Some(binding) = binding_info {
                 use crate::compiler::phases::phase2_analyze::scope::{
                     BindingKind, DeclarationKind,
                 };
-                // In the official compiler, 'template' kind covers: await then/catch values,
-                // let directive bindings, const tag declarations, and keyed each indices.
-                // Our Rust impl splits these into separate BindingKind variants.
-                // Note: 'each' kind (EachItem) and 'snippet' kind (SnippetParam) are NOT
-                // wrapped in deep_read_state - they are included as plain getters.
                 matches!(
                     binding.kind,
                     BindingKind::BindableProp

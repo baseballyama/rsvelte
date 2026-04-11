@@ -149,6 +149,7 @@ pub fn fragment(
         node: context.state.node.clone(),
         memoizer: Memoizer::with_parent_conflicts(&context.state.memoizer),
         transform: context.state.transform.clone(),
+        transform_deep_read: context.state.transform_deep_read.clone(),
         events: indexmap::IndexSet::default(), // Start empty, merge back later
         metadata: ComponentMetadata {
             namespace: namespace.clone(),

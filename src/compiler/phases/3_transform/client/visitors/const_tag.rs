@@ -109,6 +109,14 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
             },
         );
 
+        // Template-kind binding: legacy reactivity sequences must wrap reads
+        // in `$.deep_read_state()`. Match the official compiler's check at
+        // utils.js (build_expression) for `binding.kind === 'template'`.
+        context
+            .state
+            .transform_deep_read
+            .insert(id_name.clone(), ());
+
         // Extract referenced variable names from init expression for blocker detection
         let init_refs = extract_refs_from_json_expr(&parsed.init_expr);
 
@@ -153,12 +161,16 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
         // no transform (they are regular variables inside the derived computation,
         // not signals yet)
         let mut child_transform = context.state.transform.clone();
+        let mut child_deep_read = context.state.transform_deep_read.clone();
         for id_name in &identifiers {
             child_transform.remove(id_name);
+            child_deep_read.remove(id_name.as_str());
         }
 
         // Save the original transform and temporarily swap in the child transform
         let original_transform = std::mem::replace(&mut context.state.transform, child_transform);
+        let original_deep_read =
+            std::mem::replace(&mut context.state.transform_deep_read, child_deep_read);
 
         // Convert and build the init expression with the child state
         let converted_init = convert_expression(&parsed.init_expr, context);
@@ -168,6 +180,7 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
 
         // Restore the original transform
         context.state.transform = original_transform;
+        context.state.transform_deep_read = original_deep_read;
 
         // Convert the destructuring pattern to JsPattern
         let pattern = convert_param_pattern(&pattern_json, context);
@@ -276,6 +289,12 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
                     replacement_id: None,
                 },
             );
+            // Template-kind binding (destructured @const) requires
+            // `$.deep_read_state()` wrapping in legacy reactivity sequences.
+            context
+                .state
+                .transform_deep_read
+                .insert(id_name.clone(), ());
         }
     }
 }
