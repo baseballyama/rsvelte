@@ -10,9 +10,14 @@ use std::env;
 use std::fs;
 
 fn try_canonicalize(code: &str) -> Option<String> {
+    // Pre-process: collapse whitespace inside template-literal `${...}`
+    // expressions so OXC codegen of the parsed input emits the same form
+    // regardless of the pretty-printing used by the upstream compiler.
+    let code = collapse_ws_in_template_interpolations(code);
+
     let allocator = Allocator::new();
     let source_type = SourceType::mjs();
-    let parsed = Parser::new(&allocator, code, source_type).parse();
+    let parsed = Parser::new(&allocator, &code, source_type).parse();
     if parsed.panicked || !parsed.errors.is_empty() {
         return None;
     }
@@ -33,6 +38,198 @@ fn try_canonicalize(code: &str) -> Option<String> {
         .trim()
         .to_string();
     Some(normalize_import_quotes(&out))
+}
+
+/// Scan source code and, for every template-literal `${...}` interpolation,
+/// collapse runs of whitespace (newline + tabs/spaces) to a single space.
+/// This is purely a text-level pass that does its own mini-lexer so it
+/// skips string literals, comments, and nested template literals correctly.
+fn collapse_ws_in_template_interpolations(code: &str) -> String {
+    #[derive(Clone, Copy)]
+    enum Frame {
+        // We are reading the literal text of a template literal (between
+        // backticks and `${`).
+        Template,
+        // We are inside a `${...}` interpolation, with `depth` tracking
+        // unmatched `{` characters.
+        Interp(u32),
+    }
+    let bytes = code.as_bytes();
+    let mut stack: Vec<Frame> = Vec::new();
+    let mut out = String::with_capacity(code.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        let c = bytes[i];
+        match stack.last().copied() {
+            Some(Frame::Template) => {
+                // Copy characters verbatim until we hit `\``, `\\`, or `${`.
+                if c == b'\\' && i + 1 < bytes.len() {
+                    out.push(c as char);
+                    out.push(bytes[i + 1] as char);
+                    i += 2;
+                    continue;
+                }
+                if c == b'`' {
+                    stack.pop();
+                    out.push('`');
+                    i += 1;
+                    continue;
+                }
+                if c == b'$' && i + 1 < bytes.len() && bytes[i + 1] == b'{' {
+                    stack.push(Frame::Interp(0));
+                    out.push_str("${");
+                    i += 2;
+                    continue;
+                }
+                out.push(c as char);
+                i += 1;
+            }
+            Some(Frame::Interp(_)) => {
+                // Inside an interpolation — collapse whitespace, but still
+                // track strings/nested templates/braces.
+                if c == b'\\' && i + 1 < bytes.len() {
+                    out.push(c as char);
+                    out.push(bytes[i + 1] as char);
+                    i += 2;
+                    continue;
+                }
+                if c == b'\'' || c == b'"' {
+                    // Copy the string literal as-is
+                    let quote = c;
+                    out.push(quote as char);
+                    i += 1;
+                    while i < bytes.len() {
+                        if bytes[i] == b'\\' && i + 1 < bytes.len() {
+                            out.push(bytes[i] as char);
+                            out.push(bytes[i + 1] as char);
+                            i += 2;
+                            continue;
+                        }
+                        out.push(bytes[i] as char);
+                        if bytes[i] == quote {
+                            i += 1;
+                            break;
+                        }
+                        i += 1;
+                    }
+                    continue;
+                }
+                if c == b'`' {
+                    stack.push(Frame::Template);
+                    out.push('`');
+                    i += 1;
+                    continue;
+                }
+                if c == b'{' {
+                    if let Some(Frame::Interp(d)) = stack.last_mut() {
+                        *d += 1;
+                    }
+                    out.push('{');
+                    i += 1;
+                    continue;
+                }
+                if c == b'}' {
+                    let mut closed_outer = false;
+                    if let Some(Frame::Interp(d)) = stack.last_mut() {
+                        if *d == 0 {
+                            stack.pop();
+                            closed_outer = true;
+                        } else {
+                            *d -= 1;
+                        }
+                    }
+                    out.push('}');
+                    i += 1;
+                    if closed_outer {
+                        continue;
+                    }
+                    continue;
+                }
+                // Collapse whitespace runs to a single space.
+                if c == b' ' || c == b'\t' || c == b'\n' || c == b'\r' {
+                    // Skip all consecutive whitespace.
+                    let mut saw_ws = false;
+                    while i < bytes.len() {
+                        let w = bytes[i];
+                        if w == b' ' || w == b'\t' || w == b'\n' || w == b'\r' {
+                            saw_ws = true;
+                            i += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    if saw_ws {
+                        // Only emit a single space — OXC's codegen will decide
+                        // whether extra spacing is needed.
+                        out.push(' ');
+                    }
+                    continue;
+                }
+                out.push(c as char);
+                i += 1;
+            }
+            None => {
+                // Top-level code: skip strings/comments, watch for backticks.
+                if c == b'\\' && i + 1 < bytes.len() {
+                    out.push(c as char);
+                    out.push(bytes[i + 1] as char);
+                    i += 2;
+                    continue;
+                }
+                if c == b'\'' || c == b'"' {
+                    let quote = c;
+                    out.push(quote as char);
+                    i += 1;
+                    while i < bytes.len() {
+                        if bytes[i] == b'\\' && i + 1 < bytes.len() {
+                            out.push(bytes[i] as char);
+                            out.push(bytes[i + 1] as char);
+                            i += 2;
+                            continue;
+                        }
+                        out.push(bytes[i] as char);
+                        if bytes[i] == quote {
+                            i += 1;
+                            break;
+                        }
+                        i += 1;
+                    }
+                    continue;
+                }
+                if c == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+                    // Line comment
+                    while i < bytes.len() && bytes[i] != b'\n' {
+                        out.push(bytes[i] as char);
+                        i += 1;
+                    }
+                    continue;
+                }
+                if c == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'*' {
+                    // Block comment
+                    out.push_str("/*");
+                    i += 2;
+                    while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                        out.push(bytes[i] as char);
+                        i += 1;
+                    }
+                    if i + 1 < bytes.len() {
+                        out.push_str("*/");
+                        i += 2;
+                    }
+                    continue;
+                }
+                if c == b'`' {
+                    stack.push(Frame::Template);
+                    out.push('`');
+                    i += 1;
+                    continue;
+                }
+                out.push(c as char);
+                i += 1;
+            }
+        }
+    }
+    out
 }
 
 #[allow(dead_code)]
