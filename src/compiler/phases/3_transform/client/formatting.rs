@@ -630,22 +630,26 @@ pub(super) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
     // preserve its original indentation exactly as-is.
     let mut result_lines = Vec::new();
     let indent_str: String = "\t".repeat(indent_level);
-    let mut in_template_literal = false;
+    // Use a persistent stack so we correctly preserve state across lines,
+    // including inside nested template literals (e.g. `${`...`}`). A simple
+    // `bool` cannot represent whether we are in a nested Template vs an
+    // outer Template, so we thread the full stack through.
+    let mut stack: Vec<TemplateStateFrame> = Vec::new();
     for (i, line) in code.lines().enumerate() {
+        let in_template_at_start = matches!(stack.last(), Some(TemplateStateFrame::Template));
         if i == 0 {
             // First line gets indent from emit_statement's self.indent()
-            // Still need to track template literal state
-            in_template_literal = update_template_literal_state(line, in_template_literal);
+            update_template_literal_stack(line, &mut stack);
             result_lines.push(line.to_string());
         } else if line.is_empty() {
             result_lines.push(String::new());
-        } else if in_template_literal {
+        } else if in_template_at_start {
             // Inside a template literal - preserve content exactly as-is
-            in_template_literal = update_template_literal_state(line, in_template_literal);
+            update_template_literal_stack(line, &mut stack);
             result_lines.push(line.to_string());
         } else {
             // Subsequent lines need the source-level indentation prefix
-            in_template_literal = update_template_literal_state(line, in_template_literal);
+            update_template_literal_stack(line, &mut stack);
             result_lines.push(format!("{}{}", indent_str, line));
         }
     }
@@ -656,66 +660,240 @@ pub(super) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
 ///
 /// This is used by `normalize_js_with_oxc` to avoid adding indentation to content
 /// inside template literals, which would modify the template content.
-pub(super) fn update_template_literal_state(line: &str, currently_in_template: bool) -> bool {
-    let mut in_template = currently_in_template;
+/// A single frame in the template-literal / interpolation parser stack.
+#[derive(Clone, Copy)]
+pub(super) enum TemplateStateFrame {
+    /// We are inside the text portion of a template literal.
+    Template,
+    /// We are inside a `${...}` expression. The u32 counts `{`/`}` pairs
+    /// (not counting the outer `${`'s matching `}`).
+    Interp(u32),
+}
+
+/// Stack-based template/interpolation tracker. Mutates `stack` as the line
+/// is scanned. This is the canonical implementation — the `bool`-based
+/// `update_template_literal_state` wrapper exists for callers that only
+/// care about the outer template state.
+pub(super) fn update_template_literal_stack(line: &str, stack: &mut Vec<TemplateStateFrame>) {
     let bytes = line.as_bytes();
     let len = bytes.len();
     let mut i = 0;
     while i < len {
         let c = bytes[i];
-        if in_template {
-            // Inside template literal: look for closing backtick or ${
-            if c == b'\\' {
-                // Skip escaped character
-                i += 2;
-                continue;
-            } else if c == b'`' {
-                in_template = false;
-            } else if c == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
-                // ${...} expression - we need to skip to matching }, handling nesting
-                // For simplicity in line-by-line processing, template expressions
-                // on the same line as the backtick are handled, but multi-line
-                // expressions just rely on the backtick counting on subsequent lines.
-                i += 2;
-                let mut brace_depth: u32 = 1;
-                while i < len && brace_depth > 0 {
-                    if bytes[i] == b'{' {
-                        brace_depth += 1;
-                    } else if bytes[i] == b'}' {
-                        brace_depth -= 1;
-                    } else if bytes[i] == b'`' && brace_depth == 0 {
-                        break;
-                    }
+        match stack.last().copied() {
+            Some(TemplateStateFrame::Template) => {
+                if c == b'\\' {
+                    i += 2;
+                    continue;
+                } else if c == b'`' {
+                    stack.pop();
                     i += 1;
+                    continue;
+                } else if c == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                    stack.push(TemplateStateFrame::Interp(0));
+                    i += 2;
+                    continue;
                 }
-                continue;
-            }
-        } else {
-            // Outside template literal: look for opening backtick
-            if c == b'\'' || c == b'"' {
-                // Skip string literals
-                let quote = c;
                 i += 1;
-                while i < len {
-                    if bytes[i] == b'\\' {
-                        i += 2;
-                        continue;
+            }
+            Some(TemplateStateFrame::Interp(_)) => {
+                if c == b'\\' {
+                    i += 1;
+                    continue;
+                } else if c == b'\'' || c == b'"' {
+                    let quote = c;
+                    i += 1;
+                    while i < len {
+                        if bytes[i] == b'\\' && i + 1 < len {
+                            i += 2;
+                            continue;
+                        }
+                        if bytes[i] == quote {
+                            i += 1;
+                            break;
+                        }
+                        i += 1;
                     }
-                    if bytes[i] == quote {
-                        break;
+                    continue;
+                } else if c == b'`' {
+                    stack.push(TemplateStateFrame::Template);
+                    i += 1;
+                    continue;
+                } else if c == b'{' {
+                    if let Some(TemplateStateFrame::Interp(d)) = stack.last_mut() {
+                        *d += 1;
                     }
                     i += 1;
+                    continue;
+                } else if c == b'}' {
+                    if let Some(TemplateStateFrame::Interp(d)) = stack.last_mut() {
+                        if *d == 0 {
+                            stack.pop();
+                            i += 1;
+                            continue;
+                        }
+                        *d -= 1;
+                    }
+                    i += 1;
+                    continue;
                 }
-            } else if c == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
-                // Line comment - rest of line is comment
-                break;
-            } else if c == b'`' {
-                in_template = true;
+                i += 1;
+            }
+            None => {
+                if c == b'\'' || c == b'"' {
+                    let quote = c;
+                    i += 1;
+                    while i < len {
+                        if bytes[i] == b'\\' && i + 1 < len {
+                            i += 2;
+                            continue;
+                        }
+                        if bytes[i] == quote {
+                            i += 1;
+                            break;
+                        }
+                        i += 1;
+                    }
+                    continue;
+                } else if c == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+                    break;
+                } else if c == b'`' {
+                    stack.push(TemplateStateFrame::Template);
+                    i += 1;
+                    continue;
+                }
+                i += 1;
             }
         }
-        i += 1;
     }
-    in_template
+}
+
+pub(super) fn update_template_literal_state(line: &str, currently_in_template: bool) -> bool {
+    // Stack-based state machine that properly handles:
+    //   * nested template literals inside interpolations (e.g. `` `a ${`b${c}`}` ``)
+    //   * strings inside interpolations (which may contain `{`/`}`/`` ` ``)
+    //   * escape sequences both inside templates and strings
+    //   * line comments that start outside a template
+    //
+    // Stack entries:
+    //   * State::Template — we are inside a template literal's text portion
+    //   * State::Interp(depth) — we are inside a `${...}` expression; `depth`
+    //     tracks `{`/`}` pairs (not counting the outer `${` or its matching `}`)
+    //
+    // When currently_in_template is true, we start with one Template on the stack.
+    #[derive(Clone, Copy)]
+    enum State {
+        Template,
+        Interp(u32),
+    }
+    let mut stack: Vec<State> = Vec::new();
+    if currently_in_template {
+        stack.push(State::Template);
+    }
+    let bytes = line.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+    while i < len {
+        let c = bytes[i];
+        match stack.last().copied() {
+            Some(State::Template) => {
+                if c == b'\\' {
+                    // Skip escaped character
+                    i += 2;
+                    continue;
+                } else if c == b'`' {
+                    stack.pop(); // close template literal
+                    i += 1;
+                    continue;
+                } else if c == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                    stack.push(State::Interp(0));
+                    i += 2;
+                    continue;
+                }
+                i += 1;
+            }
+            Some(State::Interp(_)) => {
+                // Inside a `${...}` expression — treat it as JS code.
+                // Track braces so we can detect the matching `}` that closes
+                // the interpolation.
+                if c == b'\\' {
+                    // Escape only meaningful inside strings/templates, but harmless
+                    // here — advance one char.
+                    i += 1;
+                    continue;
+                } else if c == b'\'' || c == b'"' {
+                    // Skip a string literal
+                    let quote = c;
+                    i += 1;
+                    while i < len {
+                        if bytes[i] == b'\\' && i + 1 < len {
+                            i += 2;
+                            continue;
+                        }
+                        if bytes[i] == quote {
+                            i += 1;
+                            break;
+                        }
+                        i += 1;
+                    }
+                    continue;
+                } else if c == b'`' {
+                    // Nested template literal begins
+                    stack.push(State::Template);
+                    i += 1;
+                    continue;
+                } else if c == b'{' {
+                    if let Some(State::Interp(d)) = stack.last_mut() {
+                        *d += 1;
+                    }
+                    i += 1;
+                    continue;
+                } else if c == b'}' {
+                    if let Some(State::Interp(d)) = stack.last_mut() {
+                        if *d == 0 {
+                            // Matches the outer `${`
+                            stack.pop();
+                            i += 1;
+                            continue;
+                        }
+                        *d -= 1;
+                    }
+                    i += 1;
+                    continue;
+                }
+                i += 1;
+            }
+            None => {
+                // Top-level JS code
+                if c == b'\'' || c == b'"' {
+                    // Skip string literals
+                    let quote = c;
+                    i += 1;
+                    while i < len {
+                        if bytes[i] == b'\\' && i + 1 < len {
+                            i += 2;
+                            continue;
+                        }
+                        if bytes[i] == quote {
+                            i += 1;
+                            break;
+                        }
+                        i += 1;
+                    }
+                    continue;
+                } else if c == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+                    // Line comment — rest of line is comment
+                    break;
+                } else if c == b'`' {
+                    stack.push(State::Template);
+                    i += 1;
+                    continue;
+                }
+                i += 1;
+            }
+        }
+    }
+    matches!(stack.last(), Some(State::Template))
 }
 
 /// Re-join tmp-based destructure declarations that OXC split into separate statements.

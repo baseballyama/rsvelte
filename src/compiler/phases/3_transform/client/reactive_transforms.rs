@@ -842,16 +842,27 @@ pub(super) fn transform_reactive_statement(
 
     if is_block {
         // Body was a block statement; inner_body has dedented content
-        // The inner content lines should be indented one level for the callback body
+        // The inner content lines should be indented one level for the callback body.
+        // IMPORTANT: lines that fall INSIDE a multi-line template literal must NOT be
+        // re-indented — template-literal content is part of the string value and must
+        // be preserved byte-for-byte. We use a running in-template state so that only
+        // lines outside of any `...` block get an extra tab.
+        use crate::compiler::phases::phase3_transform::client::formatting::update_template_literal_state;
         let mut indented = String::with_capacity(inner_body.len() + inner_body.lines().count());
+        let mut in_template_literal = false;
         for (i, line) in inner_body.lines().enumerate() {
             if i > 0 {
                 indented.push('\n');
             }
-            if !line.trim().is_empty() {
+            if in_template_literal {
+                // Inside a template literal: preserve the line exactly as-is
+                // (including empty lines).
+                indented.push_str(line);
+            } else if !line.trim().is_empty() {
                 indented.push('\t');
                 indented.push_str(line);
             }
+            in_template_literal = update_template_literal_state(line, in_template_literal);
         }
         format!(
             "$.legacy_pre_effect({}, () => {{\n{}\n}});",

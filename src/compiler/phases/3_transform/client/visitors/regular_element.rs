@@ -335,33 +335,20 @@ pub fn visit_regular_element(
         }
     }
 
-    // Add $.replay_events() for load/error elements with spreads, use directives, or event handlers
-    // Reference: RegularElement.js lines 279-284
-    //
-    // Note: the official compiler pushes this to the OUTER `context.state.after_update`.
-    // For top-level single-element fragments the final merge order produces
-    // [replay_events, ...events], matching the observed JS output (e.g. ImageEl, Image).
-    // Elements wrapped in an {#if}/{#each} branch can sometimes produce the opposite
-    // order; that's an upstream Fragment/IfBlock merge-order detail we don't yet
-    // fully mirror, and it regresses only a couple of files, while fixing several
-    // more. See asset-cover for a known discrepancy.
-    if is_load_error_element(&node.name)
+    // $.replay_events() for load/error elements with spreads, use directives, or event handlers
+    // is emitted AFTER the second attribute loop below (which processes event attributes like
+    // `onerror={...}` that go directly to `context.state.after_update`), but element_state events
+    // (from OnDirective) are still pending in `element_state_after_update`. This matches the
+    // official compiler order:
+    //   - `on:load` / `on:error` (OnDirective) → element_state → merged to context.state AFTER replay
+    //   - `onload={...}` / `onerror={...}` (event attribute) → context.state BEFORE replay
+    //   - replay_events → context.state at the position set by line 283 in the official code
+    let needs_replay_events = is_load_error_element(&node.name)
         && (has_spread
             || has_use
             || attributes.iter().any(|attr| {
                 matches!(attr, Attribute::Attribute(a) if a.name == "onload" || a.name == "onerror")
-            }))
-    {
-        let node_id = extract_node_id(&context.state.node);
-        context.state.after_update.push(b::stmt(
-            &context.arena,
-            b::call(
-                &context.arena,
-                b::member_path(&context.arena, "$.replay_events"),
-                vec![b::id(&node_id)],
-            ),
-        ));
-    }
+            }));
 
     // For input elements, add $.remove_input_defaults() call when needed
     // Reference: RegularElement.js lines 164-190
@@ -790,6 +777,23 @@ pub fn visit_regular_element(
 
         // Event attributes are now handled in the main attribute loop above
         // (via visit_event_attribute when is_event_attribute is true)
+    }
+
+    // Emit $.replay_events(node) AFTER event attributes have been pushed to
+    // context.state.after_update, but before element_state_after_update is merged.
+    // This matches RegularElement.js line 283 behavior: event attributes (e.g.
+    // `onerror={...}`) come BEFORE replay, while OnDirective events (pushed into
+    // element_state_after_update) come AFTER replay via the later merge step.
+    if needs_replay_events {
+        let node_id = extract_node_id(&context.state.node);
+        context.state.after_update.push(b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.replay_events"),
+                vec![b::id(&node_id)],
+            ),
+        ));
     }
 
     // Clean child nodes - trim whitespace

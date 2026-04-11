@@ -950,11 +950,28 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             return;
         }
 
-        // Destructuring LHS: for patterns like `({ x } = obj)` or `[x] = arr`,
-        // walking the LHS would incorrectly transform the binding identifiers (e.g.,
-        // `{ x }` -> `{ x: $.get(x) }`). Svelte's compiler decomposes these into
-        // individual assignments. For now, we skip transforming the LHS bindings
-        // but still visit any default (init) expressions inside, and visit the RHS.
+        // Destructuring LHS: for patterns like `({ x } = obj)` or `[x] = arr`.
+        // Svelte's compiler decomposes these into individual reactive assignments.
+        if let AssignmentTarget::ObjectAssignmentTarget(obj) = &expr.left
+            && obj.rest.is_none()
+            && expr.operator == AssignmentOperator::Assign
+            && let Some(replacement) =
+                self.try_build_object_destructure_prop_assignment(obj, &expr.right)
+        {
+            let (full_start, full_end) = self.effective_span(expr.span.start, expr.span.end);
+            self.add_replacement(full_start, full_end, replacement);
+            return;
+        }
+        if let AssignmentTarget::ArrayAssignmentTarget(arr) = &expr.left
+            && arr.rest.is_none()
+            && expr.operator == AssignmentOperator::Assign
+            && let Some(replacement) =
+                self.try_build_array_destructure_prop_assignment(arr, &expr.right)
+        {
+            let (full_start, full_end) = self.effective_span(expr.span.start, expr.span.end);
+            self.add_replacement(full_start, full_end, replacement);
+            return;
+        }
         if matches!(
             &expr.left,
             AssignmentTarget::ObjectAssignmentTarget(_)
@@ -1222,6 +1239,285 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                 // We use pattern matching directly on the enum here.
                 // The safe approach: only recurse when it's a nested destructuring target.
             }
+        }
+    }
+
+    /// Try to rewrite an array destructuring assignment whose LHS elements
+    /// target bindable props, e.g.
+    ///   `[foo, obj[i]] = rhs;` =>
+    ///   `(($$value) => { var $$array = $.to_array($$value, 2); foo($$array[0]); obj(obj()[i] = $$array[1], true); })(rhs);`
+    ///
+    /// Each non-null element must be either:
+    ///   * a simple identifier that is a prop_source_var (without default), or
+    ///   * a StaticMemberExpression / ComputedMemberExpression whose root object
+    ///     identifier is a prop_source_var.
+    fn try_build_array_destructure_prop_assignment<'ast>(
+        &mut self,
+        arr: &ArrayAssignmentTarget<'ast>,
+        rhs: &Expression<'ast>,
+    ) -> Option<String> {
+        use super::SCRIPT_ARRAY_COUNTER;
+
+        if arr.elements.is_empty() {
+            return None;
+        }
+
+        // Collect element targets. Each entry describes how to assign the Nth element
+        // of the resolved array back to its target. We require at least one prop target
+        // for the rewrite to fire.
+        enum ArrayTarget {
+            Null, // hole — skip
+            Prop(String),
+            MemberOnProp {
+                prop_name: String,
+                full_text: String, // original text of the member expression
+            },
+        }
+
+        let mut targets: Vec<ArrayTarget> = Vec::with_capacity(arr.elements.len());
+        let mut any_prop = false;
+        let source = self.source;
+
+        for element in &arr.elements {
+            let Some(element) = element else {
+                targets.push(ArrayTarget::Null);
+                continue;
+            };
+            // No default values supported here (rare and requires more care).
+            if matches!(
+                element,
+                AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(_)
+            ) {
+                return None;
+            }
+            let target = element.as_assignment_target()?;
+            match target {
+                AssignmentTarget::AssignmentTargetIdentifier(id) => {
+                    let name = id.name.as_str();
+                    if !self.is_active_prop_var(name) {
+                        return None;
+                    }
+                    any_prop = true;
+                    targets.push(ArrayTarget::Prop(name.to_string()));
+                }
+                AssignmentTarget::StaticMemberExpression(member) => {
+                    let root = Self::root_identifier_of_static_member(member)?;
+                    if !self.is_active_prop_var(root) {
+                        return None;
+                    }
+                    let span = member.span;
+                    let text = source[span.start as usize..span.end as usize].to_string();
+                    any_prop = true;
+                    targets.push(ArrayTarget::MemberOnProp {
+                        prop_name: root.to_string(),
+                        full_text: text,
+                    });
+                }
+                AssignmentTarget::ComputedMemberExpression(member) => {
+                    let root = Self::root_identifier_of_computed_member(member)?;
+                    if !self.is_active_prop_var(root) {
+                        return None;
+                    }
+                    let span = member.span;
+                    let text = source[span.start as usize..span.end as usize].to_string();
+                    any_prop = true;
+                    targets.push(ArrayTarget::MemberOnProp {
+                        prop_name: root.to_string(),
+                        full_text: text,
+                    });
+                }
+                _ => return None,
+            }
+        }
+
+        if !any_prop {
+            return None;
+        }
+
+        // Convert the RHS with inner replacements applied (so reactive state refs
+        // become getter calls, etc.).
+        let rhs_start = rhs.span().start;
+        let rhs_end = rhs.span().end;
+        self.visit_expression(rhs);
+        let rhs_text = self.apply_and_drain_inner_replacements(rhs_start, rhs_end);
+
+        // Transform the LHS MemberOnProp entries: their `full_text` contains the
+        // original source (e.g., `potentialMergePeople[index]`). We need to run
+        // those through a nested ast_state_transform so that the prop getter
+        // becomes `potentialMergePeople()` etc. We do a lightweight text rewrite:
+        // wrap each prop identifier reference with `()` when it occurs as the
+        // root object of the member expression.
+        let transformed_member_texts: Vec<Option<String>> = targets
+            .iter()
+            .map(|t| {
+                if let ArrayTarget::MemberOnProp {
+                    prop_name,
+                    full_text,
+                } = t
+                {
+                    // Replace leading `prop_name` with `prop_name()` (getter) for the
+                    // reference used inside the member assignment. This mirrors how
+                    // prop reads are transformed in the final emitted script text.
+                    if let Some(stripped) = full_text.strip_prefix(prop_name.as_str()) {
+                        Some(format!("{}(){}", prop_name, stripped))
+                    } else {
+                        Some(full_text.clone())
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        // Generate unique $$array name using the shared counter.
+        let array_name = SCRIPT_ARRAY_COUNTER.with(|c| {
+            let n = c.get();
+            c.set(n + 1);
+            if n == 0 {
+                "$$array".to_string()
+            } else {
+                format!("$$array_{}", n)
+            }
+        });
+
+        let length = arr.elements.len();
+        let mut body = String::new();
+        body.push_str(&format!(
+            "\t\t\tvar {} = $.to_array($$value, {});\n",
+            array_name, length
+        ));
+
+        for (i, target) in targets.iter().enumerate() {
+            match target {
+                ArrayTarget::Null => {}
+                ArrayTarget::Prop(name) => {
+                    body.push_str(&format!("\t\t\t{}({}[{}]);\n", name, array_name, i));
+                }
+                ArrayTarget::MemberOnProp { prop_name, .. } => {
+                    let member_text = transformed_member_texts[i].as_ref().unwrap();
+                    body.push_str(&format!(
+                        "\t\t\t{}({} = {}[{}], true);\n",
+                        prop_name, member_text, array_name, i
+                    ));
+                }
+            }
+        }
+
+        Some(format!(
+            "(($$value) => {{\n{}\t\t}})({})",
+            body,
+            rhs_text.trim()
+        ))
+    }
+
+    fn root_identifier_of_static_member<'ast>(
+        member: &StaticMemberExpression<'ast>,
+    ) -> Option<&'ast str> {
+        let mut cur = &member.object;
+        loop {
+            match cur {
+                Expression::Identifier(id) => return Some(id.name.as_str()),
+                Expression::StaticMemberExpression(m) => cur = &m.object,
+                Expression::ComputedMemberExpression(m) => cur = &m.object,
+                _ => return None,
+            }
+        }
+    }
+
+    fn root_identifier_of_computed_member<'ast>(
+        member: &ComputedMemberExpression<'ast>,
+    ) -> Option<&'ast str> {
+        let mut cur = &member.object;
+        loop {
+            match cur {
+                Expression::Identifier(id) => return Some(id.name.as_str()),
+                Expression::StaticMemberExpression(m) => cur = &m.object,
+                Expression::ComputedMemberExpression(m) => cur = &m.object,
+                _ => return None,
+            }
+        }
+    }
+
+    /// Try to rewrite a simple object destructuring assignment whose LHS has
+    /// shorthand property identifiers bound to bindable props, e.g.
+    ///   `({ foo, bar } = rhs);`  =>  `(foo(rhs.foo), bar(rhs.bar));`
+    ///
+    /// Only fires when:
+    ///   * the LHS is an ObjectAssignmentTarget with no rest element,
+    ///   * every property is a simple shorthand identifier that resolves to a
+    ///     prop_source_var (and is not shadowed),
+    ///   * no default (`=`) initializers are present.
+    ///
+    /// If the RHS is not a plain identifier, it is cached in `$$value` and the
+    /// resulting expression is wrapped in `(($$value) => ...)(rhs)`.
+    fn try_build_object_destructure_prop_assignment<'ast>(
+        &mut self,
+        obj: &ObjectAssignmentTarget<'ast>,
+        rhs: &Expression<'ast>,
+    ) -> Option<String> {
+        if obj.properties.is_empty() {
+            return None;
+        }
+
+        // Collect (prop_name, shorthand) pairs. Only shorthand bindings
+        // targeting bindable props are supported here.
+        let mut targets: Vec<String> = Vec::with_capacity(obj.properties.len());
+        for prop in &obj.properties {
+            match prop {
+                AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(ident_prop) => {
+                    if ident_prop.init.is_some() {
+                        return None;
+                    }
+                    let name = ident_prop.binding.name.as_str();
+                    if !self.is_active_prop_var(name) {
+                        return None;
+                    }
+                    targets.push(name.to_string());
+                }
+                _ => return None,
+            }
+        }
+        if targets.is_empty() {
+            return None;
+        }
+
+        // Determine the RHS access expression. Simple identifiers can be used
+        // directly; everything else is cached via $$value inside an IIFE.
+        let rhs_start = rhs.span().start;
+        let rhs_end = rhs.span().end;
+        self.visit_expression(rhs);
+        let rhs_text = self.apply_and_drain_inner_replacements(rhs_start, rhs_end);
+        let rhs_trimmed = rhs_text.trim();
+
+        let is_simple_ident = matches!(rhs, Expression::Identifier(_));
+        let access_base: String = if is_simple_ident {
+            rhs_trimmed.to_string()
+        } else {
+            "$$value".to_string()
+        };
+
+        let assignments: Vec<String> = targets
+            .iter()
+            .map(|name| format!("{}({}.{})", name, access_base, name))
+            .collect();
+
+        if is_simple_ident {
+            if assignments.len() == 1 {
+                Some(assignments.into_iter().next().unwrap())
+            } else {
+                Some(format!("({})", assignments.join(", ")))
+            }
+        } else {
+            // Non-identifier RHS: generate an IIFE that caches it in $$value.
+            let body = assignments
+                .iter()
+                .map(|a| format!("\t\t\t{};", a))
+                .collect::<Vec<_>>()
+                .join("\n");
+            Some(format!(
+                "(($$value) => {{\n{}\n\t\t\treturn $$value;\n\t\t}})({})",
+                body, rhs_trimmed
+            ))
         }
     }
 

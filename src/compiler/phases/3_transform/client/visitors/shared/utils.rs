@@ -4926,6 +4926,30 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
             // ++, -- are always reactive (they mutate state)
             true
         }
+        "NewExpression" => {
+            // `new Foo(args)` — reactive only if the constructor or any argument
+            // references reactive state. This mirrors the official Svelte compiler,
+            // where NewExpression does not set has_call/has_state by itself.
+            if let Some(callee) = obj.get("callee")
+                && has_reactive_state_json(callee, context)
+            {
+                return true;
+            }
+            if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                for arg in args {
+                    if has_reactive_state_json(arg, context) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        "SpreadElement" => {
+            if let Some(argument) = obj.get("argument") {
+                return has_reactive_state_json(argument, context);
+            }
+            false
+        }
         _ => {
             // Unknown expression type - conservatively assume reactive
             // (using set_text for a static expression is safe but slower,
@@ -5055,22 +5079,34 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
 
     match expr_type {
         "CallExpression" | "TaggedTemplateExpression" => {
-            // Match official Svelte compiler: has_call is true when:
-            // 1. The callee is not pure (calls local functions), OR
-            // 2. The expression has any reactive dependencies (even for pure calls like
-            //    JSON.stringify(reactiveVar))
-            // We check both: pure call status and whether the entire containing expression
-            // has reactive state references.
-            if !is_pure_json(json_value, context) {
+            // Match official Svelte compiler (CallExpression.js lines 264-273):
+            //   if (!is_pure(node.callee, context) || context.state.expression.dependencies.size > 0) {
+            //       context.state.expression.has_call = true;
+            //   }
+            // Only the CALLEE's purity matters — arguments are not part of this check.
+            // A call is reactive if either:
+            //   1. The callee references a local binding (not pure), or
+            //   2. The containing expression has any reactive dependencies.
+            if let Some(callee) = obj.get("callee")
+                && !is_pure_json(callee, context)
+            {
                 return true;
             }
-            // For pure calls, check if the expression contains any reactive state references
-            // This matches the official `context.state.expression.dependencies.size > 0` check
+            // Even for pure callees, reactive dependencies in arguments make has_call true.
             has_reactive_state_json(json_value, context)
         }
         "MemberExpression" => {
-            if let Some(object) = obj.get("object") {
-                return has_call_json(object, context);
+            if let Some(object) = obj.get("object")
+                && has_call_json(object, context)
+            {
+                return true;
+            }
+            // Computed member (e.g. `arr[index_expr]`) — the computed key may contain calls.
+            if obj.get("computed").and_then(|v| v.as_bool()) == Some(true)
+                && let Some(property) = obj.get("property")
+                && has_call_json(property, context)
+            {
+                return true;
             }
             false
         }
