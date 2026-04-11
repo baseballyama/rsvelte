@@ -57,8 +57,12 @@ pub(super) fn is_only_assignment_target(body: &str, identifier: &str) -> bool {
             };
             let ident_end = ident_start + identifier.len();
 
-            // Check what follows the identifier (skipping whitespace)
-            let after = stripped_body[ident_end..].trim_start();
+            // Check what follows the identifier (skipping whitespace and any
+            // member-access chain like `.foo`, `[expr]`, `?.foo`). The idea:
+            // walking up through chained MemberExpressions mirrors the official
+            // compiler's dependency logic for the LHS of an assignment.
+            let after_ident = &stripped_body[ident_end..];
+            let after = skip_member_chain(after_ident).trim_start();
             // Check if followed by assignment operator
             let is_assignment = after.starts_with("= ")
                 || after.starts_with("=\t")
@@ -101,6 +105,136 @@ pub(super) fn is_only_assignment_target(body: &str, identifier: &str) -> bool {
 
     // If we found the identifier and all occurrences were assignments, return true
     found_any
+}
+
+/// Check if an identifier is referenced only inside the LHS of a top-level
+/// assignment statement (including as part of a member chain like `a[b.c] = ...`).
+///
+/// Mirrors the official compiler's reactive-statement dependency logic, which
+/// walks up through chained MemberExpressions and skips references whose
+/// outermost enclosing expression is the LHS of an `=` assignment.
+///
+/// For example in `foo[bar.baz] = rhs`:
+///   - `foo`, `bar`, `baz` should return true (ignored as deps)
+///   - an identifier appearing in `rhs` should return false
+pub(super) fn is_in_lhs_only(body: &str, identifier: &str) -> bool {
+    let body_trimmed = body.trim_start();
+    // Only simple top-level assignments are handled.
+    // Bail out on control-flow wrappers (if/for/while/etc.) and block statements.
+    if body_trimmed.starts_with('{')
+        || body_trimmed.starts_with("if")
+            && body_trimmed
+                .as_bytes()
+                .get(2)
+                .map(|&b| !is_ident_byte(b))
+                .unwrap_or(true)
+        || body_trimmed.starts_with("for")
+            && body_trimmed
+                .as_bytes()
+                .get(3)
+                .map(|&b| !is_ident_byte(b))
+                .unwrap_or(true)
+        || body_trimmed.starts_with("while")
+            && body_trimmed
+                .as_bytes()
+                .get(5)
+                .map(|&b| !is_ident_byte(b))
+                .unwrap_or(true)
+    {
+        return false;
+    }
+    let Some(eq_pos) = find_assignment_position(body) else {
+        return false;
+    };
+    // Only handle simple `LHS = RHS` at the top level (not block statements etc.)
+    let lhs = body[..eq_pos].trim_end_matches('=').trim();
+    let rhs = body[eq_pos + 1..].trim();
+    // Bail out if LHS contains things that suggest this isn't a plain assignment.
+    if lhs.contains('?') || lhs.contains(';') || lhs.contains('{') {
+        return false;
+    }
+
+    let lhs_stripped = strip_string_literal_text(lhs);
+    let rhs_stripped = strip_string_literal_text(rhs);
+
+    let in_lhs = substring_contains_identifier(&lhs_stripped, identifier);
+    let in_rhs = substring_contains_identifier(&rhs_stripped, identifier);
+
+    in_lhs && !in_rhs
+}
+
+/// Return true if `hay` contains `ident` with word boundaries.
+fn substring_contains_identifier(hay: &str, ident: &str) -> bool {
+    if ident.is_empty() {
+        return false;
+    }
+    let bytes = hay.as_bytes();
+    let ident_bytes = ident.as_bytes();
+    let mut i = 0;
+    while i + ident_bytes.len() <= bytes.len() {
+        if &bytes[i..i + ident_bytes.len()] == ident_bytes {
+            let before_ok = i == 0 || !is_ident_byte(bytes[i - 1]);
+            let after_idx = i + ident_bytes.len();
+            let after_ok = after_idx == bytes.len() || !is_ident_byte(bytes[after_idx]);
+            if before_ok && after_ok {
+                return true;
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
+fn is_ident_byte(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
+}
+
+/// Skip a chain of member accesses starting at the given position.
+///
+/// Handles `.foo`, `?.foo`, `[expr]` where `expr` can contain balanced
+/// brackets/parens. Returns the substring after the chain ends.
+fn skip_member_chain(s: &str) -> &str {
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    loop {
+        // Skip whitespace between chain segments (rare but possible)
+        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        if i >= bytes.len() {
+            break;
+        }
+        // Optional chaining: `?.` or `?.[`
+        if bytes[i] == b'?' && i + 1 < bytes.len() && bytes[i + 1] == b'.' {
+            i += 2;
+            continue;
+        }
+        // `.foo`
+        if bytes[i] == b'.' {
+            i += 1;
+            while i < bytes.len() && is_ident_byte(bytes[i]) {
+                i += 1;
+            }
+            continue;
+        }
+        // `[...]` with balanced brackets/parens
+        if bytes[i] == b'[' {
+            let mut depth = 1i32;
+            i += 1;
+            while i < bytes.len() && depth > 0 {
+                match bytes[i] {
+                    b'[' | b'(' | b'{' => depth += 1,
+                    b']' | b')' | b'}' => depth -= 1,
+                    _ => {}
+                }
+                i += 1;
+            }
+            continue;
+        }
+        // Not a member-chain continuation
+        break;
+    }
+    &s[i..]
 }
 
 /// Check if a body references an identifier as a read (not only as an assignment target).
@@ -1024,7 +1158,14 @@ pub(super) fn find_colon_at_depth0(expr: &str) -> Option<usize> {
 /// - `".foo"` → `None` (empty base)
 pub(super) fn extract_member_expression_base(lhs: &str) -> Option<&str> {
     let lhs = lhs.trim();
-    let sep_pos = lhs.find('.').or_else(|| lhs.find('['));
+    let dot_pos = lhs.find('.');
+    let bracket_pos = lhs.find('[');
+    let sep_pos = match (dot_pos, bracket_pos) {
+        (Some(d), Some(b)) => Some(d.min(b)),
+        (Some(d), None) => Some(d),
+        (None, Some(b)) => Some(b),
+        (None, None) => None,
+    };
     if let Some(pos) = sep_pos {
         let base = &lhs[..pos];
         // Must be a valid identifier (alphanumeric, underscore, dollar sign)

@@ -413,7 +413,9 @@ pub(super) fn transform_reactive_statement(
     // Props are dependencies that need tracking
     for prop_name in prop_assignment_transform_vars {
         // Check if this prop is referenced in the body (but not on the left side of assignment)
-        if body_references_identifier(body, prop_name) {
+        if body_references_identifier(body, prop_name)
+            && !super::state_transforms::is_in_lhs_only(body, prop_name)
+        {
             prop_dependencies.push(prop_name.clone());
         }
     }
@@ -642,6 +644,28 @@ pub(super) fn transform_reactive_statement(
                     );
                     transformed_body =
                         format!("$.store_set({}, {})", store_access, transformed_rhs);
+                } else if let Some(base) = extract_member_expression_base(lhs)
+                    && prop_assignment_transform_vars.contains(&base.to_string())
+                {
+                    // Mutation of a prop member: `foo[key] = rhs` or `foo.x = rhs`.
+                    // Transform to `foo(foo()[key] = <rhs_with_prop_reads>, true)`.
+                    // Transform prop reads inside the LHS member part (e.g. `dependency.api_name`
+                    // → `dependency().api_name`), and transform the root prop to `foo()`.
+                    let member_part = &lhs[base.len()..];
+                    let transformed_member_part =
+                        transform_prop_reads_in_expr(member_part, prop_assignment_transform_vars);
+                    let transformed_rhs =
+                        transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
+                    let transformed_rhs = wrap_state_vars_in_expr(
+                        &transformed_rhs,
+                        state_vars,
+                        non_reactive_state_vars,
+                        proxy_vars,
+                    );
+                    transformed_body = format!(
+                        "{}({}(){} = {}, true)",
+                        base, base, transformed_member_part, transformed_rhs
+                    );
                 } else {
                     // Regular assignment - still transform prop reads on RHS
                     let transformed_rhs =
