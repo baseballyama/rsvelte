@@ -1272,8 +1272,12 @@ pub(super) fn add_esrap_blank_lines(code: &str) -> String {
 
     let mut result: Vec<&str> = Vec::with_capacity(lines.len() + 20);
 
-    // Track template literal state
-    let mut in_template_literal = false;
+    // Track template literal state with a proper stack that correctly handles
+    // nested template literals inside `${...}` interpolations. A simple
+    // odd/even backtick count fails for patterns like:
+    //     `outer ${fn(() => `nested`)} end`
+    // where the middle line contains a nested template's backticks.
+    let mut template_stack: Vec<TemplateStateFrame> = Vec::new();
     // Track bracket depth to avoid inserting blank lines inside arrays
     let mut bracket_depth: i32 = 0;
 
@@ -1281,24 +1285,17 @@ pub(super) fn add_esrap_blank_lines(code: &str) -> String {
     while i < lines.len() {
         let line = lines[i];
 
-        // Track template literal state using proper unescaped backtick counting.
-        // Naive counting (all backticks) fails when template literals contain
-        // escaped backticks (\`) or backticks inside string literals within
-        // interpolations (e.g., `${$.html('`')}`).
+        let in_template_literal =
+            matches!(template_stack.last(), Some(TemplateStateFrame::Template));
+
         if in_template_literal {
             result.push(line);
-            let unescaped = count_unescaped_backticks_in_template(line);
-            if unescaped % 2 == 1 {
-                in_template_literal = false;
-            }
+            update_template_literal_stack(line, &mut template_stack);
             i += 1;
             continue;
         }
 
-        let unescaped = count_unescaped_backticks_outside_template(line);
-        if unescaped % 2 == 1 {
-            in_template_literal = true;
-        }
+        update_template_literal_stack(line, &mut template_stack);
 
         // Skip ALL existing blank lines - we add them ourselves based on esrap rules.
         // The source may have blank lines that don't match esrap's behavior.
@@ -1419,64 +1416,6 @@ pub(super) fn add_esrap_blank_lines(code: &str) -> String {
     }
 
     result.join("\n")
-}
-
-/// Count unescaped backticks in a line when we are INSIDE a template literal.
-/// Inside a template literal, we only need to find the closing backtick.
-/// Escaped backticks (`\``) should not be counted.
-pub(super) fn count_unescaped_backticks_in_template(line: &str) -> usize {
-    let bytes = line.as_bytes();
-    let mut count = 0;
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'\\' {
-            i += 2; // skip escaped character
-            continue;
-        }
-        if bytes[i] == b'`' {
-            count += 1;
-        }
-        i += 1;
-    }
-    count
-}
-
-/// Count unescaped backticks in a line when we are OUTSIDE a template literal.
-/// We need to skip backticks that appear inside single-quoted or double-quoted
-/// string literals (e.g., `$.html('`')` has a backtick inside single quotes).
-pub(super) fn count_unescaped_backticks_outside_template(line: &str) -> usize {
-    let bytes = line.as_bytes();
-    let mut count = 0;
-    let mut i = 0;
-    let mut in_string: Option<u8> = None;
-    while i < bytes.len() {
-        let c = bytes[i];
-        if let Some(quote) = in_string {
-            if c == b'\\' {
-                i += 2; // skip escaped character inside string
-                continue;
-            }
-            if c == quote {
-                in_string = None;
-            }
-            i += 1;
-            continue;
-        }
-        if c == b'\\' {
-            i += 2; // skip escaped character
-            continue;
-        }
-        if c == b'\'' || c == b'"' {
-            in_string = Some(c);
-            i += 1;
-            continue;
-        }
-        if c == b'`' {
-            count += 1;
-        }
-        i += 1;
-    }
-    count
 }
 
 /// Check if a statement starting at `start` spans multiple lines at the given indent level.
