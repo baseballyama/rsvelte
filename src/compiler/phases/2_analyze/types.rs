@@ -307,6 +307,57 @@ pub fn strip_typescript(source: &str) -> String {
 
     collect_ts_removals_from_program(&result.program, source, &mut removals);
 
+    // Text-based fallback: strip `declare global { ... }`, `declare module ... { ... }`,
+    // and `declare namespace ... { ... }` blocks. These may not always be parsed as
+    // TSModuleDeclaration depending on the OXC version, so do a simple text-based scan
+    // to ensure they're removed.
+    for keyword in &["declare global", "declare module", "declare namespace"] {
+        let bytes = source.as_bytes();
+        let mut search_from = 0;
+        while let Some(rel) = source[search_from..].find(keyword) {
+            let start = search_from + rel;
+            // Ensure it's at start of line (or preceded only by whitespace)
+            let line_start = source[..start].rfind('\n').map(|n| n + 1).unwrap_or(0);
+            let prefix = &source[line_start..start];
+            if !prefix.chars().all(char::is_whitespace) {
+                search_from = start + keyword.len();
+                continue;
+            }
+            // Find the matching `{` after the keyword
+            let after = &source[start + keyword.len()..];
+            if let Some(brace_rel) = after.find('{') {
+                let brace_pos = start + keyword.len() + brace_rel;
+                // Find matching `}` by depth tracking
+                let mut depth = 1i32;
+                let mut i = brace_pos + 1;
+                while i < bytes.len() && depth > 0 {
+                    match bytes[i] {
+                        b'{' => depth += 1,
+                        b'}' => depth -= 1,
+                        b'"' | b'\'' | b'`' => {
+                            let q = bytes[i];
+                            i += 1;
+                            while i < bytes.len() && bytes[i] != q {
+                                if bytes[i] == b'\\' {
+                                    i += 1;
+                                }
+                                i += 1;
+                            }
+                        }
+                        _ => {}
+                    }
+                    i += 1;
+                }
+                if depth == 0 {
+                    removals.push((start as u32, i as u32));
+                    search_from = i;
+                    continue;
+                }
+            }
+            search_from = start + keyword.len();
+        }
+    }
+
     if removals.is_empty() {
         return source.to_string();
     }

@@ -722,7 +722,51 @@ fn push_static_element_to_template_inner(
                     .map(|i| i + 1)
                     .unwrap_or(0);
 
-                let range = &children[start..end.max(start)];
+                let raw_range = &children[start..end.max(start)];
+                // Pre-pass: when comments are being removed, merge consecutive text
+                // nodes that are only separated by removed comments. This avoids
+                // double-spacing where each side independently collapses to a single
+                // space.
+                let merged_range: Vec<TemplateNode> = if preserve_comments {
+                    raw_range.to_vec()
+                } else {
+                    let mut out: Vec<TemplateNode> = Vec::with_capacity(raw_range.len());
+                    let mut pending_text: Option<crate::ast::template::Text> = None;
+                    for child in raw_range.iter() {
+                        match child {
+                            TemplateNode::Comment(_) => {
+                                // Skip — but keep pending_text alive so the next text
+                                // will merge with it.
+                            }
+                            TemplateNode::Text(t) => {
+                                if let Some(prev) = pending_text.take() {
+                                    // Merge: combine prev.data + t.data (and raw)
+                                    let mut merged = prev.clone();
+                                    let mut new_data = prev.data.to_string();
+                                    new_data.push_str(&t.data);
+                                    merged.data = compact_str::CompactString::new(&new_data);
+                                    let mut new_raw = prev.raw.to_string();
+                                    new_raw.push_str(&t.raw);
+                                    merged.raw = compact_str::CompactString::new(&new_raw);
+                                    pending_text = Some(merged);
+                                } else {
+                                    pending_text = Some(t.clone());
+                                }
+                            }
+                            other => {
+                                if let Some(t) = pending_text.take() {
+                                    out.push(TemplateNode::Text(t));
+                                }
+                                out.push(other.clone());
+                            }
+                        }
+                    }
+                    if let Some(t) = pending_text.take() {
+                        out.push(TemplateNode::Text(t));
+                    }
+                    out
+                };
+                let range: &[TemplateNode] = &merged_range;
                 // Collect non-comment children indices for boundary trimming
                 let meaningful_indices: Vec<usize> = range
                     .iter()

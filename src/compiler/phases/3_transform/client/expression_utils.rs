@@ -598,6 +598,25 @@ pub(super) fn find_assignment_expr_end(s: &str, in_ternary: bool) -> usize {
                     prev_char = Some(c);
                     continue;
                 }
+                // Also continue if the PREVIOUS non-whitespace character was a
+                // binary/infix operator that requires another operand. This catches
+                // multi-line continuations like `... ||\n  next_operand`.
+                if matches!(
+                    prev_char,
+                    Some('+')
+                        | Some('-')
+                        | Some('*')
+                        | Some('/')
+                        | Some('%')
+                        | Some('&')
+                        | Some('|')
+                        | Some('^')
+                        | Some('=')
+                        | Some('?')
+                ) {
+                    prev_char = Some(c);
+                    continue;
+                }
                 return byte_idx;
             }
             // Stop at ',' at depth 0 (e.g., inside object literal: {id: eid = expr, name: ...})
@@ -635,6 +654,12 @@ pub(super) fn update_expression_depths(
     brace_depth: &mut i32,
     in_string: &mut Option<char>,
     in_block_comment: &mut bool,
+    // Stack of pending template-literal interpolation brace counts. Each entry
+    // represents an open `${` interpolation; the value is the depth of `{}`
+    // braces opened inside the interpolation. When the value goes negative,
+    // the interpolation `}` is reached and the entry is popped (returning
+    // control to the surrounding template literal).
+    template_interp_stack: &mut Vec<i32>,
 ) {
     let bytes = line.as_bytes();
     let len = bytes.len();
@@ -671,6 +696,20 @@ pub(super) fn update_expression_depths(
             continue;
         }
 
+        // Handle template literal interpolation entry: `${` while inside a backtick
+        if *in_string == Some('`')
+            && c == b'$'
+            && i + 1 < len
+            && bytes[i + 1] == b'{'
+            && (i == 0 || bytes[i - 1] != b'\\')
+        {
+            template_interp_stack.push(0);
+            *in_string = None;
+            i += 2;
+            last_significant = b'{';
+            continue;
+        }
+
         // Handle string literals
         if (c == b'"' || c == b'\'' || c == b'`') && (i == 0 || bytes[i - 1] != b'\\') {
             if let Some(string_char) = *in_string {
@@ -688,6 +727,32 @@ pub(super) fn update_expression_depths(
         if in_string.is_some() {
             i += 1;
             continue;
+        }
+
+        // While inside a template-literal interpolation, track `{`/`}` to know
+        // when the interpolation ends. The closing `}` of the `${` does not
+        // affect the outer brace_depth.
+        if let Some(top) = template_interp_stack.last_mut() {
+            if c == b'{' {
+                *top += 1;
+                last_significant = c;
+                i += 1;
+                continue;
+            } else if c == b'}' {
+                if *top == 0 {
+                    // Closing `}` of the interpolation: pop and return to template literal
+                    template_interp_stack.pop();
+                    *in_string = Some('`');
+                    last_significant = c;
+                    i += 1;
+                    continue;
+                } else {
+                    *top -= 1;
+                    last_significant = c;
+                    i += 1;
+                    continue;
+                }
+            }
         }
 
         // Detect regex literals: `/` preceded by an operator, `(`, `,`, `=`,
@@ -794,12 +859,14 @@ pub(super) fn is_expression_incomplete(
     brace_depth: i32,
     in_string: &Option<char>,
     in_block_comment: bool,
+    template_interp_stack: &[i32],
 ) -> bool {
     paren_depth != 0
         || bracket_depth != 0
         || brace_depth != 0
         || in_string.is_some()
         || in_block_comment
+        || !template_interp_stack.is_empty()
 }
 
 /// Check if an expression is incomplete (e.g., unbalanced brackets).

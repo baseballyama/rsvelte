@@ -224,9 +224,21 @@ pub(super) fn strip_js_single_line_comments(source: &str) -> String {
     let mut copy_start = 0; // Start of current segment to bulk-copy (preserves UTF-8)
     let mut in_string = false;
     let mut string_char = b'"';
+    // Stack of template-literal interpolation brace counts. Each entry is the
+    // depth of `{}` inside the current `${...}`; when it reaches -1 the
+    // interpolation closes and we return to the surrounding template literal.
+    let mut template_interp_stack: Vec<i32> = Vec::new();
 
     while i < len {
         let c = bytes[i];
+
+        // Inside a backtick template literal: detect `${` to enter interpolation
+        if in_string && string_char == b'`' && c == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+            template_interp_stack.push(0);
+            in_string = false;
+            i += 2;
+            continue;
+        }
 
         // Handle string literals
         if !in_string && (c == b'\'' || c == b'"' || c == b'`') {
@@ -245,10 +257,30 @@ pub(super) fn strip_js_single_line_comments(source: &str) -> String {
             if c == string_char {
                 in_string = false;
             }
-            // Handle template literal expressions: `${...}`
-            // (backtick string continues after the closing })
             i += 1;
             continue;
+        }
+
+        // While inside a template-literal interpolation, track `{`/`}`.
+        // The closing `}` of the `${` does not require a matching `{`.
+        if let Some(top) = template_interp_stack.last_mut() {
+            if c == b'{' {
+                *top += 1;
+                i += 1;
+                continue;
+            } else if c == b'}' {
+                if *top == 0 {
+                    template_interp_stack.pop();
+                    in_string = true;
+                    string_char = b'`';
+                    i += 1;
+                    continue;
+                } else {
+                    *top -= 1;
+                    i += 1;
+                    continue;
+                }
+            }
         }
 
         // Detect // single-line comments

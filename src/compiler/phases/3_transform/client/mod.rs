@@ -4054,6 +4054,7 @@ fn transform_instance_script_for_visitors(
     let mut depth_brace: i32 = 0;
     let mut depth_in_string: Option<char> = None;
     let mut depth_in_block_comment: bool = false;
+    let mut depth_template_interp_stack: Vec<i32> = Vec::new();
 
     // Pre-compute runes fast-path eligibility flags
     let runes_fastpath_eligible = analysis.runes && !dev && prop_mutation_vars.is_empty();
@@ -4114,6 +4115,7 @@ fn transform_instance_script_for_visitors(
             &mut depth_brace,
             &mut depth_in_string,
             &mut depth_in_block_comment,
+            &mut depth_template_interp_stack,
         );
 
         // Check if we have a complete statement (balanced braces/parens)
@@ -4123,6 +4125,7 @@ fn transform_instance_script_for_visitors(
             depth_brace,
             &depth_in_string,
             depth_in_block_comment,
+            &depth_template_interp_stack,
         ) {
             // Check for trailing comma in variable declarations (multi-declarator continuation)
             let first_trimmed_line = accumulated_lines[0].trim();
@@ -4140,15 +4143,17 @@ fn transform_instance_script_for_visitors(
             // (e.g., `*/` ending a JSDoc comment, or `}` ending a block).
             let trailing_operator = {
                 let t = trimmed.trim_end_matches(';');
-                t.ends_with('=')
+                (t.ends_with('=')
                     && !t.ends_with("==")
                     && !t.ends_with("!=")
                     && !t.ends_with("<=")
                     && !t.ends_with(">=")
-                    && !t.ends_with("=>")
+                    && !t.ends_with("=>"))
                     || t.ends_with("&&")
                     || t.ends_with("||")
                     || t.ends_with("??")
+                    // Binary `+` continuation: line ends with `+ ` (i.e., `+` not as part of `++`)
+                    || (t.ends_with('+') && !t.ends_with("++"))
             };
 
             if !trailing_comma && !trailing_operator {
@@ -4200,6 +4205,7 @@ fn transform_instance_script_for_visitors(
                             depth_brace = 0;
                             depth_in_string = None;
                             depth_in_block_comment = false;
+                            depth_template_interp_stack.clear();
                             line_idx += 1;
                             continue;
                         }
@@ -4233,6 +4239,7 @@ fn transform_instance_script_for_visitors(
                     depth_brace = 0;
                     depth_in_string = None;
                     depth_in_block_comment = false;
+                    depth_template_interp_stack.clear();
                 }
             }
         }
