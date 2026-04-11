@@ -82,6 +82,10 @@ pub struct ScopeBuilder<'a> {
     /// These need to be in the conflicts set so that generated variable names
     /// (like `node`, `$$array`, etc.) don't collide with them.
     template_expression_params: Vec<String>,
+    /// Names declared inside nested function bodies that need to participate in
+    /// root.conflicts (so generated template variables like `node_N` avoid them),
+    /// but that aren't otherwise tracked as scope declarations.
+    nested_declared_names: rustc_hash::FxHashSet<String>,
 }
 
 impl<'a> ScopeBuilder<'a> {
@@ -118,6 +122,7 @@ impl<'a> ScopeBuilder<'a> {
             each_block_collection_infos: Vec::new(),
             template_scope_map: FxHashMap::default(),
             template_expression_params: Vec::new(),
+            nested_declared_names: rustc_hash::FxHashSet::default(),
         }
     }
 
@@ -282,6 +287,14 @@ impl<'a> ScopeBuilder<'a> {
         // naming collisions with generated variables.
         // Use into_iter to take ownership and avoid cloning.
         for name in std::mem::take(&mut self.template_expression_params) {
+            conflicts.insert(name);
+        }
+        // Also collect names declared inside nested function/arrow bodies. These are
+        // not reflected in any scope's declarations (since the tracking-only paths
+        // don't declare bindings), but the official Svelte compiler adds all such
+        // inner declarations to root.conflicts so that generated variables like
+        // `node_N` avoid colliding with them.
+        for name in std::mem::take(&mut self.nested_declared_names) {
             conflicts.insert(name);
         }
 
@@ -752,13 +765,53 @@ impl<'a> ScopeBuilder<'a> {
                     self.pop_scope(old);
                 }
             }
-            JsNode::ForInStatement { right, body, .. } => {
+            JsNode::ForInStatement {
+                left, right, body, ..
+            } => {
+                // Process left: if it's a VariableDeclaration, declare the binding
+                // in a new scope so subsequent `node_N` generation sees it as a conflict.
+                let left_node = self.arena.get_js_node(*left);
+                let needs_scope = matches!(
+                    left_node,
+                    JsNode::VariableDeclaration { kind, .. }
+                        if kind.as_str() == "let" || kind.as_str() == "const"
+                );
+                let old_scope = if needs_scope {
+                    Some(self.push_scope())
+                } else {
+                    None
+                };
+                if matches!(left_node, JsNode::VariableDeclaration { .. }) {
+                    self.process_statement_typed(left_node);
+                }
                 self.track_node_expression_updates(self.arena.get_js_node(*right));
                 self.process_statement_typed(self.arena.get_js_node(*body));
+                if let Some(old) = old_scope {
+                    self.pop_scope(old);
+                }
             }
-            JsNode::ForOfStatement { right, body, .. } => {
+            JsNode::ForOfStatement {
+                left, right, body, ..
+            } => {
+                let left_node = self.arena.get_js_node(*left);
+                let needs_scope = matches!(
+                    left_node,
+                    JsNode::VariableDeclaration { kind, .. }
+                        if kind.as_str() == "let" || kind.as_str() == "const"
+                );
+                let old_scope = if needs_scope {
+                    Some(self.push_scope())
+                } else {
+                    None
+                };
+                if matches!(left_node, JsNode::VariableDeclaration { .. }) {
+                    self.process_statement_typed(left_node);
+                }
                 self.track_node_expression_updates(self.arena.get_js_node(*right));
                 self.process_statement_typed(self.arena.get_js_node(*body));
+                if let Some(old) = old_scope {
+                    self.pop_scope(old);
+                }
             }
             JsNode::TryStatement {
                 block,
@@ -1236,6 +1289,100 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Process a binding pattern from a JSON Value (Raw fallback for declarations
     /// inside ExportNamedDeclaration).
+    /// Collect all identifier names from a typed JsNode binding pattern into the
+    /// `nested_declared_names` set (used to seed root.conflicts with inner-scope names).
+    fn collect_names_from_pattern_into_nested(&mut self, node: &JsNode) {
+        match node {
+            JsNode::Identifier { name, .. } => {
+                self.nested_declared_names.insert(name.to_string());
+            }
+            JsNode::ObjectPattern { properties, .. } => {
+                for prop in self.arena.get_js_children(*properties) {
+                    match prop {
+                        JsNode::Property { value, .. } => {
+                            let v = self.arena.get_js_node(*value);
+                            self.collect_names_from_pattern_into_nested(v);
+                        }
+                        JsNode::RestElement { argument, .. } => {
+                            let a = self.arena.get_js_node(*argument);
+                            self.collect_names_from_pattern_into_nested(a);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            JsNode::ArrayPattern { elements, .. } => {
+                for elem in elements.iter().flatten() {
+                    self.collect_names_from_pattern_into_nested(elem);
+                }
+            }
+            JsNode::AssignmentPattern { left, .. } => {
+                let l = self.arena.get_js_node(*left);
+                self.collect_names_from_pattern_into_nested(l);
+            }
+            JsNode::RestElement { argument, .. } => {
+                let a = self.arena.get_js_node(*argument);
+                self.collect_names_from_pattern_into_nested(a);
+            }
+            JsNode::Raw(v) => {
+                self.collect_names_from_raw_pattern_into_nested(v);
+            }
+            _ => {}
+        }
+    }
+
+    /// Collect all identifier names from a raw JSON binding pattern into the
+    /// `nested_declared_names` set (used to seed root.conflicts with inner-scope names).
+    fn collect_names_from_raw_pattern_into_nested(&mut self, pattern: &serde_json::Value) {
+        let pattern_type = pattern.get("type").and_then(|t| t.as_str());
+        match pattern_type {
+            Some("Identifier") => {
+                if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
+                    self.nested_declared_names.insert(name.to_string());
+                }
+            }
+            Some("ObjectPattern") => {
+                if let Some(props) = pattern.get("properties").and_then(|p| p.as_array()) {
+                    for prop in props {
+                        match prop.get("type").and_then(|t| t.as_str()) {
+                            Some("Property") => {
+                                if let Some(value) = prop.get("value") {
+                                    self.collect_names_from_raw_pattern_into_nested(value);
+                                }
+                            }
+                            Some("RestElement") | Some("SpreadElement") => {
+                                if let Some(arg) = prop.get("argument") {
+                                    self.collect_names_from_raw_pattern_into_nested(arg);
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            Some("ArrayPattern") => {
+                if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
+                    for elem in elements {
+                        if !elem.is_null() {
+                            self.collect_names_from_raw_pattern_into_nested(elem);
+                        }
+                    }
+                }
+            }
+            Some("AssignmentPattern") => {
+                if let Some(left) = pattern.get("left") {
+                    self.collect_names_from_raw_pattern_into_nested(left);
+                }
+            }
+            Some("RestElement") => {
+                if let Some(arg) = pattern.get("argument") {
+                    self.collect_names_from_raw_pattern_into_nested(arg);
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn process_raw_binding_pattern(
         &mut self,
         pattern: Option<&serde_json::Value>,
@@ -1966,12 +2113,53 @@ impl<'a> ScopeBuilder<'a> {
                 }
             }
             Statement::ForInStatement(for_in_stmt) => {
+                // Declare the loop variable in a new scope if it's a let/const
+                // VariableDeclaration. This ensures the name ends up in root.conflicts
+                // so generated variables like `node_N` correctly avoid it.
+                let needs_scope = matches!(
+                    &for_in_stmt.left,
+                    oxc_ast::ast::ForStatementLeft::VariableDeclaration(d)
+                        if matches!(d.kind, oxc_ast::ast::VariableDeclarationKind::Let
+                            | oxc_ast::ast::VariableDeclarationKind::Const)
+                );
+                let old_scope = if needs_scope {
+                    Some(self.push_scope())
+                } else {
+                    None
+                };
+                if let oxc_ast::ast::ForStatementLeft::VariableDeclaration(var_decl) =
+                    &for_in_stmt.left
+                {
+                    self.process_variable_declaration(var_decl);
+                }
                 self.track_expression_updates(&for_in_stmt.right);
                 self.process_statement(&for_in_stmt.body);
+                if let Some(old) = old_scope {
+                    self.pop_scope(old);
+                }
             }
             Statement::ForOfStatement(for_of_stmt) => {
+                let needs_scope = matches!(
+                    &for_of_stmt.left,
+                    oxc_ast::ast::ForStatementLeft::VariableDeclaration(d)
+                        if matches!(d.kind, oxc_ast::ast::VariableDeclarationKind::Let
+                            | oxc_ast::ast::VariableDeclarationKind::Const)
+                );
+                let old_scope = if needs_scope {
+                    Some(self.push_scope())
+                } else {
+                    None
+                };
+                if let oxc_ast::ast::ForStatementLeft::VariableDeclaration(var_decl) =
+                    &for_of_stmt.left
+                {
+                    self.process_variable_declaration(var_decl);
+                }
                 self.track_expression_updates(&for_of_stmt.right);
                 self.process_statement(&for_of_stmt.body);
+                if let Some(old) = old_scope {
+                    self.pop_scope(old);
+                }
             }
             Statement::BlockStatement(block_stmt) => {
                 // Block statements create a new scope for `let` and `const` declarations
@@ -3638,6 +3826,18 @@ impl<'a> ScopeBuilder<'a> {
                 }
             }
             "ForInStatement" | "ForOfStatement" => {
+                // Also collect loop variable declarations (e.g. `for (const node of ...)`)
+                // so their names enter root.conflicts and avoid collision with generated vars.
+                if let Some(left) = obj.get("left")
+                    && left.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+                    && let Some(decls) = left.get("declarations").and_then(|d| d.as_array())
+                {
+                    for decl in decls {
+                        if let Some(id) = decl.get("id") {
+                            self.collect_names_from_raw_pattern_into_nested(id);
+                        }
+                    }
+                }
                 if let Some(body) = obj.get("body") {
                     self.track_json_statement_updates(body);
                 }
@@ -3717,12 +3917,15 @@ impl<'a> ScopeBuilder<'a> {
                 for param in self.arena.get_js_children(params_range) {
                     self.declare_bindings_from_pattern_node(param, BindingKind::Normal, false);
                 }
-                // Track body updates
+                // Process body for declarations AND updates.
+                // This mirrors the official Svelte scope builder, which declares inner
+                // function bindings into the scope tree so they end up in root.conflicts
+                // and participate in generated-variable name collision avoidance.
                 let body_node = self.arena.get_js_node(body_id);
                 if let JsNode::BlockStatement { body: stmts, .. } = body_node {
                     let stmts = *stmts;
                     for stmt in self.arena.get_js_children(stmts) {
-                        self.track_node_statement_updates(stmt);
+                        self.process_statement_typed(stmt);
                     }
                 } else if let JsNode::Raw(json) = body_node {
                     // The parser wraps arrow function bodies as JsNode::Raw(Value).
@@ -3762,7 +3965,7 @@ impl<'a> ScopeBuilder<'a> {
                     if let JsNode::BlockStatement { body: stmts, .. } = body_node {
                         let stmts = *stmts;
                         for stmt in self.arena.get_js_children(stmts) {
-                            self.track_node_statement_updates(stmt);
+                            self.process_statement_typed(stmt);
                         }
                     } else if let JsNode::Raw(json) = body_node {
                         // Handle Raw BlockStatement body (from convert_function_body_for_program)
@@ -4066,13 +4269,30 @@ impl<'a> ScopeBuilder<'a> {
             }
             JsNode::VariableDeclaration { declarations, .. } => {
                 for decl in self.arena.get_js_children(*declarations) {
-                    if let JsNode::VariableDeclarator {
-                        init: Some(init), ..
-                    } = decl
-                    {
-                        self.track_node_expression_updates(self.arena.get_js_node(*init));
+                    if let JsNode::VariableDeclarator { id, init, .. } = decl {
+                        // Collect binding names into nested_declared_names so they
+                        // participate in root.conflicts for generated-var collision avoidance.
+                        let id_node = self.arena.get_js_node(*id);
+                        self.collect_names_from_pattern_into_nested(id_node);
+                        if let Some(init_id) = init {
+                            self.track_node_expression_updates(self.arena.get_js_node(*init_id));
+                        }
                     }
                 }
+            }
+            JsNode::ForInStatement { left, body, .. }
+            | JsNode::ForOfStatement { left, body, .. } => {
+                // Collect loop variable declarations
+                let left_node = self.arena.get_js_node(*left);
+                if let JsNode::VariableDeclaration { declarations, .. } = left_node {
+                    for decl in self.arena.get_js_children(*declarations) {
+                        if let JsNode::VariableDeclarator { id, .. } = decl {
+                            let id_node = self.arena.get_js_node(*id);
+                            self.collect_names_from_pattern_into_nested(id_node);
+                        }
+                    }
+                }
+                self.track_node_statement_updates(self.arena.get_js_node(*body));
             }
             JsNode::IfStatement {
                 test,
@@ -4093,9 +4313,7 @@ impl<'a> ScopeBuilder<'a> {
             }
             JsNode::ForStatement { body, .. }
             | JsNode::WhileStatement { body, .. }
-            | JsNode::DoWhileStatement { body, .. }
-            | JsNode::ForInStatement { body, .. }
-            | JsNode::ForOfStatement { body, .. } => {
+            | JsNode::DoWhileStatement { body, .. } => {
                 self.track_node_statement_updates(self.arena.get_js_node(*body));
             }
             JsNode::SwitchStatement { cases, .. } => {

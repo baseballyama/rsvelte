@@ -596,7 +596,8 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             if context.state.analysis.runes
                 && !computed
                 && !context.state.in_direct_assignment_lhs
-                && let Some(obj_name) = get_jsnode_identifier_name(pa.get_js_node(*object))
+                && let Some(obj_name) =
+                    get_jsnode_identifier_name_unwrap_ts(pa.get_js_node(*object))
                 && !context.state.shadowed_prop_names.contains(&obj_name)
                 && let Some(binding) = context.state.get_binding(&obj_name)
                 && binding.kind == BindingKind::RestProp
@@ -1653,6 +1654,39 @@ fn get_jsnode_identifier_name(node: &JsNode) -> Option<String> {
             .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
             .and_then(|o| o.get("name").and_then(|n| n.as_str()))
             .map(|s| s.to_string()),
+        _ => None,
+    }
+}
+
+/// Like `get_jsnode_identifier_name`, but also unwraps TypeScript expression
+/// wrappers (e.g., `(props as any)` -> `props`). Useful for transformations
+/// that need to find the underlying identifier.
+fn get_jsnode_identifier_name_unwrap_ts(node: &JsNode) -> Option<String> {
+    match node {
+        JsNode::Identifier { name, .. } => Some(name.to_string()),
+        JsNode::Raw(v) => {
+            let mut cur = v.as_object()?;
+            loop {
+                match cur.get("type").and_then(|t| t.as_str()) {
+                    Some("Identifier") => {
+                        return cur
+                            .get("name")
+                            .and_then(|n| n.as_str())
+                            .map(|s| s.to_string());
+                    }
+                    Some(
+                        "TSAsExpression"
+                        | "TSNonNullExpression"
+                        | "TSSatisfiesExpression"
+                        | "TSTypeAssertion"
+                        | "TSInstantiationExpression",
+                    ) => {
+                        cur = cur.get("expression").and_then(|e| e.as_object())?;
+                    }
+                    _ => return None,
+                }
+            }
+        }
         _ => None,
     }
 }

@@ -412,7 +412,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
 
         // Sort inner replacements right-to-left and apply to the substring
         let mut sorted_inner = inner;
-        sorted_inner.sort_by(|a, b| b.start.cmp(&a.start));
+        sorted_inner.sort_by_key(|r| std::cmp::Reverse(r.start));
 
         let mut result = self.source[range_start as usize..range_end as usize].to_string();
         for rep in &sorted_inner {
@@ -1112,13 +1112,32 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
 
     fn visit_static_member_expression(&mut self, expr: &StaticMemberExpression<'ast>) {
         // rest_prop.x -> $$props.x (only for non-computed, non-assignment-target access)
-        if let Expression::Identifier(obj) = &expr.object
+        // Unwrap parentheses and TS wrappers (e.g., `(props as any).x`) to find the
+        // underlying identifier; replace the entire wrapped expression with `$$props`.
+        // Unwrap ParenthesizedExpression, TSAsExpression, TSNonNullExpression, etc.
+        let mut unwrapped = expr.object.without_parentheses();
+        loop {
+            match unwrapped {
+                Expression::TSAsExpression(e) => unwrapped = e.expression.without_parentheses(),
+                Expression::TSNonNullExpression(e) => {
+                    unwrapped = e.expression.without_parentheses()
+                }
+                Expression::TSSatisfiesExpression(e) => {
+                    unwrapped = e.expression.without_parentheses()
+                }
+                Expression::TSTypeAssertion(e) => unwrapped = e.expression.without_parentheses(),
+                Expression::TSInstantiationExpression(e) => {
+                    unwrapped = e.expression.without_parentheses()
+                }
+                _ => break,
+            }
+        }
+        if let Expression::Identifier(obj) = unwrapped
             && self.is_active_rest_prop(obj.name.as_str())
         {
-            let obj_start = obj.span.start;
-            let obj_end = obj.span.end;
-            // Replace just the object name with $$props
-            // `others.x` -> `$$props.x`
+            // Replace the entire object span (including wrappers/parens) with $$props
+            let obj_start = expr.object.span().start;
+            let obj_end = expr.object.span().end;
             self.add_replacement(obj_start, obj_end, "$$props".to_string());
             // Don't walk further - the object is replaced and property is just a name
             return;
@@ -1608,7 +1627,9 @@ pub(super) fn transform_state_vars_ast(
 
         // Sort replacements by start position descending (right-to-left)
         // so that applying them doesn't invalidate earlier positions
-        collector.replacements.sort_by(|a, b| b.start.cmp(&a.start));
+        collector
+            .replacements
+            .sort_by_key(|r| std::cmp::Reverse(r.start));
 
         // Apply replacements
         let mut result = script.to_string();

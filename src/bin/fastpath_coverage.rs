@@ -96,7 +96,7 @@ fn main() {
 
     // Sort categories by count descending
     let mut cats: Vec<_> = categories.into_iter().collect();
-    cats.sort_by(|a, b| b.1.cmp(&a.1));
+    cats.sort_by_key(|c| std::cmp::Reverse(c.1));
     println!("Expression categories:");
     for (cat, count) in &cats {
         let fp = if is_category_fast_path(cat) {

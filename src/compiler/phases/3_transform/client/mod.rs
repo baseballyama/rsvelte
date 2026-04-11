@@ -376,8 +376,8 @@ fn transform_client_with_visitors(
     // Transform the instance script once with the real reactive_import_names.
     // This also determines how many $$array names it consumes (for template generation)
     // and is used for blocker_map computation and the final output.
-    let pre_transformed_script = if analysis.instance_script_content.is_some() {
-        let raw = &analysis.instance_script_content.as_ref().unwrap().raw;
+    let pre_transformed_script = if let Some(instance_script) = &analysis.instance_script_content {
+        let raw = &instance_script.raw;
         let transformed = transform_instance_script_for_visitors(
             raw,
             analysis,
