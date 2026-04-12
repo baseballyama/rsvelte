@@ -57,12 +57,13 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.source.clone(),
                 self.instance_script,
                 None,
-                None,
+                self.analysis,
                 self.use_async,
             );
             pending_generator.constant_vars = self.constant_vars.clone();
             pending_generator.is_typescript = self.is_typescript;
             pending_generator.dev = self.dev;
+            pending_generator.uses_store_subs = self.uses_store_subs;
             for node in &pending.nodes {
                 pending_generator.generate_node(node, false)?;
             }
@@ -80,12 +81,13 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.source.clone(),
                 self.instance_script,
                 None,
-                None,
+                self.analysis,
                 self.use_async,
             );
             then_generator.constant_vars = self.constant_vars.clone();
             then_generator.is_typescript = self.is_typescript;
             then_generator.dev = self.dev;
+            then_generator.uses_store_subs = self.uses_store_subs;
             for node in &then.nodes {
                 then_generator.generate_node(node, false)?;
             }
@@ -102,12 +104,13 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.source.clone(),
                 self.instance_script,
                 None,
-                None,
+                self.analysis,
                 self.use_async,
             );
             catch_generator.constant_vars = self.constant_vars.clone();
             catch_generator.is_typescript = self.is_typescript;
             catch_generator.dev = self.dev;
+            catch_generator.uses_store_subs = self.uses_store_subs;
             for node in &catch.nodes {
                 catch_generator.generate_node(node, false)?;
             }
@@ -140,12 +143,13 @@ impl<'a> ServerCodeGenerator<'a> {
             self.source.clone(),
             None,
             None,
-            None,
+            self.analysis,
             self.use_async,
         );
         body_generator.constant_vars = self.constant_vars.clone();
         body_generator.is_typescript = self.is_typescript;
         body_generator.dev = self.dev;
+        body_generator.uses_store_subs = self.uses_store_subs;
 
         // Determine range of nodes, trimming leading/trailing whitespace-only text nodes
         // but preserving interior whitespace (e.g., between expression tags and elements)
