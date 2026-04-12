@@ -769,9 +769,14 @@ fn transform_store_property_mutations(script: &str) -> String {
                                 let assign_op: String =
                                     chars[assign_op_start..assign_op_end].iter().collect();
 
-                                // Skip whitespace after operator
+                                // Skip whitespace (including newlines) after operator
                                 let mut val_start = assign_op_end;
-                                while val_start < len && chars[val_start] == ' ' {
+                                while val_start < len
+                                    && (chars[val_start] == ' '
+                                        || chars[val_start] == '\t'
+                                        || chars[val_start] == '\n'
+                                        || chars[val_start] == '\r')
+                                {
                                     val_start += 1;
                                 }
 
@@ -1597,7 +1602,23 @@ fn find_statement_end(s: &str) -> usize {
                     depth -= 1;
                 }
             }
-            ';' | '\n' if depth == 0 => return i,
+            ';' if depth == 0 => return i,
+            '\n' if depth == 0 => {
+                // Newline at depth 0 ends the statement ONLY if the previous
+                // non-whitespace char is not a continuation operator (=, +, -, etc.)
+                // This handles multi-line assignments like:
+                //   $store.prop =\n    value;
+                let prev_nonws = s[..i].chars().rev().find(|c| !c.is_whitespace());
+                match prev_nonws {
+                    Some(
+                        '=' | '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^' | '~' | '?' | ':' | ','
+                        | '(' | '[' | '{',
+                    ) => {
+                        // Continuation - don't end statement
+                    }
+                    _ => return i,
+                }
+            }
             _ => {}
         }
 
