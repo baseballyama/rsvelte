@@ -540,6 +540,8 @@ fn split_concatenated_braces(code: &str) -> String {
                 && !rest.starts_with("while")
                 && !rest.starts_with("catch")
                 && !rest.starts_with("finally")
+                && !rest.starts_with("from ")
+                && !rest.starts_with("from\t")
                 && rest != "}"
             {
                 // Determine indentation of the original line

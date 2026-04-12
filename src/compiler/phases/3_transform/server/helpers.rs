@@ -2657,3 +2657,69 @@ pub fn update_template_literal_state_full(
     }
     (in_template, brace_depth)
 }
+
+/// Normalize an import statement to match esrap formatting:
+/// - If the single-line version is ≤ 83 chars, use single-line format
+/// - If > 83 chars, break into multi-line with tab indentation per specifier
+/// - No trailing commas on the last specifier
+/// - Single quotes for module path
+/// - Multi-line format: `import {\n\tspec1,\n\tspec2\n} from 'module';`
+pub(crate) fn normalize_import(import_str: &str) -> String {
+    let s = import_str.trim();
+
+    // Only normalize named imports: `import { ... } from '...'`
+    // Skip: `import * as`, `import '...'`, `import Foo from`
+    let Some(brace_start) = s.find('{') else {
+        return s.to_string();
+    };
+    let Some(brace_end) = s.rfind('}') else {
+        return s.to_string();
+    };
+
+    // Extract the part before `{`, the specifiers, and the part after `}`
+    let prefix = s[..brace_start].trim(); // "import" or "import type"
+    let specifiers_str = &s[brace_start + 1..brace_end];
+    let after_brace = s[brace_end + 1..].trim(); // "from '...'"  or "from '...';
+
+    // Parse specifiers: split by commas, trim each, remove empty ones
+    let specifiers: Vec<&str> = specifiers_str
+        .split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    if specifiers.is_empty() {
+        return s.to_string();
+    }
+
+    let after_brace = after_brace.trim();
+
+    // Build single-line version
+    let single_line = format!("{} {{ {} }} {}", prefix, specifiers.join(", "), after_brace);
+
+    // esrap threshold: 84 chars triggers multi-line
+    if single_line.len() <= 83 {
+        // Ensure trailing semicolon
+        if single_line.ends_with(';') {
+            single_line
+        } else {
+            format!("{};", single_line)
+        }
+    } else {
+        // Multi-line format
+        let mut result = format!("{} {{\n", prefix);
+        for (i, spec) in specifiers.iter().enumerate() {
+            if i < specifiers.len() - 1 {
+                result.push_str(&format!("\t{},\n", spec));
+            } else {
+                // Last specifier: no trailing comma
+                result.push_str(&format!("\t{}\n", spec));
+            }
+        }
+        result.push_str(&format!("}} {}", after_brace));
+        if !result.ends_with(';') {
+            result.push(';');
+        }
+        result
+    }
+}

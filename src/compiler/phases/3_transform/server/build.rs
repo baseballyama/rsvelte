@@ -138,20 +138,10 @@ impl<'a> ServerCodeGenerator<'a> {
             // Extract imports and transform the rest
             // Use extract_imports_module to keep `export { ... }` statements
             let (imports_raw, rest) = extract_imports_module(&raw_script);
-            // Ensure import statements end with semicolons, matching esrap behavior.
+            // Normalize import formatting to match esrap behavior
             let imports: Vec<String> = imports_raw
                 .into_iter()
-                .map(|s| {
-                    let t = s.trim().to_string();
-                    if !t.ends_with(';') {
-                        let mut with_semi = String::with_capacity(t.len() + 1);
-                        with_semi.push_str(&t);
-                        with_semi.push(';');
-                        with_semi
-                    } else {
-                        t
-                    }
-                })
+                .map(|s| normalize_import(&s))
                 .collect();
             // Apply class field transformation for $derived fields in module-level classes
             let rest = transform_class_fields_server(&rest);
@@ -270,20 +260,12 @@ impl<'a> ServerCodeGenerator<'a> {
 
             // Extract imports and transform the rest
             let (imports_raw, rest) = extract_imports(&raw_script);
-            // Ensure import statements end with semicolons, matching esrap behavior.
+            // Normalize import formatting to match esrap behavior:
+            // - Single-line if ≤ 83 chars, multi-line with tabs otherwise
+            // - No trailing commas, single quotes, semicolons
             let imports: Vec<String> = imports_raw
                 .into_iter()
-                .map(|s| {
-                    let t = s.trim().to_string();
-                    if !t.ends_with(';') {
-                        let mut with_semi = String::with_capacity(t.len() + 1);
-                        with_semi.push_str(&t);
-                        with_semi.push(';');
-                        with_semi
-                    } else {
-                        t
-                    }
-                })
+                .map(|s| normalize_import(&s))
                 .collect();
 
             // Apply class field transformation for $derived fields

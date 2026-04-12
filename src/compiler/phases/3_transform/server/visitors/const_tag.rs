@@ -218,9 +218,12 @@ impl<'a> ServerCodeGenerator<'a> {
 
             // Extract variable names and init expression
             let (lhs, rhs) = if let Some(eq_idx) = find_assignment_eq(&declaration_source) {
+                let rhs_raw = declaration_source[eq_idx + 1..].trim().to_string();
+                // Transform store subscriptions in the init expression
+                let rhs_transformed = self.transform_store_refs(&rhs_raw);
                 (
                     declaration_source[..eq_idx].trim().to_string(),
-                    declaration_source[eq_idx + 1..].trim().to_string(),
+                    rhs_transformed,
                 )
             } else {
                 (declaration_source.clone(), String::new())
@@ -371,6 +374,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     self.constant_vars.insert(lhs.clone(), folded);
                 }
 
+                // Transform store subscriptions ($store -> $.store_get())
+                let declaration_source = self.transform_store_refs(&declaration_source);
                 self.output_parts
                     .push(OutputPart::ConstDeclaration(declaration_source));
             }

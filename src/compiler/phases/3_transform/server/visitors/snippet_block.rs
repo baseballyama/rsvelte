@@ -39,7 +39,7 @@ impl<'a> ServerCodeGenerator<'a> {
             self.source.clone(),
             None,
             None,
-            None,
+            self.analysis,
             self.use_async,
         );
         body_generator.constant_vars = self.constant_vars.clone();
@@ -47,6 +47,7 @@ impl<'a> ServerCodeGenerator<'a> {
         body_generator.const_blocker_map = self.const_blocker_map.clone();
         body_generator.dev = self.dev;
         body_generator.is_typescript = self.is_typescript;
+        body_generator.uses_store_subs = self.uses_store_subs;
 
         // Collect non-empty nodes
         let body_nodes: Vec<_> = block.body.nodes.iter().collect();
@@ -201,6 +202,7 @@ impl<'a> ServerCodeGenerator<'a> {
         body_generator.const_blocker_map = self.const_blocker_map.clone();
         body_generator.dev = self.dev;
         body_generator.is_typescript = self.is_typescript;
+        body_generator.uses_store_subs = self.uses_store_subs;
 
         // Collect non-empty nodes
         let body_nodes: Vec<_> = fragment.nodes.iter().collect();
