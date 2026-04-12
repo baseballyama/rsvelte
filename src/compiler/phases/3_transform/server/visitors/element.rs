@@ -2087,6 +2087,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                         if expr_end > expr_start && expr_end <= self.source.len() {
                             let expr = self.source[expr_start..expr_end].trim().to_string();
+                            let expr = self.transform_store_refs(&expr);
                             if let Some(hash) = css_hash {
                                 return Ok(Some(format!(
                                     "${{$.attr_class({}, '{}')}}",
@@ -2364,6 +2365,8 @@ impl<'a> ServerCodeGenerator<'a> {
         } else if is_dynamic {
             // Dynamic expression - hash goes as separate second argument
             let expr = &base_class.unwrap()["__EXPR__:".len()..];
+            // Transform store refs in class expression
+            let expr = self.transform_store_refs(expr);
             let base = format!("$.clsx({})", expr);
             let hash = if let Some(hash) = css_hash {
                 format!("'{}'", hash)
