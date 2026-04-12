@@ -2697,8 +2697,8 @@ pub(crate) fn normalize_import(import_str: &str) -> String {
     // Build single-line version
     let single_line = format!("{} {{ {} }} {}", prefix, specifiers.join(", "), after_brace);
 
-    // esrap threshold: 84 chars triggers multi-line
-    if single_line.len() <= 83 {
+    // esrap threshold: lines <= 81 chars stay single-line, >= 82 break into multi-line
+    if single_line.len() <= 81 {
         // Ensure trailing semicolon
         if single_line.ends_with(';') {
             single_line

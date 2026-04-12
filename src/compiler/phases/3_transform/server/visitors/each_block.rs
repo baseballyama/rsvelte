@@ -299,7 +299,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.source.clone(),
                 None,
                 None,
-                None,
+                self.analysis,
                 self.use_async,
             );
             fallback_generator.constant_vars = self.constant_vars.clone();
@@ -307,6 +307,7 @@ impl<'a> ServerCodeGenerator<'a> {
             fallback_generator.const_blocker_map = self.const_blocker_map.clone();
             fallback_generator.is_typescript = self.is_typescript;
             fallback_generator.dev = self.dev;
+            fallback_generator.uses_store_subs = self.uses_store_subs;
             // Fallback is also inside the child_block(async ...) so it should not use $.save()
             fallback_generator.in_block_body = true;
             // Trim leading/trailing whitespace from fallback fragment nodes

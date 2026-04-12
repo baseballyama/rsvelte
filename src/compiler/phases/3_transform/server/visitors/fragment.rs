@@ -643,12 +643,13 @@ impl<'a> ServerCodeGenerator<'a> {
                     body_generator.source.clone(),
                     None,
                     None,
-                    None,
+                    body_generator.analysis,
                     body_generator.use_async,
                 );
                 frag_generator.constant_vars = body_generator.constant_vars.clone();
                 frag_generator.namespace = body_generator.namespace.clone();
                 frag_generator.dev = body_generator.dev;
+                frag_generator.uses_store_subs = body_generator.uses_store_subs;
                 frag_generator.const_promises_counter =
                     body_generator.const_promises_counter.clone();
                 frag_generator.const_blocker_map = body_generator.const_blocker_map.clone();
