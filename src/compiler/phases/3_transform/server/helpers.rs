@@ -1402,9 +1402,10 @@ fn try_insert_constant_value(
     name: &str,
     constants: &mut FxHashMap<String, String>,
 ) -> bool {
-    if (value.starts_with('\'') && value.ends_with('\''))
-        || (value.starts_with('"') && value.ends_with('"'))
-        || (value.starts_with('`') && value.ends_with('`') && !value.contains("${"))
+    if value.len() >= 2
+        && ((value.starts_with('\'') && value.ends_with('\''))
+            || (value.starts_with('"') && value.ends_with('"'))
+            || (value.starts_with('`') && value.ends_with('`') && !value.contains("${")))
     {
         let content = &value[1..value.len() - 1];
         constants.insert(name.to_string(), content.to_string());
