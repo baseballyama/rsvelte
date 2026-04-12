@@ -2465,7 +2465,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
                     let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
-                        self.source[expr_start..expr_end].trim().to_string()
+                        let raw = self.source[expr_start..expr_end].trim().to_string();
+                        self.transform_store_refs(&raw)
                     } else {
                         "undefined".to_string()
                     }
