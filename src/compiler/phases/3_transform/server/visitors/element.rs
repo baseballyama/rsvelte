@@ -1307,7 +1307,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     let start = expr_tag.expression.start().unwrap_or(0) as usize;
                     let end = expr_tag.expression.end().unwrap_or(0) as usize;
                     if end > start && end <= self.source.len() {
-                        return Ok(self.source[start..end].trim().to_string());
+                        let raw = self.source[start..end].trim().to_string();
+                        return Ok(self.transform_store_refs(&raw));
                     }
                 }
 
@@ -1340,6 +1341,8 @@ impl<'a> ServerCodeGenerator<'a> {
                             let end = expr_tag.expression.end().unwrap_or(0) as usize;
                             if end > start && end <= self.source.len() {
                                 let expr = self.source[start..end].trim();
+                                // Transform store refs ($store -> $.store_get())
+                                let expr = self.transform_store_refs(expr);
                                 // Wrap expressions in $.stringify() when mixed with text
                                 // This matches the official Svelte build_attribute_value behavior
                                 value.push_str(&format!("${{$.stringify({})}}", expr));
@@ -1358,7 +1361,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 let start = expr_tag.expression.start().unwrap_or(0) as usize;
                 let end = expr_tag.expression.end().unwrap_or(0) as usize;
                 if end > start && end <= self.source.len() {
-                    Ok(self.source[start..end].trim().to_string())
+                    let raw = self.source[start..end].trim().to_string();
+                    Ok(self.transform_store_refs(&raw))
                 } else {
                     Ok("undefined".to_string())
                 }
