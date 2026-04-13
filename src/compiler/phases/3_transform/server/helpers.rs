@@ -878,6 +878,15 @@ pub(crate) fn try_constant_fold_full(expr: &str) -> ConstantFoldResult {
         return ConstantFoldResult::Constant(content.to_string());
     }
 
+    // Template literals without interpolations: `text` -> constant "text"
+    if trimmed.len() >= 2 && trimmed.starts_with('`') && trimmed.ends_with('`') {
+        let inner = &trimmed[1..trimmed.len() - 1];
+        // Only fold if there are no ${...} interpolations
+        if !inner.contains("${") {
+            return ConstantFoldResult::Constant(inner.to_string());
+        }
+    }
+
     // Handle && operator: if left is known and falsy, result is left's value
     if let Some(idx) = memchr::memmem::find(trimmed.as_bytes(), b"&&") {
         let left = trimmed[..idx].trim();
