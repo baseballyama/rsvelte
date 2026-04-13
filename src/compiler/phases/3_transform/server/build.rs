@@ -3196,6 +3196,21 @@ impl<'a> ServerCodeGenerator<'a> {
                                 }
                             }
 
+                            // If we also have default children, add children callback and default: true to $$slots
+                            if let Some(children_parts) = children {
+                                slots_entries.push("default: true".to_string());
+                                let children_body = Self::build_parts_with_store_subs(
+                                    children_parts,
+                                    indent_level + 2,
+                                    each_counter,
+                                    store_subs,
+                                );
+                                all_props.push(format!(
+                                    "children: ($$renderer) => {{\n{}{}\t}}",
+                                    children_body, indent
+                                ));
+                            }
+
                             let slots_str = slots_entries.join(", ");
 
                             if all_props.is_empty() {
