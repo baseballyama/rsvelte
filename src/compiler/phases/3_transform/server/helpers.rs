@@ -1305,6 +1305,10 @@ pub(crate) fn transform_props_spread_ex(
     extra_tabs: usize,
     rename_slots: bool,
 ) -> String {
+    // Detect space indentation unit from the script to convert spaces to tabs.
+    // This handles source code that uses e.g. 2-space or 4-space indentation.
+    let space_indent_unit = detect_space_indent_unit(script);
+
     // First, collapse multi-line destructurings into single lines
     let script = collapse_multiline_destructuring(script);
     let mut result = String::new();
@@ -1385,8 +1389,16 @@ pub(crate) fn transform_props_spread_ex(
             result.push_str(line);
             result.push('\n');
         } else {
-            // Preserve relative indentation: detect leading tabs and add extra tabs
-            let leading_tabs = line.chars().take_while(|c| *c == '\t').count();
+            // Preserve relative indentation: detect leading tabs/spaces and add extra tabs.
+            // If the script uses space indentation, convert spaces to tabs proportionally.
+            let leading_tabs = if line.starts_with('\t') {
+                line.chars().take_while(|c| *c == '\t').count()
+            } else if space_indent_unit > 0 && line.starts_with(' ') {
+                let leading_spaces = line.len() - line.trim_start_matches(' ').len();
+                leading_spaces / space_indent_unit
+            } else {
+                0
+            };
             let indent = "\t".repeat(leading_tabs + extra_tabs);
             let (new_in_template, new_brace_depth) =
                 update_template_literal_state_full(line, in_template_literal, template_brace_depth);
@@ -2731,4 +2743,27 @@ pub(crate) fn normalize_import(import_str: &str) -> String {
         }
         result
     }
+}
+
+/// Detect the space indentation unit of a script.
+/// Returns the smallest non-zero leading-space count, or 0 if the script uses tabs.
+fn detect_space_indent_unit(script: &str) -> usize {
+    // If any line starts with a tab, assume tab-based indentation
+    if script.lines().any(|l| l.starts_with('\t')) {
+        return 0;
+    }
+    let mut min_spaces: Option<usize> = None;
+    for line in script.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let leading = line.len() - line.trim_start_matches(' ').len();
+        if leading > 0 {
+            min_spaces = Some(match min_spaces {
+                Some(m) => m.min(leading),
+                None => leading,
+            });
+        }
+    }
+    min_spaces.unwrap_or(0)
 }
