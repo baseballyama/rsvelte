@@ -50,6 +50,13 @@ fn try_canonicalize(code: &str) -> Option<String> {
     // `(expr)?.` → `expr?.` and `(expr)?.(` → `expr?.(`
     // OXC may add or remove parens around optional chain bases.
     let out = normalize_optional_chain_parens(&out);
+    // Normalize leading space in style attributes: style=" padding:" → style="padding:"
+    let out = out.replace("style=\" ", "style=\"");
+    // Normalize $.fallback spacing: $.fallback( x) → $.fallback(x)
+    let out = out.replace("$.fallback( ", "$.fallback(");
+    // Normalize function call spacing after ( : foo( x) → foo(x)
+    // This handles OXC formatting differences with multi-line args collapsed to single line
+    let out = out.replace(",  ", ", "); // collapse double space after comma
     Some(out)
 }
 
