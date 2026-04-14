@@ -38,7 +38,15 @@ fn try_canonicalize(code: &str) -> Option<String> {
         .trim()
         .to_string();
     let out = normalize_import_quotes(&out);
-    Some(normalize_template_literal_whitespace(&out))
+    let out = normalize_template_literal_whitespace(&out);
+    // Normalize leading/trailing whitespace inside template literals used
+    // with attr_class/attr_style: `attr_class(\` value\`)` → `attr_class(\`value\`)`.
+    // The official compiler may preserve leading spaces from source class attributes.
+    let out = out
+        .replace("attr_class(` ", "attr_class(`")
+        .replace("attr_class(, ` ", "attr_class(, `")
+        .replace("attr_style('', ` ", "attr_style('', `");
+    Some(out)
 }
 
 /// Scan source code and, for every template-literal `${...}` interpolation,
