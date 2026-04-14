@@ -1057,7 +1057,7 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                 } else {
                     // Check if line ends with continuation char (e.g., `$: foo =\n\tbar();`)
                     let last_ch = trimmed.chars().last().unwrap_or(' ');
-                    if matches!(
+                    let ends_with_cont = matches!(
                         last_ch,
                         '=' | '+'
                             | '-'
@@ -1074,7 +1074,16 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                             | '!'
                             | '%'
                             | ','
-                    ) {
+                    );
+                    // Also check if the next line starts with a continuation operator
+                    let next_starts_cont = if !ends_with_cont && i + 1 < lines.len() {
+                        let nt = lines[i + 1].trim();
+                        let fc = nt.chars().next().unwrap_or(' ');
+                        matches!(fc, '?' | ':' | '&' | '|' | '+' | '-' | '.')
+                    } else {
+                        false
+                    };
+                    if ends_with_cont || next_starts_cont {
                         // Skip continuation lines, tracking accumulated bracket depth
                         let mut acc_depth: i32 = depth; // depth from the $: line
                         i += 1;
@@ -1111,7 +1120,15 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                                     | '%'
                                     | ','
                             );
-                            if !is_cont && acc_depth <= 0 {
+                            // Check if following line starts with continuation
+                            let following_starts = if i < lines.len() {
+                                let ft = lines[i].trim();
+                                let fc = ft.chars().next().unwrap_or(' ');
+                                matches!(fc, '?' | ':' | '&' | '|' | '+' | '-' | '.')
+                            } else {
+                                false
+                            };
+                            if !is_cont && !following_starts && acc_depth <= 0 {
                                 break;
                             }
                         }
@@ -1209,7 +1226,17 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                         | ','
                 );
                 i += 1;
-                if is_continuation {
+                // Also check if the next line STARTS with a continuation operator
+                // (e.g., `? value : other` or `&& expr` or `|| expr`)
+                // This handles cases like `$: x = cond === "val"\n\t? a : b;`
+                let next_starts_continuation = if !is_continuation && i < lines.len() {
+                    let nt = lines[i].trim();
+                    let first_ch = nt.chars().next().unwrap_or(' ');
+                    matches!(first_ch, '?' | ':' | '&' | '|' | '+' | '-' | '.')
+                } else {
+                    false
+                };
+                if is_continuation || next_starts_continuation {
                     // Collect continuation lines until we hit a line that looks complete.
                     // Track accumulated bracket depth so multi-line bracket expressions
                     // like `$: x = arr[\n  expr\n];` are fully consumed.
@@ -1260,8 +1287,17 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                                 | '%'
                                 | ','
                         );
+                        // Also check if the NEXT line (after this one) starts with a continuation
+                        let following_starts_cont = if i + 1 < lines.len() {
+                            let ft = lines[i + 1].trim();
+                            let fc = ft.chars().next().unwrap_or(' ');
+                            matches!(fc, '?' | ':' | '&' | '|' | '+' | '-' | '.')
+                        } else {
+                            false
+                        };
                         i += 1;
-                        if !next_is_continuation && accumulated_depth <= 0 {
+                        if !next_is_continuation && !following_starts_cont && accumulated_depth <= 0
+                        {
                             break;
                         }
                     }
