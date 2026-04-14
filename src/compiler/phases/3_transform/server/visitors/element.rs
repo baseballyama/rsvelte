@@ -181,6 +181,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                         if expr_end > expr_start && expr_end <= self.source.len() {
                             let raw_expr = self.source[expr_start..expr_end].trim().to_string();
+                            let raw_expr = self.transform_store_refs(&raw_expr);
                             base_class = Some(format!("__EXPR__:{}", raw_expr));
                         }
                     } else {
@@ -2200,6 +2201,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                 if expr_end > expr_start && expr_end <= self.source.len() {
                     let expr = self.source[expr_start..expr_end].trim().to_string();
+                    let expr = self.transform_store_refs(&expr);
 
                     // Check if we need to wrap in $.clsx() for dynamic class expressions
                     let should_clsx = needs_clsx(&node.value);
