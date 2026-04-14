@@ -66,6 +66,9 @@ fn try_canonicalize(code: &str) -> Option<String> {
     // Also handle OXC codegen that may put `,\n\t}` on separate lines
     let out = out.replace(", }", " }").replace(", )", ")");
     let out = strip_trailing_commas_multiline(&out);
+    // Normalize hydration markers: `<!----> ` followed by content is equivalent to just ` `
+    // The official compiler may insert anchor comments that our compiler omits
+    let out = out.replace("<!----> <!--", " <!--");
     Some(out)
 }
 
