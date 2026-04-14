@@ -1439,31 +1439,9 @@ impl<'a> ServerCodeGenerator<'a> {
 
                     let blocker_indices: Vec<usize> = all_blockers.into_iter().collect();
                     if !blocker_indices.is_empty() {
-                        // Hoist SequenceExpression bind_get/bind_set declarations
-                        // outside the async_block, matching the official compiler's
-                        // behavior of pushing them to state.init.
-                        let has_seq = bindings
-                            .iter()
-                            .any(|b| matches!(b, ComponentBinding::SequenceExpression { .. }));
-                        if has_seq {
-                            for binding in bindings.iter() {
-                                if let ComponentBinding::SequenceExpression {
-                                    getter_expr,
-                                    setter_expr,
-                                    ..
-                                } = binding
-                                {
-                                    result.push(OutputPart::VarDeclaration(format!(
-                                        "bind_get = {}",
-                                        getter_expr
-                                    )));
-                                    result.push(OutputPart::VarDeclaration(format!(
-                                        "bind_set = {}",
-                                        setter_expr
-                                    )));
-                                }
-                            }
-                        }
+                        // bind_get/bind_set VarDeclarations are now emitted by the
+                        // component visitor and naturally stay outside the AsyncBlock
+                        // (they're separate parts that pass through apply_async_wrapping).
                         result.push(OutputPart::AsyncBlock {
                             blocker_indices,
                             inner: vec![OutputPart::ComponentWithBindings {
@@ -1477,7 +1455,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                 dynamic: *dynamic,
                                 css_custom_props: css_custom_props.clone(),
                                 css_props_is_html: *css_props_is_html,
-                                seq_bindings_hoisted: has_seq,
+                                seq_bindings_hoisted: true,
                                 dev: *dev,
                             }],
                         });
@@ -2769,38 +2747,14 @@ impl<'a> ServerCodeGenerator<'a> {
                     dynamic,
                     css_custom_props: _, // TODO: Handle CSS custom props for components with bindings
                     css_props_is_html: _,
-                    seq_bindings_hoisted,
+                    seq_bindings_hoisted: _,
                     dev: component_dev,
                 } => {
                     // Component with bindings - just generate the component call with getter/setters.
                     // The $$settled/$$render_inner loop is handled at the component level in build().
 
-                    // For SequenceExpression bindings, declare bind_get/bind_set variables
-                    // These must be declared BEFORE any HTML flush (hoisted to top of block)
-                    // Skip if already hoisted (e.g., when wrapped in AsyncBlock)
-                    let has_seq_bindings = !seq_bindings_hoisted
-                        && bindings
-                            .iter()
-                            .any(|b| matches!(b, ComponentBinding::SequenceExpression { .. }));
-                    if has_seq_bindings {
-                        for binding in bindings.iter() {
-                            if let ComponentBinding::SequenceExpression {
-                                prop_name: _,
-                                getter_expr,
-                                setter_expr,
-                            } = binding
-                            {
-                                body_code.push_str(&format!(
-                                    "{}var bind_get = {};\n\n",
-                                    indent, getter_expr
-                                ));
-                                body_code.push_str(&format!(
-                                    "{}var bind_set = {};\n\n",
-                                    indent, setter_expr
-                                ));
-                            }
-                        }
-                    }
+                    // bind_get/bind_set declarations are emitted as VarDeclaration parts
+                    // in the component visitor and hoisted by hoist_const_and_snippet_declarations.
 
                     // Flush any prior HTML content (with dynamic marker if needed, pushed separately)
                     if !current_html.is_empty() {

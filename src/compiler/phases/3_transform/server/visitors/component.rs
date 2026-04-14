@@ -467,6 +467,29 @@ impl<'a> ServerCodeGenerator<'a> {
                 });
             }
         } else {
+            // Emit bind_get/bind_set as VarDeclaration parts before the component.
+            // These get hoisted to the top of the enclosing block by
+            // hoist_const_and_snippet_declarations, matching the official compiler's
+            // state.init behavior.
+            let mut has_seq_bindings = false;
+            for binding in &bindings {
+                if let ComponentBinding::SequenceExpression {
+                    getter_expr,
+                    setter_expr,
+                    ..
+                } = binding
+                {
+                    self.output_parts.push(OutputPart::VarDeclaration(format!(
+                        "bind_get = {}",
+                        getter_expr
+                    )));
+                    self.output_parts.push(OutputPart::VarDeclaration(format!(
+                        "bind_set = {}",
+                        setter_expr
+                    )));
+                    has_seq_bindings = true;
+                }
+            }
             self.output_parts.push(OutputPart::ComponentWithBindings {
                 name: comp_name,
                 props_and_spreads,
@@ -478,7 +501,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 dynamic: is_dynamic,
                 css_custom_props,
                 css_props_is_html,
-                seq_bindings_hoisted: false,
+                seq_bindings_hoisted: has_seq_bindings,
                 dev: self.dev,
             });
         }
