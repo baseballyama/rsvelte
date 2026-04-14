@@ -313,6 +313,26 @@ impl<'a> ServerCodeGenerator<'a> {
             tag.push_str(&attr_style_call);
         }
 
+        // For load/error elements (img, video, etc.), add event capture attributes
+        // when the element has onerror/onload event handlers.
+        // Reference: element.js lines 272-276
+        if is_load_error_element(name) {
+            let has_onerror = element
+                .attributes
+                .iter()
+                .any(|a| matches!(a, Attribute::Attribute(n) if n.name == "onerror"));
+            let has_onload = element
+                .attributes
+                .iter()
+                .any(|a| matches!(a, Attribute::Attribute(n) if n.name == "onload"));
+            if has_onerror {
+                tag.push_str(" onerror=\"this.__e=event\"");
+            }
+            if has_onload {
+                tag.push_str(" onload=\"this.__e=event\"");
+            }
+        }
+
         if is_void_element(name) {
             tag.push_str("/>");
             if shorthand_style_vars.is_empty() {
