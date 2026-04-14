@@ -134,6 +134,14 @@ impl<'a> ServerCodeGenerator<'a> {
                     Attribute::Attribute(node) => {
                         let name = node.name.as_str();
 
+                        // Skip event handler attributes in SSR (onclick, onchange, etc.)
+                        if name.starts_with("on")
+                            && name.len() > 2
+                            && name.as_bytes()[2].is_ascii_lowercase()
+                        {
+                            continue;
+                        }
+
                         if name == "class" && !class_directives.is_empty() {
                             // Use $.attr_class() when class directives are present
                             handled_class = true;
@@ -192,11 +200,11 @@ impl<'a> ServerCodeGenerator<'a> {
                                         attr_parts
                                             .push(format!("${{$.attr_class($.clsx({}))}}", expr));
                                     }
-                                } else if is_boolean_attribute(name) {
+                                } else if let Some(ref hash) = css_hash {
                                     attr_parts
-                                        .push(format!("${{$.attr('{}', {}, true)}}", name, expr));
+                                        .push(format!("${{$.attr_class({}, '{}')}}", expr, hash));
                                 } else {
-                                    attr_parts.push(format!("${{$.attr('{}', {})}}", name, expr));
+                                    attr_parts.push(format!("${{$.attr_class({})}}", expr));
                                 }
                             }
                         } else {
