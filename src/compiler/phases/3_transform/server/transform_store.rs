@@ -93,6 +93,10 @@ pub(crate) fn replace_store_identifier_in_script(
     let mut string_char = ' ';
     let mut in_single_line_comment = false;
     let mut in_multi_line_comment = false;
+    // Track template literal interpolation depth.
+    // When inside a template literal and we see `${`, we push the current
+    // brace depth. When we see `}` that pops back to template literal mode.
+    let mut template_literal_stack: Vec<i32> = Vec::new();
     // Track function parameters that shadow the store ref.
     // Each entry is (min_brace_depth, min_paren_depth): shadow is active while
     // brace_depth >= min_brace_depth AND paren_depth >= min_paren_depth.
@@ -143,6 +147,38 @@ pub(crate) fn replace_store_identifier_in_script(
             }
         }
 
+        // Handle template literal interpolation: when inside a template literal
+        // and we encounter `${`, enter expression mode (in_string = false)
+        if in_string && string_char == '`' {
+            if c == '$' && i + 1 < chars.len() && chars[i + 1] == '{' {
+                // Enter template interpolation - push current brace depth
+                result.push('$');
+                result.push('{');
+                i += 2;
+                template_literal_stack.push(brace_depth);
+                brace_depth += 1;
+                in_string = false;
+                continue;
+            }
+            if c == '\\' && i + 1 < chars.len() {
+                // Skip escaped character in template literal
+                result.push(c);
+                result.push(chars[i + 1]);
+                i += 2;
+                continue;
+            }
+            if c == '`' {
+                // End of template literal
+                in_string = false;
+                result.push(c);
+                i += 1;
+                continue;
+            }
+            result.push(c);
+            i += 1;
+            continue;
+        }
+
         if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
             if !in_string {
                 in_string = true;
@@ -166,6 +202,18 @@ pub(crate) fn replace_store_identifier_in_script(
             brace_depth += 1;
         } else if c == '}' {
             brace_depth -= 1;
+            // Check if we're closing a template literal interpolation
+            if let Some(&template_depth) = template_literal_stack.last()
+                && brace_depth == template_depth
+            {
+                // Return to template literal mode
+                template_literal_stack.pop();
+                in_string = true;
+                string_char = '`';
+                result.push(c);
+                i += 1;
+                continue;
+            }
             // Pop any parameter shadows that ended at this depth
             shadowed_params.retain(|&(b, _)| b <= brace_depth);
         } else if c == '(' {

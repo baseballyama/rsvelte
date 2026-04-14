@@ -1416,50 +1416,6 @@ pub(crate) fn transform_props_spread_ex(
     result
 }
 
-/// Join lines where an assignment is split across lines:
-/// `const x =\n\texpr` → `const x = expr`
-/// Only joins when the line ends with `=` and the next non-empty line
-/// starts with a non-operator expression (not `{`, `[`, `(`).
-#[allow(dead_code)]
-fn join_split_assignments(code: &str) -> String {
-    let lines: Vec<&str> = code.lines().collect();
-    let mut result = String::with_capacity(code.len());
-    let mut i = 0;
-    while i < lines.len() {
-        let line = lines[i];
-        let trimmed = line.trim();
-        // Check if this line ends with `=` (assignment continuation)
-        if (trimmed.ends_with(" =") || trimmed.ends_with("\t="))
-            && (trimmed.starts_with("let ")
-                || trimmed.starts_with("const ")
-                || trimmed.starts_with("var "))
-        {
-            // Find next non-empty line
-            let mut j = i + 1;
-            while j < lines.len() && lines[j].trim().is_empty() {
-                j += 1;
-            }
-            if j < lines.len() {
-                let next_trimmed = lines[j].trim();
-                // Join the lines with a space
-                result.push_str(line);
-                result.push(' ');
-                result.push_str(next_trimmed);
-                result.push('\n');
-                i = j + 1;
-                continue;
-            }
-        }
-        result.push_str(line);
-        result.push('\n');
-        i += 1;
-    }
-    if result.ends_with('\n') {
-        result.pop();
-    }
-    result
-}
-
 /// Extract constant variable bindings from script content.
 /// Try to parse a value as a constant literal and insert into the constants map.
 /// Returns true if the value was successfully inserted.
