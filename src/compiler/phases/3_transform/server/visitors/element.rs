@@ -1338,18 +1338,23 @@ impl<'a> ServerCodeGenerator<'a> {
                 for part in parts {
                     match part {
                         AttributeValuePart::Text(text) => {
-                            // Normalize whitespace for class attributes
+                            // Normalize whitespace for class attributes:
+                            // Collapse runs of whitespace to single space, but preserve
+                            // leading/trailing spaces so they appear between interpolations.
                             if is_class_attr {
-                                let normalized: String = text.data.split_whitespace().fold(
-                                    String::new(),
-                                    |mut acc, word| {
-                                        if !acc.is_empty() {
-                                            acc.push(' ');
+                                let mut normalized = String::new();
+                                let mut prev_was_ws = false;
+                                for ch in text.data.chars() {
+                                    if ch.is_whitespace() {
+                                        if !prev_was_ws {
+                                            normalized.push(' ');
                                         }
-                                        acc.push_str(word);
-                                        acc
-                                    },
-                                );
+                                        prev_was_ws = true;
+                                    } else {
+                                        normalized.push(ch);
+                                        prev_was_ws = false;
+                                    }
+                                }
                                 value.push_str(&normalized);
                             } else {
                                 value.push_str(&text.data);
