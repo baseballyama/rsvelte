@@ -283,6 +283,7 @@ pub(crate) enum OutputPart {
         /// Whether SequenceExpression bind_get/bind_set declarations have been
         /// hoisted out (e.g., when wrapped in an AsyncBlock). When true, the
         /// build_parts code skips emitting the var declarations.
+        #[allow(dead_code)]
         seq_bindings_hoisted: bool,
         /// Whether dev mode is enabled (for prevent_snippet_stringification)
         dev: bool,

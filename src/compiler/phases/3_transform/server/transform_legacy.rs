@@ -1180,16 +1180,24 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
             // Count brace depth and backtick state to detect multi-line blocks
             let mut depth: i32 = 0;
             let mut in_template_literal = false;
-            for c in trimmed.chars() {
-                if c == '`' {
-                    in_template_literal = !in_template_literal;
-                }
-                if !in_template_literal {
-                    match c {
-                        '{' | '(' | '[' => depth += 1,
-                        '}' | ')' | ']' => depth -= 1,
-                        _ => {}
+            {
+                let chars: Vec<char> = trimmed.chars().collect();
+                let mut ci = 0;
+                while ci < chars.len() {
+                    if chars[ci] == '\\' && ci + 1 < chars.len() {
+                        ci += 2; // skip escaped char
+                        continue;
                     }
+                    if chars[ci] == '`' {
+                        in_template_literal = !in_template_literal;
+                    } else if !in_template_literal {
+                        match chars[ci] {
+                            '{' | '(' | '[' => depth += 1,
+                            '}' | ')' | ']' => depth -= 1,
+                            _ => {}
+                        }
+                    }
+                    ci += 1;
                 }
             }
 
@@ -1199,17 +1207,23 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                 while i < lines.len() && (depth > 0 || in_template_literal) {
                     let next = lines[i];
                     stmt_lines.push(next);
-                    for c in next.chars() {
-                        if c == '`' {
-                            in_template_literal = !in_template_literal;
+                    let chars: Vec<char> = next.chars().collect();
+                    let mut ci = 0;
+                    while ci < chars.len() {
+                        if chars[ci] == '\\' && ci + 1 < chars.len() {
+                            ci += 2;
+                            continue;
                         }
-                        if !in_template_literal {
-                            match c {
+                        if chars[ci] == '`' {
+                            in_template_literal = !in_template_literal;
+                        } else if !in_template_literal {
+                            match chars[ci] {
                                 '{' | '(' | '[' => depth += 1,
                                 '}' | ')' | ']' => depth -= 1,
                                 _ => {}
                             }
                         }
+                        ci += 1;
                     }
                     i += 1;
                 }

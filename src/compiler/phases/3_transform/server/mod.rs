@@ -1452,7 +1452,15 @@ impl<'a> ServerCodeGenerator<'a> {
         // First, transform store property mutations ($store.prop = value -> $.store_mutate)
         // BEFORE replacing references. This must happen first because
         // transform_store_property_mutations looks for the raw `$store` prefix.
-        let mut result = transform_store::transform_store_property_mutations_public(expr);
+        // Only call if the expression contains a potential store mutation pattern
+        // ($identifier followed by . and later =).
+        let has_store_mutation =
+            store_sub_names.iter().any(|name| expr.contains(*name)) && expr.contains('=');
+        let mut result = if has_store_mutation {
+            transform_store::transform_store_property_mutations_public(expr)
+        } else {
+            expr.to_string()
+        };
 
         // Transform each store subscription
         for name in &store_sub_names {

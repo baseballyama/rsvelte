@@ -51,7 +51,8 @@ for (const file of allFiles) {
 
   let jc, rc;
   try { jc = svelte.compile(src, opts).js.code; } catch { jsErr++; continue; }
-  try { rc = rsvelte.compile(src, opts).js.code; } catch { rsErr++; continue; }
+  try { rc = rsvelte.compile(src, opts).js.code; } catch(e) { rsErr++; continue; }
+  if (!rc) { rsErr++; continue; }
   if (!rc) { rsErr++; continue; }
 
   if (jc === rc) {
@@ -70,15 +71,20 @@ for (const file of allFiles) {
         canonMatch++;
       } else {
         canonDiff++;
-        if (canonDiffs.length < 20) {
+        if (canonDiffs.length < 100) {
           const lines = r.split('\n');
           canonDiffs.push({ rel, f1: lines[1] || '', f2: lines[2] || '' });
         }
       }
     } catch {
       canonDiff++;
-      if (canonDiffs.length < 20) canonDiffs.push({ rel, f1: 'CANON_ERROR', f2: '' });
+      if (canonDiffs.length < 100) canonDiffs.push({ rel, f1: 'CANON_ERROR', f2: '' });
     }
+  }
+  // Write intermediate results after every 100 files
+  if (count % 100 === 0 || count === allFiles.length) {
+    const ct = canonMatch + canonDiff;
+    try { fs.writeFileSync('/tmp/ssr_measure_result.txt', `Canon match: ${canonMatch}/${ct} (${ct ? (canonMatch/ct*100).toFixed(1) : 0}%)\n`); } catch {}
   }
 }
 
@@ -99,6 +105,12 @@ if (canonDiffs.length) {
   }
 }
 
-// Force flush output before potential segfault during NAPI cleanup
+// Write results to file before potential segfault during cleanup
+try {
+  const canonTotal2 = canonMatch + canonDiff;
+  fs.writeFileSync('/tmp/ssr_measure_result.txt', `Canon match: ${canonMatch}/${canonTotal2} (${canonTotal2 ? (canonMatch/canonTotal2*100).toFixed(1) : 0}%)\n`);
+} catch {}
+// Force flush output and use _exit to avoid NAPI cleanup segfault
 try { process.stdout.write(''); } catch {}
-process.exit(0);
+try { process.stderr.write(''); } catch {}
+setTimeout(() => process._exit(0), 100);
