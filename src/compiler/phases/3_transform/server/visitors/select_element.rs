@@ -32,10 +32,8 @@ impl<'a> ServerCodeGenerator<'a> {
                         has_value = true;
                         continue;
                     }
-                    // Skip event handlers
-                    if attr_name.starts_with("on") {
-                        continue;
-                    }
+                    // Include all attributes (including event handlers like onchange)
+                    // in the select props object - they are passed to $$renderer.select()
                     let value = self.extract_attribute_value_as_string(node)?;
                     attrs.push((attr_name.to_string(), value));
                 }
@@ -255,6 +253,19 @@ impl<'a> ServerCodeGenerator<'a> {
         // Start building the tag
         let mut tag = "<textarea".to_string();
 
+        // Get CSS hash for scoped elements
+        let css_hash = if element.metadata.scoped {
+            self.analysis.as_ref().and_then(|a| {
+                if !a.css.hash.is_empty() {
+                    Some(a.css.hash.clone())
+                } else {
+                    None
+                }
+            })
+        } else {
+            None
+        };
+
         // Add other attributes (excluding value)
         for attr in &element.attributes {
             match attr {
@@ -262,6 +273,24 @@ impl<'a> ServerCodeGenerator<'a> {
                 Attribute::BindDirective(bind) if bind.name.as_str() == "value" => continue,
                 Attribute::ClassDirective(_) | Attribute::StyleDirective(_) => continue,
                 Attribute::OnDirective(_) => continue,
+                Attribute::Attribute(_node) if _node.name.as_str() == "class" => {
+                    // Add class attribute with CSS hash appended
+                    if let Some(attr_str) =
+                        self.generate_attribute_for_element(attr, Some(element))?
+                    {
+                        if let Some(ref hash) = css_hash {
+                            // Append CSS hash: class="foo" → class="foo svelte-xxx"
+                            if attr_str.ends_with('"') {
+                                let without_quote = &attr_str[..attr_str.len() - 1];
+                                tag.push_str(&format!("{} {}\"", without_quote, hash));
+                            } else {
+                                tag.push_str(&attr_str);
+                            }
+                        } else {
+                            tag.push_str(&attr_str);
+                        }
+                    }
+                }
                 _ => {
                     if let Some(attr_str) =
                         self.generate_attribute_for_element(attr, Some(element))?
@@ -334,6 +363,24 @@ impl<'a> ServerCodeGenerator<'a> {
         {
             // No class directives and no class attr - add CSS hash if scoped
             tag.push_str(&format!(" class=\"{}\"", hash));
+        }
+
+        // Collect style directives and add attr_style if needed
+        let style_directives: Vec<&crate::ast::template::StyleDirective> = element
+            .attributes
+            .iter()
+            .filter_map(|a| {
+                if let Attribute::StyleDirective(dir) = a {
+                    Some(dir)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if !style_directives.is_empty() {
+            let base_style: Option<&str> = None; // textarea style directives don't have a base style attr
+            let attr_style_call = self.generate_attr_style_call(&style_directives, base_style)?;
+            tag.push_str(&attr_style_call);
         }
 
         tag.push('>');

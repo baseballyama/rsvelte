@@ -2426,7 +2426,7 @@ impl<'a> ServerCodeGenerator<'a> {
     }
 
     /// Generate a $.attr_style() call for style directives.
-    fn generate_attr_style_call(
+    pub(crate) fn generate_attr_style_call(
         &self,
         directives: &[&StyleDirective],
         base_style: Option<&str>,
