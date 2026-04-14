@@ -15,6 +15,7 @@ const svelte = await import(path.join(ROOT, 'svelte/packages/svelte/src/compiler
 let rsvelte;
 for (const p of [
   path.join(ROOT, 'svelte/rsvelte.linux-x64-gnu.node'),
+  path.join(ROOT, 'svelte/rsvelte.linux-arm64-gnu.node'),
   path.join(ROOT, 'svelte/rsvelte.darwin-arm64.node'),
 ]) { try { rsvelte = require(p); break; } catch {} }
 

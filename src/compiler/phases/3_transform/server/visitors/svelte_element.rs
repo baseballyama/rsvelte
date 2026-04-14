@@ -200,11 +200,16 @@ impl<'a> ServerCodeGenerator<'a> {
                                         attr_parts
                                             .push(format!("${{$.attr_class($.clsx({}))}}", expr));
                                     }
-                                } else if let Some(ref hash) = css_hash {
-                                    attr_parts
-                                        .push(format!("${{$.attr_class({}, '{}')}}", expr, hash));
                                 } else {
-                                    attr_parts.push(format!("${{$.attr_class({})}}", expr));
+                                    // Dynamic class without clsx - use $.attr_class()
+                                    if let Some(ref hash) = css_hash {
+                                        attr_parts.push(format!(
+                                            "${{$.attr_class({}, '{}')}}",
+                                            expr, hash
+                                        ));
+                                    } else {
+                                        attr_parts.push(format!("${{$.attr_class({})}}", expr));
+                                    }
                                 }
                             }
                         } else {

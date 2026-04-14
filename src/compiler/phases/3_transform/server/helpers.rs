@@ -1353,7 +1353,8 @@ pub(crate) fn transform_props_spread_ex(
             if pattern.starts_with('{') && pattern.ends_with('}') {
                 let inner = &pattern[1..pattern.len() - 1].trim();
 
-                if let Some(rest_idx) = memchr::memmem::find(inner.as_bytes(), b"...") {
+                // Find `...` rest element, but skip `...` inside string literals
+                if let Some(rest_idx) = find_rest_element_index(inner) {
                     let rest_part = &inner[rest_idx..];
                     let rest_name = rest_part.trim_start_matches("...").trim();
                     let other_props = inner[..rest_idx].trim().trim_end_matches(',').trim();
@@ -2766,4 +2767,35 @@ fn detect_space_indent_unit(script: &str) -> usize {
         }
     }
     min_spaces.unwrap_or(0)
+}
+
+/// Find the byte index of `...` rest element in a destructuring pattern,
+/// skipping `...` that appears inside string literals.
+fn find_rest_element_index(inner: &str) -> Option<usize> {
+    let bytes = inner.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+    let mut in_string = false;
+    let mut string_char = 0u8;
+
+    while i < len {
+        if in_string {
+            if bytes[i] == string_char && (i == 0 || bytes[i - 1] != b'\\') {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+        if bytes[i] == b'\'' || bytes[i] == b'"' || bytes[i] == b'`' {
+            in_string = true;
+            string_char = bytes[i];
+            i += 1;
+            continue;
+        }
+        if i + 2 < len && bytes[i] == b'.' && bytes[i + 1] == b'.' && bytes[i + 2] == b'.' {
+            return Some(i);
+        }
+        i += 1;
+    }
+    None
 }
