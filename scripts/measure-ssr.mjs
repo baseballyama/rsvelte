@@ -98,3 +98,7 @@ if (canonDiffs.length) {
     console.log(`    ${d.f2}`);
   }
 }
+
+// Force flush output before potential segfault during NAPI cleanup
+try { process.stdout.write(''); } catch {}
+process.exit(0);

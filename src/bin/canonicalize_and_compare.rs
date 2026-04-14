@@ -264,7 +264,12 @@ fn canonicalize(code: &str) -> String {
     // post-process to convert any remaining double-quoted import sources to
     // single quotes so that two semantically-equal files with different quote
     // styles compare equal.
-    normalize_import_quotes(&out)
+    let out = normalize_import_quotes(&out);
+
+    // Normalize consecutive whitespace inside template literals to a single space.
+    // This handles differences like `/>  <meta` vs `/> <meta` caused by comment
+    // removal and whitespace collapsing differences between compilers.
+    normalize_template_literal_whitespace(&out)
 }
 
 /// On parse-failure fallback: normalize whitespace (collapse runs, unify
@@ -454,4 +459,81 @@ fn main() {
         println!("F1: {}", &c1[start..end1]);
         println!("F2: {}", &c2[start..end2]);
     }
+}
+
+/// Normalize consecutive whitespace inside template literals to single spaces.
+/// This handles differences in HTML whitespace collapsing between compilers.
+fn normalize_template_literal_whitespace(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let chars: Vec<char> = code.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+    let mut in_template = false;
+    let mut in_string = false;
+    let mut string_char = ' ';
+    let mut expr_depth = 0i32; // depth inside ${...} expressions
+
+    while i < len {
+        let c = chars[i];
+
+        // Handle regular strings
+        if !in_template && !in_string && (c == '\'' || c == '"') {
+            in_string = true;
+            string_char = c;
+            result.push(c);
+            i += 1;
+            continue;
+        }
+        if in_string {
+            if c == string_char && (i == 0 || chars[i - 1] != '\\') {
+                in_string = false;
+            }
+            result.push(c);
+            i += 1;
+            continue;
+        }
+
+        // Handle template literals
+        if c == '`' {
+            in_template = !in_template;
+            expr_depth = 0;
+            result.push(c);
+            i += 1;
+            continue;
+        }
+
+        if in_template {
+            // Track ${...} expression depth
+            if c == '$' && i + 1 < len && chars[i + 1] == '{' {
+                expr_depth += 1;
+                result.push(c);
+                result.push('{');
+                i += 2;
+                continue;
+            }
+            if c == '{' && expr_depth > 0 {
+                expr_depth += 1;
+            }
+            if c == '}' && expr_depth > 0 {
+                expr_depth -= 1;
+            }
+
+            // Inside template literal text (not inside ${...} expression):
+            // collapse consecutive whitespace to single space
+            if expr_depth == 0 && (c == ' ' || c == '\t' || c == '\n') {
+                // Skip consecutive whitespace, output single space
+                result.push(' ');
+                i += 1;
+                while i < len && (chars[i] == ' ' || chars[i] == '\t' || chars[i] == '\n') {
+                    i += 1;
+                }
+                continue;
+            }
+        }
+
+        result.push(c);
+        i += 1;
+    }
+
+    result
 }
