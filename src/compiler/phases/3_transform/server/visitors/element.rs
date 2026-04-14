@@ -771,21 +771,13 @@ impl<'a> ServerCodeGenerator<'a> {
                     if node.name.starts_with("on") {
                         continue;
                     }
-                    let raw_attr_name = node.name.as_str();
+                    let attr_name = node.name.as_str();
                     // Skip defaultValue and defaultChecked - these are pseudo-properties,
-                    // not real HTML attributes. Check before lowercasing.
+                    // not real HTML attributes.
                     // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/server/visitors/shared/element.js L78-79
-                    if raw_attr_name == "defaultValue" || raw_attr_name == "defaultChecked" {
+                    if attr_name == "defaultValue" || attr_name == "defaultChecked" {
                         continue;
                     }
-                    // Lowercase attribute names for HTML elements (not SVG/MathML)
-                    let attr_name_lower;
-                    let attr_name = if !element.metadata.svg && !element.metadata.mathml {
-                        attr_name_lower = raw_attr_name.to_lowercase();
-                        attr_name_lower.as_str()
-                    } else {
-                        raw_attr_name
-                    };
                     // For textarea, value becomes body content, not an attribute
                     // For select, value is omitted entirely (it has no effect on HTML output)
                     // Reference: element.js lines 48-68

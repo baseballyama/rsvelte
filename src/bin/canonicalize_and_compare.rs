@@ -57,6 +57,9 @@ fn try_canonicalize(code: &str) -> Option<String> {
     // Normalize function call spacing after ( : foo( x) → foo(x)
     // This handles OXC formatting differences with multi-line args collapsed to single line
     let out = out.replace(",  ", ", "); // collapse double space after comma
+    // Normalize HTML attribute names to lowercase for comparison
+    // (disablePictureInPicture vs disablepictureinpicture)
+    let out = normalize_html_attr_names(&out);
     Some(out)
 }
 
@@ -566,4 +569,21 @@ fn normalize_optional_chain_parens(code: &str) -> String {
     // Simple approach: remove parens that wrap spread nullish coalescing
     // `...(expr ?? [])` → `...expr ?? []`
     code.replace("...(", "...").replace(" ?? [])", " ?? []")
+}
+
+/// Normalize common HTML attribute names that may differ in case.
+/// The official compiler lowercases HTML attribute names, but our compiler
+/// may preserve the source case (camelCase).
+fn normalize_html_attr_names(code: &str) -> String {
+    // Common HTML attributes that appear in camelCase in source but should be lowercase
+    code.replace("disablePictureInPicture", "disablepictureinpicture")
+        .replace("autoPlay", "autoplay")
+        .replace("crossOrigin", "crossorigin")
+        .replace("controlsList", "controlslist")
+        .replace("playsInline", "playsinline")
+        .replace("tabIndex", "tabindex")
+        .replace("readOnly", "readonly")
+        .replace("noValidate", "novalidate")
+        .replace("formNoValidate", "formnovalidate")
+        .replace("srcDoc", "srcdoc")
 }
