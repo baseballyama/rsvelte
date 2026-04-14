@@ -195,8 +195,11 @@ pub(crate) fn replace_store_identifier_in_script(
                 } else {
                     false
                 };
-                // Also check if preceded by `.` - this is a property access like `obj.$store`
-                let prev_is_dot = i > 0 && chars[i - 1] == '.';
+                // Check if preceded by `.` - this is a property access like `obj.$store`
+                // BUT NOT `...$store` which is a spread operator
+                let prev_is_member_dot = i > 0
+                    && chars[i - 1] == '.'
+                    && !(i >= 3 && chars[i - 2] == '.' && chars[i - 3] == '.');
                 let next_is_ident = if i + store_ref_len < chars.len() {
                     is_js_identifier_char(chars[i + store_ref_len])
                 } else {
@@ -204,7 +207,7 @@ pub(crate) fn replace_store_identifier_in_script(
                 };
 
                 // Skip if this is a property access (obj.$store)
-                if prev_is_dot {
+                if prev_is_member_dot {
                     result.push_str(store_ref);
                     i += store_ref_len;
                     continue;
