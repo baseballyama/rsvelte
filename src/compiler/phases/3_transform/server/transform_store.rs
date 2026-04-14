@@ -11,8 +11,33 @@ pub(crate) fn replace_store_identifier(expr: &str, store_ref: &str, store_name: 
     let store_ref_chars: Vec<char> = store_ref.chars().collect();
     let store_ref_len = store_ref_chars.len();
     let mut i = 0;
+    let mut in_single_quote = false;
+    let mut in_double_quote = false;
 
     while i < chars.len() {
+        let c = chars[i];
+
+        // Track single/double-quoted string literals to avoid replacing inside them.
+        // Template literals (backtick) are NOT tracked because they may contain
+        // interpolations like `${$store}` which need replacement.
+        if c == '\'' && !in_double_quote && (i == 0 || chars[i - 1] != '\\') {
+            in_single_quote = !in_single_quote;
+            result.push(c);
+            i += 1;
+            continue;
+        }
+        if c == '"' && !in_single_quote && (i == 0 || chars[i - 1] != '\\') {
+            in_double_quote = !in_double_quote;
+            result.push(c);
+            i += 1;
+            continue;
+        }
+        if in_single_quote || in_double_quote {
+            result.push(c);
+            i += 1;
+            continue;
+        }
+
         if i + store_ref_len <= chars.len() {
             let mut matches = true;
             for (j, ref_char) in store_ref_chars.iter().enumerate() {
@@ -811,6 +836,11 @@ fn transform_store_property_mutations(script: &str) -> String {
     }
 
     result
+}
+
+/// Public wrapper for `transform_store_property_mutations` for use in template expressions.
+pub(crate) fn transform_store_property_mutations_public(script: &str) -> String {
+    transform_store_property_mutations(script)
 }
 
 /// Transform store destructure assignments in server-side rendering.

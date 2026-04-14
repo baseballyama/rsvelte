@@ -1424,6 +1424,8 @@ impl<'a> ServerCodeGenerator<'a> {
 
     /// Transform store subscriptions in an expression.
     /// Converts `$store` to `$.store_get($$store_subs ??= {}, '$store', store)`.
+    /// Also handles `$store.prop = value` -> `$.store_mutate(...)` and
+    /// `$store = value` -> `$.store_set(...)`.
     pub(crate) fn transform_store_refs(&self, expr: &str) -> String {
         if !self.uses_store_subs {
             return expr.to_string();
@@ -1447,10 +1449,13 @@ impl<'a> ServerCodeGenerator<'a> {
             return expr.to_string();
         }
 
-        let mut result = expr.to_string();
+        // First, transform store property mutations ($store.prop = value -> $.store_mutate)
+        // BEFORE replacing references. This must happen first because
+        // transform_store_property_mutations looks for the raw `$store` prefix.
+        let mut result = transform_store::transform_store_property_mutations_public(expr);
 
         // Transform each store subscription
-        for name in store_sub_names {
+        for name in &store_sub_names {
             // Skip if it doesn't start with $
             if !name.starts_with('$') {
                 continue;
