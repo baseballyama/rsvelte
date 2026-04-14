@@ -37,7 +37,8 @@ fn try_canonicalize(code: &str) -> Option<String> {
         .code
         .trim()
         .to_string();
-    Some(normalize_import_quotes(&out))
+    let out = normalize_import_quotes(&out);
+    Some(normalize_template_literal_whitespace(&out))
 }
 
 /// Scan source code and, for every template-literal `${...}` interpolation,
