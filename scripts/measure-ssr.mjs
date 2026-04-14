@@ -71,20 +71,20 @@ for (const file of allFiles) {
         canonMatch++;
       } else {
         canonDiff++;
-        if (canonDiffs.length < 100) {
+        if (canonDiffs.length < 20) {
           const lines = r.split('\n');
           canonDiffs.push({ rel, f1: lines[1] || '', f2: lines[2] || '' });
         }
       }
     } catch {
       canonDiff++;
-      if (canonDiffs.length < 100) canonDiffs.push({ rel, f1: 'CANON_ERROR', f2: '' });
+      if (canonDiffs.length < 20) canonDiffs.push({ rel, f1: 'CANON_ERROR', f2: '' });
     }
   }
-  // Write intermediate results after every 100 files
-  if (count % 100 === 0 || count === allFiles.length) {
+  // Write intermediate results after every 50 files
+  if (count % 50 === 0 || count === allFiles.length) {
     const ct = canonMatch + canonDiff;
-    try { fs.writeFileSync('/tmp/ssr_measure_result.txt', `Canon match: ${canonMatch}/${ct} (${ct ? (canonMatch/ct*100).toFixed(1) : 0}%)\n`); } catch {}
+    try { fs.writeFileSync('/tmp/ssr_measure_result.txt', `Canon match: ${canonMatch}/${ct} (${ct ? (canonMatch/ct*100).toFixed(1) : 0}%)\nProcessed: ${count}/${allFiles.length}\n`); } catch {}
   }
 }
 
