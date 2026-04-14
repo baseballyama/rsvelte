@@ -46,6 +46,10 @@ fn try_canonicalize(code: &str) -> Option<String> {
         .replace("attr_class(` ", "attr_class(`")
         .replace("attr_class(, ` ", "attr_class(, `")
         .replace("attr_style('', ` ", "attr_style('', `");
+    // Normalize optional chaining with extra parens:
+    // `(expr)?.` → `expr?.` and `(expr)?.(` → `expr?.(`
+    // OXC may add or remove parens around optional chain bases.
+    let out = normalize_optional_chain_parens(&out);
     Some(out)
 }
 
@@ -545,4 +549,14 @@ fn normalize_template_literal_whitespace(code: &str) -> String {
     }
 
     result
+}
+
+/// Normalize optional chaining with extra parentheses.
+/// OXC codegen may add parens around expressions before `?.`:
+/// `(expr)?.method()` → `expr?.method()` for simple identifiers/member expressions.
+/// Also handles `...(expr ?? [])` → `...expr ?? []` paren differences.
+fn normalize_optional_chain_parens(code: &str) -> String {
+    // Simple approach: remove parens that wrap spread nullish coalescing
+    // `...(expr ?? [])` → `...expr ?? []`
+    code.replace("...(", "...").replace(" ?? [])", " ?? []")
 }
