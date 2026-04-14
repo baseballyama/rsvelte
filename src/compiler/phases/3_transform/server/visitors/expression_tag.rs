@@ -20,6 +20,8 @@ impl<'a> ServerCodeGenerator<'a> {
             let expr_source = self.source[start + 1..end - 1].trim().to_string();
             // Strip TypeScript syntax (e.g., non-null assertions `!`)
             let expr_source = self.strip_ts_from_expr(&expr_source);
+            // Strip JS comments (e.g., `/* @ts-expect-error ... */ null` → `null`)
+            let expr_source = strip_js_comments(&expr_source);
 
             // First, try constant variable lookup and folding
             let folded = self.try_fold_with_constants(&expr_source);
@@ -115,5 +117,40 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Fall back to generic constant folding
         try_constant_fold_full(trimmed)
+    }
+}
+
+/// Strip JS block comments (`/* ... */`) from an expression string.
+fn strip_js_comments(expr: &str) -> String {
+    let mut result = String::with_capacity(expr.len());
+    let bytes = expr.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+    while i < len {
+        if i + 1 < len && bytes[i] == b'/' && bytes[i + 1] == b'*' {
+            // Skip block comment
+            i += 2;
+            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            if i + 1 < len {
+                i += 2; // skip */
+            }
+        } else if i + 1 < len && bytes[i] == b'/' && bytes[i + 1] == b'/' {
+            // Skip line comment
+            i += 2;
+            while i < len && bytes[i] != b'\n' {
+                i += 1;
+            }
+        } else {
+            result.push(bytes[i] as char);
+            i += 1;
+        }
+    }
+    let trimmed = result.trim().to_string();
+    if trimmed.is_empty() {
+        expr.to_string()
+    } else {
+        trimmed
     }
 }
