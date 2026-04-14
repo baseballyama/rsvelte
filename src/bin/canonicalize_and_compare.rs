@@ -62,6 +62,10 @@ fn try_canonicalize(code: &str) -> Option<String> {
     let out = normalize_html_attr_names(&out);
     // Normalize $$body variable names: $$body_1, $$body_2 → $$body
     let out = normalize_body_var_names(&out);
+    // Normalize trailing commas before `}` and `)`: `, }` → ` }`, `, )` → `)`
+    // Also handle OXC codegen that may put `,\n\t}` on separate lines
+    let out = out.replace(", }", " }").replace(", )", ")");
+    let out = strip_trailing_commas_multiline(&out);
     Some(out)
 }
 
@@ -588,6 +592,26 @@ fn normalize_html_attr_names(code: &str) -> String {
         .replace("noValidate", "novalidate")
         .replace("formNoValidate", "formnovalidate")
         .replace("srcDoc", "srcdoc")
+}
+
+/// Strip trailing commas before closing `}` or `)` across lines.
+/// Handles OXC codegen output like: `foo,\n\t}` → `foo\n\t}`
+fn strip_trailing_commas_multiline(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = Vec::with_capacity(lines.len());
+    for (i, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        let next_trimmed = lines.get(i + 1).map(|l| l.trim()).unwrap_or("");
+        if trimmed.ends_with(',')
+            && (next_trimmed.starts_with('}') || next_trimmed.starts_with(')'))
+        {
+            // Remove trailing comma
+            result.push(line[..line.len() - 1].to_string());
+        } else {
+            result.push(line.to_string());
+        }
+    }
+    result.join("\n")
 }
 
 /// Normalize $$body variable names: $$body_1, $$body_2 → $$body
