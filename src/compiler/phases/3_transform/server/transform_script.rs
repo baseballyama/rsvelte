@@ -1266,15 +1266,8 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
                 if trimmed_inner.is_empty() {
                     result.push_str("void 0");
                 } else if is_derived_by {
-                    // Strip trailing comma: $derived.by(fn,) → (fn)()
-                    let inner_cleaned = inner.trim_end();
-                    let inner_cleaned = if let Some(stripped) = inner_cleaned.strip_suffix(',') {
-                        stripped
-                    } else {
-                        inner_cleaned
-                    };
                     result.push('(');
-                    result.push_str(inner_cleaned);
+                    result.push_str(&inner);
                     result.push_str(")()");
                 } else {
                     // Strip trailing comma from the extracted expression.

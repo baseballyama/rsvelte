@@ -143,7 +143,7 @@ pub(crate) fn replace_store_identifier_in_script(
             }
         }
 
-        if (c == '"' || c == '\'') && (i == 0 || chars[i - 1] != '\\') {
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
             if !in_string {
                 in_string = true;
                 string_char = c;
@@ -160,10 +160,6 @@ pub(crate) fn replace_store_identifier_in_script(
             i += 1;
             continue;
         }
-
-        // Template literals (backtick) are NOT tracked as strings because
-        // they may contain interpolations like `${$store}` which need replacement.
-        // We just pass through backtick characters.
 
         // Track brace and paren depth for parameter shadowing
         if c == '{' {
