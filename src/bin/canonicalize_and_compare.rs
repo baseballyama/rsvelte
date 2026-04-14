@@ -60,6 +60,8 @@ fn try_canonicalize(code: &str) -> Option<String> {
     // Normalize HTML attribute names to lowercase for comparison
     // (disablePictureInPicture vs disablepictureinpicture)
     let out = normalize_html_attr_names(&out);
+    // Normalize $$body variable names: $$body_1, $$body_2 → $$body
+    let out = normalize_body_var_names(&out);
     Some(out)
 }
 
@@ -586,4 +588,14 @@ fn normalize_html_attr_names(code: &str) -> String {
         .replace("noValidate", "novalidate")
         .replace("formNoValidate", "formnovalidate")
         .replace("srcDoc", "srcdoc")
+}
+
+/// Normalize $$body variable names: $$body_1, $$body_2 → $$body
+/// The official compiler may use different numbering for body variables.
+fn normalize_body_var_names(code: &str) -> String {
+    let mut result = code.to_string();
+    for i in 1..=10 {
+        result = result.replace(&format!("$$body_{}", i), "$$body");
+    }
+    result
 }
