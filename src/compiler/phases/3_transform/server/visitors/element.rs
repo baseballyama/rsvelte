@@ -771,17 +771,17 @@ impl<'a> ServerCodeGenerator<'a> {
                     if node.name.starts_with("on") {
                         continue;
                     }
-                    let attr_name = node.name.as_str();
+                    let raw_attr_name = node.name.as_str();
                     // Skip defaultValue and defaultChecked - these are pseudo-properties,
                     // not real HTML attributes.
                     // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/server/visitors/shared/element.js L78-79
-                    if attr_name == "defaultValue" || attr_name == "defaultChecked" {
+                    if raw_attr_name == "defaultValue" || raw_attr_name == "defaultChecked" {
                         continue;
                     }
                     // For textarea, value becomes body content, not an attribute
                     // For select, value is omitted entirely (it has no effect on HTML output)
                     // Reference: element.js lines 48-68
-                    if attr_name == "value" {
+                    if raw_attr_name == "value" {
                         if is_textarea {
                             let value = self.extract_attribute_value_as_string(node)?;
                             // Don't wrap in $.escape() here - TextareaBody output part handles that
@@ -791,6 +791,15 @@ impl<'a> ServerCodeGenerator<'a> {
                             continue;
                         }
                     }
+                    // Lowercase attribute names for HTML elements (not SVG/MathML)
+                    // in $.attributes() spread objects
+                    let attr_name_owned: String =
+                        if !element.metadata.svg && !element.metadata.mathml {
+                            raw_attr_name.to_lowercase()
+                        } else {
+                            raw_attr_name.to_string()
+                        };
+                    let attr_name = attr_name_owned.as_str();
                     let value = self.extract_attribute_value_as_string(node)?;
                     // Wrap class attribute dynamic expressions in $.clsx()
                     let value = if attr_name == "class" && needs_clsx(&node.value) {
