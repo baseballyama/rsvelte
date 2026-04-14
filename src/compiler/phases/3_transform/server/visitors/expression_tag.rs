@@ -122,9 +122,16 @@ impl<'a> ServerCodeGenerator<'a> {
 
 /// Strip JS block comments (`/* ... */`) from an expression string.
 fn strip_js_comments(expr: &str) -> String {
-    let mut result = String::with_capacity(expr.len());
     let bytes = expr.as_bytes();
     let len = bytes.len();
+
+    // Fast path: if no comment starters exist, return as-is
+    if memchr::memmem::find(bytes, b"/*").is_none() && memchr::memmem::find(bytes, b"//").is_none()
+    {
+        return expr.to_string();
+    }
+
+    let mut result = String::with_capacity(expr.len());
     let mut i = 0;
     while i < len {
         if i + 1 < len && bytes[i] == b'/' && bytes[i + 1] == b'*' {
@@ -143,8 +150,20 @@ fn strip_js_comments(expr: &str) -> String {
                 i += 1;
             }
         } else {
-            result.push(bytes[i] as char);
-            i += 1;
+            // Copy valid UTF-8 character (may be multi-byte)
+            let start = i;
+            let b = bytes[i];
+            if b < 0x80 {
+                i += 1;
+            } else if b < 0xE0 {
+                i += 2;
+            } else if b < 0xF0 {
+                i += 3;
+            } else {
+                i += 4;
+            }
+            let end = i.min(len);
+            result.push_str(&expr[start..end]);
         }
     }
     let trimmed = result.trim().to_string();

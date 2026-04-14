@@ -550,10 +550,9 @@ fn normalize_template_literal_whitespace(code: &str) -> String {
                 expr_depth -= 1;
             }
 
-            // Inside template literal text (not inside ${...} expression):
+            // Inside template literal (both text and ${...} expressions):
             // collapse consecutive whitespace to single space
-            if expr_depth == 0 && (c == ' ' || c == '\t' || c == '\n') {
-                // Skip consecutive whitespace, output single space
+            if c == ' ' || c == '\t' || c == '\n' {
                 result.push(' ');
                 i += 1;
                 while i < len && (chars[i] == ' ' || chars[i] == '\t' || chars[i] == '\n') {
