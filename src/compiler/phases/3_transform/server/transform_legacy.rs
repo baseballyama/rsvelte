@@ -1177,27 +1177,38 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
             // Collect the full reactive statement (possibly multi-line block)
             let mut stmt_lines = vec![line];
 
-            // Count brace depth in the reactive statement line to detect multi-line blocks
+            // Count brace depth and backtick state to detect multi-line blocks
             let mut depth: i32 = 0;
+            let mut in_template_literal = false;
             for c in trimmed.chars() {
-                match c {
-                    '{' | '(' | '[' => depth += 1,
-                    '}' | ')' | ']' => depth -= 1,
-                    _ => {}
+                if c == '`' {
+                    in_template_literal = !in_template_literal;
+                }
+                if !in_template_literal {
+                    match c {
+                        '{' | '(' | '[' => depth += 1,
+                        '}' | ')' | ']' => depth -= 1,
+                        _ => {}
+                    }
                 }
             }
 
-            if depth > 0 {
-                // Multi-line reactive statement - collect until depth returns to 0
+            if depth > 0 || in_template_literal {
+                // Multi-line reactive statement (or template literal) - collect until balanced
                 i += 1;
-                while i < lines.len() && depth > 0 {
+                while i < lines.len() && (depth > 0 || in_template_literal) {
                     let next = lines[i];
                     stmt_lines.push(next);
                     for c in next.chars() {
-                        match c {
-                            '{' | '(' | '[' => depth += 1,
-                            '}' | ')' | ']' => depth -= 1,
-                            _ => {}
+                        if c == '`' {
+                            in_template_literal = !in_template_literal;
+                        }
+                        if !in_template_literal {
+                            match c {
+                                '{' | '(' | '[' => depth += 1,
+                                '}' | ')' | ']' => depth -= 1,
+                                _ => {}
+                            }
                         }
                     }
                     i += 1;
