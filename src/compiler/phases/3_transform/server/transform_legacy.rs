@@ -1075,7 +1075,8 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                             | '%'
                             | ','
                     ) {
-                        // Skip continuation lines
+                        // Skip continuation lines, tracking accumulated bracket depth
+                        let mut acc_depth: i32 = depth; // depth from the $: line
                         i += 1;
                         while i < lines.len() {
                             let nt = lines[i].trim();
@@ -1083,9 +1084,16 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                             {
                                 break;
                             }
+                            for c in nt.chars() {
+                                match c {
+                                    '{' | '(' | '[' => acc_depth += 1,
+                                    '}' | ')' | ']' => acc_depth -= 1,
+                                    _ => {}
+                                }
+                            }
                             i += 1;
                             let nl = nt.chars().last().unwrap_or(' ');
-                            if !matches!(
+                            let is_cont = matches!(
                                 nl,
                                 '=' | '+'
                                     | '-'
@@ -1102,7 +1110,8 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                                     | '!'
                                     | '%'
                                     | ','
-                            ) {
+                            );
+                            if !is_cont && acc_depth <= 0 {
                                 break;
                             }
                         }
@@ -1201,7 +1210,18 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                 );
                 i += 1;
                 if is_continuation {
-                    // Collect continuation lines until we hit a line that looks complete
+                    // Collect continuation lines until we hit a line that looks complete.
+                    // Track accumulated bracket depth so multi-line bracket expressions
+                    // like `$: x = arr[\n  expr\n];` are fully consumed.
+                    let mut accumulated_depth: i32 = 0;
+                    // Count depth from the initial $: line too
+                    for c in trimmed.chars() {
+                        match c {
+                            '{' | '(' | '[' => accumulated_depth += 1,
+                            '}' | ')' | ']' => accumulated_depth -= 1,
+                            _ => {}
+                        }
+                    }
                     while i < lines.len() {
                         let next = lines[i];
                         let next_trimmed = next.trim();
@@ -1213,12 +1233,11 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                             break;
                         }
                         stmt_lines.push(next);
-                        // Check if this line completes the statement
-                        let mut d: i32 = 0;
+                        // Update accumulated depth
                         for c in next_trimmed.chars() {
                             match c {
-                                '{' | '(' | '[' => d += 1,
-                                '}' | ')' | ']' => d -= 1,
+                                '{' | '(' | '[' => accumulated_depth += 1,
+                                '}' | ')' | ']' => accumulated_depth -= 1,
                                 _ => {}
                             }
                         }
@@ -1242,7 +1261,7 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                                 | ','
                         );
                         i += 1;
-                        if !next_is_continuation && d <= 0 {
+                        if !next_is_continuation && accumulated_depth <= 0 {
                             break;
                         }
                     }
