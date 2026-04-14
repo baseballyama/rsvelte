@@ -450,29 +450,34 @@ impl<'a> ServerCodeGenerator<'a> {
 
         let props_param = if should_inject_props { ", $$props" } else { "" };
 
-        // Combine instance imports and module imports (instance imports first)
-        // This matches the official compiler's server transform where state.hoisted
-        // (containing instance imports) comes before module.body (containing module imports)
-        // in the body construction: `const body = [...state.hoisted, ...module.body]`
-        // (transform-server.js line 301)
-        let all_imports: Vec<String> = hoisted_imports.into_iter().chain(module_imports).collect();
-
-        // Build hoisted imports section
-        let imports_section = if all_imports.is_empty() {
+        // Build hoisted imports section (instance script imports only).
+        // In the official compiler, the output body is:
+        //   [...state.hoisted, ...module.body]
+        // state.hoisted contains instance imports + snippet functions.
+        // module.body contains module imports + module code.
+        // So the order is: instance_imports → snippets → module_imports → module_code
+        let imports_section = if hoisted_imports.is_empty() {
             String::new()
         } else {
-            all_imports.join("\n") + "\n"
+            hoisted_imports.join("\n") + "\n"
         };
 
-        // Build module script section (placed after imports, before component function)
-        let module_section = if module_code.trim().is_empty() {
-            String::new()
-        } else {
-            format!("{}\n", module_code)
-        };
-
-        // Build snippet functions
+        // Build snippet functions (hoisted between instance imports and module section)
         let snippets_section = self.build_snippets();
+
+        // Build module section: module imports + module code
+        let module_imports_str = if module_imports.is_empty() {
+            String::new()
+        } else {
+            module_imports.join("\n") + "\n"
+        };
+        let module_section = if module_code.trim().is_empty() {
+            module_imports_str
+        } else if module_imports_str.is_empty() {
+            format!("{}\n", module_code)
+        } else {
+            format!("{}{}\n", module_imports_str, module_code)
+        };
 
         // Build async flag import if experimental.async is enabled
         let async_import = if self.use_async {
