@@ -156,7 +156,9 @@ fn transform_script_content_inner(
     // When inside, lines should be passed through as-is without formatting.
     let mut in_template_literal = false;
 
-    for line in script.lines() {
+    let all_lines: Vec<&str> = script.lines().collect();
+    for (line_idx, line) in all_lines.iter().enumerate() {
+        let line = *line;
         let trimmed = line.trim();
 
         if result.is_empty() && trimmed.is_empty() {
@@ -180,7 +182,13 @@ fn transform_script_content_inner(
         }
 
         let line = format_js_line(line);
-        let line = add_statement_semicolon(&line);
+        // Check next non-empty line to determine if current line is a continuation
+        let next_trimmed = all_lines[(line_idx + 1)..]
+            .iter()
+            .find(|l| !l.trim().is_empty())
+            .map(|l| l.trim())
+            .unwrap_or("");
+        let line = add_statement_semicolon(&line, next_trimmed);
 
         // Check if this line opens a template literal that doesn't close on this line
         in_template_literal = line_opens_unclosed_template_literal(&line);
@@ -1583,7 +1591,7 @@ fn count_bracket_depth(line: &str) -> i32 {
     depth
 }
 
-fn add_statement_semicolon(line: &str) -> String {
+fn add_statement_semicolon(line: &str, next_trimmed: &str) -> String {
     let trimmed = line.trim();
 
     if trimmed.is_empty() {
@@ -1645,7 +1653,15 @@ fn add_statement_semicolon(line: &str) -> String {
                 | '%'
                 | ','
         );
-        if !is_continuation {
+        // Also check if the NEXT line starts with a continuation operator
+        // (e.g., ternary `?`, `:`, `&&`, `||`, `.`, etc.)
+        let next_is_continuation = next_trimmed.starts_with('?')
+            || next_trimmed.starts_with(':')
+            || next_trimmed.starts_with('.')
+            || next_trimmed.starts_with("&&")
+            || next_trimmed.starts_with("||")
+            || next_trimmed.starts_with("??");
+        if !is_continuation && !next_is_continuation {
             return format!("{};", line);
         }
     }
