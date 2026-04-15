@@ -66,9 +66,13 @@ fn try_canonicalize(code: &str) -> Option<String> {
     // Also handle OXC codegen that may put `,\n\t}` on separate lines
     let out = out.replace(", }", " }").replace(", )", ")");
     let out = strip_trailing_commas_multiline(&out);
-    // Normalize hydration markers: `<!----> ` followed by content is equivalent to just ` `
-    // The official compiler may insert anchor comments that our compiler omits
+    // Normalize hydration markers: various `<!---->` patterns
+    // `<!----> ` → ` `, `<!----> <!--` → ` <!--`, `<!---->` at end of push → empty
     let out = out.replace("<!----> <!--", " <!--");
+    let out = out.replace("push(`<!---->`)", "push(``)");
+    let out = out.replace("push('<!---->')", "push('')");
+    // Normalize `'}` vs `'} ` at end of template attr values (trailing space diff)
+    let out = out.replace("'} `", "'}  `").replace("'}  `", "'} `");
     Some(out)
 }
 
