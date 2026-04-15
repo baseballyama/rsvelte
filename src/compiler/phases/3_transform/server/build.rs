@@ -2,6 +2,8 @@
 //!
 //! Converts the internal OutputPart representation into the final JavaScript string output.
 
+use std::cell::RefCell;
+
 use super::ServerCodeGenerator;
 use super::helpers::*;
 use super::transform_script;
@@ -11,6 +13,146 @@ use super::types::{
 };
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use memchr::memmem;
+use oxc_allocator::Allocator;
+
+// Thread-local OXC allocator for SSR script normalization.
+thread_local! {
+    static SSR_SCRIPT_ALLOCATOR: RefCell<Allocator> = RefCell::new(Allocator::default());
+}
+
+/// Normalize a script block with OXC parse+codegen.
+///
+/// Unlike `normalize_js_with_oxc` (which has a fast path that skips OXC),
+/// this function ALWAYS runs OXC parse+codegen to normalize:
+/// - Trailing commas in destructuring, function calls, and object literals
+/// - Whitespace in function arguments
+/// - Semicolons and empty statements
+/// - Indentation
+///
+/// Falls back to the original code if OXC parsing fails.
+fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
+    use oxc_codegen::{Codegen, CodegenOptions, CommentOptions, LegalComment};
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    // Preserve `;;` markers ($inspect removal markers) by replacing with a placeholder
+    // that OXC won't remove. These are intentional empty statement pairs.
+    // Use single-quoted strings since OXC normalizes to single quotes (with single_quote: true).
+    const DOUBLE_SEMI_PLACEHOLDER: &str = "void '$$DOUBLE_SEMI$$';void '$$DOUBLE_SEMI$$'";
+    let has_double_semi = memmem::find(js.as_bytes(), b";;").is_some();
+    let js_normalized = if has_double_semi {
+        js.replace(";;", DOUBLE_SEMI_PLACEHOLDER)
+    } else {
+        js.to_string()
+    };
+
+    // Strip existing indentation before OXC parsing (OXC expects unindented input)
+    let stripped = strip_indent_for_oxc(&js_normalized, indent_level);
+
+    SSR_SCRIPT_ALLOCATOR.with(|cell| {
+        let mut alloc = cell.borrow_mut();
+        alloc.reset();
+
+        let source_type = SourceType::mjs();
+        let parsed = Parser::new(&alloc, &stripped, source_type).parse();
+
+        if !parsed.errors.is_empty() {
+            // OXC parse failed - return original code
+            return js.to_string();
+        }
+
+        let options = CodegenOptions {
+            single_quote: true,
+            comments: CommentOptions {
+                normal: true,
+                jsdoc: true,
+                annotation: true,
+                legal: LegalComment::Inline,
+            },
+            ..CodegenOptions::default()
+        };
+
+        let result = Codegen::new().with_options(options).build(&parsed.program);
+        let mut code = result.code.trim_end().to_string();
+
+        // Restore `;;` markers
+        if has_double_semi {
+            // OXC may split the two void statements across lines:
+            // `void '$$DOUBLE_SEMI$$';\nvoid '$$DOUBLE_SEMI$$';`
+            // First try the multiline form, then the single-line form
+            code = code.replace("void '$$DOUBLE_SEMI$$';\nvoid '$$DOUBLE_SEMI$$';", ";;");
+            code = code.replace(DOUBLE_SEMI_PLACEHOLDER, ";;");
+        }
+
+        if indent_level == 0 {
+            return code;
+        }
+
+        // Apply indentation to all lines, skipping template literal content
+        let indent_str = "\t".repeat(indent_level);
+        let mut result_str =
+            String::with_capacity(code.len() + code.lines().count() * indent_level);
+        let mut in_template_literal = false;
+        for (i, line) in code.lines().enumerate() {
+            if i > 0 {
+                result_str.push('\n');
+            }
+            if line.is_empty() {
+                // empty line
+            } else if in_template_literal {
+                in_template_literal = super::helpers::update_template_literal_state_for_indent(
+                    line,
+                    in_template_literal,
+                );
+                result_str.push_str(line);
+            } else {
+                in_template_literal = super::helpers::update_template_literal_state_for_indent(
+                    line,
+                    in_template_literal,
+                );
+                result_str.push_str(&indent_str);
+                result_str.push_str(line);
+            }
+        }
+        result_str
+    })
+}
+
+/// Strip leading indentation from script content for OXC parsing.
+/// OXC expects unindented input (top-level statements at column 0).
+/// Preserves content inside template literals (backtick strings) as-is.
+fn strip_indent_for_oxc(js: &str, indent_level: usize) -> String {
+    if indent_level == 0 {
+        return js.to_string();
+    }
+    let prefix = "\t".repeat(indent_level);
+    let mut result = String::with_capacity(js.len());
+    let mut in_template_literal = false;
+    for (i, line) in js.lines().enumerate() {
+        if i > 0 {
+            result.push('\n');
+        }
+        if in_template_literal {
+            // Inside template literal - preserve content exactly
+            in_template_literal =
+                super::helpers::update_template_literal_state_for_indent(line, in_template_literal);
+            result.push_str(line);
+        } else {
+            // Strip indentation
+            let stripped = if let Some(s) = line.strip_prefix(&prefix) {
+                s
+            } else {
+                line.trim_start_matches('\t')
+            };
+            in_template_literal = super::helpers::update_template_literal_state_for_indent(
+                stripped,
+                in_template_literal,
+            );
+            result.push_str(stripped);
+        }
+    }
+    result
+}
 
 /// A segment of an HTML string, either static (no blockers) or blocked.
 enum HtmlSegment {
@@ -160,6 +302,13 @@ impl<'a> ServerCodeGenerator<'a> {
                 rest
             };
             let transformed = transform_script_content_module(&rest, self.dev);
+
+            // Normalize the module script code with OXC to fix formatting issues
+            let transformed = if !transformed.trim().is_empty() {
+                normalize_script_with_oxc(&transformed, 0)
+            } else {
+                transformed
+            };
 
             (imports, transformed)
         } else {
@@ -422,6 +571,17 @@ impl<'a> ServerCodeGenerator<'a> {
                 // No top-level await: strip async placeholder markers
                 strip_async_placeholders(&script_code)
             }
+        } else {
+            script_code
+        };
+
+        // Normalize the script code with OXC to fix formatting issues:
+        // - Trailing commas in function calls and object literals
+        // - Whitespace in function arguments
+        // - Inconsistent indentation
+        // This only applies to the instance script body, not template output.
+        let script_code = if !script_code.trim().is_empty() {
+            normalize_script_with_oxc(&script_code, 1)
         } else {
             script_code
         };

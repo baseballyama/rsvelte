@@ -39,6 +39,7 @@ use store_transforms::*;
 // Explicit re-exports for functions used outside the client module.
 pub(crate) use class_transforms::transform_class_fields_client;
 pub(crate) use expression_utils::find_matching_paren;
+pub(crate) use formatting::normalize_js_with_oxc;
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;

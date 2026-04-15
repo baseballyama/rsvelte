@@ -492,7 +492,7 @@ fn strip_indent(line: &str, base_indent: usize) -> &str {
 /// If parsing fails, returns the original input unchanged.
 /// The output uses single quotes, tab indentation, and strips comments
 /// (matching esrap/Svelte compiler behavior).
-pub(super) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
+pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
     // Fast path: skip OXC parse+codegen for scripts without JSDoc or await.
     // JSDoc comments need OXC to fix indentation (tab+space before *).
     // await scripts go through async_body transform which needs OXC formatting.
