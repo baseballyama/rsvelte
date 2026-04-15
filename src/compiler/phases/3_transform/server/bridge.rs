@@ -23,28 +23,18 @@ use compact_str::CompactString;
 #[allow(dead_code)]
 fn is_simple_part(part: &OutputPart) -> bool {
     match part {
+        // For now, only purely static Html (no interpolations, no await) and
+        // metadata-only parts are converted to proper AST. Everything else
+        // goes through build_parts_with_store_subs for compatibility.
         OutputPart::Html(html) | OutputPart::HtmlWithExclusions { html, .. } => {
-            // Html parts with await in ${...} interpolations need special
-            // child/child_block wrapping in build_parts_with_store_subs
-            !super::helpers::html_template_contains_await(html)
+            !html.contains("${") && !super::helpers::html_template_contains_await(html)
         }
-        OutputPart::Expression(_) => true,
-        OutputPart::RawExpression(expr) => {
-            // RawExpression with await needs special element-level child() wrapping
-            !super::helpers::expr_contains_await(expr)
-        }
-        OutputPart::HtmlExpression(expr) => {
-            // HtmlExpression with await needs child_block wrapping
-            !super::helpers::expr_contains_await(expr)
-        }
-        OutputPart::Comment
-        | OutputPart::HydrationAnchor
-        | OutputPart::ConstDeclaration(_)
+        OutputPart::Comment | OutputPart::HydrationAnchor => true,
+        OutputPart::ConstDeclaration(_)
         | OutputPart::VarDeclaration(_)
-        | OutputPart::RawStatement(_)
-        | OutputPart::Flush
-        | OutputPart::ConstBlockerMetadata { .. } => true,
-        // Everything else is complex
+        | OutputPart::RawStatement(_) => true,
+        OutputPart::ConstBlockerMetadata { .. } => true,
+        // Everything else goes through build_parts_with_store_subs
         _ => false,
     }
 }
@@ -76,8 +66,14 @@ pub(crate) fn output_parts_to_template_items(
     }
 
     // Delegate the entire parts list to build_parts_with_store_subs.
-    // This maintains exact output compatibility. The result is wrapped in
-    // JsStatement::Raw so it can be used with build_template().
+    //
+    // NOTE: We cannot split individual parts for AST conversion because
+    // build_parts_with_store_subs has cross-part state: it coalesces adjacent
+    // Html/Expression/RawExpression parts into single $$renderer.push() template
+    // literals. Splitting parts would break this coalescing.
+    //
+    // To properly convert to AST, the visitors themselves need to produce
+    // TemplateItem directly (Phase 3), bypassing OutputPart entirely.
     //
     // indent_level = 0 because the codegen's emit_body handles indentation.
     let raw_code =
@@ -165,8 +161,6 @@ fn convert_simple_part(part: &OutputPart, arena: &JsArena) -> Option<TemplateIte
         OutputPart::RawStatement(stmt) => Some(TemplateItem::Statement(JsStatement::Raw(
             CompactString::new(stmt),
         ))),
-
-        OutputPart::Flush => Some(TemplateItem::Statement(JsStatement::Empty)),
 
         OutputPart::ConstBlockerMetadata { .. } => None, // metadata-only, not rendered
 
