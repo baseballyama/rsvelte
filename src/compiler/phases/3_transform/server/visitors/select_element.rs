@@ -267,12 +267,24 @@ impl<'a> ServerCodeGenerator<'a> {
         };
 
         // Add other attributes (excluding value)
+        // Check if there are style directives (to handle synthetic style attribute)
+        let has_style_directives = element
+            .attributes
+            .iter()
+            .any(|a| matches!(a, Attribute::StyleDirective(_)));
+
         for attr in &element.attributes {
             match attr {
                 Attribute::Attribute(node) if node.name.as_str() == "value" => continue,
                 Attribute::BindDirective(bind) if bind.name.as_str() == "value" => continue,
                 Attribute::ClassDirective(_) | Attribute::StyleDirective(_) => continue,
                 Attribute::OnDirective(_) => continue,
+                // Skip style attribute when there are style directives (handled by attr_style)
+                Attribute::Attribute(node)
+                    if node.name.as_str() == "style" && has_style_directives =>
+                {
+                    continue;
+                }
                 Attribute::Attribute(_node) if _node.name.as_str() == "class" => {
                     // Add class attribute with CSS hash appended
                     if let Some(attr_str) =
