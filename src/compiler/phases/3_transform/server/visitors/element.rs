@@ -222,6 +222,7 @@ impl<'a> ServerCodeGenerator<'a> {
         // Track whether we've already emitted the attr_class and attr_style calls
         let mut emitted_class = false;
         let mut emitted_style = false;
+        let mut emitted_class_hash = false;
 
         // Attributes - handle class and style specially if directives exist
         // When there's an explicit class/style attribute with corresponding directives,
@@ -245,6 +246,16 @@ impl<'a> ServerCodeGenerator<'a> {
                 continue;
             }
             if is_style_attr_with_directives && !emitted_style {
+                // If element is scoped and has no class attribute, emit class hash BEFORE style
+                // to match the official compiler's attribute ordering (class before style)
+                if !emitted_class_hash
+                    && let Some(ref hash) = css_hash
+                    && base_class.is_none()
+                    && class_directives.is_empty()
+                {
+                    tag.push_str(&format!(" class=\"{}\"", hash));
+                    emitted_class_hash = true;
+                }
                 emitted_style = true;
                 // Emit attr_style at the style attribute position
                 let attr_style_call =
@@ -291,8 +302,9 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         // If element is scoped but has no class attribute and no class directives,
-        // add a class attribute with just the hash
-        if let Some(ref hash) = css_hash
+        // add a class attribute with just the hash (if not already emitted before style)
+        if !emitted_class_hash
+            && let Some(ref hash) = css_hash
             && base_class.is_none()
             && class_directives.is_empty()
         {

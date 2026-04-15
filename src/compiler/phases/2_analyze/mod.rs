@@ -843,7 +843,7 @@ fn synthesize_for_element_attrs(
         }
     }
 
-    // We need an empty class to generate the set_class() correctly when class directives exist.
+    // We need an empty class to generate the set_class() or class="" correctly.
     // NOTE: We do NOT synthesize for scoped-only elements (no class directives) because
     // the transform phase handles CSS hash injection for those elements directly.
     if !has_spread && !has_class && has_class_directive {
