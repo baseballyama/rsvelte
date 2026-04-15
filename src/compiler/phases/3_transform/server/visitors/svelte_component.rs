@@ -44,6 +44,9 @@ impl<'a> ServerCodeGenerator<'a> {
             match attr {
                 Attribute::Attribute(node) => {
                     let attr_name = node.name.as_str();
+                    if attr_name.starts_with("on") {
+                        continue;
+                    }
                     // CSS custom properties (e.g., --color="red") are handled separately
                     if attr_name.starts_with("--") {
                         let value = self.extract_css_custom_prop_value(&node.value)?;
@@ -156,6 +159,9 @@ impl<'a> ServerCodeGenerator<'a> {
             match attr {
                 Attribute::Attribute(node) => {
                     let attr_name = node.name.as_str();
+                    if attr_name.starts_with("on") {
+                        continue;
+                    }
                     // CSS custom properties (e.g., --color="red") are handled separately
                     if attr_name.starts_with("--") {
                         let value = self.extract_css_custom_prop_value(&node.value)?;
