@@ -51,7 +51,7 @@ for (const file of allFiles) {
 
   let jc, rc;
   try { jc = svelte.compile(src, opts).js.code; } catch { jsErr++; continue; }
-  try { rc = rsvelte.compile(src, opts).js.code; } catch(e) { rsErr++; continue; }
+  try { rc = rsvelte.compile(src, opts).js.code; } catch(e) { rsErr++; process.stderr.write(`RS_ERR: ${rel}: ${e.message?.slice(0,80)}\n`); continue; }
   if (!rc) { rsErr++; continue; }
   if (!rc) { rsErr++; continue; }
 
@@ -110,7 +110,18 @@ try {
   const canonTotal2 = canonMatch + canonDiff;
   fs.writeFileSync('/tmp/ssr_measure_result.txt', `Canon match: ${canonMatch}/${canonTotal2} (${canonTotal2 ? (canonMatch/canonTotal2*100).toFixed(1) : 0}%)\n`);
 } catch {}
-// Force flush output and use _exit to avoid NAPI cleanup segfault
+// Write final results to file and exit cleanly
+try {
+  const finalResult = [
+    `\n=== SSR ===`,
+    `Raw match:   ${rawMatch}/${compiled} (${compiled ? (rawMatch/compiled*100).toFixed(1) : 0}%)`,
+    `Canon match: ${canonMatch}/${canonTotal} (${canonTotal ? (canonMatch/canonTotal*100).toFixed(1) : 0}%)`,
+    `Canon diff:  ${canonDiff}`,
+    `JS err: ${jsErr}, RS err: ${rsErr}`,
+  ].join('\n');
+  fs.writeFileSync('/tmp/ssr_final_result.txt', finalResult + '\n');
+  process.stdout.write(finalResult + '\n');
+} catch {}
 try { process.stdout.write(''); } catch {}
 try { process.stderr.write(''); } catch {}
-setTimeout(() => process._exit(0), 100);
+setTimeout(() => process.exit(0), 200);
