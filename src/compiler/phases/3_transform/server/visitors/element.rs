@@ -605,8 +605,9 @@ impl<'a> ServerCodeGenerator<'a> {
                         if is_last {
                             result = svelte_trim_end(&result).to_string();
                         } else if !next_is_expr {
-                            // Collapse trailing whitespace to single space
-                            let rtrimmed = result.trim_end();
+                            // Collapse trailing Svelte whitespace to single space
+                            // Use svelte_trim_end to preserve non-breaking spaces
+                            let rtrimmed = svelte_trim_end(&result);
                             if rtrimmed.len() < result.len() && !rtrimmed.is_empty() {
                                 result = format!("{} ", rtrimmed);
                             }
@@ -624,9 +625,9 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
 
                     if is_last {
-                        // Collapse leading whitespace unless prev is ExpressionTag
+                        // Collapse leading Svelte whitespace unless prev is ExpressionTag
                         let result = if !prev_is_expr {
-                            let ltrimmed = data.trim_start();
+                            let ltrimmed = svelte_trim_start(data);
                             if ltrimmed.len() < data.len() && !ltrimmed.is_empty() {
                                 format!(" {}", ltrimmed)
                             } else {
@@ -645,10 +646,10 @@ impl<'a> ServerCodeGenerator<'a> {
                         continue;
                     }
 
-                    // Middle text: collapse leading/trailing whitespace unless adjacent
-                    // to ExpressionTag
+                    // Middle text: collapse leading/trailing Svelte whitespace unless
+                    // adjacent to ExpressionTag. Use svelte_trim to preserve NBSP.
                     let result = if !prev_is_expr {
-                        let ltrimmed = data.trim_start();
+                        let ltrimmed = svelte_trim_start(data);
                         if ltrimmed.len() < data.len() && !ltrimmed.is_empty() {
                             format!(" {}", ltrimmed)
                         } else {
@@ -658,7 +659,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         data.to_string()
                     };
                     let result = if !next_is_expr {
-                        let rtrimmed = result.trim_end();
+                        let rtrimmed = svelte_trim_end(&result);
                         if rtrimmed.len() < result.len() && !rtrimmed.is_empty() {
                             format!("{} ", rtrimmed)
                         } else {
