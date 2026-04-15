@@ -204,7 +204,7 @@ impl<'a> ServerCodeGenerator<'a> {
 }
 
 impl<'a> ServerCodeGenerator<'a> {
-    #[allow(clippy::let_and_return)]
+    #[allow(clippy::let_and_return, dead_code)]
     pub(crate) fn build(self) -> String {
         let store_subs = self.get_store_sub_names();
         let store_subs_ref: Vec<(&str, &str)> = store_subs
@@ -1052,6 +1052,728 @@ impl<'a> ServerCodeGenerator<'a> {
         let raw_output = strip_trailing_semicolons_after_functions(&raw_output);
 
         raw_output
+    }
+
+    /// Build a `JsProgram` AST from the generated output parts.
+    ///
+    /// This produces the same output as `build()` but returns a structured AST
+    /// that can be emitted via `js_ast::codegen::generate()`. The codegen handles
+    /// blank-line insertion between different statement types, eliminating the need
+    /// for `strip_empty_statements()` and `add_esrap_blank_lines()`.
+    ///
+    /// The function body and script content are wrapped in `JsStatement::Raw` nodes
+    /// since they are still text-generated. Structured AST nodes are used for:
+    /// - Import declarations (`JsStatement::Import`)
+    /// - The component function declaration (`JsFunctionDeclaration`)
+    /// - Export default (`JsExportDefault`)
+    #[allow(clippy::let_and_return)]
+    pub(crate) fn build_program(
+        self,
+    ) -> (
+        crate::compiler::phases::phase3_transform::js_ast::nodes::JsProgram,
+        crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    ) {
+        use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
+        use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+        use compact_str::CompactString;
+        use smallvec::smallvec;
+
+        let arena = JsArena::new();
+        let mut body: Vec<JsStatement> = Vec::new();
+
+        // ===================================================================
+        // Steps 1-5: Same computation as build()
+        // ===================================================================
+
+        let store_subs = self.get_store_sub_names();
+        let store_subs_ref: Vec<(&str, &str)> = store_subs
+            .iter()
+            .map(|(a, b)| (a.as_str(), b.as_str()))
+            .collect();
+        let mut each_counter: usize = 0;
+
+        // Pre-compute the blocker_map from the instance script for async wrapping.
+        let blocker_map = if self.use_async {
+            if let Some(script) = self.instance_script {
+                let start = script.content.start().unwrap_or(0) as usize;
+                let end = script.content.end().unwrap_or(0) as usize;
+                if end > start && end <= self.source.len() {
+                    let raw_script = &self.source[start..end];
+                    crate::compiler::phases::phase3_transform::shared::async_body::compute_blocker_map(raw_script)
+                } else {
+                    rustc_hash::FxHashMap::default()
+                }
+            } else {
+                rustc_hash::FxHashMap::default()
+            }
+        } else {
+            rustc_hash::FxHashMap::default()
+        };
+
+        // Hoist <svelte:head> parts to the beginning
+        let hoisted_parts = Self::hoist_svelte_head(&self.output_parts);
+        let hoisted_parts = if !blocker_map.is_empty() {
+            Self::apply_async_wrapping(&hoisted_parts, &blocker_map)
+        } else {
+            hoisted_parts
+        };
+        let const_blocker_map = self.const_blocker_map.borrow();
+        let hoisted_parts = if !const_blocker_map.is_empty() {
+            Self::apply_const_async_wrapping(&hoisted_parts, &const_blocker_map)
+        } else {
+            hoisted_parts
+        };
+        drop(const_blocker_map);
+
+        let body_code = Self::build_parts_with_store_subs(
+            &hoisted_parts,
+            1,
+            &mut each_counter,
+            &store_subs_ref,
+        );
+
+        // Process module script
+        let (module_imports, module_code) = if let Some(script) = self.module_script {
+            let start = script.content.start().unwrap_or(0) as usize;
+            let end = script.content.end().unwrap_or(0) as usize;
+            let raw_script = if end > start && end <= self.source.len() {
+                self.source[start..end].to_string()
+            } else {
+                String::new()
+            };
+            let raw_script = if self.is_typescript && !raw_script.is_empty() {
+                crate::compiler::phases::phase2_analyze::types::strip_typescript(&raw_script)
+            } else {
+                raw_script
+            };
+            let (imports_raw, rest) = extract_imports_module(&raw_script);
+            let imports: Vec<String> = imports_raw
+                .into_iter()
+                .map(|s| normalize_import(&s))
+                .collect();
+            let rest = transform_class_fields_server(&rest);
+            let rest_bytes = rest.as_bytes();
+            let rest = if memmem::find(rest_bytes, b"$effect(").is_some()
+                || memmem::find(rest_bytes, b"$effect.pre(").is_some()
+                || memmem::find(rest_bytes, b"$effect.root(").is_some()
+                || memmem::find(rest_bytes, b"$inspect(").is_some()
+                || memmem::find(rest_bytes, b"$inspect.trace(").is_some()
+            {
+                super::transform_script::remove_effect_blocks(&rest, false, self.dev)
+            } else {
+                rest
+            };
+            let transformed = transform_script_content_module(&rest, self.dev);
+            let transformed = if !transformed.trim().is_empty() {
+                normalize_script_with_oxc(&transformed, 0)
+            } else {
+                transformed
+            };
+            (imports, transformed)
+        } else {
+            (Vec::new(), String::new())
+        };
+
+        // Get analysis flags
+        let needs_context = self.analysis.map(|a| a.needs_context).unwrap_or(false);
+        let analysis_needs_props = self.analysis.map(|a| a.needs_props).unwrap_or(false);
+        let analysis_uses_props = self.analysis.map(|a| a.uses_props).unwrap_or(false);
+        let analysis_uses_rest_props = self.analysis.map(|a| a.uses_rest_props).unwrap_or(false);
+        let analysis_uses_slots = self.analysis.map(|a| a.uses_slots).unwrap_or(false);
+        let analysis_has_slot_names = self
+            .analysis
+            .map(|a| !a.slot_names.is_empty())
+            .unwrap_or(false);
+        let analysis_has_exports = self
+            .analysis
+            .map(|a| !a.exports.is_empty())
+            .unwrap_or(false);
+        let analysis_has_bindable_props = self
+            .analysis
+            .map(|a| {
+                a.root
+                    .bindings
+                    .iter()
+                    .any(|b| b.kind == BindingKind::BindableProp && !b.name.starts_with("$$"))
+            })
+            .unwrap_or(false);
+        let uses_component_bindings = self
+            .analysis
+            .map(|a| a.uses_component_bindings)
+            .unwrap_or(false);
+
+        // Process instance script
+        let (
+            script_code,
+            hoisted_imports,
+            script_uses_props,
+            _has_class_state_fields,
+            uses_props_spread,
+        ) = if let Some(script) = self.instance_script {
+            let start = script.content.start().unwrap_or(0) as usize;
+            let end = script.content.end().unwrap_or(0) as usize;
+            let raw_script = if end > start && end <= self.source.len() {
+                self.source[start..end].to_string()
+            } else {
+                String::new()
+            };
+            let raw_script = if self.is_typescript && !raw_script.is_empty() {
+                crate::compiler::phases::phase2_analyze::types::strip_typescript(&raw_script)
+            } else {
+                raw_script
+            };
+            let raw_script = remove_effect_blocks(&raw_script, self.use_async, self.dev);
+            let has_bindable_props = self.analysis.is_some_and(|a| {
+                a.root.bindings.iter().any(|b| {
+                    matches!(
+                        b.kind,
+                        crate::compiler::phases::phase2_analyze::scope::BindingKind::BindableProp
+                    )
+                })
+            });
+            let raw_bytes = raw_script.as_bytes();
+            let uses_props = memmem::find(raw_bytes, b"$props()").is_some()
+                || memmem::find(raw_bytes, b"export let ").is_some()
+                || memmem::find(raw_bytes, b"export var ").is_some()
+                || has_bindable_props;
+            let class_state_fields = memmem::find(raw_bytes, b"class ").is_some()
+                && (memmem::find(raw_bytes, b"= $state(").is_some()
+                    || memmem::find(raw_bytes, b"= $state.raw(").is_some()
+                    || memmem::find(raw_bytes, b"= $derived(").is_some());
+            let props_spread = detect_props_spread_pattern(&raw_script);
+            let legacy_reactive_decl = extract_legacy_reactive_var_declaration(&raw_script);
+            let imported_names =
+                crate::compiler::phases::phase2_analyze::types::extract_imported_names(&raw_script);
+            let (imports_raw, rest) = extract_imports(&raw_script);
+            let imports: Vec<String> = imports_raw
+                .into_iter()
+                .map(|s| normalize_import(&s))
+                .collect();
+            let rest = transform_class_fields_server(&rest);
+            let rest = self.transform_special_vars(&rest);
+            let rest = transform_script::split_comma_separated_declarations(&rest);
+            let rest = if let Some(analysis) = self.analysis {
+                if !analysis.runes {
+                    let reassigned_vars: Vec<String> = analysis
+                        .root
+                        .bindings
+                        .iter()
+                        .filter(|b| {
+                            b.reassigned
+                                && matches!(b.kind, BindingKind::Normal | BindingKind::State)
+                        })
+                        .map(|b| b.name.clone())
+                        .collect();
+                    if !reassigned_vars.is_empty() {
+                        transform_script::transform_reassigned_destructures(&rest, &reassigned_vars)
+                    } else {
+                        rest
+                    }
+                } else {
+                    rest
+                }
+            } else {
+                rest
+            };
+            let reexported_props: Vec<(String, String)> = if has_bindable_props
+                && memmem::find(raw_bytes, b"$props()").is_none()
+            {
+                self.analysis
+                    .map(|a| {
+                        a.root
+                            .bindings
+                            .iter()
+                            .filter(|b| {
+                                matches!(b.kind, BindingKind::BindableProp) && {
+                                    !is_declared_via_export_let(&raw_script, b.name.as_str())
+                                }
+                            })
+                            .map(|b| {
+                                let prop_name = b.prop_alias.as_ref().unwrap_or(&b.name).clone();
+                                (b.name.clone(), prop_name)
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            } else {
+                Vec::new()
+            };
+            let transformed = if reexported_props.is_empty() {
+                transform_script_content_with_imports(&rest, &imported_names, self.dev)
+            } else {
+                transform_script_content_with_props_and_imports(
+                    &rest,
+                    &reexported_props,
+                    &imported_names,
+                    self.dev,
+                )
+            };
+            let transformed = if legacy_reactive_decl.is_empty() {
+                transformed
+            } else {
+                format!("{}\n{}", legacy_reactive_decl, transformed)
+            };
+            let transformed = self.transform_store_refs_in_script(&transformed);
+            let transformed = transform_script::flatten_store_get_destructures(&transformed);
+            (
+                transformed,
+                imports,
+                uses_props,
+                class_state_fields,
+                props_spread,
+            )
+        } else {
+            (String::new(), Vec::new(), false, false, false)
+        };
+
+        // Apply async body transformation
+        let script_code = if self.use_async && !script_code.trim().is_empty() {
+            if let Some(async_result) =
+                crate::compiler::phases::phase3_transform::shared::async_body::transform_async_body(
+                    script_code.trim(),
+                    "$$renderer.run",
+                )
+            {
+                let trimmed = async_result.output.trim();
+                let mut indented = String::new();
+                let mut in_template_literal = false;
+                for line in trimmed.lines() {
+                    if line.trim().is_empty() {
+                        indented.push('\n');
+                    } else if in_template_literal {
+                        in_template_literal =
+                            super::helpers::update_template_literal_state_for_indent(
+                                line,
+                                in_template_literal,
+                            );
+                        indented.push_str(line);
+                        indented.push('\n');
+                    } else {
+                        in_template_literal =
+                            super::helpers::update_template_literal_state_for_indent(
+                                line,
+                                in_template_literal,
+                            );
+                        indented.push('\t');
+                        indented.push_str(line);
+                        indented.push('\n');
+                    }
+                }
+                if indented.ends_with('\n') {
+                    indented.pop();
+                }
+                indented
+            } else {
+                strip_async_placeholders(&script_code)
+            }
+        } else {
+            script_code
+        };
+
+        // Normalize the script code with OXC
+        let script_code = if !script_code.trim().is_empty() {
+            normalize_script_with_oxc(&script_code, 1)
+        } else {
+            script_code
+        };
+
+        // Determine flags
+        let should_inject_context = self.dev || needs_context;
+        let needs_component_wrapper = should_inject_context;
+        let should_inject_props = should_inject_context
+            || analysis_needs_props
+            || analysis_uses_props
+            || analysis_uses_rest_props
+            || analysis_uses_slots
+            || analysis_has_slot_names
+            || analysis_has_exports
+            || analysis_has_bindable_props
+            || script_uses_props;
+
+        let has_content = !script_code.is_empty() || !body_code.is_empty();
+
+        // ===================================================================
+        // Build JsProgram
+        // ===================================================================
+
+        // Helper: strip the leading tab from the first line of raw content.
+        // The codegen's emit_statement() adds indent to the first line of every
+        // statement, so raw content placed inside a function body should not
+        // have its own leading tab on the first line.
+        fn strip_first_line_indent(code: &str) -> CompactString {
+            CompactString::from(code.strip_prefix('\t').unwrap_or(code))
+        }
+
+        // 1. Async flag import
+        if self.use_async {
+            body.push(JsStatement::Import(JsImportDeclaration {
+                source: CompactString::from("svelte/internal/flags/async"),
+                specifiers: vec![JsImportSpecifier::SideEffect],
+            }));
+        }
+
+        // 2. Filename section (dev mode) - placed after async import, before main import
+        if self.dev
+            && let Some(ref fname) = self.filename
+        {
+            let display_name = fname.replace('\\', "/");
+            body.push(JsStatement::Raw(CompactString::from(format!(
+                "{}[$.FILENAME] = '{}';",
+                self.component_name, display_name
+            ))));
+        }
+
+        // 3. Legacy render import (componentApi v4)
+        if self.component_api_v4 {
+            body.push(JsStatement::Import(JsImportDeclaration {
+                source: CompactString::from("svelte/server"),
+                specifiers: vec![JsImportSpecifier::Named {
+                    imported: CompactString::from("render"),
+                    local: CompactString::from("$$_render"),
+                }],
+            }));
+        }
+
+        // 4. Main import: import * as $ from 'svelte/internal/server'
+        body.push(JsStatement::Import(JsImportDeclaration {
+            source: CompactString::from("svelte/internal/server"),
+            specifiers: vec![JsImportSpecifier::Namespace(CompactString::from("$"))],
+        }));
+
+        // 5. Instance imports (hoisted)
+        for imp in &hoisted_imports {
+            body.push(JsStatement::Raw(CompactString::from(imp.as_str())));
+        }
+
+        // 6. Snippet functions (hoisted)
+        let snippets_section = self.build_snippets();
+        if !snippets_section.is_empty() {
+            // Snippets may contain multiple function declarations.
+            // Emit each non-empty line group as a separate Raw statement.
+            let trimmed = snippets_section.trim();
+            if !trimmed.is_empty() {
+                body.push(JsStatement::Raw(CompactString::from(trimmed)));
+            }
+        }
+
+        // 7. Module imports + code
+        for imp in &module_imports {
+            body.push(JsStatement::Raw(CompactString::from(imp.as_str())));
+        }
+        if !module_code.trim().is_empty() {
+            body.push(JsStatement::Raw(CompactString::from(module_code.trim())));
+        }
+
+        // 8. CSS const section
+        if let Some((ref hash, ref code)) = self.injected_css {
+            let escaped_code = code.replace('\'', "\\'");
+            body.push(JsStatement::Raw(CompactString::from(format!(
+                "const $$css = {{\n\thash: '{}',\n\tcode: '{}'\n}};",
+                hash, escaped_code
+            ))));
+        }
+
+        // 9. Build the component function body
+        let mut fn_body: Vec<JsStatement> = Vec::new();
+
+        // CSS add call (inside function body)
+        if self.injected_css.is_some() {
+            fn_body.push(JsStatement::Raw(CompactString::from(
+                "$$renderer.global.css.add($$css);",
+            )));
+        }
+
+        if has_content {
+            if needs_component_wrapper {
+                // Build the $$renderer.component() wrapper as a Raw statement.
+                // This contains the entire wrapper including inner script and body.
+                let props_declarations = self.build_props_declarations(1);
+                let wrapper_indent = if self.dev { 3 } else { 2 };
+                let extra_tabs = if self.dev { 2 } else { 1 };
+
+                let inner_script =
+                    transform_props_spread_ex(&script_code, extra_tabs, analysis_uses_slots);
+                let mut each_counter_w: usize = 0;
+                let hoisted_parts_wrapper = Self::hoist_svelte_head(&self.output_parts);
+                let hoisted_parts_wrapper = if !blocker_map.is_empty() {
+                    Self::apply_async_wrapping(&hoisted_parts_wrapper, &blocker_map)
+                } else {
+                    hoisted_parts_wrapper
+                };
+                let inner_body = Self::build_parts_with_store_subs(
+                    &hoisted_parts_wrapper,
+                    wrapper_indent,
+                    &mut each_counter_w,
+                    &store_subs_ref,
+                );
+                let instance_snippets = self.build_instance_snippets(wrapper_indent);
+                let bind_props_code = self.build_bind_props(wrapper_indent);
+                let indent_str = "\t".repeat(wrapper_indent);
+
+                let store_subs_decl = if self.uses_store_subs {
+                    format!("{}var $$store_subs;\n", indent_str)
+                } else {
+                    String::new()
+                };
+                let store_subs_cleanup = if self.uses_store_subs {
+                    format!(
+                        "\n{}if ($$store_subs) $.unsubscribe_stores($$store_subs);\n",
+                        indent_str
+                    )
+                } else {
+                    String::new()
+                };
+
+                let inner_body = if uses_component_bindings {
+                    let bi = &indent_str;
+                    let ii = "\t".repeat(wrapper_indent + 1);
+                    format!(
+                        r#"{bi}let $$settled = true;
+{bi}let $$inner_renderer;
+
+{bi}function $$render_inner($$renderer) {{
+{body_code}{bi}}}
+
+{bi}do {{
+{ii}$$settled = true;
+{ii}$$inner_renderer = $$renderer.copy();
+{ii}$$render_inner($$inner_renderer);
+{bi}}} while (!$$settled);
+
+{bi}$$renderer.subsume($$inner_renderer);
+"#,
+                        bi = bi,
+                        ii = ii,
+                        body_code = inner_body.clone()
+                    )
+                } else {
+                    inner_body
+                };
+
+                let component_second_arg = if self.dev {
+                    format!(",\n\t\t{}", self.component_name)
+                } else {
+                    String::new()
+                };
+
+                // Build props_declarations as Raw (if non-empty)
+                if !props_declarations.is_empty() {
+                    fn_body.push(JsStatement::Raw(strip_first_line_indent(
+                        &props_declarations,
+                    )));
+                }
+
+                // Build the wrapper call as a single Raw statement
+                let wrapper_code = if self.dev {
+                    format!(
+                        r#"$$renderer.component(
+		($$renderer) => {{
+{store_subs_decl}{inner_script}
+{instance_snippets}{inner_body}{store_subs_cleanup}{bind_props_code}		}}{component_second_arg}
+	);"#,
+                        store_subs_decl = store_subs_decl,
+                        inner_script = inner_script,
+                        instance_snippets = instance_snippets,
+                        inner_body = inner_body,
+                        store_subs_cleanup = store_subs_cleanup,
+                        bind_props_code = bind_props_code,
+                        component_second_arg = component_second_arg,
+                    )
+                } else {
+                    format!(
+                        r#"$$renderer.component(($$renderer) => {{
+{store_subs_decl}{inner_script}
+{instance_snippets}{inner_body}{store_subs_cleanup}{bind_props_code}	}}{component_second_arg});"#,
+                        store_subs_decl = store_subs_decl,
+                        inner_script = inner_script,
+                        instance_snippets = instance_snippets,
+                        inner_body = inner_body,
+                        store_subs_cleanup = store_subs_cleanup,
+                        bind_props_code = bind_props_code,
+                        component_second_arg = component_second_arg,
+                    )
+                };
+                fn_body.push(JsStatement::Raw(CompactString::from(wrapper_code)));
+            } else {
+                // No component wrapper - direct function body
+                let props_declarations = self.build_props_declarations(1);
+                let script_code = if uses_props_spread {
+                    transform_props_spread_ex(&script_code, 0, analysis_uses_slots)
+                } else {
+                    script_code
+                };
+                let instance_snippets = self.build_instance_snippets(1);
+                let bind_props_code = self.build_bind_props(1);
+
+                // Store subs
+                if self.uses_store_subs {
+                    fn_body.push(JsStatement::Raw(CompactString::from("var $$store_subs;")));
+                }
+
+                // Props declarations
+                if !props_declarations.is_empty() {
+                    fn_body.push(JsStatement::Raw(strip_first_line_indent(
+                        &props_declarations,
+                    )));
+                }
+
+                // Script code
+                if !script_code.is_empty() {
+                    fn_body.push(JsStatement::Raw(strip_first_line_indent(&script_code)));
+                }
+
+                // Instance snippets
+                if !instance_snippets.is_empty() {
+                    fn_body.push(JsStatement::Raw(strip_first_line_indent(
+                        &instance_snippets,
+                    )));
+                }
+
+                // Body code (template output)
+                if !body_code.is_empty() {
+                    let body_section = if uses_component_bindings {
+                        let body_code_extra_indent = {
+                            let mut result = String::new();
+                            let mut in_template_literal = false;
+                            for line in body_code.lines() {
+                                if line.trim().is_empty() {
+                                    result.push('\n');
+                                } else if in_template_literal {
+                                    in_template_literal =
+                                        super::helpers::update_template_literal_state_for_indent(
+                                            line,
+                                            in_template_literal,
+                                        );
+                                    result.push_str(line);
+                                    result.push('\n');
+                                } else {
+                                    in_template_literal =
+                                        super::helpers::update_template_literal_state_for_indent(
+                                            line,
+                                            in_template_literal,
+                                        );
+                                    result.push('\t');
+                                    result.push_str(line);
+                                    result.push('\n');
+                                }
+                            }
+                            result
+                        };
+                        format!(
+                            r#"let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {{
+{body_code}	}}
+
+	do {{
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	}} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);"#,
+                            body_code = body_code_extra_indent,
+                        )
+                    } else {
+                        // Strip trailing newline from body_code, strip first line indent
+                        let trimmed = body_code.trim_end_matches('\n');
+                        trimmed.strip_prefix('\t').unwrap_or(trimmed).to_string()
+                    };
+                    fn_body.push(JsStatement::Raw(CompactString::from(body_section)));
+                }
+
+                // Store subs cleanup
+                if self.uses_store_subs {
+                    fn_body.push(JsStatement::Raw(CompactString::from(
+                        "if ($$store_subs) $.unsubscribe_stores($$store_subs);",
+                    )));
+                }
+
+                // Bind props
+                if !bind_props_code.is_empty() {
+                    fn_body.push(JsStatement::Raw(strip_first_line_indent(
+                        bind_props_code.trim_end_matches('\n'),
+                    )));
+                }
+            }
+        } else if needs_component_wrapper {
+            // Empty body but needs component wrapper
+            let component_second_arg = if self.dev {
+                format!(", {}", self.component_name)
+            } else {
+                String::new()
+            };
+            let bind_props_code = self.build_bind_props(1);
+            fn_body.push(JsStatement::Raw(CompactString::from(format!(
+                "$$renderer.component(($$renderer) => {{}}{});",
+                component_second_arg
+            ))));
+            if !bind_props_code.is_empty() {
+                fn_body.push(JsStatement::Raw(strip_first_line_indent(
+                    bind_props_code.trim_end_matches('\n'),
+                )));
+            }
+        } else {
+            // Empty body
+            let bind_props_code = self.build_bind_props(1);
+            if !bind_props_code.is_empty() {
+                fn_body.push(JsStatement::Raw(strip_first_line_indent(
+                    bind_props_code.trim_end_matches('\n'),
+                )));
+            }
+        }
+
+        // 10. Build function params
+        let params = if should_inject_props {
+            smallvec![
+                JsPattern::Identifier(CompactString::from("$$renderer")),
+                JsPattern::Identifier(CompactString::from("$$props")),
+            ]
+        } else {
+            smallvec![JsPattern::Identifier(CompactString::from("$$renderer"))]
+        };
+
+        let fn_decl = JsFunctionDeclaration {
+            id: Some(CompactString::from(self.component_name.as_str())),
+            params,
+            body: JsBlockStatement { body: fn_body },
+            is_async: false,
+            is_generator: false,
+        };
+
+        // 11. Export strategy
+        if self.dev || self.component_api_v4 {
+            // Separate declaration + export
+            body.push(JsStatement::FunctionDeclaration(fn_decl));
+
+            // Dev/v4 extra methods + export default
+            if self.component_api_v4 {
+                body.push(JsStatement::Raw(CompactString::from(format!(
+                    "{name}.render = function ($$props, $$opts) {{\n\treturn $$_render({name}, {{ props: $$props, context: $$opts?.context }});\n}};",
+                    name = self.component_name
+                ))));
+            } else {
+                // Dev mode
+                body.push(JsStatement::Raw(CompactString::from(format!(
+                    "{name}.render = function () {{\n\tthrow new Error('Component.render(...) is no longer valid in Svelte 5. See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-classes for more information');\n}};",
+                    name = self.component_name
+                ))));
+            }
+
+            body.push(JsStatement::ExportDefault(JsExportDefault {
+                declaration: JsExportDefaultDeclaration::Expression(arena.alloc_expr(
+                    JsExpr::Identifier(CompactString::from(self.component_name.as_str())),
+                )),
+            }));
+        } else {
+            // export default function ...
+            body.push(JsStatement::ExportDefault(JsExportDefault {
+                declaration: JsExportDefaultDeclaration::Function(fn_decl),
+            }));
+        }
+
+        (JsProgram { body }, arena)
     }
 
     #[allow(dead_code)]
@@ -6162,6 +6884,7 @@ fn strip_async_placeholders(s: &str) -> String {
 /// In JavaScript, `function foo() { };` has a trailing `;` that creates an EmptyStatement.
 /// The official Svelte compiler parses AST and regenerates without it.
 /// Only strips `};` that closes a function declaration body (not object literals, etc.).
+#[allow(dead_code)]
 fn strip_trailing_semicolons_after_functions(code: &str) -> String {
     // Use regex-like approach: find `};\n` patterns that look like function declaration ends.
     // A function declaration looks like:

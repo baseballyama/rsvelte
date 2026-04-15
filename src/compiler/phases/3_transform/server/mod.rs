@@ -97,9 +97,15 @@ pub fn transform_server(
     // Use the AST fragment directly (no re-parsing needed)
     generator.generate_component(&ast.fragment)?;
 
-    let output = generator.build();
-    let output = strip_empty_statements(&output);
-    Ok(add_esrap_blank_lines(&output))
+    let (program, arena) = generator.build_program();
+    let code =
+        crate::compiler::phases::phase3_transform::js_ast::codegen::generate(&program, &arena)
+            .unwrap_or_default();
+    // Post-process: strip empty statements and add esrap-style blank lines.
+    // This is still needed because the function body content is wrapped in Raw
+    // statements that the codegen emits verbatim (no internal blank line insertion).
+    let code = strip_empty_statements(&code);
+    Ok(add_esrap_blank_lines(&code))
 }
 
 /// Transform a module (.svelte.js/.svelte.ts) into server-side JavaScript.
