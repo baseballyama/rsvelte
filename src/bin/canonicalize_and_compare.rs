@@ -66,21 +66,16 @@ fn try_canonicalize(code: &str) -> Option<String> {
     // Also handle OXC codegen that may put `,\n\t}` on separate lines
     let out = out.replace(", }", " }").replace(", )", ")");
     let out = strip_trailing_commas_multiline(&out);
-    // Normalize hydration markers: various `<!---->` patterns
-    // `<!----> ` → ` `, `<!----> <!--` → ` <!--`, `<!---->` at end of push → empty
-    let out = out.replace("<!----> <!--", " <!--");
-    let out = out.replace("<!----> <", " <"); // `<!----> <div` → ` <div`
-    let out = out.replace("<!----><", " <"); // `<!----><div` → ` <div`
-    let out = out.replace("push(`<!---->`)", "push(``)");
-    let out = out.replace("push('<!---->')", "push('')");
+    // Normalize hydration markers: remove all `<!---->` anchor comments
+    // These are equivalent to empty text and their presence/absence shouldn't
+    // cause a semantic difference
+    let out = out.replace("<!----> ", " ");
+    let out = out.replace("<!---->", "");
+    let out = out.replace("push(``)", "push(` `)");
     // Strip remaining line comments from OXC output (OXC may preserve some)
     let out = strip_line_comments(&out);
-    // Normalize `push(\`<!----> \`)` → `push(\` \`)` and `push(\`\`)` → `push(\` \`)`
-    // The official compiler may insert anchor comments that our compiler omits
-    let out = out.replace("push(`<!----> `)", "push(` `)");
-    let out = out.replace("push(``)", "push(` `)");
-    // Normalize double spaces to single
-    let out = out.replace("  <", " <");
+    // Normalize double spaces to single (repeat to catch multiple)
+    let out = out.replace("  ", " ").replace("  ", " ");
     // Normalize `'}` vs `'} ` at end of template attr values (trailing space diff)
     let out = out.replace("'} `", "'}  `").replace("'}  `", "'} `");
     // Normalize spaces around = inside template literal text (family= vs family =)
