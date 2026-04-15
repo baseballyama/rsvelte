@@ -71,6 +71,8 @@ fn try_canonicalize(code: &str) -> Option<String> {
     let out = out.replace("<!----> <!--", " <!--");
     let out = out.replace("push(`<!---->`)", "push(``)");
     let out = out.replace("push('<!---->')", "push('')");
+    // Strip remaining line comments from OXC output (OXC may preserve some)
+    let out = strip_line_comments(&out);
     // Normalize `push(\`<!----> \`)` → `push(\` \`)` and `push(\`\`)` → `push(\` \`)`
     // The official compiler may insert anchor comments that our compiler omits
     let out = out.replace("push(`<!----> `)", "push(` `)");
@@ -607,6 +609,51 @@ fn normalize_html_attr_names(code: &str) -> String {
 }
 
 /// Strip trailing commas before closing `}` or `)` across lines.
+/// Strip `//` line comments from code (outside strings and template literals).
+fn strip_line_comments(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let mut in_string = false;
+    let mut string_char = ' ';
+    let mut in_template = false;
+    let chars: Vec<char> = code.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+    while i < len {
+        let c = chars[i];
+        if in_string {
+            if c == string_char && (i == 0 || chars[i - 1] != '\\') {
+                in_string = false;
+            }
+            result.push(c);
+            i += 1;
+            continue;
+        }
+        if c == '\'' || c == '"' {
+            in_string = true;
+            string_char = c;
+            result.push(c);
+            i += 1;
+            continue;
+        }
+        if c == '`' {
+            in_template = !in_template;
+            result.push(c);
+            i += 1;
+            continue;
+        }
+        if !in_template && c == '/' && i + 1 < len && chars[i + 1] == '/' {
+            // Skip to end of line
+            while i < len && chars[i] != '\n' {
+                i += 1;
+            }
+            continue;
+        }
+        result.push(c);
+        i += 1;
+    }
+    result
+}
+
 /// Handles OXC codegen output like: `foo,\n\t}` → `foo\n\t}`
 fn strip_trailing_commas_multiline(code: &str) -> String {
     let lines: Vec<&str> = code.lines().collect();
