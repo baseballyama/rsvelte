@@ -1125,12 +1125,28 @@ impl<'a> ServerCodeGenerator<'a> {
         };
         drop(const_blocker_map);
 
-        let body_code = Self::build_parts_with_store_subs(
-            &hoisted_parts,
-            1,
-            &mut each_counter,
-            &store_subs_ref,
-        );
+        // Convert OutputParts → TemplateItems → JsStatements → body_code string.
+        // This exercises the bridge path while maintaining backward compatibility
+        // with the downstream code that expects a body_code String.
+        let body_code = {
+            let bridge_arena =
+                crate::compiler::phases::phase3_transform::js_ast::arena::JsArena::new();
+            let template_items = super::bridge::output_parts_to_template_items(
+                &hoisted_parts,
+                &bridge_arena,
+                &store_subs_ref,
+                &mut each_counter,
+            );
+            let template_stmts =
+                super::visitors::shared::utils::build_template(&template_items, &bridge_arena);
+            // Convert the AST statements back to a string at indent level 1
+            // (matching the old build_parts_with_store_subs(indent_level=1) output).
+            crate::compiler::phases::phase3_transform::js_ast::codegen::generate_stmts(
+                &template_stmts,
+                &bridge_arena,
+                1,
+            )
+        };
 
         // Process module script
         let (module_imports, module_code) = if let Some(script) = self.module_script {

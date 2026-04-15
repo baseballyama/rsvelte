@@ -77,6 +77,28 @@ pub fn generate_with_sourcemap(
     })
 }
 
+/// Generate JavaScript source code for a list of statements at a given indent level.
+///
+/// This is used by the SSR bridge to convert `Vec<JsStatement>` (produced by
+/// `build_template`) into a string that can be embedded in the component function body.
+pub fn generate_stmts(
+    stmts: &[super::nodes::JsStatement],
+    arena: &JsArena,
+    indent_level: usize,
+) -> String {
+    let mut codegen = JsCodegen {
+        output: String::with_capacity(1024),
+        indent_level,
+        needs_semicolon: false,
+        track_mappings: false,
+        raw_spans: Vec::new(),
+        source_code: None,
+        arena,
+    };
+    codegen.emit_body(stmts);
+    codegen.output
+}
+
 /// Generate JavaScript source code for a single expression.
 /// Uses a smaller buffer than full program generation since expressions are typically short.
 pub fn generate_expr(expr: &super::nodes::JsExpr, arena: &JsArena) -> String {

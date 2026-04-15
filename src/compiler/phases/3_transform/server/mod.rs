@@ -4,6 +4,7 @@
 //!
 //! This module is organized to match the Svelte compiler structure.
 
+pub mod bridge;
 pub mod build;
 pub mod helpers;
 pub mod transform_legacy;
