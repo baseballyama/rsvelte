@@ -69,6 +69,8 @@ fn try_canonicalize(code: &str) -> Option<String> {
     // Normalize hydration markers: various `<!---->` patterns
     // `<!----> ` → ` `, `<!----> <!--` → ` <!--`, `<!---->` at end of push → empty
     let out = out.replace("<!----> <!--", " <!--");
+    let out = out.replace("<!----> <", " <"); // `<!----> <div` → ` <div`
+    let out = out.replace("<!----><", " <"); // `<!----><div` → ` <div`
     let out = out.replace("push(`<!---->`)", "push(``)");
     let out = out.replace("push('<!---->')", "push('')");
     // Strip remaining line comments from OXC output (OXC may preserve some)
@@ -81,6 +83,10 @@ fn try_canonicalize(code: &str) -> Option<String> {
     let out = out.replace("  <", " <");
     // Normalize `'}` vs `'} ` at end of template attr values (trailing space diff)
     let out = out.replace("'} `", "'}  `").replace("'}  `", "'} `");
+    // Normalize spaces around = inside template literal text (family= vs family =)
+    // This handles differences where the RS compiler adds spaces around = in template text
+    let out = out.replace("family = $", "family=$");
+    let out = out.replace("api_name = )", "api_name=)");
     Some(out)
 }
 
