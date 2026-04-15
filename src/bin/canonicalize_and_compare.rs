@@ -189,6 +189,26 @@ fn collapse_ws_in_template_interpolations(code: &str) -> String {
                     }
                     continue;
                 }
+                // Strip line comments inside interpolations
+                if c == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+                    // Skip until end of line
+                    i += 2;
+                    while i < bytes.len() && bytes[i] != b'\n' {
+                        i += 1;
+                    }
+                    continue;
+                }
+                // Strip block comments inside interpolations
+                if c == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'*' {
+                    i += 2;
+                    while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                        i += 1;
+                    }
+                    if i + 1 < bytes.len() {
+                        i += 2;
+                    }
+                    continue;
+                }
                 // Collapse whitespace runs to a single space.
                 if c == b' ' || c == b'\t' || c == b'\n' || c == b'\r' {
                     // Skip all consecutive whitespace.
