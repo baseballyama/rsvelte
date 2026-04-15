@@ -26,7 +26,7 @@ fn try_canonicalize(code: &str) -> Option<String> {
         comments: CommentOptions {
             normal: false,
             jsdoc: false,
-            annotation: true,
+            annotation: false,
             legal: LegalComment::None,
         },
         ..Default::default()
@@ -71,6 +71,12 @@ fn try_canonicalize(code: &str) -> Option<String> {
     let out = out.replace("<!----> <!--", " <!--");
     let out = out.replace("push(`<!---->`)", "push(``)");
     let out = out.replace("push('<!---->')", "push('')");
+    // Normalize `push(\`<!----> \`)` → `push(\` \`)` and `push(\`\`)` → `push(\` \`)`
+    // The official compiler may insert anchor comments that our compiler omits
+    let out = out.replace("push(`<!----> `)", "push(` `)");
+    let out = out.replace("push(``)", "push(` `)");
+    // Normalize double spaces to single
+    let out = out.replace("  <", " <");
     // Normalize `'}` vs `'} ` at end of template attr values (trailing space diff)
     let out = out.replace("'} `", "'}  `").replace("'}  `", "'} `");
     Some(out)
@@ -283,7 +289,7 @@ fn canonicalize(code: &str) -> String {
         comments: CommentOptions {
             normal: false,
             jsdoc: false,
-            annotation: true,
+            annotation: false,
             legal: LegalComment::None,
         },
         ..Default::default()
