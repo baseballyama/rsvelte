@@ -5,11 +5,14 @@
 //!
 //! The conversion uses a two-phase approach:
 //!
-//! 1. **Simple parts** (Html, Expression, Comment, etc.) before any complex part are
-//!    converted directly to `TemplateItem::Expression` or `TemplateItem::Statement`,
-//!    which `build_template()` coalesces into `$$renderer.push(\`...\`)` template literals.
+//! 1. **Simple parts** (Html, Expression, Comment, IfBlock, EachBlock, etc.) before any
+//!    complex part are converted directly to `TemplateItem::Expression` or
+//!    `TemplateItem::Statement`. Expression items are coalesced by `build_template()`
+//!    into `$$renderer.push(\`...\`)` template literals. IfBlock and EachBlock have their
+//!    block markers (`<!--[-->`, `<!--]-->`) emitted as Expression(Literal) so they
+//!    coalesce with adjacent HTML content.
 //!
-//! 2. **Complex parts** (Component, IfBlock, EachBlock, AwaitBlock, etc.) and all parts
+//! 2. **Complex parts** (Component, AwaitBlock, SvelteBoundary, etc.) and all parts
 //!    after the first complex part are delegated to `build_parts_with_store_subs`, which
 //!    preserves cross-part context (current_html coalescing, has_prior_content checks, etc.).
 
@@ -66,20 +69,45 @@ pub(crate) fn output_parts_to_template_items(
     //
     // Expression-like parts right before a complex part must be included in the
     // delegation because they need to be coalesced (via current_html) with the
-    // complex part's markers (e.g., <!--[--> from an IfBlock inside SvelteBoundary).
+    // complex part's markers (e.g., has_prior_content for Component).
     //
-    // We find the last "statement boundary" before the first complex part.
-    // Expression-like parts after this boundary are included in the delegation.
+    // However, when the last statement boundary is an IfBlock or EachBlock (which
+    // emit closing <!--]--> as Expression literals), expression-like parts after
+    // them should be converted too, so they coalesce with the <!--]--> marker.
+    //
+    // We find the last "statement boundary" before the first complex part, then
+    // extend past any trailing expression-like parts if that boundary was an
+    // IfBlock or EachBlock.
     let convertible_end = if let Some(complex_idx) = first_complex_idx {
         // Find the last statement-level part before the complex part.
-        // Everything after this is expression-like and should be delegated.
         let mut last_stmt_boundary = 0;
+        let mut last_boundary_is_block = false;
         for (j, part) in parts.iter().enumerate().take(complex_idx) {
             if is_statement_boundary(part) {
                 last_stmt_boundary = j + 1;
+                last_boundary_is_block = matches!(
+                    part,
+                    OutputPart::IfBlock { .. } | OutputPart::EachBlock { .. }
+                );
             }
         }
-        last_stmt_boundary
+
+        if last_boundary_is_block {
+            // Extend past expression-like parts after the block to coalesce
+            // with the <!--]--> marker. Stop at the next statement boundary
+            // or complex part.
+            let mut end = last_stmt_boundary;
+            while end < complex_idx {
+                let p = &parts[end];
+                if is_statement_boundary(p) || is_complex_part(p) {
+                    break;
+                }
+                end += 1;
+            }
+            end
+        } else {
+            last_stmt_boundary
+        }
     } else {
         parts.len()
     };
@@ -141,10 +169,10 @@ fn is_complex_part(part: &OutputPart) -> bool {
         | OutputPart::RawStatement(_)
         | OutputPart::ConstBlockerMetadata { .. } => false,
 
-        // IfBlock and EachBlock: treated as complex because their closing markers
-        // (<!--]-->) need to coalesce with adjacent content via current_html in
-        // build_parts_with_store_subs.
-        OutputPart::IfBlock { .. } | OutputPart::EachBlock { .. } => true,
+        // IfBlock and EachBlock: converted directly with recursive body processing.
+        // Their block markers are emitted as TemplateItem::Expression(Literal) so
+        // build_template() can coalesce them with adjacent HTML content.
+        OutputPart::IfBlock { .. } | OutputPart::EachBlock { .. } => false,
 
         // Everything else is complex (Component, AwaitBlock, SvelteBoundary, etc.)
         _ => true,
@@ -279,7 +307,46 @@ fn convert_simple_part_to_item(
             // Metadata-only, not rendered
         }
 
-        // IfBlock, EachBlock, and all other complex parts should never reach here
+        OutputPart::IfBlock {
+            test_expr,
+            consequent_body,
+            alternate_body,
+            is_elseif: _,
+        } => {
+            convert_if_block(
+                test_expr,
+                consequent_body,
+                alternate_body,
+                items,
+                _arena,
+                store_subs,
+                each_counter,
+            );
+        }
+
+        OutputPart::EachBlock {
+            iterable,
+            context_name,
+            index_name,
+            index_alias,
+            body,
+            fallback,
+        } => {
+            convert_each_block(
+                iterable,
+                context_name,
+                index_name,
+                index_alias,
+                body,
+                fallback,
+                items,
+                _arena,
+                store_subs,
+                each_counter,
+            );
+        }
+
+        // All other complex parts should never reach here
         // (is_complex_part returns true for them). Fallback to delegation for safety.
         _ => {
             delegate_single_part(part, items, each_counter, store_subs);
@@ -330,6 +397,356 @@ fn delegate_remaining_parts(
             CompactString::new(trimmed),
         )));
     }
+}
+
+/// Generate code for the inner body of a branch (consequent, else-if, or else).
+///
+/// Hoists @const declarations, recursively converts to TemplateItems, builds
+/// the template, and generates code at the given indent level.
+fn generate_inner_body_code(
+    body: &[OutputPart],
+    arena: &JsArena,
+    store_subs: &[(&str, &str)],
+    each_counter: &mut usize,
+    indent_level: usize,
+) -> String {
+    use super::visitors::shared::utils::build_template;
+    use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_stmts;
+
+    let hoisted = ServerCodeGenerator::hoist_const_declarations_and_strip_ws(body);
+    let inner_items = output_parts_to_template_items(&hoisted, arena, store_subs, each_counter);
+    let inner_stmts = build_template(&inner_items, arena);
+    generate_stmts(&inner_stmts, arena, indent_level)
+}
+
+/// Convert an IfBlock OutputPart to TemplateItems.
+///
+/// Generates the if/else-if/else chain as a `TemplateItem::Statement(Raw)` with
+/// properly numbered branch markers (`<!--[-->`, `<!--[1-->`, `<!--[!-->`), and
+/// the closing `<!--]-->` as a `TemplateItem::Expression(Literal)` for coalescing.
+fn convert_if_block(
+    test_expr: &str,
+    consequent_body: &[OutputPart],
+    alternate_body: &Option<Vec<OutputPart>>,
+    items: &mut Vec<TemplateItem>,
+    arena: &JsArena,
+    store_subs: &[(&str, &str)],
+    each_counter: &mut usize,
+) {
+    let test_has_await = super::helpers::expr_contains_await(test_expr);
+
+    // Determine effective test expression and indent
+    let (effective_test, base_indent_level, needs_child_block) = if test_has_await {
+        (
+            super::helpers::transform_await_to_save(test_expr),
+            1usize,
+            true,
+        )
+    } else {
+        (test_expr.to_string(), 0usize, false)
+    };
+
+    let indent = "\t".repeat(base_indent_level);
+    let mut code = String::new();
+
+    if needs_child_block {
+        code.push_str("$$renderer.child_block(async ($$renderer) => {\n");
+    }
+
+    // Start the if statement
+    code.push_str(&format!("{}if ({}) {{\n", indent, effective_test));
+
+    // Opening marker for consequent branch
+    code.push_str(&format!("{}\t$$renderer.push('<!--[-->');\n", indent));
+
+    // Consequent body
+    let consequent_code = generate_inner_body_code(
+        consequent_body,
+        arena,
+        store_subs,
+        each_counter,
+        base_indent_level + 1,
+    );
+    code.push_str(&consequent_code);
+
+    // Close consequent
+    code.push_str(&format!("{}}}", indent));
+
+    // Flatten the else-if chain
+    let mut elseif_index: usize = 1;
+    let mut current_alt = alternate_body.as_deref();
+
+    loop {
+        match current_alt {
+            None => {
+                // No alternate: add empty else with BLOCK_OPEN_ELSE marker
+                code.push_str(" else {\n");
+                code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
+                code.push_str(&format!("{}}}", indent));
+                break;
+            }
+            Some(alt_body) => {
+                // Check if this alternate is a single else-if IfBlock
+                if alt_body.len() == 1
+                    && let OutputPart::IfBlock {
+                        test_expr: nested_test,
+                        consequent_body: nested_consequent,
+                        alternate_body: nested_alternate,
+                        is_elseif: true,
+                    } = &alt_body[0]
+                    && !super::helpers::expr_contains_await(nested_test)
+                {
+                    // else-if case
+                    let marker = format!("<!--[{}-->", elseif_index);
+                    elseif_index += 1;
+
+                    code.push_str(&format!(" else if ({}) {{\n", nested_test));
+                    code.push_str(&format!("{}\t$$renderer.push('{}');\n", indent, marker));
+
+                    let branch_code = generate_inner_body_code(
+                        nested_consequent,
+                        arena,
+                        store_subs,
+                        each_counter,
+                        base_indent_level + 1,
+                    );
+                    code.push_str(&branch_code);
+                    code.push_str(&format!("{}}}", indent));
+
+                    current_alt = nested_alternate.as_deref();
+                } else {
+                    // Regular else (final branch)
+                    code.push_str(" else {\n");
+                    code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
+
+                    let alt_code = generate_inner_body_code(
+                        alt_body,
+                        arena,
+                        store_subs,
+                        each_counter,
+                        base_indent_level + 1,
+                    );
+                    code.push_str(&alt_code);
+                    code.push_str(&format!("{}}}", indent));
+                    break;
+                }
+            }
+        }
+    }
+
+    if needs_child_block {
+        code.push_str("\n});\n");
+    }
+
+    let trimmed = code.trim();
+    if !trimmed.is_empty() {
+        items.push(TemplateItem::Statement(JsStatement::Raw(
+            CompactString::new(trimmed),
+        )));
+    }
+
+    // Closing block marker - as Expression(Literal) for coalescing with adjacent HTML
+    items.push(TemplateItem::Expression(JsExpr::Literal(
+        JsLiteral::String("<!--]-->".into()),
+    )));
+}
+
+/// Convert an EachBlock OutputPart to TemplateItems.
+///
+/// For no-fallback: emits `<!--[-->` as an expression literal (coalesces with prior content),
+/// then the for loop as a statement, then `<!--]-->` as an expression literal.
+///
+/// For fallback: emits the if/else structure as a statement (with `<!--[-->` and `<!--[!-->`
+/// inside branches), then `<!--]-->` as an expression literal.
+#[allow(clippy::too_many_arguments)]
+fn convert_each_block(
+    iterable: &str,
+    context_name: &Option<String>,
+    index_name: &Option<String>,
+    index_alias: &Option<String>,
+    body: &[OutputPart],
+    fallback: &Option<Vec<OutputPart>>,
+    items: &mut Vec<TemplateItem>,
+    arena: &JsArena,
+    store_subs: &[(&str, &str)],
+    each_counter: &mut usize,
+) {
+    let iterable_has_await = super::helpers::expr_contains_await(iterable);
+    let needs_child_block = iterable_has_await;
+
+    let base_indent_level = if needs_child_block { 1usize } else { 0usize };
+    let effective_indent = "\t".repeat(base_indent_level);
+    let transformed_iterable = if iterable_has_await {
+        super::helpers::transform_await_to_save(iterable)
+    } else {
+        iterable.to_string()
+    };
+
+    // Generate unique array variable name
+    let array_var = if *each_counter == 0 {
+        "each_array".to_string()
+    } else {
+        format!("each_array_{}", each_counter)
+    };
+
+    // Generate unique index variable name
+    let index_var = match index_name {
+        Some(name) => name.clone(),
+        None => {
+            if *each_counter == 0 {
+                "$$index".to_string()
+            } else {
+                format!("$$index_{}", each_counter)
+            }
+        }
+    };
+
+    *each_counter += 1;
+
+    if fallback.is_some() {
+        // With fallback: the opening marker is inside branches, so no expression literal before
+        let mut code = String::new();
+
+        if needs_child_block {
+            code.push_str("$$renderer.child_block(async ($$renderer) => {\n");
+        }
+
+        code.push_str(&format!(
+            "{}const {} = $.ensure_array_like({});\n\n",
+            effective_indent, array_var, transformed_iterable
+        ));
+
+        code.push_str(&format!(
+            "{}if ({}.length !== 0) {{\n",
+            effective_indent, array_var
+        ));
+        code.push_str(&format!(
+            "{}\t$$renderer.push('<!--[-->');\n\n",
+            effective_indent
+        ));
+
+        // For loop inside if
+        code.push_str(&format!(
+            "{}\tfor (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{\n",
+            effective_indent, index_var, array_var, index_var, index_var
+        ));
+
+        if let Some(ctx_name) = context_name {
+            code.push_str(&format!(
+                "{}\t\tlet {} = {}[{}];\n",
+                effective_indent, ctx_name, array_var, index_var
+            ));
+        }
+
+        if let Some(alias) = index_alias {
+            code.push_str(&format!(
+                "{}\t\tlet {} = {};\n",
+                effective_indent, alias, index_var
+            ));
+        }
+
+        if context_name.is_some() || index_alias.is_some() {
+            code.push('\n');
+        }
+
+        let body_code =
+            generate_inner_body_code(body, arena, store_subs, each_counter, base_indent_level + 2);
+        code.push_str(&body_code);
+
+        code.push_str(&format!("{}\t}}\n", effective_indent));
+
+        // Else branch with fallback
+        code.push_str(&format!("{}}} else {{\n", effective_indent));
+        code.push_str(&format!(
+            "{}\t$$renderer.push('<!--[!-->');\n",
+            effective_indent
+        ));
+
+        if let Some(fb) = fallback {
+            let fallback_code = generate_inner_body_code(
+                fb,
+                arena,
+                store_subs,
+                each_counter,
+                base_indent_level + 1,
+            );
+            code.push_str(&fallback_code);
+        }
+
+        code.push_str(&format!("{}}}\n", effective_indent));
+
+        if needs_child_block {
+            code.push_str("});\n");
+        }
+
+        let trimmed = code.trim();
+        if !trimmed.is_empty() {
+            items.push(TemplateItem::Statement(JsStatement::Raw(
+                CompactString::new(trimmed),
+            )));
+        }
+    } else {
+        // No fallback: opening marker as expression literal for coalescing
+        items.push(TemplateItem::Expression(JsExpr::Literal(
+            JsLiteral::String("<!--[-->".into()),
+        )));
+
+        let mut code = String::new();
+
+        if needs_child_block {
+            code.push_str("$$renderer.child_block(async ($$renderer) => {\n");
+        }
+
+        code.push_str(&format!(
+            "{}const {} = $.ensure_array_like({});\n\n",
+            effective_indent, array_var, transformed_iterable
+        ));
+
+        code.push_str(&format!(
+            "{}for (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{\n",
+            effective_indent, index_var, array_var, index_var, index_var
+        ));
+
+        if let Some(ctx_name) = context_name {
+            code.push_str(&format!(
+                "{}\tlet {} = {}[{}];\n",
+                effective_indent, ctx_name, array_var, index_var
+            ));
+        }
+
+        if let Some(alias) = index_alias {
+            code.push_str(&format!(
+                "{}\tlet {} = {};\n",
+                effective_indent, alias, index_var
+            ));
+        }
+
+        if context_name.is_some() || index_alias.is_some() {
+            code.push('\n');
+        }
+
+        let body_code =
+            generate_inner_body_code(body, arena, store_subs, each_counter, base_indent_level + 1);
+        code.push_str(&body_code);
+
+        code.push_str(&format!("{}}}\n", effective_indent));
+
+        if needs_child_block {
+            code.push_str("});\n");
+        }
+
+        let trimmed = code.trim();
+        if !trimmed.is_empty() {
+            items.push(TemplateItem::Statement(JsStatement::Raw(
+                CompactString::new(trimmed),
+            )));
+        }
+    }
+
+    // Closing block marker - as Expression(Literal) for coalescing
+    items.push(TemplateItem::Expression(JsExpr::Literal(
+        JsLiteral::String("<!--]-->".into()),
+    )));
 }
 
 /// Split an HTML string containing `${...}` interpolations into a sequence of
