@@ -3,18 +3,20 @@
 //! This module provides a conversion layer between the visitor-produced `OutputPart`
 //! list and the AST-based `TemplateItem` representation used by `build_template()`.
 //!
-//! The conversion uses a two-phase approach:
+//! Each OutputPart is converted to one or more `TemplateItem`s:
 //!
-//! 1. **Simple parts** (Html, Expression, Comment, IfBlock, EachBlock, etc.) before any
-//!    complex part are converted directly to `TemplateItem::Expression` or
-//!    `TemplateItem::Statement`. Expression items are coalesced by `build_template()`
-//!    into `$$renderer.push(\`...\`)` template literals. IfBlock and EachBlock have their
-//!    block markers (`<!--[-->`, `<!--]-->`) emitted as Expression(Literal) so they
-//!    coalesce with adjacent HTML content.
+//! - Expression-like parts (Html, Expression, Comment, etc.) become
+//!   `TemplateItem::Expression`, which `build_template()` coalesces into
+//!   `$$renderer.push(\`...\`)` template literals.
 //!
-//! 2. **Complex parts** (Component, AwaitBlock, SvelteBoundary, etc.) and all parts
-//!    after the first complex part are delegated to `build_parts_with_store_subs`, which
-//!    preserves cross-part context (current_html coalescing, has_prior_content checks, etc.).
+//! - Statement-like parts with recursive structure (IfBlock, EachBlock) have their
+//!   markers emitted as `TemplateItem::Expression` and their bodies recursively
+//!   converted, with the generated code wrapped in `TemplateItem::Statement(Raw(...))`.
+//!
+//! - Complex parts (Component, AwaitBlock, SvelteBoundary, etc.) are individually
+//!   delegated to `build_parts_with_store_subs` via `delegate_single_part()`, wrapping
+//!   the result in `TemplateItem::Statement(Raw(...))`. This allows block markers and
+//!   expressions around them to be properly coalesced by `build_template()`.
 
 use super::ServerCodeGenerator;
 use super::types::{OutputPart, TemplateItem};
@@ -35,8 +37,9 @@ use compact_str::CompactString;
 ///   markers emitted as `TemplateItem::Expression` and their bodies recursively
 ///   converted, with the generated code wrapped in `TemplateItem::Statement(Raw(...))`.
 ///
-/// - Remaining complex parts (Component, AwaitBlock, etc.) delegate to
-///   `build_parts_with_store_subs` for single-part code generation.
+/// - Complex parts (Component, AwaitBlock, SvelteBoundary, etc.) are individually
+///   delegated to `build_parts_with_store_subs` via `delegate_single_part()`, wrapping
+///   the result in `TemplateItem::Statement(Raw(...))`.
 ///
 /// # Arguments
 ///
@@ -59,87 +62,76 @@ pub(crate) fn output_parts_to_template_items(
     let parts = &hoisted_parts;
 
     let mut items: Vec<TemplateItem> = Vec::new();
+    let mut textarea_body_counter: usize = 0;
 
-    // Find the first "complex" part that requires cross-part context from
-    // build_parts_with_store_subs (Component, AwaitBlock, SvelteBoundary, etc.).
-    // Also treat Html/RawExpression with await as complex since they need look-ahead.
-    let first_complex_idx = parts.iter().position(is_complex_part);
-
-    // Determine where to stop converting parts to TemplateItems.
+    // Process parts, grouping those that need cross-part HTML coalescing.
     //
-    // Expression-like parts right before a complex part must be included in the
-    // delegation because they need to be coalesced (via current_html) with the
-    // complex part's markers (e.g., has_prior_content for Component).
-    //
-    // However, when the last statement boundary is an IfBlock or EachBlock (which
-    // emit closing <!--]--> as Expression literals), expression-like parts after
-    // them should be converted too, so they coalesce with the <!--]--> marker.
-    //
-    // We find the last "statement boundary" before the first complex part, then
-    // extend past any trailing expression-like parts if that boundary was an
-    // IfBlock or EachBlock.
-    let convertible_end = if let Some(complex_idx) = first_complex_idx {
-        // Find the last statement-level part before the complex part.
-        let mut last_stmt_boundary = 0;
-        let mut last_boundary_is_block = false;
-        for (j, part) in parts.iter().enumerate().take(complex_idx) {
-            if is_statement_boundary(part) {
-                last_stmt_boundary = j + 1;
-                last_boundary_is_block = matches!(
-                    part,
-                    OutputPart::IfBlock { .. } | OutputPart::EachBlock { .. }
-                );
-            }
-        }
-
-        if last_boundary_is_block {
-            // Extend past expression-like parts after the block to coalesce
-            // with the <!--]--> marker. Stop at the next statement boundary
-            // or complex part.
-            let mut end = last_stmt_boundary;
-            while end < complex_idx {
-                let p = &parts[end];
-                if is_statement_boundary(p) || is_complex_part(p) {
-                    break;
-                }
-                end += 1;
-            }
-            end
-        } else {
-            last_stmt_boundary
-        }
-    } else {
-        parts.len()
-    };
-
+    // Parts that need `current_html` coalescing in build_parts_with_store_subs
+    // (like AsyncChild, AsyncBlock, Html with backslash, etc.) must be delegated
+    // together with their surrounding Expression-like parts. We detect groups
+    // of consecutive parts that include such "coalescing-dependent" parts and
+    // delegate the entire group at once.
     let mut i = 0;
-    while i < convertible_end {
-        let part = &parts[i];
-        convert_simple_part_to_item(part, &mut items, arena, store_subs, each_counter);
-        i += 1;
-    }
-
-    // If there are parts remaining (complex + expression parts before it),
-    // delegate them all to build_parts_with_store_subs.
-    if convertible_end < parts.len() {
-        delegate_remaining_parts(
-            &parts[convertible_end..],
-            &mut items,
-            each_counter,
-            store_subs,
-        );
+    while i < parts.len() {
+        if needs_coalescing_group(&parts[i]) {
+            // Find the group boundaries: extend forward to include following
+            // parts until we hit a clean break point.
+            let group_end = find_coalescing_group_end(parts, i);
+            // Also include preceding Expression-like items that were already
+            // converted to TemplateItem::Expression - pull them back so they
+            // can be coalesced with the group in build_parts_with_store_subs.
+            //
+            // We find Expression items at the tail of `items` and replace them
+            // with the group delegation output.
+            let preceding_expr_start = find_preceding_expression_start(&items);
+            let pulled_back_items: Vec<TemplateItem> =
+                items.drain(preceding_expr_start..).collect();
+            delegate_group_with_preceding(
+                &pulled_back_items,
+                &parts[i..group_end],
+                &parts[group_end..],
+                &mut items,
+                each_counter,
+                store_subs,
+            );
+            i = group_end;
+        } else {
+            let remaining = &parts[i + 1..];
+            convert_part_to_item(
+                &parts[i],
+                remaining,
+                &mut items,
+                arena,
+                store_subs,
+                each_counter,
+                &mut textarea_body_counter,
+            );
+            i += 1;
+        }
     }
 
     items
 }
 
-/// Check if a part is "complex" — requires cross-part context from
-/// `build_parts_with_store_subs` and cannot be independently converted.
-fn is_complex_part(part: &OutputPart) -> bool {
+/// Check if a part needs to be in a "coalescing group" - i.e., it requires
+/// cross-part `current_html` coalescing from `build_parts_with_store_subs`.
+fn needs_coalescing_group(part: &OutputPart) -> bool {
     match part {
-        // Expression-like parts: can be converted independently
+        // AsyncChild/AsyncChildBlock wrap surrounding HTML in async callbacks
+        OutputPart::AsyncChild { .. } | OutputPart::AsyncChildBlock { .. } => true,
+        // AsyncBlock/AsyncBlockCustom wrap content in async_block callbacks
+        OutputPart::AsyncBlock { .. } | OutputPart::AsyncBlockCustom { .. } => true,
+        // AsyncWrappedHtml wraps HTML in an async callback
+        OutputPart::AsyncWrappedHtml { .. } => true,
+        // AsyncWrappedExpression/Custom wrap expressions in async callbacks
+        OutputPart::AsyncWrappedExpression { .. }
+        | OutputPart::AsyncWrappedExpressionCustom { .. } => true,
+        // Html with backslash needs coalescing to avoid double-escaping
         OutputPart::Html(html) | OutputPart::HtmlWithExclusions { html, .. } => {
-            // Html with await in interpolations needs look-ahead (complex)
+            if html.contains('\\') {
+                return true;
+            }
+            // Html with await in open tags needs look-ahead
             if super::helpers::html_template_contains_await(html)
                 && html.starts_with('<')
                 && !html.starts_with("</")
@@ -147,68 +139,164 @@ fn is_complex_part(part: &OutputPart) -> bool {
             {
                 return true;
             }
-            // Html with backslashes needs to go through build_parts_with_store_subs
-            // to avoid double-escaping by sanitize_template_string in build_template.
-            html.contains('\\')
+            false
         }
-        OutputPart::Expression(_) => false,
-        OutputPart::AsyncExpression { .. } => false,
-        OutputPart::RawExpression(expr) => {
-            // RawExpression with await needs look-ahead (complex)
-            super::helpers::expr_contains_await(expr)
-        }
-        OutputPart::HtmlExpression(expr) => {
-            // HtmlExpression with await needs child_block wrapping
-            super::helpers::expr_contains_await(expr)
-        }
-        OutputPart::Comment | OutputPart::HydrationAnchor | OutputPart::Flush => false,
-
-        // Statement-like parts without cross-part dependencies
-        OutputPart::ConstDeclaration(_)
-        | OutputPart::VarDeclaration(_)
-        | OutputPart::RawStatement(_)
-        | OutputPart::ConstBlockerMetadata { .. } => false,
-
-        // IfBlock and EachBlock: converted directly with recursive body processing.
-        // Their block markers are emitted as TemplateItem::Expression(Literal) so
-        // build_template() can coalesce them with adjacent HTML content.
-        OutputPart::IfBlock { .. } | OutputPart::EachBlock { .. } => false,
-
-        // Everything else is complex (Component, AwaitBlock, SvelteBoundary, etc.)
-        _ => true,
+        // RawExpression/HtmlExpression with await need child_block wrapping
+        OutputPart::RawExpression(expr) => super::helpers::expr_contains_await(expr),
+        OutputPart::HtmlExpression(expr) => super::helpers::expr_contains_await(expr),
+        _ => false,
     }
 }
 
-/// Check if a part acts as a "statement boundary" — a point where expression-like
-/// parts before it would be flushed by `build_parts_with_store_subs`.
+/// Find the end of a coalescing group starting at `start`.
 ///
-/// These include statement-level parts (ConstDeclaration, etc.), control flow parts
-/// (IfBlock, EachBlock), and parts that produce their own `$$renderer.push` calls
-/// (AsyncExpression, Flush).
-fn is_statement_boundary(part: &OutputPart) -> bool {
-    matches!(
-        part,
-        OutputPart::ConstDeclaration(_)
-            | OutputPart::VarDeclaration(_)
-            | OutputPart::RawStatement(_)
-            | OutputPart::IfBlock { .. }
-            | OutputPart::EachBlock { .. }
-            | OutputPart::AsyncExpression { .. }
-            | OutputPart::Flush
-            | OutputPart::ConstBlockerMetadata { .. }
-    )
+/// The group extends forward to include all consecutive parts that are either
+/// coalescing-dependent or Expression-like (can be in the same push call).
+/// It stops at a "clean break" - a statement-level part that produces its own
+/// output or a part that handles its own coalescing (SvelteBoundary).
+fn find_coalescing_group_end(parts: &[OutputPart], start: usize) -> usize {
+    let mut end = start + 1;
+    while end < parts.len() {
+        let part = &parts[end];
+        // Stop at statement-level parts that produce their own complete output
+        if matches!(
+            part,
+            OutputPart::IfBlock { .. }
+                | OutputPart::EachBlock { .. }
+                | OutputPart::ConstDeclaration(_)
+                | OutputPart::VarDeclaration(_)
+                | OutputPart::RawStatement(_)
+                | OutputPart::ConstBlockerMetadata { .. }
+                | OutputPart::Flush
+        ) {
+            break;
+        }
+        // Stop at SvelteBoundary (handled directly in convert_part_to_item)
+        if matches!(part, OutputPart::SvelteBoundary { .. }) {
+            break;
+        }
+        end += 1;
+    }
+    end
 }
 
-/// Convert a non-complex OutputPart to TemplateItem(s).
-fn convert_simple_part_to_item(
+/// Find the index of the first trailing Expression item in the items list
+/// that should be pulled back for coalescing with a group.
+///
+/// Returns the index where Expression items start at the tail. If the last
+/// item is not an Expression, returns `items.len()` (nothing to pull back).
+fn find_preceding_expression_start(items: &[TemplateItem]) -> usize {
+    let mut start = items.len();
+    while start > 0 {
+        match &items[start - 1] {
+            TemplateItem::Expression(_) => {
+                start -= 1;
+            }
+            _ => break,
+        }
+    }
+    start
+}
+
+/// Delegate a group of parts to `build_parts_with_store_subs`, including
+/// preceding Expression items that need to coalesce with the group.
+fn delegate_group_with_preceding(
+    preceding_exprs: &[TemplateItem],
+    group: &[OutputPart],
+    remaining_after_group: &[OutputPart],
+    items: &mut Vec<TemplateItem>,
+    each_counter: &mut usize,
+    store_subs: &[(&str, &str)],
+) {
+    // Convert preceding Expression items back to OutputParts for co-delegation.
+    let mut combined_parts: Vec<OutputPart> = Vec::new();
+    for item in preceding_exprs {
+        match item {
+            TemplateItem::Expression(JsExpr::Literal(JsLiteral::String(s))) => {
+                combined_parts.push(OutputPart::Html(s.to_string()));
+            }
+            TemplateItem::Expression(JsExpr::Raw(s)) => {
+                combined_parts.push(OutputPart::RawExpression(s.to_string()));
+            }
+            _ => {
+                // Non-convertible items: emit directly and don't include in group
+                items.push(item.clone());
+            }
+        }
+    }
+    combined_parts.extend_from_slice(group);
+
+    let code = ServerCodeGenerator::build_parts_with_store_subs(
+        &combined_parts,
+        0,
+        each_counter,
+        store_subs,
+    );
+    let trimmed = code.trim();
+    if trimmed.is_empty() {
+        return;
+    }
+
+    // Try to extract a trailing push for coalescing with subsequent parts
+    if let Some((main_code, trailing_exprs)) = extract_trailing_push(trimmed) {
+        let main_trimmed = main_code.trim();
+        if !main_trimmed.is_empty() {
+            items.push(TemplateItem::Statement(JsStatement::Raw(
+                CompactString::new(main_trimmed),
+            )));
+        }
+        for expr in trailing_exprs {
+            items.push(expr);
+        }
+    } else {
+        items.push(TemplateItem::Statement(JsStatement::Raw(
+            CompactString::new(trimmed),
+        )));
+    }
+
+    // Check if last part in group needs component marker compensation
+    if let Some(last_part) = group.last()
+        && needs_component_marker_compensation(last_part)
+    {
+        let has_more = remaining_after_group.iter().any(|p| {
+            !matches!(
+                p,
+                OutputPart::Html(s) | OutputPart::HtmlWithExclusions { html: s, .. }
+                if s.trim().is_empty()
+            )
+        });
+        if has_more {
+            items.push(TemplateItem::Expression(JsExpr::Literal(
+                JsLiteral::String("<!---->".into()),
+            )));
+        }
+    }
+}
+
+/// Convert a single OutputPart to one or more TemplateItem(s).
+///
+/// Simple parts (Html, Expression, Comment, etc.) are converted directly to
+/// TemplateItem::Expression or TemplateItem::Statement. IfBlock and EachBlock are
+/// handled with recursive body processing. All other complex parts (Component,
+/// AwaitBlock, SvelteBoundary, etc.) are delegated to `build_parts_with_store_subs`
+/// via `delegate_single_part()`.
+///
+/// The `remaining_parts` parameter provides the parts after the current one,
+/// needed for look-ahead checks (e.g., `has_more_content` for Component markers).
+fn convert_part_to_item(
     part: &OutputPart,
+    remaining_parts: &[OutputPart],
     items: &mut Vec<TemplateItem>,
     _arena: &JsArena,
     store_subs: &[(&str, &str)],
     each_counter: &mut usize,
+    textarea_body_counter: &mut usize,
 ) {
     match part {
         OutputPart::Html(html) | OutputPart::HtmlWithExclusions { html, .. } => {
+            // NOTE: Html parts with backslashes and await-open-tags are handled
+            // by the coalescing group logic in the main loop (needs_coalescing_group).
+            // They should not reach here. If they do, fall through to the normal path.
             if html.contains("${") {
                 split_html_interpolations(html, items);
             } else {
@@ -258,12 +346,14 @@ fn convert_simple_part_to_item(
         }
 
         OutputPart::RawExpression(expr) => {
+            // NOTE: RawExpression with await is handled by coalescing group logic.
             items.push(TemplateItem::Expression(JsExpr::Raw(CompactString::new(
                 expr,
             ))));
         }
 
         OutputPart::HtmlExpression(expr) => {
+            // NOTE: HtmlExpression with await is handled by coalescing group logic.
             items.push(TemplateItem::Expression(JsExpr::Raw(CompactString::new(
                 format!("$.html({})", expr),
             ))));
@@ -346,21 +436,112 @@ fn convert_simple_part_to_item(
             );
         }
 
-        // All other complex parts should never reach here
-        // (is_complex_part returns true for them). Fallback to delegation for safety.
-        _ => {
-            delegate_single_part(part, items, each_counter, store_subs);
+        // TextareaBody: handle directly to maintain cross-part $$body counter.
+        OutputPart::TextareaBody { value_expr } => {
+            let var_name = if *textarea_body_counter == 0 {
+                "$$body".to_string()
+            } else {
+                format!("$$body_{}", textarea_body_counter)
+            };
+            *textarea_body_counter += 1;
+
+            items.push(TemplateItem::Statement(JsStatement::Raw(
+                CompactString::new(format!(
+                    "const {} = $.escape({});\n\nif ({}) {{\n\t$$renderer.push(`${{{}}}`);\n}} else {{}}",
+                    var_name, value_expr, var_name, var_name
+                )),
+            )));
+        }
+
+        // ContentEditableBody: handle directly to maintain cross-part $$body counter.
+        OutputPart::ContentEditableBody {
+            value_expr,
+            children_body,
+        } => {
+            convert_content_editable_body(
+                value_expr,
+                children_body,
+                items,
+                _arena,
+                store_subs,
+                each_counter,
+                textarea_body_counter,
+            );
+        }
+
+        // Complex parts: delegate each individually to build_parts_with_store_subs.
+        // This allows block markers and expressions around them to be properly
+        // coalesced by build_template().
+        // SvelteBoundary: handle directly so the opening/closing markers
+        // can coalesce with adjacent HTML through build_template().
+        OutputPart::SvelteBoundary { body, is_pending } => {
+            // Opening marker as Expression (coalesces with preceding HTML)
+            let open_marker = if *is_pending { "<!--[!-->" } else { "<!--[-->" };
+            items.push(TemplateItem::Expression(JsExpr::Literal(
+                JsLiteral::String(open_marker.into()),
+            )));
+
+            // Body in a JavaScript block
+            let body_code = generate_inner_body_code(body, _arena, store_subs, each_counter, 1);
+            let block_code = format!("{{\n{}}}", body_code);
+            let trimmed = block_code.trim();
+            if !trimmed.is_empty() {
+                items.push(TemplateItem::Statement(JsStatement::Raw(
+                    CompactString::new(trimmed),
+                )));
+            }
+
+            // Closing marker as Expression (coalesces with following HTML)
+            items.push(TemplateItem::Expression(JsExpr::Literal(
+                JsLiteral::String("<!--]-->".into()),
+            )));
+        }
+
+        // All other complex parts: delegate individually to build_parts_with_store_subs.
+        OutputPart::Component { .. }
+        | OutputPart::ComponentWithBindings { .. }
+        | OutputPart::AwaitBlock { .. }
+        | OutputPart::AsyncBlock { .. }
+        | OutputPart::AsyncBlockCustom { .. }
+        | OutputPart::AsyncWrappedExpression { .. }
+        | OutputPart::AsyncWrappedExpressionCustom { .. }
+        | OutputPart::AsyncWrappedHtml { .. }
+        | OutputPart::AsyncChild { .. }
+        | OutputPart::AsyncChildBlock { .. }
+        | OutputPart::SvelteElement { .. }
+        | OutputPart::SelectElement { .. }
+        | OutputPart::OptionElement { .. }
+        | OutputPart::SvelteBoundaryWithPending { .. }
+        | OutputPart::SvelteHead { .. }
+        | OutputPart::TitleElement { .. }
+        | OutputPart::Slot { .. }
+        | OutputPart::RenderCall { .. }
+        | OutputPart::SnippetFunction { .. }
+        | OutputPart::BlockScope { .. } => {
+            delegate_single_part(part, remaining_parts, items, each_counter, store_subs);
         }
     }
 }
 
 /// Delegate a single OutputPart to `build_parts_with_store_subs` and push
-/// the result as a `TemplateItem::Statement(Raw(...))`.
+/// the result as `TemplateItem`s.
 ///
-/// Used for self-contained complex parts (IfBlock/EachBlock with await,
-/// HtmlExpression with await) that don't depend on cross-part context.
+/// Used for complex parts (Component, AwaitBlock, SvelteBoundary, etc.) that
+/// need the full code generation logic from `build_parts_with_store_subs`.
+/// Each part is processed individually so that block markers and expressions
+/// around it can be properly coalesced by `build_template()`.
+///
+/// If the delegated code ends with a simple `$$renderer.push(\`...\`);` or
+/// `$$renderer.push('...');` call, the trailing push content is extracted and
+/// emitted as a `TemplateItem::Expression` so it can coalesce with subsequent
+/// expression items in `build_template()`.
+///
+/// For Component/ComponentWithBindings parts, the `has_more_content` look-ahead
+/// is compensated: when `has_prior_content` is false and the single-part delegation
+/// would have omitted the `<!---->` marker, we check `remaining_parts` and add it.
 fn delegate_single_part(
     part: &OutputPart,
+    remaining_parts: &[OutputPart],
     items: &mut Vec<TemplateItem>,
     each_counter: &mut usize,
     store_subs: &[(&str, &str)],
@@ -372,31 +553,250 @@ fn delegate_single_part(
         store_subs,
     );
     let trimmed = code.trim();
-    if !trimmed.is_empty() {
+    if trimmed.is_empty() {
+        return;
+    }
+
+    // Try to extract a leading marker push (like $$renderer.push('<!--[-->');)
+    // so that it can coalesce with preceding Expression items in build_template().
+    let trimmed = if let Some((marker, rest)) = extract_leading_marker_push(trimmed) {
+        items.push(TemplateItem::Expression(JsExpr::Literal(
+            JsLiteral::String(CompactString::new(marker)),
+        )));
+        rest.trim()
+    } else {
+        trimmed
+    };
+
+    if trimmed.is_empty() {
+        return;
+    }
+
+    // Try to extract a trailing $$renderer.push(`...`); or $$renderer.push('...');
+    // so that it can coalesce with subsequent Expression items in build_template().
+    if let Some((main_code, trailing_exprs)) = extract_trailing_push(trimmed) {
+        let main_trimmed = main_code.trim();
+        if !main_trimmed.is_empty() {
+            items.push(TemplateItem::Statement(JsStatement::Raw(
+                CompactString::new(main_trimmed),
+            )));
+        }
+        for expr in trailing_exprs {
+            items.push(expr);
+        }
+    } else {
         items.push(TemplateItem::Statement(JsStatement::Raw(
             CompactString::new(trimmed),
         )));
+    }
+
+    // Compensate for the lost `has_more_content` look-ahead in Component parts.
+    //
+    // When build_parts_with_store_subs processes a Component inside a full parts
+    // slice, it checks `has_more_content = parts[i+1..].any(...)`. When delegated
+    // alone, this look-ahead is empty, so the `<!---->` marker may be missing.
+    //
+    // Detect when a Component with `has_prior_content=false` (and not `in_async_block`)
+    // was delegated without producing a marker, and add one if remaining_parts has content.
+    if needs_component_marker_compensation(part) {
+        let has_more = remaining_parts.iter().any(|p| {
+            !matches!(
+                p,
+                OutputPart::Html(s) | OutputPart::HtmlWithExclusions { html: s, .. }
+                if s.trim().is_empty()
+            )
+        });
+        if has_more {
+            items.push(TemplateItem::Expression(JsExpr::Literal(
+                JsLiteral::String("<!---->".into()),
+            )));
+        }
     }
 }
 
-/// Delegate all parts in a slice to `build_parts_with_store_subs` and push
-/// the result as a `TemplateItem::Statement(Raw(...))`.
+/// Check if a Component/ComponentWithBindings part needs marker compensation.
 ///
-/// This preserves cross-part context needed by complex parts (Component markers,
-/// has_prior_content/has_content_after checks, etc.).
-fn delegate_remaining_parts(
-    parts: &[OutputPart],
-    items: &mut Vec<TemplateItem>,
-    each_counter: &mut usize,
-    store_subs: &[(&str, &str)],
-) {
-    let code = ServerCodeGenerator::build_parts_with_store_subs(parts, 0, each_counter, store_subs);
-    let trimmed = code.trim();
-    if !trimmed.is_empty() {
-        items.push(TemplateItem::Statement(JsStatement::Raw(
-            CompactString::new(trimmed),
-        )));
+/// Returns true when the part is a Component or ComponentWithBindings with
+/// `has_prior_content=false` and `in_async_block=false`, meaning the single-part
+/// delegation would NOT have emitted a `<!---->` marker (because `has_more_content`
+/// was false due to empty look-ahead), but it should have if there are more parts.
+fn needs_component_marker_compensation(part: &OutputPart) -> bool {
+    match part {
+        OutputPart::Component {
+            has_prior_content,
+            in_async_block,
+            ..
+        } => !has_prior_content && !in_async_block,
+        OutputPart::ComponentWithBindings {
+            has_prior_content, ..
+        } => !has_prior_content,
+        _ => false,
     }
+}
+
+/// Try to extract a trailing `$$renderer.push(\`...\`);` or `$$renderer.push('...');`
+/// from delegated code. Returns `Some((remaining_code, extracted_expressions))` if found.
+///
+/// This handles template literals with `${...}` interpolations by splitting them into
+/// literal and raw expression items, matching the `split_html_interpolations` logic.
+fn extract_trailing_push(code: &str) -> Option<(&str, Vec<TemplateItem>)> {
+    let prefix = "$$renderer.push(`";
+    let prefix_sq = "$$renderer.push('";
+
+    // Find the last occurrence of $$renderer.push(
+    let last_push_start = code.rfind("$$renderer.push(")?;
+
+    // Check that this push is at the start of a line (after a newline or at pos 0)
+    // and nothing non-whitespace follows its closing ");
+    let before = &code[..last_push_start];
+    let before_trimmed = before.trim_end();
+
+    // The push must be preceded by only whitespace on its line (or be at start)
+    let line_start = before.rfind('\n').map(|p| p + 1).unwrap_or(0);
+    let line_prefix = &code[line_start..last_push_start];
+    if !line_prefix.chars().all(|c| c.is_whitespace()) {
+        return None;
+    }
+
+    let push_content = &code[last_push_start..];
+
+    if let Some(rest) = push_content.strip_prefix(prefix) {
+        // Template literal: find matching backtick
+        let end = find_template_literal_end(rest)?;
+        let inner = &rest[..end];
+        let after_backtick = &rest[end + 1..];
+        let after_close = after_backtick.strip_prefix(");")?;
+
+        // Nothing meaningful after the closing ");
+        if !after_close.trim().is_empty() {
+            return None;
+        }
+
+        // Skip extraction if the content contains backslashes, as re-inserting
+        // it into a JsExpr::Literal would cause sanitize_template_string to
+        // double-escape them.
+        if inner.contains('\\') {
+            return None;
+        }
+
+        let main_code = before_trimmed;
+        let mut exprs = Vec::new();
+
+        // Split the template literal content into expressions
+        if inner.contains("${") {
+            split_html_interpolations(inner, &mut exprs);
+        } else {
+            exprs.push(TemplateItem::Expression(JsExpr::Literal(
+                JsLiteral::String(CompactString::new(inner)),
+            )));
+        }
+
+        Some((main_code, exprs))
+    } else if let Some(rest) = push_content.strip_prefix(prefix_sq) {
+        // Single-quoted string: find closing '
+        let end = rest.find("');")?;
+        let inner = &rest[..end];
+        let after = &rest[end + 3..];
+
+        if !after.trim().is_empty() {
+            return None;
+        }
+
+        let main_code = before_trimmed;
+        let exprs = vec![TemplateItem::Expression(JsExpr::Literal(
+            JsLiteral::String(CompactString::new(inner)),
+        ))];
+
+        Some((main_code, exprs))
+    } else {
+        None
+    }
+}
+
+/// Try to extract a leading `$$renderer.push('...');` from delegated code,
+/// but ONLY if the content is a simple HTML marker (like `<!--[-->`, `<!--]-->`,
+/// `<!--[!-->`, `<!---->`). This allows the marker to coalesce with preceding
+/// Expression items in `build_template()`.
+///
+/// Returns `Some((marker_content, remaining_code))` if a leading marker push was found.
+/// Does NOT extract non-marker content (like `$$renderer.push('<!---->')` from
+/// dynamic components) to avoid breaking intended separate push calls.
+fn extract_leading_marker_push(code: &str) -> Option<(&str, &str)> {
+    // Only extract single-quoted pushes with HTML comment markers
+    let prefix_sq = "$$renderer.push('";
+    if let Some(rest) = code.strip_prefix(prefix_sq) {
+        let end = rest.find("');")?;
+        let inner = &rest[..end];
+
+        // Only extract block markers that should coalesce with adjacent HTML.
+        // Do NOT extract "<!---->" (component/hydration marker) or "<!>" as
+        // those are intentionally separate push calls.
+        if matches!(inner, "<!--[-->" | "<!--]-->" | "<!--[!-->") {
+            let after = &rest[end + 3..];
+            let after_trimmed = after.trim_start_matches('\n');
+            // There must be more code after
+            if !after_trimmed.trim().is_empty() {
+                return Some((inner, after_trimmed));
+            }
+        }
+    }
+
+    // Also extract backtick-quoted markers
+    let prefix = "$$renderer.push(`";
+    if let Some(rest) = code.strip_prefix(prefix) {
+        // Find the closing backtick (simple case - no interpolations for markers)
+        if let Some(end) = rest.find("`);\n").or_else(|| rest.find("`);")) {
+            let inner = &rest[..end];
+            if matches!(inner, "<!--[-->" | "<!--]-->" | "<!--[!-->") {
+                let after = &rest[end + 3..]; // skip `);
+                let after_trimmed = after.trim_start_matches('\n');
+                if !after_trimmed.trim().is_empty() {
+                    return Some((inner, after_trimmed));
+                }
+            }
+        }
+    }
+
+    None
+}
+
+/// Find the end of a template literal (the index of the closing backtick),
+/// respecting `${...}` interpolations and escaped backticks.
+fn find_template_literal_end(s: &str) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+
+    while i < len {
+        match bytes[i] {
+            b'`' => return Some(i),
+            b'\\' => {
+                i += 2; // skip escaped char
+            }
+            b'$' if i + 1 < len && bytes[i + 1] == b'{' => {
+                // Skip interpolation
+                i += 2;
+                let mut depth = 1u32;
+                while i < len && depth > 0 {
+                    match bytes[i] {
+                        b'{' => depth += 1,
+                        b'}' => depth -= 1,
+                        b'\'' | b'"' | b'`' => {
+                            i = super::helpers::skip_string_literal(bytes, i);
+                            continue;
+                        }
+                        _ => {}
+                    }
+                    i += 1;
+                }
+            }
+            _ => {
+                i += 1;
+            }
+        }
+    }
+
+    None
 }
 
 /// Generate code for the inner body of a branch (consequent, else-if, or else).
@@ -749,6 +1149,60 @@ fn convert_each_block(
     )));
 }
 
+/// Convert a ContentEditableBody OutputPart to TemplateItems.
+///
+/// Generates the if/else structure: if the value expression is truthy, push it;
+/// otherwise push the children body.
+#[allow(clippy::too_many_arguments)]
+fn convert_content_editable_body(
+    value_expr: &str,
+    children_body: &[OutputPart],
+    items: &mut Vec<TemplateItem>,
+    arena: &JsArena,
+    store_subs: &[(&str, &str)],
+    each_counter: &mut usize,
+    textarea_body_counter: &mut usize,
+) {
+    let is_simple_expr = value_expr
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '$' || c == '.');
+
+    let mut code = String::new();
+
+    let (condition_expr, push_expr) = if is_simple_expr {
+        (value_expr.to_string(), value_expr.to_string())
+    } else {
+        let var_name = if *textarea_body_counter == 0 {
+            "$$body".to_string()
+        } else {
+            format!("$$body_{}", textarea_body_counter)
+        };
+        *textarea_body_counter += 1;
+        code.push_str(&format!("const {} = {};\n\n", var_name, value_expr));
+        (var_name.clone(), var_name)
+    };
+
+    code.push_str(&format!("if ({}) {{\n", condition_expr));
+    code.push_str(&format!("\t$$renderer.push(`${{{}}}`);\n", push_expr));
+
+    // Generate children in the else branch
+    let children_code = generate_inner_body_code(children_body, arena, store_subs, each_counter, 1);
+    if children_code.trim().is_empty() {
+        code.push_str("} else {}");
+    } else {
+        code.push_str("} else {\n");
+        code.push_str(&children_code);
+        code.push('}');
+    }
+
+    let trimmed = code.trim();
+    if !trimmed.is_empty() {
+        items.push(TemplateItem::Statement(JsStatement::Raw(
+            CompactString::new(trimmed),
+        )));
+    }
+}
+
 /// Split an HTML string containing `${...}` interpolations into a sequence of
 /// TemplateItems: string literals for static parts and raw expressions for
 /// interpolated parts.
@@ -758,9 +1212,6 @@ fn convert_each_block(
 ///   - Expression(Raw("$.attr('class', v)"))
 ///   - Expression(Literal("\">"))
 ///
-/// NOTE: This function is provided for future use. Currently Html parts with
-/// interpolations are handled by the `build_parts_with_store_subs` fallback.
-#[allow(dead_code)]
 fn split_html_interpolations(html: &str, items: &mut Vec<TemplateItem>) {
     let bytes = html.as_bytes();
     let len = bytes.len();
