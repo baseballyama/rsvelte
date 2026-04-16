@@ -1817,7 +1817,7 @@ impl<'a> ServerCodeGenerator<'a> {
     ///
     /// The approach: scan through parts, collect ConstDeclarations and skip whitespace-only
     /// Html parts that appear in a "const declaration region" (before any non-whitespace Html).
-    fn hoist_const_declarations_and_strip_ws(parts: &[OutputPart]) -> Vec<OutputPart> {
+    pub(crate) fn hoist_const_declarations_and_strip_ws(parts: &[OutputPart]) -> Vec<OutputPart> {
         let mut consts: Vec<OutputPart> = Vec::new();
         let mut rest: Vec<OutputPart> = Vec::new();
         let mut in_const_region = true; // Start in const region (beginning of block)
@@ -2998,7 +2998,7 @@ impl<'a> ServerCodeGenerator<'a> {
     /// declarations end up before template-rendering code while keeping their
     /// original relative ordering (e.g., a const that appears before a snippet
     /// in source stays before it).
-    fn hoist_const_and_snippet_declarations(parts: &[OutputPart]) -> Vec<OutputPart> {
+    pub(crate) fn hoist_const_and_snippet_declarations(parts: &[OutputPart]) -> Vec<OutputPart> {
         let mut hoisted: Vec<OutputPart> = Vec::new();
         let mut rest: Vec<OutputPart> = Vec::new();
         let mut in_hoisted_region = true;
@@ -6115,7 +6115,7 @@ impl<'a> ServerCodeGenerator<'a> {
     /// Used when rendering an EachBlock inside an AsyncBlock callback,
     /// where the markers should be placed outside the callback.
     #[allow(clippy::too_many_arguments)]
-    fn build_each_block_inner(
+    pub(crate) fn build_each_block_inner(
         iterable: &str,
         context_name: &Option<String>,
         index_name: &Option<String>,

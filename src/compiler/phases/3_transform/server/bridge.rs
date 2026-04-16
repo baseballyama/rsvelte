@@ -3,10 +3,15 @@
 //! This module provides a conversion layer between the visitor-produced `OutputPart`
 //! list and the AST-based `TemplateItem` representation used by `build_template()`.
 //!
-//! Currently, the bridge delegates to `build_parts_with_store_subs` for all parts,
-//! wrapping the result in a `JsStatement::Raw`. Individual simple-part conversion
-//! functions are provided for future use when the bridge handles more variants
-//! natively (bypassing the text-based path).
+//! The conversion uses a two-phase approach:
+//!
+//! 1. **Simple parts** (Html, Expression, Comment, etc.) before any complex part are
+//!    converted directly to `TemplateItem::Expression` or `TemplateItem::Statement`,
+//!    which `build_template()` coalesces into `$$renderer.push(\`...\`)` template literals.
+//!
+//! 2. **Complex parts** (Component, IfBlock, EachBlock, AwaitBlock, etc.) and all parts
+//!    after the first complex part are delegated to `build_parts_with_store_subs`, which
+//!    preserves cross-part context (current_html coalescing, has_prior_content checks, etc.).
 
 use super::ServerCodeGenerator;
 use super::types::{OutputPart, TemplateItem};
@@ -14,50 +19,31 @@ use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use compact_str::CompactString;
 
-/// Returns true if the part is "simple" — can in principle be converted to a TemplateItem
-/// individually without needing cross-part context from `build_parts_with_store_subs`.
-///
-/// This classification is used for future incremental migration. Parts that may
-/// contain `await` expressions trigger special handling in `build_parts_with_store_subs`
-/// (e.g., child_block wrapping) and are NOT simple.
-#[allow(dead_code)]
-fn is_simple_part(part: &OutputPart) -> bool {
-    match part {
-        // For now, only purely static Html (no interpolations, no await) and
-        // metadata-only parts are converted to proper AST. Everything else
-        // goes through build_parts_with_store_subs for compatibility.
-        OutputPart::Html(html) | OutputPart::HtmlWithExclusions { html, .. } => {
-            !html.contains("${") && !super::helpers::html_template_contains_await(html)
-        }
-        OutputPart::Comment | OutputPart::HydrationAnchor => true,
-        OutputPart::ConstDeclaration(_)
-        | OutputPart::VarDeclaration(_)
-        | OutputPart::RawStatement(_) => true,
-        OutputPart::ConstBlockerMetadata { .. } => true,
-        // Everything else goes through build_parts_with_store_subs
-        _ => false,
-    }
-}
-
 /// Convert an `OutputPart` list to a `TemplateItem` list for AST-based code generation.
 ///
-/// This is the central bridge function. Currently, it delegates the entire parts
-/// list to `build_parts_with_store_subs` and wraps the result in `JsStatement::Raw`.
-/// This maintains exact output compatibility with the old text-based path while
-/// providing the `TemplateItem` interface that `build_template()` expects.
+/// This is the central bridge function. Each part is converted to one or more
+/// `TemplateItem`s:
 ///
-/// In the future, simple parts will be converted to proper AST nodes, and only
-/// complex parts will need the `build_parts_with_store_subs` fallback.
+/// - Expression-like parts (Html, Expression, HtmlExpression, etc.) become
+///   `TemplateItem::Expression`, which `build_template()` coalesces into
+///   `$$renderer.push(\`...\`)` template literals.
+///
+/// - Statement-like parts with recursive structure (IfBlock, EachBlock) have their
+///   markers emitted as `TemplateItem::Expression` and their bodies recursively
+///   converted, with the generated code wrapped in `TemplateItem::Statement(Raw(...))`.
+///
+/// - Remaining complex parts (Component, AwaitBlock, etc.) delegate to
+///   `build_parts_with_store_subs` for single-part code generation.
 ///
 /// # Arguments
 ///
 /// * `parts` - The output parts produced by SSR visitors
-/// * `_arena` - The JS AST arena for allocating expression nodes (unused for now)
+/// * `arena` - The JS AST arena for allocating expression nodes
 /// * `store_subs` - Store subscription name pairs for the component
 /// * `each_counter` - Mutable counter for generating unique each-block variable names
 pub(crate) fn output_parts_to_template_items(
     parts: &[OutputPart],
-    _arena: &JsArena,
+    arena: &JsArena,
     store_subs: &[(&str, &str)],
     each_counter: &mut usize,
 ) -> Vec<TemplateItem> {
@@ -65,106 +51,284 @@ pub(crate) fn output_parts_to_template_items(
         return Vec::new();
     }
 
-    // Delegate the entire parts list to build_parts_with_store_subs.
+    // Apply hoist_const_and_snippet_declarations (same as build_parts_with_store_subs does).
+    let hoisted_parts = ServerCodeGenerator::hoist_const_and_snippet_declarations(parts);
+    let parts = &hoisted_parts;
+
+    let mut items: Vec<TemplateItem> = Vec::new();
+
+    // Find the first "complex" part that requires cross-part context from
+    // build_parts_with_store_subs (Component, AwaitBlock, SvelteBoundary, etc.).
+    // Also treat Html/RawExpression with await as complex since they need look-ahead.
+    let first_complex_idx = parts.iter().position(is_complex_part);
+
+    // Determine where to stop converting parts to TemplateItems.
     //
-    // NOTE: We cannot split individual parts for AST conversion because
-    // build_parts_with_store_subs has cross-part state: it coalesces adjacent
-    // Html/Expression/RawExpression parts into single $$renderer.push() template
-    // literals. Splitting parts would break this coalescing.
+    // Expression-like parts right before a complex part must be included in the
+    // delegation because they need to be coalesced (via current_html) with the
+    // complex part's markers (e.g., <!--[--> from an IfBlock inside SvelteBoundary).
     //
-    // To properly convert to AST, the visitors themselves need to produce
-    // TemplateItem directly (Phase 3), bypassing OutputPart entirely.
-    //
-    // indent_level = 0 because the codegen's emit_body handles indentation.
-    let raw_code =
-        ServerCodeGenerator::build_parts_with_store_subs(parts, 0, each_counter, store_subs);
-    let trimmed = raw_code.trim();
-    if trimmed.is_empty() {
-        return Vec::new();
+    // We find the last "statement boundary" before the first complex part.
+    // Expression-like parts after this boundary are included in the delegation.
+    let convertible_end = if let Some(complex_idx) = first_complex_idx {
+        // Find the last statement-level part before the complex part.
+        // Everything after this is expression-like and should be delegated.
+        let mut last_stmt_boundary = 0;
+        for (j, part) in parts.iter().enumerate().take(complex_idx) {
+            if is_statement_boundary(part) {
+                last_stmt_boundary = j + 1;
+            }
+        }
+        last_stmt_boundary
+    } else {
+        parts.len()
+    };
+
+    let mut i = 0;
+    while i < convertible_end {
+        let part = &parts[i];
+        convert_simple_part_to_item(part, &mut items, arena, store_subs, each_counter);
+        i += 1;
     }
 
-    vec![TemplateItem::Statement(JsStatement::Raw(
-        CompactString::new(trimmed),
-    ))]
+    // If there are parts remaining (complex + expression parts before it),
+    // delegate them all to build_parts_with_store_subs.
+    if convertible_end < parts.len() {
+        delegate_remaining_parts(
+            &parts[convertible_end..],
+            &mut items,
+            each_counter,
+            store_subs,
+        );
+    }
+
+    items
 }
 
-/// Convert a single simple OutputPart to a TemplateItem.
+/// Check if a part is "complex" — requires cross-part context from
+/// `build_parts_with_store_subs` and cannot be independently converted.
+fn is_complex_part(part: &OutputPart) -> bool {
+    match part {
+        // Expression-like parts: can be converted independently
+        OutputPart::Html(html) | OutputPart::HtmlWithExclusions { html, .. } => {
+            // Html with await in interpolations needs look-ahead (complex)
+            if super::helpers::html_template_contains_await(html)
+                && html.starts_with('<')
+                && !html.starts_with("</")
+                && !html.starts_with("<!")
+            {
+                return true;
+            }
+            // Html with backslashes needs to go through build_parts_with_store_subs
+            // to avoid double-escaping by sanitize_template_string in build_template.
+            html.contains('\\')
+        }
+        OutputPart::Expression(_) => false,
+        OutputPart::AsyncExpression { .. } => false,
+        OutputPart::RawExpression(expr) => {
+            // RawExpression with await needs look-ahead (complex)
+            super::helpers::expr_contains_await(expr)
+        }
+        OutputPart::HtmlExpression(expr) => {
+            // HtmlExpression with await needs child_block wrapping
+            super::helpers::expr_contains_await(expr)
+        }
+        OutputPart::Comment | OutputPart::HydrationAnchor | OutputPart::Flush => false,
+
+        // Statement-like parts without cross-part dependencies
+        OutputPart::ConstDeclaration(_)
+        | OutputPart::VarDeclaration(_)
+        | OutputPart::RawStatement(_)
+        | OutputPart::ConstBlockerMetadata { .. } => false,
+
+        // IfBlock and EachBlock: treated as complex because their closing markers
+        // (<!--]-->) need to coalesce with adjacent content via current_html in
+        // build_parts_with_store_subs.
+        OutputPart::IfBlock { .. } | OutputPart::EachBlock { .. } => true,
+
+        // Everything else is complex (Component, AwaitBlock, SvelteBoundary, etc.)
+        _ => true,
+    }
+}
+
+/// Check if a part acts as a "statement boundary" — a point where expression-like
+/// parts before it would be flushed by `build_parts_with_store_subs`.
 ///
-/// This is provided for future use when the bridge incrementally migrates
-/// simple parts to proper AST nodes. Currently not called from the main
-/// conversion path (which uses `build_parts_with_store_subs` for all parts).
-///
-/// # Panics
-///
-/// Panics if called with a complex (non-simple) part.
-#[allow(dead_code)]
-fn convert_simple_part(part: &OutputPart, arena: &JsArena) -> Option<TemplateItem> {
+/// These include statement-level parts (ConstDeclaration, etc.), control flow parts
+/// (IfBlock, EachBlock), and parts that produce their own `$$renderer.push` calls
+/// (AsyncExpression, Flush).
+fn is_statement_boundary(part: &OutputPart) -> bool {
+    matches!(
+        part,
+        OutputPart::ConstDeclaration(_)
+            | OutputPart::VarDeclaration(_)
+            | OutputPart::RawStatement(_)
+            | OutputPart::IfBlock { .. }
+            | OutputPart::EachBlock { .. }
+            | OutputPart::AsyncExpression { .. }
+            | OutputPart::Flush
+            | OutputPart::ConstBlockerMetadata { .. }
+    )
+}
+
+/// Convert a non-complex OutputPart to TemplateItem(s).
+fn convert_simple_part_to_item(
+    part: &OutputPart,
+    items: &mut Vec<TemplateItem>,
+    _arena: &JsArena,
+    store_subs: &[(&str, &str)],
+    each_counter: &mut usize,
+) {
     match part {
         OutputPart::Html(html) | OutputPart::HtmlWithExclusions { html, .. } => {
             if html.contains("${") {
-                // Html with interpolations needs splitting into string/expression segments.
-                // For now, return None to signal "use fallback".
-                None
+                split_html_interpolations(html, items);
             } else {
-                Some(TemplateItem::Expression(JsExpr::Literal(
+                // Guard against accidental `${` sequences formed by concatenation
+                if html.starts_with('{')
+                    && matches!(
+                        items.last(),
+                        Some(TemplateItem::Expression(JsExpr::Literal(
+                            JsLiteral::String(s)
+                        ))) if s.ends_with('$')
+                    )
+                    && let Some(TemplateItem::Expression(JsExpr::Literal(JsLiteral::String(prev)))) =
+                        items.last_mut()
+                {
+                    let len = prev.len();
+                    prev.insert(len - 1, '\\');
+                }
+                items.push(TemplateItem::Expression(JsExpr::Literal(
                     JsLiteral::String(CompactString::new(html)),
-                )))
+                )));
             }
         }
 
         OutputPart::Expression(expr) => {
-            Some(TemplateItem::Expression(JsExpr::Call(JsCallExpression {
-                callee: arena.alloc_expr(JsExpr::Member(JsMemberExpression {
-                    object: arena.alloc_expr(JsExpr::Identifier("$".into())),
-                    property: JsMemberProperty::Identifier("escape".into()),
-                    computed: false,
-                    optional: false,
-                })),
-                arguments: vec![JsExpr::Raw(CompactString::new(expr))],
-                optional: false,
-            })))
+            items.push(TemplateItem::Expression(JsExpr::Raw(CompactString::new(
+                format!("$.escape({})", expr),
+            ))));
         }
 
-        OutputPart::RawExpression(expr) => Some(TemplateItem::Expression(JsExpr::Raw(
-            CompactString::new(expr),
-        ))),
+        OutputPart::AsyncExpression { expr, has_save } => {
+            let transformed_expr = if *has_save {
+                super::helpers::transform_await_to_save(expr)
+            } else {
+                expr.clone()
+            };
+            let async_kw = if super::helpers::expr_contains_await(&transformed_expr) {
+                "async "
+            } else {
+                ""
+            };
+            items.push(TemplateItem::Statement(JsStatement::Raw(
+                CompactString::new(format!(
+                    "$$renderer.push({}() => $.escape({}));",
+                    async_kw, transformed_expr
+                )),
+            )));
+        }
+
+        OutputPart::RawExpression(expr) => {
+            items.push(TemplateItem::Expression(JsExpr::Raw(CompactString::new(
+                expr,
+            ))));
+        }
 
         OutputPart::HtmlExpression(expr) => {
-            Some(TemplateItem::Expression(JsExpr::Call(JsCallExpression {
-                callee: arena.alloc_expr(JsExpr::Member(JsMemberExpression {
-                    object: arena.alloc_expr(JsExpr::Identifier("$".into())),
-                    property: JsMemberProperty::Identifier("html".into()),
-                    computed: false,
-                    optional: false,
-                })),
-                arguments: vec![JsExpr::Raw(CompactString::new(expr))],
-                optional: false,
-            })))
+            items.push(TemplateItem::Expression(JsExpr::Raw(CompactString::new(
+                format!("$.html({})", expr),
+            ))));
         }
 
-        OutputPart::Comment => Some(TemplateItem::Expression(JsExpr::Literal(
-            JsLiteral::String("<!---->".into()),
-        ))),
+        OutputPart::Comment => {
+            items.push(TemplateItem::Expression(JsExpr::Literal(
+                JsLiteral::String("<!---->".into()),
+            )));
+        }
 
-        OutputPart::HydrationAnchor => Some(TemplateItem::Expression(JsExpr::Literal(
-            JsLiteral::String("<!>".into()),
-        ))),
+        OutputPart::HydrationAnchor => {
+            items.push(TemplateItem::Expression(JsExpr::Literal(
+                JsLiteral::String("<!>".into()),
+            )));
+        }
 
-        OutputPart::ConstDeclaration(decl) => Some(TemplateItem::Statement(JsStatement::Raw(
-            CompactString::new(format!("const {};", decl)),
-        ))),
+        OutputPart::Flush => {
+            items.push(TemplateItem::Statement(JsStatement::Raw("".into())));
+        }
 
-        OutputPart::VarDeclaration(decl) => Some(TemplateItem::Statement(JsStatement::Raw(
-            CompactString::new(format!("var {};", decl)),
-        ))),
+        OutputPart::ConstDeclaration(decl) => {
+            items.push(TemplateItem::Statement(JsStatement::Raw(
+                CompactString::new(format!("const {};", decl)),
+            )));
+        }
 
-        OutputPart::RawStatement(stmt) => Some(TemplateItem::Statement(JsStatement::Raw(
-            CompactString::new(stmt),
-        ))),
+        OutputPart::VarDeclaration(decl) => {
+            items.push(TemplateItem::Statement(JsStatement::Raw(
+                CompactString::new(format!("var {};", decl)),
+            )));
+        }
 
-        OutputPart::ConstBlockerMetadata { .. } => None, // metadata-only, not rendered
+        OutputPart::RawStatement(stmt) => {
+            items.push(TemplateItem::Statement(JsStatement::Raw(
+                CompactString::new(stmt),
+            )));
+        }
 
-        _ => panic!("convert_simple_part called with complex part"),
+        OutputPart::ConstBlockerMetadata { .. } => {
+            // Metadata-only, not rendered
+        }
+
+        // IfBlock, EachBlock, and all other complex parts should never reach here
+        // (is_complex_part returns true for them). Fallback to delegation for safety.
+        _ => {
+            delegate_single_part(part, items, each_counter, store_subs);
+        }
+    }
+}
+
+/// Delegate a single OutputPart to `build_parts_with_store_subs` and push
+/// the result as a `TemplateItem::Statement(Raw(...))`.
+///
+/// Used for self-contained complex parts (IfBlock/EachBlock with await,
+/// HtmlExpression with await) that don't depend on cross-part context.
+fn delegate_single_part(
+    part: &OutputPart,
+    items: &mut Vec<TemplateItem>,
+    each_counter: &mut usize,
+    store_subs: &[(&str, &str)],
+) {
+    let code = ServerCodeGenerator::build_parts_with_store_subs(
+        std::slice::from_ref(part),
+        0,
+        each_counter,
+        store_subs,
+    );
+    let trimmed = code.trim();
+    if !trimmed.is_empty() {
+        items.push(TemplateItem::Statement(JsStatement::Raw(
+            CompactString::new(trimmed),
+        )));
+    }
+}
+
+/// Delegate all parts in a slice to `build_parts_with_store_subs` and push
+/// the result as a `TemplateItem::Statement(Raw(...))`.
+///
+/// This preserves cross-part context needed by complex parts (Component markers,
+/// has_prior_content/has_content_after checks, etc.).
+fn delegate_remaining_parts(
+    parts: &[OutputPart],
+    items: &mut Vec<TemplateItem>,
+    each_counter: &mut usize,
+    store_subs: &[(&str, &str)],
+) {
+    let code = ServerCodeGenerator::build_parts_with_store_subs(parts, 0, each_counter, store_subs);
+    let trimmed = code.trim();
+    if !trimmed.is_empty() {
+        items.push(TemplateItem::Statement(JsStatement::Raw(
+            CompactString::new(trimmed),
+        )));
     }
 }
 
@@ -293,117 +457,6 @@ mod tests {
     }
 
     #[test]
-    fn test_is_simple_part() {
-        // Simple parts
-        assert!(is_simple_part(&OutputPart::Html("hello".to_string())));
-        assert!(is_simple_part(&OutputPart::Expression("x".to_string())));
-        assert!(is_simple_part(&OutputPart::Comment));
-        assert!(is_simple_part(&OutputPart::HydrationAnchor));
-        assert!(is_simple_part(&OutputPart::ConstDeclaration(
-            "x = 1".to_string()
-        )));
-        assert!(is_simple_part(&OutputPart::VarDeclaration("x".to_string())));
-        assert!(is_simple_part(&OutputPart::RawStatement(
-            "foo();".to_string()
-        )));
-        assert!(is_simple_part(&OutputPart::Flush));
-        assert!(is_simple_part(&OutputPart::ConstBlockerMetadata {
-            blocker_entries: vec![]
-        }));
-
-        // Parts with await become complex
-        assert!(!is_simple_part(&OutputPart::Html(
-            "<div class=\"${await foo()}\">".to_string()
-        )));
-        assert!(!is_simple_part(&OutputPart::HtmlExpression(
-            "await foo()".to_string()
-        )));
-        assert!(!is_simple_part(&OutputPart::RawExpression(
-            "await bar()".to_string()
-        )));
-
-        // Parts without await are simple
-        assert!(is_simple_part(&OutputPart::HtmlExpression(
-            "foo()".to_string()
-        )));
-        assert!(is_simple_part(&OutputPart::RawExpression(
-            "bar()".to_string()
-        )));
-
-        // Complex parts (always)
-        assert!(!is_simple_part(&OutputPart::IfBlock {
-            test_expr: "true".to_string(),
-            consequent_body: vec![],
-            alternate_body: None,
-            is_elseif: false,
-        }));
-        assert!(!is_simple_part(&OutputPart::EachBlock {
-            iterable: "items".to_string(),
-            context_name: None,
-            index_name: None,
-            index_alias: None,
-            body: vec![],
-            fallback: None,
-        }));
-    }
-
-    #[test]
-    fn test_convert_simple_part() {
-        let arena = JsArena::new();
-
-        // Comment -> Expression(Literal("<!---->"))
-        let item = convert_simple_part(&OutputPart::Comment, &arena).unwrap();
-        match &item {
-            TemplateItem::Expression(JsExpr::Literal(JsLiteral::String(s))) => {
-                assert_eq!(s.as_str(), "<!---->");
-            }
-            _ => panic!("Expected string literal for Comment"),
-        }
-
-        // HydrationAnchor -> Expression(Literal("<!>"))
-        let item = convert_simple_part(&OutputPart::HydrationAnchor, &arena).unwrap();
-        match &item {
-            TemplateItem::Expression(JsExpr::Literal(JsLiteral::String(s))) => {
-                assert_eq!(s.as_str(), "<!>");
-            }
-            _ => panic!("Expected string literal for HydrationAnchor"),
-        }
-
-        // ConstDeclaration -> Statement(Raw("const x = 1;"))
-        let item = convert_simple_part(&OutputPart::ConstDeclaration("x = 1".to_string()), &arena)
-            .unwrap();
-        match &item {
-            TemplateItem::Statement(JsStatement::Raw(s)) => {
-                assert_eq!(s.as_str(), "const x = 1;");
-            }
-            _ => panic!("Expected raw statement for ConstDeclaration"),
-        }
-
-        // VarDeclaration -> Statement(Raw("var x;"))
-        let item =
-            convert_simple_part(&OutputPart::VarDeclaration("x".to_string()), &arena).unwrap();
-        match &item {
-            TemplateItem::Statement(JsStatement::Raw(s)) => {
-                assert_eq!(s.as_str(), "var x;");
-            }
-            _ => panic!("Expected raw statement for VarDeclaration"),
-        }
-
-        // Expression -> $.escape(expr)
-        let item = convert_simple_part(&OutputPart::Expression("x".to_string()), &arena).unwrap();
-        match &item {
-            TemplateItem::Expression(JsExpr::Call(call)) => {
-                assert_eq!(call.arguments.len(), 1);
-                match &call.arguments[0] {
-                    JsExpr::Raw(s) => assert_eq!(s.as_str(), "x"),
-                    _ => panic!("Expected raw argument"),
-                }
-            }
-            _ => panic!("Expected call expression for Expression"),
-        }
-    }
-
-    #[test]
     fn test_output_parts_to_template_items_empty() {
         let arena = JsArena::new();
         let items = output_parts_to_template_items(&[], &arena, &[], &mut 0);
@@ -411,7 +464,7 @@ mod tests {
     }
 
     #[test]
-    fn test_output_parts_to_template_items_simple() {
+    fn test_output_parts_to_template_items_simple_html() {
         let arena = JsArena::new();
         let parts = vec![
             OutputPart::Html("<div>".to_string()),
@@ -419,13 +472,53 @@ mod tests {
             OutputPart::Html("</div>".to_string()),
         ];
         let items = output_parts_to_template_items(&parts, &arena, &[], &mut 0);
-        // With full delegation, we get a single Raw statement
+        // Now we get three Expression items that build_template will coalesce
+        assert_eq!(items.len(), 3);
+        match &items[0] {
+            TemplateItem::Expression(JsExpr::Literal(JsLiteral::String(s))) => {
+                assert_eq!(s.as_str(), "<div>");
+            }
+            _ => panic!("Expected string literal for Html"),
+        }
+        match &items[1] {
+            TemplateItem::Expression(JsExpr::Raw(s)) => {
+                assert_eq!(s.as_str(), "$.escape(name)");
+            }
+            _ => panic!("Expected raw expression for Expression"),
+        }
+        match &items[2] {
+            TemplateItem::Expression(JsExpr::Literal(JsLiteral::String(s))) => {
+                assert_eq!(s.as_str(), "</div>");
+            }
+            _ => panic!("Expected string literal for Html"),
+        }
+    }
+
+    #[test]
+    fn test_output_parts_to_template_items_comment() {
+        let arena = JsArena::new();
+        let parts = vec![OutputPart::Comment];
+        let items = output_parts_to_template_items(&parts, &arena, &[], &mut 0);
+        assert_eq!(items.len(), 1);
+        match &items[0] {
+            TemplateItem::Expression(JsExpr::Literal(JsLiteral::String(s))) => {
+                assert_eq!(s.as_str(), "<!---->");
+            }
+            _ => panic!("Expected string literal for Comment"),
+        }
+    }
+
+    #[test]
+    fn test_output_parts_to_template_items_const_decl() {
+        let arena = JsArena::new();
+        let parts = vec![OutputPart::ConstDeclaration("x = 1".to_string())];
+        let items = output_parts_to_template_items(&parts, &arena, &[], &mut 0);
         assert_eq!(items.len(), 1);
         match &items[0] {
             TemplateItem::Statement(JsStatement::Raw(s)) => {
-                assert!(s.contains("$$renderer.push"));
+                assert_eq!(s.as_str(), "const x = 1;");
             }
-            _ => panic!("Expected raw statement"),
+            _ => panic!("Expected raw statement for ConstDeclaration"),
         }
     }
 }
