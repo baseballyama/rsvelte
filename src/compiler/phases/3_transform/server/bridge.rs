@@ -1196,15 +1196,18 @@ fn generate_inner_body_code(
     each_counter: &mut usize,
     indent_level: usize,
 ) -> String {
-    // Use build_parts_with_store_subs for body generation. This ensures correct
-    // absolute indentation for ALL part types, including Component and
-    // ComponentWithBindings which are still delegated and need proper indent tracking.
+    // Use the bridge pipeline for recursive body generation.
     let hoisted = ServerCodeGenerator::hoist_const_declarations_and_strip_ws(body);
-    ServerCodeGenerator::build_parts_with_store_subs(
-        &hoisted,
+    let arena = JsArena::new();
+    let items = output_parts_to_template_items(&hoisted, &arena, store_subs, each_counter);
+    let stmts =
+        crate::compiler::phases::phase3_transform::server::visitors::shared::utils::build_template(
+            &items, &arena,
+        );
+    crate::compiler::phases::phase3_transform::js_ast::codegen::generate_stmts(
+        &stmts,
+        &arena,
         indent_level,
-        each_counter,
-        store_subs,
     )
 }
 
@@ -1969,12 +1972,18 @@ fn generate_inner_body_code_direct(
     each_counter: &mut usize,
     indent_level: usize,
 ) -> String {
+    // Use the bridge pipeline for recursive body generation.
     let hoisted = ServerCodeGenerator::hoist_const_declarations_and_strip_ws(body);
-    ServerCodeGenerator::build_parts_with_store_subs(
-        &hoisted,
+    let arena = JsArena::new();
+    let items = output_parts_to_template_items(&hoisted, &arena, store_subs, each_counter);
+    let stmts =
+        crate::compiler::phases::phase3_transform::server::visitors::shared::utils::build_template(
+            &items, &arena,
+        );
+    crate::compiler::phases::phase3_transform::js_ast::codegen::generate_stmts(
+        &stmts,
+        &arena,
         indent_level,
-        each_counter,
-        store_subs,
     )
 }
 
