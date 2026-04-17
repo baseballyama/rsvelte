@@ -2719,8 +2719,13 @@ pub(crate) fn normalize_import(import_str: &str) -> String {
     // Build single-line version
     let single_line = format!("{} {{ {} }} {}", prefix, specifiers.join(", "), after_brace);
 
-    // esrap threshold: lines <= 81 chars stay single-line, >= 82 break into multi-line
-    if single_line.len() <= 81 {
+    // esrap threshold: the `sequence()` function in esrap uses `length > 60` to decide
+    // multiline. The total length includes the `{ }` braces, specifier names, commas,
+    // and spaces. We measure just the specifier part: `{ spec1, spec2 }` portion.
+    let specifier_part_len = 2
+        + specifiers.iter().map(|s| s.len()).sum::<usize>()
+        + (specifiers.len().saturating_sub(1)) * 2; // ", " between specs
+    if specifier_part_len <= 60 {
         // Ensure trailing semicolon
         if single_line.ends_with(';') {
             single_line

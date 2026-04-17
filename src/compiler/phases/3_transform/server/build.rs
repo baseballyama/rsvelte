@@ -85,6 +85,14 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
             code = code.replace(DOUBLE_SEMI_PLACEHOLDER, ";;");
         }
 
+        // Split long destructuring patterns to match esrap's sequence() threshold (>60 chars).
+        // OXC collapses `let { a, b, c, ... } = expr` to a single line, but esrap splits them
+        // into multi-line format when the specifier list exceeds 60 characters.
+        // indent_level=0 because the code is still unindented at this point
+        // (indentation is applied in the next step). The function adds relative
+        // indentation (one extra tab for inner specifiers).
+        code = split_long_destructures(&code, 0);
+
         if indent_level == 0 {
             return code;
         }
@@ -122,6 +130,80 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
 /// Strip leading indentation from script content for OXC parsing.
 /// OXC expects unindented input (top-level statements at column 0).
 /// Preserves content inside template literals (backtick strings) as-is.
+/// Split long destructuring patterns (`let { a, b, c, ... } = expr`) to multi-line format
+/// when the specifier list exceeds 60 characters, matching esrap's `sequence()` threshold.
+///
+/// For example: `let { cursor, showNavigation = true, withStacked = false } = $$props;`
+/// becomes:
+/// ```
+/// let {
+///     cursor,
+///     showNavigation = true,
+///     withStacked = false
+/// } = $$props;
+/// ```
+fn split_long_destructures(code: &str, indent_level: usize) -> String {
+    let inner_indent = "\t".repeat(indent_level + 1);
+    let outer_indent = "\t".repeat(indent_level);
+    let mut result = String::with_capacity(code.len());
+
+    for line in code.lines() {
+        if !result.is_empty() {
+            result.push('\n');
+        }
+
+        let trimmed = line.trim();
+
+        // Match: `let { ... } = expr;` or `let { ... } = expr`
+        // Also handles `var` and `const`
+        let decl_prefix = if trimmed.starts_with("let {") {
+            Some("let ")
+        } else if trimmed.starts_with("var {") {
+            Some("var ")
+        } else if trimmed.starts_with("const {") {
+            Some("const ")
+        } else {
+            None
+        };
+
+        if let Some(prefix) = decl_prefix
+            && let Some(brace_end) = trimmed.find("} =")
+        {
+            let inner = &trimmed[prefix.len() + 1..brace_end].trim();
+            // Measure specifier length (matching esrap's sequence length calculation)
+            let spec_len: usize = inner.split(',').map(|s| s.trim().len()).sum::<usize>()
+                + inner.split(',').count().saturating_sub(1) * 2; // ", " separators
+
+            if spec_len > 60 {
+                let rest = &trimmed[brace_end + 1..]; // " = expr;" or " = expr"
+                let specs: Vec<&str> = inner
+                    .split(',')
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+
+                result.push_str(&format!("{}{{\n", prefix));
+                for (i, spec) in specs.iter().enumerate() {
+                    result.push_str(&inner_indent);
+                    result.push_str(spec);
+                    if i < specs.len() - 1 {
+                        result.push(',');
+                    }
+                    result.push('\n');
+                }
+                result.push_str(&outer_indent);
+                result.push('}');
+                result.push_str(rest);
+                continue;
+            }
+        }
+
+        result.push_str(line);
+    }
+
+    result
+}
+
 fn strip_indent_for_oxc(js: &str, indent_level: usize) -> String {
     if indent_level == 0 {
         return js.to_string();
