@@ -665,11 +665,11 @@ impl<'a> ServerCodeGenerator<'a> {
                 } else {
                     hoisted_parts_wrapper
                 };
-                let inner_body = Self::build_parts_with_store_subs(
+                let inner_body = super::bridge::generate_inner_body_code_direct(
                     &hoisted_parts_wrapper,
-                    wrapper_indent,
-                    &mut each_counter_w,
                     &store_subs_ref,
+                    &mut each_counter_w,
+                    wrapper_indent,
                 );
                 let instance_snippets = self.build_instance_snippets(wrapper_indent);
                 let bind_props_code = self.build_bind_props(wrapper_indent);
