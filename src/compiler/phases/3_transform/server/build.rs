@@ -9,7 +9,8 @@ use super::helpers::*;
 use super::transform_script;
 use super::transform_store::resolve_binding_exprs;
 use super::types::{
-    ComponentBinding, ComponentPropItem, OutputPart, collect_all_props, has_spreads,
+    ComponentBinding, ComponentCodeResult, ComponentPropItem, OutputPart, TrailingMarkerBehavior,
+    collect_all_props, has_spreads,
 };
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use memchr::memmem;
@@ -6718,6 +6719,821 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         segments
+    }
+
+    /// Generate the JavaScript code for a Component call, without `$$renderer.push()` wrapping.
+    ///
+    /// This is the standalone extraction of the Component code generation from
+    /// `build_parts_with_store_subs`. It produces the raw component call code
+    /// (at indent_level=0) plus metadata about leading/trailing markers.
+    #[allow(clippy::too_many_arguments)]
+    #[allow(dead_code)]
+    pub(crate) fn generate_component_call_code(
+        name: &str,
+        props_and_spreads: &[ComponentPropItem],
+        has_prior_content: bool,
+        children: &Option<Vec<OutputPart>>,
+        snippets: &[(String, Vec<String>, Vec<OutputPart>, bool)],
+        slot_names: &[String],
+        dynamic: bool,
+        let_directives: &[String],
+        css_custom_props: &[(String, String)],
+        css_props_is_html: bool,
+        in_async_block: bool,
+        component_dev: bool,
+        each_counter: &mut usize,
+        store_subs: &[(&str, &str)],
+    ) -> ComponentCodeResult {
+        let mut code = String::new();
+        let has_snippets = !snippets.is_empty();
+        let has_children = children.is_some();
+        let component_has_spreads = has_spreads(props_and_spreads);
+        let call_syntax = if dynamic { "?." } else { "" };
+        let has_css_props = !css_custom_props.is_empty();
+
+        if has_snippets || has_children {
+            #[allow(clippy::type_complexity)]
+            let (true_snippets, slot_children): (
+                Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
+                Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
+            ) = snippets
+                .iter()
+                .partition(|(_, _, _, is_true_snippet)| *is_true_snippet);
+
+            let has_true_snippets = !true_snippets.is_empty();
+            let has_slot_children = !slot_children.is_empty();
+
+            if has_true_snippets {
+                code.push_str("{\n");
+                for (snippet_name, params, body_parts, _) in &true_snippets {
+                    if component_dev {
+                        code.push_str(&format!(
+                            "\t$.prevent_snippet_stringification({});\n",
+                            snippet_name
+                        ));
+                    }
+                    let params_str = if params.is_empty() {
+                        "$$renderer".to_string()
+                    } else {
+                        format!("$$renderer, {}", params.join(", "))
+                    };
+                    code.push_str(&format!("\tfunction {}({}) {{\n", snippet_name, params_str));
+                    if component_dev {
+                        code.push_str("\t\t$.validate_snippet_args($$renderer);\n");
+                    }
+                    let snippet_body =
+                        Self::build_parts_with_store_subs(body_parts, 2, each_counter, store_subs);
+                    code.push_str(&snippet_body);
+                    code.push_str("\t}\n\n");
+                }
+                code.push_str(&format!("\t{}{}($$renderer, {{ ", name, call_syntax));
+                let mut all_props: Vec<String> = collect_all_props(props_and_spreads);
+                for (snippet_name, _, _, _) in &true_snippets {
+                    all_props.push(snippet_name.to_string());
+                }
+                let mut slots_entries: Vec<String> = Vec::new();
+                for slot_name in slot_names {
+                    let quoted_name = quote_prop_name(slot_name);
+                    if let Some((_, params, body_parts, _)) =
+                        slot_children.iter().find(|(n, _, _, _)| n == slot_name)
+                    {
+                        let fn_body = Self::build_parts_with_store_subs(
+                            body_parts,
+                            0,
+                            each_counter,
+                            store_subs,
+                        );
+                        let fn_body_trimmed = fn_body.trim();
+                        if params.is_empty() {
+                            slots_entries.push(format!(
+                                "{}: ($$renderer) => {{\n{}\t\t\t}}",
+                                quoted_name, fn_body_trimmed
+                            ));
+                        } else {
+                            let params_str = format!("{{ {} }}", params.join(", "));
+                            slots_entries.push(format!(
+                                "{}: ($$renderer, {}) => {{\n{}\t\t\t}}",
+                                quoted_name, params_str, fn_body_trimmed
+                            ));
+                        }
+                    } else {
+                        slots_entries.push(format!("{}: true", quoted_name));
+                    }
+                }
+                if let Some(children_parts) = children {
+                    slots_entries.push("default: true".to_string());
+                    let children_body = Self::build_parts_with_store_subs(
+                        children_parts,
+                        2,
+                        each_counter,
+                        store_subs,
+                    );
+                    all_props.push(format!(
+                        "children: ($$renderer) => {{\n{}\t}}",
+                        children_body
+                    ));
+                }
+                let slots_str = slots_entries.join(", ");
+                if all_props.is_empty() {
+                    code.push_str(&format!("$$slots: {{ {} }} }});\n", slots_str));
+                } else {
+                    code.push_str(&format!(
+                        "{}, $$slots: {{ {} }} }});\n",
+                        all_props.join(", "),
+                        slots_str
+                    ));
+                }
+                code.push_str("}\n");
+            } else if has_slot_children && !has_children {
+                let all_props = collect_all_props(props_and_spreads);
+                let default_has_let_dirs = slot_children
+                    .iter()
+                    .any(|(n, params, _, _)| n == "default" && !params.is_empty());
+                code.push_str(&format!("{}{}($$renderer, {{\n", name, call_syntax));
+                for prop in &all_props {
+                    code.push_str(&format!("\t{},\n", prop));
+                }
+                if default_has_let_dirs {
+                    code.push_str("\tchildren: $.invalid_default_snippet,\n");
+                }
+                code.push_str("\t$$slots: {\n");
+                for (slot_name, params, body_parts, _) in &slot_children {
+                    let quoted_name = quote_prop_name(slot_name);
+                    let fn_body =
+                        Self::build_parts_with_store_subs(body_parts, 3, each_counter, store_subs);
+                    if params.is_empty() {
+                        code.push_str(&format!(
+                            "\t\t{}: ($$renderer) => {{\n{}",
+                            quoted_name, fn_body
+                        ));
+                    } else {
+                        let params_str = format!("{{ {} }}", params.join(", "));
+                        code.push_str(&format!(
+                            "\t\t{}: ($$renderer, {}) => {{\n{}",
+                            quoted_name, params_str, fn_body
+                        ));
+                    }
+                    code.push_str("\t\t},\n");
+                }
+                code.push_str("\t}\n");
+                code.push_str("});\n");
+            } else if let Some(children_parts) = children {
+                let has_let_dirs = !let_directives.is_empty();
+                if component_has_spreads {
+                    code.push_str(&format!(
+                        "{}{}($$renderer, $.spread_props([\n",
+                        name, call_syntax
+                    ));
+                    let trailing_props: Vec<String> =
+                        if let Some(ComponentPropItem::Props(props)) = props_and_spreads.last() {
+                            props.clone()
+                        } else {
+                            Vec::new()
+                        };
+                    let items_to_emit = if trailing_props.is_empty() {
+                        props_and_spreads
+                    } else {
+                        &props_and_spreads[..props_and_spreads.len() - 1]
+                    };
+                    for item in items_to_emit.iter() {
+                        match item {
+                            ComponentPropItem::Props(props) => {
+                                code.push_str(&format!("\t{{ {} }},\n", props.join(", ")));
+                            }
+                            ComponentPropItem::Spread(expr) => {
+                                code.push_str(&format!("\t{},\n", expr));
+                            }
+                        }
+                    }
+                    code.push_str("\t{\n");
+                    for prop in &trailing_props {
+                        code.push_str(&format!("\t\t{},\n", prop));
+                    }
+                    if has_let_dirs {
+                        code.push_str("\t\tchildren: $.invalid_default_snippet,\n");
+                        code.push_str("\t\t$$slots: {\n");
+                        let params_str = format!("{{ {} }}", let_directives.join(", "));
+                        code.push_str(&format!(
+                            "\t\t\tdefault: ($$renderer, {}) => {{\n",
+                            params_str
+                        ));
+                        let children_code = Self::build_parts_with_store_subs(
+                            children_parts,
+                            4,
+                            each_counter,
+                            store_subs,
+                        );
+                        code.push_str(&children_code);
+                        code.push_str("\t\t\t},\n");
+                        for (slot_name, params, body_parts, _) in &slot_children {
+                            let quoted_name = quote_prop_name(slot_name);
+                            let fn_body = Self::build_parts_with_store_subs(
+                                body_parts,
+                                4,
+                                each_counter,
+                                store_subs,
+                            );
+                            if params.is_empty() {
+                                code.push_str(&format!(
+                                    "\t\t\t{}: ($$renderer) => {{\n{}",
+                                    quoted_name, fn_body
+                                ));
+                            } else {
+                                let params_str = format!("{{ {} }}", params.join(", "));
+                                code.push_str(&format!(
+                                    "\t\t\t{}: ($$renderer, {}) => {{\n{}",
+                                    quoted_name, params_str, fn_body
+                                ));
+                            }
+                            code.push_str("\t\t\t},\n");
+                        }
+                        code.push_str("\t\t}\n");
+                    } else {
+                        if component_dev {
+                            code.push_str(
+                                "\t\tchildren: $.prevent_snippet_stringification(($$renderer) => {\n",
+                            );
+                        } else {
+                            code.push_str("\t\tchildren: ($$renderer) => {\n");
+                        }
+                        let children_code = Self::build_parts_with_store_subs(
+                            children_parts,
+                            3,
+                            each_counter,
+                            store_subs,
+                        );
+                        code.push_str(&children_code);
+                        if component_dev {
+                            code.push_str("\t\t}),\n");
+                        } else {
+                            code.push_str("\t\t},\n");
+                        }
+                        if has_slot_children {
+                            code.push_str("\t\t$$slots: {\n");
+                            code.push_str("\t\t\tdefault: true,\n");
+                            for (slot_name, params, body_parts, _) in &slot_children {
+                                let quoted_name = quote_prop_name(slot_name);
+                                let fn_body = Self::build_parts_with_store_subs(
+                                    body_parts,
+                                    4,
+                                    each_counter,
+                                    store_subs,
+                                );
+                                if params.is_empty() {
+                                    code.push_str(&format!(
+                                        "\t\t\t{}: ($$renderer) => {{\n{}",
+                                        quoted_name, fn_body
+                                    ));
+                                } else {
+                                    let params_str = format!("{{ {} }}", params.join(", "));
+                                    code.push_str(&format!(
+                                        "\t\t\t{}: ($$renderer, {}) => {{\n{}",
+                                        quoted_name, params_str, fn_body
+                                    ));
+                                }
+                                code.push_str("\t\t\t},\n");
+                            }
+                            code.push_str("\t\t}\n");
+                        } else {
+                            code.push_str("\t\t$$slots: { default: true }\n");
+                        }
+                    }
+                    code.push_str("\t}\n");
+                    code.push_str("]));\n");
+                } else {
+                    let all_props = collect_all_props(props_and_spreads);
+                    code.push_str(&format!("{}{}($$renderer, {{\n", name, call_syntax));
+                    for prop in &all_props {
+                        code.push_str(&format!("\t{},\n", prop));
+                    }
+                    let children_already_in_props = all_props.iter().any(|p| {
+                        p == "children" || p.starts_with("children:") || p.starts_with("children ")
+                    });
+                    if has_let_dirs {
+                        code.push_str("\tchildren: $.invalid_default_snippet,\n");
+                        code.push_str("\t$$slots: {\n");
+                        let params_str = format!("{{ {} }}", let_directives.join(", "));
+                        code.push_str(&format!(
+                            "\t\tdefault: ($$renderer, {}) => {{\n",
+                            params_str
+                        ));
+                        let children_code = Self::build_parts_with_store_subs(
+                            children_parts,
+                            3,
+                            each_counter,
+                            store_subs,
+                        );
+                        code.push_str(&children_code);
+                        code.push_str("\t\t},\n");
+                        for (slot_name, params, body_parts, _) in &slot_children {
+                            let quoted_name = quote_prop_name(slot_name);
+                            let fn_body = Self::build_parts_with_store_subs(
+                                body_parts,
+                                3,
+                                each_counter,
+                                store_subs,
+                            );
+                            if params.is_empty() {
+                                code.push_str(&format!(
+                                    "\t\t{}: ($$renderer) => {{\n{}",
+                                    quoted_name, fn_body
+                                ));
+                            } else {
+                                let params_str = format!("{{ {} }}", params.join(", "));
+                                code.push_str(&format!(
+                                    "\t\t{}: ($$renderer, {}) => {{\n{}",
+                                    quoted_name, params_str, fn_body
+                                ));
+                            }
+                            code.push_str("\t\t},\n");
+                        }
+                        code.push_str("\t}\n");
+                    } else if children_already_in_props {
+                        code.push_str("\t$$slots: {\n");
+                        let children_code = Self::build_parts_with_store_subs(
+                            children_parts,
+                            3,
+                            each_counter,
+                            store_subs,
+                        );
+                        code.push_str(&format!(
+                            "\t\tdefault: ($$renderer) => {{\n{}",
+                            children_code
+                        ));
+                        code.push_str("\t\t}");
+                        for (slot_name, params, body_parts, _) in &slot_children {
+                            code.push_str(",\n");
+                            let quoted_name = quote_prop_name(slot_name);
+                            let fn_body = Self::build_parts_with_store_subs(
+                                body_parts,
+                                3,
+                                each_counter,
+                                store_subs,
+                            );
+                            if params.is_empty() {
+                                code.push_str(&format!(
+                                    "\t\t{}: ($$renderer) => {{\n{}",
+                                    quoted_name, fn_body
+                                ));
+                            } else {
+                                let params_str = format!("{{ {} }}", params.join(", "));
+                                code.push_str(&format!(
+                                    "\t\t{}: ($$renderer, {}) => {{\n{}",
+                                    quoted_name, params_str, fn_body
+                                ));
+                            }
+                            code.push_str("\t\t}");
+                        }
+                        code.push('\n');
+                        code.push_str("\t}\n");
+                    } else {
+                        if component_dev {
+                            code.push_str(
+                                "\tchildren: $.prevent_snippet_stringification(($$renderer) => {\n",
+                            );
+                        } else {
+                            code.push_str("\tchildren: ($$renderer) => {\n");
+                        }
+                        let children_code = Self::build_parts_with_store_subs(
+                            children_parts,
+                            2,
+                            each_counter,
+                            store_subs,
+                        );
+                        code.push_str(&children_code);
+                        if component_dev {
+                            code.push_str("\t}),\n");
+                        } else {
+                            code.push_str("\t},\n");
+                        }
+                        if has_slot_children {
+                            code.push_str("\t$$slots: {\n");
+                            code.push_str("\t\tdefault: true,\n");
+                            for (slot_name, params, body_parts, _) in &slot_children {
+                                let quoted_name = quote_prop_name(slot_name);
+                                let fn_body = Self::build_parts_with_store_subs(
+                                    body_parts,
+                                    3,
+                                    each_counter,
+                                    store_subs,
+                                );
+                                if params.is_empty() {
+                                    code.push_str(&format!(
+                                        "\t\t{}: ($$renderer) => {{\n{}",
+                                        quoted_name, fn_body
+                                    ));
+                                } else {
+                                    let params_str = format!("{{ {} }}", params.join(", "));
+                                    code.push_str(&format!(
+                                        "\t\t{}: ($$renderer, {}) => {{\n{}",
+                                        quoted_name, params_str, fn_body
+                                    ));
+                                }
+                                code.push_str("\t\t},\n");
+                            }
+                            code.push_str("\t}\n");
+                        } else {
+                            code.push_str("\t$$slots: { default: true }\n");
+                        }
+                    }
+                    code.push_str("});\n");
+                }
+            }
+        } else if component_has_spreads {
+            let spread_items: Vec<String> = props_and_spreads
+                .iter()
+                .map(|item| match item {
+                    ComponentPropItem::Props(props) => {
+                        format!("{{ {} }}", props.join(", "))
+                    }
+                    ComponentPropItem::Spread(expr) => expr.clone(),
+                })
+                .collect();
+            let has_await_spread = spread_items
+                .iter()
+                .any(|s| super::helpers::expr_contains_await(s));
+            if has_await_spread && !in_async_block {
+                let mut save_decls = Vec::new();
+                let mut transformed_items: Vec<String> = Vec::new();
+                let mut save_counter = 0;
+                for item in &spread_items {
+                    if super::helpers::expr_contains_await(item) {
+                        if item.starts_with('{') && item.ends_with('}') {
+                            let inner = item[1..item.len() - 1].trim();
+                            let mut new_props = Vec::new();
+                            let mut all_extracted = true;
+                            for prop in Self::split_object_props(inner) {
+                                let prop = prop.trim();
+                                if super::helpers::expr_contains_await(prop) {
+                                    if let Some(colon_pos) = prop.find(':') {
+                                        let key = prop[..colon_pos].trim();
+                                        let val = prop[colon_pos + 1..].trim();
+                                        if super::helpers::expr_contains_await(val) {
+                                            let (transformed_val, decls) =
+                                                super::helpers::extract_await_from_html_template(
+                                                    &format!("${{{}}}", val),
+                                                );
+                                            if !decls.is_empty() {
+                                                for (vn, dv) in &decls {
+                                                    save_decls.push(format!(
+                                                        "\tconst {} = {};\n",
+                                                        vn, dv
+                                                    ));
+                                                }
+                                                let inner_val =
+                                                    &transformed_val[2..transformed_val.len() - 1];
+                                                new_props.push(format!("{}: {}", key, inner_val));
+                                                save_counter = decls.len();
+                                            } else {
+                                                all_extracted = false;
+                                                new_props.push(prop.to_string());
+                                            }
+                                        } else {
+                                            new_props.push(prop.to_string());
+                                        }
+                                    } else {
+                                        all_extracted = false;
+                                        new_props.push(prop.to_string());
+                                    }
+                                } else {
+                                    new_props.push(prop.to_string());
+                                }
+                            }
+                            if all_extracted && !new_props.is_empty() {
+                                transformed_items.push(format!("{{ {} }}", new_props.join(", ")));
+                            } else {
+                                let var_name = format!("$${}", save_counter);
+                                let transformed = super::helpers::transform_await_to_save(item);
+                                save_decls
+                                    .push(format!("\tconst {} = {};\n", var_name, transformed));
+                                transformed_items.push(var_name);
+                                save_counter += 1;
+                            }
+                        } else {
+                            let var_name = format!("$${}", save_counter);
+                            let transformed = super::helpers::transform_await_to_save(item);
+                            save_decls.push(format!("\tconst {} = {};\n", var_name, transformed));
+                            transformed_items.push(var_name);
+                            save_counter += 1;
+                        }
+                    } else {
+                        transformed_items.push(item.clone());
+                    }
+                }
+                code.push_str("$$renderer.child_block(async ($$renderer) => {\n");
+                for decl in &save_decls {
+                    code.push_str(decl);
+                }
+                if !save_decls.is_empty() {
+                    code.push('\n');
+                }
+                code.push_str(&format!(
+                    "\t{}{}($$renderer, $.spread_props([{}]));\n",
+                    name,
+                    call_syntax,
+                    transformed_items.join(", ")
+                ));
+                code.push_str("});\n");
+            } else {
+                code.push_str(&format!(
+                    "{}{}($$renderer, $.spread_props([{}]));\n",
+                    name,
+                    call_syntax,
+                    spread_items.join(", ")
+                ));
+            }
+        } else {
+            let all_props = collect_all_props(props_and_spreads);
+            if has_css_props {
+                let css_props_str = css_custom_props
+                    .iter()
+                    .map(|(n, v)| format!("{}: {}", n, v))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                code.push_str(&format!(
+                    "\n$.css_props($$renderer, {}, {{ {} }}, () => {{\n",
+                    css_props_is_html, css_props_str
+                ));
+                if all_props.is_empty() {
+                    code.push_str(&format!("\t{}{}($$renderer, {{}});\n", name, call_syntax));
+                } else {
+                    code.push_str(&format!(
+                        "\t{}{}($$renderer, {{ {} }});\n",
+                        name,
+                        call_syntax,
+                        all_props.join(", ")
+                    ));
+                }
+                if dynamic {
+                    code.push_str("}, true);\n");
+                } else {
+                    code.push_str("});\n");
+                }
+            } else if all_props.is_empty() {
+                code.push_str(&format!("{}{}($$renderer, {{}});\n", name, call_syntax));
+            } else {
+                let has_await_props = all_props
+                    .iter()
+                    .any(|p| super::helpers::expr_contains_await(p));
+                if has_await_props && !in_async_block {
+                    let mut save_decls = Vec::new();
+                    let mut transformed_props: Vec<String> = Vec::new();
+                    let mut save_counter = 0;
+                    for prop in &all_props {
+                        if super::helpers::expr_contains_await(prop) {
+                            if let Some(colon_pos) = prop.find(':') {
+                                let key = prop[..colon_pos].trim();
+                                let value = prop[colon_pos + 1..].trim();
+                                let await_expr = value.strip_prefix("await ").unwrap_or(value);
+                                let var_name = format!("$${}", save_counter);
+                                save_decls.push(format!(
+                                    "\tconst {} = (await $.save({}))();\n",
+                                    var_name, await_expr
+                                ));
+                                transformed_props.push(format!("{}: {}", key, var_name));
+                                save_counter += 1;
+                            } else {
+                                transformed_props.push(prop.clone());
+                            }
+                        } else {
+                            transformed_props.push(prop.clone());
+                        }
+                    }
+                    code.push_str("$$renderer.child_block(async ($$renderer) => {\n");
+                    for decl in &save_decls {
+                        code.push_str(decl);
+                    }
+                    if !save_decls.is_empty() {
+                        code.push('\n');
+                    }
+                    code.push_str(&format!(
+                        "\t{}{}($$renderer, {{ {} }});\n",
+                        name,
+                        call_syntax,
+                        transformed_props.join(", ")
+                    ));
+                    code.push_str("});\n");
+                } else {
+                    code.push_str(&format!(
+                        "{}{}($$renderer, {{ {} }});\n",
+                        name,
+                        call_syntax,
+                        all_props.join(", ")
+                    ));
+                }
+            }
+        }
+
+        // Determine trailing marker behavior
+        let used_child_block = {
+            let has_await_in_props = props_and_spreads.iter().any(|item| match item {
+                ComponentPropItem::Props(props) => {
+                    props.iter().any(|p| super::helpers::expr_contains_await(p))
+                }
+                ComponentPropItem::Spread(expr) => super::helpers::expr_contains_await(expr),
+            });
+            has_await_in_props && !in_async_block
+        };
+
+        let trailing_marker = if has_css_props || used_child_block || in_async_block {
+            TrailingMarkerBehavior::None
+        } else if dynamic {
+            TrailingMarkerBehavior::Always
+        } else {
+            TrailingMarkerBehavior::Conditional { has_prior_content }
+        };
+
+        ComponentCodeResult {
+            code,
+            needs_leading_marker: dynamic,
+            trailing_marker,
+        }
+    }
+
+    /// Generate the JavaScript code for a ComponentWithBindings call.
+    #[allow(clippy::too_many_arguments)]
+    #[allow(dead_code)]
+    pub(crate) fn generate_component_with_bindings_call_code(
+        name: &str,
+        props_and_spreads: &[ComponentPropItem],
+        bindings: &[ComponentBinding],
+        has_prior_content: bool,
+        children: &Option<Vec<OutputPart>>,
+        snippets: &[(String, Vec<String>, Vec<OutputPart>, bool)],
+        slot_names: &[String],
+        dynamic: bool,
+        component_dev: bool,
+        each_counter: &mut usize,
+        store_subs: &[(&str, &str)],
+    ) -> ComponentCodeResult {
+        let mut code = String::new();
+        let call_syntax = if dynamic { "?." } else { "" };
+
+        if has_spreads(props_and_spreads) {
+            code.push_str(&format!(
+                "{}{}($$renderer, $.spread_props([\n",
+                name, call_syntax
+            ));
+            for item in props_and_spreads {
+                match item {
+                    ComponentPropItem::Props(props) => {
+                        code.push_str(&format!("\t{{ {} }},\n", props.join(", ")));
+                    }
+                    ComponentPropItem::Spread(expr) => {
+                        code.push_str(&format!("\t{},\n", expr));
+                    }
+                }
+            }
+            code.push_str("\t{\n");
+            let binding_count = bindings.len();
+            for (idx, binding) in bindings.iter().enumerate() {
+                let (prop_name, getter_expr, setter_expr) =
+                    resolve_binding_exprs(binding, store_subs);
+                let is_seq = matches!(binding, ComponentBinding::SequenceExpression { .. });
+                code.push_str(&format!("\t\tget {}() {{\n", prop_name));
+                code.push_str(&format!("\t\t\treturn {};\n", getter_expr));
+                code.push_str("\t\t},\n\n");
+                code.push_str(&format!("\t\tset {}($$value) {{\n", prop_name));
+                code.push_str(&format!("\t\t\t{};\n", setter_expr));
+                if !is_seq {
+                    code.push_str("\t\t\t$$settled = false;\n");
+                }
+                if idx < binding_count - 1 {
+                    code.push_str("\t\t},\n\n");
+                } else {
+                    code.push_str("\t\t}\n");
+                }
+            }
+            code.push_str("\t}\n");
+            code.push_str("]));\n");
+        } else {
+            let all_props = collect_all_props(props_and_spreads);
+            #[allow(clippy::type_complexity)]
+            let (true_snippets, slot_children_binding): (
+                Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
+                Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
+            ) = snippets
+                .iter()
+                .partition(|(_, _, _, is_true_snippet)| *is_true_snippet);
+            let has_true_snippets = !true_snippets.is_empty();
+            let has_children = children.is_some();
+            let has_any_slots = !slot_names.is_empty() || has_children;
+            let inner_indent = if has_true_snippets { "\t" } else { "" };
+            if has_true_snippets {
+                code.push_str("{\n");
+                for (snippet_name, params, body_parts, _) in &true_snippets {
+                    let params_str = if params.is_empty() {
+                        "$$renderer".to_string()
+                    } else {
+                        format!("$$renderer, {}", params.join(", "))
+                    };
+                    code.push_str(&format!("\tfunction {}({}) {{\n", snippet_name, params_str));
+                    let snippet_body =
+                        Self::build_parts_with_store_subs(body_parts, 2, each_counter, store_subs);
+                    code.push_str(&snippet_body);
+                    code.push_str("\t}\n\n");
+                }
+            }
+            code.push_str(&format!(
+                "{}{}{}($$renderer, {{\n",
+                inner_indent, name, call_syntax
+            ));
+            for prop in &all_props {
+                code.push_str(&format!("{}\t{},\n", inner_indent, prop));
+            }
+            let binding_count = bindings.len();
+            for (idx, binding) in bindings.iter().enumerate() {
+                let (prop_name, getter_expr, setter_expr) =
+                    resolve_binding_exprs(binding, store_subs);
+                let is_seq = matches!(binding, ComponentBinding::SequenceExpression { .. });
+                code.push_str(&format!("{}\tget {}() {{\n", inner_indent, prop_name));
+                code.push_str(&format!("{}\t\treturn {};\n", inner_indent, getter_expr));
+                code.push_str(&format!("{}\t}},\n\n", inner_indent));
+                code.push_str(&format!(
+                    "{}\tset {}($$value) {{\n",
+                    inner_indent, prop_name
+                ));
+                code.push_str(&format!("{}\t\t{};\n", inner_indent, setter_expr));
+                if !is_seq {
+                    code.push_str(&format!("{}\t\t$$settled = false;\n", inner_indent));
+                }
+                if idx < binding_count - 1 || has_children || has_true_snippets || has_any_slots {
+                    code.push_str(&format!("{}\t}},\n\n", inner_indent));
+                } else {
+                    code.push_str(&format!("{}\t}}\n", inner_indent));
+                }
+            }
+            for (snippet_name, _, _, _) in &true_snippets {
+                code.push_str(&format!("{}\t{},\n", inner_indent, snippet_name));
+            }
+            if let Some(children_parts) = children {
+                let children_code =
+                    Self::build_parts_with_store_subs(children_parts, 2, each_counter, store_subs);
+                if component_dev {
+                    code.push_str(&format!(
+                        "{}\tchildren: $.prevent_snippet_stringification(($$renderer) => {{\n",
+                        inner_indent
+                    ));
+                } else {
+                    code.push_str(&format!("{}\tchildren: ($$renderer) => {{\n", inner_indent));
+                }
+                code.push_str(&children_code);
+                if component_dev {
+                    code.push_str(&format!("{}\t}}),\n", inner_indent));
+                } else {
+                    code.push_str(&format!("{}\t}},\n", inner_indent));
+                }
+            }
+            if has_any_slots {
+                let mut slots_entries: Vec<String> = Vec::new();
+                for slot_name in slot_names {
+                    let quoted_name = quote_prop_name(slot_name);
+                    if let Some((_, params, body_parts, _)) = slot_children_binding
+                        .iter()
+                        .find(|(n, _, _, _)| n == slot_name)
+                    {
+                        let fn_body = Self::build_parts_with_store_subs(
+                            body_parts,
+                            0,
+                            each_counter,
+                            store_subs,
+                        );
+                        let fn_body_trimmed = fn_body.trim();
+                        if params.is_empty() {
+                            slots_entries.push(format!(
+                                "{}: ($$renderer) => {{\n{}\t\t\t}}",
+                                quoted_name, fn_body_trimmed
+                            ));
+                        } else {
+                            let params_str = format!("{{ {} }}", params.join(", "));
+                            slots_entries.push(format!(
+                                "{}: ($$renderer, {}) => {{\n{}\t\t\t}}",
+                                quoted_name, params_str, fn_body_trimmed
+                            ));
+                        }
+                    } else {
+                        slots_entries.push(format!("{}: true", quoted_name));
+                    }
+                }
+                if has_children && !slot_names.contains(&"default".to_string()) {
+                    slots_entries.push("default: true".to_string());
+                }
+                let slots_str = slots_entries.join(", ");
+                code.push_str(&format!("{}\t$$slots: {{ {} }}\n", inner_indent, slots_str));
+            }
+            code.push_str(&format!("{}}});\n", inner_indent));
+            if has_true_snippets {
+                code.push_str("}\n");
+            }
+        }
+
+        let trailing_marker = TrailingMarkerBehavior::Conditional { has_prior_content };
+
+        ComponentCodeResult {
+            code,
+            needs_leading_marker: dynamic,
+            trailing_marker,
+        }
     }
 }
 

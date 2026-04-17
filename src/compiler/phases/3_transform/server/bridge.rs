@@ -497,27 +497,131 @@ fn convert_part_to_item(
             )));
         }
 
-        // All other complex parts: delegate individually to build_parts_with_store_subs.
-        OutputPart::Component { .. }
-        | OutputPart::ComponentWithBindings { .. }
-        | OutputPart::AwaitBlock { .. }
-        | OutputPart::AsyncBlock { .. }
+        // BlockScope: wrap body in { }
+        OutputPart::BlockScope { body } => {
+            convert_block_scope(body, items, store_subs, each_counter);
+        }
+
+        // RenderCall: emit call_str; + optional <!----> marker
+        OutputPart::RenderCall {
+            call_str,
+            skip_boundary,
+        } => {
+            convert_render_call(call_str, *skip_boundary, items);
+        }
+
+        // SnippetFunction: function name($$renderer, params) { body }
+        OutputPart::SnippetFunction {
+            name,
+            params,
+            body,
+            dev: snippet_dev,
+        } => {
+            convert_snippet_function(
+                name,
+                params,
+                body,
+                *snippet_dev,
+                items,
+                store_subs,
+                each_counter,
+            );
+        }
+
+        // SvelteHead: $.head('hash', $$renderer, ($$renderer) => { body });
+        OutputPart::SvelteHead { hash, body } => {
+            convert_svelte_head(hash, body, items, store_subs, each_counter);
+        }
+
+        // TitleElement: $$renderer.title(($$renderer) => { body });
+        OutputPart::TitleElement { body } => {
+            convert_title_element(body, items, store_subs, each_counter);
+        }
+
+        // Slot: <!--[--> + $.slot(...) + <!--]-->
+        OutputPart::Slot {
+            name,
+            props_expr,
+            fallback,
+        } => {
+            convert_slot(name, props_expr, fallback, items, store_subs, each_counter);
+        }
+
+        // SvelteBoundaryWithPending: if (pending) { ... } else { ... }
+        OutputPart::SvelteBoundaryWithPending {
+            pending_expr,
+            pending_body,
+            main_body,
+        } => {
+            convert_svelte_boundary_with_pending(
+                pending_expr,
+                pending_body,
+                main_body,
+                items,
+                store_subs,
+                each_counter,
+            );
+        }
+
+        // AwaitBlock: $.await($$renderer, promise, pending_fn, then_fn);
+        OutputPart::AwaitBlock {
+            promise,
+            then_param,
+            pending_body,
+            then_body,
+            ..
+        } => {
+            convert_await_block(
+                promise,
+                then_param,
+                pending_body,
+                then_body,
+                items,
+                store_subs,
+                each_counter,
+            );
+        }
+
+        // SvelteElement: $.element($$renderer, tag, attrs, children)
+        OutputPart::SvelteElement {
+            tag_expr,
+            attrs_expr,
+            body,
+            dev,
+        } => {
+            convert_svelte_element(
+                tag_expr,
+                attrs_expr,
+                body,
+                *dev,
+                items,
+                store_subs,
+                each_counter,
+            );
+        }
+
+        // SelectElement and OptionElement: delegate to build_parts_with_store_subs.
+        // These use multiline formatting with continuation args that require absolute
+        // indentation tracking, which build_parts_with_store_subs handles correctly.
+        OutputPart::SelectElement { .. } | OutputPart::OptionElement { .. } => {
+            delegate_single_part(part, remaining_parts, items, each_counter, store_subs);
+        }
+
+        // Component/ComponentWithBindings: delegate to build_parts_with_store_subs.
+        OutputPart::Component { .. } | OutputPart::ComponentWithBindings { .. } => {
+            delegate_single_part(part, remaining_parts, items, each_counter, store_subs);
+        }
+
+        // Async variants: these always go through the coalescing group path
+        // (needs_coalescing_group returns true), so they should never reach here.
+        // Keep delegation as a safety net.
+        OutputPart::AsyncBlock { .. }
         | OutputPart::AsyncBlockCustom { .. }
         | OutputPart::AsyncWrappedExpression { .. }
         | OutputPart::AsyncWrappedExpressionCustom { .. }
         | OutputPart::AsyncWrappedHtml { .. }
         | OutputPart::AsyncChild { .. }
-        | OutputPart::AsyncChildBlock { .. }
-        | OutputPart::SvelteElement { .. }
-        | OutputPart::SelectElement { .. }
-        | OutputPart::OptionElement { .. }
-        | OutputPart::SvelteBoundaryWithPending { .. }
-        | OutputPart::SvelteHead { .. }
-        | OutputPart::TitleElement { .. }
-        | OutputPart::Slot { .. }
-        | OutputPart::RenderCall { .. }
-        | OutputPart::SnippetFunction { .. }
-        | OutputPart::BlockScope { .. } => {
+        | OutputPart::AsyncChildBlock { .. } => {
             delegate_single_part(part, remaining_parts, items, each_counter, store_subs);
         }
     }
@@ -805,18 +909,21 @@ fn find_template_literal_end(s: &str) -> Option<usize> {
 /// the template, and generates code at the given indent level.
 fn generate_inner_body_code(
     body: &[OutputPart],
-    arena: &JsArena,
+    _arena: &JsArena,
     store_subs: &[(&str, &str)],
     each_counter: &mut usize,
     indent_level: usize,
 ) -> String {
-    use super::visitors::shared::utils::build_template;
-    use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_stmts;
-
+    // Use build_parts_with_store_subs for body generation. This ensures correct
+    // absolute indentation for ALL part types, including Component and
+    // ComponentWithBindings which are still delegated and need proper indent tracking.
     let hoisted = ServerCodeGenerator::hoist_const_declarations_and_strip_ws(body);
-    let inner_items = output_parts_to_template_items(&hoisted, arena, store_subs, each_counter);
-    let inner_stmts = build_template(&inner_items, arena);
-    generate_stmts(&inner_stmts, arena, indent_level)
+    ServerCodeGenerator::build_parts_with_store_subs(
+        &hoisted,
+        indent_level,
+        each_counter,
+        store_subs,
+    )
 }
 
 /// Convert an IfBlock OutputPart to TemplateItems.
@@ -1201,6 +1308,483 @@ fn convert_content_editable_body(
             CompactString::new(trimmed),
         )));
     }
+}
+
+/// Convert a BlockScope OutputPart to TemplateItems.
+///
+/// Generates `{ body }` wrapping the body in a JavaScript block scope.
+fn convert_block_scope(
+    body: &[OutputPart],
+    items: &mut Vec<TemplateItem>,
+    store_subs: &[(&str, &str)],
+    each_counter: &mut usize,
+) {
+    let body_code = generate_inner_body_code_direct(body, store_subs, each_counter, 1);
+    let code = format!("{{\n{}}}", body_code);
+    let trimmed = code.trim();
+    if !trimmed.is_empty() {
+        items.push(TemplateItem::Statement(JsStatement::Raw(
+            CompactString::new(trimmed),
+        )));
+    }
+}
+
+/// Convert a RenderCall OutputPart to TemplateItems.
+///
+/// Generates `call_str;` as a statement and optionally adds a `<!---->` marker
+/// expression when `skip_boundary` is false.
+fn convert_render_call(call_str: &str, skip_boundary: bool, items: &mut Vec<TemplateItem>) {
+    items.push(TemplateItem::Statement(JsStatement::Raw(
+        CompactString::new(format!("{};", call_str)),
+    )));
+    if !skip_boundary {
+        items.push(TemplateItem::Expression(JsExpr::Literal(
+            JsLiteral::String("<!---->".into()),
+        )));
+    }
+}
+
+/// Convert a SnippetFunction OutputPart to TemplateItems.
+///
+/// Generates a function declaration with optional dev mode wrappers.
+#[allow(clippy::too_many_arguments)]
+fn convert_snippet_function(
+    name: &str,
+    params: &[String],
+    body: &[OutputPart],
+    dev: bool,
+    items: &mut Vec<TemplateItem>,
+    store_subs: &[(&str, &str)],
+    each_counter: &mut usize,
+) {
+    let mut code = String::new();
+
+    if dev {
+        code.push_str(&format!("$.prevent_snippet_stringification({});\n", name));
+    }
+
+    let param_str = if params.is_empty() {
+        "$$renderer".to_string()
+    } else {
+        format!("$$renderer, {}", params.join(", "))
+    };
+
+    code.push_str(&format!("function {}({}) {{\n", name, param_str));
+
+    if dev {
+        code.push_str("\t$.validate_snippet_args($$renderer);\n");
+    }
+
+    if !body.is_empty() {
+        let body_code = generate_inner_body_code_direct(body, store_subs, each_counter, 1);
+        code.push_str(&body_code);
+    }
+
+    code.push_str("}\n");
+
+    let trimmed = code.trim();
+    if !trimmed.is_empty() {
+        items.push(TemplateItem::Statement(JsStatement::Raw(
+            CompactString::new(trimmed),
+        )));
+    }
+}
+
+/// Convert a SvelteHead OutputPart to TemplateItems.
+///
+/// Generates `$.head('hash', $$renderer, ($$renderer) => { body });`
+fn convert_svelte_head(
+    hash: &str,
+    body: &[OutputPart],
+    items: &mut Vec<TemplateItem>,
+    store_subs: &[(&str, &str)],
+    each_counter: &mut usize,
+) {
+    let mut code = String::new();
+    code.push_str(&format!(
+        "$.head('{}', $$renderer, ($$renderer) => {{\n",
+        hash
+    ));
+
+    if !body.is_empty() {
+        let body_code = generate_inner_body_code_direct(body, store_subs, each_counter, 1);
+        code.push_str(&body_code);
+    }
+
+    code.push_str("});");
+
+    items.push(TemplateItem::Statement(JsStatement::Raw(
+        CompactString::new(code.trim()),
+    )));
+}
+
+/// Convert a TitleElement OutputPart to TemplateItems.
+///
+/// Generates `$$renderer.title(($$renderer) => { body });`
+fn convert_title_element(
+    body: &[OutputPart],
+    items: &mut Vec<TemplateItem>,
+    store_subs: &[(&str, &str)],
+    each_counter: &mut usize,
+) {
+    let mut code = String::new();
+    code.push_str("$$renderer.title(($$renderer) => {\n");
+
+    if !body.is_empty() {
+        let body_code = generate_inner_body_code_direct(body, store_subs, each_counter, 1);
+        code.push_str(&body_code);
+    }
+
+    code.push_str("});");
+
+    items.push(TemplateItem::Statement(JsStatement::Raw(
+        CompactString::new(code.trim()),
+    )));
+}
+
+/// Convert a Slot OutputPart to TemplateItems.
+///
+/// Generates `<!--[--> + $.slot($$renderer, $$props, 'name', props, fallback) + <!--]-->`.
+/// When props contain `await`, wraps in `$$renderer.child_block(async ...)`.
+fn convert_slot(
+    name: &str,
+    props_expr: &str,
+    fallback: &Option<Vec<OutputPart>>,
+    items: &mut Vec<TemplateItem>,
+    store_subs: &[(&str, &str)],
+    each_counter: &mut usize,
+) {
+    // Opening marker as Expression (coalesces with preceding HTML)
+    items.push(TemplateItem::Expression(JsExpr::Literal(
+        JsLiteral::String("<!--[-->".into()),
+    )));
+
+    // Build fallback argument
+    let fallback_arg = if let Some(fallback_parts) = fallback {
+        if fallback_parts.is_empty() {
+            "null".to_string()
+        } else {
+            let fallback_code =
+                generate_inner_body_code_direct(fallback_parts, store_subs, each_counter, 1);
+            format!("() => {{\n{}}}", fallback_code)
+        }
+    } else {
+        "null".to_string()
+    };
+
+    // Check if slot props contain await expressions
+    let has_await = memchr::memmem::find(props_expr.as_bytes(), b"await ").is_some();
+
+    let mut code = String::new();
+    if has_await {
+        code.push_str("$$renderer.child_block(async ($$renderer) => {\n");
+
+        let (extracted_consts, modified_props) = extract_await_from_slot_props(props_expr);
+        for (i, await_expr) in extracted_consts.iter().enumerate() {
+            code.push_str(&format!(
+                "\tconst $${} = (await $.save({}))();\n",
+                i, await_expr
+            ));
+        }
+
+        code.push_str(&format!(
+            "\t$.slot($$renderer, $$props, '{}', {}, {});\n",
+            name, modified_props, fallback_arg
+        ));
+        code.push_str("});");
+    } else {
+        code.push_str(&format!(
+            "$.slot($$renderer, $$props, '{}', {}, {});",
+            name, props_expr, fallback_arg
+        ));
+    }
+
+    items.push(TemplateItem::Statement(JsStatement::Raw(
+        CompactString::new(code.trim()),
+    )));
+
+    // Closing marker as Expression (coalesces with following HTML)
+    items.push(TemplateItem::Expression(JsExpr::Literal(
+        JsLiteral::String("<!--]-->".into()),
+    )));
+}
+
+/// Convert a SvelteBoundaryWithPending OutputPart to TemplateItems.
+///
+/// Generates: `if (pending_expr) { <!--[!--> pending_body <!--]--> } else { <!--[--> main_body <!--]--> }`
+fn convert_svelte_boundary_with_pending(
+    pending_expr: &str,
+    pending_body: &[OutputPart],
+    main_body: &[OutputPart],
+    items: &mut Vec<TemplateItem>,
+    store_subs: &[(&str, &str)],
+    each_counter: &mut usize,
+) {
+    let mut code = String::new();
+
+    code.push_str(&format!("if ({}) {{\n", pending_expr));
+    code.push_str("\t$$renderer.push(`<!--[!-->`);\n");
+    if !pending_body.is_empty() {
+        let pending_code =
+            generate_inner_body_code_direct(pending_body, store_subs, each_counter, 1);
+        code.push_str(&pending_code);
+    }
+    code.push_str("\t$$renderer.push(`<!--]-->`);\n");
+    code.push_str("} else {\n");
+    code.push_str("\t$$renderer.push(`<!--[-->`);\n");
+    if !main_body.is_empty() {
+        let main_code = generate_inner_body_code_direct(main_body, store_subs, each_counter, 1);
+        code.push_str(&main_code);
+    }
+    code.push_str("\t$$renderer.push(`<!--]-->`);\n");
+    code.push('}');
+
+    let trimmed = code.trim();
+    if !trimmed.is_empty() {
+        items.push(TemplateItem::Statement(JsStatement::Raw(
+            CompactString::new(trimmed),
+        )));
+    }
+}
+
+/// Convert an AwaitBlock OutputPart to TemplateItems.
+///
+/// Generates `$.await($$renderer, promise, pending_fn, then_fn);` followed
+/// by `<!--]-->` as an expression for coalescing.
+fn convert_await_block(
+    promise: &str,
+    then_param: &str,
+    pending_body: &[OutputPart],
+    then_body: &[OutputPart],
+    items: &mut Vec<TemplateItem>,
+    store_subs: &[(&str, &str)],
+    each_counter: &mut usize,
+) {
+    let pending_is_empty = pending_body.is_empty();
+    let then_is_empty = then_body.is_empty();
+
+    let mut code = String::new();
+
+    if pending_is_empty && then_is_empty {
+        let then_fn = if then_param.is_empty() {
+            "() => {}".to_string()
+        } else {
+            format!("({}) => {{}}", then_param)
+        };
+        code.push_str(&format!(
+            "$.await($$renderer, {}, () => {{}}, {});",
+            promise, then_fn
+        ));
+    } else {
+        code.push_str("$.await(\n");
+        code.push_str("\t$$renderer,\n");
+        code.push_str(&format!("\t{},\n", promise));
+
+        if pending_is_empty {
+            code.push_str("\t() => {},\n");
+        } else {
+            code.push_str("\t() => {\n");
+            let pending_code =
+                generate_inner_body_code_direct(pending_body, store_subs, each_counter, 2);
+            code.push_str(&pending_code);
+            code.push_str("\t},\n");
+        }
+
+        if then_is_empty {
+            if then_param.is_empty() {
+                code.push_str("\t() => {}");
+            } else {
+                code.push_str(&format!("\t({}) => {{}}", then_param));
+            }
+        } else {
+            if then_param.is_empty() {
+                code.push_str("\t() => {\n");
+            } else {
+                code.push_str(&format!("\t({}) => {{\n", then_param));
+            }
+            let then_code = generate_inner_body_code_direct(then_body, store_subs, each_counter, 2);
+            code.push_str(&then_code);
+            code.push_str("\t}");
+        }
+
+        code.push('\n');
+        code.push_str(");");
+    }
+
+    let trimmed = code.trim();
+    if !trimmed.is_empty() {
+        items.push(TemplateItem::Statement(JsStatement::Raw(
+            CompactString::new(trimmed),
+        )));
+    }
+
+    // Closing marker as Expression for coalescing
+    items.push(TemplateItem::Expression(JsExpr::Literal(
+        JsLiteral::String("<!--]-->".into()),
+    )));
+}
+
+/// Convert a SvelteElement OutputPart to TemplateItems.
+///
+/// Generates `$.element($$renderer, tag, attrs, () => { body })` with optional
+/// dev validation via `$.validate_dynamic_element_tag`.
+fn convert_svelte_element(
+    tag_expr: &str,
+    attrs_expr: &Option<String>,
+    body: &[OutputPart],
+    dev: bool,
+    items: &mut Vec<TemplateItem>,
+    store_subs: &[(&str, &str)],
+    each_counter: &mut usize,
+) {
+    let mut code = String::new();
+
+    if dev {
+        code.push_str(&format!(
+            "$.validate_dynamic_element_tag(() => {});\n",
+            tag_expr
+        ));
+    }
+
+    if body.is_empty() && attrs_expr.is_none() {
+        code.push_str(&format!("$.element($$renderer, {});", tag_expr));
+    } else {
+        let attrs_arg = attrs_expr.as_deref().unwrap_or("void 0");
+
+        if body.is_empty() {
+            code.push_str(&format!(
+                "$.element($$renderer, {}, {});",
+                tag_expr, attrs_arg
+            ));
+        } else {
+            code.push_str(&format!(
+                "$.element($$renderer, {}, {}, () => {{\n",
+                tag_expr, attrs_arg
+            ));
+
+            let body_code = generate_inner_body_code_direct(body, store_subs, each_counter, 1);
+            code.push_str(&body_code);
+
+            code.push_str("});");
+        }
+    }
+
+    let trimmed = code.trim();
+    if !trimmed.is_empty() {
+        items.push(TemplateItem::Statement(JsStatement::Raw(
+            CompactString::new(trimmed),
+        )));
+    }
+}
+
+/// Generate code for body parts using `build_parts_with_store_subs` directly.
+///
+/// This ensures correct absolute indentation for all part types, including
+/// Component and ComponentWithBindings which need proper indent tracking.
+fn generate_inner_body_code_direct(
+    body: &[OutputPart],
+    store_subs: &[(&str, &str)],
+    each_counter: &mut usize,
+    indent_level: usize,
+) -> String {
+    let hoisted = ServerCodeGenerator::hoist_const_declarations_and_strip_ws(body);
+    ServerCodeGenerator::build_parts_with_store_subs(
+        &hoisted,
+        indent_level,
+        each_counter,
+        store_subs,
+    )
+}
+
+/// Extract await expressions from slot props expression, replacing them with `$$N` variables.
+fn extract_await_from_slot_props(props_expr: &str) -> (Vec<String>, String) {
+    let mut extracted = Vec::new();
+    let mut modified = String::new();
+    let bytes = props_expr.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+
+    while i < len {
+        if bytes[i] == b'\'' || bytes[i] == b'"' || bytes[i] == b'`' {
+            let quote = bytes[i];
+            modified.push(bytes[i] as char);
+            i += 1;
+            while i < len && bytes[i] != quote {
+                if bytes[i] == b'\\' {
+                    modified.push(bytes[i] as char);
+                    i += 1;
+                    if i < len {
+                        modified.push(bytes[i] as char);
+                        i += 1;
+                    }
+                } else {
+                    modified.push(bytes[i] as char);
+                    i += 1;
+                }
+            }
+            if i < len {
+                modified.push(bytes[i] as char);
+                i += 1;
+            }
+            continue;
+        }
+
+        if i + 5 <= len
+            && &props_expr[i..i + 5] == "await"
+            && (i == 0 || !bytes[i - 1].is_ascii_alphanumeric() && bytes[i - 1] != b'_')
+            && (i + 5 >= len || !bytes[i + 5].is_ascii_alphanumeric() && bytes[i + 5] != b'_')
+        {
+            let mut j = i + 5;
+            while j < len && (bytes[j] == b' ' || bytes[j] == b'\t' || bytes[j] == b'\n') {
+                j += 1;
+            }
+
+            let arg_start = j;
+            let mut paren_depth = 0i32;
+            let mut bracket_depth = 0i32;
+            let mut brace_depth = 0i32;
+
+            while j < len {
+                match bytes[j] {
+                    b'(' => paren_depth += 1,
+                    b')' => {
+                        if paren_depth == 0 {
+                            break;
+                        }
+                        paren_depth -= 1;
+                    }
+                    b'[' => bracket_depth += 1,
+                    b']' => {
+                        if bracket_depth == 0 {
+                            break;
+                        }
+                        bracket_depth -= 1;
+                    }
+                    b'{' => brace_depth += 1,
+                    b'}' => {
+                        if brace_depth == 0 {
+                            break;
+                        }
+                        brace_depth -= 1;
+                    }
+                    b',' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => break,
+                    _ => {}
+                }
+                j += 1;
+            }
+
+            let await_arg = props_expr[arg_start..j].trim_end();
+            let idx = extracted.len();
+            extracted.push(await_arg.to_string());
+            modified.push_str(&format!("$${}", idx));
+            i = j;
+        } else {
+            modified.push(bytes[i] as char);
+            i += 1;
+        }
+    }
+
+    (extracted, modified)
 }
 
 /// Split an HTML string containing `${...}` interpolations into a sequence of

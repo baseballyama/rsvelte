@@ -550,6 +550,31 @@ pub(crate) fn collect_all_props(items: &[ComponentPropItem]) -> Vec<String> {
         .collect()
 }
 
+/// Result of generating a component call's JavaScript code.
+///
+/// Contains the code string, plus metadata about markers that should be emitted
+/// before/after the component call as separate TemplateItems (for coalescing).
+#[allow(dead_code)]
+pub(crate) struct ComponentCodeResult {
+    /// The generated JavaScript code for the component call (no indentation).
+    pub code: String,
+    /// Whether a leading `<!---->` marker is needed (for dynamic components).
+    pub needs_leading_marker: bool,
+    /// Trailing marker behavior after the component call.
+    pub trailing_marker: TrailingMarkerBehavior,
+}
+
+/// Describes how a trailing `<!---->` marker should be emitted after a component call.
+#[allow(dead_code)]
+pub(crate) enum TrailingMarkerBehavior {
+    /// No trailing marker needed (css_props, child_block wrapping, or in_async_block).
+    None,
+    /// Always add trailing marker (dynamic components).
+    Always,
+    /// Add trailing marker if `has_prior_content` OR there is more content after.
+    Conditional { has_prior_content: bool },
+}
+
 /// Result of constant folding.
 pub(crate) enum ConstantFoldResult {
     Null,
