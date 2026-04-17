@@ -554,7 +554,6 @@ pub(crate) fn collect_all_props(items: &[ComponentPropItem]) -> Vec<String> {
 ///
 /// Contains the code string, plus metadata about markers that should be emitted
 /// before/after the component call as separate TemplateItems (for coalescing).
-#[allow(dead_code)]
 pub(crate) struct ComponentCodeResult {
     /// The generated JavaScript code for the component call (no indentation).
     pub code: String,
@@ -565,7 +564,6 @@ pub(crate) struct ComponentCodeResult {
 }
 
 /// Describes how a trailing `<!---->` marker should be emitted after a component call.
-#[allow(dead_code)]
 pub(crate) enum TrailingMarkerBehavior {
     /// No trailing marker needed (css_props, child_block wrapping, or in_async_block).
     None,
