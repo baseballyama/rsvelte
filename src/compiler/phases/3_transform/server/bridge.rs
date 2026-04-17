@@ -13,13 +13,13 @@
 //!   markers emitted as `TemplateItem::Expression` and their bodies recursively
 //!   converted, with the generated code wrapped in `TemplateItem::Statement(Raw(...))`.
 //!
-//! - Complex parts (Component, AwaitBlock, SvelteBoundary, etc.) are individually
-//!   delegated to `build_parts_with_store_subs` via `delegate_single_part()`, wrapping
-//!   the result in `TemplateItem::Statement(Raw(...))`. This allows block markers and
-//!   expressions around them to be properly coalesced by `build_template()`.
+//! - Complex parts (Component, ComponentWithBindings, SelectElement, OptionElement)
+//!   are converted directly using their respective `generate_*` functions from build.rs,
+//!   with the results emitted as `TemplateItem::Statement(Raw(...))` and appropriate
+//!   marker `TemplateItem::Expression`s for coalescing by `build_template()`.
 
 use super::ServerCodeGenerator;
-use super::types::{OutputPart, TemplateItem};
+use super::types::{ComponentCodeResult, OutputPart, TemplateItem, TrailingMarkerBehavior};
 use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use compact_str::CompactString;
@@ -37,9 +37,9 @@ use compact_str::CompactString;
 ///   markers emitted as `TemplateItem::Expression` and their bodies recursively
 ///   converted, with the generated code wrapped in `TemplateItem::Statement(Raw(...))`.
 ///
-/// - Complex parts (Component, AwaitBlock, SvelteBoundary, etc.) are individually
-///   delegated to `build_parts_with_store_subs` via `delegate_single_part()`, wrapping
-///   the result in `TemplateItem::Statement(Raw(...))`.
+/// - Complex parts (Component, ComponentWithBindings, SelectElement, OptionElement)
+///   are converted directly using their respective `generate_*` functions from build.rs,
+///   with the results emitted as `TemplateItem::Statement(Raw(...))` and marker expressions.
 ///
 /// # Arguments
 ///
@@ -538,32 +538,113 @@ fn convert_part_to_item(
             convert_title_element(body, items, store_subs, each_counter);
         }
 
-        // Slot: <!--[--> + $.slot(...) + <!--]-->
-        OutputPart::Slot {
+        // Component: direct generation via generate_component_call_code
+        OutputPart::Component {
             name,
-            props_expr,
-            fallback,
+            props_and_spreads,
+            has_prior_content,
+            children,
+            snippets,
+            slot_names,
+            dynamic,
+            let_directives,
+            css_custom_props,
+            css_props_is_html,
+            in_async_block,
+            attach_expressions: _,
+            dev,
         } => {
-            convert_slot(name, props_expr, fallback, items, store_subs, each_counter);
+            let result = ServerCodeGenerator::generate_component_call_code(
+                name,
+                props_and_spreads,
+                *has_prior_content,
+                children,
+                snippets,
+                slot_names,
+                *dynamic,
+                let_directives,
+                css_custom_props,
+                *css_props_is_html,
+                *in_async_block,
+                *dev,
+                each_counter,
+                store_subs,
+            );
+            convert_component_result(result, remaining_parts, items);
         }
 
-        // SvelteBoundaryWithPending: if (pending) { ... } else { ... }
-        OutputPart::SvelteBoundaryWithPending {
-            pending_expr,
-            pending_body,
-            main_body,
+        // ComponentWithBindings: direct generation via generate_component_with_bindings_call_code
+        OutputPart::ComponentWithBindings {
+            name,
+            props_and_spreads,
+            bindings,
+            has_prior_content,
+            children,
+            snippets,
+            slot_names,
+            dynamic,
+            css_custom_props: _,
+            css_props_is_html: _,
+            seq_bindings_hoisted: _,
+            dev,
         } => {
-            convert_svelte_boundary_with_pending(
-                pending_expr,
-                pending_body,
-                main_body,
+            let result = ServerCodeGenerator::generate_component_with_bindings_call_code(
+                name,
+                props_and_spreads,
+                bindings,
+                *has_prior_content,
+                children,
+                snippets,
+                slot_names,
+                *dynamic,
+                *dev,
+                each_counter,
+                store_subs,
+            );
+            convert_component_result(result, remaining_parts, items);
+        }
+
+        // SelectElement: $$renderer.select() call
+        OutputPart::SelectElement {
+            attrs_obj,
+            body,
+            is_rich,
+            css_hash,
+        } => {
+            convert_select_element(
+                attrs_obj,
+                body,
+                *is_rich,
+                css_hash.as_deref(),
                 items,
                 store_subs,
                 each_counter,
             );
         }
 
-        // AwaitBlock: $.await($$renderer, promise, pending_fn, then_fn);
+        // OptionElement: $$renderer.option() call
+        OutputPart::OptionElement {
+            attr_entries,
+            body,
+            is_rich,
+            direct_value,
+            css_hash,
+            dev_location,
+        } => {
+            convert_option_element(
+                attr_entries,
+                body,
+                *is_rich,
+                direct_value.as_deref(),
+                css_hash.as_deref(),
+                *dev_location,
+                items,
+                store_subs,
+                each_counter,
+            );
+        }
+
+        // AwaitBlock: $.await($$renderer, promise, pending_fn, then_fn)
         OutputPart::AwaitBlock {
             promise,
             then_param,
@@ -576,6 +657,22 @@ fn convert_part_to_item(
                 then_param,
                 pending_body,
                 then_body,
+                items,
+                store_subs,
+                each_counter,
+            );
+        }
+
+        // SvelteBoundaryWithPending: if/else with markers
+        OutputPart::SvelteBoundaryWithPending {
+            pending_expr,
+            pending_body,
+            main_body,
+        } => {
+            convert_svelte_boundary_with_pending(
+                pending_expr,
+                pending_body,
+                main_body,
                 items,
                 store_subs,
                 each_counter,
@@ -600,21 +697,17 @@ fn convert_part_to_item(
             );
         }
 
-        // SelectElement and OptionElement: delegate to build_parts_with_store_subs.
-        // These use multiline formatting with continuation args that require absolute
-        // indentation tracking, which build_parts_with_store_subs handles correctly.
-        OutputPart::SelectElement { .. } | OutputPart::OptionElement { .. } => {
-            delegate_single_part(part, remaining_parts, items, each_counter, store_subs);
+        // Slot: $.slot($$renderer, $$props, name, props, fallback)
+        OutputPart::Slot {
+            name,
+            props_expr,
+            fallback,
+        } => {
+            convert_slot(name, props_expr, fallback, items, store_subs, each_counter);
         }
 
-        // Component/ComponentWithBindings: delegate to build_parts_with_store_subs.
-        OutputPart::Component { .. } | OutputPart::ComponentWithBindings { .. } => {
-            delegate_single_part(part, remaining_parts, items, each_counter, store_subs);
-        }
-
-        // Async variants: these always go through the coalescing group path
-        // (needs_coalescing_group returns true), so they should never reach here.
-        // Keep delegation as a safety net.
+        // Async variants: normally go through the coalescing group path
+        // (needs_coalescing_group returns true). Keep delegation as safety net.
         OutputPart::AsyncBlock { .. }
         | OutputPart::AsyncBlockCustom { .. }
         | OutputPart::AsyncWrappedExpression { .. }
@@ -627,25 +720,257 @@ fn convert_part_to_item(
     }
 }
 
+/// Convert a `ComponentCodeResult` to `TemplateItem`s.
+///
+/// Emits:
+/// 1. A leading `<!---->` marker if `needs_leading_marker` is true (dynamic components).
+/// 2. The component code as a `TemplateItem::Statement(Raw(...))`.
+/// 3. A trailing `<!---->` marker based on the `trailing_marker` behavior:
+///    - `None`: no marker
+///    - `Always`: always add marker
+///    - `Conditional { has_prior_content }`: add if `has_prior_content` OR there
+///      is more content in `remaining_parts`.
+fn convert_component_result(
+    result: ComponentCodeResult,
+    remaining_parts: &[OutputPart],
+    items: &mut Vec<TemplateItem>,
+) {
+    // Leading marker for dynamic components.
+    // This must be a separate $$renderer.push('<!---->') statement, NOT an Expression
+    // that coalesces with preceding HTML. The official compiler flushes current_html
+    // first, then emits $$renderer.push('<!---->') as a separate push call.
+    if result.needs_leading_marker {
+        items.push(TemplateItem::Statement(JsStatement::Raw(
+            CompactString::new("$$renderer.push('<!---->');"),
+        )));
+    }
+
+    // The component call code
+    let trimmed = result.code.trim();
+    if !trimmed.is_empty() {
+        items.push(TemplateItem::Statement(JsStatement::Raw(
+            CompactString::new(trimmed),
+        )));
+    }
+
+    // Trailing marker
+    match result.trailing_marker {
+        TrailingMarkerBehavior::None => {}
+        TrailingMarkerBehavior::Always => {
+            items.push(TemplateItem::Expression(JsExpr::Literal(
+                JsLiteral::String("<!---->".into()),
+            )));
+        }
+        TrailingMarkerBehavior::Conditional { has_prior_content } => {
+            let has_more = remaining_parts.iter().any(|p| {
+                !matches!(
+                    p,
+                    OutputPart::Html(s) | OutputPart::HtmlWithExclusions { html: s, .. }
+                    if s.trim().is_empty()
+                )
+            });
+            if has_prior_content || has_more {
+                items.push(TemplateItem::Expression(JsExpr::Literal(
+                    JsLiteral::String("<!---->".into()),
+                )));
+            }
+        }
+    }
+}
+
+/// Check if a Component/ComponentWithBindings part needs marker compensation.
+///
+/// Returns true when the part is a Component or ComponentWithBindings with
+/// `has_prior_content=false` and `in_async_block=false`, meaning the single-part
+/// delegation would NOT have emitted a `<!---->` marker (because `has_more_content`
+/// was false due to empty look-ahead), but it should have if there are more parts.
+fn needs_component_marker_compensation(part: &OutputPart) -> bool {
+    match part {
+        OutputPart::Component {
+            has_prior_content,
+            in_async_block,
+            ..
+        } => !has_prior_content && !in_async_block,
+        OutputPart::ComponentWithBindings {
+            has_prior_content, ..
+        } => !has_prior_content,
+        _ => false,
+    }
+}
+
+/// Convert a `SelectElement` to `TemplateItem`s.
+///
+/// Generates `$$renderer.select(attrs, ($$renderer) => { ... }, ...)` calls.
+fn convert_select_element(
+    attrs_obj: &str,
+    body: &[OutputPart],
+    is_rich: bool,
+    css_hash: Option<&str>,
+    items: &mut Vec<TemplateItem>,
+    store_subs: &[(&str, &str)],
+    each_counter: &mut usize,
+) {
+    let mut code = String::new();
+
+    // Generate $$renderer.select() call with multiline formatting when css_hash is present
+    if css_hash.is_some() || is_rich {
+        code.push_str(&format!(
+            "$$renderer.select(\n\t{},\n\t($$renderer) => {{\n",
+            attrs_obj
+        ));
+    } else {
+        code.push_str(&format!(
+            "$$renderer.select({}, ($$renderer) => {{\n",
+            attrs_obj
+        ));
+    }
+
+    // Body
+    let body_code = generate_inner_body_code_direct(body, store_subs, each_counter, 2);
+    code.push_str(&body_code);
+
+    // Close callback with optional css_hash, classes, styles, flags and is_rich arguments
+    if is_rich {
+        if let Some(hash) = css_hash {
+            code.push_str(&format!(
+                "\t}},\n\t'{}',\n\tvoid 0,\n\tvoid 0,\n\tvoid 0,\n\ttrue\n);",
+                hash
+            ));
+        } else {
+            code.push_str("\t},\n\tvoid 0,\n\tvoid 0,\n\tvoid 0,\n\tvoid 0,\n\ttrue\n);");
+        }
+    } else if let Some(hash) = css_hash {
+        code.push_str(&format!("\t}},\n\t'{}'\n);", hash));
+    } else {
+        code.push_str("});");
+    }
+
+    let trimmed = code.trim();
+    if !trimmed.is_empty() {
+        items.push(TemplateItem::Statement(JsStatement::Raw(
+            CompactString::new(trimmed),
+        )));
+    }
+}
+
+/// Convert an `OptionElement` to `TemplateItem`s.
+///
+/// Generates `$$renderer.option(attrs, ...)` calls with various argument formats.
+#[allow(clippy::too_many_arguments)]
+fn convert_option_element(
+    attr_entries: &[String],
+    body: &[OutputPart],
+    is_rich: bool,
+    direct_value: Option<&str>,
+    css_hash: Option<&str>,
+    dev_location: Option<(usize, usize)>,
+    items: &mut Vec<TemplateItem>,
+    store_subs: &[(&str, &str)],
+    each_counter: &mut usize,
+) {
+    let mut code = String::new();
+
+    let attrs_str = attr_entries.join(", ");
+    let attrs_obj = if attrs_str.is_empty() {
+        "{}".to_string()
+    } else {
+        format!("{{ {} }}", attrs_str)
+    };
+
+    // Helper: dev mode push_element string
+    let dev_push = if let Some((line, col)) = dev_location {
+        format!("$.push_element($$renderer, 'option', {}, {});\n", line, col)
+    } else {
+        String::new()
+    };
+
+    if let Some(value_expr) = direct_value {
+        // Direct value (from synthetic_value_node)
+        code.push_str(&format!(
+            "$$renderer.option({}, {});",
+            attrs_obj, value_expr
+        ));
+    } else if is_rich {
+        // is_rich: 7 arguments with multiline formatting
+        code.push_str(&format!(
+            "$$renderer.option(\n\t{},\n\t($$renderer) => {{\n",
+            attrs_obj
+        ));
+
+        if !dev_push.is_empty() {
+            code.push_str(&format!("\t\t{}", dev_push));
+        }
+
+        let body_code = generate_inner_body_code_direct(body, store_subs, each_counter, 2);
+        code.push_str(&body_code);
+
+        if !dev_push.is_empty() {
+            code.push_str("\t\t$.pop_element();\n");
+        }
+
+        code.push_str("\t},\n\tvoid 0,\n\tvoid 0,\n\tvoid 0,\n\tvoid 0,\n\ttrue\n);");
+    } else if let Some(hash) = css_hash {
+        // Has CSS hash
+        code.push_str(&format!(
+            "$$renderer.option(\n\t{},\n\t($$renderer) => {{\n",
+            attrs_obj
+        ));
+
+        if !dev_push.is_empty() {
+            code.push_str(&format!("\t\t{}", dev_push));
+        }
+
+        let body_code = generate_inner_body_code_direct(body, store_subs, each_counter, 2);
+        code.push_str(&body_code);
+
+        if !dev_push.is_empty() {
+            code.push_str("\t\t$.pop_element();\n");
+        }
+
+        code.push_str(&format!("\t}},\n\t'{}'\n);", hash));
+    } else {
+        // Simple case
+        code.push_str(&format!(
+            "$$renderer.option({}, ($$renderer) => {{\n",
+            attrs_obj
+        ));
+
+        if !dev_push.is_empty() {
+            code.push_str(&format!("\t{}", dev_push));
+        }
+
+        let body_code = generate_inner_body_code_direct(body, store_subs, each_counter, 1);
+        code.push_str(&body_code);
+
+        if !dev_push.is_empty() {
+            code.push_str("\t$.pop_element();\n");
+        }
+
+        code.push_str("});");
+    }
+
+    let trimmed = code.trim();
+    if !trimmed.is_empty() {
+        items.push(TemplateItem::Statement(JsStatement::Raw(
+            CompactString::new(trimmed),
+        )));
+    }
+}
+
 /// Delegate a single OutputPart to `build_parts_with_store_subs` and push
 /// the result as `TemplateItem`s.
 ///
-/// Used for complex parts (Component, AwaitBlock, SvelteBoundary, etc.) that
-/// need the full code generation logic from `build_parts_with_store_subs`.
-/// Each part is processed individually so that block markers and expressions
-/// around it can be properly coalesced by `build_template()`.
+/// Used as a safety net for async variants that should normally go through the
+/// coalescing group path. If they reach convert_part_to_item, this fallback
+/// ensures correct output.
 ///
 /// If the delegated code ends with a simple `$$renderer.push(\`...\`);` or
 /// `$$renderer.push('...');` call, the trailing push content is extracted and
 /// emitted as a `TemplateItem::Expression` so it can coalesce with subsequent
 /// expression items in `build_template()`.
-///
-/// For Component/ComponentWithBindings parts, the `has_more_content` look-ahead
-/// is compensated: when `has_prior_content` is false and the single-part delegation
-/// would have omitted the `<!---->` marker, we check `remaining_parts` and add it.
 fn delegate_single_part(
     part: &OutputPart,
-    remaining_parts: &[OutputPart],
+    _remaining_parts: &[OutputPart],
     items: &mut Vec<TemplateItem>,
     each_counter: &mut usize,
     store_subs: &[(&str, &str)],
@@ -692,49 +1017,6 @@ fn delegate_single_part(
         items.push(TemplateItem::Statement(JsStatement::Raw(
             CompactString::new(trimmed),
         )));
-    }
-
-    // Compensate for the lost `has_more_content` look-ahead in Component parts.
-    //
-    // When build_parts_with_store_subs processes a Component inside a full parts
-    // slice, it checks `has_more_content = parts[i+1..].any(...)`. When delegated
-    // alone, this look-ahead is empty, so the `<!---->` marker may be missing.
-    //
-    // Detect when a Component with `has_prior_content=false` (and not `in_async_block`)
-    // was delegated without producing a marker, and add one if remaining_parts has content.
-    if needs_component_marker_compensation(part) {
-        let has_more = remaining_parts.iter().any(|p| {
-            !matches!(
-                p,
-                OutputPart::Html(s) | OutputPart::HtmlWithExclusions { html: s, .. }
-                if s.trim().is_empty()
-            )
-        });
-        if has_more {
-            items.push(TemplateItem::Expression(JsExpr::Literal(
-                JsLiteral::String("<!---->".into()),
-            )));
-        }
-    }
-}
-
-/// Check if a Component/ComponentWithBindings part needs marker compensation.
-///
-/// Returns true when the part is a Component or ComponentWithBindings with
-/// `has_prior_content=false` and `in_async_block=false`, meaning the single-part
-/// delegation would NOT have emitted a `<!---->` marker (because `has_more_content`
-/// was false due to empty look-ahead), but it should have if there are more parts.
-fn needs_component_marker_compensation(part: &OutputPart) -> bool {
-    match part {
-        OutputPart::Component {
-            has_prior_content,
-            in_async_block,
-            ..
-        } => !has_prior_content && !in_async_block,
-        OutputPart::ComponentWithBindings {
-            has_prior_content, ..
-        } => !has_prior_content,
-        _ => false,
     }
 }
 
