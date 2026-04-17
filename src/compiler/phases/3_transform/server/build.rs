@@ -76,6 +76,12 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
         let result = Codegen::new().with_options(options).build(&parsed.program);
         let mut code = result.code.trim_end().to_string();
 
+        // Restore double-quoted strings that OXC normalized to single quotes.
+        // The official Svelte compiler (via esrap) preserves original quote style.
+        code = crate::compiler::phases::phase3_transform::client::restore_original_quotes(
+            &stripped, &code,
+        );
+
         // Restore `;;` markers
         if has_double_semi {
             // OXC may split the two void statements across lines:

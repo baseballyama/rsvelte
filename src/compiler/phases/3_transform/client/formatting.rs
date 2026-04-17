@@ -1552,7 +1552,7 @@ pub(super) fn remove_blank_lines_before_closing_braces(code: &str) -> String {
 /// This function finds double-quoted strings in the original code and restores
 /// them in the OXC output to match the official Svelte compiler behavior (esrap),
 /// which preserves original quote style.
-fn restore_original_quotes(original: &str, oxc_output: &str) -> String {
+pub(crate) fn restore_original_quotes(original: &str, oxc_output: &str) -> String {
     // Collect all double-quoted string contents from the original code.
     let mut double_quoted_contents: std::collections::HashSet<String> =
         std::collections::HashSet::new();
