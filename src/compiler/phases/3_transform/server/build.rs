@@ -6727,7 +6727,6 @@ impl<'a> ServerCodeGenerator<'a> {
     /// `build_parts_with_store_subs`. It produces the raw component call code
     /// (at indent_level=0) plus metadata about leading/trailing markers.
     #[allow(clippy::too_many_arguments)]
-    #[allow(dead_code)]
     pub(crate) fn generate_component_call_code(
         name: &str,
         props_and_spreads: &[ComponentPropItem],
@@ -6781,8 +6780,12 @@ impl<'a> ServerCodeGenerator<'a> {
                     if component_dev {
                         code.push_str("\t\t$.validate_snippet_args($$renderer);\n");
                     }
-                    let snippet_body =
-                        Self::build_parts_with_store_subs(body_parts, 2, each_counter, store_subs);
+                    let snippet_body = super::bridge::generate_inner_body_code_direct(
+                        body_parts,
+                        store_subs,
+                        each_counter,
+                        2,
+                    );
                     code.push_str(&snippet_body);
                     code.push_str("\t}\n\n");
                 }
@@ -6797,11 +6800,11 @@ impl<'a> ServerCodeGenerator<'a> {
                     if let Some((_, params, body_parts, _)) =
                         slot_children.iter().find(|(n, _, _, _)| n == slot_name)
                     {
-                        let fn_body = Self::build_parts_with_store_subs(
+                        let fn_body = super::bridge::generate_inner_body_code_direct(
                             body_parts,
-                            0,
-                            each_counter,
                             store_subs,
+                            each_counter,
+                            0,
                         );
                         let fn_body_trimmed = fn_body.trim();
                         if params.is_empty() {
@@ -6822,11 +6825,11 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 if let Some(children_parts) = children {
                     slots_entries.push("default: true".to_string());
-                    let children_body = Self::build_parts_with_store_subs(
+                    let children_body = super::bridge::generate_inner_body_code_direct(
                         children_parts,
-                        2,
-                        each_counter,
                         store_subs,
+                        each_counter,
+                        2,
                     );
                     all_props.push(format!(
                         "children: ($$renderer) => {{\n{}\t}}",
@@ -6859,8 +6862,12 @@ impl<'a> ServerCodeGenerator<'a> {
                 code.push_str("\t$$slots: {\n");
                 for (slot_name, params, body_parts, _) in &slot_children {
                     let quoted_name = quote_prop_name(slot_name);
-                    let fn_body =
-                        Self::build_parts_with_store_subs(body_parts, 3, each_counter, store_subs);
+                    let fn_body = super::bridge::generate_inner_body_code_direct(
+                        body_parts,
+                        store_subs,
+                        each_counter,
+                        3,
+                    );
                     if params.is_empty() {
                         code.push_str(&format!(
                             "\t\t{}: ($$renderer) => {{\n{}",
@@ -6917,21 +6924,21 @@ impl<'a> ServerCodeGenerator<'a> {
                             "\t\t\tdefault: ($$renderer, {}) => {{\n",
                             params_str
                         ));
-                        let children_code = Self::build_parts_with_store_subs(
+                        let children_code = super::bridge::generate_inner_body_code_direct(
                             children_parts,
-                            4,
-                            each_counter,
                             store_subs,
+                            each_counter,
+                            4,
                         );
                         code.push_str(&children_code);
                         code.push_str("\t\t\t},\n");
                         for (slot_name, params, body_parts, _) in &slot_children {
                             let quoted_name = quote_prop_name(slot_name);
-                            let fn_body = Self::build_parts_with_store_subs(
+                            let fn_body = super::bridge::generate_inner_body_code_direct(
                                 body_parts,
-                                4,
-                                each_counter,
                                 store_subs,
+                                each_counter,
+                                4,
                             );
                             if params.is_empty() {
                                 code.push_str(&format!(
@@ -6956,11 +6963,11 @@ impl<'a> ServerCodeGenerator<'a> {
                         } else {
                             code.push_str("\t\tchildren: ($$renderer) => {\n");
                         }
-                        let children_code = Self::build_parts_with_store_subs(
+                        let children_code = super::bridge::generate_inner_body_code_direct(
                             children_parts,
-                            3,
-                            each_counter,
                             store_subs,
+                            each_counter,
+                            3,
                         );
                         code.push_str(&children_code);
                         if component_dev {
@@ -6973,11 +6980,11 @@ impl<'a> ServerCodeGenerator<'a> {
                             code.push_str("\t\t\tdefault: true,\n");
                             for (slot_name, params, body_parts, _) in &slot_children {
                                 let quoted_name = quote_prop_name(slot_name);
-                                let fn_body = Self::build_parts_with_store_subs(
+                                let fn_body = super::bridge::generate_inner_body_code_direct(
                                     body_parts,
-                                    4,
-                                    each_counter,
                                     store_subs,
+                                    each_counter,
+                                    4,
                                 );
                                 if params.is_empty() {
                                     code.push_str(&format!(
@@ -7017,21 +7024,21 @@ impl<'a> ServerCodeGenerator<'a> {
                             "\t\tdefault: ($$renderer, {}) => {{\n",
                             params_str
                         ));
-                        let children_code = Self::build_parts_with_store_subs(
+                        let children_code = super::bridge::generate_inner_body_code_direct(
                             children_parts,
-                            3,
-                            each_counter,
                             store_subs,
+                            each_counter,
+                            3,
                         );
                         code.push_str(&children_code);
                         code.push_str("\t\t},\n");
                         for (slot_name, params, body_parts, _) in &slot_children {
                             let quoted_name = quote_prop_name(slot_name);
-                            let fn_body = Self::build_parts_with_store_subs(
+                            let fn_body = super::bridge::generate_inner_body_code_direct(
                                 body_parts,
-                                3,
-                                each_counter,
                                 store_subs,
+                                each_counter,
+                                3,
                             );
                             if params.is_empty() {
                                 code.push_str(&format!(
@@ -7050,11 +7057,11 @@ impl<'a> ServerCodeGenerator<'a> {
                         code.push_str("\t}\n");
                     } else if children_already_in_props {
                         code.push_str("\t$$slots: {\n");
-                        let children_code = Self::build_parts_with_store_subs(
+                        let children_code = super::bridge::generate_inner_body_code_direct(
                             children_parts,
-                            3,
-                            each_counter,
                             store_subs,
+                            each_counter,
+                            3,
                         );
                         code.push_str(&format!(
                             "\t\tdefault: ($$renderer) => {{\n{}",
@@ -7064,11 +7071,11 @@ impl<'a> ServerCodeGenerator<'a> {
                         for (slot_name, params, body_parts, _) in &slot_children {
                             code.push_str(",\n");
                             let quoted_name = quote_prop_name(slot_name);
-                            let fn_body = Self::build_parts_with_store_subs(
+                            let fn_body = super::bridge::generate_inner_body_code_direct(
                                 body_parts,
-                                3,
-                                each_counter,
                                 store_subs,
+                                each_counter,
+                                3,
                             );
                             if params.is_empty() {
                                 code.push_str(&format!(
@@ -7094,11 +7101,11 @@ impl<'a> ServerCodeGenerator<'a> {
                         } else {
                             code.push_str("\tchildren: ($$renderer) => {\n");
                         }
-                        let children_code = Self::build_parts_with_store_subs(
+                        let children_code = super::bridge::generate_inner_body_code_direct(
                             children_parts,
-                            2,
-                            each_counter,
                             store_subs,
+                            each_counter,
+                            2,
                         );
                         code.push_str(&children_code);
                         if component_dev {
@@ -7111,11 +7118,11 @@ impl<'a> ServerCodeGenerator<'a> {
                             code.push_str("\t\tdefault: true,\n");
                             for (slot_name, params, body_parts, _) in &slot_children {
                                 let quoted_name = quote_prop_name(slot_name);
-                                let fn_body = Self::build_parts_with_store_subs(
+                                let fn_body = super::bridge::generate_inner_body_code_direct(
                                     body_parts,
-                                    3,
-                                    each_counter,
                                     store_subs,
+                                    each_counter,
+                                    3,
                                 );
                                 if params.is_empty() {
                                     code.push_str(&format!(
@@ -7352,7 +7359,6 @@ impl<'a> ServerCodeGenerator<'a> {
 
     /// Generate the JavaScript code for a ComponentWithBindings call.
     #[allow(clippy::too_many_arguments)]
-    #[allow(dead_code)]
     pub(crate) fn generate_component_with_bindings_call_code(
         name: &str,
         props_and_spreads: &[ComponentPropItem],
@@ -7428,8 +7434,12 @@ impl<'a> ServerCodeGenerator<'a> {
                         format!("$$renderer, {}", params.join(", "))
                     };
                     code.push_str(&format!("\tfunction {}({}) {{\n", snippet_name, params_str));
-                    let snippet_body =
-                        Self::build_parts_with_store_subs(body_parts, 2, each_counter, store_subs);
+                    let snippet_body = super::bridge::generate_inner_body_code_direct(
+                        body_parts,
+                        store_subs,
+                        each_counter,
+                        2,
+                    );
                     code.push_str(&snippet_body);
                     code.push_str("\t}\n\n");
                 }
@@ -7467,8 +7477,12 @@ impl<'a> ServerCodeGenerator<'a> {
                 code.push_str(&format!("{}\t{},\n", inner_indent, snippet_name));
             }
             if let Some(children_parts) = children {
-                let children_code =
-                    Self::build_parts_with_store_subs(children_parts, 2, each_counter, store_subs);
+                let children_code = super::bridge::generate_inner_body_code_direct(
+                    children_parts,
+                    store_subs,
+                    each_counter,
+                    2,
+                );
                 if component_dev {
                     code.push_str(&format!(
                         "{}\tchildren: $.prevent_snippet_stringification(($$renderer) => {{\n",
@@ -7492,11 +7506,11 @@ impl<'a> ServerCodeGenerator<'a> {
                         .iter()
                         .find(|(n, _, _, _)| n == slot_name)
                     {
-                        let fn_body = Self::build_parts_with_store_subs(
+                        let fn_body = super::bridge::generate_inner_body_code_direct(
                             body_parts,
-                            0,
-                            each_counter,
                             store_subs,
+                            each_counter,
+                            0,
                         );
                         let fn_body_trimmed = fn_body.trim();
                         if params.is_empty() {

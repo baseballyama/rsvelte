@@ -1966,7 +1966,7 @@ fn convert_svelte_element(
 ///
 /// This ensures correct absolute indentation for all part types, including
 /// Component and ComponentWithBindings which need proper indent tracking.
-fn generate_inner_body_code_direct(
+pub(crate) fn generate_inner_body_code_direct(
     body: &[OutputPart],
     store_subs: &[(&str, &str)],
     each_counter: &mut usize,
