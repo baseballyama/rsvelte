@@ -16,17 +16,6 @@ fn is_non_coercive_operator(operator: &str) -> bool {
     matches!(operator, "=" | "||=" | "&&=" | "??=")
 }
 
-/// Get the appropriate $.assign* function name for an operator.
-fn get_assign_callee(operator: &str) -> &'static str {
-    match operator {
-        "=" => "$.assign",
-        "&&=" => "$.assign_and",
-        "||=" => "$.assign_or",
-        "??=" => "$.assign_nullish",
-        _ => "$.assign",
-    }
-}
-
 /// Visit an assignment expression.
 ///
 /// This visitor handles assignment expressions with special transformations for:
@@ -195,46 +184,17 @@ fn build_assignment(
         return Some(mutate_fn(&context.arena, mutate_target, mutation_expr));
     }
 
-    // Case 5: Proxified assignments in dev mode
-    let should_transform = context.state.dev
-        // TODO: Check if parent is not ExpressionStatement
-        // && parent_type != "ExpressionStatement"
-        && is_non_coercive_operator(operator);
-
-    if should_transform && let JsExpr::Member(member) = left {
-        let callee = get_assign_callee(operator);
-
-        // Get the property expression
-        let property_expr = match &member.property {
-            JsMemberProperty::Identifier(name) => b::string(name.clone()),
-            JsMemberProperty::PrivateIdentifier(name) => b::string(name.clone()),
-            JsMemberProperty::Expression(expr) => context.arena.get_expr(*expr).clone(),
-        };
-
-        // TODO: Visit the right side
-        // let visited_right = visit(right);
-
-        let loc = locate_node(&JsAssignmentExpression {
-            operator: JsAssignmentOp::Assign,
-            left: context.arena.alloc_expr(left.clone()),
-            right: context.arena.alloc_expr(right.clone()),
-        });
-
-        // For now, just return a placeholder
-        // return Some(b::call(&context.arena,
-        //     b::member_path(&context.arena, callee),
-        //     vec![
-        //         (*member.object).clone(),
-        //         property_expr,
-        //         right.clone(), // Should be visited_right
-        //         b::string(&loc),
-        //     ],
-        // ));
-
-        let _ = (callee, property_expr, loc); // Suppress warnings
-    }
-
-    // No transformation needed
+    // Case 5: Proxified assignments in dev mode.
+    //
+    // The official compiler emits `$.assign(object, prop, value, loc)` for
+    // member assignments in dev mode (so the runtime can attach the offending
+    // source location to a TypeError when assigning to a frozen proxy). The
+    // emit path here is intentionally not implemented yet — it requires
+    // visiting the RHS first, and the parent-statement check that the
+    // official compiler relies on is not yet wired through. Keeping a stub
+    // that constructs values and discards them only added churn without
+    // emitting code, so this case is now an explicit no-op until the
+    // surrounding infrastructure lands.
     None
 }
 
