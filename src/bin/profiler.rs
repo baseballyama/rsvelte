@@ -171,13 +171,25 @@ fn parse_args() -> Config {
             "--iterations" => {
                 i += 1;
                 if i < args.len() {
-                    config.iterations = args[i].parse().unwrap_or(10);
+                    match args[i].parse() {
+                        Ok(n) => config.iterations = n,
+                        Err(_) => eprintln!(
+                            "warning: invalid --iterations value '{}', using default {}",
+                            args[i], config.iterations
+                        ),
+                    }
                 }
             }
             "--warmup" => {
                 i += 1;
                 if i < args.len() {
-                    config.warmup = args[i].parse().unwrap_or(3);
+                    match args[i].parse() {
+                        Ok(n) => config.warmup = n,
+                        Err(_) => eprintln!(
+                            "warning: invalid --warmup value '{}', using default {}",
+                            args[i], config.warmup
+                        ),
+                    }
                 }
             }
             "--phase" => {
