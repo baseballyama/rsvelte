@@ -272,10 +272,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     continue;
                 }
                 b'(' | b'[' | b'{' => depth += 1,
-                b')' | b']' | b'}' => {
-                    if depth > 0 {
-                        depth -= 1;
-                    }
+                b')' | b']' | b'}' if depth > 0 => {
+                    depth -= 1;
                 }
                 b',' if depth == 0 => {
                     props.push(&inner[start..i]);
@@ -2714,9 +2712,23 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
 
                     let blockers_str = blockers.join(", ");
+
+                    // Transform the expression with $.save() if it contains await,
+                    // and prepend `async` keyword to the inner arrow when applicable —
+                    // mirrors AsyncWrappedExpression handling above.
+                    let transformed_expr = if super::helpers::expr_contains_await(expr) {
+                        super::helpers::transform_await_to_save(expr)
+                    } else {
+                        expr.clone()
+                    };
+                    let async_kw = if super::helpers::expr_contains_await(&transformed_expr) {
+                        "async "
+                    } else {
+                        ""
+                    };
                     body_code.push_str(&format!(
-                        "{}$$renderer.async([{}], ($$renderer) => $$renderer.push(() => $.escape({})));\n",
-                        indent, blockers_str, expr
+                        "{}$$renderer.async([{}], ($$renderer) => $$renderer.push({}() => $.escape({})));\n",
+                        indent, blockers_str, async_kw, transformed_expr
                     ));
                 }
                 OutputPart::AsyncWrappedHtml {

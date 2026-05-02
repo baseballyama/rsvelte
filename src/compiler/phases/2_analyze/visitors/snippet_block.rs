@@ -301,14 +301,14 @@ fn expression_only_uses_params_node(
                             return false;
                         }
                     }
-                    JsNode::SpreadElement { argument, .. } => {
+                    JsNode::SpreadElement { argument, .. }
                         if !expression_only_uses_params_node(
                             arena.get_js_node(*argument),
                             param_names,
                             context,
-                        ) {
-                            return false;
-                        }
+                        ) =>
+                    {
+                        return false;
                     }
                     JsNode::Raw(v) => {
                         // Fallback for Raw property nodes
@@ -470,14 +470,14 @@ fn check_pattern_defaults_hoistable_node(
         JsNode::ObjectPattern { properties, .. } => {
             for prop in arena.get_js_children(*properties) {
                 match prop {
-                    JsNode::Property { value, .. } => {
+                    JsNode::Property { value, .. }
                         if !check_pattern_defaults_hoistable_node(
                             arena.get_js_node(*value),
                             param_names,
                             context,
-                        ) {
-                            return false;
-                        }
+                        ) =>
+                    {
+                        return false;
                     }
                     JsNode::Raw(v) => {
                         if let Some(prop_obj) = v.as_object()
@@ -526,19 +526,19 @@ fn check_params_hoistable(
     for param in params {
         match param {
             Expression::Typed(te) => match &te.node {
-                JsNode::AssignmentPattern { right, .. } => {
+                JsNode::AssignmentPattern { right, .. }
                     if !expression_only_uses_params_node(
                         arena.get_js_node(*right),
                         param_names,
                         context,
-                    ) {
-                        return false;
-                    }
+                    ) =>
+                {
+                    return false;
                 }
-                JsNode::ObjectPattern { .. } | JsNode::ArrayPattern { .. } => {
-                    if !check_pattern_defaults_hoistable_node(&te.node, param_names, context) {
-                        return false;
-                    }
+                JsNode::ObjectPattern { .. } | JsNode::ArrayPattern { .. }
+                    if !check_pattern_defaults_hoistable_node(&te.node, param_names, context) =>
+                {
+                    return false;
                 }
                 JsNode::Raw(v) => {
                     // Fallback for Raw nodes
@@ -593,17 +593,17 @@ fn check_hoistable(
             TemplateNode::Text(_) | TemplateNode::Comment(_) => {}
 
             // Expression tags - check if they only reference parameters
-            TemplateNode::ExpressionTag(tag) => {
-                if !expr_only_uses_params(&tag.expression, param_names, context) {
-                    return false;
-                }
+            TemplateNode::ExpressionTag(tag)
+                if !expr_only_uses_params(&tag.expression, param_names, context) =>
+            {
+                return false;
             }
 
             // HtmlTag - check its expression
-            TemplateNode::HtmlTag(html_tag) => {
-                if !expr_only_uses_params(&html_tag.expression, param_names, context) {
-                    return false;
-                }
+            TemplateNode::HtmlTag(html_tag)
+                if !expr_only_uses_params(&html_tag.expression, param_names, context) =>
+            {
+                return false;
             }
 
             // Dynamic components and SvelteSelf prevent hoisting
@@ -722,10 +722,10 @@ fn check_hoistable(
             }
 
             // RenderTag - check the expression
-            TemplateNode::RenderTag(tag) => {
-                if !expr_only_uses_params(&tag.expression, param_names, context) {
-                    return false;
-                }
+            TemplateNode::RenderTag(tag)
+                if !expr_only_uses_params(&tag.expression, param_names, context) =>
+            {
+                return false;
             }
 
             // Nested snippet - has its own scope, don't check internals

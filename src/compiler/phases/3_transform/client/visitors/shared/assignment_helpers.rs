@@ -146,12 +146,11 @@ pub fn should_proxy(expr: &Expression, _scope: &Scope) -> Option<bool> {
     // Primitives don't need proxy
     match node_type {
         "Literal" => return Some(false),
-        "TemplateLiteral" => {
+        "TemplateLiteral"
             // Static templates don't need proxy
-            if expr.expressions().is_empty() {
+            if expr.expressions().is_empty() => {
                 return Some(false);
             }
-        }
         "ArrowFunctionExpression" | "FunctionExpression" => return Some(false),
         _ => {}
     }

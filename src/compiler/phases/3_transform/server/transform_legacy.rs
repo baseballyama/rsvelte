@@ -652,10 +652,8 @@ fn split_conditional_expression(s: &str) -> Option<(&str, &str, &str)> {
         match c {
             '(' | '[' | '{' => depth += 1,
             ')' | ']' | '}' => depth -= 1,
-            '?' if depth == 0 && chars.get(i + 1) != Some(&'?') => {
-                if question_pos.is_none() {
-                    question_pos = Some(i);
-                }
+            '?' if depth == 0 && chars.get(i + 1) != Some(&'?') && question_pos.is_none() => {
+                question_pos = Some(i);
             }
             ':' if depth == 0 && question_pos.is_some() => {
                 let q = question_pos.unwrap();

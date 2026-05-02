@@ -37,17 +37,15 @@ impl<'a> ServerCodeGenerator<'a> {
                     let value = self.extract_attribute_value_as_string(node)?;
                     attrs.push((attr_name.to_string(), value));
                 }
-                Attribute::BindDirective(bind) => {
-                    if bind.name.as_str() == "value" {
-                        // Extract the bound variable expression, keeping it in order
-                        let expr_start = bind.expression.start().unwrap_or(0) as usize;
-                        let expr_end = bind.expression.end().unwrap_or(0) as usize;
-                        if expr_end > expr_start && expr_end <= self.source.len() {
-                            let raw_expr = self.source[expr_start..expr_end].trim().to_string();
-                            let value = self.transform_store_refs(&raw_expr);
-                            attrs.push(("value".to_string(), value));
-                            has_value = true;
-                        }
+                Attribute::BindDirective(bind) if bind.name.as_str() == "value" => {
+                    // Extract the bound variable expression, keeping it in order
+                    let expr_start = bind.expression.start().unwrap_or(0) as usize;
+                    let expr_end = bind.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let raw_expr = self.source[expr_start..expr_end].trim().to_string();
+                        let value = self.transform_store_refs(&raw_expr);
+                        attrs.push(("value".to_string(), value));
+                        has_value = true;
                     }
                 }
                 Attribute::SpreadAttribute(spread) => {
@@ -699,15 +697,13 @@ impl<'a> ServerCodeGenerator<'a> {
                         return true;
                     }
                 }
-                TemplateNode::EachBlock(each) => {
-                    if Self::is_rich_option_content(&each.body.nodes) {
-                        return true;
-                    }
+                TemplateNode::EachBlock(each) if Self::is_rich_option_content(&each.body.nodes) => {
+                    return true;
                 }
-                TemplateNode::KeyBlock(key) => {
-                    if Self::is_rich_option_content(&key.fragment.nodes) {
-                        return true;
-                    }
+                TemplateNode::KeyBlock(key)
+                    if Self::is_rich_option_content(&key.fragment.nodes) =>
+                {
+                    return true;
                 }
                 TemplateNode::AwaitBlock(await_block) => {
                     if let Some(pending) = &await_block.pending
@@ -726,10 +722,10 @@ impl<'a> ServerCodeGenerator<'a> {
                         return true;
                     }
                 }
-                TemplateNode::SvelteBoundary(boundary) => {
-                    if Self::is_rich_option_content(&boundary.fragment.nodes) {
-                        return true;
-                    }
+                TemplateNode::SvelteBoundary(boundary)
+                    if Self::is_rich_option_content(&boundary.fragment.nodes) =>
+                {
+                    return true;
                 }
                 // Text and expression tags are not rich content
                 TemplateNode::Text(_) => {}
@@ -745,15 +741,15 @@ impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn output_parts_contain_await(parts: &[OutputPart]) -> bool {
         for part in parts {
             match part {
-                OutputPart::Html(html) | OutputPart::HtmlWithExclusions { html, .. } => {
-                    if super::super::helpers::expr_contains_await(html) {
-                        return true;
-                    }
+                OutputPart::Html(html) | OutputPart::HtmlWithExclusions { html, .. }
+                    if super::super::helpers::expr_contains_await(html) =>
+                {
+                    return true;
                 }
-                OutputPart::Expression(expr) => {
-                    if super::super::helpers::expr_contains_await(expr) {
-                        return true;
-                    }
+                OutputPart::Expression(expr)
+                    if super::super::helpers::expr_contains_await(expr) =>
+                {
+                    return true;
                 }
                 OutputPart::AsyncExpression { .. } => return true,
                 OutputPart::OptionElement {

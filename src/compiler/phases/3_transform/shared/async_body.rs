@@ -2227,10 +2227,8 @@ fn extract_var_decl_name(s: &str) -> Option<String> {
         r
     } else if let Some(r) = s.strip_prefix("const ") {
         r
-    } else if let Some(r) = s.strip_prefix("var ") {
-        r
     } else {
-        return None;
+        s.strip_prefix("var ")?
     };
     let rest = rest.trim();
     let mut i = 0;

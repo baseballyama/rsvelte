@@ -799,10 +799,10 @@ fn can_hoist_snippet(node: &SnippetBlock) -> bool {
         for node in nodes {
             match node {
                 // Expression tags are OK if they only reference parameters
-                TemplateNode::ExpressionTag(tag) => {
-                    if !expression_only_uses_params(&tag.expression, param_names) {
-                        return false;
-                    }
+                TemplateNode::ExpressionTag(tag)
+                    if !expression_only_uses_params(&tag.expression, param_names) =>
+                {
+                    return false;
                 }
 
                 // These prevent hoisting regardless
@@ -817,10 +817,10 @@ fn can_hoist_snippet(node: &SnippetBlock) -> bool {
                 | TemplateNode::SvelteSelf(_) => return false,
 
                 // RenderTag - check the expression
-                TemplateNode::RenderTag(tag) => {
-                    if !expression_only_uses_params(&tag.expression, param_names) {
-                        return false;
-                    }
+                TemplateNode::RenderTag(tag)
+                    if !expression_only_uses_params(&tag.expression, param_names) =>
+                {
+                    return false;
                 }
 
                 // Nested snippet - recursively check
@@ -843,18 +843,21 @@ fn can_hoist_snippet(node: &SnippetBlock) -> bool {
                                                 }
                                     }
                                 }
-                                crate::ast::template::AttributeValue::Expression(tag) => {
-                                    if !expression_only_uses_params(&tag.expression, param_names) {
-                                        return false;
-                                    }
+                                crate::ast::template::AttributeValue::Expression(tag)
+                                    if !expression_only_uses_params(
+                                        &tag.expression,
+                                        param_names,
+                                    ) =>
+                                {
+                                    return false;
                                 }
                                 _ => {}
                             },
                             // Directives might reference state
-                            crate::ast::template::Attribute::BindDirective(bind) => {
-                                if !expression_only_uses_params(&bind.expression, param_names) {
-                                    return false;
-                                }
+                            crate::ast::template::Attribute::BindDirective(bind)
+                                if !expression_only_uses_params(&bind.expression, param_names) =>
+                            {
+                                return false;
                             }
                             crate::ast::template::Attribute::OnDirective(on) => {
                                 if let Some(ref expr) = on.expression

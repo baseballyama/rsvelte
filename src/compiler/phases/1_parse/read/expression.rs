@@ -6701,14 +6701,12 @@ fn convert_statement_for_program(
             // `declare module`, `declare global`, `declare namespace` etc. are
             // type-only and must be stripped.
             if module_decl.declare {
+                let start = offset + module_decl.span.start as usize;
+                let end = offset + module_decl.span.end as usize;
                 return Some(JsNode::EmptyStatement {
-                    start: module_decl.span.start,
-                    end: module_decl.span.end,
-                    loc: create_typed_loc(
-                        module_decl.span.start as usize,
-                        module_decl.span.end as usize,
-                        line_offsets,
-                    ),
+                    start: start as u32,
+                    end: end as u32,
+                    loc: create_typed_loc(start, end, line_offsets),
                 });
             }
             let start = offset + module_decl.span.start as usize;
@@ -7118,7 +7116,7 @@ fn convert_variable_declaration_as_node(
         oxc_ast::ast::VariableDeclarationKind::Let => "let",
         oxc_ast::ast::VariableDeclarationKind::Const => "const",
         oxc_ast::ast::VariableDeclarationKind::Using => "using",
-        oxc_ast::ast::VariableDeclarationKind::AwaitUsing => "using",
+        oxc_ast::ast::VariableDeclarationKind::AwaitUsing => "await using",
     };
 
     JsNode::VariableDeclaration {

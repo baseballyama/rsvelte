@@ -703,10 +703,8 @@ fn collect_ids_from_expr(
     names: &mut Vec<compact_str::CompactString>,
 ) {
     match expr {
-        JsExpr::Identifier(name) => {
-            if !names.contains(name) {
-                names.push(name.clone());
-            }
+        JsExpr::Identifier(name) if !names.contains(name) => {
+            names.push(name.clone());
         }
         JsExpr::Call(call) => {
             collect_ids_from_expr(arena.get_expr(call.callee), arena, names);
@@ -868,10 +866,8 @@ fn collect_ids_from_expr_props(
     names: &mut Vec<compact_str::CompactString>,
 ) {
     match expr {
-        JsExpr::Identifier(name) => {
-            if !names.contains(name) {
-                names.push(name.clone());
-            }
+        JsExpr::Identifier(name) if !names.contains(name) => {
+            names.push(name.clone());
         }
         JsExpr::Call(call) => {
             collect_ids_from_expr_props(arena.get_expr(call.callee), arena, names);
@@ -1057,10 +1053,8 @@ fn collect_ids_from_expr_deep(
     names: &mut Vec<compact_str::CompactString>,
 ) {
     match expr {
-        JsExpr::Identifier(name) => {
-            if !names.contains(name) {
-                names.push(name.clone());
-            }
+        JsExpr::Identifier(name) if !names.contains(name) => {
+            names.push(name.clone());
         }
         JsExpr::Call(call) => {
             collect_ids_from_expr_deep(arena.get_expr(call.callee), arena, names);
