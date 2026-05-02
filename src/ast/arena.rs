@@ -53,7 +53,7 @@ impl IdRange {
 pub struct ParseArena {
     /// All standalone JsNode instances (referenced by JsNodeId).
     js_nodes: UnsafeCell<Vec<JsNode>>,
-    /// JsNode children for Vec<JsNode> fields (arguments, body, properties, etc.).
+    /// JsNode children for `Vec<JsNode>` fields (arguments, body, properties, etc.).
     /// Referenced by IdRange.
     js_children: UnsafeCell<Vec<JsNode>>,
 }
@@ -122,7 +122,7 @@ impl ParseArena {
         unsafe { (*self.js_children.get()).len() as u32 }
     }
 
-    /// Allocate a JsNode child (for Vec<JsNode> fields like arguments, body).
+    /// Allocate a JsNode child (for `Vec<JsNode>` fields like arguments, body).
     #[inline(always)]
     pub fn alloc_js_child(&self, node: JsNode) {
         unsafe {

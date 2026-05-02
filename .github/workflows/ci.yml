@@ -102,7 +102,11 @@ jobs:
         timeout-minutes: 15
 
       - name: Run tests
-        run: cargo test --all-features
+        # `--all-features` would enable `napi`, which only links cleanly when
+        # loaded from Node.js — `cargo test` would otherwise hit `rust-lld:
+        # error: undefined symbol: napi_*` on Linux. Default features cover
+        # everything we want exercised in CI (native runtime, parallelism).
+        run: cargo test
         timeout-minutes: 30
         env:
           # Some fixtures (notably the compatibility_report harness) walk
