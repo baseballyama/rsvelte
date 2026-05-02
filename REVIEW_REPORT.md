@@ -533,6 +533,8 @@ crate-type = ["cdylib", "lib"]
 
 - `.review-artifacts/pass-a-findings.md` — Pass A 全 7 並列スキャンの集約結果（生データに近い）
 - `.review-artifacts/phase-3-ast-findings.md` — AST 精読レビューの検証済み所見
+- `.review-artifacts/round2-wave1-findings.md` — 2 周目 Wave 1（78 ファイル：root/bin/preprocess/print/etc.）
+- `.review-artifacts/round2-summary.md` — 2 周目 全 270 ファイル網羅レビューの集約レポート（Major ~25 件、Minor 100+ 件）
 
 これらは中間データなので、本レポート（`REVIEW_REPORT.md`）の方が priorities にフォーカスしています。詳細を追いたい場合のみ参照してください。
 
