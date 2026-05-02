@@ -53,10 +53,59 @@
 ### 互換性レポート結果
 
 - 本セッション開始時: **2984/3165 (94.28%)**
-- 本セッション後: **2993/3165 (94.57%)** （+9 件改善 / +0.29%）
+- 中間（コミット e53de2c 時点）: **2993/3165 (94.57%)**
+- **次セッション後: 3023/3165 (95.51%)** （+30 件改善 / +0.94%）
 - regression なし
 
 `spread-attributes-white-space` の SSR 失敗は OXC normalization の whitespace 系で、これは私の修正と無関係（pre-existing）。
+
+## ✅ 次セッションで適用・コミット済み
+
+### コミット 9b561ef: fix(client) — async destructure を await IIFE で包む
+
+`try_destructure_assignment` が常に同期 arrow IIFE を生成していたため、
+`{ a, b } = await foo()` のような async destructure で同期 IIFE になり、
+公式の `await ((async ($$value) => { ... })(rhs))` と異なる出力に。
+
+公式 `visit_assignment_expression` (assignments.js:68-75) と同じく
+`is_expression_async` 相当のチェックを `js_expr_has_await` で実装し、
+`async_arrow_block` + `await_expr` でラップ。
+
+### コミット bd9669b: test(snapshot) — dir-aware filename を渡す
+
+snapshot テストが `filename: "index.svelte"` を hard-code していたため、
+`derive_component_name` が常に `Index` を生成 → fixture と全件不一致。
+
+`<sample-name>/index.svelte` を渡すように変更すると、公式
+`get_component_name` が parent dir を fallback として使い `Hello_world`
+等が生成されて fixture 一致。**snapshot 0/20 → 20/20**。
+
+### コミット 0eacba8: fix(css) — parser の 4 件のバグ修正
+
+CSS パーサに 4 つの独立した不具合があり、9 件の css fixture と 1 件の
+validator fixture が `css_expected_identifier` でコンパイルエラーに。
+
+1. **`\)`/`\(` in `:global(...)`/pseudo-element args**: paren depth 追跡で CSS
+   escape sequence (`\<x>`) を考慮していなかった。
+2. **Percentage selector inside `@keyframes`**: `0%` / `33.3%` を CSS
+   selector として認識する `parse_percentage_selector` を追加（公式
+   `read_selector` の `REGEX_PERCENTAGE` 分岐に相当）。
+3. **String / escape inside declaration value**: `parse_declaration` の
+   value scan が `"`/`'`/`\<x>` を tracking していなかったため、
+   `content: "{};[]";` が `;` で早期終了していた。
+4. **At-rule blocks containing declarations**: `parse_atrule` が常に
+   block children を rule として parse していたため、`@page { margin: 1cm; … }` 系の declaration を含む at-rule が selector parse で失敗。
+   公式 `read_block_item` の look-ahead を真似た `peek_block_item_is_rule`
+   を追加し、`{` より先に `;`/`}` が来る場合は `parse_declaration` に
+   ディスパッチ。
+
+**css 170/179 → 179/179 (100%, +9)** / **validator 323/324 → 324/324 (100%, +1)** / **errors 9 → 0**。
+
+### コミット (このセッションの追加)
+
+| # | 場所 | 内容 |
+|---|------|------|
+| 5 | `expression_converter.rs:2848-2851` | followup の "BinaryExpression `!=` 第3引数" 指摘は誤指摘と確認（公式と完全一致）。タスクをクローズ。 |
 
 ## 🔥 アーキテクチャ規模の改修（別 issue 化推奨）
 
@@ -221,18 +270,17 @@ fixture 一致性に影響している可能性（要 fixture 比較検証）。
    - Phase A3: visitor pattern 統合
 4. **継続的改善**: Minor 指摘を perf 計測結果に基づき優先順位付けて取り込む
 
-## ⚠️ 既存の test 失敗（本 PR と無関係）
+## ⚠️ 残存する test 失敗（次セッション後）
 
-`pnpm run compatibility-report` 実行結果（2026-05-02 時点、本 PR の Critical 4 件適用後）:
+`pnpm run compatibility-report` 実行結果（2026-05-02 時点、本ファイル最終更新時）:
 
-- **Overall: 2984/3165 (94.28%)**
-- runtime-runes: 861/865 (4 件失敗)
-- parser-legacy: 82/83 (1 件)
-- validator: 322/325 (2 件)
-- parser-modern: 21/22 (1 error)
-- snapshot: **0/20**（全件失敗、要調査）
-- server-side-rendering: 81/82（spread-attributes-white-space — whitespace normalization の OXC 関連）
-- css: 163/179 (16 errors、要調査)
+- **Overall: 3023/3165 (95.51%)**
+- runtime-runes: 861/865 (**4 件失敗** — `svelte-component-switch-dev`, `hmr-removal`, `hmr-each-keyed-unshift`, `component-transition-hmr`、いずれも HMR / dev mode 関連)
+- server-side-rendering: 81/82（**1 件失敗** — `spread-attributes-white-space`、OXC normalization の whitespace 系、pre-existing）
+- parser-legacy: 82/83（1 件 skip — `javascript-comments`、OXC vs acorn の comment attachment 差）
+- validator: 324/324（1 件 skip — `error-mode-warn`）
+- snapshot: 20/20 ✅ (前セッションで 0/20 だったもの)
+- css: 179/179 ✅ (前セッションで 163-170/179 だったもの)
+- compiler-errors / hydration / parser-modern / runtime-browser / runtime-legacy: 100%
 
-CLAUDE.md の記載 (3068/3068, 100%) との乖離は別途調査が必要。
-これらは本 PR とは無関係の事前 regression。
+CLAUDE.md の記載 (3068/3068, 100%) との乖離: 137 件 skip (preprocess 19, migrate 76, print 40, sourcemaps 0, parser-legacy 1, validator 1) を分母から除外すれば実質 **3023/3028 (99.83%)**。残り 5 件は HMR + whitespace で、本セッションのスコープ外。
