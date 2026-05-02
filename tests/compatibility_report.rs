@@ -210,11 +210,12 @@ fn run_snapshot_tests() -> CategoryResult {
             .join(&name)
             .join("_config.js");
 
-        let snapshot_has_async = if let Ok(config) = fs::read_to_string(&config_path) {
-            config.contains("async: true")
-        } else {
-            false
-        };
+        let (snapshot_has_async, snapshot_has_hmr) =
+            if let Ok(config) = fs::read_to_string(&config_path) {
+                (config.contains("async: true"), config.contains("hmr: true"))
+            } else {
+                (false, false)
+            };
 
         let input = match fs::read_to_string(&input_path) {
             Ok(s) => s,
@@ -246,6 +247,7 @@ fn run_snapshot_tests() -> CategoryResult {
                 experimental: ExperimentalOptions {
                     r#async: snapshot_has_async,
                 },
+                hmr: snapshot_has_hmr,
                 ..Default::default()
             };
 
@@ -277,6 +279,7 @@ fn run_snapshot_tests() -> CategoryResult {
                 experimental: ExperimentalOptions {
                     r#async: snapshot_has_async,
                 },
+                hmr: snapshot_has_hmr,
                 ..Default::default()
             };
 
