@@ -27,8 +27,11 @@ fn load_fixture(sample_dir: &Path) -> Option<(String, String, String)> {
         return None;
     }
 
-    let input = fs::read_to_string(&input_path).ok()?;
-    let expected_output = fs::read_to_string(&output_path).ok()?;
+    // Normalize CRLF to LF so AST byte offsets line up regardless of how the
+    // submodule was checked out (Windows runners default to autocrlf=true,
+    // which would otherwise shift every span by one byte per line).
+    let input = fs::read_to_string(&input_path).ok()?.replace("\r\n", "\n");
+    let expected_output = fs::read_to_string(&output_path).ok()?.replace("\r\n", "\n");
     let name = sample_dir.file_name()?.to_str()?.to_string();
 
     Some((name, input, expected_output))
