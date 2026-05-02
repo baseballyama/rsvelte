@@ -1980,18 +1980,14 @@ fn deser_alloc_children(nodes: Vec<JsNode>) -> IdRange {
 
 fn convert_child(obj: &serde_json::Map<String, Value>, key: &str) -> JsNodeId {
     match obj.get(key) {
-        Some(Value::Object(_)) => {
-            deser_alloc_node(JsNode::from_value(obj.get(key).unwrap().clone()))
-        }
+        Some(val @ Value::Object(_)) => deser_alloc_node(JsNode::from_value(val.clone())),
         _ => deser_alloc_node(JsNode::Null),
     }
 }
 
 fn convert_optional_child(obj: &serde_json::Map<String, Value>, key: &str) -> Option<JsNodeId> {
     match obj.get(key) {
-        Some(Value::Object(_)) => Some(deser_alloc_node(JsNode::from_value(
-            obj.get(key).unwrap().clone(),
-        ))),
+        Some(val @ Value::Object(_)) => Some(deser_alloc_node(JsNode::from_value(val.clone()))),
         _ => None,
     }
 }
@@ -2060,9 +2056,10 @@ impl JsNode {
                             }
                             Some(Value::Bool(b)) => LiteralValue::Bool(*b),
                             Some(Value::Null) => LiteralValue::Null,
-                            Some(Value::Object(_)) if regex.is_some() => {
-                                LiteralValue::Regex(regex.clone().unwrap())
-                            }
+                            Some(Value::Object(_)) => match &regex {
+                                Some(r) => LiteralValue::Regex(r.clone()),
+                                None => LiteralValue::Null,
+                            },
                             _ => LiteralValue::Null,
                         };
                         JsNode::Literal {
@@ -3715,7 +3712,7 @@ mod tests {
             "end": 3,
             "name": "foo"
         });
-        let node = JsNode::from_value(json.clone());
+        let node = JsNode::from_value(json);
         let back = node.to_value();
         assert_eq!(back["type"], "Identifier");
         assert_eq!(back["name"], "foo");

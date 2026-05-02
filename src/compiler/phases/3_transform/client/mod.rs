@@ -287,6 +287,11 @@ pub(crate) fn extract_imports_str(script: &str) -> (Vec<String>, Option<String>)
 ///
 /// Corresponds to `client_component()` in
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/transform-client.js`
+///
+/// `#[inline(never)]` keeps this large function out of `transform_client`'s
+/// inlined frame: the function is called once per component (not in a hot
+/// loop) and inlining it bloats binary size without any per-component
+/// throughput gain.
 #[inline(never)]
 fn transform_client_with_visitors(
     analysis: &ComponentAnalysis,

@@ -2655,26 +2655,29 @@ pub fn remap_through_sourcemap(mappings: &mut [SourceMapping], preprocessor_map_
 
                     if col_offset >= gen_len && gen_len > 0 {
                         // Position is at or past the end of the replaced text;
-                        // map to end of original name
-                        mapping.orig_line = seg[2] as u32;
-                        mapping.orig_col = (seg[3] + original_name_len) as u32;
-                        mapping.source = seg[1] as u32;
+                        // map to end of original name. Use clamped saturating cast to
+                        // avoid silent overflow if a malformed source map produces a
+                        // negative or out-of-range value.
+                        mapping.orig_line = seg[2].max(0) as u32;
+                        mapping.orig_col =
+                            u32::try_from(seg[3] + original_name_len).unwrap_or(u32::MAX);
+                        mapping.source = seg[1].max(0) as u32;
                         continue;
                     }
 
                     // Position is within the replacement range;
                     // map to the start of the original name and carry the name index
-                    mapping.orig_line = seg[2] as u32;
-                    mapping.orig_col = seg[3] as u32;
-                    mapping.source = seg[1] as u32;
+                    mapping.orig_line = seg[2].max(0) as u32;
+                    mapping.orig_col = u32::try_from(seg[3]).unwrap_or(u32::MAX);
+                    mapping.source = seg[1].max(0) as u32;
                     mapping.name = Some(name_idx as u32);
                     continue;
                 }
             }
 
-            mapping.orig_line = seg[2] as u32;
-            mapping.orig_col = (seg[3] + col_offset) as u32;
-            mapping.source = seg[1] as u32;
+            mapping.orig_line = seg[2].max(0) as u32;
+            mapping.orig_col = u32::try_from(seg[3] + col_offset).unwrap_or(u32::MAX);
+            mapping.source = seg[1].max(0) as u32;
         }
     }
 }
