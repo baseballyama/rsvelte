@@ -451,30 +451,3 @@ fn is_quoted_single_expression(attr: &AttributeNode) -> bool {
         false
     }
 }
-
-/// Check if a component uses two-way binding.
-pub fn has_two_way_binding(component: &Component) -> bool {
-    component
-        .attributes
-        .iter()
-        .any(|attr| matches!(attr, Attribute::BindDirective(_)))
-}
-
-/// Get the names of props passed to a component.
-pub fn get_prop_names(component: &Component) -> Vec<String> {
-    let mut props = Vec::new();
-
-    for attr in &component.attributes {
-        match attr {
-            Attribute::Attribute(a) => {
-                props.push(a.name.to_string());
-            }
-            Attribute::BindDirective(b) => {
-                props.push(b.name.to_string());
-            }
-            _ => {}
-        }
-    }
-
-    props
-}
