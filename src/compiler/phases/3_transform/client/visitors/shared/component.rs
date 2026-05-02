@@ -176,10 +176,8 @@ pub fn build_component(
     // Process each attribute
     for attribute in attributes {
         match attribute {
-            Attribute::LetDirective(let_dir) => {
-                if !slot_scope_applies_to_itself {
-                    process_let_directive(let_dir, context, &mut lets, &mut let_names);
-                }
+            Attribute::LetDirective(let_dir) if !slot_scope_applies_to_itself => {
+                process_let_directive(let_dir, context, &mut lets, &mut let_names);
             }
 
             Attribute::OnDirective(on_dir) => {

@@ -572,9 +572,9 @@ impl Parser<'_> {
                     AttributeValue::Expression(expr_tag) => {
                         return expr_tag.expression.clone();
                     }
-                    AttributeValue::Sequence(parts) => {
+                    AttributeValue::Sequence(parts)
                         // Handle single-item sequences
-                        if parts.len() == 1 {
+                        if parts.len() == 1 => {
                             match &parts[0] {
                                 AttributeValuePart::Text(text) => {
                                     // For quoted string values like this="div"
@@ -594,7 +594,6 @@ impl Parser<'_> {
                                 }
                             }
                         }
-                    }
                     _ => {}
                 }
             }

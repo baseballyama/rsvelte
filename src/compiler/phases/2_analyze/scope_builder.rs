@@ -1845,10 +1845,8 @@ impl<'a> ScopeBuilder<'a> {
     /// Used to find possible implicit `legacy_reactive` declarations from `$: x = expr`.
     fn collect_assignment_lhs_identifiers_typed(&mut self, node: &JsNode) {
         match node {
-            JsNode::Identifier { name, .. } => {
-                if !name.starts_with('$') {
-                    self.possible_implicit_declarations.push(name.to_string());
-                }
+            JsNode::Identifier { name, .. } if !name.starts_with('$') => {
+                self.possible_implicit_declarations.push(name.to_string());
             }
             JsNode::ArrayPattern { elements, .. } => {
                 for elem in elements.iter().flatten() {
@@ -4051,13 +4049,13 @@ impl<'a> ScopeBuilder<'a> {
             JsNode::ChainExpression { expression, .. } => {
                 self.track_node_expression_updates(self.arena.get_js_node(*expression));
             }
-            JsNode::Identifier { name, .. } => {
+            JsNode::Identifier { name, .. }
                 // Check for store subscription scoping errors
                 if name.starts_with('$')
                     && !name.starts_with("$$")
                     && name.len() > 1
                     && self.function_depth > 0
-                {
+                => {
                     let is_rune_name = matches!(
                         name.as_str(),
                         "$state"
@@ -4088,7 +4086,6 @@ impl<'a> ScopeBuilder<'a> {
                         }
                     }
                 }
-            }
             JsNode::ClassExpression { body, .. } => {
                 let body_id = *body;
                 // Walk class body looking for method/property updates

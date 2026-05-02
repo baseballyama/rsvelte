@@ -1107,13 +1107,7 @@ fn is_expression_defined_typed(node: &JsNode, arena: &crate::ast::arena::ParseAr
         }
         JsNode::LogicalExpression {
             operator, right, ..
-        } => {
-            if operator == "??" {
-                is_expression_defined_typed(arena.get_js_node(*right), arena)
-            } else {
-                false
-            }
-        }
+        } if operator == "??" => is_expression_defined_typed(arena.get_js_node(*right), arena),
         JsNode::UnaryExpression { operator, .. } => operator != "void",
         JsNode::ConditionalExpression {
             consequent,

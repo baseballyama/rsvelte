@@ -3760,7 +3760,7 @@ mod tests {
     fn test_null_and_raw_fallback() {
         assert_eq!(JsNode::from_value(Value::Null), JsNode::Null);
         let unknown = serde_json::json!({"type": "SomeUnknownNode", "start": 0, "end": 1});
-        let node = JsNode::from_value(unknown.clone());
-        matches!(node, JsNode::Raw(_));
+        let node = JsNode::from_value(unknown);
+        assert!(matches!(node, JsNode::Raw(_)));
     }
 }

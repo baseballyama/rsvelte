@@ -3526,10 +3526,8 @@ fn transform_instance_script_for_visitors(
                     | "FunctionExpression"
                     | "UnaryExpression"
                     | "BinaryExpression" => return true,
-                    "Identifier" => {
-                        if b.initial_identifier_name.as_deref() == Some("undefined") {
-                            return true;
-                        }
+                    "Identifier" if b.initial_identifier_name.as_deref() == Some("undefined") => {
+                        return true;
                     }
                     _ => {}
                 }
@@ -4447,10 +4445,8 @@ fn has_top_level_comma_in_expr(bytes: &[u8]) -> bool {
         match bytes[i] {
             b',' if depth == 0 => return true,
             b'(' | b'[' | b'{' => depth += 1,
-            b')' | b']' | b'}' => {
-                if depth > 0 {
-                    depth -= 1;
-                }
+            b')' | b']' | b'}' if depth > 0 => {
+                depth -= 1;
             }
             b'\'' => {
                 i += 1;

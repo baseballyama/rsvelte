@@ -1934,13 +1934,7 @@ fn raw_stmt_type_name(code: &str) -> &'static str {
         return "ExpressionStatement";
     }
     match bytes[0] {
-        b'/' => {
-            if trimmed.starts_with("/*") || trimmed.starts_with("//") {
-                "Comment"
-            } else {
-                "ExpressionStatement"
-            }
-        }
+        b'/' if (trimmed.starts_with("/*") || trimmed.starts_with("//")) => "Comment",
         b'i' => {
             if trimmed.starts_with("import ") || trimmed.starts_with("import\t") {
                 "ImportDeclaration"
@@ -1959,20 +1953,8 @@ fn raw_stmt_type_name(code: &str) -> &'static str {
                 "ExpressionStatement"
             }
         }
-        b'v' => {
-            if trimmed.starts_with("var ") {
-                "VariableDeclaration"
-            } else {
-                "ExpressionStatement"
-            }
-        }
-        b'l' => {
-            if trimmed.starts_with("let ") {
-                "VariableDeclaration"
-            } else {
-                "ExpressionStatement"
-            }
-        }
+        b'v' if trimmed.starts_with("var ") => "VariableDeclaration",
+        b'l' if trimmed.starts_with("let ") => "VariableDeclaration",
         b'c' => {
             if trimmed.starts_with("const ") {
                 "VariableDeclaration"
@@ -1991,29 +1973,15 @@ fn raw_stmt_type_name(code: &str) -> &'static str {
                 "ExpressionStatement"
             }
         }
-        b'a' => {
-            if trimmed.starts_with("async function ") {
-                "FunctionDeclaration"
-            } else {
-                "ExpressionStatement"
-            }
+        b'a' if trimmed.starts_with("async function ") => "FunctionDeclaration",
+        b'r' if (trimmed.starts_with("return ")
+            || trimmed.starts_with("return;")
+            || trimmed == "return") =>
+        {
+            "ReturnStatement"
         }
-        b'r' => {
-            if trimmed.starts_with("return ")
-                || trimmed.starts_with("return;")
-                || trimmed == "return"
-            {
-                "ReturnStatement"
-            } else {
-                "ExpressionStatement"
-            }
-        }
-        b'w' => {
-            if trimmed.starts_with("while ") || trimmed.starts_with("while(") {
-                "WhileStatement"
-            } else {
-                "ExpressionStatement"
-            }
+        b'w' if (trimmed.starts_with("while ") || trimmed.starts_with("while(")) => {
+            "WhileStatement"
         }
         _ => "ExpressionStatement",
     }

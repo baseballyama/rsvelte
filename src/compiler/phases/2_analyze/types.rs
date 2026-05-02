@@ -1235,10 +1235,10 @@ fn collect_ts_removals_from_statement(
                 }
             }
         },
-        Statement::ExportAllDeclaration(export_decl) => {
-            if export_decl.export_kind == ImportOrExportKind::Type {
-                removals.push((export_decl.span.start, export_decl.span.end));
-            }
+        Statement::ExportAllDeclaration(export_decl)
+            if export_decl.export_kind == ImportOrExportKind::Type =>
+        {
+            removals.push((export_decl.span.start, export_decl.span.end));
         }
         // TS-only statements
         Statement::TSTypeAliasDeclaration(decl) => {

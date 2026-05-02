@@ -1562,20 +1562,20 @@ impl<'a> ServerCodeGenerator<'a> {
                         return true;
                     }
                 }
-                TemplateNode::EachBlock(block) => {
-                    if Self::has_component_or_render_tag(&block.body.nodes) {
-                        return true;
-                    }
+                TemplateNode::EachBlock(block)
+                    if Self::has_component_or_render_tag(&block.body.nodes) =>
+                {
+                    return true;
                 }
-                TemplateNode::KeyBlock(block) => {
-                    if Self::has_component_or_render_tag(&block.fragment.nodes) {
-                        return true;
-                    }
+                TemplateNode::KeyBlock(block)
+                    if Self::has_component_or_render_tag(&block.fragment.nodes) =>
+                {
+                    return true;
                 }
-                TemplateNode::SvelteBoundary(boundary) => {
-                    if Self::has_component_or_render_tag(&boundary.fragment.nodes) {
-                        return true;
-                    }
+                TemplateNode::SvelteBoundary(boundary)
+                    if Self::has_component_or_render_tag(&boundary.fragment.nodes) =>
+                {
+                    return true;
                 }
 
                 // option/optgroup: do NOT recurse - their content doesn't affect the parent's <!> marker

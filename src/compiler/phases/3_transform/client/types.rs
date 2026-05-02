@@ -2370,10 +2370,8 @@ fn collect_identifiers_recursive(
 ) {
     use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
     match expr {
-        JsExpr::Identifier(name) => {
-            if !names.contains(name) {
-                names.push(name.clone());
-            }
+        JsExpr::Identifier(name) if !names.contains(name) => {
+            names.push(name.clone());
         }
         JsExpr::Call(call) => {
             collect_identifiers_recursive(arena.get_expr(call.callee), arena, names);

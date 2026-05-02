@@ -294,11 +294,9 @@ where
             Attribute::StyleDirective(style_dir) => {
                 style_directives.push(style_dir);
             }
-            Attribute::UseDirective(_) => {
-                if is_load_error_element(node.get_name()) {
-                    events_to_capture.insert("onload".to_string());
-                    events_to_capture.insert("onerror".to_string());
-                }
+            Attribute::UseDirective(_) if is_load_error_element(node.get_name()) => {
+                events_to_capture.insert("onload".to_string());
+                events_to_capture.insert("onerror".to_string());
             }
             _ => {}
         }

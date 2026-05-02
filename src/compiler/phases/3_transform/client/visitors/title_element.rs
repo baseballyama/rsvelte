@@ -331,10 +331,8 @@ fn has_call_json(json_value: &serde_json::Value) -> bool {
                     continue;
                 }
                 match val {
-                    serde_json::Value::Object(_) => {
-                        if has_call_json(val) {
-                            return true;
-                        }
+                    serde_json::Value::Object(_) if has_call_json(val) => {
+                        return true;
                     }
                     serde_json::Value::Array(arr) => {
                         for item in arr {

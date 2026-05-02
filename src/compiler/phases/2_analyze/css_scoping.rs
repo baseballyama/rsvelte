@@ -1854,20 +1854,16 @@ fn collect_last_elements_from_block_recursive(
 
     // If any fragment is missing (e.g., no else branch, no fallback), not exhaustive
     match node {
-        TemplateNode::IfBlock(if_block) => {
-            if if_block.alternate.is_none() {
-                exhaustive = false;
-            }
+        TemplateNode::IfBlock(if_block) if if_block.alternate.is_none() => {
+            exhaustive = false;
         }
-        TemplateNode::EachBlock(each) => {
-            if each.fallback.is_none() {
-                exhaustive = false;
-            }
+        TemplateNode::EachBlock(each) if each.fallback.is_none() => {
+            exhaustive = false;
         }
-        TemplateNode::AwaitBlock(ab) => {
-            if ab.pending.is_none() || ab.then.is_none() || ab.catch.is_none() {
-                exhaustive = false;
-            }
+        TemplateNode::AwaitBlock(ab)
+            if (ab.pending.is_none() || ab.then.is_none() || ab.catch.is_none()) =>
+        {
+            exhaustive = false;
         }
         _ => {}
     }
@@ -2160,10 +2156,10 @@ fn fragment_has_definite_element(fragment: &Fragment) -> bool {
             TemplateNode::IfBlock(_)
             | TemplateNode::EachBlock(_)
             | TemplateNode::AwaitBlock(_)
-            | TemplateNode::KeyBlock(_) => {
-                if block_has_definite_elements(node) {
-                    return true;
-                }
+            | TemplateNode::KeyBlock(_)
+                if block_has_definite_elements(node) =>
+            {
+                return true;
             }
             _ => {}
         }
@@ -2859,15 +2855,15 @@ fn subtree_has_matching_subject_inner(
                     return true;
                 }
             }
-            TemplateNode::Component(comp) => {
+            TemplateNode::Component(comp)
                 if subtree_has_matching_subject_inner(
                     &comp.fragment,
                     selector,
                     ancestors,
                     snippet_ancestors,
-                ) {
-                    return true;
-                }
+                ) =>
+            {
+                return true;
             }
             TemplateNode::IfBlock(if_block) => {
                 if subtree_has_matching_subject_inner(
@@ -2941,35 +2937,35 @@ fn subtree_has_matching_subject_inner(
                     return true;
                 }
             }
-            TemplateNode::KeyBlock(key) => {
+            TemplateNode::KeyBlock(key)
                 if subtree_has_matching_subject_inner(
                     &key.fragment,
                     selector,
                     ancestors,
                     snippet_ancestors,
-                ) {
-                    return true;
-                }
+                ) =>
+            {
+                return true;
             }
-            TemplateNode::SnippetBlock(snippet) => {
+            TemplateNode::SnippetBlock(snippet)
                 if subtree_has_matching_subject_inner(
                     &snippet.body,
                     selector,
                     ancestors,
                     snippet_ancestors,
-                ) {
-                    return true;
-                }
+                ) =>
+            {
+                return true;
             }
-            TemplateNode::SlotElement(slot) => {
+            TemplateNode::SlotElement(slot)
                 if subtree_has_matching_subject_inner(
                     &slot.fragment,
                     selector,
                     ancestors,
                     snippet_ancestors,
-                ) {
-                    return true;
-                }
+                ) =>
+            {
+                return true;
             }
             TemplateNode::RenderTag(render_tag) => {
                 // When we encounter a render tag, follow into the rendered snippet's body
