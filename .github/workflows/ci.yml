@@ -100,7 +100,10 @@ jobs:
           # leave `svelte/.git` as a gitlink file pointing at
           # `.git/modules/svelte/`, not a directory the action can hash.
           path: fixtures
-          key: fixtures-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
+          # Bump `v2` to invalidate previously-cached fixtures: the
+          # generate-fixtures script now propagates `compileOptions.hmr`
+          # from `_config.js`, so any cache pre-dating that change is stale.
+          key: fixtures-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
 
       - name: Build Svelte compiler
         run: |
@@ -181,7 +184,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: fixtures
-          key: fixtures-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
+          # Bump `v2` to invalidate previously-cached fixtures: the
+          # generate-fixtures script now propagates `compileOptions.hmr`
+          # from `_config.js`, so any cache pre-dating that change is stale.
+          key: fixtures-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
 
       - name: Build Svelte compiler
         run: |
