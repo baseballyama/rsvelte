@@ -2017,7 +2017,8 @@ fn escape_string_single(s: &str) -> std::borrow::Cow<'_, str> {
     // This is faster than iterating all bytes for strings that don't need escaping.
     let bytes = s.as_bytes();
     if memchr::memchr3(b'\'', b'\\', b'\n', bytes).is_none()
-        && memchr::memchr(b'\r', bytes).is_none()
+        && memchr::memchr3(b'\r', b'\t', 0x0c /* \f */, bytes).is_none()
+        && memchr::memchr2(0x08 /* \b */, 0x0b /* \v */, bytes).is_none()
     {
         return std::borrow::Cow::Borrowed(s);
     }
@@ -2031,6 +2032,10 @@ fn escape_string_single(s: &str) -> std::borrow::Cow<'_, str> {
             b'\\' => "\\\\",
             b'\n' => "\\n",
             b'\r' => "\\r",
+            b'\t' => "\\t",
+            0x08 => "\\b",
+            0x0b => "\\v",
+            0x0c => "\\f",
             _ => continue,
         };
         // Copy the unmodified slice before this special character

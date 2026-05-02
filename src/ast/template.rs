@@ -110,7 +110,7 @@ pub enum FragmentType {
 ///
 /// Large variants are boxed to keep the enum small (~128 bytes instead of ~1056).
 /// This improves cache efficiency for the common case (Text, Comment) and reduces
-/// memory usage for Vec<TemplateNode> by ~8x.
+/// memory usage for `Vec<TemplateNode>` by ~8x.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum TemplateNode {
@@ -522,7 +522,7 @@ pub struct SvelteDynamicElement {
 /// An attribute or directive on an element.
 ///
 /// All variants are boxed to keep the enum small (~16 bytes instead of ~368).
-/// This reduces memory for Vec<Attribute> on elements by ~23x.
+/// This reduces memory for `Vec<Attribute>` on elements by ~23x.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum Attribute {

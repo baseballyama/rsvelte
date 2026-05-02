@@ -14,14 +14,17 @@ use common::{
 };
 use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
-/// Load input from Svelte test suite.
+/// Load input from Svelte test suite. Normalizes CRLF→LF so byte offsets
+/// in the compiled output match LF-authored fixtures on Windows runners.
 fn load_input(sample_name: &str) -> Option<String> {
     let input_path = svelte_path()
         .join("packages/svelte/tests/server-side-rendering/samples")
         .join(sample_name)
         .join("main.svelte");
 
-    fs::read_to_string(&input_path).ok()
+    fs::read_to_string(&input_path)
+        .ok()
+        .map(|s| s.replace("\r\n", "\n"))
 }
 
 /// Check if a test requires unsupported compile options.

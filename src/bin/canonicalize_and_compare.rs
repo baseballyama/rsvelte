@@ -1,5 +1,5 @@
 //! Compare two JS files using OXC canonicalization (same as test suite).
-//! Usage: canonicalize_and_compare <file1> <file2>
+//! Usage: canonicalize_and_compare `<file1>` `<file2>`
 //! Exits 0 if semantically equal, 1 if different, prints first diff.
 
 use oxc_allocator::Allocator;

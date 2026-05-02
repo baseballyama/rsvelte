@@ -58,6 +58,7 @@ pub fn transform_server(
     generator.preserve_whitespace = options.preserve_whitespace;
     generator.preserve_comments = options.preserve_comments;
     generator.dev = options.dev;
+    generator.hmr = options.hmr;
     generator.component_api_v4 = matches!(
         options.compatibility.component_api,
         crate::compiler::ComponentApi::V4
@@ -563,6 +564,10 @@ pub(crate) struct ServerCodeGenerator<'a> {
     pub(crate) preserve_comments: bool,
     /// Whether dev mode is enabled (for $.validate_snippet_args etc.)
     pub(crate) dev: bool,
+    /// Whether HMR is enabled. When true, the standalone-fragment optimization
+    /// is disabled for components (matching official utils.js:288), which keeps
+    /// the closing `<!---->` boundary so HMR can swap components reliably.
+    pub(crate) hmr: bool,
     /// Whether compatibility.componentApi === 4 (legacy class API)
     pub(crate) component_api_v4: bool,
     /// Filename for dev mode (used for FILENAME assignment)
@@ -807,6 +812,7 @@ impl<'a> ServerCodeGenerator<'a> {
             preserve_whitespace: false,
             preserve_comments: false,
             dev: false,
+            hmr: false,
             component_api_v4: false,
             filename: None,
             in_block_body: false,
@@ -839,6 +845,7 @@ impl<'a> ServerCodeGenerator<'a> {
             preserve_whitespace: self.preserve_whitespace,
             preserve_comments: self.preserve_comments,
             dev: self.dev,
+            hmr: self.hmr,
             component_api_v4: self.component_api_v4,
             filename: self.filename.clone(),
             in_block_body: self.in_block_body,
@@ -1082,7 +1089,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
     /// Check if a fragment is "standalone" (contains only a single RenderTag or Component).
     /// When standalone, hydration boundaries can be skipped because the parent's anchors are sufficient.
-    pub(crate) fn is_standalone_fragment(nodes: &[TemplateNode]) -> bool {
+    pub(crate) fn is_standalone_fragment(&self, nodes: &[TemplateNode]) -> bool {
         // Filter out whitespace-only text, comments, and hoisted nodes
         // (matching clean_nodes behavior in the official compiler)
         let meaningful_nodes: Vec<_> = nodes
@@ -1110,7 +1117,10 @@ impl<'a> ServerCodeGenerator<'a> {
         match meaningful_nodes[0] {
             TemplateNode::RenderTag(tag) => !tag.metadata.dynamic,
             TemplateNode::Component(comp) => {
-                !comp.metadata.dynamic
+                // Mirrors official utils.js:288 — when HMR is enabled, components
+                // must keep their boundary comments so the runtime can swap them.
+                !self.hmr
+                    && !comp.metadata.dynamic
                     && !comp.attributes.iter().any(|attr| {
                         matches!(attr, crate::ast::template::Attribute::Attribute(a) if a.name.starts_with("--"))
                     })
@@ -1295,7 +1305,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Check if the root fragment is standalone (only a single RenderTag/Component)
         // to determine if we should skip hydration boundaries
-        self.skip_hydration_boundaries = Self::is_standalone_fragment(&fragment.nodes);
+        self.skip_hydration_boundaries = self.is_standalone_fragment(&fragment.nodes);
 
         // If the first meaningful node is a Text or ExpressionTag, add <!---->
         // to prevent text fusion during hydration.

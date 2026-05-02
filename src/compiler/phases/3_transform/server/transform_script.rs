@@ -2763,8 +2763,14 @@ fn remove_rune_statement(script: &str, rune_prefix: &str) -> String {
                     if rune_prefix.starts_with("$inspect")
                         && !rune_prefix.starts_with("$inspect.trace")
                     {
-                        // $inspect() calls (not $inspect.trace()) should output ;; placeholder
-                        result.push_str(";;\n");
+                        // $inspect() calls (not $inspect.trace()) leave behind a
+                        // placeholder. In an async-body context this gets turned
+                        // into a sparse-array hole (matching the official `[a,,]`
+                        // shape); in non-async contexts strip_async_placeholders
+                        // rewrites it back to `;;`. Emitting an `$$async_hole`
+                        // comment here means a single hole instead of two empty
+                        // statements (which would otherwise become two noop thunks).
+                        result.push_str("/* $$async_hole */;\n");
                     } else if !rune_prefix.starts_with("$inspect") {
                         while result.ends_with(' ') || result.ends_with('\t') {
                             result.pop();

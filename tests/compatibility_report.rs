@@ -210,11 +210,12 @@ fn run_snapshot_tests() -> CategoryResult {
             .join(&name)
             .join("_config.js");
 
-        let snapshot_has_async = if let Ok(config) = fs::read_to_string(&config_path) {
-            config.contains("async: true")
-        } else {
-            false
-        };
+        let (snapshot_has_async, snapshot_has_hmr) =
+            if let Ok(config) = fs::read_to_string(&config_path) {
+                (config.contains("async: true"), config.contains("hmr: true"))
+            } else {
+                (false, false)
+            };
 
         let input = match fs::read_to_string(&input_path) {
             Ok(s) => s,
@@ -233,14 +234,20 @@ fn run_snapshot_tests() -> CategoryResult {
         let mut server_ok = true;
         let mut error_msg = None;
 
+        // Use sample-dir-aware path so component name derives from parent directory
+        // (e.g. `hello-world/index.svelte` → `Hello_world`), matching the official
+        // compiler's get_component_name behavior in tests.
+        let snapshot_filename = format!("{}/index.svelte", name);
+
         // Test client
         if let Some(expected) = &expected_client {
             let options = CompileOptions {
                 generate: GenerateMode::Client,
-                filename: Some("index.svelte".to_string()),
+                filename: Some(snapshot_filename.clone()),
                 experimental: ExperimentalOptions {
                     r#async: snapshot_has_async,
                 },
+                hmr: snapshot_has_hmr,
                 ..Default::default()
             };
 
@@ -268,10 +275,11 @@ fn run_snapshot_tests() -> CategoryResult {
         if let Some(expected) = &expected_server {
             let options = CompileOptions {
                 generate: GenerateMode::Server,
-                filename: Some("index.svelte".to_string()),
+                filename: Some(snapshot_filename.clone()),
                 experimental: ExperimentalOptions {
                     r#async: snapshot_has_async,
                 },
+                hmr: snapshot_has_hmr,
                 ..Default::default()
             };
 

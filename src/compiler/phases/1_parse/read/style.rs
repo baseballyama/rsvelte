@@ -402,11 +402,20 @@ impl<'a> CssParser<'a> {
                     if let Some(rule) = self.parse_atrule() {
                         children.push(rule);
                     }
-                } else {
-                    // Parse regular rule
+                } else if self.peek_block_item_is_rule() {
+                    // Selector followed by `{` → rule (e.g. `0% { ... }` in @keyframes,
+                    // `.foo { ... }` in @media/@supports).
                     if let Some(rule) = self.parse_rule() {
                         children.push(rule);
                     }
+                } else if let Some(decl) = self.parse_declaration() {
+                    // `prop: value;` declaration (used by @page, @font-face,
+                    // @counter-style, @property, etc., which take declarations
+                    // directly inside their block instead of nested rules).
+                    children.push(decl);
+                } else {
+                    // Couldn't make progress — bail to avoid infinite loop.
+                    self.advance();
                 }
                 self.skip_whitespace();
             }
@@ -440,6 +449,63 @@ impl<'a> CssParser<'a> {
         obj.insert("block".to_string(), block);
 
         Some(Value::Object(obj))
+    }
+
+    /// Peek ahead from the current position (without advancing) to decide
+    /// whether the upcoming block item is a nested rule or a declaration.
+    /// Mirrors the official `read_block_item` look-ahead (style.js:444-457):
+    /// scan past strings/parens/brackets/escapes and return `true` when the
+    /// first significant terminator is `{` (rule), `false` when it is `;`,
+    /// `}`, or EOF (declaration).
+    fn peek_block_item_is_rule(&self) -> bool {
+        let bytes = self.source.as_bytes();
+        let mut i = self.index;
+        let mut paren_depth = 0i32;
+        let mut bracket_depth = 0i32;
+        let mut in_string: Option<u8> = None;
+        while i < bytes.len() {
+            let b = bytes[i];
+            // CSS escape: `\<x>` — skip both bytes verbatim, no semantic effect.
+            if b == b'\\' && i + 1 < bytes.len() {
+                i += 2;
+                continue;
+            }
+            if let Some(q) = in_string {
+                if b == q {
+                    in_string = None;
+                }
+                i += 1;
+                continue;
+            }
+            if b == b'"' || b == b'\'' {
+                in_string = Some(b);
+                i += 1;
+                continue;
+            }
+            // CSS block comments don't appear inside parens for declarations,
+            // but skip them defensively to avoid false-positives.
+            if b == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'*' {
+                i += 2;
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                if i + 1 < bytes.len() {
+                    i += 2;
+                }
+                continue;
+            }
+            match b {
+                b'(' => paren_depth += 1,
+                b')' => paren_depth -= 1,
+                b'[' => bracket_depth += 1,
+                b']' => bracket_depth -= 1,
+                b'{' if paren_depth == 0 && bracket_depth == 0 => return true,
+                b';' | b'}' if paren_depth == 0 && bracket_depth == 0 => return false,
+                _ => {}
+            }
+            i += 1;
+        }
+        false
     }
 
     fn parse_rule(&mut self) -> Option<Value> {
@@ -1315,11 +1381,34 @@ impl<'a> CssParser<'a> {
         self.advance(); // consume ':'
         self.skip_whitespace();
 
-        // Read value
+        // Read value, respecting parentheses, strings, and CSS escape sequences so
+        // values like `content: "{};[]";` or `content: ';'` aren't terminated by
+        // a `;`/`}` that lives inside a string literal or after a backslash escape.
         let value_start = self.index;
         let mut depth = 0;
+        let mut in_string: Option<char> = None;
         while !self.is_eof() {
             let c = self.current_char();
+            // CSS escape: `\<x>` — consume both bytes verbatim.
+            if c == '\\' {
+                self.advance();
+                if !self.is_eof() {
+                    self.advance();
+                }
+                continue;
+            }
+            if let Some(quote) = in_string {
+                if c == quote {
+                    in_string = None;
+                }
+                self.advance();
+                continue;
+            }
+            if c == '"' || c == '\'' {
+                in_string = Some(c);
+                self.advance();
+                continue;
+            }
             if c == '(' {
                 depth += 1;
             } else if c == ')' {
@@ -1621,6 +1710,24 @@ impl<'a> SelectorParser<'a> {
                 if let Some(selector) = self.parse_type_selector() {
                     selectors.push(selector);
                 }
+            } else if c.is_ascii_digit() || (c == '.' && self.peek_next_char().is_ascii_digit()) {
+                // Percentage selector (used inside @keyframes blocks): `0%`, `33.3%`, `.5%`.
+                // Mirrors official `read_selector` which matches REGEX_PERCENTAGE
+                // (style.js:302-308) and emits a `Percentage` selector node.
+                if let Some(selector) = self.parse_percentage_selector() {
+                    selectors.push(selector);
+                } else {
+                    // Not a valid percentage — fall through to the identifier error.
+                    if self.error.is_none() {
+                        let pos = self.offset + self.index;
+                        self.error = Some(crate::error::ParseError::svelte(
+                            "css_expected_identifier",
+                            "Expected a valid CSS identifier",
+                            (pos, pos),
+                        ));
+                    }
+                    break;
+                }
             } else {
                 // Mirror the official Svelte CSS parser: when `read_selector`
                 // falls through to `read_identifier` and the first character
@@ -1639,6 +1746,44 @@ impl<'a> SelectorParser<'a> {
                 break;
             }
         }
+    }
+
+    /// Parse a CSS percentage selector like `0%`, `33.3%`, or `100%`.
+    /// Used inside `@keyframes` blocks where keyframe selectors are percentages
+    /// (or `from`/`to`, which are handled by the identifier branch).
+    /// Returns None if the current position doesn't actually start a percentage
+    /// literal (i.e. no digits/`.` followed by `%`).
+    fn parse_percentage_selector(&mut self) -> Option<Value> {
+        let start = self.offset + self.index;
+        let value_start = self.index;
+        // Optional digits before decimal point
+        while !self.is_eof() && self.current_char().is_ascii_digit() {
+            self.advance();
+        }
+        // Optional `.` followed by digits
+        if !self.is_eof() && self.current_char() == '.' {
+            self.advance();
+            while !self.is_eof() && self.current_char().is_ascii_digit() {
+                self.advance();
+            }
+        }
+        // Required `%` terminator
+        if self.is_eof() || self.current_char() != '%' {
+            // Rewind so the error-fallback in the caller can report at the
+            // original position.
+            self.index = value_start;
+            return None;
+        }
+        self.advance();
+        let end = self.offset + self.index;
+        let value = self.source[value_start..self.index].to_string();
+
+        let mut obj = Map::new();
+        obj.insert("type".to_string(), Value::String("Percentage".to_string()));
+        obj.insert("value".to_string(), Value::String(value));
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+        Some(Value::Object(obj))
     }
 
     fn parse_pseudo_element_selector(&mut self) -> Option<Value> {
@@ -1661,6 +1806,15 @@ impl<'a> SelectorParser<'a> {
             let mut depth = 1;
             while !self.is_eof() && depth > 0 {
                 let c = self.current_char();
+                // CSS escape sequence — skip backslash + next char so `\)` doesn't
+                // close the args early.
+                if c == '\\' {
+                    self.advance();
+                    if !self.is_eof() {
+                        self.advance();
+                    }
+                    continue;
+                }
                 if c == '(' {
                     depth += 1;
                 } else if c == ')' {
@@ -1703,6 +1857,17 @@ impl<'a> SelectorParser<'a> {
             let mut depth = 1;
             while !self.is_eof() && depth > 0 {
                 let c = self.current_char();
+                // CSS escape sequence: `\(` / `\)` etc. should not affect paren depth.
+                // Skip the backslash and the next character verbatim so a selector like
+                // `:global(.abc\))` keeps the literal `\)` inside the args and only
+                // closes on the outer paren.
+                if c == '\\' {
+                    self.advance();
+                    if !self.is_eof() {
+                        self.advance();
+                    }
+                    continue;
+                }
                 if c == '(' {
                     depth += 1;
                 } else if c == ')' {

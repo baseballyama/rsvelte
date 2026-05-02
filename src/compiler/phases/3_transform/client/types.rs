@@ -1865,7 +1865,7 @@ pub struct ComponentClientTransformState<'a> {
     /// inside a sibling `{#if}`).
     pub transform_deep_read: ImHashMap<String, ()>,
 
-    /// Delegated events (insertion-ordered to match official compiler's Set<string>)
+    /// Delegated events (insertion-ordered to match official compiler's `Set<string>`)
     pub events: indexmap::IndexSet<String>,
 
     /// Metadata about the component

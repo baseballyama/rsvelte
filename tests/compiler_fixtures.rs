@@ -15,14 +15,17 @@ use common::{
 use rayon::prelude::*;
 use svelte_compiler_rust::{CompileOptions, ExperimentalOptions, GenerateMode, compile};
 
-/// Load input from Svelte test suite.
+/// Load input from Svelte test suite. Normalizes CRLF→LF so byte offsets
+/// in the compiled output match LF-authored fixtures on Windows runners.
 fn load_input(sample_name: &str) -> Option<String> {
     let input_path = svelte_path()
         .join("packages/svelte/tests/snapshot/samples")
         .join(sample_name)
         .join("index.svelte");
 
-    fs::read_to_string(&input_path).ok()
+    fs::read_to_string(&input_path)
+        .ok()
+        .map(|s| s.replace("\r\n", "\n"))
 }
 
 /// Check if a test requires unsupported compile options by reading _config.js
@@ -44,6 +47,21 @@ fn requires_async(sample_name: &str) -> bool {
     false
 }
 
+/// Check if a test requires HMR by reading _config.js. The fixture generator
+/// propagates `compileOptions.hmr` to the official compiler, so the test
+/// runner must mirror it or the regenerated fixture diffs against our output.
+fn requires_hmr(sample_name: &str) -> bool {
+    let config_path = svelte_path()
+        .join("packages/svelte/tests/snapshot/samples")
+        .join(sample_name)
+        .join("_config.js");
+
+    if let Ok(config) = fs::read_to_string(&config_path) {
+        return config.contains("hmr: true");
+    }
+    false
+}
+
 /// A snapshot test fixture.
 struct SnapshotFixture {
     name: String,
@@ -54,6 +72,8 @@ struct SnapshotFixture {
     requires_unsupported_options: bool,
     /// Indicates if this test requires experimental.async
     requires_async: bool,
+    /// Indicates if this test requires HMR mode (matches the fixture generator's propagation)
+    requires_hmr: bool,
 }
 
 /// Load a snapshot test fixture from fixtures directory.
@@ -79,6 +99,7 @@ fn load_snapshot_fixture(sample_dir: &Path) -> Option<SnapshotFixture> {
         expected_server_js,
         requires_unsupported_options: requires_unsupported_options(&name),
         requires_async: requires_async(&name),
+        requires_hmr: requires_hmr(&name),
     })
 }
 
@@ -127,6 +148,7 @@ fn run_snapshot_fixture_test(fixture: &SnapshotFixture) -> TestResult {
             experimental: ExperimentalOptions {
                 r#async: fixture.requires_async,
             },
+            hmr: fixture.requires_hmr,
             ..Default::default()
         };
 
@@ -170,6 +192,7 @@ fn run_snapshot_fixture_test(fixture: &SnapshotFixture) -> TestResult {
             experimental: ExperimentalOptions {
                 r#async: fixture.requires_async,
             },
+            hmr: fixture.requires_hmr,
             ..Default::default()
         };
 

@@ -1327,8 +1327,11 @@ impl<'a> ServerCodeGenerator<'a> {
         &self,
         node: &AttributeNode,
     ) -> Result<String, TransformError> {
-        // Check if this is a class attribute - needs whitespace normalization
-        let is_class_attr = node.name.eq_ignore_ascii_case("class");
+        // Whitespace-insensitive attributes (class, style) get whitespace runs
+        // collapsed. Mirrors the official `WHITESPACE_INSENSITIVE_ATTRIBUTES`
+        // list in svelte/.../server/visitors/shared/element.js.
+        let is_ws_insensitive =
+            node.name.eq_ignore_ascii_case("class") || node.name.eq_ignore_ascii_case("style");
 
         match &node.value {
             AttributeValue::True(_) => Ok("true".to_string()),
@@ -1346,15 +1349,22 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
                 }
 
+                // Mirrors official build_attribute_value: a single-part Text
+                // value collapses runs AND trims; a multi-part value (Text +
+                // expression interpolations) only collapses runs so leading
+                // and trailing spaces survive around each `${...}`.
+                let single_text_only =
+                    parts.len() == 1 && matches!(parts[0], AttributeValuePart::Text(_));
+
                 let mut value = String::new();
                 let mut has_expression = false;
                 for part in parts {
                     match part {
                         AttributeValuePart::Text(text) => {
-                            // Normalize whitespace for class attributes:
+                            // Normalize whitespace for class/style attributes:
                             // Collapse runs of whitespace to single space, but preserve
                             // leading/trailing spaces so they appear between interpolations.
-                            if is_class_attr {
+                            if is_ws_insensitive {
                                 let mut normalized = String::new();
                                 let mut prev_was_ws = false;
                                 for ch in text.data.chars() {
@@ -1368,6 +1378,11 @@ impl<'a> ServerCodeGenerator<'a> {
                                         prev_was_ws = false;
                                     }
                                 }
+                                let normalized = if single_text_only {
+                                    normalized.trim().to_string()
+                                } else {
+                                    normalized
+                                };
                                 value.push_str(&normalized);
                             } else {
                                 value.push_str(&text.data);

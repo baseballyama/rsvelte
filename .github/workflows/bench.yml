@@ -44,11 +44,16 @@ jobs:
           # features differs enough that mixing the caches hurts both.
           shared-key: bench
 
+      - name: Resolve Svelte submodule SHA
+        id: svelte-sha
+        shell: bash
+        run: echo "sha=$(git submodule status svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
+
       - name: Cache fixtures
         uses: actions/cache@v4
         with:
           path: fixtures
-          key: fixtures-${{ runner.os }}-${{ hashFiles('svelte/.git/HEAD', 'svelte/.git/refs/heads/**', '.gitmodules') }}
+          key: fixtures-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
 
       - name: Build Svelte compiler
         run: |

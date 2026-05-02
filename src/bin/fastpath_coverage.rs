@@ -1,5 +1,5 @@
 //! Measure fast path coverage - what % of template expressions skip OXC?
-//! Extracts expressions from template context only (skips <script> blocks).
+//! Extracts expressions from template context only (skips `<script>` blocks).
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;

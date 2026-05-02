@@ -4917,8 +4917,25 @@ fn try_destructure_assignment(
             argument: Some(context.arena.alloc_expr(b::id("$$value"))),
         }));
 
-        let arrow = b::arrow_block(vec![JsPattern::Identifier("$$value".into())], statements);
-        return Some(b::call(&context.arena, arrow, vec![rhs_converted]));
+        // Detect async: matches official `is_expression_async` (assignments.js:68-70).
+        // If RHS or any assignment contains a non-nested `await`, the IIFE arrow must
+        // be `async` and the call must be wrapped in `await`.
+        let is_async = b::js_expr_has_await(&context.arena, &rhs_converted)
+            || assignments
+                .iter()
+                .any(|a| b::js_expr_has_await(&context.arena, a));
+
+        let arrow = if is_async {
+            b::async_arrow_block(vec![JsPattern::Identifier("$$value".into())], statements)
+        } else {
+            b::arrow_block(vec![JsPattern::Identifier("$$value".into())], statements)
+        };
+        let call = b::call(&context.arena, arrow, vec![rhs_converted]);
+        return Some(if is_async {
+            b::await_expr(&context.arena, call)
+        } else {
+            call
+        });
     }
 
     // No inserts and no cache needed: generate sequence expression

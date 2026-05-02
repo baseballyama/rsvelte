@@ -55,9 +55,41 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
+      # Force LF line endings on Windows checkouts so the Svelte test
+      # fixtures (input.svelte, expected output.json/.css) parse with
+      # the same byte offsets / scoped-selector decisions as on Linux.
+      # Must run before `actions/checkout` because Git applies
+      # autocrlf during the initial checkout.
+      - name: Configure git for LF line endings
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
       - uses: actions/checkout@v4
         with:
           submodules: true
+
+      # Belt-and-suspenders: even with `core.autocrlf=false` set globally,
+      # `actions/checkout` and `git submodule update` sometimes apply
+      # CRLF conversion on Windows runners (the official compiler then
+      # reads files with `\r\n` line endings, which leak into template
+      # literals in the generated client.js and diff against our LF
+      # output). Explicitly strip `\r\n` → `\n` on every source file in
+      # the submodule before fixture generation.
+      - name: Normalize line endings in svelte submodule
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path svelte -Recurse -File -Include *.svelte,*.js,*.ts,*.json,*.html,*.css,*.md `
+            | Where-Object { $_.FullName -notlike '*\node_modules\*' -and $_.FullName -notlike '*\.git\*' } `
+            | ForEach-Object {
+              $content = [System.IO.File]::ReadAllText($_.FullName)
+              if ($content -match "`r`n") {
+                $normalized = $content -replace "`r`n", "`n"
+                [System.IO.File]::WriteAllText($_.FullName, $normalized)
+              }
+            }
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -75,13 +107,24 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
+      - name: Resolve Svelte submodule SHA
+        id: svelte-sha
+        shell: bash
+        run: echo "sha=$(git submodule status svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
+
       - name: Cache fixtures
         uses: actions/cache@v4
         with:
           # Fixtures are keyed on the Svelte submodule SHA; if the SHA hasn't
           # changed we can reuse them and skip generation entirely.
+          # `hashFiles('svelte/.git/...')` doesn't work — submodule checkouts
+          # leave `svelte/.git` as a gitlink file pointing at
+          # `.git/modules/svelte/`, not a directory the action can hash.
           path: fixtures
-          key: fixtures-${{ runner.os }}-${{ hashFiles('svelte/.git/HEAD', 'svelte/.git/refs/heads/**', '.gitmodules') }}
+          # Bump `v2` to invalidate previously-cached fixtures: the
+          # generate-fixtures script now propagates `compileOptions.hmr`
+          # from `_config.js`, so any cache pre-dating that change is stale.
+          key: fixtures-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
 
       - name: Build Svelte compiler
         run: |
@@ -94,7 +137,11 @@ jobs:
         timeout-minutes: 15
 
       - name: Run tests
-        run: cargo test --all-features
+        # `--all-features` would enable `napi`, which only links cleanly when
+        # loaded from Node.js — `cargo test` would otherwise hit `rust-lld:
+        # error: undefined symbol: napi_*` on Linux. Default features cover
+        # everything we want exercised in CI (native runtime, parallelism).
+        run: cargo test
         timeout-minutes: 30
         env:
           # Some fixtures (notably the compatibility_report harness) walk
@@ -149,11 +196,19 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
+      - name: Resolve Svelte submodule SHA
+        id: svelte-sha
+        shell: bash
+        run: echo "sha=$(git submodule status svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
+
       - name: Cache fixtures
         uses: actions/cache@v4
         with:
           path: fixtures
-          key: fixtures-${{ runner.os }}-${{ hashFiles('svelte/.git/HEAD', 'svelte/.git/refs/heads/**', '.gitmodules') }}
+          # Bump `v2` to invalidate previously-cached fixtures: the
+          # generate-fixtures script now propagates `compileOptions.hmr`
+          # from `_config.js`, so any cache pre-dating that change is stale.
+          key: fixtures-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
 
       - name: Build Svelte compiler
         run: |
