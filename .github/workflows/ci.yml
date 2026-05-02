@@ -55,6 +55,17 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
+      # Force LF line endings on Windows checkouts so the Svelte test
+      # fixtures (input.svelte, expected output.json/.css) parse with
+      # the same byte offsets / scoped-selector decisions as on Linux.
+      # Must run before `actions/checkout` because Git applies
+      # autocrlf during the initial checkout.
+      - name: Configure git for LF line endings
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
       - uses: actions/checkout@v4
         with:
           submodules: true
