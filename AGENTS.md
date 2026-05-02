@@ -108,20 +108,20 @@ Source: `pnpm run compatibility-report` (generated 2026-05-02, Svelte commit `04
 | Parser Modern | 22/22 | |
 | Parser Legacy | 82/83 | 1 skipped (`javascript-comments` — OXC vs acorn comment attachment) |
 | Compiler Errors | 144/144 | |
-| Compiler Snapshot | 20/20 | |
+| Compiler Snapshot | 27/28 | 1 failing (`async-top-level-inspect-server` — sparse-array `[a,,]` codegen vs thunk expansion) |
 | CSS | 179/179 | |
 | Validator | 324/324 | 1 skipped (`error-mode-warn`) |
-| SSR | 81/82 | 1 failing (`spread-attributes-white-space` — OXC whitespace normalization) |
-| Hydration | 77/77 | |
+| SSR | 82/82 | |
+| Hydration | 77/78 | 1 failing (`boundary-pending-attribute` — SvelteBoundary pending block-scope wrapping) |
 | Runtime Legacy | 1202/1202 | |
-| Runtime Runes | 861/865 | 4 failing (HMR / dev mode: `svelte-component-switch-dev`, `hmr-removal`, `hmr-each-keyed-unshift`, `component-transition-hmr`) |
+| Runtime Runes | 865/865 | |
 | Runtime Browser | 31/31 | |
 | Sourcemaps | 0/0 | No fixtures yet |
 | Print | 0/40 | Skipped in compatibility report; standalone test in `tests/print.rs` |
 | Preprocess | 0/19 | Not implemented |
 | Migrate | 0/76 | Not implemented |
 
-**Compatibility report total: 3023/3028 implemented passing (137 skipped, 5 failing — all HMR / whitespace, see `docs/full-code-review-followup.md`)**
+**Compatibility report total: 3035/3037 implemented passing (137 skipped, 2 failing — both newly-discovered SSR codegen edge cases, see `docs/full-code-review-followup.md`)**
 
 ## Implementation Status
 
