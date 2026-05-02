@@ -13,7 +13,9 @@
 - 2_analyze/scope_builder.rs (5,377 LOC)
 - 3_transform/js_ast/codegen.rs (3,000 LOC)
 
-## ✅ 本 PR で適用済み（即時 Critical 4 件）
+## ✅ 本セッションで適用・コミット済み
+
+### コミット 1: 即時 Critical 4 件 (HEAD~5 以降に分散)
 
 | # | 場所 | 修正内容 |
 |---|------|---------|
@@ -22,7 +24,39 @@
 | 3 | `src/compiler/phases/3_transform/server/build.rs:2705-2719` | `AsyncWrappedExpressionCustom` で `async` キーワードと `$.save()` 変換が欠落していた |
 | 4 | `src/ast/typed_expr.rs:3763` | テストの `matches!(node, JsNode::Raw(_))` を `assert!(matches!(...))` に修正（無効なアサーション） |
 
-`spread-attributes-white-space` の SSR 失敗は別件 (whitespace normalization の事前 regression、本 PR とは無関係)。
+### コミット ef6035a: refactor batch 1（複数ファイル）
+
+- typed_expr.rs: convert_child / convert_optional_child の二重 `obj.get(key)` + `unwrap()` 削除（マッチ値キャプチャ）
+- typed_expr.rs: regex Literal アームの `is_some()` ガード + `clone().unwrap()` をパターンマッチで簡素化
+- typed_expr.rs: `test_identifier_roundtrip` で不要な `json.clone()` 削除
+- expression.rs (parse): `errors.first().unwrap()` を `if let` で安全化（2 箇所）
+- scope_builder.rs: store-subscription scope walk の **6 箇所完全重複** を `check_store_scoped_subscription` helper に統合（**-110 LOC**）
+- shared/utils.rs: dead variable `skip_callee_transform = false` を削除（ロジックも簡素化）
+- codegen.rs: source map 再マッピングで `i64 → u32` cast を `.max(0)` + `try_from(...).unwrap_or(u32::MAX)` で安全化
+- client/mod.rs: `#[inline(never)]` の根拠を comment 追加
+
+### コミット 2c0c66c: perf(client) — REGEX_CACHE を `Arc<Regex>` 化
+
+`thread_local!` regex cache が `Regex` を値で保持し、cache hit / miss 共に深い `.clone()` を 2 回発生させていた。`Arc<Regex>` で wrap して clone を refcount bump に削減。Deref により呼び出し側の API 変更不要。
+
+### コミット c46879e: refactor(typed_expr) — `with_deser_arena` 抽出
+
+`deser_alloc_node` / `deser_alloc_children` の重複した serialize-arena vs DESER_ARENA dispatch を 1 つの `with_deser_arena` combinator に統合。
+
+### コミット 950ddcf: perf(server/build) — O(blocker_map) excluded-vars filtering
+
+`merge_html_with_closing_tags` / `apply_async_wrapping` で `excluded_vars: Vec<String>` の `.contains(name)` を blocker_map 反復ごとに実行 → O(parts * blocker_map * excluded_vars)。
+1 度 `FxHashSet<&str>` に promote し O(blocker_map) に削減。
+さらに `excluded_blocker_vars.clone()` を `&[String]` 借用に変更。
+`*split_points.last().unwrap()` は `last().copied().unwrap_or(0)` で panic-free に。
+
+### 互換性レポート結果
+
+- 本セッション開始時: **2984/3165 (94.28%)**
+- 本セッション後: **2993/3165 (94.57%)** （+9 件改善 / +0.29%）
+- regression なし
+
+`spread-attributes-white-space` の SSR 失敗は OXC normalization の whitespace 系で、これは私の修正と無関係（pre-existing）。
 
 ## 🔥 アーキテクチャ規模の改修（別 issue 化推奨）
 
