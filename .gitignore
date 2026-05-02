@@ -32,6 +32,16 @@ fixtures/
 test_css_debug
 test_export_default
 
+# Profiling artifacts
+flamegraph.svg
+*.flamegraph.svg
+perf.data
+perf.data.old
+*.profraw
+*.profdata
+samply.json.gz
+target/criterion/
+
 # pnpm store
 .pnpm-store/
 
@@ -41,3 +51,8 @@ node_modules/
 # Claude worktrees
 .claude/worktrees/
 language-tools
+
+# verify-svelte-compat: per-target ephemeral data
+compat-targets/.cache/
+compat-targets/*/.compat-meta.json
+compat-targets/*/.rsvelte/

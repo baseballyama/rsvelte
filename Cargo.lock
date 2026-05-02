@@ -1713,6 +1713,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
+ "similar",
  "smallvec",
  "sourcemap",
  "string_wizard",

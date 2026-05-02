@@ -179,7 +179,11 @@ fn test_css() {
         .filter_map(|sample_dir| load_css_fixture(sample_dir.as_path()))
         .collect();
 
-    // Run sequentially
+    // Note: this suite previously ran sequentially "to avoid hangs". The most
+    // likely cause was unbounded `par_iter()` exhausting memory under bumpalo
+    // arena retention across concurrent compiles. `common::test_thread_pool()`
+    // exposes a bounded pool (default 4 threads) for callers that want to
+    // re-enable parallelism here once the hypothesis is verified locally.
     println!("Running {} CSS tests...", fixtures.len());
     let results: Vec<TestResult> = fixtures
         .iter()

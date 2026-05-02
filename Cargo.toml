@@ -97,6 +97,8 @@ criterion = { version = "0.5", features = ["html_reports"] }
 test-generator = "0.3"
 glob = "0.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+# Unified diff output for test failure messages
+similar = { version = "2.6", features = ["text"] }
 
 [[bin]]
 name = "test_reporter"

@@ -1,0 +1,117 @@
+name: Benchmark
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'benches/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/bench.yml'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  bench:
+    name: Criterion benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Don't share with the test job; a release build with bench-only
+          # features differs enough that mixing the caches hurts both.
+          shared-key: bench
+
+      - name: Cache fixtures
+        uses: actions/cache@v4
+        with:
+          path: fixtures
+          key: fixtures-${{ runner.os }}-${{ hashFiles('svelte/.git/HEAD', 'svelte/.git/refs/heads/**', '.gitmodules') }}
+
+      - name: Build Svelte compiler
+        run: |
+          cd svelte
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Generate fixtures
+        run: pnpm run generate-fixtures
+        timeout-minutes: 15
+
+      - name: Run criterion
+        # `--save-baseline pr` saves results so a follow-up job (or the next
+        # commit) can diff against this baseline with `--baseline pr`.
+        run: cargo bench --bench parser --bench compiler -- --save-baseline pr
+        timeout-minutes: 30
+
+      - name: Upload criterion reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: criterion-${{ github.sha }}
+          path: target/criterion/
+          retention-days: 14
+
+      - name: Summarize on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const root = 'target/criterion';
+            if (!fs.existsSync(root)) return;
+            const lines = ['## Benchmarks (criterion)\n'];
+            lines.push(`Baseline saved as \`pr\`. Full HTML reports are in the \`criterion-${context.sha}\` artifact.\n`);
+            // Walk shallowly and print the name of each top-level benchmark group.
+            for (const name of fs.readdirSync(root)) {
+              if (name === 'report') continue;
+              const stat = fs.statSync(path.join(root, name));
+              if (stat.isDirectory()) lines.push(`- \`${name}\``);
+            }
+            const body = lines.join('\n');
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const existing = comments.find((c) =>
+              c.user.type === 'Bot' && c.body && c.body.startsWith('## Benchmarks (criterion)')
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                comment_id: existing.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body,
+              });
+            }

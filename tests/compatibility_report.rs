@@ -13,7 +13,7 @@ use std::fs;
 
 use common::{
     CategoryResult, CompatibilityReport, SampleDetails, SampleResult, TestCategory, TestStatus,
-    canonicalize_css, canonicalize_js, ensure_fixtures_exist, fixtures_path, get_fixture_samples,
+    canonicalize_css, compare_js, ensure_fixtures_exist, fixtures_path, get_fixture_samples,
     get_svelte_test_samples, load_fixture_output, svelte_path, write_actual_output,
 };
 use svelte_compiler_rust::{
@@ -1066,14 +1066,6 @@ fn run_not_implemented_tests(category: &str, reason: &str) -> CategoryResult {
 // ============================================================================
 // Utility Functions
 // ============================================================================
-
-/// Compare two JavaScript outputs using OXC parse→codegen canonicalization.
-/// This normalizes only formatting while preserving all semantic differences.
-fn compare_js(actual: &str, expected: &str) -> bool {
-    let canonical_actual = canonicalize_js(actual);
-    let canonical_expected = canonicalize_js(expected);
-    canonical_actual == canonical_expected
-}
 
 // Legacy normalization function (kept for reference, but no longer used)
 #[allow(dead_code)]
