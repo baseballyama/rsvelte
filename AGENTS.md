@@ -108,11 +108,11 @@ Source: `pnpm run compatibility-report` (generated 2026-05-02, Svelte commit `04
 | Parser Modern | 22/22 | |
 | Parser Legacy | 82/83 | 1 skipped (`javascript-comments` — OXC vs acorn comment attachment) |
 | Compiler Errors | 144/144 | |
-| Compiler Snapshot | 27/28 | 1 failing (`async-top-level-inspect-server` — sparse-array `[a,,]` codegen vs thunk expansion) |
+| Compiler Snapshot | 28/28 | |
 | CSS | 179/179 | |
 | Validator | 324/324 | 1 skipped (`error-mode-warn`) |
 | SSR | 82/82 | |
-| Hydration | 77/78 | 1 failing (`boundary-pending-attribute` — SvelteBoundary pending block-scope wrapping) |
+| Hydration | 78/78 | |
 | Runtime Legacy | 1202/1202 | |
 | Runtime Runes | 865/865 | |
 | Runtime Browser | 31/31 | |
@@ -121,7 +121,7 @@ Source: `pnpm run compatibility-report` (generated 2026-05-02, Svelte commit `04
 | Preprocess | 0/19 | Not implemented |
 | Migrate | 0/76 | Not implemented |
 
-**Compatibility report total: 3035/3037 implemented passing (137 skipped, 2 failing — both newly-discovered SSR codegen edge cases, see `docs/full-code-review-followup.md`)**
+**Compatibility report total: 3037/3037 implemented passing (137 skipped, 0 failing) — every implemented category at 100%.**
 
 ## Implementation Status
 
