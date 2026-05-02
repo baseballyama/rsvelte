@@ -15,7 +15,6 @@ use serde_json::Value;
 
 /// Context for CSS transformation containing analysis data and options
 #[derive(Clone)]
-#[allow(dead_code)] // used_elements reserved for future type selector detection
 struct CssContext<'a> {
     /// Element names used in the template
     used_elements: &'a FxHashSet<String>,
