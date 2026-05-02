@@ -14,8 +14,8 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    canonicalize_js, ensure_fixtures_exist, get_fixture_samples, load_fixture_output, svelte_path,
-    write_actual_output,
+    compare_js_with_debug as compare_js_debug, ensure_fixtures_exist, get_fixture_samples,
+    load_fixture_output, svelte_path, write_actual_output,
 };
 use svelte_compiler_rust::{
     CompileOptions, ExperimentalOptions, GenerateMode, compile, compiler::CssMode,
@@ -141,32 +141,6 @@ impl TestResult {
     fn passed(&self) -> bool {
         self.skipped || (self.client_passed.unwrap_or(true) && self.server_passed.unwrap_or(true))
     }
-}
-
-/// Compare two JavaScript outputs using OXC parse→codegen canonicalization.
-/// This normalizes only formatting while preserving all semantic differences.
-fn compare_js_debug(actual: &str, expected: &str, test_name: &str) -> bool {
-    let canonical_actual = canonicalize_js(actual);
-    let canonical_expected = canonicalize_js(expected);
-    let passed = canonical_actual == canonical_expected;
-    if !passed
-        && (std::env::var("DEBUG_TEST").ok().as_deref() == Some(test_name)
-            || std::env::var("DEBUG_ALL").is_ok())
-    {
-        eprintln!("CANONICAL_EXP: {}", canonical_expected);
-        eprintln!("CANONICAL_ACT: {}", canonical_actual);
-    }
-    if !passed && std::env::var("DEBUG_RAW").ok().as_deref() == Some(test_name) {
-        // Write raw and canonical outputs to temp files for inspection
-        let _ = std::fs::write("/tmp/debug_raw_exp.js", expected);
-        let _ = std::fs::write("/tmp/debug_raw_act.js", actual);
-        let _ = std::fs::write("/tmp/debug_canonical_exp.js", &canonical_expected);
-        let _ = std::fs::write("/tmp/debug_canonical_act.js", &canonical_actual);
-        eprintln!(
-            "DEBUG: wrote raw/canonical files to /tmp/debug_raw_*.js and /tmp/debug_canonical_*.js"
-        );
-    }
-    passed
 }
 
 /// Check if actual output writing is enabled via environment variable.

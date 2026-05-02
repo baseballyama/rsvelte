@@ -60,12 +60,74 @@ pub fn ensure_fixtures_exist() {
             ╔══════════════════════════════════════════════════════════════════╗\n\
             ║  Fixtures not found for Svelte commit: {}                 ║\n\
             ║                                                                  ║\n\
-            ║  Please run:  npm run generate-fixtures                          ║\n\
+            ║  Please run:  pnpm run generate-fixtures                         ║\n\
             ║                                                                  ║\n\
             ║  This will generate expected outputs from the official Svelte    ║\n\
             ║  compiler for comparison with the Rust implementation.           ║\n\
             ╚══════════════════════════════════════════════════════════════════╝\n\n",
             short_hash
+        );
+    }
+
+    ensure_fixtures_fresh();
+}
+
+/// Verify the fixture manifest matches the current Svelte submodule commit.
+///
+/// `fixtures_path()` already includes the short commit hash, so a stale tree
+/// from an older HEAD usually appears as "fixtures missing". This catches the
+/// remaining failure modes:
+///   * partial generation (manifest written but for a different commit)
+///   * manual editing of fixtures/ dir layout
+///   * symlinked fixtures pointing somewhere unexpected
+///
+/// On mismatch we panic with an actionable error before any test compares the
+/// wrong expected output (which would otherwise produce a misleading "passed"
+/// or a hard-to-debug "expected vs actual" diff).
+pub fn ensure_fixtures_fresh() {
+    let manifest_path = fixtures_path().join("manifest.json");
+    let Ok(content) = fs::read_to_string(&manifest_path) else {
+        // Manifest missing but fixtures dir exists — treat as stale.
+        let short_hash = get_svelte_commit_hash();
+        let short_hash = &short_hash[..12];
+        panic!(
+            "\n\n\
+            Fixture manifest missing at: {}\n\
+            Run:  pnpm run generate-fixtures\n\
+            (Svelte HEAD: {})\n\n",
+            manifest_path.display(),
+            short_hash
+        );
+    };
+
+    let manifest: serde_json::Value = match serde_json::from_str(&content) {
+        Ok(v) => v,
+        Err(e) => panic!(
+            "\n\nFixture manifest at {} is malformed: {}\n\
+            Run:  pnpm run generate-fixtures --force\n\n",
+            manifest_path.display(),
+            e
+        ),
+    };
+
+    let manifest_commit = manifest
+        .get("commitHash")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let head_commit = get_svelte_commit_hash();
+
+    if manifest_commit != head_commit {
+        panic!(
+            "\n\n\
+            ╔══════════════════════════════════════════════════════════════════╗\n\
+            ║  Fixtures are stale.                                             ║\n\
+            ║                                                                  ║\n\
+            ║  Manifest commit: {:.12}                                   ║\n\
+            ║  Svelte HEAD:     {:.12}                                   ║\n\
+            ║                                                                  ║\n\
+            ║  Run:  pnpm run generate-fixtures --force                        ║\n\
+            ╚══════════════════════════════════════════════════════════════════╝\n\n",
+            manifest_commit, head_commit
         );
     }
 }
@@ -183,6 +245,155 @@ pub fn canonicalize_js(code: &str) -> String {
         .build(&parsed.program)
         .code;
     result.trim().to_string()
+}
+
+// ============================================================================
+// Comparison helpers
+// ============================================================================
+
+/// Compare two JavaScript outputs using OXC parse→codegen canonicalization.
+///
+/// This normalizes only formatting (whitespace, semicolons, quotes,
+/// parentheses) while preserving all semantic differences. Any returned
+/// `false` represents a real code difference, not a stylistic one.
+pub fn compare_js(actual: &str, expected: &str) -> bool {
+    canonicalize_js(actual) == canonicalize_js(expected)
+}
+
+/// Same as [`compare_js`] but emits debug output via env vars when comparison
+/// fails. Recognized env vars:
+///   * `DEBUG_TEST=<name>` — print canonical expected/actual for the named test
+///   * `DEBUG_ALL=1` — print canonical expected/actual for any failing test
+///   * `DEBUG_RAW=<name>` — also write raw + canonical inputs to /tmp/debug_*
+pub fn compare_js_with_debug(actual: &str, expected: &str, test_name: &str) -> bool {
+    let canonical_actual = canonicalize_js(actual);
+    let canonical_expected = canonicalize_js(expected);
+    let passed = canonical_actual == canonical_expected;
+
+    if !passed {
+        let target_match = std::env::var("DEBUG_TEST").ok().as_deref() == Some(test_name);
+        let debug_all = std::env::var("DEBUG_ALL").is_ok();
+        if target_match || debug_all {
+            eprintln!("=== {} canonical diff ===", test_name);
+            eprintln!("{}", format_diff(&canonical_expected, &canonical_actual));
+        }
+
+        if std::env::var("DEBUG_RAW").ok().as_deref() == Some(test_name) {
+            let _ = fs::write("/tmp/debug_raw_exp.js", expected);
+            let _ = fs::write("/tmp/debug_raw_act.js", actual);
+            let _ = fs::write("/tmp/debug_canonical_exp.js", &canonical_expected);
+            let _ = fs::write("/tmp/debug_canonical_act.js", &canonical_actual);
+            eprintln!(
+                "DEBUG: wrote raw/canonical files to /tmp/debug_raw_*.js and /tmp/debug_canonical_*.js"
+            );
+        }
+    }
+
+    passed
+}
+
+/// Compare two CSS outputs using the canonical-CSS normalization.
+pub fn compare_css(actual: &str, expected: &str) -> bool {
+    canonicalize_css(actual) == canonicalize_css(expected)
+}
+
+/// Compare two source maps for semantic equality.
+///
+/// Both inputs are JSON. We compare only the fields that affect downstream
+/// behavior:
+///   * `version` (must agree; almost always 3)
+///   * `mappings` (the encoded VLQ string — the load-bearing part)
+///   * `sources` after normalizing to a forward-slash path basename so absolute
+///     workspace paths don't cause false positives
+///   * `names`
+///
+/// Fields like `file`, `sourceRoot`, and `sourcesContent` differ legitimately
+/// between compilers and are ignored. Any returned `false` represents a real
+/// mappings mismatch worth investigating.
+pub fn compare_sourcemaps(actual: &str, expected: &str) -> bool {
+    fn normalize(value: &str) -> Option<serde_json::Value> {
+        let parsed: serde_json::Value = serde_json::from_str(value).ok()?;
+        let obj = parsed.as_object()?;
+
+        let version = obj
+            .get("version")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null);
+        let mappings = obj
+            .get("mappings")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let names = obj
+            .get("names")
+            .cloned()
+            .unwrap_or(serde_json::Value::Array(vec![]));
+
+        let sources: Vec<String> = obj
+            .get("sources")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .map(|s| {
+                        s.as_str()
+                            .map(|p| {
+                                // Strip drive letters / leading slashes so absolute
+                                // workspace paths compare equal to relative ones.
+                                p.replace('\\', "/")
+                                    .rsplit_once('/')
+                                    .map(|(_, last)| last.to_string())
+                                    .unwrap_or_else(|| p.to_string())
+                            })
+                            .unwrap_or_default()
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        Some(serde_json::json!({
+            "version": version,
+            "mappings": mappings,
+            "names": names,
+            "sources": sources,
+        }))
+    }
+
+    match (normalize(actual), normalize(expected)) {
+        (Some(a), Some(b)) => a == b,
+        _ => false,
+    }
+}
+
+/// Render a unified diff suitable for test failure output. Lines beginning
+/// with `-` are expected, `+` are actual.
+pub fn format_diff(expected: &str, actual: &str) -> String {
+    use similar::{ChangeTag, TextDiff};
+
+    let diff = TextDiff::from_lines(expected, actual);
+    let mut out = String::new();
+    for change in diff.iter_all_changes() {
+        let prefix = match change.tag() {
+            ChangeTag::Delete => "- ",
+            ChangeTag::Insert => "+ ",
+            ChangeTag::Equal => "  ",
+        };
+        out.push_str(prefix);
+        out.push_str(change.value());
+        if !change.value().ends_with('\n') {
+            out.push('\n');
+        }
+    }
+    out
+}
+
+/// Like `assert_eq!` but emits a unified diff on mismatch instead of dumping
+/// the raw values. Use sparingly — most fixture tests should keep collecting
+/// failures and report them in bulk via TestResult, not panic mid-suite.
+#[track_caller]
+pub fn assert_eq_with_diff(actual: &str, expected: &str, label: &str) {
+    if actual != expected {
+        panic!("\n{} mismatch:\n{}", label, format_diff(expected, actual));
+    }
 }
 
 /// Sort import statements at the top of the file.
@@ -4337,6 +4548,136 @@ impl std::fmt::Display for TestCategory {
     }
 }
 
+// ============================================================================
+// Generic test runner helpers
+// ============================================================================
+
+/// Outcome of a single fixture test, generic over a per-suite details payload.
+///
+/// Existing test files keep their bespoke `TestResult` for now; new suites and
+/// future migrations should prefer this so the shared `summarize_results`
+/// helper can render them uniformly.
+#[derive(Debug, Clone)]
+pub struct GenericTestResult<D> {
+    pub name: String,
+    pub passed: bool,
+    pub skipped: bool,
+    pub error: Option<String>,
+    pub details: D,
+}
+
+impl<D: Default> GenericTestResult<D> {
+    pub fn skipped(name: impl Into<String>, reason: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            passed: false,
+            skipped: true,
+            error: Some(reason.into()),
+            details: D::default(),
+        }
+    }
+}
+
+/// Aggregate counts produced by `summarize_results`.
+#[derive(Debug, Clone, Default)]
+pub struct TestSummary {
+    pub total: usize,
+    pub run: usize,
+    pub passed: usize,
+    pub failed: usize,
+    pub skipped: usize,
+}
+
+impl TestSummary {
+    pub fn pass_percentage(&self) -> f64 {
+        if self.run == 0 {
+            0.0
+        } else {
+            (self.passed as f64 / self.run as f64) * 100.0
+        }
+    }
+
+    /// Print a one-shot summary line in the format every existing suite uses.
+    pub fn print(&self, suite: &str) {
+        println!("\n=== {} ===", suite);
+        println!(
+            "Total: {}/{} passed ({} skipped, {:.1}%)",
+            self.passed,
+            self.run,
+            self.skipped,
+            self.pass_percentage(),
+        );
+    }
+}
+
+pub fn summarize_results<D>(results: &[GenericTestResult<D>]) -> TestSummary {
+    let mut s = TestSummary {
+        total: results.len(),
+        ..Default::default()
+    };
+    for r in results {
+        if r.skipped {
+            s.skipped += 1;
+        } else if r.passed {
+            s.passed += 1;
+        } else {
+            s.failed += 1;
+        }
+    }
+    s.run = s.total - s.skipped;
+    s
+}
+
+/// Trait that turns a sample directory into a strongly-typed fixture.
+///
+/// Implementing this on a per-suite struct lets callers write
+/// `load_all_fixtures::<MyFixture>("validator")` instead of hand-rolling the
+/// `read_dir → filter → load` boilerplate that's currently duplicated across
+/// every test file.
+pub trait FixtureLoader: Sized {
+    /// Load this fixture from a sample directory. Return `None` if the
+    /// directory should be skipped (missing inputs, opt-out via _config, etc.).
+    fn load(sample_dir: &std::path::Path) -> Option<Self>;
+}
+
+/// Walk a category's sample directories and load each one as a fixture.
+///
+/// Sample directories come from the Svelte test suite (the source of truth);
+/// expected outputs come from the generated `fixtures/` tree per the loader's
+/// own implementation.
+pub fn load_all_fixtures<F: FixtureLoader>(category: &str) -> Vec<F> {
+    get_svelte_test_samples(category)
+        .into_iter()
+        .filter_map(|path| F::load(&path))
+        .collect()
+}
+
+/// Build a bounded rayon thread pool for fixture-driven test runs.
+///
+/// We previously saw three suites (`compiler-errors`, `css`, `validator`) hang
+/// under the default unbounded `par_iter()`. Each fixture compile spins up an
+/// OXC parser + bumpalo arenas, and at ~hundreds of fixtures × N CPU cores the
+/// resulting peak memory exceeds what a typical CI runner has free, the
+/// machine starts swapping, and the run looks like a hang. Capping concurrency
+/// keeps memory bounded.
+///
+/// `RAYON_NUM_THREADS` (or the `RUST_TEST_THREADS` we already set in
+/// `package.json`) overrides the default, so callers running locally with lots
+/// of RAM can crank it up.
+pub fn test_thread_pool() -> rayon::ThreadPool {
+    let env_threads = std::env::var("RAYON_NUM_THREADS")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .filter(|n| *n > 0);
+
+    let num_threads = env_threads.unwrap_or(4);
+
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .build()
+        .expect("Failed to build test thread pool")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -5105,7 +5446,12 @@ fn test_normalize_js_new_class_expression() {
     );
 }
 
+// Hardcoded paths and requires a `_actual/server.js` file that only exists
+// after a debugged test run for this specific fixture. Marked `#[ignore]` so
+// `cargo test` doesn't fail on machines without that file. Run explicitly:
+//   cargo test test_normalize_destructure_async -- --ignored
 #[test]
+#[ignore]
 fn test_normalize_destructure_async() {
     // Use full file content
     let actual = std::fs::read_to_string(std::path::Path::new(

@@ -9,8 +9,8 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    canonicalize_js, ensure_fixtures_exist, get_fixture_samples, load_fixture_output, svelte_path,
-    write_actual_output,
+    compare_js, compare_sourcemaps, ensure_fixtures_exist, get_fixture_samples,
+    load_fixture_output, svelte_path, write_actual_output,
 };
 use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
@@ -84,19 +84,17 @@ impl TestResult {
         } else {
             self.server_js_passed.unwrap_or(true)
         };
-        self.client_js_passed.unwrap_or(true)
-            && self.client_map_passed.unwrap_or(true)
-            && server_ok
-            && self.server_map_passed.unwrap_or(true)
+        // Sourcemap mismatches are surfaced via stats below, but don't block
+        // the test until parity is reached. Set `STRICT_SOURCEMAPS=1` locally
+        // to enforce them.
+        let strict_maps = std::env::var("STRICT_SOURCEMAPS").is_ok();
+        let map_ok = if strict_maps {
+            self.client_map_passed.unwrap_or(true) && self.server_map_passed.unwrap_or(true)
+        } else {
+            true
+        };
+        self.client_js_passed.unwrap_or(true) && server_ok && map_ok
     }
-}
-
-/// Compare two JavaScript outputs using OXC parse→codegen canonicalization.
-/// This normalizes only formatting while preserving all semantic differences.
-fn compare_js(actual: &str, expected: &str) -> bool {
-    let canonical_actual = canonicalize_js(actual);
-    let canonical_expected = canonicalize_js(expected);
-    canonical_actual == canonical_expected
 }
 
 /// Run a single sourcemap fixture test.
@@ -137,9 +135,9 @@ fn run_sourcemap_fixture_test(fixture: &SourcemapFixture) -> TestResult {
                     let map_json = serde_json::to_string_pretty(map).unwrap_or_default();
                     write_actual_output("sourcemaps", &fixture.name, "client.js.map", &map_json);
 
-                    if let Some(_expected_map) = &fixture.expected_client_map {
-                        // Sourcemap comparison is complex - for now just check it exists
-                        result.client_map_passed = Some(true);
+                    if let Some(expected_map) = &fixture.expected_client_map {
+                        result.client_map_passed =
+                            Some(compare_sourcemaps(&map_json, expected_map));
                     }
                 }
             }
@@ -177,8 +175,9 @@ fn run_sourcemap_fixture_test(fixture: &SourcemapFixture) -> TestResult {
                     let map_json = serde_json::to_string_pretty(map).unwrap_or_default();
                     write_actual_output("sourcemaps", &fixture.name, "server.js.map", &map_json);
 
-                    if let Some(_expected_map) = &fixture.expected_server_map {
-                        result.server_map_passed = Some(true);
+                    if let Some(expected_map) = &fixture.expected_server_map {
+                        result.server_map_passed =
+                            Some(compare_sourcemaps(&map_json, expected_map));
                     }
                 }
             }
@@ -245,10 +244,36 @@ fn test_sourcemaps() {
         .filter(|r| r.server_js_passed == Some(true))
         .count();
 
+    let client_map_total = results
+        .iter()
+        .filter(|r| r.client_map_passed.is_some())
+        .count();
+    let client_map_passed = results
+        .iter()
+        .filter(|r| r.client_map_passed == Some(true))
+        .count();
+
+    let server_map_total = results
+        .iter()
+        .filter(|r| r.server_map_passed.is_some())
+        .count();
+    let server_map_passed = results
+        .iter()
+        .filter(|r| r.server_map_passed == Some(true))
+        .count();
+
     println!("\n=== Sourcemap Tests ===");
     println!("Total: {}/{} passed", passed, total);
-    println!("  Client JS: {}/{}", client_js_passed, client_js_total);
-    println!("  Server JS: {}/{}", server_js_passed, server_js_total);
+    println!("  Client JS:  {}/{}", client_js_passed, client_js_total);
+    println!("  Server JS:  {}/{}", server_js_passed, server_js_total);
+    println!(
+        "  Client map: {}/{} (informational; STRICT_SOURCEMAPS=1 to enforce)",
+        client_map_passed, client_map_total
+    );
+    println!(
+        "  Server map: {}/{} (informational; STRICT_SOURCEMAPS=1 to enforce)",
+        server_map_passed, server_map_total
+    );
 
     if failed > 0 {
         println!("\nFailed tests:");

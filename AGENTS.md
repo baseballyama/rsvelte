@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidelines for AI agents working on this project.
+Guidelines for AI agents working on this project. `CLAUDE.md` is a symlink to this file.
 
 ## Project Goals
 
@@ -42,49 +42,48 @@ When implementing, reference the corresponding file in `svelte/packages/svelte/s
 
 ## Development Workflow
 
-### Docker Development Environment (Recommended)
-
-All builds and tests should run inside the Docker container.
+### Setup
 
 ```bash
-# First-time setup
-./docker-dev.sh build              # Build Docker image
-./docker-dev.sh up                 # Start container
-
-# Development
-./docker-dev.sh shell              # Open shell inside container
-./docker-dev.sh run cargo build    # Run a command
-./docker-dev.sh test               # Run tests
-
-# VS Code Dev Containers
-# Select "Reopen in Container" to start the development environment
-```
-
-### Setup (Run inside container)
-
-```bash
+git submodule update --init --recursive
 git config core.hooksPath .githooks
-npm run generate-fixtures  # Required before running tests
+pnpm install
+pnpm run generate-fixtures  # Required before running tests
 ```
 
-### Testing (Run inside container)
+### Build & Test
 
 ```bash
-cargo test                          # Run all tests
-cargo test test_parser_modern_fixtures -- --nocapture
-npm run compatibility-report        # Generate detailed report
-npm run test-and-update            # Run tests + update docs
+cargo build                                          # Build
+cargo test                                           # Run all tests
+cargo test --release                                 # Release mode (recommended for full runs)
+cargo test --test parser_fixtures -- --nocapture     # Run a single suite
+pnpm run compatibility-report                        # Generate compatibility report JSON
+pnpm run test-and-update                             # Refresh report + docs
 ```
 
-Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically.
+Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically (`.githooks/pre-commit`).
+
+### Docker (optional)
+
+A `Dockerfile` and `docker-compose.yml` are provided for a reproducible toolchain (Rust nightly + Node 22 + pnpm). There is no `docker-dev.sh` wrapper — invoke Compose directly:
+
+```bash
+docker compose up -d            # Start dev container
+docker compose exec dev bash    # Open a shell inside it
+docker compose exec dev cargo test
+```
+
+VS Code Dev Containers ("Reopen in Container") also works.
 
 ### Working with Subagents
 
-**MANDATORY**: Use the Task tool for all implementation work.
+Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.
 
-- **Use subagents for**: Feature implementation, bug fixes, code exploration, multi-file changes
-- **Available types**: `Bash` (commands), `Explore` (codebase analysis), `general-purpose` (implementation)
-- **Exception**: Trivial single-file changes (e.g., fixing typos)
+- `Explore` — codebase exploration and search across many files
+- `Plan` — design implementation strategy before non-trivial work
+- `general-purpose` — multi-step implementation and research
+- For trivial single-file edits, work directly without spawning a subagent.
 
 ### Commit Guidelines
 
@@ -100,56 +99,68 @@ Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically.
 - Remove outdated information
 - Keep it concise
 
-## Test Status (2026-03-07)
+## Test Status
 
-| Suite | Pass/Total | Status |
-|-------|------------|--------|
-| Parser Modern | 22/22 | 100% |
-| Parser Legacy | 82/82 | 100% |
-| Compiler Errors | 144/144 | 100% |
-| SSR | 82/82 | 100% |
-| Compiler Snapshot | 20/20 | 100% |
-| CSS | 179/179 | 100% |
-| Runtime Legacy | 1202/1202 | 100% |
-| Runtime Runes | 865/865 | 100% |
-| Hydration | 77/77 | 100% |
-| Runtime Browser | 31/31 | 100% |
-| Validator | 324/324 | 100% |
-| Print | 40/40 | 100% |
-| Preprocess | 0/19 | N/A |
-| Migrate | 0/76 | N/A |
+Source: `docs/static/test-results.json` (compatibility report, generated 2026-03-07, Svelte commit `04c0368aa8d8`). Re-run `pnpm run test-and-update` to refresh.
 
-**Overall: 3068/3068 (100.0%)**
+| Suite | Pass/Total | Notes |
+|-------|------------|-------|
+| Parser Modern | 22/22 | |
+| Parser Legacy | 82/83 | 1 skipped (`javascript-comments` — OXC vs acorn comment attachment) |
+| Compiler Errors | 144/144 | |
+| Compiler Snapshot | 20/20 | |
+| CSS | 179/179 | |
+| Validator | 324/325 | 1 skipped |
+| SSR | 82/82 | |
+| Hydration | 77/77 | |
+| Runtime Legacy | 1202/1202 | |
+| Runtime Runes | 865/865 | |
+| Runtime Browser | 31/31 | |
+| Sourcemaps | 0/0 | No fixtures yet |
+| Print | 0/40 | Skipped in compatibility report; standalone test in `tests/print.rs` |
+| Preprocess | 0/19 | Not implemented |
+| Migrate | 0/76 | Not implemented |
+
+**Compatibility report total: 3028/3028 implemented passing (137 skipped, 0 failing)**
 
 ## Implementation Status
 
-### All Test Suites Complete (100%)
+### Fully passing in compatibility report
 
 **Parser** - All Svelte 5 syntax, script/style parsing, legacy AST conversion
-**Phase 2 Analyze** - Complete scope analysis, rune detection, store subscriptions, async blockers
-**Phase 3 Transform** - Full client/server code generation including async infrastructure
+**Phase 2 Analyze** - Scope analysis, rune detection, store subscriptions, async blockers
+**Phase 3 Transform** - Client/server code generation including async infrastructure
 **CSS** - Selector scoping, combinators, pseudo-classes, `:global()`, keyframe prefixing
-**Validator** - All warning/error detection including A11y
-**Compiler Errors** - All error detection patterns
-**Print** - AST-to-source-code conversion with source text preservation
+**Validator** - Warning/error detection including A11y
+**Compiler Errors** - Error detection patterns
+
+### Implemented but not in the compatibility report
+
+**Print** - `src/compiler/print/` provides AST-to-source conversion; tested standalone via `cargo test --test print`. Not yet wired into `compatibility_report.rs` (currently hardcoded as "Print API not implemented").
+
+### Not implemented
+
+**Preprocess** - `src/compiler/preprocess/` has scaffolding only; 19 official fixtures still skipped.
+**Migrate** - Svelte 4 → 5 migrator not started; 76 official fixtures skipped.
+**Sourcemaps** - No fixtures collected yet.
 
 ## Quick Reference
 
 ### Adding Features
 
-1. Check `svelte/packages/svelte/src/compiler/phases/{phase}/` for reference implementation
-2. Implement in corresponding Rust module
+1. Check `svelte/packages/svelte/src/compiler/phases/{phase}/` for the reference implementation (requires `git submodule update --init`)
+2. Implement in the corresponding Rust module under `src/compiler/phases/`
 3. Run tests: `cargo test`
-4. Debug with: `scripts/compare-parsers.mjs`
+4. Debug differences with `node scripts/compare-parsers.mjs`
 
 ### Documentation Updates
 
 ```bash
-npm run test-and-update  # Updates README.md and docs dashboard
+pnpm run test-and-update  # Updates README.md and docs dashboard
 ```
 
 ### Compatibility Report
 
-Output: `fixtures/{commit}/compatibility-report.json`
+Default output path: `fixtures/{svelte-short-commit}/compatibility-report.json` (created on first run; the `fixtures/` directory is generated, not checked in). Override with `node scripts/update-docs.mjs --report <path>`.
 
 Tracks test results over time for progress monitoring.

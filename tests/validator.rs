@@ -3,36 +3,25 @@
 //! These tests verify that the compiler produces expected warnings for Svelte code.
 //! They compare warning codes, messages, and positions with the official Svelte test suite.
 
+mod common;
+
+// NOTE: Validator runs sequentially. Previous attempts at `par_iter()` hung;
+// leading hypothesis is bumpalo arena retention causing memory pressure on
+// small CI runners. `common::test_thread_pool()` provides a bounded pool ready
+// for use once the hypothesis is verified locally.
+
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use common::get_svelte_test_samples;
 use serde::Deserialize;
 use svelte_compiler_rust::{
     CompileOptions, GenerateMode, ModuleCompileOptions, compile, compile_module,
 };
-use walkdir::WalkDir;
-
-/// Get the path to the Svelte submodule.
-fn svelte_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("svelte")
-}
 
 /// Get all validator test samples.
 fn get_validator_samples() -> Vec<PathBuf> {
-    let samples_dir = svelte_path().join("packages/svelte/tests/validator/samples");
-
-    if !samples_dir.exists() {
-        return Vec::new();
-    }
-
-    WalkDir::new(&samples_dir)
-        .min_depth(1)
-        .max_depth(1)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_dir())
-        .map(|e| e.path().to_path_buf())
-        .collect()
+    get_svelte_test_samples("validator")
 }
 
 /// Position in source code.

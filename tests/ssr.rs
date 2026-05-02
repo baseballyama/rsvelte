@@ -9,7 +9,7 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    canonicalize_js, ensure_fixtures_exist, get_fixture_samples, load_fixture_output, svelte_path,
+    compare_js, ensure_fixtures_exist, get_fixture_samples, load_fixture_output, svelte_path,
     write_actual_output,
 };
 use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
@@ -72,14 +72,6 @@ struct TestResult {
     passed: Option<bool>,
     error: Option<String>,
     skipped: bool,
-}
-
-/// Compare two JavaScript outputs using OXC parse→codegen canonicalization.
-/// This normalizes only formatting while preserving all semantic differences.
-fn compare_js(actual: &str, expected: &str) -> bool {
-    let canonical_actual = canonicalize_js(actual);
-    let canonical_expected = canonicalize_js(expected);
-    canonical_actual == canonical_expected
 }
 
 /// Run a single SSR fixture test.

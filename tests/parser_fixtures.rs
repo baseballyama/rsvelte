@@ -3,38 +3,19 @@
 //! These tests run against the official Svelte test suite fixtures.
 //! They compare the output of our Rust parser with the expected JSON output.
 
+mod common;
+
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use common::get_svelte_test_samples;
 use rayon::prelude::*;
 use svelte_compiler_rust::ast::arena::with_serialize_arena;
 use svelte_compiler_rust::{ParseOptions, convert_to_legacy, parse};
-use walkdir::WalkDir;
-
-/// Get the path to the Svelte submodule.
-fn svelte_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("svelte")
-}
 
 /// Get all parser test samples from the Svelte test suite.
 fn get_parser_samples(test_type: &str) -> Vec<PathBuf> {
-    let samples_dir = svelte_path()
-        .join("packages/svelte/tests")
-        .join(test_type)
-        .join("samples");
-
-    if !samples_dir.exists() {
-        return Vec::new();
-    }
-
-    WalkDir::new(&samples_dir)
-        .min_depth(1)
-        .max_depth(1)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_dir())
-        .map(|e| e.path().to_path_buf())
-        .collect()
+    get_svelte_test_samples(test_type)
 }
 
 /// Load a test fixture.

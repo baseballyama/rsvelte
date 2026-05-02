@@ -7,7 +7,7 @@ mod common;
 use std::fs;
 use std::path::Path;
 
-use common::svelte_path;
+use common::get_svelte_test_samples;
 use svelte_compiler_rust::compiler::print::print_with_source;
 use svelte_compiler_rust::{ParseOptions, parse};
 
@@ -21,22 +21,7 @@ struct PrintFixture {
 
 /// Get all print sample directories.
 fn get_print_samples() -> Vec<std::path::PathBuf> {
-    let samples_dir = svelte_path().join("packages/svelte/tests/print/samples");
-
-    if !samples_dir.exists() {
-        return Vec::new();
-    }
-
-    fs::read_dir(&samples_dir)
-        .ok()
-        .map(|entries| {
-            entries
-                .filter_map(|e| e.ok())
-                .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
-                .map(|e| e.path())
-                .collect()
-        })
-        .unwrap_or_default()
+    get_svelte_test_samples("print")
 }
 
 /// Load a Print test fixture from Svelte test suite.
