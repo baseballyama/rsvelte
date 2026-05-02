@@ -37,20 +37,25 @@ jobs:
       - name: Build WASM
         run: wasm-pack build --target web --no-default-features --features wasm
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'pnpm'
           cache-dependency-path: docs/pnpm-lock.yaml
 
       - name: Install dependencies
         working-directory: docs
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build docs
         working-directory: docs
-        run: npm run build
+        run: pnpm build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
