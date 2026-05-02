@@ -53,6 +53,10 @@ fn main() {
     let mut analyses = Vec::with_capacity(files.len());
     for (i, (_, content)) in files.iter().enumerate() {
         if let Some(ref mut ast) = asts[i] {
+            // SAFETY: `ast` lives until the end of this scope, and we
+            // explicitly clear the thread-local serialize arena before the
+            // borrow could become dangling. No async point or panic-prone
+            // cleanup runs between set and clear.
             unsafe {
                 svelte_compiler_rust::ast::arena::set_serialize_arena(&ast.arena as *const _)
             };
@@ -73,11 +77,15 @@ fn main() {
         .collect();
     for (i, (_, _content)) in files.iter().enumerate() {
         if let Some(ref mut ast) = asts2[i] {
+            // SAFETY: `ast` lives until the end of this scope; the serialize
+            // arena pointer is cleared before this borrow ends.
             unsafe {
                 svelte_compiler_rust::ast::arena::set_serialize_arena(&ast.arena as *const _)
             };
-            // Remove TypeScript nodes (part of compile flow)
-            let _ = svelte_compiler_rust::compiler::phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes;
+            // Note: `remove_typescript_nodes` would normally run here as part of
+            // the compile flow, but exposing the JSON AST mutation API in this
+            // profiler binary is left intentionally out of scope. The timing
+            // captured here is therefore parse + resolve_lazy only.
             svelte_compiler_rust::ast::arena::clear_serialize_arena();
         }
     }
@@ -91,6 +99,10 @@ fn main() {
     let start = Instant::now();
     for (i, (_, content)) in files.iter().enumerate() {
         if let (Some(ast), Some(Some(analysis))) = (&asts[i], analyses.get(i)) {
+            // SAFETY: `ast` is held in `asts[i]` for the duration of this
+            // loop iteration; the serialize arena pointer is cleared before
+            // we move to the next iteration so the pointer never outlives
+            // its referent.
             unsafe {
                 svelte_compiler_rust::ast::arena::set_serialize_arena(&ast.arena as *const _)
             };
