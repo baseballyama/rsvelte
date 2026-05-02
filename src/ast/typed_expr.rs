@@ -1957,25 +1957,25 @@ thread_local! {
     static DESER_ARENA: std::cell::RefCell<ParseArena> = std::cell::RefCell::new(ParseArena::new());
 }
 
-/// Allocate a JsNode during deserialization.
-/// Uses the serialize arena if one is set (during compile pipeline),
-/// otherwise falls back to DESER_ARENA (for tests and standalone usage).
-fn deser_alloc_node(node: JsNode) -> JsNodeId {
+/// Run `f` against either the active serialize arena (during compile) or the
+/// fallback DESER_ARENA (tests / standalone). The two `deser_alloc_*` helpers
+/// below are thin wrappers around this combinator.
+fn with_deser_arena<R>(f: impl FnOnce(&ParseArena) -> R) -> R {
     use crate::ast::arena::try_get_serialize_arena;
     if let Some(arena) = try_get_serialize_arena() {
-        arena.alloc_js_node(node)
+        f(arena)
     } else {
-        DESER_ARENA.with(|a| a.borrow().alloc_js_node(node))
+        DESER_ARENA.with(|a| f(&a.borrow()))
     }
 }
 
+/// Allocate a JsNode during deserialization.
+fn deser_alloc_node(node: JsNode) -> JsNodeId {
+    with_deser_arena(|arena| arena.alloc_js_node(node))
+}
+
 fn deser_alloc_children(nodes: Vec<JsNode>) -> IdRange {
-    use crate::ast::arena::try_get_serialize_arena;
-    if let Some(arena) = try_get_serialize_arena() {
-        arena.alloc_js_children(nodes)
-    } else {
-        DESER_ARENA.with(|a| a.borrow().alloc_js_children(nodes))
-    }
+    with_deser_arena(|arena| arena.alloc_js_children(nodes))
 }
 
 fn convert_child(obj: &serde_json::Map<String, Value>, key: &str) -> JsNodeId {
