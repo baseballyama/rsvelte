@@ -553,6 +553,7 @@ fn convert_part_to_item(
             in_async_block,
             attach_expressions: _,
             dev,
+            hmr,
         } => {
             let result = ServerCodeGenerator::generate_component_call_code(
                 name,
@@ -567,6 +568,7 @@ fn convert_part_to_item(
                 *css_props_is_html,
                 *in_async_block,
                 *dev,
+                *hmr,
                 each_counter,
                 store_subs,
             );

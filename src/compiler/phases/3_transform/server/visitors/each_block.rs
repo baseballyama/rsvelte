@@ -115,7 +115,7 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         // Check if this fragment is standalone (only contains a single RenderTag/Component)
-        let is_standalone = Self::is_standalone_fragment(&trimmed_body_nodes);
+        let is_standalone = self.is_standalone_fragment(&trimmed_body_nodes);
 
         // Generate body parts with the appropriate skip_hydration_boundaries flag
         let mut body_generator = self.new_child_generator(is_standalone);

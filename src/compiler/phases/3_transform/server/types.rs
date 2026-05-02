@@ -257,6 +257,11 @@ pub(crate) enum OutputPart {
         attach_expressions: Vec<String>,
         /// Whether dev mode is enabled (for prevent_snippet_stringification)
         dev: bool,
+        /// Whether HMR is enabled. When true, the trailing `<!---->` marker is
+        /// emitted unconditionally so the runtime can swap the component
+        /// without losing its hydration boundaries (mirrors the official
+        /// `!state.options.hmr` check in `is_standalone` in utils.js:288).
+        hmr: bool,
     },
     /// Component with bind directives - requires do/while settling
     ComponentWithBindings {

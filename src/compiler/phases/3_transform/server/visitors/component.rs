@@ -447,6 +447,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         in_async_block: true,
                         attach_expressions,
                         dev: self.dev,
+                        hmr: self.hmr,
                     }],
                 });
             } else {
@@ -464,6 +465,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     in_async_block: false,
                     attach_expressions,
                     dev: self.dev,
+                    hmr: self.hmr,
                 });
             }
         } else {

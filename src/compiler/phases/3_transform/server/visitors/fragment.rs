@@ -167,7 +167,7 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         // Compute standalone-ness for the trimmed fragment
-        let is_standalone = Self::is_standalone_fragment(
+        let is_standalone = self.is_standalone_fragment(
             &nodes[start_idx..end_idx]
                 .iter()
                 .map(|n| (*n).clone())

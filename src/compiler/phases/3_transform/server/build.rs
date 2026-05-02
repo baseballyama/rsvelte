@@ -82,6 +82,15 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
             &stripped, &code,
         );
 
+        // Re-escape ASCII control characters inside string literals. OXC's
+        // codegen unescapes `\t` / `\b` / `\v` / `\f` to their literal byte
+        // values when emitting string literals, but esrap (and the official
+        // Svelte output) keeps them as escape sequences. Without this fix,
+        // `value: '\n\tbar\n'` round-trips to `value: '\n<TAB>bar\n'`, which
+        // diffs against the expected fixture even though it's semantically
+        // equivalent.
+        code = reescape_control_chars_in_string_literals(&code);
+
         // Restore `;;` markers
         if has_double_semi {
             // OXC may split the two void statements across lines:
@@ -148,6 +157,146 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
 ///     withStacked = false
 /// } = $$props;
 /// ```
+/// Walk `code` and re-escape ASCII control characters inside string literals
+/// so they match esrap's output (`\t` / `\b` / `\v` / `\f`). Template literals,
+/// comments, and identifiers are skipped so source structure is preserved
+/// (in particular, apostrophes inside `// it's a` line comments must not be
+/// interpreted as string-literal openers).
+fn reescape_control_chars_in_string_literals(code: &str) -> String {
+    let bytes = code.as_bytes();
+    let mut out = String::with_capacity(code.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        let b = bytes[i];
+        // Line comment — copy through to end of line.
+        if b == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+            let start = i;
+            i += 2;
+            while i < bytes.len() && bytes[i] != b'\n' {
+                i += 1;
+            }
+            out.push_str(&code[start..i]);
+            continue;
+        }
+        // Block comment — copy through to closing `*/`.
+        if b == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'*' {
+            let start = i;
+            i += 2;
+            while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            i = (i + 2).min(bytes.len());
+            out.push_str(&code[start..i]);
+            continue;
+        }
+        // Template literal — copy through; nested `${...}` expressions can
+        // contain anything, so we walk the whole thing recursively.
+        if b == b'`' {
+            let start = i;
+            i += 1;
+            let mut depth = 0u32;
+            while i < bytes.len() {
+                let c = bytes[i];
+                if c == b'\\' && i + 1 < bytes.len() {
+                    i += 2;
+                    continue;
+                }
+                if depth == 0 && c == b'`' {
+                    i += 1;
+                    break;
+                }
+                if c == b'$' && i + 1 < bytes.len() && bytes[i + 1] == b'{' {
+                    depth += 1;
+                    i += 2;
+                    continue;
+                }
+                if depth > 0 && c == b'}' {
+                    depth -= 1;
+                    i += 1;
+                    continue;
+                }
+                i += 1;
+            }
+            out.push_str(&code[start..i]);
+            continue;
+        }
+        // Enter a single-/double-quoted string literal.
+        if b == b'\'' || b == b'"' {
+            let quote = b;
+            out.push(quote as char);
+            i += 1;
+            while i < bytes.len() {
+                let c = bytes[i];
+                if c == b'\\' && i + 1 < bytes.len() {
+                    out.push('\\');
+                    out.push(bytes[i + 1] as char);
+                    i += 2;
+                    continue;
+                }
+                if c == quote {
+                    out.push(quote as char);
+                    i += 1;
+                    break;
+                }
+                match c {
+                    b'\t' => {
+                        out.push_str("\\t");
+                        i += 1;
+                    }
+                    0x08 => {
+                        out.push_str("\\b");
+                        i += 1;
+                    }
+                    0x0b => {
+                        out.push_str("\\v");
+                        i += 1;
+                    }
+                    0x0c => {
+                        out.push_str("\\f");
+                        i += 1;
+                    }
+                    _ => {
+                        if c < 0x80 {
+                            out.push(c as char);
+                            i += 1;
+                        } else {
+                            let ch_len = utf8_char_len(c);
+                            out.push_str(&code[i..i + ch_len]);
+                            i += ch_len;
+                        }
+                    }
+                }
+            }
+            continue;
+        }
+        // Outside any string/comment/template. Multi-byte chars copy as a unit.
+        if b < 0x80 {
+            out.push(b as char);
+            i += 1;
+        } else {
+            let ch_len = utf8_char_len(b);
+            out.push_str(&code[i..i + ch_len]);
+            i += ch_len;
+        }
+    }
+    out
+}
+
+fn utf8_char_len(first_byte: u8) -> usize {
+    // ASCII (<0x80) and stray continuation bytes (0x80..0xc0) are both
+    // 1-byte advances — the latter is malformed UTF-8 that we skip past
+    // one byte at a time so we don't read off the end of the slice.
+    if first_byte < 0xc0 {
+        1
+    } else if first_byte < 0xe0 {
+        2
+    } else if first_byte < 0xf0 {
+        3
+    } else {
+        4
+    }
+}
+
 fn split_long_destructures(code: &str, indent_level: usize) -> String {
     let inner_indent = "\t".repeat(indent_level + 1);
     let outer_indent = "\t".repeat(indent_level);
@@ -1405,6 +1554,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     css_props_is_html,
                     attach_expressions,
                     dev,
+                    hmr,
                     ..
                 } => {
                     // Find blockers from component name, all prop expressions,
@@ -1473,6 +1623,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                 in_async_block: true,
                                 attach_expressions: attach_expressions.clone(),
                                 dev: *dev,
+                                hmr: *hmr,
                             }],
                         });
                     } else if children.is_some() || !snippets.is_empty() {
@@ -1491,6 +1642,7 @@ impl<'a> ServerCodeGenerator<'a> {
                             in_async_block: false,
                             attach_expressions: attach_expressions.clone(),
                             dev: *dev,
+                            hmr: *hmr,
                         });
                     } else {
                         // No children to recurse into - just clone the original
@@ -3179,6 +3331,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     in_async_block,
                     attach_expressions: _,
                     dev: component_dev,
+                    hmr: _,
                 } => {
                     // Flush current HTML before the component call
                     // For dynamic components, add <!---->  marker before the call (pushed separately)
@@ -5995,6 +6148,7 @@ impl<'a> ServerCodeGenerator<'a> {
         css_props_is_html: bool,
         in_async_block: bool,
         component_dev: bool,
+        hmr: bool,
         each_counter: &mut usize,
         store_subs: &[(&str, &str)],
     ) -> ComponentCodeResult {
@@ -6599,7 +6753,12 @@ impl<'a> ServerCodeGenerator<'a> {
 
         let trailing_marker = if has_css_props || used_child_block || in_async_block {
             TrailingMarkerBehavior::None
-        } else if dynamic {
+        } else if dynamic || hmr {
+            // HMR forces an unconditional trailing marker because the runtime
+            // needs the boundary comment to swap the component (mirrors the
+            // `!state.options.hmr` guard in the official `is_standalone` check
+            // in utils.js:288 — when hmr is on, the surrounding fragment is
+            // never standalone, so the component always needs the marker).
             TrailingMarkerBehavior::Always
         } else {
             TrailingMarkerBehavior::Conditional { has_prior_content }
