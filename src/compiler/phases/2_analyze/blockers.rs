@@ -179,9 +179,13 @@ fn trace_bindings(
                 }
             }
             "CallExpression" => {
-                // For now, assume everything touched by the callee ends up mutating the object
-                // Special case: skip $effect as they only run once async work has completed
-                // TODO: Check for $effect rune
+                // For now, assume everything touched by the callee ends up mutating the object.
+                // Special case: skip `$effect(...)` and `$effect.X(...)` because effects only
+                // run after async work has completed, so they should not be treated as
+                // synchronous writes that block subsequent statements.
+                if is_effect_rune_callee(node.get("callee")) {
+                    return;
+                }
 
                 let mut touched = FxHashSet::default();
                 if let Some(callee) = node.get("callee") {
@@ -228,6 +232,50 @@ fn trace_bindings(
                 }
             }
         }
+    }
+}
+
+/// Returns true when the given callee node refers to the `$effect` rune
+/// (either `$effect(...)` or `$effect.X(...)`).
+///
+/// Effects run after async work completes, so they should not be treated as
+/// synchronous writes when computing async blockers.
+fn is_effect_rune_callee(callee: Option<&JsonValue>) -> bool {
+    let Some(callee) = callee else {
+        return false;
+    };
+    let Some(ty) = callee.get("type").and_then(|t| t.as_str()) else {
+        return false;
+    };
+    match ty {
+        "Identifier" => callee
+            .get("name")
+            .and_then(|n| n.as_str())
+            .map(|name| name == "$effect")
+            .unwrap_or(false),
+        "MemberExpression" => {
+            // Match `$effect.<anything>` (e.g. `$effect.pre`, `$effect.tracking`).
+            // We intentionally allow any property name because every `$effect.*`
+            // form is itself an effect-like construct that runs after async work.
+            callee
+                .get("object")
+                .and_then(|object| {
+                    object
+                        .get("type")
+                        .and_then(|t| t.as_str())
+                        .zip(Some(object))
+                })
+                .and_then(|(t, object)| {
+                    if t == "Identifier" {
+                        object.get("name").and_then(|n| n.as_str())
+                    } else {
+                        None
+                    }
+                })
+                .map(|name| name == "$effect")
+                .unwrap_or(false)
+        }
+        _ => false,
     }
 }
 
