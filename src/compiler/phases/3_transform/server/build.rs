@@ -7117,6 +7117,7 @@ fn extract_await_from_slot_props(props_expr: &str) -> (Vec<String>, String) {
 /// Removes lines containing:
 /// - `/* $$async_void_noop */` (placeholder for removed $effect statements)
 /// - `/* $$async_hole:` (placeholder for removed $inspect statements in async mode)
+/// - `/* $$async_hole */` (variant without args used by SSR script transform)
 fn strip_async_placeholders(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
     let mut first = true;
@@ -7129,9 +7130,10 @@ fn strip_async_placeholders(s: &str) -> String {
             result.push('\n');
         }
         first = false;
-        if memmem::find(trimmed.as_bytes(), b"/* $$async_hole:").is_some() {
-            // $inspect() calls should emit ;; (two empty statements) to match
-            // the official Svelte compiler's server-side output
+        // Either form of `$$async_hole` placeholder rewrites to `;;` in
+        // non-async-body contexts (the official compiler emits two empty
+        // statements where $inspect() used to be).
+        if memmem::find(trimmed.as_bytes(), b"$$async_hole").is_some() {
             result.push_str(";;");
         } else {
             result.push_str(line);
