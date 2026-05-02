@@ -1820,8 +1820,16 @@ fn convert_svelte_boundary_with_pending(
     code.push_str("} else {\n");
     code.push_str("\t$$renderer.push(`<!--[-->`);\n");
     if !main_body.is_empty() {
-        let main_code = generate_inner_body_code_direct(main_body, store_subs, each_counter, 1);
+        // Wrap the main body in a `{ ... }` block scope. The official
+        // SvelteBoundary visitor scopes the else-branch's hoisted `let`
+        // declarations (e.g. `let data; var promises = ...`) so they don't
+        // leak into the surrounding function. Match that — without the
+        // wrapper our async-body transform's hoisted vars sit in the parent
+        // function scope, diffing against the expected fixture.
+        code.push_str("\n\t{\n");
+        let main_code = generate_inner_body_code_direct(main_body, store_subs, each_counter, 2);
         code.push_str(&main_code);
+        code.push_str("\t}\n\n");
     }
     code.push_str("\t$$renderer.push(`<!--]-->`);\n");
     code.push('}');
