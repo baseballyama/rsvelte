@@ -10,11 +10,12 @@ use super::transform_store::{
     transform_store_assignments, transform_store_destructure_assignments,
 };
 use memchr::memmem;
+use rustc_hash::FxHashSet;
 
 /// Transform script content for server-side rendering.
 #[allow(dead_code)]
 pub(crate) fn transform_script_content(script: &str) -> String {
-    transform_script_content_inner(script, false, &[], &std::collections::HashSet::new(), false)
+    transform_script_content_inner(script, false, &[], &FxHashSet::default(), false)
 }
 
 /// Transform script content with additional bindable prop names from `export { x }` patterns.
@@ -27,19 +28,19 @@ pub(crate) fn transform_script_content_with_props(
         script,
         false,
         reexported_props,
-        &std::collections::HashSet::new(),
+        &FxHashSet::default(),
         false,
     )
 }
 
 pub(crate) fn transform_script_content_module(script: &str, dev: bool) -> String {
-    transform_script_content_inner(script, true, &[], &std::collections::HashSet::new(), dev)
+    transform_script_content_inner(script, true, &[], &FxHashSet::default(), dev)
 }
 
 /// Transform script content for server-side rendering, with pre-extracted imported names.
 pub(crate) fn transform_script_content_with_imports(
     script: &str,
-    imported_names: &std::collections::HashSet<String>,
+    imported_names: &FxHashSet<String>,
     dev: bool,
 ) -> String {
     transform_script_content_inner(script, false, &[], imported_names, dev)
@@ -49,7 +50,7 @@ pub(crate) fn transform_script_content_with_imports(
 pub(crate) fn transform_script_content_with_props_and_imports(
     script: &str,
     reexported_props: &[(String, String)],
-    imported_names: &std::collections::HashSet<String>,
+    imported_names: &FxHashSet<String>,
     dev: bool,
 ) -> String {
     transform_script_content_inner(script, false, reexported_props, imported_names, dev)
@@ -59,7 +60,7 @@ fn transform_script_content_inner(
     script: &str,
     is_module: bool,
     reexported_props: &[(String, String)],
-    imported_names: &std::collections::HashSet<String>,
+    imported_names: &FxHashSet<String>,
     dev: bool,
 ) -> String {
     // Check if rune base names are imported (making $state/$derived store subscriptions, not runes).

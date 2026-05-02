@@ -397,7 +397,7 @@ pub struct VisitorContext<'a> {
     /// Stack of ignored warning codes.
     /// Each entry is a set of warning codes that should be ignored at that nesting level.
     /// Corresponds to ignore_stack in Svelte's state.js.
-    pub ignore_stack: Vec<std::collections::HashSet<String>>,
+    pub ignore_stack: Vec<rustc_hash::FxHashSet<String>>,
     /// Stack of ancestor element names for node_invalid_placement validation.
     /// This is separate from path because path contains TemplateNode references that are difficult to manage.
     pub element_ancestors: Vec<String>,
@@ -565,7 +565,7 @@ impl<'a> VisitorContext<'a> {
         let mut combined = if let Some(prev) = self.ignore_stack.last() {
             prev.clone()
         } else {
-            std::collections::HashSet::new()
+            rustc_hash::FxHashSet::default()
         };
         combined.extend(ignores);
         self.ignore_stack.push(combined);

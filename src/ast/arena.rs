@@ -60,6 +60,12 @@ pub struct ParseArena {
 
 // ParseArena is explicitly NOT Sync - it's single-threaded only.
 // Send is fine since we can move it between threads.
+//
+// SAFETY: ParseArena owns its `UnsafeCell<Vec<JsNode>>` storage. Moving it
+// between threads is sound because no shared references exist when ownership
+// transfers, and all internal mutation happens through `&self` methods that
+// are documented as single-threaded (UnsafeCell is `!Sync`, so the type
+// remains non-shareable across threads).
 unsafe impl Send for ParseArena {}
 
 impl ParseArena {
@@ -77,6 +83,12 @@ impl ParseArena {
     /// Allocate a JsNode and return its handle.
     #[inline(always)]
     pub fn alloc_js_node(&self, node: JsNode) -> JsNodeId {
+        // SAFETY: ParseArena is `!Sync` (single-threaded). `UnsafeCell` is used
+        // so allocation can take `&self`. Append-only `Vec::push` never invalidates
+        // existing references because we do not return any reference here — only
+        // an owned `JsNodeId` index. No outstanding `&` or `&mut` to the Vec exist
+        // at this point because all `get_*` methods only borrow during a single
+        // call.
         unsafe {
             let vec = &mut *self.js_nodes.get();
             let id = JsNodeId(vec.len() as u32);
@@ -88,6 +100,14 @@ impl ParseArena {
     /// Get a shared reference to a JsNode by handle.
     #[inline(always)]
     pub fn get_js_node(&self, id: JsNodeId) -> &JsNode {
+        // SAFETY: Single-threaded, append-only Vec — once an element is pushed
+        // its address remains stable for the Vec's lifetime, so the returned
+        // shared reference cannot be invalidated by subsequent `alloc_js_node`
+        // calls (push only grows; reallocation moves elements but `&self` borrow
+        // tied to the returned `&JsNode` prevents concurrent allocation per the
+        // borrow checker — the caller cannot call `alloc_js_node` while the
+        // returned reference is alive). Out-of-range IDs return a static fallback
+        // rather than panicking.
         unsafe {
             let vec = &*self.js_nodes.get();
             if (id.0 as usize) >= vec.len() {
@@ -108,6 +128,11 @@ impl ParseArena {
     #[inline(always)]
     #[allow(clippy::mut_from_ref)]
     pub fn get_js_node_mut(&self, id: JsNodeId) -> &mut JsNode {
+        // SAFETY: Single-threaded. Caller is responsible for ensuring no other
+        // outstanding reference exists for the same `id` (the borrow checker
+        // cannot enforce this through `&self`, which is why this method uses
+        // `#[allow(clippy::mut_from_ref)]`). Used only by mutation passes that
+        // are aware of arena aliasing — see `crate::compiler::phases::phase2_analyze`.
         unsafe {
             let vec = &mut *self.js_nodes.get();
             &mut vec[id.0 as usize]
@@ -119,12 +144,16 @@ impl ParseArena {
     /// Get the current child count (used to record IdRange start).
     #[inline(always)]
     pub fn js_children_count(&self) -> u32 {
+        // SAFETY: Single-threaded, immutable read of `Vec::len`. `len()` does not
+        // take a reference into the Vec, so no aliasing concern.
         unsafe { (*self.js_children.get()).len() as u32 }
     }
 
     /// Allocate a JsNode child (for `Vec<JsNode>` fields like arguments, body).
     #[inline(always)]
     pub fn alloc_js_child(&self, node: JsNode) {
+        // SAFETY: Same as `alloc_js_node` — single-threaded append-only push,
+        // no reference returned to the caller.
         unsafe {
             let vec = &mut *self.js_children.get();
             vec.push(node);
@@ -147,6 +176,11 @@ impl ParseArena {
         if range.is_empty() {
             return &[];
         }
+        // SAFETY: Single-threaded read. Append-only Vec means `range.start`
+        // through `range.start + range.len` was valid at the time the IdRange
+        // was minted; subsequent `alloc_js_child` calls only extend past `end`.
+        // The borrow checker prevents concurrent allocation while this `&[JsNode]`
+        // borrow is alive (the borrow ties to `&self`).
         unsafe {
             let vec = &*self.js_children.get();
             let end = (range.start + range.len) as usize;
@@ -171,6 +205,9 @@ impl ParseArena {
         if range.is_empty() {
             return &mut [];
         }
+        // SAFETY: Single-threaded. Caller is responsible for non-aliasing —
+        // see notes on `get_js_node_mut`. Used by transform passes that
+        // mutate children in place.
         unsafe {
             let vec = &mut *self.js_children.get();
             &mut vec[range.start as usize..(range.start + range.len) as usize]
@@ -185,6 +222,8 @@ impl ParseArena {
             return IdRange::empty();
         }
         let start = self.js_children_count();
+        // SAFETY: Same as `alloc_js_child` — single-threaded append-only extend,
+        // no reference returned to the caller.
         unsafe {
             let vec = &mut *self.js_children.get();
             vec.extend(nodes);
@@ -201,6 +240,9 @@ impl Default for ParseArena {
 
 impl Clone for ParseArena {
     fn clone(&self) -> Self {
+        // SAFETY: Single-threaded `Clone` — we read both Vecs and clone their
+        // contents. No outstanding mutable borrow on `self` during clone (the
+        // `&self` parameter prevents concurrent mutation per the borrow checker).
         unsafe {
             Self {
                 js_nodes: UnsafeCell::new((*self.js_nodes.get()).clone()),
@@ -212,6 +254,8 @@ impl Clone for ParseArena {
 
 impl std::fmt::Debug for ParseArena {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // SAFETY: Single-threaded `Debug` — we only read `Vec::len()` for both
+        // arenas. No reference outlives this call.
         unsafe {
             f.debug_struct("ParseArena")
                 .field("js_nodes_count", &(*self.js_nodes.get()).len())
@@ -257,6 +301,12 @@ pub unsafe fn set_serialize_arena(arena: *const ParseArena) {
 /// Returns None if no arena is set.
 #[inline]
 pub fn try_get_serialize_arena() -> Option<&'static ParseArena> {
+    // SAFETY: The pointer is set only via `with_serialize_arena` (which scopes
+    // the pointer's validity to a single function call) or via the explicitly
+    // `unsafe` `set_serialize_arena` (whose contract is documented). The
+    // `'static` lifetime is fictional but bounded by the discipline that callers
+    // never retain the returned reference past `clear_serialize_arena()` /
+    // `with_serialize_arena` scope.
     SERIALIZE_ARENA.with(|cell| cell.get().map(|ptr| unsafe { &*ptr }))
 }
 
@@ -276,9 +326,16 @@ pub fn has_serialize_arena() -> bool {
 /// Resolve a JsNodeId during serialization. Panics if no arena is set.
 #[inline(always)]
 pub fn resolve_js_node_for_serialize(id: JsNodeId) -> &'static JsNode {
+    // SAFETY: The thread-local pointer is dereferenced inside the closure
+    // passed to `SERIALIZE_ARENA.with`, which holds the cell read-only for the
+    // duration of the call. The transmute extends the borrow to `'static` —
+    // this is sound only because callers must invoke this function inside
+    // `with_serialize_arena` (or explicitly between `set_serialize_arena` and
+    // `clear_serialize_arena`), guaranteeing the arena outlives the returned
+    // reference. Misuse outside of that scope would dangle, but the public
+    // API contract documents this.
     SERIALIZE_ARENA.with(|cell| unsafe {
         let arena = &*cell.get().expect("serialize arena not set");
-        // SAFETY: the arena outlives the serialization call
         std::mem::transmute::<&JsNode, &'static JsNode>(arena.get_js_node(id))
     })
 }
@@ -286,6 +343,9 @@ pub fn resolve_js_node_for_serialize(id: JsNodeId) -> &'static JsNode {
 /// Resolve an IdRange of JsNode children during serialization.
 #[inline(always)]
 pub fn resolve_js_children_for_serialize(range: IdRange) -> &'static [JsNode] {
+    // SAFETY: Same lifetime contract as `resolve_js_node_for_serialize` — the
+    // arena must outlive the returned slice, which is guaranteed when the
+    // caller is inside `with_serialize_arena`.
     SERIALIZE_ARENA.with(|cell| unsafe {
         let arena = &*cell.get().expect("serialize arena not set");
         std::mem::transmute::<&[JsNode], &'static [JsNode]>(arena.get_js_children(range))

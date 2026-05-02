@@ -2233,7 +2233,7 @@ fn collect_reactive_references(
     getters: &mut Vec<JsExpr>,
 ) {
     // Track already-seen identifiers to avoid duplicates
-    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut seen: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
     collect_reactive_references_inner(expr, context, getters, &mut seen);
 }
 
@@ -2242,7 +2242,7 @@ fn collect_reactive_references_inner(
     expr: &JsExpr,
     context: &ComponentContext,
     getters: &mut Vec<JsExpr>,
-    seen: &mut std::collections::HashSet<String>,
+    seen: &mut rustc_hash::FxHashSet<String>,
 ) {
     match expr {
         JsExpr::Identifier(name) => {
@@ -2640,7 +2640,7 @@ fn collect_reactive_references_from_statement(
     stmt: &JsStatement,
     context: &ComponentContext,
     getters: &mut Vec<JsExpr>,
-    seen: &mut std::collections::HashSet<String>,
+    seen: &mut rustc_hash::FxHashSet<String>,
 ) {
     match stmt {
         JsStatement::Expression(expr_stmt) => {

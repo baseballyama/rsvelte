@@ -4,7 +4,7 @@
 //! mirroring the official compiler's css-prune.js. It considers combinators
 //! (>, space, +, ~) when determining which elements should be scoped.
 
-use std::collections::HashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::ast::template::{self, Fragment, TemplateNode};
 
@@ -1168,11 +1168,11 @@ fn get_snippet_block_name(snippet: &template::SnippetBlock) -> Option<String> {
 }
 
 /// Mapping from snippet name to the list of ancestor chains at each render site.
-type SnippetAncestorMap = HashMap<String, Vec<Vec<ElementInfo>>>;
+type SnippetAncestorMap = FxHashMap<String, Vec<Vec<ElementInfo>>>;
 
 /// Pre-pass: Walk the template tree to collect render site ancestor chains.
 fn collect_render_site_ancestors(fragment: &Fragment) -> SnippetAncestorMap {
-    let mut map: SnippetAncestorMap = HashMap::new();
+    let mut map: SnippetAncestorMap = FxHashMap::default();
     let mut ancestors: Vec<ElementInfo> = Vec::new();
     collect_render_sites_in_fragment(fragment, &mut ancestors, &mut map);
     map
@@ -1492,8 +1492,6 @@ fn process_node_scoping(
     }
 }
 
-use std::collections::HashSet;
-
 /// An element with its start/end position for identification in the marking pass.
 #[derive(Debug, Clone)]
 struct SiblingElementInfo {
@@ -1527,7 +1525,7 @@ fn process_sibling_selectors(
 
     if !sibling_selectors.is_empty() {
         // Phase 1: Collect elements to scope (immutable)
-        let mut elements_to_scope: HashSet<(u32, u32)> = HashSet::new();
+        let mut elements_to_scope: FxHashSet<(u32, u32)> = FxHashSet::default();
         collect_sibling_scoping(
             fragment,
             &sibling_selectors,
@@ -1554,7 +1552,7 @@ fn collect_sibling_scoping<'a>(
     sibling_selectors: &[&CssComplexSelector],
     ancestors: &[ElementInfo],
     path: &[PathSegment<'a>],
-    elements_to_scope: &mut HashSet<(u32, u32)>,
+    elements_to_scope: &mut FxHashSet<(u32, u32)>,
 ) {
     for (i, node) in fragment.nodes.iter().enumerate() {
         let current_path_segment = PathSegment {
@@ -1638,7 +1636,7 @@ fn check_element_as_subject(
     path: &[PathSegment],
     sibling_selectors: &[&CssComplexSelector],
     ancestors: &[ElementInfo],
-    elements_to_scope: &mut HashSet<(u32, u32)>,
+    elements_to_scope: &mut FxHashSet<(u32, u32)>,
 ) {
     for selector in sibling_selectors {
         let effective = truncate_globals(&selector.children);
@@ -2036,7 +2034,7 @@ fn check_each_wrap_around(
     body: &Fragment,
     sibling_selectors: &[&CssComplexSelector],
     ancestors: &[ElementInfo],
-    elements_to_scope: &mut HashSet<(u32, u32)>,
+    elements_to_scope: &mut FxHashSet<(u32, u32)>,
 ) {
     let last_elements = collect_last_elements_with_pos(body);
     let first_elements = collect_first_elements_with_pos(body);
@@ -2168,7 +2166,7 @@ fn fragment_has_definite_element(fragment: &Fragment) -> bool {
 }
 
 /// Apply scoping marks to elements whose (start, end) positions are in the set.
-fn apply_scoping_marks(fragment: &mut Fragment, elements_to_scope: &HashSet<(u32, u32)>) {
+fn apply_scoping_marks(fragment: &mut Fragment, elements_to_scope: &FxHashSet<(u32, u32)>) {
     for node in &mut fragment.nodes {
         match node {
             TemplateNode::RegularElement(el) => {

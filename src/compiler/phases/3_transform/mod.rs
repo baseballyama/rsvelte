@@ -160,7 +160,7 @@ pub fn transform_component(
         if let Ok(map) = serde_json::from_str::<serde_json::Value>(pp_map)
             && let Some(sources) = map.get("sources").and_then(|v| v.as_array())
         {
-            let css_source_indices: std::collections::HashSet<u32> = sources
+            let css_source_indices: rustc_hash::FxHashSet<u32> = sources
                 .iter()
                 .enumerate()
                 .filter_map(|(i, v)| {

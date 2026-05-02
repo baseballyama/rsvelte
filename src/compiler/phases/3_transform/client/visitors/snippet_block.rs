@@ -785,7 +785,7 @@ fn can_hoist_snippet(node: &SnippetBlock) -> bool {
     use crate::ast::template::TemplateNode;
 
     // Collect parameter names
-    let param_names: std::collections::HashSet<String> = node
+    let param_names: rustc_hash::FxHashSet<String> = node
         .parameters
         .iter()
         .filter_map(extract_param_name)
@@ -794,7 +794,7 @@ fn can_hoist_snippet(node: &SnippetBlock) -> bool {
     // Check if the body only references parameters (not instance state)
     fn check_hoistable(
         nodes: &[TemplateNode],
-        param_names: &std::collections::HashSet<String>,
+        param_names: &rustc_hash::FxHashSet<String>,
     ) -> bool {
         for node in nodes {
             match node {
@@ -906,7 +906,7 @@ fn extract_param_name(param: &crate::ast::js::Expression) -> Option<String> {
 #[allow(dead_code)]
 fn expression_only_uses_params(
     expr: &crate::ast::js::Expression,
-    param_names: &std::collections::HashSet<String>,
+    param_names: &rustc_hash::FxHashSet<String>,
 ) -> bool {
     use crate::ast::js::Expression;
 

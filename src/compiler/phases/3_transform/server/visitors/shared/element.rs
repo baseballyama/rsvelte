@@ -108,7 +108,7 @@ where
     let mut style_directives: Vec<&StyleDirective> = Vec::new();
     let mut content: Option<JsExpr> = None;
     let mut has_spread = false;
-    let mut events_to_capture: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut events_to_capture: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
 
     // Collect attributes by type
     for attribute in node.get_attributes() {

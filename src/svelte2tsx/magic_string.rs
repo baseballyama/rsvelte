@@ -281,6 +281,12 @@ impl MagicString {
     /// a real start-chunk (like `overwrite`) should not use this value, but
     /// callers that only need the split side-effect (ensuring `by_end` has an
     /// entry) are fine.
+    ///
+    /// If `index` falls outside `[0, original.len()]` we treat it as the
+    /// "nothing to split" sentinel (`usize::MAX`) instead of panicking. This
+    /// keeps a misbehaving upstream (e.g. an AST with stale positions) from
+    /// crashing the entire compiler in release builds. Debug builds print a
+    /// diagnostic so the upstream bug is still surfaced during development.
     fn split_at(&mut self, index: u32) -> usize {
         if let Some(&chunk_idx) = self.by_start.get(&index) {
             return chunk_idx;
@@ -288,7 +294,15 @@ impl MagicString {
 
         // If index is at the very end of the source, there is nothing to split.
         // The last chunk already ends at this position.
-        if index as usize == self.original.len() {
+        if index as usize >= self.original.len() {
+            #[cfg(debug_assertions)]
+            if index as usize > self.original.len() {
+                eprintln!(
+                    "split_at({}): position out of range [0, {})",
+                    index,
+                    self.original.len()
+                );
+            }
             return usize::MAX;
         }
 
@@ -302,11 +316,19 @@ impl MagicString {
             }
             match chunk.next {
                 Some(next) => cur = next,
-                None => panic!(
-                    "split_at({}): position out of range [0, {})",
-                    index,
-                    self.original.len()
-                ),
+                // The earlier `index >= self.original.len()` guard means we
+                // should not reach the end of the chunk list with `index` past
+                // the source. If we somehow do (e.g. corrupted chunk list),
+                // log in debug and return the sentinel rather than panic.
+                None => {
+                    #[cfg(debug_assertions)]
+                    eprintln!(
+                        "split_at({}): chunk list exhausted (source length {})",
+                        index,
+                        self.original.len()
+                    );
+                    return usize::MAX;
+                }
             }
         }
 

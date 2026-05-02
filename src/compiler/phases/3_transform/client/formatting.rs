@@ -1554,8 +1554,8 @@ pub(super) fn remove_blank_lines_before_closing_braces(code: &str) -> String {
 /// which preserves original quote style.
 pub(crate) fn restore_original_quotes(original: &str, oxc_output: &str) -> String {
     // Collect all double-quoted string contents from the original code.
-    let mut double_quoted_contents: std::collections::HashSet<String> =
-        std::collections::HashSet::new();
+    let mut double_quoted_contents: rustc_hash::FxHashSet<String> =
+        rustc_hash::FxHashSet::default();
     {
         let bytes = original.as_bytes();
         let mut i = 0;
