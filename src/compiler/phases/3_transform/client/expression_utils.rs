@@ -294,9 +294,9 @@ pub(super) fn needs_compound_assignment_parens(expr: &str, _op: &str) -> bool {
                     // Check for top-level binary/ternary/comma operators
                     // These indicate the expression needs grouping
                     match c {
-                        '+' | '-' => {
+                        '+' | '-'
                             // Check it's not a unary operator (at start or after operator)
-                            if i > 0 {
+                            if i > 0 => {
                                 // Look back to see if this is binary (preceded by value)
                                 let prev = chars[i - 1];
                                 if prev != '('
@@ -323,23 +323,20 @@ pub(super) fn needs_compound_assignment_parens(expr: &str, _op: &str) -> bool {
                                     has_top_level_operator = true;
                                 }
                             }
-                        }
-                        '*' | '/' | '%' | '&' | '|' | '^' => {
+                        '*' | '/' | '%' | '&' | '|' | '^'
                             // These are always binary operators at top level
                             // (unary * doesn't exist in JS, and & | ^ as unary are very rare)
-                            if i > 0 {
+                            if i > 0 => {
                                 has_top_level_operator = true;
                             }
-                        }
                         '?' | ',' => {
                             has_top_level_operator = true;
                         }
-                        '<' | '>' => {
+                        '<' | '>'
                             // Could be comparison or shift operator
-                            if i > 0 {
+                            if i > 0 => {
                                 has_top_level_operator = true;
                             }
-                        }
                         _ => {}
                     }
                 }
@@ -471,10 +468,8 @@ pub(super) fn is_inside_ternary_expression(before: &str) -> bool {
                 // Remember the byte position after this `{`
                 block_start_byte = byte_off + 1;
             }
-            '}' => {
-                if temp_depth > 0 {
-                    temp_depth -= 1;
-                }
+            '}' if temp_depth > 0 => {
+                temp_depth -= 1;
             }
             _ => {}
         }
@@ -511,17 +506,15 @@ pub(super) fn is_inside_ternary_expression(before: &str) -> bool {
 
         match c {
             '(' | '[' => paren_depth += 1,
-            ')' | ']' => {
-                if paren_depth > 0 {
-                    paren_depth -= 1;
-                }
+            ')' | ']' if paren_depth > 0 => {
+                paren_depth -= 1;
             }
             // Only count ? as ternary when at paren depth 0
-            '?' if paren_depth == 0 => {
+            '?' if paren_depth == 0
                 // Check it's not optional chaining (?.)
-                if i + 1 < context_chars.len() && context_chars[i + 1] != '.' {
-                    ternary_depth += 1;
-                }
+                && i + 1 < context_chars.len() && context_chars[i + 1] != '.' =>
+            {
+                ternary_depth += 1;
             }
             ':' if paren_depth == 0 && ternary_depth > 0 => {
                 ternary_depth -= 1;
@@ -1687,10 +1680,8 @@ pub(super) fn is_shadowed_by_local_var_decl(
                                                             while eq_pos < chars.len() {
                                                                 match chars[eq_pos] {
                                                                     '<' => angle_depth += 1,
-                                                                    '>' => {
-                                                                        if angle_depth > 0 {
-                                                                            angle_depth -= 1;
-                                                                        }
+                                                                    '>' if angle_depth > 0 => {
+                                                                        angle_depth -= 1;
                                                                     }
                                                                     '=' if angle_depth == 0 => {
                                                                         // Make sure it's not => or ==
@@ -2437,10 +2428,12 @@ pub(super) fn transform_state_in_expr(
                                     is_ternary = true;
                                     break;
                                 }
-                                ';' | ',' => {
-                                    if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 {
-                                        break;
-                                    }
+                                ';' | ','
+                                    if depth_paren == 0
+                                        && depth_brace == 0
+                                        && depth_bracket == 0 =>
+                                {
+                                    break;
                                 }
                                 _ => {}
                             }
@@ -3935,10 +3928,8 @@ pub(super) fn contains_top_level_ternary(expr: &str) -> bool {
                 string_char = c;
             }
             b'(' | b'[' | b'{' => depth += 1,
-            b')' | b']' | b'}' => {
-                if depth > 0 {
-                    depth -= 1;
-                }
+            b')' | b']' | b'}' if depth > 0 => {
+                depth -= 1;
             }
             b'?' if depth == 0 => {
                 // Make sure it's not ?. (optional chaining) or ?? (nullish coalescing)
@@ -3982,10 +3973,8 @@ pub(super) fn contains_top_level_logical(expr: &str) -> bool {
                 string_char = c;
             }
             b'(' | b'[' | b'{' => depth += 1,
-            b')' | b']' | b'}' => {
-                if depth > 0 {
-                    depth -= 1;
-                }
+            b')' | b']' | b'}' if depth > 0 => {
+                depth -= 1;
             }
             // Any top-level || or ?? means the expression is a LogicalExpression,
             // which always needs proxy in the official Svelte compiler.

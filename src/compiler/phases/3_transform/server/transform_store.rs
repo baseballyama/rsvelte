@@ -1678,10 +1678,8 @@ fn find_statement_end(s: &str) -> usize {
 
         match c {
             '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => {
-                if depth > 0 {
-                    depth -= 1;
-                }
+            ')' | ']' | '}' if depth > 0 => {
+                depth -= 1;
             }
             ';' if depth == 0 => return i,
             '\n' if depth == 0 => {

@@ -14,6 +14,7 @@ jobs:
   fmt:
     name: Format
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
@@ -28,6 +29,7 @@ jobs:
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,7 +49,9 @@ jobs:
   test:
     name: Test
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
@@ -71,6 +75,14 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
+      - name: Cache fixtures
+        uses: actions/cache@v4
+        with:
+          # Fixtures are keyed on the Svelte submodule SHA; if the SHA hasn't
+          # changed we can reuse them and skip generation entirely.
+          path: fixtures
+          key: fixtures-${{ runner.os }}-${{ hashFiles('svelte/.git/HEAD', 'svelte/.git/refs/heads/**', '.gitmodules') }}
+
       - name: Build Svelte compiler
         run: |
           cd svelte
@@ -78,14 +90,141 @@ jobs:
           pnpm build
 
       - name: Generate fixtures
-        run: npm run generate-fixtures
+        run: pnpm run generate-fixtures
+        timeout-minutes: 15
 
       - name: Run tests
         run: cargo test --all-features
+        timeout-minutes: 30
+        env:
+          # Some fixtures (notably the compatibility_report harness) walk
+          # deeply nested ASTs and overflow the default 8 MB thread stack.
+          RUST_MIN_STACK: '33554432'
+
+      - name: Collect failure artifacts
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p ci-artifacts
+          # Actual outputs written by tests on diff
+          if [ -d fixtures ]; then
+            find fixtures -type d -name "_actual" -exec cp -R --parents {} ci-artifacts/ \; 2>/dev/null || true
+          fi
+          # Compatibility report (best-effort; may not exist if tests failed early)
+          find fixtures -name "compatibility-report.json" -exec cp --parents {} ci-artifacts/ \; 2>/dev/null || true
+          # Manifest for context
+          find fixtures -name "manifest.json" -exec cp --parents {} ci-artifacts/ \; 2>/dev/null || true
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-failures-${{ matrix.os }}
+          path: ci-artifacts
+          if-no-files-found: ignore
+          retention-days: 14
+
+  compatibility-report:
+    name: Compatibility Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Cache fixtures
+        uses: actions/cache@v4
+        with:
+          path: fixtures
+          key: fixtures-${{ runner.os }}-${{ hashFiles('svelte/.git/HEAD', 'svelte/.git/refs/heads/**', '.gitmodules') }}
+
+      - name: Build Svelte compiler
+        run: |
+          cd svelte
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Generate fixtures
+        run: pnpm run generate-fixtures
+        timeout-minutes: 15
+
+      - name: Generate compatibility report
+        run: pnpm run compatibility-report
+        timeout-minutes: 30
+        env:
+          RUST_MIN_STACK: '33554432'
+
+      - name: Upload compatibility report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compatibility-report-${{ github.sha }}
+          path: fixtures/**/compatibility-report.json
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Compare with main (PR only)
+        if: github.event_name == 'pull_request'
+        run: node scripts/compare-compatibility-reports.mjs --pr-summary > pr-summary.md || echo "comparison unavailable" > pr-summary.md
+        continue-on-error: true
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '## Compatibility Report\n\n';
+            try {
+              body += fs.readFileSync('pr-summary.md', 'utf8');
+            } catch {
+              body += '_Could not generate comparison summary._';
+            }
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const existing = comments.find((c) =>
+              c.user.type === 'Bot' && c.body && c.body.startsWith('## Compatibility Report')
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                comment_id: existing.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body,
+              });
+            }
 
   build:
     name: Build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -103,6 +242,7 @@ jobs:
   docs:
     name: Documentation
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:

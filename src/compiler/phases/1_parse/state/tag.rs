@@ -259,12 +259,12 @@ impl Parser<'_> {
                     }
                     depth -= 1;
                 }
-                b' ' if depth == 0 => {
+                b' ' if depth == 0
                     // Check for " as " at top level
-                    if self.match_str(" as ") {
-                        found_as = true;
-                        break;
-                    }
+                    && self.match_str(" as ") =>
+                {
+                    found_as = true;
+                    break;
                 }
                 _ => {}
             }

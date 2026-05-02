@@ -1,0 +1,84 @@
+name: Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  coverage:
+    name: Code coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Cache fixtures
+        uses: actions/cache@v4
+        with:
+          path: fixtures
+          key: fixtures-${{ runner.os }}-${{ hashFiles('svelte/.git/HEAD', 'svelte/.git/refs/heads/**', '.gitmodules') }}
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Build Svelte compiler
+        run: |
+          cd svelte
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Generate fixtures
+        run: pnpm run generate-fixtures
+        timeout-minutes: 15
+
+      - name: Generate coverage
+        # Skip the coverage instrumentation hit for the SSR / runtime suites if
+        # they get too noisy — initially we measure everything, and we can prune
+        # in `--ignore-filename-regex` later if needed.
+        run: |
+          cargo llvm-cov --workspace --lcov --output-path lcov.info \
+            --ignore-filename-regex '(tests/|benches/|src/bin/)' \
+            -- --test-threads=2
+        env:
+          RUST_MIN_STACK: '33554432'
+
+      - name: Upload coverage report (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov-coverage
+          path: lcov.info
+          retention-days: 30
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        if: env.CODECOV_TOKEN != ''
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: lcov.info
+          fail_ci_if_error: false

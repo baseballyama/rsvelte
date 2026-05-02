@@ -30,16 +30,38 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         context.analysis.pickled_awaits.insert(start);
     }
 
-    // Determine if this await requires suspension
-    let suspend = tla;
+    // Determine if this await requires suspension.
+    // Reference: AwaitExpression.js lines 24-30
+    let mut suspend = tla;
+
+    if let Some(metadata) = context.current_expression() {
+        metadata.set_has_await(true);
+        suspend = true;
+    } else if context.in_expression_tag && !crosses_function_boundary(&context.js_path) {
+        // The rsvelte `ExpressionTag` AST node currently has no metadata
+        // pointer to attach `expression` to, but the await is still in a
+        // reactive template position and must trigger the same checks
+        // (unless an inner function declaration breaks the reactive context).
+        suspend = true;
+    }
 
     // Disallow top-level `await` or `await` in template expressions
     // unless a) in runes mode and b) opted into `experimental.async`
-    if suspend && !context.analysis.runes {
-        return Err(AnalysisError::ValidationWithCode {
-            code: "legacy_await_invalid".to_string(),
-            message: "Top-level await is only allowed in Svelte 5 with runes mode".to_string(),
-        });
+    // Reference: AwaitExpression.js lines 32-42
+    if suspend {
+        if !context.analysis.experimental_async {
+            return Err(AnalysisError::ValidationWithCode {
+                code: "experimental_async".to_string(),
+                message: "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`".to_string(),
+            });
+        }
+
+        if !context.analysis.runes {
+            return Err(AnalysisError::ValidationWithCode {
+                code: "legacy_await_invalid".to_string(),
+                message: "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless in runes mode".to_string(),
+            });
+        }
     }
 
     // Visit the argument expression
@@ -48,6 +70,23 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     }
 
     Ok(())
+}
+
+/// Returns true when the JS path between the current node and the enclosing
+/// template expression contains a function boundary (Arrow/FunctionExpression/
+/// FunctionDeclaration). Mirrors `is_reactive_expression`'s function-boundary
+/// short-circuit in the official `AwaitExpression.js`.
+fn crosses_function_boundary(js_path: &[JsPathEntry]) -> bool {
+    for entry in js_path.iter().rev() {
+        let parent_type = entry.as_value().get("type").and_then(|t| t.as_str());
+        match parent_type {
+            Some("ArrowFunctionExpression")
+            | Some("FunctionExpression")
+            | Some("FunctionDeclaration") => return true,
+            _ => {}
+        }
+    }
+    false
 }
 
 /// Visit an await expression (typed JsNode path).
@@ -67,13 +106,29 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         }
     }
 
-    let suspend = tla;
+    let mut suspend = tla;
 
-    if suspend && !context.analysis.runes {
-        return Err(AnalysisError::ValidationWithCode {
-            code: "legacy_await_invalid".to_string(),
-            message: "Top-level await is only allowed in Svelte 5 with runes mode".to_string(),
-        });
+    if let Some(metadata) = context.current_expression() {
+        metadata.set_has_await(true);
+        suspend = true;
+    } else if context.in_expression_tag && !crosses_function_boundary(&context.js_path) {
+        suspend = true;
+    }
+
+    if suspend {
+        if !context.analysis.experimental_async {
+            return Err(AnalysisError::ValidationWithCode {
+                code: "experimental_async".to_string(),
+                message: "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`".to_string(),
+            });
+        }
+
+        if !context.analysis.runes {
+            return Err(AnalysisError::ValidationWithCode {
+                code: "legacy_await_invalid".to_string(),
+                message: "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless in runes mode".to_string(),
+            });
+        }
     }
 
     // Visit the argument expression using typed traversal

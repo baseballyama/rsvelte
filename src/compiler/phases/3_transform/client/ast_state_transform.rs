@@ -1750,11 +1750,11 @@ fn needs_compound_parens(expr: &str, _op: &str) -> bool {
             '*' | '/' | '%' | '&' | '|' | '^' if depth == 0 && i > 0 => {
                 return true;
             }
-            '?' if depth == 0 && i > 0 => {
+            '?' if depth == 0 && i > 0
                 // Ternary or nullish coalescing
-                if chars.get(i + 1) != Some(&'.') {
-                    return true;
-                }
+                && chars.get(i + 1) != Some(&'.') =>
+            {
+                return true;
             }
             _ => {}
         }

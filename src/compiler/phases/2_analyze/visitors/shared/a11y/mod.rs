@@ -507,10 +507,8 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                 }
             }
         }
-        "label" => {
-            if !has_spread && !attribute_map.contains_key("for") && !has_input_child(node) {
-                warnings.push(w::a11y_label_has_associated_control());
-            }
+        "label" if !has_spread && !attribute_map.contains_key("for") && !has_input_child(node) => {
+            warnings.push(w::a11y_label_has_associated_control());
         }
         "video" => {
             let aria_hidden_exist = attribute_map
@@ -550,10 +548,8 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                 }
             }
         }
-        "figcaption" => {
-            if !is_parent(ancestor_names, &["figure"]) {
-                warnings.push(w::a11y_figcaption_parent());
-            }
+        "figcaption" if !is_parent(ancestor_names, &["figure"]) => {
+            warnings.push(w::a11y_figcaption_parent());
         }
         "figure" => {
             let children: Vec<_> = node

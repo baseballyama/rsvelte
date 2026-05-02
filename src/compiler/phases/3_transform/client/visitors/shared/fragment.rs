@@ -921,10 +921,8 @@ fn push_static_element_to_template_inner(
         TemplateNode::Text(text) => {
             template.push_text(vec![text.clone()]);
         }
-        TemplateNode::Comment(comment) => {
-            if preserve_comments {
-                template.push_comment(Some(comment.data.to_string()));
-            }
+        TemplateNode::Comment(comment) if preserve_comments => {
+            template.push_comment(Some(comment.data.to_string()));
         }
         _ => {}
     }

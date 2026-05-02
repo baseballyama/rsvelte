@@ -372,6 +372,29 @@ impl<'a> ScopeBuilder<'a> {
         None
     }
 
+    /// Walk the scope chain looking for `store_name` (the identifier without the
+    /// leading `$`). If it is declared in any scope other than module-root or the
+    /// instance script scope, that is a `store_invalid_scoped_subscription`
+    /// error per the official Svelte compiler.
+    fn check_store_scoped_subscription(&mut self, store_name: &str) {
+        let mut scope_idx = self.current_scope;
+        loop {
+            let scope = &self.scopes[scope_idx];
+            if scope.declarations.contains_key(store_name) {
+                if scope_idx != 0 && scope_idx != self.instance_scope_index {
+                    self.validation_errors
+                        .push(errors::store_invalid_scoped_subscription());
+                }
+                break;
+            }
+            if let Some(parent) = scope.parent {
+                scope_idx = parent;
+            } else {
+                break;
+            }
+        }
+    }
+
     /// Collect identifiers from the LHS of an assignment expression.
     /// Used to find possible implicit `legacy_reactive` declarations from `$: x = expr`.
     /// Reference: scope.js lines 1019-1023
@@ -1845,10 +1868,8 @@ impl<'a> ScopeBuilder<'a> {
     /// Used to find possible implicit `legacy_reactive` declarations from `$: x = expr`.
     fn collect_assignment_lhs_identifiers_typed(&mut self, node: &JsNode) {
         match node {
-            JsNode::Identifier { name, .. } => {
-                if !name.starts_with('$') {
-                    self.possible_implicit_declarations.push(name.to_string());
-                }
+            JsNode::Identifier { name, .. } if !name.starts_with('$') => {
+                self.possible_implicit_declarations.push(name.to_string());
             }
             JsNode::ArrayPattern { elements, .. } => {
                 for elem in elements.iter().flatten() {
@@ -2536,36 +2557,7 @@ impl<'a> ScopeBuilder<'a> {
                     );
 
                     if !is_rune_name {
-                        let store_name = &name[1..];
-
-                        // Look up the store name in the current scope chain
-                        // Start from current scope and traverse up
-                        let mut scope_idx = self.current_scope;
-                        loop {
-                            let scope = &self.scopes[scope_idx];
-                            if scope.declarations.contains_key(store_name) {
-                                // Found a binding for the store name
-                                // If this scope is neither module (0) nor instance scope,
-                                // and we're inside that scope (not just above it),
-                                // it's a scoped subscription error.
-                                // Use instance_scope_index instead of hardcoded 1 because
-                                // when a module script creates child scopes (e.g. functions),
-                                // the instance scope index shifts.
-                                if scope_idx != 0 && scope_idx != self.instance_scope_index {
-                                    // The store name is declared in a nested scope
-                                    // This means the $store reference would refer to this
-                                    // local variable, not the outer store - that's an error
-                                    self.validation_errors
-                                        .push(errors::store_invalid_scoped_subscription());
-                                }
-                                break;
-                            }
-                            if let Some(parent) = scope.parent {
-                                scope_idx = parent;
-                            } else {
-                                break;
-                            }
-                        }
+                        self.check_store_scoped_subscription(&name[1..]);
                     }
                 }
             }
@@ -2626,27 +2618,7 @@ impl<'a> ScopeBuilder<'a> {
                     );
 
                     if !is_rune_name {
-                        let store_name = &name[1..];
-
-                        // Look up the store name in the current scope chain
-                        let mut scope_idx = self.current_scope;
-                        loop {
-                            let scope = &self.scopes[scope_idx];
-                            if scope.declarations.contains_key(store_name) {
-                                // Found a binding for the store name in a nested scope
-                                // Use instance_scope_index instead of hardcoded 1
-                                if scope_idx != 0 && scope_idx != self.instance_scope_index {
-                                    self.validation_errors
-                                        .push(errors::store_invalid_scoped_subscription());
-                                }
-                                break;
-                            }
-                            if let Some(parent) = scope.parent {
-                                scope_idx = parent;
-                            } else {
-                                break;
-                            }
-                        }
+                        self.check_store_scoped_subscription(&name[1..]);
                     }
                 }
 
@@ -3561,23 +3533,7 @@ impl<'a> ScopeBuilder<'a> {
                         );
 
                         if !is_rune_name {
-                            let store_name = &name[1..];
-                            let mut scope_idx = self.current_scope;
-                            loop {
-                                let scope = &self.scopes[scope_idx];
-                                if scope.declarations.contains_key(store_name) {
-                                    if scope_idx != 0 && scope_idx != self.instance_scope_index {
-                                        self.validation_errors
-                                            .push(errors::store_invalid_scoped_subscription());
-                                    }
-                                    break;
-                                }
-                                if let Some(parent) = scope.parent {
-                                    scope_idx = parent;
-                                } else {
-                                    break;
-                                }
-                            }
+                            self.check_store_scoped_subscription(&name[1..]);
                         }
                     }
                 }
@@ -3626,23 +3582,7 @@ impl<'a> ScopeBuilder<'a> {
                         );
 
                         if !is_rune_name {
-                            let store_name = &name[1..];
-                            let mut scope_idx = self.current_scope;
-                            loop {
-                                let scope = &self.scopes[scope_idx];
-                                if scope.declarations.contains_key(store_name) {
-                                    if scope_idx != 0 && scope_idx != self.instance_scope_index {
-                                        self.validation_errors
-                                            .push(errors::store_invalid_scoped_subscription());
-                                    }
-                                    break;
-                                }
-                                if let Some(parent) = scope.parent {
-                                    scope_idx = parent;
-                                } else {
-                                    break;
-                                }
-                            }
+                            self.check_store_scoped_subscription(&name[1..]);
                         }
                     }
 
@@ -4051,13 +3991,13 @@ impl<'a> ScopeBuilder<'a> {
             JsNode::ChainExpression { expression, .. } => {
                 self.track_node_expression_updates(self.arena.get_js_node(*expression));
             }
-            JsNode::Identifier { name, .. } => {
+            JsNode::Identifier { name, .. }
                 // Check for store subscription scoping errors
                 if name.starts_with('$')
                     && !name.starts_with("$$")
                     && name.len() > 1
                     && self.function_depth > 0
-                {
+                => {
                     let is_rune_name = matches!(
                         name.as_str(),
                         "$state"
@@ -4069,26 +4009,9 @@ impl<'a> ScopeBuilder<'a> {
                             | "$host"
                     );
                     if !is_rune_name {
-                        let store_name = &name.as_str()[1..];
-                        let mut scope_idx = self.current_scope;
-                        loop {
-                            let scope = &self.scopes[scope_idx];
-                            if scope.declarations.contains_key(store_name) {
-                                if scope_idx != 0 && scope_idx != self.instance_scope_index {
-                                    self.validation_errors
-                                        .push(errors::store_invalid_scoped_subscription());
-                                }
-                                break;
-                            }
-                            if let Some(parent) = scope.parent {
-                                scope_idx = parent;
-                            } else {
-                                break;
-                            }
-                        }
+                        self.check_store_scoped_subscription(&name.as_str()[1..]);
                     }
                 }
-            }
             JsNode::ClassExpression { body, .. } => {
                 let body_id = *body;
                 // Walk class body looking for method/property updates
@@ -4161,23 +4084,7 @@ impl<'a> ScopeBuilder<'a> {
                             | "$host"
                     );
                     if !is_rune_name {
-                        let store_name = &name.as_str()[1..];
-                        let mut scope_idx = self.current_scope;
-                        loop {
-                            let scope = &self.scopes[scope_idx];
-                            if scope.declarations.contains_key(store_name) {
-                                if scope_idx != 0 && scope_idx != self.instance_scope_index {
-                                    self.validation_errors
-                                        .push(errors::store_invalid_scoped_subscription());
-                                }
-                                break;
-                            }
-                            if let Some(parent) = scope.parent {
-                                scope_idx = parent;
-                            } else {
-                                break;
-                            }
-                        }
+                        self.check_store_scoped_subscription(&name.as_str()[1..]);
                     }
                 }
                 self.updates.push(Update {

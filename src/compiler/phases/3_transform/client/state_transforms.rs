@@ -755,10 +755,8 @@ pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) ->
                                     }
                                     brdepth -= 1;
                                 }
-                                b',' | b';' => {
-                                    if pdepth == 0 && bdepth == 0 && brdepth == 0 {
-                                        break;
-                                    }
+                                b',' | b';' if pdepth == 0 && bdepth == 0 && brdepth == 0 => {
+                                    break;
                                 }
                                 _ => {}
                             }
@@ -891,10 +889,8 @@ pub(super) fn body_references_identifier_in_statements(
     for i in 0..chars.len() {
         match chars[i] {
             '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => {
-                if depth > 0 {
-                    depth -= 1;
-                }
+            ')' | ']' | '}' if depth > 0 => {
+                depth -= 1;
             }
             ';' | '\n' if depth == 0 => {
                 let stmt = content[start..i].trim();
@@ -2676,15 +2672,15 @@ pub(super) fn transform_prop_assignments(
                                 }
                             }
                             Some('^') => ("^=", 1),
-                            Some('?') => {
+                            Some('?')
                                 if eq_idx >= 2
-                                    && after_member.as_bytes().get(eq_idx - 2).map(|&b| b as char)
-                                        == Some('?')
-                                {
-                                    ("??=", 2)
-                                } else {
-                                    ("=", 0) // single ? before = is unexpected, treat as =
-                                }
+                                    && after_member
+                                        .as_bytes()
+                                        .get(eq_idx - 2)
+                                        .map(|&b| b as char)
+                                        == Some('?') =>
+                            {
+                                ("??=", 2)
                             }
                             _ => ("=", 0),
                         };
@@ -2884,12 +2880,11 @@ pub(super) fn detect_assignment_operator(s: &str) -> (Option<&'static str>, usiz
             "||=" => return (Some("||="), 3),
             "??=" => return (Some("??="), 3),
             "<<=" => return (Some("<<="), 3),
-            ">>=" => {
+            ">>="
                 // Make sure it's not >>>=
-                if bytes.len() < 4 || bytes[3] != b'=' {
+                if (bytes.len() < 4 || bytes[3] != b'=') => {
                     return (Some(">>="), 3);
                 }
-            }
             _ => {}
         }
     }
@@ -2964,10 +2959,8 @@ pub(super) fn split_multi_declarator(line: &str) -> Option<Vec<String>> {
         }
         match c {
             '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => {
-                if depth > 0 {
-                    depth -= 1;
-                }
+            ')' | ']' | '}' if depth > 0 => {
+                depth -= 1;
             }
             ',' if depth == 0 => {
                 has_top_level_comma = true;

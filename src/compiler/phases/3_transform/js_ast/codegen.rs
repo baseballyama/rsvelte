@@ -1934,13 +1934,7 @@ fn raw_stmt_type_name(code: &str) -> &'static str {
         return "ExpressionStatement";
     }
     match bytes[0] {
-        b'/' => {
-            if trimmed.starts_with("/*") || trimmed.starts_with("//") {
-                "Comment"
-            } else {
-                "ExpressionStatement"
-            }
-        }
+        b'/' if (trimmed.starts_with("/*") || trimmed.starts_with("//")) => "Comment",
         b'i' => {
             if trimmed.starts_with("import ") || trimmed.starts_with("import\t") {
                 "ImportDeclaration"
@@ -1959,20 +1953,8 @@ fn raw_stmt_type_name(code: &str) -> &'static str {
                 "ExpressionStatement"
             }
         }
-        b'v' => {
-            if trimmed.starts_with("var ") {
-                "VariableDeclaration"
-            } else {
-                "ExpressionStatement"
-            }
-        }
-        b'l' => {
-            if trimmed.starts_with("let ") {
-                "VariableDeclaration"
-            } else {
-                "ExpressionStatement"
-            }
-        }
+        b'v' if trimmed.starts_with("var ") => "VariableDeclaration",
+        b'l' if trimmed.starts_with("let ") => "VariableDeclaration",
         b'c' => {
             if trimmed.starts_with("const ") {
                 "VariableDeclaration"
@@ -1991,29 +1973,15 @@ fn raw_stmt_type_name(code: &str) -> &'static str {
                 "ExpressionStatement"
             }
         }
-        b'a' => {
-            if trimmed.starts_with("async function ") {
-                "FunctionDeclaration"
-            } else {
-                "ExpressionStatement"
-            }
+        b'a' if trimmed.starts_with("async function ") => "FunctionDeclaration",
+        b'r' if (trimmed.starts_with("return ")
+            || trimmed.starts_with("return;")
+            || trimmed == "return") =>
+        {
+            "ReturnStatement"
         }
-        b'r' => {
-            if trimmed.starts_with("return ")
-                || trimmed.starts_with("return;")
-                || trimmed == "return"
-            {
-                "ReturnStatement"
-            } else {
-                "ExpressionStatement"
-            }
-        }
-        b'w' => {
-            if trimmed.starts_with("while ") || trimmed.starts_with("while(") {
-                "WhileStatement"
-            } else {
-                "ExpressionStatement"
-            }
+        b'w' if (trimmed.starts_with("while ") || trimmed.starts_with("while(")) => {
+            "WhileStatement"
         }
         _ => "ExpressionStatement",
     }
@@ -2687,26 +2655,29 @@ pub fn remap_through_sourcemap(mappings: &mut [SourceMapping], preprocessor_map_
 
                     if col_offset >= gen_len && gen_len > 0 {
                         // Position is at or past the end of the replaced text;
-                        // map to end of original name
-                        mapping.orig_line = seg[2] as u32;
-                        mapping.orig_col = (seg[3] + original_name_len) as u32;
-                        mapping.source = seg[1] as u32;
+                        // map to end of original name. Use clamped saturating cast to
+                        // avoid silent overflow if a malformed source map produces a
+                        // negative or out-of-range value.
+                        mapping.orig_line = seg[2].max(0) as u32;
+                        mapping.orig_col =
+                            u32::try_from(seg[3] + original_name_len).unwrap_or(u32::MAX);
+                        mapping.source = seg[1].max(0) as u32;
                         continue;
                     }
 
                     // Position is within the replacement range;
                     // map to the start of the original name and carry the name index
-                    mapping.orig_line = seg[2] as u32;
-                    mapping.orig_col = seg[3] as u32;
-                    mapping.source = seg[1] as u32;
+                    mapping.orig_line = seg[2].max(0) as u32;
+                    mapping.orig_col = u32::try_from(seg[3]).unwrap_or(u32::MAX);
+                    mapping.source = seg[1].max(0) as u32;
                     mapping.name = Some(name_idx as u32);
                     continue;
                 }
             }
 
-            mapping.orig_line = seg[2] as u32;
-            mapping.orig_col = (seg[3] + col_offset) as u32;
-            mapping.source = seg[1] as u32;
+            mapping.orig_line = seg[2].max(0) as u32;
+            mapping.orig_col = u32::try_from(seg[3] + col_offset).unwrap_or(u32::MAX);
+            mapping.source = seg[1].max(0) as u32;
         }
     }
 }

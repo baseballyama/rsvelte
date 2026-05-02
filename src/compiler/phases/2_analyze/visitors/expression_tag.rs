@@ -16,10 +16,20 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 /// - Detect reactive dependencies
 /// - Set needs_context when non-safe identifiers are accessed
 pub fn visit(tag: &ExpressionTag, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    // Mark that we're inside a template expression tag so that nested
+    // `AwaitExpression` visitors can detect that the await is in a reactive
+    // template position. Mirrors `state.expression = node.metadata.expression`
+    // in the official `ExpressionTag.js`.
+    let saved_in_expression_tag = context.in_expression_tag;
+    context.in_expression_tag = true;
+
     // Walk the JavaScript AST to analyze it
     // This will trigger CallExpression, MemberExpression, etc. visitors
     // which set needs_context when appropriate
-    super::script::walk_expression(&tag.expression, context)?;
+    let result = super::script::walk_expression(&tag.expression, context);
+
+    context.in_expression_tag = saved_in_expression_tag;
+    result?;
 
     // Detect pickled awaits in template expression tags.
     // Template expression tags are reactive contexts, so await expressions

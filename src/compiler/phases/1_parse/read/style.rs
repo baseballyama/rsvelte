@@ -33,6 +33,36 @@ pub fn parse_css(content: &str, offset: usize) -> Vec<Value> {
     parser.parse()
 }
 
+/// Parse CSS content like `parse_css`, but propagate parser errors instead
+/// of silently swallowing them. Used by the style-tag parser to surface
+/// `css_expected_identifier` (and similar) errors that the official Svelte
+/// CSS parser raises in `read_identifier` / `read_selector`.
+pub(crate) fn parse_css_strict(
+    content: &str,
+    offset: usize,
+) -> Result<Vec<Value>, crate::error::ParseError> {
+    let mut parser = CssParser::new(content, offset);
+    let rules = parser.parse();
+    if let Some(err) = parser.error.take() {
+        return Err(err);
+    }
+    Ok(rules)
+}
+
+/// Helper: record a selector-level error on a `CssParser`'s shared error
+/// cell, preserving the first error encountered.
+fn record_first_error(
+    cell: &std::cell::Cell<Option<crate::error::ParseError>>,
+    err: crate::error::ParseError,
+) {
+    let existing = cell.take();
+    if existing.is_some() {
+        cell.set(existing);
+    } else {
+        cell.set(Some(err));
+    }
+}
+
 // ============================================================================
 // Parser implementation for style tags
 // ============================================================================
@@ -225,11 +255,15 @@ impl Parser<'_> {
             }
         }
 
-        // Parse CSS content (deferred when defer_script_parse is enabled)
+        // Parse CSS content (deferred when defer_script_parse is enabled).
+        // Use the strict variant inside `parse_style_tag` so that errors raised
+        // by the underlying CSS parser (e.g. `css_expected_identifier` for
+        // tokens like `$blue`) propagate to the user instead of being
+        // silently dropped.
         let css_children = if self.options.defer_script_parse {
             Vec::new() // Will be resolved by ensure_css_parsed() before analysis
         } else {
-            parse_css(style_content, content_start)
+            parse_css_strict(style_content, content_start)?
         };
 
         // Capture the preceding HTML comment for svelte-ignore support.
@@ -268,6 +302,13 @@ struct CssParser<'a> {
     source: &'a str,
     offset: usize,
     index: usize,
+    /// Stores the first parse error encountered, if any. The error is reported
+    /// via `parse_css_strict`; `parse_css` (the non-strict entry point) ignores
+    /// it and returns a best-effort AST for backwards compatibility with
+    /// callers that operate on already-validated content. Wrapped in `Cell`
+    /// so that helper methods which take `&self` (because they mutate only
+    /// `self.index` indirectly via sub-parsers) can still record errors.
+    error: std::cell::Cell<Option<crate::error::ParseError>>,
 }
 
 impl<'a> CssParser<'a> {
@@ -276,6 +317,7 @@ impl<'a> CssParser<'a> {
             source,
             offset,
             index: 0,
+            error: std::cell::Cell::new(None),
         }
     }
 
@@ -925,6 +967,9 @@ impl<'a> CssParser<'a> {
 
         let mut parser = SelectorParser::new(text, offset);
         parser.parse_selectors(&mut selectors);
+        if let Some(err) = parser.error.take() {
+            record_first_error(&self.error, err);
+        }
         selectors
     }
 
@@ -1480,6 +1525,10 @@ struct SelectorParser<'a> {
     source: &'a str,
     offset: usize,
     index: usize,
+    /// First parse error encountered while reading selector tokens. Mirrors the
+    /// "throw on first invalid identifier" behaviour of the official Svelte
+    /// CSS parser without adding a `Result` return type to every helper.
+    error: Option<crate::error::ParseError>,
 }
 
 impl<'a> SelectorParser<'a> {
@@ -1488,6 +1537,7 @@ impl<'a> SelectorParser<'a> {
             source,
             offset,
             index: 0,
+            error: None,
         }
     }
 
@@ -1564,14 +1614,29 @@ impl<'a> SelectorParser<'a> {
                 obj.insert("start".to_string(), Value::Number((start as i64).into()));
                 obj.insert("end".to_string(), Value::Number((end as i64).into()));
                 selectors.push(Value::Object(obj));
-            } else if c.is_alphabetic() || c == '-' || c == '_' {
-                // Type selector (element name)
+            } else if c.is_alphabetic() || c == '-' || c == '_' || c == '\\' || (c as u32) >= 160 {
+                // Type selector (element name) - mirrors the official
+                // `read_identifier` valid character set: ASCII letters/digits,
+                // `-`, `_`, code points >= 160, and `\`-escapes.
                 if let Some(selector) = self.parse_type_selector() {
                     selectors.push(selector);
                 }
             } else {
-                // Unknown character, skip it
-                self.advance();
+                // Mirror the official Svelte CSS parser: when `read_selector`
+                // falls through to `read_identifier` and the first character
+                // is not a valid identifier-start, `read_identifier` returns
+                // an empty string and raises `css_expected_identifier`.
+                if self.error.is_none() {
+                    let pos = self.offset + self.index;
+                    self.error = Some(crate::error::ParseError::svelte(
+                        "css_expected_identifier",
+                        "Expected a valid CSS identifier",
+                        (pos, pos),
+                    ));
+                }
+                // Stop parsing further selectors once we've recorded an error;
+                // the surrounding parser will surface it.
+                break;
             }
         }
     }

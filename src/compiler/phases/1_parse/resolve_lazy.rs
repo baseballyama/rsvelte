@@ -44,15 +44,24 @@ pub fn resolve_lazy_expressions(ast: &mut Root, source: &str) -> Option<crate::e
         );
     }
 
-    // Resolve deferred CSS parsing
+    // Resolve deferred CSS parsing. Use the strict variant so that errors
+    // raised by the official-style CSS parser (e.g. `css_expected_identifier`)
+    // surface to callers instead of being swallowed.
     if let Some(ref mut stylesheet) = ast.css
         && stylesheet.children.is_empty()
         && !stylesheet.content.styles.is_empty()
     {
-        stylesheet.children = super::read::style::parse_css(
+        match super::read::style::parse_css_strict(
             &stylesheet.content.styles,
             stylesheet.content.start as usize,
-        );
+        ) {
+            Ok(children) => stylesheet.children = children,
+            Err(err) => {
+                if first_error.is_none() {
+                    first_error = Some(err);
+                }
+            }
+        }
     }
 
     first_error

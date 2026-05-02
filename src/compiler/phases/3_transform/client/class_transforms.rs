@@ -340,17 +340,16 @@ pub(super) fn transform_constructor_private_reads(
                 };
 
                 match next_char {
-                    Some(' ') => {
-                        if after_pos + 1 < result.len() && result.as_bytes()[after_pos + 1] == b'='
+                    Some(' ')
+                        if after_pos + 1 < result.len()
+                            && result.as_bytes()[after_pos + 1] == b'=' =>
+                    {
+                        if after_pos + 2 < result.len() && result.as_bytes()[after_pos + 2] == b'='
                         {
-                            if after_pos + 2 < result.len()
-                                && result.as_bytes()[after_pos + 2] == b'='
-                            {
-                                // == comparison -> use .v
-                            } else {
-                                search_from = after_pos;
-                                continue;
-                            }
+                            // == comparison -> use .v
+                        } else {
+                            search_from = after_pos;
+                            continue;
                         }
                     }
                     Some('=') => {
@@ -411,17 +410,16 @@ pub(super) fn transform_constructor_private_reads(
                 };
 
                 match next_char {
-                    Some(' ') => {
-                        if after_pos + 1 < result.len() && result.as_bytes()[after_pos + 1] == b'='
+                    Some(' ')
+                        if after_pos + 1 < result.len()
+                            && result.as_bytes()[after_pos + 1] == b'=' =>
+                    {
+                        if after_pos + 2 < result.len() && result.as_bytes()[after_pos + 2] == b'='
                         {
-                            if after_pos + 2 < result.len()
-                                && result.as_bytes()[after_pos + 2] == b'='
-                            {
-                                // comparison
-                            } else {
-                                search_from = after_pos;
-                                continue;
-                            }
+                            // comparison
+                        } else {
+                            search_from = after_pos;
+                            continue;
                         }
                     }
                     Some('=') => {

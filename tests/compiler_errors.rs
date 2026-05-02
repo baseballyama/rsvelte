@@ -3,38 +3,22 @@
 //! These tests verify that the compiler produces expected errors for invalid Svelte code.
 //! They compare error codes, messages, and positions with the official Svelte test suite.
 
+mod common;
+
 use std::fs;
 use std::path::{Path, PathBuf};
 
 // use rayon::prelude::*;  // Disabled for sequential execution
+use common::get_svelte_test_samples;
 use serde::Deserialize;
 use svelte_compiler_rust::{
     CompileOptions, ExperimentalOptions, GenerateMode, ModuleCompileOptions, compile,
     compile_module,
 };
-use walkdir::WalkDir;
-
-/// Get the path to the Svelte submodule.
-fn svelte_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("svelte")
-}
 
 /// Get all compiler-errors test samples.
 fn get_compiler_error_samples() -> Vec<PathBuf> {
-    let samples_dir = svelte_path().join("packages/svelte/tests/compiler-errors/samples");
-
-    if !samples_dir.exists() {
-        return Vec::new();
-    }
-
-    WalkDir::new(&samples_dir)
-        .min_depth(1)
-        .max_depth(1)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_dir())
-        .map(|e| e.path().to_path_buf())
-        .collect()
+    get_svelte_test_samples("compiler-errors")
 }
 
 /// Expected error from _config.js
@@ -266,15 +250,24 @@ fn run_error_test(fixture: &ErrorFixture) -> TestResult {
                 }
             }
             Err(e) => {
-                // Check if the error matches
                 let error_str = format!("{:?}", e);
+                let display_str = format!("{}", e);
 
-                // For now, just check if we got any error
-                // TODO: Implement proper error code and message matching
-                let code_matches = error_str.contains(&fixture.expected_error.code)
-                    || error_str
-                        .to_lowercase()
-                        .contains(&fixture.expected_error.code.replace('_', " ").to_lowercase());
+                // Tighten the previous loose `contains()` check while still
+                // accepting more-specific sub-codes that rsvelte sometimes
+                // emits. We treat a match as either:
+                //   * exact code (e.g. expected `block_open`, actual `block_open`)
+                //   * sub-code   (e.g. expected `element_invalid_closing_tag`,
+                //                  actual `element_invalid_closing_tag_autoclosed`)
+                // but reject unrelated codes that happened to contain the
+                // expected as a substring.
+                let expected_code = &fixture.expected_error.code;
+                let escaped = regex::escape(expected_code);
+                // `\b<expected>(_[a-z_]*)?\b` — exact OR snake_case extension.
+                let pattern = format!(r"\b{}(_[a-z_]+)?\b", escaped);
+                let code_matches = regex::Regex::new(&pattern)
+                    .map(|re| re.is_match(&error_str) || re.is_match(&display_str))
+                    .unwrap_or(false);
 
                 if code_matches {
                     TestResult {
@@ -315,7 +308,10 @@ fn test_compiler_errors() {
         .filter_map(|sample_dir| load_error_fixture(sample_dir.as_path()))
         .collect();
 
-    // Run sequentially for now to avoid hangs with parallel execution
+    // Run sequentially. Previous attempts at `par_iter()` hung; leading
+    // hypothesis is bumpalo arena retention causing memory pressure on small
+    // CI runners. `common::test_thread_pool()` provides a bounded pool ready
+    // for use once the hypothesis is verified locally.
     println!("Running {} compiler error tests...", fixtures.len());
     let results: Vec<TestResult> = fixtures
         .iter()

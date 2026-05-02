@@ -109,12 +109,11 @@ pub fn build_inline_component<F>(
     // Process attributes
     for attribute in node.get_attributes() {
         match attribute {
-            Attribute::LetDirective(let_dir) => {
+            Attribute::LetDirective(let_dir)
                 // Let directives are handled later in slot processing
-                if !node.slot_scope_applies_to_itself() {
+                if !node.slot_scope_applies_to_itself() => {
                     lets.get_mut("default").unwrap().push(let_dir);
                 }
-            }
             Attribute::SpreadAttribute(spread) => {
                 // Convert the spread expression to a JsExpr and add to props_and_spreads
                 let spread_expr =
@@ -170,13 +169,12 @@ pub fn build_inline_component<F>(
                     method: false,
                 }));
             }
-            Attribute::BindDirective(bind) => {
-                if bind.name != "this" {
+            Attribute::BindDirective(bind)
+                if bind.name != "this" => {
                     has_bindings = true;
                     // TODO: Implement bind directive handling
                     // For now, add getter/setter placeholders
                 }
-            }
             _ => {
                 // Other directive types
             }

@@ -109,12 +109,15 @@ thread_local! {
     pub(super) static VAR_STATE_VARS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
 }
 
-// Thread-local cache for dynamically-constructed regex patterns to avoid recompilation
+// Thread-local cache for dynamically-constructed regex patterns to avoid recompilation.
+// `Arc<Regex>` keeps the cache lookup cheap: cloning the Arc is a single
+// refcount bump rather than copying the (multi-KB) compiled NFA.
 thread_local! {
-    static REGEX_CACHE: RefCell<rustc_hash::FxHashMap<String, Regex>> = RefCell::new(rustc_hash::FxHashMap::default());
+    static REGEX_CACHE: RefCell<rustc_hash::FxHashMap<String, std::sync::Arc<Regex>>> =
+        RefCell::new(rustc_hash::FxHashMap::default());
 }
 
-pub(super) fn get_or_compile_regex(pattern: &str) -> Option<Regex> {
+pub(super) fn get_or_compile_regex(pattern: &str) -> Option<std::sync::Arc<Regex>> {
     REGEX_CACHE.with(|cache| {
         let mut cache = cache.borrow_mut();
         if let Some(re) = cache.get(pattern) {
@@ -122,8 +125,9 @@ pub(super) fn get_or_compile_regex(pattern: &str) -> Option<Regex> {
         }
         match Regex::new(pattern) {
             Ok(re) => {
-                cache.insert(pattern.to_string(), re.clone());
-                Some(re)
+                let arc = std::sync::Arc::new(re);
+                cache.insert(pattern.to_string(), arc.clone());
+                Some(arc)
             }
             Err(_) => None,
         }
@@ -287,6 +291,11 @@ pub(crate) fn extract_imports_str(script: &str) -> (Vec<String>, Option<String>)
 ///
 /// Corresponds to `client_component()` in
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/transform-client.js`
+///
+/// `#[inline(never)]` keeps this large function out of `transform_client`'s
+/// inlined frame: the function is called once per component (not in a hot
+/// loop) and inlining it bloats binary size without any per-component
+/// throughput gain.
 #[inline(never)]
 fn transform_client_with_visitors(
     analysis: &ComponentAnalysis,
@@ -3526,10 +3535,8 @@ fn transform_instance_script_for_visitors(
                     | "FunctionExpression"
                     | "UnaryExpression"
                     | "BinaryExpression" => return true,
-                    "Identifier" => {
-                        if b.initial_identifier_name.as_deref() == Some("undefined") {
-                            return true;
-                        }
+                    "Identifier" if b.initial_identifier_name.as_deref() == Some("undefined") => {
+                        return true;
                     }
                     _ => {}
                 }
@@ -4447,10 +4454,8 @@ fn has_top_level_comma_in_expr(bytes: &[u8]) -> bool {
         match bytes[i] {
             b',' if depth == 0 => return true,
             b'(' | b'[' | b'{' => depth += 1,
-            b')' | b']' | b'}' => {
-                if depth > 0 {
-                    depth -= 1;
-                }
+            b')' | b']' | b'}' if depth > 0 => {
+                depth -= 1;
             }
             b'\'' => {
                 i += 1;

@@ -272,10 +272,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     continue;
                 }
                 b'(' | b'[' | b'{' => depth += 1,
-                b')' | b']' | b'}' => {
-                    if depth > 0 {
-                        depth -= 1;
-                    }
+                b')' | b']' | b'}' if depth > 0 => {
+                    depth -= 1;
                 }
                 b',' if depth == 0 => {
                     props.push(&inner[start..i]);
@@ -1685,14 +1683,18 @@ impl<'a> ServerCodeGenerator<'a> {
                         _ => &[],
                     };
 
-                    // Build a filtered blocker map that excludes specified variables
+                    // Build a filtered blocker map that excludes specified variables.
+                    // Promote excluded_vars to a hash set so the filter is O(blocker_map)
+                    // instead of O(blocker_map * excluded_vars).
                     let effective_blocker_map: rustc_hash::FxHashMap<String, usize> =
                         if excluded_vars.is_empty() {
                             blocker_map.clone()
                         } else {
+                            let excluded: rustc_hash::FxHashSet<&str> =
+                                excluded_vars.iter().map(String::as_str).collect();
                             blocker_map
                                 .iter()
-                                .filter(|(name, _)| !excluded_vars.contains(name))
+                                .filter(|(name, _)| !excluded.contains(name.as_str()))
                                 .map(|(k, v)| (k.clone(), *v))
                                 .collect()
                         };
@@ -1952,22 +1954,28 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut i = 0;
 
         while i < parts.len() {
-            let (html_ref, excluded_vars) = match &parts[i] {
-                OutputPart::Html(html) => (Some(html.as_str()), Vec::new()),
+            // Borrow excluded_blocker_vars (a Vec<String>) instead of cloning it —
+            // the rebuild loop only needs to test membership, never mutate.
+            let (html_ref, excluded_vars): (Option<&str>, &[String]) = match &parts[i] {
+                OutputPart::Html(html) => (Some(html.as_str()), &[]),
                 OutputPart::HtmlWithExclusions {
                     html,
                     excluded_blocker_vars,
-                } => (Some(html.as_str()), excluded_blocker_vars.clone()),
-                _ => (None, Vec::new()),
+                } => (Some(html.as_str()), excluded_blocker_vars.as_slice()),
+                _ => (None, &[]),
             };
             if let Some(html) = html_ref {
                 let effective_map: rustc_hash::FxHashMap<String, usize> =
                     if excluded_vars.is_empty() {
                         blocker_map.clone()
                     } else {
+                        // Promote excluded_vars to a hash set so the filter below is
+                        // O(blocker_map) instead of O(blocker_map * excluded_vars).
+                        let excluded: rustc_hash::FxHashSet<&str> =
+                            excluded_vars.iter().map(String::as_str).collect();
                         blocker_map
                             .iter()
-                            .filter(|(name, _)| !excluded_vars.contains(name))
+                            .filter(|(name, _)| !excluded.contains(name.as_str()))
                             .map(|(k, v)| (k.clone(), *v))
                             .collect()
                     };
@@ -2125,11 +2133,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     let after = j + 1;
                     // Check: does the content BEFORE this closing tag contain a blocked expression?
                     // If so, the closing tag belongs with the blocked segment, not as a split point.
-                    let before_segment = &html[if split_points.is_empty() {
-                        0
-                    } else {
-                        *split_points.last().unwrap()
-                    }..i];
+                    let segment_start = split_points.last().copied().unwrap_or(0);
+                    let before_segment = &html[segment_start..i];
                     let before_blockers =
                         Self::find_html_expression_blockers(before_segment, blocker_map);
                     if before_blockers.is_empty()
@@ -2714,9 +2719,23 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
 
                     let blockers_str = blockers.join(", ");
+
+                    // Transform the expression with $.save() if it contains await,
+                    // and prepend `async` keyword to the inner arrow when applicable —
+                    // mirrors AsyncWrappedExpression handling above.
+                    let transformed_expr = if super::helpers::expr_contains_await(expr) {
+                        super::helpers::transform_await_to_save(expr)
+                    } else {
+                        expr.clone()
+                    };
+                    let async_kw = if super::helpers::expr_contains_await(&transformed_expr) {
+                        "async "
+                    } else {
+                        ""
+                    };
                     body_code.push_str(&format!(
-                        "{}$$renderer.async([{}], ($$renderer) => $$renderer.push(() => $.escape({})));\n",
-                        indent, blockers_str, expr
+                        "{}$$renderer.async([{}], ($$renderer) => $$renderer.push({}() => $.escape({})));\n",
+                        indent, blockers_str, async_kw, transformed_expr
                     ));
                 }
                 OutputPart::AsyncWrappedHtml {

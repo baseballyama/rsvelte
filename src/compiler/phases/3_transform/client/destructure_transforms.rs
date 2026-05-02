@@ -1694,10 +1694,8 @@ fn is_var_shadowed_by_enclosing_param(chars: &[char], pos: usize, var: &str) -> 
                 }
             }
             ']' => bracket_depth += 1,
-            '[' => {
-                if bracket_depth > 0 {
-                    bracket_depth -= 1;
-                }
+            '[' if bracket_depth > 0 => {
+                bracket_depth -= 1;
             }
             _ => {}
         }
@@ -1787,10 +1785,8 @@ fn find_function_params_before_brace(chars: &[char], brace_idx: usize) -> Option
                 }
                 depth -= 1;
             }
-            '[' | '{' => {
-                if depth > 0 {
-                    depth -= 1;
-                }
+            '[' | '{' if depth > 0 => {
+                depth -= 1;
             }
             _ => {}
         }
