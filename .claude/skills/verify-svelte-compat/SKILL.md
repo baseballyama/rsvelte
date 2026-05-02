@@ -322,26 +322,20 @@ node .claude/skills/verify-svelte-compat/scripts/analyze-usage.mjs "$TARGET_PATH
 
 ---
 
-## Phase 3: rsvelte NAPI ビルドと配置
+## Phase 3: rsvelte NAPI と canonicalizer のビルド + 配置
 
 ```bash
-# rsvelte を NAPI 機能でビルド
-cargo build --release --features napi --lib
-
-# プラットフォーム判定
-case "$(uname -s)-$(uname -m)" in
-  Darwin-arm64)  EXT="dylib"; NODE_NAME="rsvelte.darwin-arm64.node" ;;
-  Darwin-x86_64) EXT="dylib"; NODE_NAME="rsvelte.darwin-x64.node" ;;
-  Linux-x86_64)  EXT="so";    NODE_NAME="rsvelte.linux-x64-gnu.node" ;;
-  Linux-aarch64) EXT="so";    NODE_NAME="rsvelte.linux-arm64-gnu.node" ;;
-  *) echo "Unsupported platform" >&2; exit 1 ;;
-esac
-
-# 公式 Svelte 配下と、ターゲット配下の両方に配置
-cp "target/release/libsvelte_compiler_rust.${EXT}" "svelte/${NODE_NAME}"
-mkdir -p "${TARGET_PATH}/.rsvelte"
-cp "target/release/libsvelte_compiler_rust.${EXT}" "${TARGET_PATH}/.rsvelte/${NODE_NAME}"
+# rsvelte NAPI バインディング + canonicalize_js を同時にビルド
+.claude/skills/verify-svelte-compat/scripts/build-rsvelte.sh "$TARGET_PATH"
+cargo build --release --bin canonicalize_js
 ```
+
+`build-rsvelte.sh` の挙動:
+- `cargo build --release --features napi --lib`
+- プラットフォームに応じた `.node` ファイル名を計算
+- `svelte/${NODE_NAME}` と `${TARGET_PATH}/.rsvelte/${NODE_NAME}` の両方にコピー
+
+`canonicalize_js` は Phase 4-B での semantic 比較に必要。これがないと naive な whitespace canonicalizer に fallback し、formatting だけが違うケースを偽陽性で拾ってしまう（実測: vite-plugin-svelte で 25 件 → 9 件に減）。
 
 > rsvelte の公開 API は `compile`、`compileModule`、`svelte2tsx` など `svelte/compiler` の主要 export と互換である（`src/napi.rs` 参照）。
 
@@ -376,14 +370,30 @@ cp "target/release/libsvelte_compiler_rust.${EXT}" "${TARGET_PATH}/.rsvelte/${NO
 ```bash
 cd "$TARGET_PATH"
 pnpm install --frozen-lockfile 2>/dev/null || pnpm install || npm install
+INSTALL_EXIT=$?
 cd -
 
 # 公式 Svelte でテスト実行（baseline）
 mkdir -p compat-targets/.cache
 BASELINE_LOG="compat-targets/.cache/${NAME}-baseline.log"
-( cd "$TARGET_PATH" && pnpm test ) > "$BASELINE_LOG" 2>&1
-BASELINE_EXIT=$?
+if [ "$INSTALL_EXIT" -eq 0 ]; then
+  ( cd "$TARGET_PATH" && pnpm test ) > "$BASELINE_LOG" 2>&1
+  BASELINE_EXIT=$?
+else
+  BASELINE_EXIT=1
+fi
 ```
+
+**Install ブロック時のフォールバック**:
+
+ターゲット側のフォーク不整合（例: `vite-plugin-svelte` の rsvelte ブランチで e2e-tests パッケージが `@sveltejs/vite-plugin-svelte` を `workspace:^` で参照したまま改名漏れになっている）など、ターゲット由来の install 失敗が起こり得る。
+
+その場合の方針:
+1. **`--filter` で問題パッケージを除外**して再試行（例: `pnpm install --filter '!@sveltejs/vite-plugin-svelte'`）
+2. それでも失敗する場合は **Phase 4-A をスキップして Phase 4-B にフォールバック**。Phase 4-B は pnpm install を必要としない
+3. ユーザーに「ターゲット側の問題で Phase 4-A は実行不能、Phase 4-B のみで検証する」と明示
+
+ターゲット側の修正は **このスキルの責務外** — フォーク所有者にエスカレーションする。
 
 #### Step 4-A-2: コンパイラ swap
 
@@ -638,7 +648,19 @@ loop:
 ]
 ```
 
-### Step 7.2: コミット
+### Step 7.2: ターゲット側に注入した変更の cleanup
+
+`provide-rsvelte-compiler.mjs` は ターゲットの `package.json` に `pnpm.overrides['@rsvelte/compiler']` を注入する。検証完了後は **必ず** revert する:
+
+```bash
+( cd "$TARGET_PATH" && git checkout package.json )
+# pnpm-lock.yaml も install 後に書き換わるので revert
+( cd "$TARGET_PATH" && git checkout pnpm-lock.yaml 2>/dev/null || true )
+```
+
+`compat-targets/<name>/.rsvelte/` と `compat-targets/.cache/` は `.gitignore` 対象なので残置 OK。
+
+### Step 7.3: コミット
 
 修正が rsvelte 側に入っていれば、論理単位でコミット:
 
