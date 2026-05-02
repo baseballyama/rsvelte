@@ -2123,8 +2123,8 @@ fn is_svelte_rune(s: &str) -> bool {
 /// This scans all statements for variable declarations (`let`, `const`, `var`)
 /// and collects the declared names. Used to determine which identifiers in
 /// async statements correspond to actual instance-scope variables.
-fn collect_all_declared_variables(statements: &[String]) -> std::collections::HashSet<String> {
-    let mut vars = std::collections::HashSet::new();
+fn collect_all_declared_variables(statements: &[String]) -> rustc_hash::FxHashSet<String> {
+    let mut vars = rustc_hash::FxHashSet::default();
 
     for stmt in statements {
         let trimmed = stmt.trim();
@@ -2250,7 +2250,7 @@ fn extract_var_decl_name(s: &str) -> Option<String> {
 fn resolve_transitive_function_deps(
     stmt: &str,
     function_bodies: &rustc_hash::FxHashMap<String, String>,
-    all_declared_vars: &std::collections::HashSet<String>,
+    all_declared_vars: &rustc_hash::FxHashSet<String>,
     blocker_map: &mut rustc_hash::FxHashMap<String, usize>,
     blocker_index: usize,
 ) {
@@ -2258,7 +2258,7 @@ fn resolve_transitive_function_deps(
     let direct_ids = extract_all_identifiers_from_statement(stmt);
 
     // For each identifier, check if it's a known function and scan its body
-    let mut visited = std::collections::HashSet::new();
+    let mut visited = rustc_hash::FxHashSet::default();
     let mut queue: Vec<String> = direct_ids;
 
     while let Some(id) = queue.pop() {

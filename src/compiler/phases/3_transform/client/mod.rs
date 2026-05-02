@@ -2043,10 +2043,9 @@ fn cleanup_import_line(import: &str) -> String {
 /// const array = createArray(['x']); // top-level, NOT $state
 /// ```
 /// Returns {"array"} because `array` has shadowing between inner $state and outer non-$state.
-fn extract_shadowed_state_names(script: &str) -> std::collections::HashSet<String> {
-    let mut top_level_non_state: std::collections::HashSet<String> =
-        std::collections::HashSet::new();
-    let mut inner_state: std::collections::HashSet<String> = std::collections::HashSet::new();
+fn extract_shadowed_state_names(script: &str) -> rustc_hash::FxHashSet<String> {
+    let mut top_level_non_state: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
+    let mut inner_state: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
     let mut brace_depth: i32 = 0;
 
     for line in script.lines() {
@@ -3037,7 +3036,7 @@ fn transform_instance_script_for_visitors(
     // if there's a top-level `const multiplier = () => { let multiplier = $state(2); ... }`,
     // the inner `multiplier` should NOT cause the outer `multiplier` to be wrapped with $.get().
     let local_reactive_vars = extract_local_reactive_vars(&script_rest);
-    let top_level_binding_names: std::collections::HashSet<&str> = analysis
+    let top_level_binding_names: rustc_hash::FxHashSet<&str> = analysis
         .root
         .bindings
         .iter()
@@ -3374,7 +3373,7 @@ fn transform_instance_script_for_visitors(
     // an assignment to the reactive one (since the text-based transform can't
     // distinguish scopes). Note: Props with the same name as inner locals are
     // not a concern because Svelte disallows that naming collision.
-    let reactive_mut_binding_names: std::collections::HashSet<String> = analysis
+    let reactive_mut_binding_names: rustc_hash::FxHashSet<String> = analysis
         .root
         .bindings
         .iter()
@@ -3393,8 +3392,8 @@ fn transform_instance_script_for_visitors(
     // For inner-scope bindings, we additionally require that no OTHER binding
     // with the same name exists. This prevents conflicts with function parameters
     // or other scoped bindings that the text-based transform cannot distinguish.
-    let name_occurrences: std::collections::HashMap<String, usize> = {
-        let mut map: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let name_occurrences: rustc_hash::FxHashMap<String, usize> = {
+        let mut map: rustc_hash::FxHashMap<String, usize> = rustc_hash::FxHashMap::default();
         for b in &analysis.root.bindings {
             *map.entry(b.name.clone()).or_insert(0) += 1;
         }
@@ -3415,9 +3414,9 @@ fn transform_instance_script_for_visitors(
                 | "BinaryExpression"
         )
     }
-    let names_all_non_proxy: std::collections::HashSet<String> = {
-        use std::collections::HashMap;
-        let mut per_name: HashMap<String, (bool, usize)> = HashMap::new();
+    let names_all_non_proxy: rustc_hash::FxHashSet<String> = {
+        use rustc_hash::FxHashMap;
+        let mut per_name: FxHashMap<String, (bool, usize)> = FxHashMap::default();
         for b in &analysis.root.bindings {
             // Only consider inner (non-top-level) non-reactive function-local bindings.
             let is_top_level = b.scope_index == 0 || b.scope_index == instance_scope_for_proxy;

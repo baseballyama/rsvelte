@@ -182,7 +182,7 @@ fn has_rune_text(raw: &str, rune_name: &str) -> bool {
 fn has_rune_text_not_imported(
     raw: &str,
     rune_name: &str,
-    imported_names: &std::collections::HashSet<String>,
+    imported_names: &rustc_hash::FxHashSet<String>,
 ) -> bool {
     if !has_rune_text(raw, rune_name) {
         return false;
@@ -199,8 +199,8 @@ fn has_rune_text_not_imported(
 /// Looks for `import { name1, name2 } from '...'` and `import name from '...'` patterns.
 /// Names imported from `svelte/store` or other `svelte/*` modules are excluded because
 /// `$derived` from `import { derived } from 'svelte/store'` is still a rune, not a store subscription.
-pub fn extract_imported_names(raw: &str) -> std::collections::HashSet<String> {
-    let mut names = std::collections::HashSet::new();
+pub fn extract_imported_names(raw: &str) -> rustc_hash::FxHashSet<String> {
+    let mut names = rustc_hash::FxHashSet::default();
 
     for line in raw.lines() {
         let trimmed = line.trim();

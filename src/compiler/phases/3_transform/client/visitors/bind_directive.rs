@@ -13,7 +13,7 @@
 //! - Media bindings (currentTime, volume, paused, etc.)
 //! - Window/document bindings (scrollX, scrollY, online, etc.)
 
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 
 use crate::ast::js::Expression;
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, BindDirective};
@@ -1177,7 +1177,7 @@ struct EachBlockId {
 /// Returns a list of unique each-block identifiers found.
 fn find_each_block_ids_in_expr(expr: &JsExpr, context: &ComponentContext) -> Vec<EachBlockId> {
     let mut result = Vec::new();
-    let mut seen = HashSet::new();
+    let mut seen = FxHashSet::default();
     collect_each_block_ids(&context.arena, expr, context, &mut result, &mut seen);
     result
 }
@@ -1188,7 +1188,7 @@ fn collect_each_block_ids(
     expr: &JsExpr,
     context: &ComponentContext,
     result: &mut Vec<EachBlockId>,
-    seen: &mut HashSet<String>,
+    seen: &mut FxHashSet<String>,
 ) {
     match expr {
         JsExpr::Identifier(name) => {

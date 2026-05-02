@@ -669,7 +669,7 @@ fn split_conditional_expression(s: &str) -> Option<(&str, &str, &str)> {
 /// Returns a `let` declaration with variables in topological dependency order
 /// (dependencies before dependents), matching the official Svelte compiler output.
 pub(crate) fn extract_legacy_reactive_var_declaration(script: &str) -> String {
-    let mut declared_vars: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut declared_vars: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
 
     for line in script.lines() {
         let trimmed = line.trim();
@@ -773,7 +773,7 @@ pub(crate) fn extract_legacy_reactive_var_declaration(script: &str) -> String {
     }
 
     // Collect declared vars in topological order (deduplicating)
-    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut seen: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
     let mut reactive_vars: Vec<String> = Vec::new();
     for &idx in &sorted_indices {
         for var in &stmt_declared[idx] {
@@ -797,7 +797,7 @@ pub(crate) fn extract_legacy_reactive_var_declaration(script: &str) -> String {
     )
 }
 
-fn collect_declared_vars(trimmed: &str, declared: &mut std::collections::HashSet<String>) {
+fn collect_declared_vars(trimmed: &str, declared: &mut rustc_hash::FxHashSet<String>) {
     let decl_rest = trimmed
         .strip_prefix("export let ")
         .or_else(|| trimmed.strip_prefix("export var "))
@@ -840,7 +840,7 @@ fn collect_declared_vars(trimmed: &str, declared: &mut std::collections::HashSet
 
 fn extract_var_name_from_declarator(
     declarator: &str,
-    declared: &mut std::collections::HashSet<String>,
+    declared: &mut rustc_hash::FxHashSet<String>,
 ) {
     let trimmed = declarator.trim();
     if trimmed.is_empty() {
@@ -893,7 +893,7 @@ fn find_assignment_eq(s: &str) -> Option<usize> {
 fn extract_identifiers_from_pattern(
     pattern: &str,
     vars: &mut Vec<String>,
-    declared: &std::collections::HashSet<String>,
+    declared: &rustc_hash::FxHashSet<String>,
 ) {
     let trimmed = pattern.trim();
 
@@ -933,7 +933,7 @@ fn extract_identifiers_from_pattern(
 fn extract_destructured_names(
     inner: &str,
     vars: &mut Vec<String>,
-    declared: &std::collections::HashSet<String>,
+    declared: &rustc_hash::FxHashSet<String>,
 ) {
     let mut depth = 0;
     let mut current = String::new();
@@ -964,7 +964,7 @@ fn extract_destructured_names(
 fn process_destructured_element(
     element: &str,
     vars: &mut Vec<String>,
-    declared: &std::collections::HashSet<String>,
+    declared: &rustc_hash::FxHashSet<String>,
 ) {
     let trimmed = element.trim();
     if trimmed.is_empty() {
