@@ -101,7 +101,7 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `docs/static/test-results.json` (compatibility report, generated 2026-03-07, Svelte commit `04c0368aa8d8`). Re-run `pnpm run test-and-update` to refresh.
+Source: `pnpm run compatibility-report` (generated 2026-05-02, Svelte commit `04c0368aa8d8`). Re-run `pnpm run test-and-update` to refresh.
 
 | Suite | Pass/Total | Notes |
 |-------|------------|-------|
@@ -110,18 +110,18 @@ Source: `docs/static/test-results.json` (compatibility report, generated 2026-03
 | Compiler Errors | 144/144 | |
 | Compiler Snapshot | 20/20 | |
 | CSS | 179/179 | |
-| Validator | 324/325 | 1 skipped |
-| SSR | 82/82 | |
+| Validator | 324/324 | 1 skipped (`error-mode-warn`) |
+| SSR | 81/82 | 1 failing (`spread-attributes-white-space` — OXC whitespace normalization) |
 | Hydration | 77/77 | |
 | Runtime Legacy | 1202/1202 | |
-| Runtime Runes | 865/865 | |
+| Runtime Runes | 861/865 | 4 failing (HMR / dev mode: `svelte-component-switch-dev`, `hmr-removal`, `hmr-each-keyed-unshift`, `component-transition-hmr`) |
 | Runtime Browser | 31/31 | |
 | Sourcemaps | 0/0 | No fixtures yet |
 | Print | 0/40 | Skipped in compatibility report; standalone test in `tests/print.rs` |
 | Preprocess | 0/19 | Not implemented |
 | Migrate | 0/76 | Not implemented |
 
-**Compatibility report total: 3028/3028 implemented passing (137 skipped, 0 failing)**
+**Compatibility report total: 3023/3028 implemented passing (137 skipped, 5 failing — all HMR / whitespace, see `docs/full-code-review-followup.md`)**
 
 ## Implementation Status
 
