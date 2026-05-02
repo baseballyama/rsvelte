@@ -123,6 +123,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 in_async_block: false,
                 attach_expressions: Vec::new(),
                 dev: self.dev,
+                hmr: self.hmr,
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
@@ -237,6 +238,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 in_async_block: false,
                 attach_expressions: Vec::new(),
                 dev: self.dev,
+                hmr: self.hmr,
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {

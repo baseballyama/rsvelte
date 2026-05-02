@@ -30,7 +30,12 @@ fn load_input(category: &str, sample_name: &str) -> Option<String> {
         .join(sample_name)
         .join("main.svelte");
 
-    fs::read_to_string(&input_path).ok()
+    // Normalize CRLF→LF so byte offsets in compiled output match the
+    // LF-authored expected fixtures regardless of how Git on Windows
+    // (autocrlf=true) checked out the submodule.
+    fs::read_to_string(&input_path)
+        .ok()
+        .map(|s| s.replace("\r\n", "\n"))
 }
 
 /// Check if a test requires unsupported compile options by reading _config.js

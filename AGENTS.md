@@ -101,18 +101,18 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `docs/static/test-results.json` (compatibility report, generated 2026-03-07, Svelte commit `04c0368aa8d8`). Re-run `pnpm run test-and-update` to refresh.
+Source: `pnpm run compatibility-report` (generated 2026-05-02, Svelte commit `04c0368aa8d8`). Re-run `pnpm run test-and-update` to refresh.
 
 | Suite | Pass/Total | Notes |
 |-------|------------|-------|
 | Parser Modern | 22/22 | |
 | Parser Legacy | 82/83 | 1 skipped (`javascript-comments` — OXC vs acorn comment attachment) |
 | Compiler Errors | 144/144 | |
-| Compiler Snapshot | 20/20 | |
+| Compiler Snapshot | 28/28 | |
 | CSS | 179/179 | |
-| Validator | 324/325 | 1 skipped |
+| Validator | 324/324 | 1 skipped (`error-mode-warn`) |
 | SSR | 82/82 | |
-| Hydration | 77/77 | |
+| Hydration | 78/78 | |
 | Runtime Legacy | 1202/1202 | |
 | Runtime Runes | 865/865 | |
 | Runtime Browser | 31/31 | |
@@ -121,7 +121,7 @@ Source: `docs/static/test-results.json` (compatibility report, generated 2026-03
 | Preprocess | 0/19 | Not implemented |
 | Migrate | 0/76 | Not implemented |
 
-**Compatibility report total: 3028/3028 implemented passing (137 skipped, 0 failing)**
+**Compatibility report total: 3037/3037 implemented passing (137 skipped, 0 failing) — every implemented category at 100%.**
 
 ## Implementation Status
 

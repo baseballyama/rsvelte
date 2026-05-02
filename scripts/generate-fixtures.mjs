@@ -149,6 +149,17 @@ function parseConfigText(configPath) {
       config.accessors = accessorsMatch[1] === 'true';
     }
 
+    // Propagate `compileOptions: { hmr: true }` so HMR-specific fixtures are
+    // generated with HMR-aware official output. The test runner
+    // (tests/compatibility_report.rs) already passes `hmr` based on the same
+    // marker. We deliberately do NOT propagate `dev: true` here — the dev-mode
+    // SSR codegen still has small divergences from the official compiler that
+    // would cause many cross-suite regressions.
+    const hmrMatch = text.match(/compileOptions\s*:\s*\{[^}]*\bhmr\s*:\s*(true|false)\b/);
+    if (hmrMatch) {
+      config.compileOptions = { hmr: hmrMatch[1] === 'true' };
+    }
+
     return config;
   } catch {
     return {};

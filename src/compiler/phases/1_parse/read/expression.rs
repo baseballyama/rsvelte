@@ -1491,8 +1491,8 @@ pub fn check_js_parse_error(content: &str) -> Option<String> {
     let ts_result = with_oxc_allocator(|allocator| {
         let parser = OxcParser::new(allocator, &wrapped, SourceType::ts());
         let result = parser.parse();
-        if !result.errors.is_empty() {
-            return Some(result.errors.first().unwrap().message.to_string());
+        if let Some(first_error) = result.errors.first() {
+            return Some(first_error.message.to_string());
         }
         // Check for invalid assignment targets that OXC doesn't report as errors
         if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
@@ -1511,8 +1511,8 @@ pub fn check_js_parse_error(content: &str) -> Option<String> {
     let js_result = with_oxc_allocator(|allocator| {
         let parser = OxcParser::new(allocator, &wrapped, SourceType::mjs());
         let result = parser.parse();
-        if !result.errors.is_empty() {
-            return Some(result.errors.first().unwrap().message.to_string());
+        if let Some(first_error) = result.errors.first() {
+            return Some(first_error.message.to_string());
         }
         // Check for invalid assignment targets that OXC doesn't report as errors
         if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =

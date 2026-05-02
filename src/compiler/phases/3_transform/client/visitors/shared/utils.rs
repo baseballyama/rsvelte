@@ -472,10 +472,6 @@ pub fn apply_transforms_to_expression_with_shadowed(
             let skip_args_transform = matches!(callee_kind, SvelteCalleeKind::SkipAllArgs);
             let is_store_update = matches!(callee_kind, SvelteCalleeKind::StoreUpdate);
 
-            // Check if this is a store subscription SETTER call where the callee should NOT be transformed:
-            // - Store setter call: `$store(value)` - callee should stay as `$store`, not `$store()`
-            //   because store subscriptions use a different setter pattern.
-            //
             // For Prop/BindableProp, the callee ALWAYS needs the read transform applied.
             // When a prop identifier is used as a function callee, it's a GETTER read:
             // `callback(arg)` should become `callback()(arg)` where the first () is the
@@ -483,19 +479,10 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // The prop SETTER pattern `prop(value)` is only generated explicitly in the
             // JsExpr::Assignment arm using JsExpr::Raw, not through JsExpr::Call.
             //
-            // IMPORTANT: This does NOT apply to state variables ($state, $derived, etc.)!
-            // For state variables, `read` wraps `x` -> `$.get(x)`, which is different from props/stores
-            // that wrap `x` -> `x()`. State variable calls like `saySomething('Tama')` SHOULD become
-            // `$.get(saySomething)('Tama')`, not `saySomething('Tama')`.
-            let skip_callee_transform = false;
-
-            // Apply transforms to callee and arguments
-            // Skip callee transform for prop getter/setter calls to avoid double transformation
-            let transformed_callee = if skip_callee_transform {
-                context.arena.get_expr(call.callee).clone()
-            } else {
-                recurse!(context.arena.get_expr(call.callee))
-            };
+            // For state variables ($state, $derived, etc.) `read` wraps `x` -> `$.get(x)`.
+            // State variable calls like `saySomething('Tama')` become
+            // `$.get(saySomething)('Tama')` correctly via the standard recursion below.
+            let transformed_callee = recurse!(context.arena.get_expr(call.callee));
 
             let mut transformed_args: Vec<JsExpr> = Vec::with_capacity(call.arguments.len());
             for (i, arg) in call.arguments.iter().enumerate() {

@@ -1,5 +1,5 @@
 //! Canonicalize a JS file using OXC and print to stdout.
-//! Usage: canon_dump <file>
+//! Usage: canon_dump `<file>`
 
 use oxc_allocator::Allocator;
 use oxc_codegen::{Codegen, CodegenOptions, CommentOptions, LegalComment};

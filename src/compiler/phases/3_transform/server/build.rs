@@ -82,6 +82,15 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
             &stripped, &code,
         );
 
+        // Re-escape ASCII control characters inside string literals. OXC's
+        // codegen unescapes `\t` / `\b` / `\v` / `\f` to their literal byte
+        // values when emitting string literals, but esrap (and the official
+        // Svelte output) keeps them as escape sequences. Without this fix,
+        // `value: '\n\tbar\n'` round-trips to `value: '\n<TAB>bar\n'`, which
+        // diffs against the expected fixture even though it's semantically
+        // equivalent.
+        code = reescape_control_chars_in_string_literals(&code);
+
         // Restore `;;` markers
         if has_double_semi {
             // OXC may split the two void statements across lines:
@@ -133,15 +142,153 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
     })
 }
 
-/// Strip leading indentation from script content for OXC parsing.
-/// OXC expects unindented input (top-level statements at column 0).
-/// Preserves content inside template literals (backtick strings) as-is.
+/// Walk `code` and re-escape ASCII control characters inside string literals
+/// so they match esrap's output (`\t` / `\b` / `\v` / `\f`). Template literals,
+/// comments, and identifiers are skipped so source structure is preserved
+/// (in particular, apostrophes inside `// it's a` line comments must not be
+/// interpreted as string-literal openers).
+fn reescape_control_chars_in_string_literals(code: &str) -> String {
+    let bytes = code.as_bytes();
+    let mut out = String::with_capacity(code.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        let b = bytes[i];
+        // Line comment — copy through to end of line.
+        if b == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+            let start = i;
+            i += 2;
+            while i < bytes.len() && bytes[i] != b'\n' {
+                i += 1;
+            }
+            out.push_str(&code[start..i]);
+            continue;
+        }
+        // Block comment — copy through to closing `*/`.
+        if b == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'*' {
+            let start = i;
+            i += 2;
+            while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            i = (i + 2).min(bytes.len());
+            out.push_str(&code[start..i]);
+            continue;
+        }
+        // Template literal — copy through; nested `${...}` expressions can
+        // contain anything, so we walk the whole thing recursively.
+        if b == b'`' {
+            let start = i;
+            i += 1;
+            let mut depth = 0u32;
+            while i < bytes.len() {
+                let c = bytes[i];
+                if c == b'\\' && i + 1 < bytes.len() {
+                    i += 2;
+                    continue;
+                }
+                if depth == 0 && c == b'`' {
+                    i += 1;
+                    break;
+                }
+                if c == b'$' && i + 1 < bytes.len() && bytes[i + 1] == b'{' {
+                    depth += 1;
+                    i += 2;
+                    continue;
+                }
+                if depth > 0 && c == b'}' {
+                    depth -= 1;
+                    i += 1;
+                    continue;
+                }
+                i += 1;
+            }
+            out.push_str(&code[start..i]);
+            continue;
+        }
+        // Enter a single-/double-quoted string literal.
+        if b == b'\'' || b == b'"' {
+            let quote = b;
+            out.push(quote as char);
+            i += 1;
+            while i < bytes.len() {
+                let c = bytes[i];
+                if c == b'\\' && i + 1 < bytes.len() {
+                    out.push('\\');
+                    out.push(bytes[i + 1] as char);
+                    i += 2;
+                    continue;
+                }
+                if c == quote {
+                    out.push(quote as char);
+                    i += 1;
+                    break;
+                }
+                match c {
+                    b'\t' => {
+                        out.push_str("\\t");
+                        i += 1;
+                    }
+                    0x08 => {
+                        out.push_str("\\b");
+                        i += 1;
+                    }
+                    0x0b => {
+                        out.push_str("\\v");
+                        i += 1;
+                    }
+                    0x0c => {
+                        out.push_str("\\f");
+                        i += 1;
+                    }
+                    _ => {
+                        if c < 0x80 {
+                            out.push(c as char);
+                            i += 1;
+                        } else {
+                            let ch_len = utf8_char_len(c);
+                            out.push_str(&code[i..i + ch_len]);
+                            i += ch_len;
+                        }
+                    }
+                }
+            }
+            continue;
+        }
+        // Outside any string/comment/template. Multi-byte chars copy as a unit.
+        if b < 0x80 {
+            out.push(b as char);
+            i += 1;
+        } else {
+            let ch_len = utf8_char_len(b);
+            out.push_str(&code[i..i + ch_len]);
+            i += ch_len;
+        }
+    }
+    out
+}
+
+fn utf8_char_len(first_byte: u8) -> usize {
+    // ASCII (<0x80) and stray continuation bytes (0x80..0xc0) are both
+    // 1-byte advances — the latter is malformed UTF-8 that we skip past
+    // one byte at a time so we don't read off the end of the slice.
+    if first_byte < 0xc0 {
+        1
+    } else if first_byte < 0xe0 {
+        2
+    } else if first_byte < 0xf0 {
+        3
+    } else {
+        4
+    }
+}
+
 /// Split long destructuring patterns (`let { a, b, c, ... } = expr`) to multi-line format
 /// when the specifier list exceeds 60 characters, matching esrap's `sequence()` threshold.
 ///
 /// For example: `let { cursor, showNavigation = true, withStacked = false } = $$props;`
 /// becomes:
-/// ```
+///
+/// ```text
 /// let {
 ///     cursor,
 ///     showNavigation = true,
@@ -210,6 +357,9 @@ fn split_long_destructures(code: &str, indent_level: usize) -> String {
     result
 }
 
+/// Strip leading indentation from script content for OXC parsing.
+/// OXC expects unindented input (top-level statements at column 0).
+/// Preserves content inside template literals (backtick strings) as-is.
 fn strip_indent_for_oxc(js: &str, indent_level: usize) -> String {
     if indent_level == 0 {
         return js.to_string();
@@ -1405,6 +1555,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     css_props_is_html,
                     attach_expressions,
                     dev,
+                    hmr,
                     ..
                 } => {
                     // Find blockers from component name, all prop expressions,
@@ -1473,6 +1624,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                 in_async_block: true,
                                 attach_expressions: attach_expressions.clone(),
                                 dev: *dev,
+                                hmr: *hmr,
                             }],
                         });
                     } else if children.is_some() || !snippets.is_empty() {
@@ -1491,6 +1643,7 @@ impl<'a> ServerCodeGenerator<'a> {
                             in_async_block: false,
                             attach_expressions: attach_expressions.clone(),
                             dev: *dev,
+                            hmr: *hmr,
                         });
                     } else {
                         // No children to recurse into - just clone the original
@@ -1683,14 +1836,18 @@ impl<'a> ServerCodeGenerator<'a> {
                         _ => &[],
                     };
 
-                    // Build a filtered blocker map that excludes specified variables
+                    // Build a filtered blocker map that excludes specified variables.
+                    // Promote excluded_vars to a hash set so the filter is O(blocker_map)
+                    // instead of O(blocker_map * excluded_vars).
                     let effective_blocker_map: rustc_hash::FxHashMap<String, usize> =
                         if excluded_vars.is_empty() {
                             blocker_map.clone()
                         } else {
+                            let excluded: rustc_hash::FxHashSet<&str> =
+                                excluded_vars.iter().map(String::as_str).collect();
                             blocker_map
                                 .iter()
-                                .filter(|(name, _)| !excluded_vars.contains(name))
+                                .filter(|(name, _)| !excluded.contains(name.as_str()))
                                 .map(|(k, v)| (k.clone(), *v))
                                 .collect()
                         };
@@ -1950,22 +2107,28 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut i = 0;
 
         while i < parts.len() {
-            let (html_ref, excluded_vars) = match &parts[i] {
-                OutputPart::Html(html) => (Some(html.as_str()), Vec::new()),
+            // Borrow excluded_blocker_vars (a Vec<String>) instead of cloning it —
+            // the rebuild loop only needs to test membership, never mutate.
+            let (html_ref, excluded_vars): (Option<&str>, &[String]) = match &parts[i] {
+                OutputPart::Html(html) => (Some(html.as_str()), &[]),
                 OutputPart::HtmlWithExclusions {
                     html,
                     excluded_blocker_vars,
-                } => (Some(html.as_str()), excluded_blocker_vars.clone()),
-                _ => (None, Vec::new()),
+                } => (Some(html.as_str()), excluded_blocker_vars.as_slice()),
+                _ => (None, &[]),
             };
             if let Some(html) = html_ref {
                 let effective_map: rustc_hash::FxHashMap<String, usize> =
                     if excluded_vars.is_empty() {
                         blocker_map.clone()
                     } else {
+                        // Promote excluded_vars to a hash set so the filter below is
+                        // O(blocker_map) instead of O(blocker_map * excluded_vars).
+                        let excluded: rustc_hash::FxHashSet<&str> =
+                            excluded_vars.iter().map(String::as_str).collect();
                         blocker_map
                             .iter()
-                            .filter(|(name, _)| !excluded_vars.contains(name))
+                            .filter(|(name, _)| !excluded.contains(name.as_str()))
                             .map(|(k, v)| (k.clone(), *v))
                             .collect()
                     };
@@ -2123,11 +2286,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     let after = j + 1;
                     // Check: does the content BEFORE this closing tag contain a blocked expression?
                     // If so, the closing tag belongs with the blocked segment, not as a split point.
-                    let before_segment = &html[if split_points.is_empty() {
-                        0
-                    } else {
-                        *split_points.last().unwrap()
-                    }..i];
+                    let segment_start = split_points.last().copied().unwrap_or(0);
+                    let before_segment = &html[segment_start..i];
                     let before_blockers =
                         Self::find_html_expression_blockers(before_segment, blocker_map);
                     if before_blockers.is_empty()
@@ -3172,6 +3332,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     in_async_block,
                     attach_expressions: _,
                     dev: component_dev,
+                    hmr: _,
                 } => {
                     // Flush current HTML before the component call
                     // For dynamic components, add <!---->  marker before the call (pushed separately)
@@ -5988,6 +6149,7 @@ impl<'a> ServerCodeGenerator<'a> {
         css_props_is_html: bool,
         in_async_block: bool,
         component_dev: bool,
+        hmr: bool,
         each_counter: &mut usize,
         store_subs: &[(&str, &str)],
     ) -> ComponentCodeResult {
@@ -6592,7 +6754,12 @@ impl<'a> ServerCodeGenerator<'a> {
 
         let trailing_marker = if has_css_props || used_child_block || in_async_block {
             TrailingMarkerBehavior::None
-        } else if dynamic {
+        } else if dynamic || hmr {
+            // HMR forces an unconditional trailing marker because the runtime
+            // needs the boundary comment to swap the component (mirrors the
+            // `!state.options.hmr` guard in the official `is_standalone` check
+            // in utils.js:288 — when hmr is on, the surrounding fragment is
+            // never standalone, so the component always needs the marker).
             TrailingMarkerBehavior::Always
         } else {
             TrailingMarkerBehavior::Conditional { has_prior_content }
@@ -6951,6 +7118,7 @@ fn extract_await_from_slot_props(props_expr: &str) -> (Vec<String>, String) {
 /// Removes lines containing:
 /// - `/* $$async_void_noop */` (placeholder for removed $effect statements)
 /// - `/* $$async_hole:` (placeholder for removed $inspect statements in async mode)
+/// - `/* $$async_hole */` (variant without args used by SSR script transform)
 fn strip_async_placeholders(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
     let mut first = true;
@@ -6963,9 +7131,10 @@ fn strip_async_placeholders(s: &str) -> String {
             result.push('\n');
         }
         first = false;
-        if memmem::find(trimmed.as_bytes(), b"/* $$async_hole:").is_some() {
-            // $inspect() calls should emit ;; (two empty statements) to match
-            // the official Svelte compiler's server-side output
+        // Either form of `$$async_hole` placeholder rewrites to `;;` in
+        // non-async-body contexts (the official compiler emits two empty
+        // statements where $inspect() used to be).
+        if memmem::find(trimmed.as_bytes(), b"$$async_hole").is_some() {
             result.push_str(";;");
         } else {
             result.push_str(line);
