@@ -70,6 +70,27 @@ jobs:
         with:
           submodules: true
 
+      # Belt-and-suspenders: even with `core.autocrlf=false` set globally,
+      # `actions/checkout` and `git submodule update` sometimes apply
+      # CRLF conversion on Windows runners (the official compiler then
+      # reads files with `\r\n` line endings, which leak into template
+      # literals in the generated client.js and diff against our LF
+      # output). Explicitly strip `\r\n` → `\n` on every source file in
+      # the submodule before fixture generation.
+      - name: Normalize line endings in svelte submodule
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path svelte -Recurse -File -Include *.svelte,*.js,*.ts,*.json,*.html,*.css,*.md `
+            | Where-Object { $_.FullName -notlike '*\node_modules\*' -and $_.FullName -notlike '*\.git\*' } `
+            | ForEach-Object {
+              $content = [System.IO.File]::ReadAllText($_.FullName)
+              if ($content -match "`r`n") {
+                $normalized = $content -replace "`r`n", "`n"
+                [System.IO.File]::WriteAllText($_.FullName, $normalized)
+              }
+            }
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
