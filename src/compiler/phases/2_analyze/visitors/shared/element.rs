@@ -10,7 +10,7 @@ use super::attribute::{
     get_attribute_expression, is_expression_attribute, validate_attribute, validate_attribute_name,
     validate_slot_attribute,
 };
-use crate::ast::template::{Attribute, RegularElement, SvelteElement};
+use crate::ast::template::{Attribute, RegularElement};
 use crate::compiler::phases::phase2_analyze::{errors, warnings};
 use regex::Regex;
 use std::sync::LazyLock;
@@ -259,17 +259,5 @@ pub fn validate_element(
         }
     }
 
-    Ok(())
-}
-
-/// Validate a svelte:element.
-///
-/// Corresponds to validation for SvelteElement in the JavaScript implementation.
-pub fn validate_svelte_element(
-    _element: &SvelteElement,
-    _context: &mut VisitorContext,
-) -> Result<(), AnalysisError> {
-    // svelte:element requires a `this` expression
-    // This is checked during parsing, so no additional validation is needed here
     Ok(())
 }
