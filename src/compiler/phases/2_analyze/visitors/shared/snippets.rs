@@ -34,20 +34,6 @@ pub fn get_snippet_name(snippet: &SnippetBlock) -> Option<String> {
     snippet.expression.identifier_name().map(String::from)
 }
 
-/// Check if a snippet has parameters.
-pub fn has_parameters(snippet: &SnippetBlock) -> bool {
-    !snippet.parameters.is_empty()
-}
-
-/// Get parameter names from a snippet.
-pub fn get_parameter_names(snippet: &SnippetBlock) -> Vec<String> {
-    snippet
-        .parameters
-        .iter()
-        .filter_map(|param| param.identifier_name().map(String::from))
-        .collect()
-}
-
 /// Returns `true` if a binding unambiguously resolves to a specific
 /// snippet declaration, or is external to the current component.
 ///
