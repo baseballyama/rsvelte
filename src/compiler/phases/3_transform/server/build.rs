@@ -142,21 +142,6 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
     })
 }
 
-/// Strip leading indentation from script content for OXC parsing.
-/// OXC expects unindented input (top-level statements at column 0).
-/// Preserves content inside template literals (backtick strings) as-is.
-/// Split long destructuring patterns (`let { a, b, c, ... } = expr`) to multi-line format
-/// when the specifier list exceeds 60 characters, matching esrap's `sequence()` threshold.
-///
-/// For example: `let { cursor, showNavigation = true, withStacked = false } = $$props;`
-/// becomes:
-/// ```
-/// let {
-///     cursor,
-///     showNavigation = true,
-///     withStacked = false
-/// } = $$props;
-/// ```
 /// Walk `code` and re-escape ASCII control characters inside string literals
 /// so they match esrap's output (`\t` / `\b` / `\v` / `\f`). Template literals,
 /// comments, and identifiers are skipped so source structure is preserved
@@ -297,6 +282,19 @@ fn utf8_char_len(first_byte: u8) -> usize {
     }
 }
 
+/// Split long destructuring patterns (`let { a, b, c, ... } = expr`) to multi-line format
+/// when the specifier list exceeds 60 characters, matching esrap's `sequence()` threshold.
+///
+/// For example: `let { cursor, showNavigation = true, withStacked = false } = $$props;`
+/// becomes:
+///
+/// ```text
+/// let {
+///     cursor,
+///     showNavigation = true,
+///     withStacked = false
+/// } = $$props;
+/// ```
 fn split_long_destructures(code: &str, indent_level: usize) -> String {
     let inner_indent = "\t".repeat(indent_level + 1);
     let outer_indent = "\t".repeat(indent_level);
@@ -359,6 +357,9 @@ fn split_long_destructures(code: &str, indent_level: usize) -> String {
     result
 }
 
+/// Strip leading indentation from script content for OXC parsing.
+/// OXC expects unindented input (top-level statements at column 0).
+/// Preserves content inside template literals (backtick strings) as-is.
 fn strip_indent_for_oxc(js: &str, indent_level: usize) -> String {
     if indent_level == 0 {
         return js.to_string();

@@ -16,8 +16,16 @@
 //! let ast = parse(source, ParseOptions::default()).unwrap();
 //! ```
 
-// Use jemalloc as the global allocator for better multi-threaded performance
-#[cfg(all(feature = "jemalloc", not(target_arch = "wasm32")))]
+// Use jemalloc as the global allocator for better multi-threaded performance.
+// `tikv-jemallocator` doesn't ship a Windows backend, so the dependency itself
+// is target-gated in Cargo.toml — mirror the same exclusion here so the
+// `feature = "jemalloc"` gate doesn't try to reference an unlinked crate on
+// Windows targets when the default features are enabled.
+#[cfg(all(
+    feature = "jemalloc",
+    not(target_arch = "wasm32"),
+    not(target_os = "windows")
+))]
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
