@@ -333,7 +333,10 @@ pub fn build_event_handler(
     // Check if the expression contains a call
     // TODO: This should check metadata.has_call from the expression tag
     // For now, we'll do a simple check
-    let has_call = expression_has_call(&expr_tag.expression);
+    // `expr_tag.metadata.expression.has_call()` is populated by Phase 2's
+    // ExpressionTag visitor (`walk_js_expression_node`), so we can read it
+    // directly instead of re-walking the expression here.
+    let has_call = expr_tag.metadata.expression.has_call();
 
     let mut js_expr = js_expr;
 
@@ -454,41 +457,6 @@ pub fn is_passive_event(name: &str) -> Option<bool> {
         Some(true)
     } else {
         None
-    }
-}
-
-/// Check if an expression contains a function call.
-///
-/// This is a simplified check - the full implementation would analyze the AST.
-///
-/// TODO: Use proper expression metadata from the AST.
-fn expression_has_call(expression: &crate::ast::js::Expression) -> bool {
-    json_value_has_call(expression.as_json())
-}
-
-/// Recursively check if a JSON value (ESTree node) contains a CallExpression.
-/// Stops recursion at function boundaries (ArrowFunctionExpression, FunctionExpression)
-/// since calls inside those don't affect the outer expression's reactivity.
-fn json_value_has_call(val: &serde_json::Value) -> bool {
-    match val {
-        serde_json::Value::Object(obj) => {
-            if let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) {
-                if expr_type == "CallExpression" {
-                    return true;
-                }
-                // Don't recurse into function boundaries
-                if expr_type == "ArrowFunctionExpression"
-                    || expr_type == "FunctionExpression"
-                    || expr_type == "FunctionDeclaration"
-                {
-                    return false;
-                }
-            }
-            // Recurse into all object values
-            obj.values().any(json_value_has_call)
-        }
-        serde_json::Value::Array(arr) => arr.iter().any(json_value_has_call),
-        _ => false,
     }
 }
 
