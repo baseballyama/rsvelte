@@ -116,12 +116,12 @@ Source: `pnpm run compatibility-report` (generated 2026-05-03, Svelte commit `04
 | Runtime Legacy | 1202/1202 | |
 | Runtime Runes | 865/865 | |
 | Runtime Browser | 31/31 | |
+| Print | 40/40 | |
 | Sourcemaps | 0/0 | No fixtures yet |
-| Print | 0/40 | Skipped in compatibility report; standalone test in `tests/print.rs` |
 | Preprocess | 0/19 | Not implemented |
 | Migrate | 0/76 | Not implemented |
 
-**Compatibility report total: 3037/3037 implemented passing (137 skipped, 0 failing) — every implemented category at 100%.**
+**Compatibility report total: 3077/3077 implemented passing (97 skipped, 0 failing) — every implemented category at 100%.**
 
 ## Implementation Status
 
@@ -133,10 +133,7 @@ Source: `pnpm run compatibility-report` (generated 2026-05-03, Svelte commit `04
 **CSS** - Selector scoping, combinators, pseudo-classes, `:global()`, keyframe prefixing
 **Validator** - Warning/error detection including A11y
 **Compiler Errors** - Error detection patterns
-
-### Implemented but not in the compatibility report
-
-**Print** - `src/compiler/print/` provides AST-to-source conversion; tested standalone via `cargo test --test print`. Not yet wired into `compatibility_report.rs` (currently hardcoded as "Print API not implemented").
+**Print** - `src/compiler/print/` provides AST-to-source conversion (40/40 fixtures).
 
 ### Not implemented
 
