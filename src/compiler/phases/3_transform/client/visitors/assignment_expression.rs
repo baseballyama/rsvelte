@@ -72,22 +72,19 @@ fn build_assignment(
     // Get the root identifier and transform if available
     let (object, transform) = get_assignment_root(left, context)?;
 
-    // Case 1: Rune mode state field declaration
-    // If in runes mode and left is a member expression with a state field declaration
+    // Case 1: Rune mode state field declaration site (skipped here).
+    //
+    // The official compiler emits the `$.field(...)` initializer when assigning
+    // a rune call (`this.x = $state(...)`) to `this.<field>` *inside the class
+    // constructor*. rsvelte handles that path inside `class_body.rs`, so this
+    // visitor does not need to re-do the work for assignments encountered
+    // outside the constructor.
+
+    // Case 2: Private field assignment
     if context.state.analysis.runes
         && let JsExpr::Member(member) = left
     {
         let name = get_property_name(&member.property);
-        if let Some(field_name) = &name
-            && let Some(field) = context.state.state_fields.get(field_name)
-        {
-            // TODO: Check if this is the declaration site
-            // TODO: Check if right side is a rune call
-            // For now, skip this case
-            let _ = field; // Suppress unused warning
-        }
-
-        // Case 2: Private field assignment
         if let JsMemberProperty::PrivateIdentifier(_) = member.property
             && let Some(field_name) = name
             && let Some(field) = context.state.state_fields.get(&field_name)

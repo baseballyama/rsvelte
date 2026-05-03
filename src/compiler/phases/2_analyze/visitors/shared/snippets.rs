@@ -8,21 +8,22 @@ use super::super::super::{AnalysisError, Binding, BindingKind, DeclarationKind};
 use super::super::VisitorContext;
 use crate::ast::template::SnippetBlock;
 
-/// Validate a snippet definition.
+/// Validate a snippet definition and register the snippet name in the
+/// analysis so that downstream checks (e.g. `snippet_invalid_export`) can
+/// recognise it.
+///
+/// Same-name "duplicate" detection is intentionally not done here: the
+/// official compiler's `SnippetBlock.js` does not reject sibling snippets
+/// with the same name (the conflict it does raise — `snippet_conflict` —
+/// applies only to a `children` snippet alongside other component
+/// content, and is handled at the component level). Re-declaration in
+/// the surrounding scope is rejected by `declare_binding` already.
 pub fn validate_snippet(
     snippet: &SnippetBlock,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
-    // Get snippet name from the expression
-    let name = get_snippet_name(snippet);
-
-    if let Some(name) = &name {
-        // TODO: Implement proper scope-based duplicate checking
-        // The current path-based approach doesn't work correctly because
-        // path is not properly maintained during visitor traversal.
-        // For now, just register the snippet without duplicate checking.
-        // This allows CSS tests to pass while the visitor infrastructure is being improved.
-        context.analysis.template.snippets.insert(name.clone());
+    if let Some(name) = get_snippet_name(snippet) {
+        context.analysis.template.snippets.insert(name);
     }
 
     Ok(())
@@ -67,19 +68,11 @@ pub fn is_resolved_snippet(binding: Option<&Binding>) -> bool {
                 return true;
             }
 
-            // Check if the initial value is a snippet block
-            // In the original JS: binding?.initial?.type === 'SnippetBlock'
-            // Since we store initial as Option<String>, we need to check differently
-            // For now, we can check if the binding kind is SnippetParam
-            // TODO: Improve this by properly tracking snippet declarations
-            if let Some(initial) = &binding.initial {
-                // Check if the initial value indicates a snippet
-                // This is a simplified check - ideally we'd parse the initial value
-                let initial_str: &str = initial;
-                return initial_str.contains("SnippetBlock");
-            }
-
-            false
+            // Check if the initial value is a snippet block. The scope builder
+            // sets `initial_node_type = "SnippetBlock"` when declaring the
+            // binding for `{#snippet name(...)}`, mirroring the official
+            // compiler's `binding.initial.type === 'SnippetBlock'` check.
+            binding.initial_node_type.as_deref() == Some("SnippetBlock")
         }
     }
 }

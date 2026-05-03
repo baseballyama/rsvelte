@@ -209,8 +209,9 @@ fn build_title_content(
                 let raw_value = convert_expression(&expr.expression, context);
                 let value = apply_transforms_to_expression(&raw_value, context);
 
-                // If expression has call or await, memoize it
-                let has_call = expression_has_call(&expr.expression);
+                // If expression has call or await, memoize it.
+                // Phase 2 already cached has_call on the tag metadata.
+                let has_call = expr.metadata.expression.has_call();
                 if has_call || has_await {
                     let param_name = format!("${}", memo_entries.len());
                     memo_entries.push(MemoEntry {
@@ -262,7 +263,8 @@ fn build_title_content(
                 quasis.push(std::mem::take(&mut current_text));
 
                 let has_await = expression_has_await(&expr.expression);
-                let has_call = expression_has_call(&expr.expression);
+                // Phase 2 already cached has_call on the tag metadata.
+                let has_call = expr.metadata.expression.has_call();
                 let raw_value = convert_expression(&expr.expression, context);
                 let value = apply_transforms_to_expression(&raw_value, context);
 
@@ -300,53 +302,6 @@ fn build_title_content(
         .collect();
     let value = b::template(template_quasis, expressions);
     (value, has_state, memo_entries)
-}
-
-/// Check if an expression has a function call (has_call metadata).
-fn expression_has_call(expr: &crate::ast::js::Expression) -> bool {
-    has_call_json(expr.as_json())
-}
-
-fn has_call_json(json_value: &serde_json::Value) -> bool {
-    let Some(obj) = json_value.as_object() else {
-        return false;
-    };
-    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
-        return false;
-    };
-
-    match expr_type {
-        "CallExpression" => true,
-        "AwaitExpression" => {
-            if let Some(arg) = obj.get("argument") {
-                has_call_json(arg)
-            } else {
-                false
-            }
-        }
-        _ => {
-            // Check children
-            for (key, val) in obj {
-                if key == "type" {
-                    continue;
-                }
-                match val {
-                    serde_json::Value::Object(_) if has_call_json(val) => {
-                        return true;
-                    }
-                    serde_json::Value::Array(arr) => {
-                        for item in arr {
-                            if has_call_json(item) {
-                                return true;
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            false
-        }
-    }
 }
 
 /// Check if nodes contain a single expression tag (possibly with whitespace text nodes)

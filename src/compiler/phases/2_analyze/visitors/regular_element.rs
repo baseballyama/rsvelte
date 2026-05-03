@@ -380,6 +380,7 @@ fn create_textarea_value_attribute(nodes: Vec<TemplateNode>) -> Attribute {
         name: "value".into(),
         name_loc: None,
         value: AttributeValue::Sequence(parts),
+        metadata: Default::default(),
     })
 }
 
@@ -1011,6 +1012,10 @@ pub fn visit(
                     {
                         context.emit_warning(warnings::attribute_quoted());
                     }
+                }
+                // Mutable re-borrow so the visitor can populate
+                // `attr_node.metadata` (needs_clsx / delegated).
+                if let Attribute::Attribute(attr_node) = &mut element.attributes[i] {
                     attribute::visit(attr_node, context)?;
                 }
             }
@@ -1046,6 +1051,16 @@ pub fn visit(
                 // Re-borrow the attach tag mutably for the visit call
                 if let Attribute::AttachTag(attach) = &mut element.attributes[i] {
                     super::attach_tag::visit(attach, context)?;
+                }
+            }
+            Attribute::TransitionDirective(_) => {
+                if let Attribute::TransitionDirective(directive) = &element.attributes[i] {
+                    super::transition_directive::visit(directive, context)?;
+                }
+            }
+            Attribute::AnimateDirective(_) => {
+                if let Attribute::AnimateDirective(directive) = &element.attributes[i] {
+                    super::animate_directive::visit(directive, context)?;
                 }
             }
             _ => {}

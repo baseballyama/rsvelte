@@ -160,6 +160,7 @@ impl Parser<'_> {
                     name: compact_str::CompactString::new("{...}"),
                     name_loc: None,
                     value: AttributeValue::True(true),
+                    metadata: Default::default(),
                 });
                 continue;
             }

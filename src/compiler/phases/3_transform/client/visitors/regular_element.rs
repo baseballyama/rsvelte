@@ -883,11 +883,12 @@ pub fn visit_regular_element(
                 // pending state) even though it has no local bindings or transforms.
                 // It must NOT use the textContent optimization - it needs to be in a
                 // template_effect callback for proper reactivity.
+                // Phase 2 already cached has_call on the tag metadata.
                 !super::shared::utils::is_effect_pending_expr(
                     &expr_tag.expression,
                     context.state.parse_arena,
                 ) && !expression_has_reactive_state(&expr_tag.expression, context)
-                    && !super::shared::utils::expression_has_call(&expr_tag.expression, context)
+                    && !expr_tag.metadata.expression.has_call()
             }
             _ => false,
         }

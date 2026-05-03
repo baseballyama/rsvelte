@@ -238,16 +238,16 @@ fn convert_to_legacy_inner(source: &str, ast: Root) -> Value {
     if let Some(instance) = ast.instance {
         let mut script = convert_script(&instance);
         // Remove attributes field from instance
-        script.as_object_mut().unwrap().remove("attributes");
-        result.insert("instance".to_string(), script);
+        script.remove("attributes");
+        result.insert("instance".to_string(), Value::Object(script));
     }
 
     // Convert module script
     if let Some(module) = ast.module {
         let mut script = convert_script(&module);
         // Remove attributes field from module
-        script.as_object_mut().unwrap().remove("attributes");
-        result.insert("module".to_string(), script);
+        script.remove("attributes");
+        result.insert("module".to_string(), Value::Object(script));
     }
 
     // Convert CSS
@@ -263,14 +263,19 @@ fn convert_to_legacy_inner(source: &str, ast: Root) -> Value {
     final_result
 }
 
-fn convert_script(script: &Script) -> Value {
+/// Convert a `Script` AST node into the legacy JSON shape.
+///
+/// Returns a `Map` (not a `Value::Object`) so callers can mutate fields
+/// directly — e.g. removing the `attributes` field for instance/module
+/// scripts — without round-tripping through `as_object_mut().unwrap()`.
+fn convert_script(script: &Script) -> Map<String, Value> {
     let mut result = Map::new();
     result.insert("type".to_string(), json!("Script"));
     result.insert("start".to_string(), json!(script.start));
     result.insert("end".to_string(), json!(script.end));
     result.insert("context".to_string(), json!(script.context));
     result.insert("content".to_string(), script.content.as_json().clone());
-    Value::Object(result)
+    result
 }
 
 fn convert_css(css: &crate::ast::css::StyleSheet) -> Value {

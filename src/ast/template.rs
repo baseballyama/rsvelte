@@ -180,11 +180,24 @@ pub struct Comment {
 // =============================================================================
 
 /// A reactive template expression: `{expression}`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExpressionTag {
     pub start: u32,
     pub end: u32,
     pub expression: Expression,
+    /// Internal metadata populated during Phase 2 analysis (mirrors the
+    /// `node.metadata.expression` field on the official compiler's
+    /// `ExpressionTag`). Skipped from (de)serialisation so snapshot output
+    /// is unchanged.
+    #[serde(skip)]
+    pub metadata: TagMetadata,
+}
+
+impl PartialEq for ExpressionTag {
+    fn eq(&self, other: &Self) -> bool {
+        // Metadata is derived from the AST and not part of structural identity.
+        self.start == other.start && self.end == other.end && self.expression == other.expression
+    }
 }
 
 /// An HTML template expression: `{@html expression}`.
@@ -570,6 +583,23 @@ impl serde::Serialize for Attribute {
     }
 }
 
+/// Metadata populated by Phase 2 analysis for `AttributeNode`.
+///
+/// Not serialised to snapshot output (the official compiler keeps these on a
+/// `metadata` sidecar that is also internal). Phase 3 transforms can read
+/// these flags to avoid re-walking the attribute value.
+#[derive(Debug, Clone, Default)]
+pub struct AttributeNodeMetadata {
+    /// True when the `class={...}` attribute value is a non-trivial JS
+    /// expression and so needs the runtime `$.clsx(...)` wrapper to flatten
+    /// arrays / objects of class names.
+    pub needs_clsx: bool,
+    /// True when an `on*` event attribute is on a regular HTML element and
+    /// the event name is delegated by the runtime (the parent `mount`/`hydrate`
+    /// helper installs a single shared listener for it).
+    pub delegated: bool,
+}
+
 /// A regular attribute: `name="value"` or `name={expression}`.
 #[derive(Debug, Clone, Deserialize)]
 pub struct AttributeNode {
@@ -579,6 +609,11 @@ pub struct AttributeNode {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
     pub value: AttributeValue,
+    /// Internal metadata. Always defaults on construction; populated during
+    /// Phase 2 analysis. Skipped during (de)serialisation so snapshot output
+    /// is unchanged.
+    #[serde(skip)]
+    pub metadata: AttributeNodeMetadata,
 }
 
 impl serde::Serialize for AttributeNode {
@@ -635,8 +670,15 @@ impl serde::Serialize for AttributeValue {
 }
 
 /// A part of an attribute value (text or expression).
+///
+/// `ExpressionTag` is much larger than `Text` because it carries an
+/// `Expression` plus the metadata populated during analysis. Boxing it
+/// would shrink the enum but require touching every match site;
+/// `AttributeValuePart` instances are short-lived and stored in small
+/// per-attribute vectors, so we accept the size disparity here.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 pub enum AttributeValuePart {
     Text(Text),
     ExpressionTag(ExpressionTag),

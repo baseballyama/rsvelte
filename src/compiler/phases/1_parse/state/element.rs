@@ -1076,6 +1076,7 @@ impl Parser<'_> {
                     start: expr_start as u32,
                     end: expr_start as u32,
                     expression: expression.clone(),
+                    metadata: Default::default(),
                 });
 
                 return Ok(Some(crate::ast::Attribute::Attribute(AttributeNode {
@@ -1084,6 +1085,7 @@ impl Parser<'_> {
                     name: CompactString::from(""),
                     name_loc,
                     value,
+                    metadata: Default::default(),
                 })));
             }
 
@@ -1115,6 +1117,7 @@ impl Parser<'_> {
                 start: (start + 1) as u32, // start after {
                 end: expr_end as u32,
                 expression: expression.clone(),
+                metadata: Default::default(),
             });
 
             return Ok(Some(crate::ast::Attribute::Attribute(AttributeNode {
@@ -1123,6 +1126,7 @@ impl Parser<'_> {
                 name: CompactString::from(name),
                 name_loc,
                 value,
+                metadata: Default::default(),
             })));
         }
 
@@ -1197,6 +1201,7 @@ impl Parser<'_> {
             name: name.clone(),
             name_loc,
             value,
+            metadata: Default::default(),
         })))
     }
 
@@ -1585,6 +1590,7 @@ impl Parser<'_> {
                     start: (expr_start - 1) as u32, // include the '{'
                     end: self.index as u32,
                     expression: self.parse_js_expression(expr_content, expr_start),
+                    metadata: Default::default(),
                 })
             } else if self.eat_optional("\"") || self.eat_optional("'") {
                 // Quoted string value with potential expressions: "red{variable}"
@@ -1620,6 +1626,7 @@ impl Parser<'_> {
                                 &self.source[inner_start..inner_end],
                                 inner_start,
                             ),
+                            metadata: Default::default(),
                         }));
                         text_start = self.index;
                     } else {
@@ -1674,6 +1681,7 @@ impl Parser<'_> {
                                 &self.source[inner_start..inner_end],
                                 inner_start,
                             ),
+                            metadata: Default::default(),
                         }));
                         text_start = self.index;
                     } else {
@@ -2097,6 +2105,7 @@ impl Parser<'_> {
                     start: expr_start as u32,
                     end: expr_end as u32,
                     expression: self.parse_js_expression(expr_content, expr_start + 1),
+                    metadata: Default::default(),
                 }));
             } else {
                 // Text content - use byte-level scanning for speed

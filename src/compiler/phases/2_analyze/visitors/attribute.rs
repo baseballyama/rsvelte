@@ -18,7 +18,14 @@ use crate::compiler::utils::{can_delegate_event, cannot_be_set_statically};
 /// Corresponds to `Attribute` in Attribute.js.
 ///
 /// Analyzes attributes and marks subtrees as dynamic when necessary.
-pub fn visit(attribute: &AttributeNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+/// Also populates `attribute.metadata.needs_clsx` and `attribute.metadata.delegated`
+/// so that Phase 3 transforms can decide whether to wrap class expressions
+/// in `$.clsx(...)` and whether an event handler can use the delegated
+/// listener path.
+pub fn visit(
+    attribute: &mut AttributeNode,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
     // Visit children (expressions in attribute value)
     // In JS: context.next();
     // Walk through all expressions in the attribute value
@@ -68,11 +75,6 @@ pub fn visit(attribute: &AttributeNode, context: &mut VisitorContext) -> Result<
 
         // Check if it's a complex expression that needs clsx
         if let AttributeValue::Expression(expr_tag) = &attribute.value {
-            // TODO: Set metadata.needs_clsx flag on the attribute
-            // In JS: node.metadata.needs_clsx = true;
-            // This requires AST metadata support
-
-            // For now, check if the expression is not a simple literal/template/binary
             let expr_type = expr_tag.expression.node_type().unwrap_or("");
 
             // If it's not a simple literal, template, or binary expression, it needs clsx
@@ -81,7 +83,7 @@ pub fn visit(attribute: &AttributeNode, context: &mut VisitorContext) -> Result<
                 "Literal" | "TemplateLiteral" | "BinaryExpression"
             ) {
                 mark_subtree_dynamic(&context.path);
-                // TODO: Mark attribute.metadata.needs_clsx = true
+                attribute.metadata.needs_clsx = true;
             }
         }
     }
@@ -121,9 +123,7 @@ pub fn visit(attribute: &AttributeNode, context: &mut VisitorContext) -> Result<
             // In JS: node.metadata.delegated = parent?.type === 'RegularElement' && can_delegate_event(node.name.slice(2));
             if let Some(TemplateNode::RegularElement(_)) = parent {
                 let event_name = &attribute.name[2..]; // Remove "on" prefix
-                let _delegated = can_delegate_event(event_name);
-                // TODO: Set attribute.metadata.delegated = delegated
-                // This requires AST metadata support
+                attribute.metadata.delegated = can_delegate_event(event_name);
             }
         }
     }
