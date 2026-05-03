@@ -100,7 +100,17 @@ function generateReadmeTable(report) {
 
 		let notes = '';
 		if (stats.skipped > 0 && stats.skipped === stats.total) {
-			notes = 'Not implemented';
+			// Whole category skipped — surface the reason recorded by the
+			// test runner (e.g. "out of scope" vs "not implemented") rather
+			// than always saying "Not implemented".
+			const firstReason = cat.samples?.find((s) => s.skip_reason)?.skip_reason;
+			if (firstReason && /out of scope/i.test(firstReason)) {
+				notes = 'Out of scope';
+			} else if (firstReason) {
+				notes = firstReason;
+			} else {
+				notes = 'Not implemented';
+			}
 		} else if (stats.skipped > 0) {
 			notes = `${stats.skipped} skipped`;
 		}
