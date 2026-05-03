@@ -287,15 +287,21 @@ pub fn build_event_handler(
 
     // Function declared in the script
     if let JsExpr::Identifier(name) = &handler {
-        // Check if this identifier refers to a function in the scope
-        if let Some(binding) = context.state.get_binding(name) {
-            // TODO: Check if binding.is_function()
-            // For now, assume identifiers are functions and return as-is
-            let _ = binding; // Silence unused variable warning
-            return handler;
+        // If the identifier refers to a binding whose initial value is a
+        // function (and which has not been reassigned), we can attach it
+        // directly. Otherwise fall through so the handler gets wrapped in
+        // a `function (...$$args) { handler?.apply(this, $$args); }`
+        // shim that copes with the value being undefined or a non-function
+        // assigned to e.g. a `$state` variable.
+        match context.state.get_binding(name) {
+            Some(binding) if binding.is_function() => return handler,
+            // Not in scope at all — assume it's a global function (window.alert,
+            // user-imported helpers without scope tracking, etc.).
+            None => return handler,
+            Some(_) => {
+                // Falls through to the wrapping path below.
+            }
         }
-        // If not found in scope, still return it (might be a global function)
-        return handler;
     }
 
     // If the handler contains a call expression, we need to memoize it with $.derived
