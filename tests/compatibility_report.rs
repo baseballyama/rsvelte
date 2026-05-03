@@ -1048,6 +1048,78 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
 // Not Yet Implemented Tests
 // ============================================================================
 
+/// Run the `print` category by re-parsing each `input.svelte` and asking the
+/// `print` API to emit it back, then comparing against the official
+/// `output.svelte`. Mirrors `tests/print.rs::test_print` so the
+/// compatibility-report stays in sync with the standalone test.
+fn run_print_tests() -> CategoryResult {
+    use svelte_compiler_rust::compiler::print::print_with_source;
+    use svelte_compiler_rust::{ParseOptions, parse};
+
+    let samples = get_svelte_test_samples("print");
+    let mut result = CategoryResult::new("print");
+
+    for sample_dir in &samples {
+        let name = sample_dir
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown")
+            .to_string();
+
+        let input = match fs::read_to_string(sample_dir.join("input.svelte")) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        let expected = match fs::read_to_string(sample_dir.join("output.svelte")) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+
+        let options = ParseOptions {
+            modern: true,
+            ..Default::default()
+        };
+
+        let (status, error) = match parse(&input, options) {
+            Ok(ast) => match print_with_source(&ast, None, Some(&input)) {
+                Ok(printed) => {
+                    if normalize_print_output(&printed.code) == normalize_print_output(&expected) {
+                        (TestStatus::Passed, None)
+                    } else {
+                        (TestStatus::Failed, Some("Output mismatch".to_string()))
+                    }
+                }
+                Err(e) => (TestStatus::Failed, Some(format!("Print error: {:?}", e))),
+            },
+            Err(e) => (TestStatus::Failed, Some(format!("Parse error: {:?}", e))),
+        };
+
+        result.add_sample(SampleResult {
+            name,
+            status,
+            error,
+            skip_reason: None,
+            details: None,
+        });
+    }
+
+    result
+}
+
+/// Trim trailing whitespace per line and ensure a single trailing newline,
+/// matching the helper in `tests/print.rs`.
+fn normalize_print_output(s: &str) -> String {
+    let mut output = s
+        .lines()
+        .map(|line| line.trim_end())
+        .collect::<Vec<_>>()
+        .join("\n");
+    if !output.ends_with('\n') {
+        output.push('\n');
+    }
+    output
+}
+
 fn run_not_implemented_tests(category: &str, reason: &str) -> CategoryResult {
     let samples = get_svelte_test_samples(category);
     let mut result = CategoryResult::new(category);
@@ -1294,10 +1366,21 @@ fn generate_compatibility_report() {
     );
     report.add_category(sourcemaps);
 
+    // Print category — implemented and tested standalone in tests/print.rs.
+    // Wire it into the compatibility report so the dashboard reflects reality.
+    print!("Running print tests... ");
+    let print = run_print_tests();
+    println!(
+        "{}/{} passed ({:.1}%)",
+        print.stats.passed,
+        print.stats.run_count(),
+        print.stats.pass_percentage()
+    );
+    report.add_category(print);
+
     // Not yet implemented categories
     for (category, reason) in &[
         ("preprocess", "Preprocess API not implemented"),
-        ("print", "Print API not implemented"),
         ("migrate", "Migrate API not implemented"),
     ] {
         print!("Running {} tests... ", category);
