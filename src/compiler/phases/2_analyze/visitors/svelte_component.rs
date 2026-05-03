@@ -28,7 +28,7 @@ pub fn visit(
     super::script::walk_expression(&component.expression, context)?;
 
     // Analyze attributes (mirrors visit_component logic from shared/component.rs)
-    for attr in &component.attributes {
+    for attr in &mut component.attributes {
         match attr {
             Attribute::BindDirective(bind) => {
                 // Track component bindings (skip bind:this)
@@ -60,7 +60,7 @@ pub fn visit(
                     context.emit_warning(warnings::attribute_quoted());
                 }
                 // Walk attribute value expressions
-                super::attribute::visit_attribute_value_expressions(&a.value, context)?;
+                super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
             }
             _ => {}
         }

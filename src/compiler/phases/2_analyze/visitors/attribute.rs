@@ -28,8 +28,11 @@ pub fn visit(
 ) -> Result<(), AnalysisError> {
     // Visit children (expressions in attribute value)
     // In JS: context.next();
-    // Walk through all expressions in the attribute value
-    visit_attribute_value_expressions(&attribute.value, context)?;
+    // Walk through all expressions in the attribute value, populating each
+    // inner `ExpressionTag.metadata.expression` so Phase 3 can read
+    // `has_call` / `has_state` / `has_await` for memoisation decisions
+    // without re-walking the JSON.
+    visit_attribute_value_expressions(&mut attribute.value, context)?;
 
     // Validate slot attribute must be a static value
     // Corresponds to validate_slot_attribute in shared/attribute.js
@@ -151,11 +154,13 @@ fn is_text_attribute(attribute: &AttributeNode) -> bool {
 
 /// Visit all JavaScript expressions within an attribute value.
 ///
-/// This walks through the JS AST of expressions in the attribute value,
-/// triggering visitors for CallExpression, MemberExpression, etc.
-/// which set `needs_context` when appropriate.
+/// Walks each inner `ExpressionTag` expression with
+/// `walk_js_expression_node`, populating `expr_tag.metadata.expression` so
+/// Phase 3 (`build_attribute_value`, `extract_metadata_from_tag`, etc.) can
+/// read `has_call` / `has_state` / `has_await` / dependencies / references
+/// without re-walking the JSON.
 pub fn visit_attribute_value_expressions(
-    value: &AttributeValue,
+    value: &mut AttributeValue,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     match value {
@@ -163,14 +168,22 @@ pub fn visit_attribute_value_expressions(
             // No expressions to visit
         }
         AttributeValue::Expression(expr_tag) => {
-            // Visit the expression
-            super::script::walk_expression(&expr_tag.expression, context)?;
+            let node = expr_tag.expression.as_node();
+            super::shared::utils::walk_js_expression_node(
+                &node,
+                context,
+                &mut expr_tag.metadata.expression,
+            )?;
         }
         AttributeValue::Sequence(parts) => {
-            // Visit each expression tag in the sequence
             for part in parts {
                 if let AttributeValuePart::ExpressionTag(expr_tag) = part {
-                    super::script::walk_expression(&expr_tag.expression, context)?;
+                    let node = expr_tag.expression.as_node();
+                    super::shared::utils::walk_js_expression_node(
+                        &node,
+                        context,
+                        &mut expr_tag.metadata.expression,
+                    )?;
                 }
             }
         }

@@ -194,11 +194,11 @@ pub fn visit_component(
     // This corresponds to the context.visit(attribute, ...) calls in the official Svelte compiler.
     // The official Svelte walks through all attributes using zimmerframe which triggers
     // MemberExpression and CallExpression visitors on the expressions inside attributes.
-    for attr in &component.attributes {
+    for attr in &mut component.attributes {
         match attr {
             Attribute::Attribute(a) => {
                 // Visit expressions in the attribute value
-                visit_attribute_value_expressions(&a.value, context)?;
+                visit_attribute_value_expressions(&mut a.value, context)?;
             }
             Attribute::BindDirective(bind) => {
                 // Visit the bind expression
