@@ -882,13 +882,14 @@ pub fn visit_regular_element(
                 // Special case: $effect.pending() is inherently reactive (tracks async
                 // pending state) even though it has no local bindings or transforms.
                 // It must NOT use the textContent optimization - it needs to be in a
-                // template_effect callback for proper reactivity.
-                // Phase 2 already cached has_call on the tag metadata.
+                // template_effect callback for proper reactivity. Use the
+                // broad "any CallExpression in the tree" check that the rest
+                // of Phase 3 uses for memoisation decisions.
                 !super::shared::utils::is_effect_pending_expr(
                     &expr_tag.expression,
                     context.state.parse_arena,
                 ) && !expression_has_reactive_state(&expr_tag.expression, context)
-                    && !expr_tag.metadata.expression.has_call()
+                    && !super::shared::element::expression_tag_has_call(expr_tag)
             }
             _ => false,
         }

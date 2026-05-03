@@ -99,6 +99,36 @@ pub fn convert_arrow_to_named_function(handler: JsExpr, name: CompactString) -> 
     }
 }
 
+/// True when the handler expression (or any descendant outside a function
+/// body) contains a `CallExpression`. Phase 3 memoises any handler that
+/// contains a call, regardless of whether the callee is "pure" — see
+/// `expression_tag_has_call` in `shared/element.rs` for the same broad
+/// semantics applied to `ExpressionTag`.
+fn expression_has_any_call(expr: &Expression) -> bool {
+    json_walk_for_call(expr.as_json())
+}
+
+fn json_walk_for_call(val: &serde_json::Value) -> bool {
+    match val {
+        serde_json::Value::Object(obj) => {
+            if let Some(t) = obj.get("type").and_then(|t| t.as_str()) {
+                if t == "CallExpression" {
+                    return true;
+                }
+                if matches!(
+                    t,
+                    "ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration"
+                ) {
+                    return false;
+                }
+            }
+            obj.values().any(json_walk_for_call)
+        }
+        serde_json::Value::Array(arr) => arr.iter().any(json_walk_for_call),
+        _ => false,
+    }
+}
+
 /// Build an event handler function.
 ///
 /// Corresponds to `build_event_handler` in
@@ -144,10 +174,12 @@ pub fn build_event_handler(
 
     let expression = expression.unwrap();
 
-    // Check if expression has a call (for memoization). Phase 2's
-    // `OnDirective` visitor already cached this on
-    // `node.metadata.expression.has_call()`.
-    let has_call = node.metadata.expression.has_call();
+    // Check if expression has a call (for memoization). Phase 3 uses the
+    // broad "any CallExpression in the tree" semantics — see
+    // `expression_tag_has_call` in `shared/element.rs` — instead of Phase 2's
+    // narrower has_call (which only fires for non-pure calls).
+    let _ = node;
+    let has_call = expression_has_any_call(expression);
 
     // Convert the expression to JS
     let handler = convert_expression(expression, context);

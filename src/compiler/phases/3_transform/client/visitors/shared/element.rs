@@ -84,12 +84,10 @@ where
             let has_reactive_state =
                 super::utils::expression_has_reactive_state(&expr_tag.expression, context);
 
-            // Phase 2's ExpressionTag visitor sets `has_call` (and `has_state`)
-            // on `expr_tag.metadata.expression` after running the same
-            // non-pure-call check the official compiler does. Read the cached
-            // result instead of re-walking the expression.
-            // See: 2-analyze/visitors/CallExpression.js
-            let has_call = expr_tag.metadata.expression.has_call();
+            // Phase 3 needs the broad "any CallExpression in the tree" check
+            // for memoisation decisions; Phase 2's cached has_call follows the
+            // narrower official semantics. See `expression_tag_has_call`.
+            let has_call = expression_tag_has_call(expr_tag);
 
             // Apply transforms via build_expression (handles props: x -> x())
             let transformed = build_expression(context, &expression, &metadata);
@@ -133,9 +131,9 @@ where
                     let has_reactive_state =
                         super::utils::expression_has_reactive_state(&expr_tag.expression, context);
 
-                    // Include non-pure function calls in has_state (matches official compiler behavior).
-                    // Phase 2 already cached this on `expr_tag.metadata.expression`.
-                    let has_call = expr_tag.metadata.expression.has_call();
+                    // Phase 3 needs the broad "any CallExpression in the tree"
+                    // check for memoisation decisions; see `expression_tag_has_call`.
+                    let has_call = expression_tag_has_call(expr_tag);
 
                     // Apply transforms via build_expression (handles props: x -> x())
                     let transformed = build_expression(context, &expression, &metadata);
@@ -222,10 +220,9 @@ where
                 let expression = extract_expression_from_tag_with_context(expr_tag, context);
                 let mut metadata = extract_metadata_from_tag(expr_tag);
 
-                // Use the purity-aware has_call check so that pure calls (like
-                // encodeURIComponent('hello')) are not treated as needing memoization.
-                // Phase 2 already cached this on `expr_tag.metadata.expression`.
-                let chunk_has_call = expr_tag.metadata.expression.has_call();
+                // Phase 3 needs the broad "any CallExpression in the tree" check
+                // for memoisation decisions; see `expression_tag_has_call`.
+                let chunk_has_call = expression_tag_has_call(expr_tag);
                 metadata.set_has_call(chunk_has_call);
 
                 // Update metadata.has_state with comprehensive reactive state check
@@ -329,28 +326,76 @@ fn extract_expression_from_tag(expr_tag: &ExpressionTag) -> JsExpr {
 
 /// Extract metadata from an ExpressionTag.
 ///
-/// Phase 2's `ExpressionTag` visitor (`walk_js_expression_node`) already
-/// populates `expr_tag.metadata.expression` with `has_call`, `has_await`,
-/// `has_member_expression`, `has_assignment`, dependencies, and
-/// references. Convert that template-level metadata into the Phase 3
-/// shape via the existing `from_template_metadata` bit-copy and reset
-/// `has_state`/`dynamic` to match the previous behaviour — the caller
-/// recomputes `has_state` via `expression_has_reactive_state(...)` so
-/// that transforms registered later in the pipeline are accounted for.
+/// Phase 2's `ExpressionTag` visitor populates `expr_tag.metadata.expression`
+/// with `has_await`, `has_member_expression`, `has_assignment`, dependencies
+/// and references — copy those across via `from_template_metadata`.
+///
+/// `has_call` is recomputed from the JSON because Phase 2's
+/// `walk_js_expression_node` follows the official compiler and only sets
+/// `has_call` for *non-pure* calls (callee binds to a local) or calls that
+/// touch dependencies. Several Phase 3 consumers of this metadata
+/// (attribute memoisation, etc.) historically expect `has_call` to mean
+/// "any `CallExpression` in the tree" so they wrap things like
+/// `class={fn()}` in `$.derived(...)`. Until those consumers are migrated
+/// to the narrower official semantics, we preserve the broad check here to
+/// avoid regressing 22+ runtime fixtures that depend on it.
 fn extract_metadata_from_tag(expr_tag: &ExpressionTag) -> ExpressionMetadata {
     let mut metadata = ExpressionMetadata::from_template_metadata(&expr_tag.metadata.expression);
     metadata.set_has_state(false);
     metadata.set_dynamic(false);
+    let val = expr_tag.expression.as_json();
+    if !is_literal_value(val) {
+        metadata.set_has_call(json_contains_call(val));
+    }
     metadata
+}
+
+/// True when the ExpressionTag contains a `CallExpression` somewhere in
+/// its tree (excluding nested function bodies). Phase 3 uses this broad
+/// definition for memoisation decisions; the cached
+/// `expr_tag.metadata.expression.has_call()` set by Phase 2 follows the
+/// official compiler's narrower "non-pure callee" semantics, which is
+/// not yet what the rest of Phase 3 expects.
+pub fn expression_tag_has_call(expr_tag: &ExpressionTag) -> bool {
+    let val = expr_tag.expression.as_json();
+    if is_literal_value(val) {
+        false
+    } else {
+        json_contains_call(val)
+    }
+}
+
+/// True when `val` (or any descendant, except inside function bodies)
+/// contains a `CallExpression`. Mirrors the broad recursive check that
+/// `extract_metadata_from_tag` used before bd01699.
+fn json_contains_call(val: &serde_json::Value) -> bool {
+    match val {
+        serde_json::Value::Object(obj) => {
+            if let Some(t) = obj.get("type").and_then(|t| t.as_str()) {
+                if t == "CallExpression" {
+                    return true;
+                }
+                // Don't recurse into function bodies — matches Phase 2's
+                // walker, which also stops at function boundaries.
+                if matches!(
+                    t,
+                    "ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration"
+                ) {
+                    return false;
+                }
+            }
+            obj.values().any(json_contains_call)
+        }
+        serde_json::Value::Array(arr) => arr.iter().any(json_contains_call),
+        _ => false,
+    }
 }
 
 /// Check if a JSON value represents a literal (non-reactive) value.
 ///
 /// Literals include: numbers, strings, booleans, null, undefined.
-/// Only used by the test module now that `extract_metadata_from_tag`
-/// reads the cached Phase 2 metadata directly; kept around because the
-/// tests cover what counts as "literal" for snapshot stability.
-#[cfg(test)]
+/// `extract_metadata_from_tag` short-circuits on these so it never walks
+/// the JSON looking for `CallExpression`.
 fn is_literal_value(val: &serde_json::Value) -> bool {
     match val {
         serde_json::Value::Null => true,
