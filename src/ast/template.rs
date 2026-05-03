@@ -180,11 +180,24 @@ pub struct Comment {
 // =============================================================================
 
 /// A reactive template expression: `{expression}`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExpressionTag {
     pub start: u32,
     pub end: u32,
     pub expression: Expression,
+    /// Internal metadata populated during Phase 2 analysis (mirrors the
+    /// `node.metadata.expression` field on the official compiler's
+    /// `ExpressionTag`). Skipped from (de)serialisation so snapshot output
+    /// is unchanged.
+    #[serde(skip)]
+    pub metadata: TagMetadata,
+}
+
+impl PartialEq for ExpressionTag {
+    fn eq(&self, other: &Self) -> bool {
+        // Metadata is derived from the AST and not part of structural identity.
+        self.start == other.start && self.end == other.end && self.expression == other.expression
+    }
 }
 
 /// An HTML template expression: `{@html expression}`.
@@ -657,8 +670,15 @@ impl serde::Serialize for AttributeValue {
 }
 
 /// A part of an attribute value (text or expression).
+///
+/// `ExpressionTag` is much larger than `Text` because it carries an
+/// `Expression` plus the metadata populated during analysis. Boxing it
+/// would shrink the enum but require touching every match site;
+/// `AttributeValuePart` instances are short-lived and stored in small
+/// per-attribute vectors, so we accept the size disparity here.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 pub enum AttributeValuePart {
     Text(Text),
     ExpressionTag(ExpressionTag),

@@ -528,7 +528,12 @@ pub fn process_children<F>(
 }
 
 /// Helper enum for Text or ExpressionTag sequences.
+///
+/// Same large-enum-variant trade-off as `AttributeValuePart`: this enum is
+/// short-lived and lives in tiny vectors, so the size disparity isn't worth
+/// boxing.
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum TextOrExpr {
     Text(Text),
     Expr(ExpressionTag),

@@ -597,6 +597,7 @@ mod tests {
             start: 0,
             end: 5,
             expression: Expression::Value(serde_json::Value::Null),
+            metadata: Default::default(),
         };
         assert!(is_expression_attribute_value(&AttributeValue::Expression(
             expr_tag.clone()
