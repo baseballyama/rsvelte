@@ -144,16 +144,15 @@ fn is_resolved_snippet(binding: Option<&crate::compiler::phases::phase2_analyze:
 
     let binding = binding.unwrap();
 
-    // It's resolved if it's an import, prop, or bindable prop
+    // It's resolved if it's an import, prop, bindable prop, or directly bound
+    // to a `{#snippet ...}` block in the same component.
     matches!(
         binding.declaration_kind,
         crate::compiler::phases::phase2_analyze::DeclarationKind::Import
     ) || matches!(
         binding.kind,
         BindingKind::Prop | BindingKind::RestProp | BindingKind::BindableProp
-    )
-    // TODO: Also check if binding.initial.type === 'SnippetBlock'
-    // This requires tracking the initial node type, which we don't currently do
+    ) || binding.initial_node_type.as_deref() == Some("SnippetBlock")
 }
 
 /// Get a string representation of a template node type.

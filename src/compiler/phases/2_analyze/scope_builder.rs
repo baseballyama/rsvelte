@@ -4555,11 +4555,18 @@ impl<'a> ScopeBuilder<'a> {
         // The snippet name must be available in the enclosing scope so that {@render snippet()}
         // can find it and know that it's a local (non-dynamic) snippet
         if let Some(name) = block.expression.name() {
-            self.declare_binding(
+            let idx = self.declare_binding(
                 name.to_string(),
                 BindingKind::Normal,
                 DeclarationKind::Function,
             );
+            // Track that the binding's initial value is a SnippetBlock so that
+            // render-tag resolution (`is_resolved_snippet`) can recognise local
+            // snippets. The official compiler checks
+            // `binding.initial.type === 'SnippetBlock'`; tracking the kind on
+            // the binding lets us answer the same question without keeping the
+            // entire AST node around.
+            self.bindings[idx].initial_node_type = Some("SnippetBlock".to_string());
         }
 
         let old_scope = self.push_scope();

@@ -67,19 +67,11 @@ pub fn is_resolved_snippet(binding: Option<&Binding>) -> bool {
                 return true;
             }
 
-            // Check if the initial value is a snippet block
-            // In the original JS: binding?.initial?.type === 'SnippetBlock'
-            // Since we store initial as Option<String>, we need to check differently
-            // For now, we can check if the binding kind is SnippetParam
-            // TODO: Improve this by properly tracking snippet declarations
-            if let Some(initial) = &binding.initial {
-                // Check if the initial value indicates a snippet
-                // This is a simplified check - ideally we'd parse the initial value
-                let initial_str: &str = initial;
-                return initial_str.contains("SnippetBlock");
-            }
-
-            false
+            // Check if the initial value is a snippet block. The scope builder
+            // sets `initial_node_type = "SnippetBlock"` when declaring the
+            // binding for `{#snippet name(...)}`, mirroring the official
+            // compiler's `binding.initial.type === 'SnippetBlock'` check.
+            binding.initial_node_type.as_deref() == Some("SnippetBlock")
         }
     }
 }
