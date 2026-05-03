@@ -2935,6 +2935,21 @@ pub fn walk_js_expression_node(
                 context.analysis.uses_slots = true;
             }
 
+            // Bare `$` and `$$xxx` (other than the reserved `$$props` /
+            // `$$restProps` / `$$slots`) are illegal as variable names.
+            // Mirrors `visit_identifier_inner` for the JS-side identifier
+            // visitor, but we re-check here because template
+            // ExpressionTags walk straight through `walk_js_expression_node`
+            // and never hit the JS identifier visitor.
+            if name == "$"
+                || (name.starts_with("$$")
+                    && name != "$$props"
+                    && name != "$$restProps"
+                    && name != "$$slots")
+            {
+                return Err(super::super::super::errors::global_reference_invalid(name));
+            }
+
             // Check for store scoped subscription errors
             if name.starts_with('$') && !name.starts_with("$$") && name != "$" {
                 let store_name = &name[1..];
