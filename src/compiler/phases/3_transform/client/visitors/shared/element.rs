@@ -133,8 +133,9 @@ where
                     let has_reactive_state =
                         super::utils::expression_has_reactive_state(&expr_tag.expression, context);
 
-                    // Include non-pure function calls in has_state (matches official compiler behavior)
-                    let has_call = super::utils::expression_has_call(&expr_tag.expression, context);
+                    // Include non-pure function calls in has_state (matches official compiler behavior).
+                    // Phase 2 already cached this on `expr_tag.metadata.expression`.
+                    let has_call = expr_tag.metadata.expression.has_call();
 
                     // Apply transforms via build_expression (handles props: x -> x())
                     let transformed = build_expression(context, &expression, &metadata);
@@ -223,8 +224,8 @@ where
 
                 // Use the purity-aware has_call check so that pure calls (like
                 // encodeURIComponent('hello')) are not treated as needing memoization.
-                let chunk_has_call =
-                    super::utils::expression_has_call(&expr_tag.expression, context);
+                // Phase 2 already cached this on `expr_tag.metadata.expression`.
+                let chunk_has_call = expr_tag.metadata.expression.has_call();
                 metadata.set_has_call(chunk_has_call);
 
                 // Update metadata.has_state with comprehensive reactive state check
