@@ -1283,6 +1283,7 @@ impl Parser<'_> {
                 name_loc,
                 expression,
                 modifiers,
+                metadata: Default::default(),
             },
         )))
     }
@@ -1552,6 +1553,7 @@ impl Parser<'_> {
                 name: CompactString::from(class_name),
                 name_loc,
                 expression,
+                metadata: Default::default(),
             },
         )))
     }

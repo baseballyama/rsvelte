@@ -882,8 +882,12 @@ pub fn visit_regular_element(
                 // Special case: $effect.pending() is inherently reactive (tracks async
                 // pending state) even though it has no local bindings or transforms.
                 // It must NOT use the textContent optimization - it needs to be in a
-                // template_effect callback for proper reactivity.
-                // Phase 2 already cached has_call on the tag metadata.
+                // template_effect callback for proper reactivity. Phase 2's
+                // narrow `has_call` (non-pure callee only) is what we want
+                // here — pure calls like `(7.36).toString()` are still
+                // eligible for the static textContent shortcut, while
+                // `$effect.tracking()` / `$effect.pending()` correctly drop
+                // out because Phase 2 marks them as has_call.
                 !super::shared::utils::is_effect_pending_expr(
                     &expr_tag.expression,
                     context.state.parse_arena,

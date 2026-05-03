@@ -330,13 +330,13 @@ pub fn build_event_handler(
         }
     }
 
-    // Check if the expression contains a call
-    // TODO: This should check metadata.has_call from the expression tag
-    // For now, we'll do a simple check
-    // `expr_tag.metadata.expression.has_call()` is populated by Phase 2's
-    // ExpressionTag visitor (`walk_js_expression_node`), so we can read it
-    // directly instead of re-walking the expression here.
-    let has_call = expr_tag.metadata.expression.has_call();
+    // Memoisation here uses the same broad "any CallExpression in the tree"
+    // semantics as the rest of Phase 3 — see `expression_tag_has_call` in
+    // `shared/element.rs` for why we don't read Phase 2's narrower flag.
+    let has_call =
+        crate::compiler::phases::phase3_transform::client::visitors::shared::element::expression_tag_has_call(
+            expr_tag,
+        );
 
     let mut js_expr = js_expr;
 

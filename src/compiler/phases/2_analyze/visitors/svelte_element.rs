@@ -257,7 +257,7 @@ pub fn visit(
                 super::attribute::visit(attr_node, context)?;
             }
             Attribute::ClassDirective(cd) => {
-                super::script::walk_expression(&cd.expression, context)?;
+                super::class_directive::visit(cd, context)?;
             }
             Attribute::StyleDirective(sd) => {
                 super::style_directive::visit(sd, context)?;

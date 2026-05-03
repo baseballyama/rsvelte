@@ -17,7 +17,7 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 /// This function marks the subtree as dynamic (since class: directives require runtime evaluation)
 /// and tracks the expression for dependency analysis.
 pub fn visit(
-    directive: &ClassDirective,
+    directive: &mut ClassDirective,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     // Mark the subtree containing this directive as dynamic
@@ -31,12 +31,11 @@ pub fn visit(
         .used_classes
         .insert(directive.name.to_string());
 
-    // Walk the expression to track dependencies and references
-    // This is important for legacy state promotion - if a class directive
-    // references a mutable variable, it needs to be tracked as a template reference
+    // Walk the expression to track dependencies and references and populate
+    // `directive.metadata.expression` so Phase 3 can read `has_call` /
+    // `has_state` / `has_await` without re-walking the expression.
     let node = directive.expression.as_node();
-    let mut metadata = crate::ast::template::ExpressionMetadata::default();
-    walk_js_expression_node(&node, context, &mut metadata)?;
+    walk_js_expression_node(&node, context, &mut directive.metadata.expression)?;
 
     Ok(())
 }

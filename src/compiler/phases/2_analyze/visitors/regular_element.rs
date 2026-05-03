@@ -1036,10 +1036,8 @@ pub fn visit(
                 }
             }
             Attribute::ClassDirective(_) => {
-                // Re-borrow the class directive for the visit call
-                if let Attribute::ClassDirective(class_dir) = &element.attributes[i] {
-                    super::class_directive::visit(class_dir, context)?;
-                }
+                // Visit happens in a second mutable pass below so that
+                // `class_directive::visit` can populate `directive.metadata`.
             }
             Attribute::StyleDirective(_) => {
                 // Re-borrow the style directive for the visit call
@@ -1067,23 +1065,30 @@ pub fn visit(
         }
     }
 
-    // Second pass for OnDirective which requires mutable borrow
+    // Second pass for OnDirective / ClassDirective which require mutable borrow
+    // (they need to populate `metadata.expression`).
     for attr in &mut element.attributes {
-        if let Attribute::OnDirective(on) = attr {
-            // In runes mode, warn about deprecated event directive usage
-            // on RegularElement (not components). This is done here because
-            // on_directive::visit doesn't have access to the parent type.
-            // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/OnDirective.js
-            if context.analysis.runes {
-                context.emit_warning(warnings::event_directive_deprecated(&on.name));
-            }
+        match attr {
+            Attribute::OnDirective(on) => {
+                // In runes mode, warn about deprecated event directive usage
+                // on RegularElement (not components). This is done here because
+                // on_directive::visit doesn't have access to the parent type.
+                // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/OnDirective.js
+                if context.analysis.runes {
+                    context.emit_warning(warnings::event_directive_deprecated(&on.name));
+                }
 
-            // Track event directive for mixed_event_handler_syntaxes check
-            // This is a RegularElement, so we track it
-            if context.event_directive_node.is_none() {
-                context.event_directive_node = Some(on.name.to_string());
+                // Track event directive for mixed_event_handler_syntaxes check
+                // This is a RegularElement, so we track it
+                if context.event_directive_node.is_none() {
+                    context.event_directive_node = Some(on.name.to_string());
+                }
+                on_directive::visit(on, context)?;
             }
-            on_directive::visit(on, context)?;
+            Attribute::ClassDirective(class_dir) => {
+                super::class_directive::visit(class_dir, context)?;
+            }
+            _ => {}
         }
     }
 

@@ -84,11 +84,12 @@ where
             let has_reactive_state =
                 super::utils::expression_has_reactive_state(&expr_tag.expression, context);
 
-            // Phase 2's ExpressionTag visitor sets `has_call` (and `has_state`)
-            // on `expr_tag.metadata.expression` after running the same
-            // non-pure-call check the official compiler does. Read the cached
-            // result instead of re-walking the expression.
-            // See: 2-analyze/visitors/CallExpression.js
+            // The Phase 2 cached `has_call` is the narrow "non-pure callee"
+            // flag (matches the official compiler). Component prop / dynamic
+            // CSS prop memoisation reads this through the closure passed to
+            // `build_attribute_value`, so feeding it the broad walk would
+            // wrap pure calls like `<Child prop={encodeURIComponent('x')}>`
+            // in `$.derived(...)` (regresses the `purity` snapshot fixture).
             let has_call = expr_tag.metadata.expression.has_call();
 
             // Apply transforms via build_expression (handles props: x -> x())
@@ -133,8 +134,9 @@ where
                     let has_reactive_state =
                         super::utils::expression_has_reactive_state(&expr_tag.expression, context);
 
-                    // Include non-pure function calls in has_state (matches official compiler behavior).
-                    // Phase 2 already cached this on `expr_tag.metadata.expression`.
+                    // Use Phase 2's narrow has_call (matches the official
+                    // compiler) — see the matching comment in the
+                    // `AttributeValue::Expression` arm above for why.
                     let has_call = expr_tag.metadata.expression.has_call();
 
                     // Apply transforms via build_expression (handles props: x -> x())
@@ -222,10 +224,9 @@ where
                 let expression = extract_expression_from_tag_with_context(expr_tag, context);
                 let mut metadata = extract_metadata_from_tag(expr_tag);
 
-                // Use the purity-aware has_call check so that pure calls (like
-                // encodeURIComponent('hello')) are not treated as needing memoization.
-                // Phase 2 already cached this on `expr_tag.metadata.expression`.
-                let chunk_has_call = expr_tag.metadata.expression.has_call();
+                // Phase 3 needs the broad "any CallExpression in the tree" check
+                // for memoisation decisions; see `expression_tag_has_call`.
+                let chunk_has_call = expression_tag_has_call(expr_tag);
                 metadata.set_has_call(chunk_has_call);
 
                 // Update metadata.has_state with comprehensive reactive state check
@@ -329,92 +330,78 @@ fn extract_expression_from_tag(expr_tag: &ExpressionTag) -> JsExpr {
 
 /// Extract metadata from an ExpressionTag.
 ///
-/// Walks the JSON AST to determine has_call and has_member_expression flags.
+/// Compute Phase-3 metadata flags by walking the expression's JSON.
+///
+/// `expr_tag.metadata.expression` (set by Phase 2) is **not** reliable
+/// for the ExpressionTags that live inside attribute / style-directive
+/// `AttributeValue::Sequence` parts, because the parent visitors only
+/// walk the inner expression with a scratch `ExpressionMetadata` and
+/// throw it away. Reading the field would yield all-default flags and
+/// silently break things like `<p style:font-size="{settings.fontSize}px">`,
+/// which then loses its `($.get(...), $.untrack(() => ...))` legacy-state
+/// untrack wrapper.
+///
+/// The cheaper "use the cached metadata" path is fine for the
+/// standalone-expression call sites (where the ExpressionTag visitor
+/// did run in Phase 2) but we don't currently distinguish those, so do
+/// the broad walk here for every consumer.
+///
+/// `has_state` / `dynamic` are reset; the caller recomputes `has_state`
+/// via `expression_has_reactive_state(...)` so transforms registered
+/// later in the pipeline are accounted for.
 fn extract_metadata_from_tag(expr_tag: &ExpressionTag) -> ExpressionMetadata {
-    let val = expr_tag.expression.as_json();
-    // Single-pass extraction of all metadata flags from the AST.
-    // Replaces 4+ separate walks (ast_contains_node_type * 4 + expression_has_await)
-    // with one combined walk.
-    let mut has_call = false;
-    let mut has_member = false;
-    let mut has_assignment = false;
-    let mut has_await = false;
+    let mut metadata = ExpressionMetadata::default();
 
+    let val = expr_tag.expression.as_json();
     if !is_literal_value(val) {
-        ast_extract_metadata_flags(
+        let mut has_call = false;
+        let mut has_member = false;
+        let mut has_assignment = false;
+        let mut has_await = false;
+        walk_metadata_flags(
             val,
             &mut has_call,
             &mut has_member,
             &mut has_assignment,
             &mut has_await,
         );
+        metadata.set_has_call(has_call);
+        metadata.set_has_member_expression(has_member);
+        metadata.set_has_assignment(has_assignment);
+        metadata.set_has_await(has_await);
     }
-
-    let mut metadata = ExpressionMetadata::default();
-    metadata.set_has_call(has_call);
-    metadata.set_has_await(has_await);
-    // has_state is set by the caller using expression_has_reactive_state
-    metadata.set_has_state(false);
-    metadata.set_has_member_expression(has_member);
-    metadata.set_has_assignment(has_assignment);
-    metadata.set_dynamic(false);
-    // blockers defaults to empty Vec
     metadata
 }
 
-/// Single-pass AST walk to extract metadata flags (has_call, has_member, has_assignment, has_await).
-///
-/// Replaces multiple calls to `ast_contains_node_type` + `expression_has_await` with
-/// a single recursive walk. Skips function bodies (matching Phase 2 behavior).
-/// Short-circuits once all flags are set.
-fn ast_extract_metadata_flags(
+/// Single-pass walk that sets the four AST-derived flags on which
+/// Phase 3 memoisation / untrack wrapping decisions depend. Mirrors the
+/// pre-bd01699 `ast_extract_metadata_flags` helper.
+fn walk_metadata_flags(
     val: &serde_json::Value,
     has_call: &mut bool,
     has_member: &mut bool,
     has_assignment: &mut bool,
     has_await: &mut bool,
 ) {
-    // Short-circuit if all flags already true
     if *has_call && *has_member && *has_assignment && *has_await {
         return;
     }
-
     match val {
         serde_json::Value::Object(obj) => {
-            let this_type = obj.get("type").and_then(|t| t.as_str());
-
-            // Check each flag
-            if let Some(t) = this_type {
-                if !*has_call && t == "CallExpression" {
-                    *has_call = true;
-                }
-                if !*has_member && t == "MemberExpression" {
-                    *has_member = true;
-                }
-                if !*has_assignment && (t == "AssignmentExpression" || t == "UpdateExpression") {
-                    *has_assignment = true;
-                }
-                if !*has_await && t == "AwaitExpression" {
-                    *has_await = true;
-                }
-
-                // Short-circuit after checking this node
-                if *has_call && *has_member && *has_assignment && *has_await {
-                    return;
-                }
-
-                // Do NOT recurse into function bodies (matches Phase 2 behavior)
-                if matches!(
-                    t,
-                    "ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration"
-                ) {
-                    return;
+            if let Some(t) = obj.get("type").and_then(|t| t.as_str()) {
+                match t {
+                    "CallExpression" => *has_call = true,
+                    "MemberExpression" => *has_member = true,
+                    "AssignmentExpression" | "UpdateExpression" => *has_assignment = true,
+                    "AwaitExpression" => *has_await = true,
+                    "ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration" => {
+                        return;
+                    }
+                    _ => {}
                 }
             }
-
-            // Recurse into all fields
             for v in obj.values() {
-                ast_extract_metadata_flags(v, has_call, has_member, has_assignment, has_await);
+                walk_metadata_flags(v, has_call, has_member, has_assignment, has_await);
                 if *has_call && *has_member && *has_assignment && *has_await {
                     return;
                 }
@@ -422,7 +409,7 @@ fn ast_extract_metadata_flags(
         }
         serde_json::Value::Array(arr) => {
             for v in arr {
-                ast_extract_metadata_flags(v, has_call, has_member, has_assignment, has_await);
+                walk_metadata_flags(v, has_call, has_member, has_assignment, has_await);
                 if *has_call && *has_member && *has_assignment && *has_await {
                     return;
                 }
@@ -432,10 +419,52 @@ fn ast_extract_metadata_flags(
     }
 }
 
+/// True when the ExpressionTag contains a `CallExpression` somewhere in
+/// its tree (excluding nested function bodies). Phase 3 uses this broad
+/// definition for memoisation decisions; the cached
+/// `expr_tag.metadata.expression.has_call()` set by Phase 2 follows the
+/// official compiler's narrower "non-pure callee" semantics, which is
+/// not yet what the rest of Phase 3 expects.
+pub fn expression_tag_has_call(expr_tag: &ExpressionTag) -> bool {
+    let val = expr_tag.expression.as_json();
+    if is_literal_value(val) {
+        false
+    } else {
+        json_contains_call(val)
+    }
+}
+
+/// True when `val` (or any descendant, except inside function bodies)
+/// contains a `CallExpression`. Mirrors the broad recursive check that
+/// `extract_metadata_from_tag` used before bd01699.
+fn json_contains_call(val: &serde_json::Value) -> bool {
+    match val {
+        serde_json::Value::Object(obj) => {
+            if let Some(t) = obj.get("type").and_then(|t| t.as_str()) {
+                if t == "CallExpression" {
+                    return true;
+                }
+                // Don't recurse into function bodies — matches Phase 2's
+                // walker, which also stops at function boundaries.
+                if matches!(
+                    t,
+                    "ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration"
+                ) {
+                    return false;
+                }
+            }
+            obj.values().any(json_contains_call)
+        }
+        serde_json::Value::Array(arr) => arr.iter().any(json_contains_call),
+        _ => false,
+    }
+}
+
 /// Check if a JSON value represents a literal (non-reactive) value.
 ///
-/// Literals include: numbers, strings, booleans, null, undefined
-/// These never have state and don't need reactive wrappers.
+/// Literals include: numbers, strings, booleans, null, undefined.
+/// `extract_metadata_from_tag` short-circuits on these so it never walks
+/// the JSON looking for `CallExpression`.
 fn is_literal_value(val: &serde_json::Value) -> bool {
     match val {
         serde_json::Value::Null => true,
@@ -522,13 +551,13 @@ pub fn build_class_directives_object_with_memoizer(
         let directive_has_state =
             super::utils::expression_has_reactive_state(&directive.expression, context);
 
-        // Check if directive has calls (non-pure function calls)
-        // In the official compiler, the CallExpression analyze visitor sets has_state = true
-        // when there are non-pure calls, so we include has_call in has_state.
-        let directive_has_call = super::utils::expression_has_call(&directive.expression, context);
+        // Phase 2's `ClassDirective` visitor already cached this on
+        // `directive.metadata.expression.has_call()`, so consume the cached
+        // value rather than re-walking the expression.
+        let directive_has_call = directive.metadata.expression.has_call();
 
         // Check if directive has await
-        has_await = has_await || super::utils::expression_has_await(&directive.expression);
+        has_await = has_await || directive.metadata.expression.has_await();
 
         if directive_has_state || directive_has_call {
             has_state = true;
