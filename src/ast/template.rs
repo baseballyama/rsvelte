@@ -814,6 +814,17 @@ impl serde::Serialize for OnDirective {
     }
 }
 
+/// Metadata populated during Phase 2 analysis for `class:` directives.
+///
+/// Skipped from (de)serialisation so snapshot output is unchanged.
+#[derive(Debug, Clone, Default)]
+pub struct ClassDirectiveMetadata {
+    /// Mirrors `node.metadata.expression` from the official compiler so
+    /// Phase 3 can decide whether the directive needs `$.derived(...)`-style
+    /// memoisation without re-walking the expression.
+    pub expression: ExpressionMetadata,
+}
+
 /// A class directive: `class:name={expression}`.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ClassDirective {
@@ -822,6 +833,10 @@ pub struct ClassDirective {
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
     pub expression: Expression,
+    /// Internal metadata, populated during Phase 2 analysis. Skipped during
+    /// (de)serialisation so snapshot output is unchanged.
+    #[serde(skip)]
+    pub metadata: ClassDirectiveMetadata,
 }
 
 impl serde::Serialize for ClassDirective {

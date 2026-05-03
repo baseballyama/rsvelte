@@ -437,13 +437,13 @@ pub fn build_class_directives_object_with_memoizer(
         let directive_has_state =
             super::utils::expression_has_reactive_state(&directive.expression, context);
 
-        // Check if directive has calls (non-pure function calls)
-        // In the official compiler, the CallExpression analyze visitor sets has_state = true
-        // when there are non-pure calls, so we include has_call in has_state.
-        let directive_has_call = super::utils::expression_has_call(&directive.expression, context);
+        // Phase 2's `ClassDirective` visitor already cached this on
+        // `directive.metadata.expression.has_call()`, so consume the cached
+        // value rather than re-walking the expression.
+        let directive_has_call = directive.metadata.expression.has_call();
 
         // Check if directive has await
-        has_await = has_await || super::utils::expression_has_await(&directive.expression);
+        has_await = has_await || directive.metadata.expression.has_await();
 
         if directive_has_state || directive_has_call {
             has_state = true;
