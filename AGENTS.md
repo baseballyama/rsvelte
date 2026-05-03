@@ -101,7 +101,7 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `pnpm run compatibility-report` (generated 2026-05-02, Svelte commit `04c0368aa8d8`). Re-run `pnpm run test-and-update` to refresh.
+Source: `pnpm run compatibility-report` (generated 2026-05-03, Svelte commit `04c0368aa8d8`). Re-run `pnpm run test-and-update` to refresh.
 
 | Suite | Pass/Total | Notes |
 |-------|------------|-------|
