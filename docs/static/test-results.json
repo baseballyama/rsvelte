@@ -1,887 +1,189 @@
 {
-  "generated_at": "2026-03-07T03:14:33.621460+00:00",
+  "generated_at": "2026-05-03T14:27:03.089010+00:00",
   "commit_sha": "04c0368aa8d8",
   "summary": {
-    "total": 3165,
-    "passed": 3028,
+    "total": 3174,
+    "passed": 3037,
     "failed": 0,
     "skipped": 137,
     "percentage": 100
   },
   "categories": [
     {
-      "id": "print",
-      "name": "Print",
-      "total": 40,
-      "passed": 0,
+      "id": "parser-modern",
+      "name": "Parser Modern",
+      "total": 22,
+      "passed": 22,
       "failed": 0,
-      "skipped": 40,
-      "percentage": 0,
+      "skipped": 0,
+      "percentage": 100,
       "tests": [
         {
-          "name": "style-directive",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
+          "name": "snippets",
+          "status": "pass"
         },
         {
-          "name": "svelte-window",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
+          "name": "options",
+          "status": "pass"
         },
         {
-          "name": "svelte-self",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
+          "name": "css-pseudo-classes",
+          "status": "pass"
         },
         {
-          "name": "html-document",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
+          "name": "loose-valid-each-as",
+          "status": "pass"
         },
         {
-          "name": "attribute",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
+          "name": "if-block-else",
+          "status": "pass"
         },
         {
-          "name": "svelte-element",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
+          "name": "each-block-object-pattern",
+          "status": "pass"
         },
         {
-          "name": "await-block",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
+          "name": "css-nth-syntax",
+          "status": "pass"
         },
         {
-          "name": "key-block",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
+          "name": "generic-snippets",
+          "status": "pass"
         },
         {
-          "name": "svelte-head",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
+          "name": "typescript-in-event-handler",
+          "status": "pass"
         },
         {
-          "name": "spread-attribute",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
+          "name": "comment-before-function-binding",
+          "status": "pass"
         },
         {
-          "name": "comment",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
+          "name": "loose-invalid-expression",
+          "status": "pass"
         },
         {
-          "name": "block-element-separation",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
+          "name": "each-block-object-pattern-special-characters",
+          "status": "pass"
         },
         {
-          "name": "svelte-fragment",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
+          "name": "semicolon-inside-quotes",
+          "status": "pass"
         },
         {
-          "name": "slot-element",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "const-tag",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "use-directive",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "svelte-options",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "component",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "regular-element",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "style",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "expression-tag",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "class-directive",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "script",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "svelte-boundary",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "snippet-block",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "let-directive",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "transition-directive",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "formatting",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "svelte-document",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "render-tag",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "each-block",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
+          "name": "loose-unclosed-tag",
+          "status": "pass"
         },
         {
           "name": "if-block",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "svelte-component",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "bind-directive",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "on-directive",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "text",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "html-tag",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "attach-tag",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "animate-directive",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        },
-        {
-          "name": "block",
-          "status": "skip",
-          "skip_reason": "Print API not implemented"
-        }
-      ]
-    },
-    {
-      "id": "compiler-errors",
-      "name": "Compiler Errors",
-      "total": 144,
-      "passed": 144,
-      "failed": 0,
-      "skipped": 0,
-      "percentage": 100,
-      "tests": [
-        {
-          "name": "dollar-binding-import",
-          "status": "pass"
-        },
-        {
-          "name": "runes-wrong-props-placement-instance",
-          "status": "pass"
-        },
-        {
-          "name": "css-global-block-declaration",
-          "status": "pass"
-        },
-        {
-          "name": "else-before-closing",
-          "status": "pass"
-        },
-        {
-          "name": "store-prevent-user-declarations",
-          "status": "pass"
-        },
-        {
-          "name": "dollar-binding-declaration-runes-2",
-          "status": "pass"
-        },
-        {
-          "name": "runes-wrong-state-placement",
-          "status": "pass"
-        },
-        {
-          "name": "element-invalid-name",
-          "status": "pass"
-        },
-        {
-          "name": "style-unclosed-eof",
-          "status": "pass"
-        },
-        {
-          "name": "multiple-styles",
-          "status": "pass"
-        },
-        {
-          "name": "store-global-disallowed",
-          "status": "pass"
-        },
-        {
-          "name": "invalid-rune-name",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-unique",
-          "status": "pass"
-        },
-        {
-          "name": "const-tag-snippet-invalid-reference-1",
-          "status": "pass"
-        },
-        {
-          "name": "runes-export-let",
-          "status": "pass"
-        },
-        {
-          "name": "dollar-binding-declaration-legacy",
-          "status": "pass"
-        },
-        {
-          "name": "runes-wrong-props-placement-module",
-          "status": "pass"
-        },
-        {
-          "name": "legacy-no-const-assignment",
-          "status": "pass"
-        },
-        {
-          "name": "class-state-field-static",
-          "status": "pass"
-        },
-        {
-          "name": "export-default-state-indirect",
-          "status": "pass"
-        },
-        {
-          "name": "runes-invalid-each-binding",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-sequence-expression-2",
-          "status": "pass"
-        },
-        {
-          "name": "dynamic-element-binding-invalid",
-          "status": "pass"
-        },
-        {
-          "name": "script-unclosed-eof",
-          "status": "pass"
-        },
-        {
-          "name": "runes-props-illegal-name-2",
-          "status": "pass"
-        },
-        {
-          "name": "css-nesting-selector-root",
-          "status": "pass"
-        },
-        {
-          "name": "dollar-binding-global",
-          "status": "pass"
-        },
-        {
-          "name": "runes-wrong-state-snapshot-args",
-          "status": "pass"
-        },
-        {
-          "name": "runes-no-rune-each",
-          "status": "pass"
-        },
-        {
-          "name": "invalid-snippet-binding",
-          "status": "pass"
-        },
-        {
-          "name": "css",
-          "status": "pass"
-        },
-        {
-          "name": "snippet-rest-args",
-          "status": "pass"
-        },
-        {
-          "name": "runes-wrong-host-placement",
-          "status": "pass"
-        },
-        {
-          "name": "unbalanced-curly-element",
-          "status": "pass"
-        },
-        {
-          "name": "const-tag-cyclical",
-          "status": "pass"
-        },
-        {
-          "name": "store-contextual",
-          "status": "pass"
-        },
-        {
-          "name": "runes-wrong-state-raw-args",
-          "status": "pass"
-        },
-        {
-          "name": "dollar-binding-global-js",
-          "status": "pass"
-        },
-        {
-          "name": "runes-no-const-update",
-          "status": "pass"
-        },
-        {
-          "name": "runes-wrong-state-args",
-          "status": "pass"
-        },
-        {
-          "name": "export-state-indirect",
-          "status": "pass"
-        },
-        {
-          "name": "unexpected-end-of-input-c",
-          "status": "pass"
-        },
-        {
-          "name": "else-if-before-closing",
-          "status": "pass"
-        },
-        {
-          "name": "unmatched-closing-tag-autoclose-2",
-          "status": "pass"
-        },
-        {
-          "name": "unexpected-end-of-input-d",
-          "status": "pass"
-        },
-        {
-          "name": "else-before-closing-3",
-          "status": "pass"
-        },
-        {
-          "name": "window-inside-element",
-          "status": "pass"
-        },
-        {
-          "name": "export-state",
-          "status": "pass"
-        },
-        {
-          "name": "then-before-closing",
-          "status": "pass"
-        },
-        {
-          "name": "runes-wrong-bindable-args",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-duplicate-error-6",
-          "status": "pass"
-        },
-        {
-          "name": "runes-bindable-not-called",
-          "status": "pass"
-        },
-        {
-          "name": "else-before-closing-2",
-          "status": "pass"
-        },
-        {
-          "name": "options-children",
-          "status": "pass"
-        },
-        {
-          "name": "unexpected-end-of-input-b",
-          "status": "pass"
-        },
-        {
-          "name": "empty-classname-binding",
-          "status": "pass"
-        },
-        {
-          "name": "runes-invalid-each-mutation",
-          "status": "pass"
-        },
-        {
-          "name": "else-if-before-closing-2",
-          "status": "pass"
-        },
-        {
-          "name": "css-global-block-in-pseudoclass",
-          "status": "pass"
-        },
-        {
-          "name": "runes-wrong-derived-args",
-          "status": "pass"
-        },
-        {
-          "name": "css-global-block-combinator-2",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-unique-class",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-nested-error-3",
-          "status": "pass"
-        },
-        {
-          "name": "unmatched-closing-tag-autoclose",
-          "status": "pass"
-        },
-        {
-          "name": "legacy-no-const-update",
-          "status": "pass"
-        },
-        {
-          "name": "css-global-modifier",
-          "status": "pass"
-        },
-        {
-          "name": "empty-directive-name",
-          "status": "pass"
-        },
-        {
-          "name": "svelte-internal-import",
-          "status": "pass"
-        },
-        {
-          "name": "css-global-block-multiple-1",
-          "status": "pass"
-        },
-        {
-          "name": "runes-wrong-effect-args",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-nested-error-2",
-          "status": "pass"
-        },
-        {
-          "name": "invalid-snippet-mutation",
-          "status": "pass"
-        },
-        {
-          "name": "css-global-modifier-start-2",
-          "status": "pass"
-        },
-        {
-          "name": "export-default-derived-state-indirect",
-          "status": "pass"
-        },
-        {
-          "name": "export-state-module",
-          "status": "pass"
-        },
-        {
-          "name": "window-children",
-          "status": "pass"
-        },
-        {
-          "name": "runes-before-after-update",
-          "status": "pass"
-        },
-        {
-          "name": "each-key-without-as",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-nested-error",
-          "status": "pass"
-        },
-        {
-          "name": "runes-wrong-derived-placement",
-          "status": "pass"
-        },
-        {
-          "name": "snippet-children-conflict",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-empty",
-          "status": "pass"
-        },
-        {
-          "name": "malformed-snippet-2",
-          "status": "pass"
-        },
-        {
-          "name": "invalid-arguments-usage",
-          "status": "pass"
-        },
-        {
-          "name": "empty-attribute-shorthand",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-duplicate-error",
-          "status": "pass"
-        },
-        {
-          "name": "self-reference",
-          "status": "pass"
-        },
-        {
-          "name": "snippet-invalid-export",
-          "status": "pass"
-        },
-        {
-          "name": "void-closing",
-          "status": "pass"
-        },
-        {
-          "name": "runes-no-const-assignment",
-          "status": "pass"
-        },
-        {
-          "name": "const-tag-snippet-invalid-reference-2",
-          "status": "pass"
-        },
-        {
-          "name": "then-without-await",
-          "status": "pass"
-        },
-        {
-          "name": "unexpected-end-of-input",
-          "status": "pass"
-        },
-        {
-          "name": "runes-wrong-props-args",
-          "status": "pass"
-        },
-        {
-          "name": "unbalanced-curly-component",
-          "status": "pass"
-        },
-        {
-          "name": "const-tag-whitespace",
-          "status": "pass"
-        },
-        {
-          "name": "raw-mustaches-whitespace",
-          "status": "pass"
-        },
-        {
-          "name": "export-derived-state",
-          "status": "pass"
-        },
-        {
-          "name": "comment-unclosed",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-unique-style",
-          "status": "pass"
-        },
-        {
-          "name": "runes-props-illegal-name-1",
-          "status": "pass"
-        },
-        {
-          "name": "dollar-binding-declaration-runes",
-          "status": "pass"
-        },
-        {
-          "name": "runes-export-named-state",
-          "status": "pass"
-        },
-        {
-          "name": "window-inside-block",
-          "status": "pass"
-        },
-        {
-          "name": "else-if-without-if",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-duplicate-error-4",
-          "status": "pass"
-        },
-        {
-          "name": "slot-conflicting-with-render-tag",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-duplicate-error-3",
-          "status": "pass"
-        },
-        {
-          "name": "export-derived-state-indirect",
-          "status": "pass"
-        },
-        {
-          "name": "store-autosub-context-module",
-          "status": "pass"
-        },
-        {
-          "name": "window-duplicate",
-          "status": "pass"
-        },
-        {
-          "name": "script-unclosed",
-          "status": "pass"
-        },
-        {
-          "name": "runes-duplicate-props",
-          "status": "pass"
-        },
-        {
-          "name": "svelte-selfdestructive",
-          "status": "pass"
-        },
-        {
-          "name": "runes-invalid-each-binding-this",
-          "status": "pass"
-        },
-        {
-          "name": "malformed-snippet",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-unique-shorthand",
-          "status": "pass"
-        },
-        {
-          "name": "css-global-block-combinator",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-duplicate-error-2",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-duplicate-error-5",
-          "status": "pass"
-        },
-        {
-          "name": "unclosed-attribute-self-close-tag",
-          "status": "pass"
-        },
-        {
-          "name": "runes-props-not-called",
-          "status": "pass"
-        },
-        {
-          "name": "effect-active-rune",
-          "status": "pass"
-        },
-        {
-          "name": "catch-before-closing",
-          "status": "pass"
-        },
-        {
-          "name": "runes-wrong-bindable-placement",
-          "status": "pass"
-        },
-        {
-          "name": "const-tag-sequence",
-          "status": "pass"
-        },
-        {
-          "name": "store-shadow-scope",
-          "status": "pass"
-        },
-        {
-          "name": "render-tag-invalid-call",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-unique-binding",
-          "status": "pass"
-        },
-        {
-          "name": "store-shadow-scope-2",
-          "status": "pass"
-        },
-        {
-          "name": "illegal-expression",
-          "status": "pass"
-        },
-        {
-          "name": "css-global-modifier-start-1",
-          "status": "pass"
-        },
-        {
-          "name": "runes-wrong-effect-placement",
-          "status": "pass"
-        },
-        {
-          "name": "invalid-rune-name-shadowed",
-          "status": "pass"
-        },
-        {
-          "name": "runes-module-store-subscription",
-          "status": "pass"
-        },
-        {
-          "name": "catch-without-await",
-          "status": "pass"
-        },
-        {
-          "name": "unmatched-closing-tag",
           "status": "pass"
         },
         {
-          "name": "attribute-sequence-expression",
+          "name": "template-shadowroot",
           "status": "pass"
         },
         {
-          "name": "store-shadow-scope-3",
+          "name": "loose-invalid-block",
           "status": "pass"
         },
         {
-          "name": "component-invalid-name",
+          "name": "script-style-no-markup",
           "status": "pass"
         },
         {
-          "name": "style-unclosed",
+          "name": "loose-unclosed-open-tag",
           "status": "pass"
         },
         {
-          "name": "css-global-block-multiple-2",
+          "name": "attachments",
           "status": "pass"
         },
         {
-          "name": "export-not-defined-module",
+          "name": "comment-before-script",
           "status": "pass"
         },
         {
-          "name": "store-template-expression-scope",
+          "name": "if-block-elseif",
           "status": "pass"
         }
       ]
     },
     {
-      "id": "server-side-rendering",
-      "name": "SSR",
-      "total": 82,
+      "id": "parser-legacy",
+      "name": "Parser Legacy",
+      "total": 83,
       "passed": 82,
       "failed": 0,
-      "skipped": 0,
+      "skipped": 1,
       "percentage": 100,
       "tests": [
         {
-          "name": "bindings-zero",
+          "name": "action-duplicate",
           "status": "pass"
         },
         {
-          "name": "directives",
+          "name": "dynamic-import",
           "status": "pass"
         },
         {
-          "name": "textarea-value",
+          "name": "convert-entities",
           "status": "pass"
         },
         {
-          "name": "select-value-implicit-value-complex",
+          "name": "attribute-style-directive-shorthand",
           "status": "pass"
         },
         {
-          "name": "attribute-boolean",
+          "name": "script-context-module-unquoted",
           "status": "pass"
         },
         {
-          "name": "hydratable-clobbering",
+          "name": "whitespace-after-script-tag",
           "status": "pass"
         },
         {
-          "name": "bindings-readonly",
+          "name": "each-block-destructured",
           "status": "pass"
         },
         {
-          "name": "head-title",
+          "name": "attribute-escaped",
           "status": "pass"
         },
         {
-          "name": "css-empty",
+          "name": "each-block-else",
           "status": "pass"
         },
         {
-          "name": "bindings-empty-string",
+          "name": "element-with-attribute",
           "status": "pass"
         },
         {
-          "name": "option-scoped-class",
+          "name": "javascript-comments",
+          "status": "skip",
+          "skip_reason": "Known incompatibility with OXC parser"
+        },
+        {
+          "name": "if-block-else",
           "status": "pass"
         },
         {
-          "name": "css-injected-options-minify",
+          "name": "attribute-style-directive-modifiers",
           "status": "pass"
         },
         {
-          "name": "dynamic-text",
+          "name": "nbsp",
           "status": "pass"
         },
         {
-          "name": "spread-attributes-boolean",
+          "name": "element-with-text",
           "status": "pass"
         },
         {
-          "name": "head-html-and-component",
+          "name": "generic-snippets",
           "status": "pass"
         },
         {
-          "name": "spread-attributes-white-space",
-          "status": "pass"
-        },
-        {
-          "name": "falsy-dynamic-component",
+          "name": "implicitly-closed-li-block",
           "status": "pass"
         },
         {
@@ -893,87 +195,55 @@
           "status": "pass"
         },
         {
-          "name": "bindings-group",
-          "status": "pass"
-        },
-        {
-          "name": "hydratable-unserializable",
-          "status": "pass"
-        },
-        {
-          "name": "invalid-nested-svelte-element",
-          "status": "pass"
-        },
-        {
-          "name": "head-component-props-id",
-          "status": "pass"
-        },
-        {
           "name": "comment",
           "status": "pass"
         },
         {
-          "name": "select-value-bind-store",
+          "name": "loose-invalid-expression",
           "status": "pass"
         },
         {
-          "name": "component-data-empty",
+          "name": "event-handler",
           "status": "pass"
         },
         {
-          "name": "text-area-bind",
+          "name": "no-error-if-before-closing",
           "status": "pass"
         },
         {
-          "name": "computed",
+          "name": "await-catch",
           "status": "pass"
         },
         {
-          "name": "component-yield",
+          "name": "animation",
           "status": "pass"
         },
         {
-          "name": "context-not-set-throws",
+          "name": "attribute-containing-solidus",
           "status": "pass"
         },
         {
-          "name": "head-multiple-title",
+          "name": "script-comment-only",
           "status": "pass"
         },
         {
-          "name": "component-with-different-extension",
+          "name": "attribute-style-directive-string",
           "status": "pass"
         },
         {
-          "name": "component",
+          "name": "spread",
           "status": "pass"
         },
         {
-          "name": "attribute-escape-quotes-spread-2",
+          "name": "unusual-identifier",
           "status": "pass"
         },
         {
-          "name": "head-svelte-components-raw-content",
+          "name": "action-with-call",
           "status": "pass"
         },
         {
-          "name": "select-value-implicit-value",
-          "status": "pass"
-        },
-        {
-          "name": "destructure-state-iterable",
-          "status": "pass"
-        },
-        {
-          "name": "static-text",
-          "status": "pass"
-        },
-        {
-          "name": "component-refs-and-attributes",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-escaped-quotes",
+          "name": "self-closing-element",
           "status": "pass"
         },
         {
@@ -981,27 +251,31 @@
           "status": "pass"
         },
         {
-          "name": "import-non-component",
+          "name": "binding",
           "status": "pass"
         },
         {
-          "name": "head-raw-elements-content",
+          "name": "script",
           "status": "pass"
         },
         {
-          "name": "component-binding",
+          "name": "loose-unclosed-tag",
           "status": "pass"
         },
         {
-          "name": "default-data",
+          "name": "whitespace-normal",
           "status": "pass"
         },
         {
-          "name": "attribute-spread-with-null",
+          "name": "loose-unclosed-block",
           "status": "pass"
         },
         {
-          "name": "constructor-prefer-passed-context",
+          "name": "attribute-empty",
+          "status": "pass"
+        },
+        {
+          "name": "elements",
           "status": "pass"
         },
         {
@@ -1009,15 +283,27 @@
           "status": "pass"
         },
         {
+          "name": "action",
+          "status": "pass"
+        },
+        {
+          "name": "comment-with-ignores",
+          "status": "pass"
+        },
+        {
+          "name": "self-reference",
+          "status": "pass"
+        },
+        {
           "name": "attribute-dynamic",
           "status": "pass"
         },
         {
-          "name": "select-value",
+          "name": "attribute-dynamic-boolean",
           "status": "pass"
         },
         {
-          "name": "dynamic-text-escaped",
+          "name": "attribute-multiple",
           "status": "pass"
         },
         {
@@ -1025,15 +311,23 @@
           "status": "pass"
         },
         {
-          "name": "if-block-true",
+          "name": "slotted-element",
           "status": "pass"
         },
         {
-          "name": "component-refs",
+          "name": "transition-intro",
           "status": "pass"
         },
         {
-          "name": "attribute-escaped-quotes-spread",
+          "name": "textarea-end-tag",
+          "status": "pass"
+        },
+        {
+          "name": "attribute-style-directive",
+          "status": "pass"
+        },
+        {
+          "name": "refs",
           "status": "pass"
         },
         {
@@ -1041,15 +335,11 @@
           "status": "pass"
         },
         {
-          "name": "empty-elements-closed",
+          "name": "if-block",
           "status": "pass"
         },
         {
-          "name": "static-div",
-          "status": "pass"
-        },
-        {
-          "name": "component-data-dynamic",
+          "name": "implicitly-closed-li",
           "status": "pass"
         },
         {
@@ -1057,91 +347,957 @@
           "status": "pass"
         },
         {
-          "name": "destructure-state",
+          "name": "whitespace-leading-trailing",
           "status": "pass"
         },
         {
-          "name": "head-meta-hydrate-duplicate",
+          "name": "element-with-attribute-empty-string",
           "status": "pass"
         },
         {
-          "name": "sanitize-name",
+          "name": "loose-invalid-block",
           "status": "pass"
         },
         {
-          "name": "bindings",
+          "name": "element-with-mustache",
           "status": "pass"
         },
         {
-          "name": "reactivity-window",
+          "name": "attribute-style",
           "status": "pass"
         },
         {
-          "name": "attribute-template-literal-sanitization",
+          "name": "attribute-unquoted",
           "status": "pass"
         },
         {
-          "name": "css-injected-options",
+          "name": "binding-shorthand",
           "status": "pass"
         },
         {
-          "name": "spread-attributes",
+          "name": "attribute-static-boolean",
           "status": "pass"
         },
         {
-          "name": "attribute-spread-hidden",
+          "name": "script-attribute-with-curly-braces",
           "status": "pass"
         },
         {
-          "name": "select-value-scoped-class",
+          "name": "loose-unclosed-open-tag",
           "status": "pass"
         },
         {
-          "name": "component-binding-renamed",
+          "name": "action-with-identifier",
           "status": "pass"
         },
         {
-          "name": "if-block-false",
+          "name": "convert-entities-in-element",
           "status": "pass"
         },
         {
-          "name": "head-no-duplicates-with-binding",
+          "name": "attribute-class-directive",
           "status": "pass"
         },
         {
-          "name": "helpers",
+          "name": "space-between-mustaches",
           "status": "pass"
         },
         {
-          "name": "select-value-component",
+          "name": "component-dynamic",
           "status": "pass"
         },
         {
-          "name": "default-data-override",
+          "name": "await-then-catch",
           "status": "pass"
         },
         {
-          "name": "css-injected-options-nested",
+          "name": "style-inside-head",
           "status": "pass"
         },
         {
-          "name": "comment-preserve",
+          "name": "attribute-curly-bracket",
           "status": "pass"
         },
         {
-          "name": "triple",
+          "name": "action-with-literal",
           "status": "pass"
         },
         {
-          "name": "entities",
+          "name": "each-block-indexed",
           "status": "pass"
         },
         {
-          "name": "legacy-imports",
+          "name": "if-block-elseif",
           "status": "pass"
         },
         {
-          "name": "store-init-props",
+          "name": "transition-intro-no-params",
+          "status": "pass"
+        },
+        {
+          "name": "whitespace-after-style-tag",
+          "status": "pass"
+        },
+        {
+          "name": "each-block-keyed",
+          "status": "pass"
+        },
+        {
+          "name": "attribute-with-whitespace",
+          "status": "pass"
+        },
+        {
+          "name": "attribute-shorthand",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "id": "snapshot",
+      "name": "Compiler Snapshot",
+      "total": 28,
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0,
+      "percentage": 100,
+      "tests": [
+        {
+          "name": "async-if-chain",
+          "status": "pass"
+        },
+        {
+          "name": "async-each-hoisting",
+          "status": "pass"
+        },
+        {
+          "name": "async-if-hoisting",
+          "status": "pass"
+        },
+        {
+          "name": "async-top-level-inspect-server",
+          "status": "pass"
+        },
+        {
+          "name": "nullish-coallescence-omittance",
+          "status": "pass"
+        },
+        {
+          "name": "class-state-field-constructor-assignment",
+          "status": "pass"
+        },
+        {
+          "name": "svelte-element",
+          "status": "pass"
+        },
+        {
+          "name": "async-in-derived",
+          "status": "pass"
+        },
+        {
+          "name": "async-each-fallback-hoisting",
+          "status": "pass"
+        },
+        {
+          "name": "function-prop-no-getter",
+          "status": "pass"
+        },
+        {
+          "name": "imports-in-modules",
+          "status": "pass"
+        },
+        {
+          "name": "hmr",
+          "status": "pass"
+        },
+        {
+          "name": "await-block-scope",
+          "status": "pass"
+        },
+        {
+          "name": "async-const",
+          "status": "pass"
+        },
+        {
+          "name": "hello-world",
+          "status": "pass"
+        },
+        {
+          "name": "bind-component-snippet",
+          "status": "pass"
+        },
+        {
+          "name": "purity",
+          "status": "pass"
+        },
+        {
+          "name": "functional-templating",
+          "status": "pass"
+        },
+        {
+          "name": "bind-this",
+          "status": "pass"
+        },
+        {
+          "name": "async-if-alternate-hoisting",
+          "status": "pass"
+        },
+        {
+          "name": "text-nodes-deriveds",
+          "status": "pass"
+        },
+        {
+          "name": "each-string-template",
+          "status": "pass"
+        },
+        {
+          "name": "state-proxy-literal",
+          "status": "pass"
+        },
+        {
+          "name": "delegated-locally-declared-shadowed",
+          "status": "pass"
+        },
+        {
+          "name": "skip-static-subtree",
+          "status": "pass"
+        },
+        {
+          "name": "select-with-rich-content",
+          "status": "pass"
+        },
+        {
+          "name": "props-identifier",
+          "status": "pass"
+        },
+        {
+          "name": "each-index-non-null",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "id": "css",
+      "name": "CSS",
+      "total": 179,
+      "passed": 179,
+      "failed": 0,
+      "skipped": 0,
+      "percentage": 100,
+      "tests": [
+        {
+          "name": "omit-scoping-attribute-class-static",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-star",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-await-not-exhaustive",
+          "status": "pass"
+        },
+        {
+          "name": "snippets",
+          "status": "pass"
+        },
+        {
+          "name": "child-combinator",
+          "status": "pass"
+        },
+        {
+          "name": "at-rule-nested-class",
+          "status": "pass"
+        },
+        {
+          "name": "unused-selector-ternary-concat",
+          "status": "pass"
+        },
+        {
+          "name": "global-with-data-attribute",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-descendant-global-outer",
+          "status": "pass"
+        },
+        {
+          "name": "supports-font-face",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-descendant-global-inner-class",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-attribute-selector-equals-dynamic",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-attribute-selector",
+          "status": "pass"
+        },
+        {
+          "name": "unused-selector-ternary-bailed",
+          "status": "pass"
+        },
+        {
+          "name": "universal-selector",
+          "status": "pass"
+        },
+        {
+          "name": "empty-rule",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-component-default-snippet",
+          "status": "pass"
+        },
+        {
+          "name": "media-query",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-attribute-selector-suffix",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-global-children",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-attribute-selector-prefix",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-if",
+          "status": "pass"
+        },
+        {
+          "name": "supports-charset",
+          "status": "pass"
+        },
+        {
+          "name": "pseudo-element",
+          "status": "pass"
+        },
+        {
+          "name": "unused-selector-in-between",
+          "status": "pass"
+        },
+        {
+          "name": "host",
+          "status": "pass"
+        },
+        {
+          "name": "unicode-identifier",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-attribute-selector-equals-case-insensitive",
+          "status": "pass"
+        },
+        {
+          "name": "attribute-selector-html-case-insensitive",
+          "status": "pass"
+        },
+        {
+          "name": "supports-page",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-nested-slots",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-if",
+          "status": "pass"
+        },
+        {
+          "name": "css-vars",
+          "status": "pass"
+        },
+        {
+          "name": "unknown-at-rule-with-following-rules",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-each-nested",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-slot-global",
+          "status": "pass"
+        },
+        {
+          "name": "attribute-selector-bind",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-slots-between",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-key",
+          "status": "pass"
+        },
+        {
+          "name": "at-layer",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-attribute-selector-word-equals",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-id",
+          "status": "pass"
+        },
+        {
+          "name": "attribute-selector-details-open",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-nested-slots-flattened",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-if-not-exhaustive-with-each",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-slot",
+          "status": "pass"
+        },
+        {
+          "name": "keyframes-autoprefixed",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-whitespace-multiple",
+          "status": "pass"
+        },
+        {
+          "name": "clsx-cannot-prune-2",
+          "status": "pass"
+        },
+        {
+          "name": "dynamic-element-tag",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-nested-slots",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-descendant-global-outer-multiple",
+          "status": "pass"
+        },
+        {
+          "name": "supports-namespace",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-global",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-global-descendants",
+          "status": "pass"
+        },
+        {
+          "name": "clsx-cannot-prune-3",
+          "status": "pass"
+        },
+        {
+          "name": "unused-selector-empty-attribute",
+          "status": "pass"
+        },
+        {
+          "name": "global-nested-block",
+          "status": "pass"
+        },
+        {
+          "name": "supports-import",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-if-not-exhaustive",
+          "status": "pass"
+        },
+        {
+          "name": "unused-selector",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-each-else",
+          "status": "pass"
+        },
+        {
+          "name": "is",
+          "status": "pass"
+        },
+        {
+          "name": "not-selector",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-key",
+          "status": "pass"
+        },
+        {
+          "name": "view-transition",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-global",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-if-not-exhaustive",
+          "status": "pass"
+        },
+        {
+          "name": "custom-css-hash",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-missing-fallback",
+          "status": "pass"
+        },
+        {
+          "name": "basic",
+          "status": "pass"
+        },
+        {
+          "name": "keyframes-from-to",
+          "status": "pass"
+        },
+        {
+          "name": "selector-list",
+          "status": "pass"
+        },
+        {
+          "name": "comment-repeated",
+          "status": "pass"
+        },
+        {
+          "name": "nested-css-combinator",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-whitespace",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator",
+          "status": "pass"
+        },
+        {
+          "name": "spread",
+          "status": "pass"
+        },
+        {
+          "name": "global-with-child-combinator-2",
+          "status": "pass"
+        },
+        {
+          "name": "attribute-selector-dialog-open",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-rendertag-global",
+          "status": "pass"
+        },
+        {
+          "name": "unused-selector-string-concat",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-former-element-in-slot",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-each",
+          "status": "pass"
+        },
+        {
+          "name": "render-tag-loop",
+          "status": "pass"
+        },
+        {
+          "name": "local-inside-global",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-descendant-global-inner-multiple",
+          "status": "pass"
+        },
+        {
+          "name": "global-with-class",
+          "status": "pass"
+        },
+        {
+          "name": "class-directive",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator",
+          "status": "pass"
+        },
+        {
+          "name": "unused-selector-multiple",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-descendant-global-inner",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-slots-between",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-each-2",
+          "status": "pass"
+        },
+        {
+          "name": "directive-special-character",
+          "status": "pass"
+        },
+        {
+          "name": "combinator-child",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-await-not-exhaustive",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-render-tag",
+          "status": "pass"
+        },
+        {
+          "name": "global-with-root",
+          "status": "pass"
+        },
+        {
+          "name": "nested-css",
+          "status": "pass"
+        },
+        {
+          "name": "global-with-child-combinator",
+          "status": "pass"
+        },
+        {
+          "name": "special-characters",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-descendant",
+          "status": "pass"
+        },
+        {
+          "name": "attribute-selector-only-name",
+          "status": "pass"
+        },
+        {
+          "name": "double-hyphen",
+          "status": "pass"
+        },
+        {
+          "name": "unused-selector-ternary",
+          "status": "pass"
+        },
+        {
+          "name": "keyframes",
+          "status": "pass"
+        },
+        {
+          "name": "quote-mark-inside-string",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-render-tag",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-component-named-snippet",
+          "status": "pass"
+        },
+        {
+          "name": "empty-rule-dev",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-selects-slot-fallback",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-await",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-star",
+          "status": "pass"
+        },
+        {
+          "name": "unused-ts-as-expression",
+          "status": "pass"
+        },
+        {
+          "name": "empty-class",
+          "status": "pass"
+        },
+        {
+          "name": "unused-selector-child-combinator",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-nested-slots-flattened",
+          "status": "pass"
+        },
+        {
+          "name": "comment-html",
+          "status": "pass"
+        },
+        {
+          "name": "root",
+          "status": "pass"
+        },
+        {
+          "name": "media-query-word",
+          "status": "pass"
+        },
+        {
+          "name": "unknown-at-rule",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-attribute-selector-contains",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-component",
+          "status": "pass"
+        },
+        {
+          "name": "global-block",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-await",
+          "status": "pass"
+        },
+        {
+          "name": "supports-nested-page",
+          "status": "pass"
+        },
+        {
+          "name": "attribute-selector-case-sensitive",
+          "status": "pass"
+        },
+        {
+          "name": "dynamic-element",
+          "status": "pass"
+        },
+        {
+          "name": "has",
+          "status": "pass"
+        },
+        {
+          "name": "global-local",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-each-else-nested",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-attribute-selector-pipe-equals",
+          "status": "pass"
+        },
+        {
+          "name": "unused-selector-ternary-nested",
+          "status": "pass"
+        },
+        {
+          "name": "undefined-with-scope",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-multiple-descendants",
+          "status": "pass"
+        },
+        {
+          "name": "clsx-cannot-prune-1",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-each-nested",
+          "status": "pass"
+        },
+        {
+          "name": "global-local-nested",
+          "status": "pass"
+        },
+        {
+          "name": "unused-selector-trailing",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-with-spread",
+          "status": "pass"
+        },
+        {
+          "name": "nested",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-each",
+          "status": "pass"
+        },
+        {
+          "name": "clsx-can-prune",
+          "status": "pass"
+        },
+        {
+          "name": "snippets-elements",
+          "status": "pass"
+        },
+        {
+          "name": "nesting-selectors",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute",
+          "status": "pass"
+        },
+        {
+          "name": "global-keyframes-with-no-elements",
+          "status": "pass"
+        },
+        {
+          "name": "preserve-specificity",
+          "status": "pass"
+        },
+        {
+          "name": "attribute-selector-word-arbitrary-whitespace",
+          "status": "pass"
+        },
+        {
+          "name": "attribute-selector-unquoted",
+          "status": "pass"
+        },
+        {
+          "name": "global-keyframes",
+          "status": "pass"
+        },
+        {
+          "name": "weird-selectors",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-svelteelement",
+          "status": "pass"
+        },
+        {
+          "name": "not-selector-global",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-class-dynamic",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-if-not-exhaustive-with-each",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-slot",
+          "status": "pass"
+        },
+        {
+          "name": "omit-scoping-attribute-attribute-selector-equals",
+          "status": "pass"
+        },
+        {
+          "name": "comments-after-last-selector",
+          "status": "pass"
+        },
+        {
+          "name": "global",
+          "status": "pass"
+        },
+        {
+          "name": "descendant-selector-non-top-level-outer",
+          "status": "pass"
+        },
+        {
+          "name": "global-with-nesting",
+          "status": "pass"
+        },
+        {
+          "name": "has-with-render-tag",
+          "status": "pass"
+        },
+        {
+          "name": "descendant-selector-unmatched",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-selects-slot-fallback",
+          "status": "pass"
+        },
+        {
+          "name": "container-query",
+          "status": "pass"
+        },
+        {
+          "name": "animations",
+          "status": "pass"
+        },
+        {
+          "name": "supports-query",
+          "status": "pass"
+        },
+        {
+          "name": "unused-selector-leading",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-slot-named-between-default",
+          "status": "pass"
+        },
+        {
+          "name": "attribute-selector-matches-derictive",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-each-else-nested",
+          "status": "pass"
+        },
+        {
+          "name": "unused-nested-at-rule",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-former-element-in-slot",
+          "status": "pass"
+        },
+        {
+          "name": "general-siblings-combinator-each-2",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-each-else",
+          "status": "pass"
+        },
+        {
+          "name": "selectedcontent",
+          "status": "pass"
+        },
+        {
+          "name": "global-with-unused-descendant",
           "status": "pass"
         }
       ]
@@ -2459,484 +2615,589 @@
       ]
     },
     {
-      "id": "snapshot",
-      "name": "Snapshot",
-      "total": 20,
-      "passed": 20,
+      "id": "compiler-errors",
+      "name": "Compiler Errors",
+      "total": 144,
+      "passed": 144,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
       "tests": [
         {
-          "name": "nullish-coallescence-omittance",
+          "name": "dollar-binding-import",
           "status": "pass"
         },
         {
-          "name": "class-state-field-constructor-assignment",
+          "name": "runes-wrong-props-placement-instance",
           "status": "pass"
         },
         {
-          "name": "svelte-element",
+          "name": "css-global-block-declaration",
           "status": "pass"
         },
         {
-          "name": "function-prop-no-getter",
+          "name": "else-before-closing",
           "status": "pass"
         },
         {
-          "name": "imports-in-modules",
+          "name": "store-prevent-user-declarations",
           "status": "pass"
         },
         {
-          "name": "hmr",
+          "name": "dollar-binding-declaration-runes-2",
           "status": "pass"
         },
         {
-          "name": "await-block-scope",
+          "name": "runes-wrong-state-placement",
           "status": "pass"
         },
         {
-          "name": "hello-world",
+          "name": "element-invalid-name",
           "status": "pass"
         },
         {
-          "name": "bind-component-snippet",
+          "name": "style-unclosed-eof",
           "status": "pass"
         },
         {
-          "name": "purity",
+          "name": "multiple-styles",
           "status": "pass"
         },
         {
-          "name": "functional-templating",
+          "name": "store-global-disallowed",
           "status": "pass"
         },
         {
-          "name": "bind-this",
+          "name": "invalid-rune-name",
           "status": "pass"
         },
         {
-          "name": "text-nodes-deriveds",
+          "name": "attribute-unique",
           "status": "pass"
         },
         {
-          "name": "each-string-template",
+          "name": "const-tag-snippet-invalid-reference-1",
           "status": "pass"
         },
         {
-          "name": "state-proxy-literal",
+          "name": "runes-export-let",
           "status": "pass"
         },
         {
-          "name": "delegated-locally-declared-shadowed",
+          "name": "dollar-binding-declaration-legacy",
           "status": "pass"
         },
         {
-          "name": "skip-static-subtree",
+          "name": "runes-wrong-props-placement-module",
           "status": "pass"
         },
         {
-          "name": "select-with-rich-content",
+          "name": "legacy-no-const-assignment",
           "status": "pass"
         },
         {
-          "name": "props-identifier",
+          "name": "class-state-field-static",
           "status": "pass"
         },
         {
-          "name": "each-index-non-null",
+          "name": "export-default-state-indirect",
           "status": "pass"
-        }
-      ]
-    },
-    {
-      "id": "migrate",
-      "name": "Migrate",
-      "total": 76,
-      "passed": 0,
-      "failed": 0,
-      "skipped": 76,
-      "percentage": 0,
-      "tests": [
+        },
+        {
+          "name": "runes-invalid-each-binding",
+          "status": "pass"
+        },
+        {
+          "name": "attribute-sequence-expression-2",
+          "status": "pass"
+        },
+        {
+          "name": "dynamic-element-binding-invalid",
+          "status": "pass"
+        },
+        {
+          "name": "script-unclosed-eof",
+          "status": "pass"
+        },
+        {
+          "name": "runes-props-illegal-name-2",
+          "status": "pass"
+        },
+        {
+          "name": "css-nesting-selector-root",
+          "status": "pass"
+        },
+        {
+          "name": "dollar-binding-global",
+          "status": "pass"
+        },
+        {
+          "name": "runes-wrong-state-snapshot-args",
+          "status": "pass"
+        },
+        {
+          "name": "runes-no-rune-each",
+          "status": "pass"
+        },
+        {
+          "name": "invalid-snippet-binding",
+          "status": "pass"
+        },
+        {
+          "name": "css",
+          "status": "pass"
+        },
+        {
+          "name": "snippet-rest-args",
+          "status": "pass"
+        },
+        {
+          "name": "runes-wrong-host-placement",
+          "status": "pass"
+        },
+        {
+          "name": "unbalanced-curly-element",
+          "status": "pass"
+        },
+        {
+          "name": "const-tag-cyclical",
+          "status": "pass"
+        },
+        {
+          "name": "store-contextual",
+          "status": "pass"
+        },
+        {
+          "name": "runes-wrong-state-raw-args",
+          "status": "pass"
+        },
+        {
+          "name": "dollar-binding-global-js",
+          "status": "pass"
+        },
+        {
+          "name": "runes-no-const-update",
+          "status": "pass"
+        },
+        {
+          "name": "runes-wrong-state-args",
+          "status": "pass"
+        },
+        {
+          "name": "export-state-indirect",
+          "status": "pass"
+        },
+        {
+          "name": "unexpected-end-of-input-c",
+          "status": "pass"
+        },
+        {
+          "name": "else-if-before-closing",
+          "status": "pass"
+        },
+        {
+          "name": "unmatched-closing-tag-autoclose-2",
+          "status": "pass"
+        },
+        {
+          "name": "unexpected-end-of-input-d",
+          "status": "pass"
+        },
+        {
+          "name": "else-before-closing-3",
+          "status": "pass"
+        },
+        {
+          "name": "window-inside-element",
+          "status": "pass"
+        },
+        {
+          "name": "export-state",
+          "status": "pass"
+        },
+        {
+          "name": "then-before-closing",
+          "status": "pass"
+        },
+        {
+          "name": "runes-wrong-bindable-args",
+          "status": "pass"
+        },
+        {
+          "name": "component-slot-duplicate-error-6",
+          "status": "pass"
+        },
+        {
+          "name": "runes-bindable-not-called",
+          "status": "pass"
+        },
+        {
+          "name": "else-before-closing-2",
+          "status": "pass"
+        },
+        {
+          "name": "options-children",
+          "status": "pass"
+        },
+        {
+          "name": "unexpected-end-of-input-b",
+          "status": "pass"
+        },
+        {
+          "name": "empty-classname-binding",
+          "status": "pass"
+        },
+        {
+          "name": "runes-invalid-each-mutation",
+          "status": "pass"
+        },
+        {
+          "name": "else-if-before-closing-2",
+          "status": "pass"
+        },
+        {
+          "name": "css-global-block-in-pseudoclass",
+          "status": "pass"
+        },
+        {
+          "name": "runes-wrong-derived-args",
+          "status": "pass"
+        },
+        {
+          "name": "css-global-block-combinator-2",
+          "status": "pass"
+        },
+        {
+          "name": "attribute-unique-class",
+          "status": "pass"
+        },
+        {
+          "name": "component-slot-nested-error-3",
+          "status": "pass"
+        },
+        {
+          "name": "unmatched-closing-tag-autoclose",
+          "status": "pass"
+        },
+        {
+          "name": "legacy-no-const-update",
+          "status": "pass"
+        },
+        {
+          "name": "css-global-modifier",
+          "status": "pass"
+        },
+        {
+          "name": "empty-directive-name",
+          "status": "pass"
+        },
+        {
+          "name": "svelte-internal-import",
+          "status": "pass"
+        },
         {
-          "name": "props-interface",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "css-global-block-multiple-1",
+          "status": "pass"
         },
         {
-          "name": "import-type-$-prefix",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "runes-wrong-effect-args",
+          "status": "pass"
         },
         {
-          "name": "impossible-migrate-with-errors",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "component-slot-nested-error-2",
+          "status": "pass"
         },
         {
-          "name": "props-and-labeled",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "invalid-snippet-mutation",
+          "status": "pass"
         },
         {
-          "name": "remove-blocks-whitespace",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "css-global-modifier-start-2",
+          "status": "pass"
         },
         {
-          "name": "slot-usages",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "export-default-derived-state-indirect",
+          "status": "pass"
         },
         {
-          "name": "svelte-self-skip-filename",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "export-state-module",
+          "status": "pass"
         },
         {
-          "name": "self-closing-named-slot",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "window-children",
+          "status": "pass"
         },
         {
-          "name": "svelte-self",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "runes-before-after-update",
+          "status": "pass"
         },
         {
-          "name": "slots-multiple",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "each-key-without-as",
+          "status": "pass"
         },
         {
-          "name": "unused-beforeUpdate-afterUpdate-extra-imports",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "component-slot-nested-error",
+          "status": "pass"
         },
         {
-          "name": "impossible-migrate-$props-props-var-1",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "runes-wrong-derived-placement",
+          "status": "pass"
         },
         {
-          "name": "derivations",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "snippet-children-conflict",
+          "status": "pass"
         },
         {
-          "name": "props-rest-props",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "attribute-empty",
+          "status": "pass"
         },
         {
-          "name": "reactive-statements-reorder-1",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "malformed-snippet-2",
+          "status": "pass"
         },
         {
-          "name": "jsdoc-with-comments",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "invalid-arguments-usage",
+          "status": "pass"
         },
         {
-          "name": "svelte-element",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "empty-attribute-shorthand",
+          "status": "pass"
         },
         {
-          "name": "slot-non-identifier",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "component-slot-duplicate-error",
+          "status": "pass"
         },
         {
-          "name": "state-ts",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "self-reference",
+          "status": "pass"
         },
         {
-          "name": "named-slots",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "snippet-invalid-export",
+          "status": "pass"
         },
         {
-          "name": "each-block-const",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "void-closing",
+          "status": "pass"
         },
         {
-          "name": "$$slots-used-as-variable",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "runes-no-const-assignment",
+          "status": "pass"
         },
         {
-          "name": "slot-use_ts",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "const-tag-snippet-invalid-reference-2",
+          "status": "pass"
         },
         {
-          "name": "props",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "then-without-await",
+          "status": "pass"
         },
         {
-          "name": "accessors",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "unexpected-end-of-input",
+          "status": "pass"
         },
         {
-          "name": "event-handlers-with-alias",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "runes-wrong-props-args",
+          "status": "pass"
         },
         {
-          "name": "impossible-migrate-beforeUpdate-afterUpdate",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "unbalanced-curly-component",
+          "status": "pass"
         },
         {
-          "name": "slots-with-$$props",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "const-tag-whitespace",
+          "status": "pass"
         },
         {
-          "name": "slot-use_ts-2",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "raw-mustaches-whitespace",
+          "status": "pass"
         },
         {
-          "name": "state-no-initial",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "export-derived-state",
+          "status": "pass"
         },
         {
-          "name": "impossible-migrate-$state-state-var-2",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "comment-unclosed",
+          "status": "pass"
         },
         {
-          "name": "impossible-migrate-$bindable-bindable-var-1",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "attribute-unique-style",
+          "status": "pass"
         },
         {
-          "name": "impossible-migrate-$derived-derived-var-4",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "runes-props-illegal-name-1",
+          "status": "pass"
         },
         {
-          "name": "impossible-migrate-$derived-derived-var-3",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "dollar-binding-declaration-runes",
+          "status": "pass"
         },
         {
-          "name": "not-blank-css-if-error",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "runes-export-named-state",
+          "status": "pass"
         },
         {
-          "name": "props-ts",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "window-inside-block",
+          "status": "pass"
         },
         {
-          "name": "reactive-statements-reorder-not-deleting-additions",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "else-if-without-if",
+          "status": "pass"
         },
         {
-          "name": "impossible-migrate-$state-state-var-3",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "component-slot-duplicate-error-4",
+          "status": "pass"
         },
         {
-          "name": "$$slots-used-as-variable-$$props",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "slot-conflicting-with-render-tag",
+          "status": "pass"
         },
         {
-          "name": "impossible-migrate-prop-and-$$props",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "component-slot-duplicate-error-3",
+          "status": "pass"
         },
         {
-          "name": "slot-use_ts-3",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "export-derived-state-indirect",
+          "status": "pass"
         },
         {
-          "name": "slot-dont-mess-with-attributes",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "store-autosub-context-module",
+          "status": "pass"
         },
         {
-          "name": "impossible-migrate-$derived-derived-var-2",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "window-duplicate",
+          "status": "pass"
         },
         {
-          "name": "props-export-alias",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "script-unclosed",
+          "status": "pass"
         },
         {
-          "name": "effects-with-alias-run",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "runes-duplicate-props",
+          "status": "pass"
         },
         {
-          "name": "single-assignment-labeled",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "svelte-selfdestructive",
+          "status": "pass"
         },
         {
-          "name": "shadowed-forwarded-slot",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "runes-invalid-each-binding-this",
+          "status": "pass"
         },
         {
-          "name": "props-rest-props-ts",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "malformed-snippet",
+          "status": "pass"
         },
         {
-          "name": "props-rest-props-jsdoc",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "attribute-unique-shorthand",
+          "status": "pass"
         },
         {
-          "name": "svelte-self-name-conflict",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "css-global-block-combinator",
+          "status": "pass"
         },
         {
-          "name": "unused-beforeUpdate-afterUpdate",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "component-slot-duplicate-error-2",
+          "status": "pass"
         },
         {
-          "name": "state-and-derivations-sequence",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "component-slot-duplicate-error-5",
+          "status": "pass"
         },
         {
-          "name": "not-prepend-props-to-export-let",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "unclosed-attribute-self-close-tag",
+          "status": "pass"
         },
         {
-          "name": "reactive-statements-reorder-with-comments",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "runes-props-not-called",
+          "status": "pass"
         },
         {
-          "name": "svelte-component",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "effect-active-rune",
+          "status": "pass"
         },
         {
-          "name": "reactive-statements-inner-block",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "catch-before-closing",
+          "status": "pass"
         },
         {
-          "name": "reactive-statements-reorder-2",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "runes-wrong-bindable-placement",
+          "status": "pass"
         },
         {
-          "name": "impossible-migrate-slot-non-identifier",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "const-tag-sequence",
+          "status": "pass"
         },
         {
-          "name": "slot-shadow-props",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "store-shadow-scope",
+          "status": "pass"
         },
         {
-          "name": "impossible-migrate-slot-change-name",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "render-tag-invalid-call",
+          "status": "pass"
         },
         {
-          "name": "slots-custom-element",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "attribute-unique-binding",
+          "status": "pass"
         },
         {
-          "name": "is-not-where-has",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "store-shadow-scope-2",
+          "status": "pass"
         },
         {
-          "name": "self-closing-elements",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "illegal-expression",
+          "status": "pass"
         },
         {
-          "name": "export-props-multiple-declarations",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "css-global-modifier-start-1",
+          "status": "pass"
         },
         {
-          "name": "impossible-migrate-prop-non-identifier",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "runes-wrong-effect-placement",
+          "status": "pass"
         },
         {
-          "name": "effects",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "invalid-rune-name-shadowed",
+          "status": "pass"
         },
         {
-          "name": "css-ignore",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "runes-module-store-subscription",
+          "status": "pass"
         },
         {
-          "name": "slots",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "catch-without-await",
+          "status": "pass"
         },
         {
-          "name": "reassigned-deriveds",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "unmatched-closing-tag",
+          "status": "pass"
         },
         {
-          "name": "impossible-migrate-$state-state-var-1",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "attribute-sequence-expression",
+          "status": "pass"
         },
         {
-          "name": "svelte-ignore",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "store-shadow-scope-3",
+          "status": "pass"
         },
         {
-          "name": "labeled-statement-reassign-state",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "component-invalid-name",
+          "status": "pass"
         },
         {
-          "name": "impossible-migrate-$derived-derived-var-1",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "style-unclosed",
+          "status": "pass"
         },
         {
-          "name": "event-handlers",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "css-global-block-multiple-2",
+          "status": "pass"
         },
         {
-          "name": "slots-below-imports",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "export-not-defined-module",
+          "status": "pass"
         },
         {
-          "name": "script-context-module",
-          "status": "skip",
-          "skip_reason": "Migrate API not implemented"
+          "name": "store-template-expression-scope",
+          "status": "pass"
         }
       ]
     },
@@ -6407,105 +6668,6 @@
         },
         {
           "name": "contenteditable-state",
-          "status": "pass"
-        }
-      ]
-    },
-    {
-      "id": "parser-modern",
-      "name": "Parser Modern",
-      "total": 22,
-      "passed": 22,
-      "failed": 0,
-      "skipped": 0,
-      "percentage": 100,
-      "tests": [
-        {
-          "name": "snippets",
-          "status": "pass"
-        },
-        {
-          "name": "options",
-          "status": "pass"
-        },
-        {
-          "name": "css-pseudo-classes",
-          "status": "pass"
-        },
-        {
-          "name": "loose-valid-each-as",
-          "status": "pass"
-        },
-        {
-          "name": "if-block-else",
-          "status": "pass"
-        },
-        {
-          "name": "each-block-object-pattern",
-          "status": "pass"
-        },
-        {
-          "name": "css-nth-syntax",
-          "status": "pass"
-        },
-        {
-          "name": "generic-snippets",
-          "status": "pass"
-        },
-        {
-          "name": "typescript-in-event-handler",
-          "status": "pass"
-        },
-        {
-          "name": "comment-before-function-binding",
-          "status": "pass"
-        },
-        {
-          "name": "loose-invalid-expression",
-          "status": "pass"
-        },
-        {
-          "name": "each-block-object-pattern-special-characters",
-          "status": "pass"
-        },
-        {
-          "name": "semicolon-inside-quotes",
-          "status": "pass"
-        },
-        {
-          "name": "loose-unclosed-tag",
-          "status": "pass"
-        },
-        {
-          "name": "if-block",
-          "status": "pass"
-        },
-        {
-          "name": "template-shadowroot",
-          "status": "pass"
-        },
-        {
-          "name": "loose-invalid-block",
-          "status": "pass"
-        },
-        {
-          "name": "script-style-no-markup",
-          "status": "pass"
-        },
-        {
-          "name": "loose-unclosed-open-tag",
-          "status": "pass"
-        },
-        {
-          "name": "attachments",
-          "status": "pass"
-        },
-        {
-          "name": "comment-before-script",
-          "status": "pass"
-        },
-        {
-          "name": "if-block-elseif",
           "status": "pass"
         }
       ]
@@ -11330,844 +11492,136 @@
       ]
     },
     {
-      "id": "preprocess",
-      "name": "Preprocess",
-      "total": 19,
-      "passed": 0,
-      "failed": 0,
-      "skipped": 19,
-      "percentage": 0,
-      "tests": [
-        {
-          "name": "comments",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        },
-        {
-          "name": "script-self-closing",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        },
-        {
-          "name": "style-attributes-modified",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        },
-        {
-          "name": "style-self-closing",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        },
-        {
-          "name": "script-multiple",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        },
-        {
-          "name": "ignores-null",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        },
-        {
-          "name": "attributes-with-equals",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        },
-        {
-          "name": "dependencies",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        },
-        {
-          "name": "style",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        },
-        {
-          "name": "attributes-with-closing-tag",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        },
-        {
-          "name": "script",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        },
-        {
-          "name": "markup",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        },
-        {
-          "name": "style-attributes",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        },
-        {
-          "name": "style-attributes-modified-longer",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        },
-        {
-          "name": "style-async",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        },
-        {
-          "name": "partial-names",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        },
-        {
-          "name": "filename",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        },
-        {
-          "name": "empty-sourcemap",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        },
-        {
-          "name": "multiple-preprocessors",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
-        }
-      ]
-    },
-    {
-      "id": "sourcemaps",
-      "name": "Sourcemaps",
-      "total": 0,
-      "passed": 0,
-      "failed": 0,
-      "skipped": 0,
-      "percentage": 0,
-      "tests": []
-    },
-    {
-      "id": "css",
-      "name": "CSS",
-      "total": 179,
-      "passed": 179,
+      "id": "runtime-browser",
+      "name": "Runtime Browser",
+      "total": 31,
+      "passed": 31,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
       "tests": [
         {
-          "name": "omit-scoping-attribute-class-static",
+          "name": "binding-width-height-initialize",
           "status": "pass"
         },
         {
-          "name": "siblings-combinator-star",
+          "name": "component-css-custom-properties",
           "status": "pass"
         },
         {
-          "name": "siblings-combinator-await-not-exhaustive",
+          "name": "head-scripts",
           "status": "pass"
         },
         {
-          "name": "snippets",
+          "name": "svelte-self-css-custom-properties-dynamic",
           "status": "pass"
         },
         {
-          "name": "child-combinator",
+          "name": "component-slot-binding-dimensions",
           "status": "pass"
         },
         {
-          "name": "at-rule-nested-class",
+          "name": "component-css-custom-properties-dynamic",
           "status": "pass"
         },
         {
-          "name": "unused-selector-ternary-concat",
+          "name": "hydrate-large-text-node",
           "status": "pass"
         },
         {
-          "name": "global-with-data-attribute",
+          "name": "inline-style-directive-update-with-spread",
           "status": "pass"
         },
         {
-          "name": "omit-scoping-attribute-descendant-global-outer",
+          "name": "inline-style-directive-important",
           "status": "pass"
         },
         {
-          "name": "supports-font-face",
+          "name": "component-css-custom-properties-dynamic-svg",
           "status": "pass"
         },
         {
-          "name": "omit-scoping-attribute-descendant-global-inner-class",
+          "name": "svelte-self-css-custom-properties",
           "status": "pass"
         },
         {
-          "name": "omit-scoping-attribute-attribute-selector-equals-dynamic",
+          "name": "html-tag-script",
           "status": "pass"
         },
         {
-          "name": "omit-scoping-attribute-attribute-selector",
+          "name": "bind-playbackrate",
           "status": "pass"
         },
         {
-          "name": "unused-selector-ternary-bailed",
+          "name": "binding-width-height-this-timing",
           "status": "pass"
         },
         {
-          "name": "universal-selector",
+          "name": "browser-events-ending-with-capture",
           "status": "pass"
         },
         {
-          "name": "empty-rule",
+          "name": "svelte-component-css-custom-properties2",
           "status": "pass"
         },
         {
-          "name": "siblings-combinator-component-default-snippet",
+          "name": "component-event-handler-contenteditable-false",
           "status": "pass"
         },
         {
-          "name": "media-query",
+          "name": "fine-grained-hydration-clean-attr",
           "status": "pass"
         },
         {
-          "name": "omit-scoping-attribute-attribute-selector-suffix",
+          "name": "svelte-self-css-custom-properties2",
           "status": "pass"
         },
         {
-          "name": "omit-scoping-attribute-global-children",
+          "name": "inline-style-directive-precedence",
           "status": "pass"
         },
         {
-          "name": "omit-scoping-attribute-attribute-selector-prefix",
+          "name": "css-props-dynamic-component",
           "status": "pass"
         },
         {
-          "name": "siblings-combinator-if",
+          "name": "bind-muted",
           "status": "pass"
         },
         {
-          "name": "supports-charset",
+          "name": "html-tag-script-2",
           "status": "pass"
         },
         {
-          "name": "pseudo-element",
+          "name": "mount-in-iframe",
           "status": "pass"
         },
         {
-          "name": "unused-selector-in-between",
+          "name": "head-script",
           "status": "pass"
         },
         {
-          "name": "host",
+          "name": "svelte-component-css-custom-properties",
           "status": "pass"
         },
         {
-          "name": "unicode-identifier",
+          "name": "svelte-component-css-custom-properties-dynamic",
           "status": "pass"
         },
         {
-          "name": "omit-scoping-attribute-attribute-selector-equals-case-insensitive",
+          "name": "sole-script-tag",
           "status": "pass"
         },
         {
-          "name": "attribute-selector-html-case-insensitive",
+          "name": "bind-volume",
           "status": "pass"
         },
         {
-          "name": "supports-page",
+          "name": "binding-files",
           "status": "pass"
         },
         {
-          "name": "general-siblings-combinator-nested-slots",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-if",
-          "status": "pass"
-        },
-        {
-          "name": "css-vars",
-          "status": "pass"
-        },
-        {
-          "name": "unknown-at-rule-with-following-rules",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-each-nested",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-slot-global",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-selector-bind",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-slots-between",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-key",
-          "status": "pass"
-        },
-        {
-          "name": "at-layer",
-          "status": "pass"
-        },
-        {
-          "name": "omit-scoping-attribute-attribute-selector-word-equals",
-          "status": "pass"
-        },
-        {
-          "name": "omit-scoping-attribute-id",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-selector-details-open",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-nested-slots-flattened",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-if-not-exhaustive-with-each",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-slot",
-          "status": "pass"
-        },
-        {
-          "name": "keyframes-autoprefixed",
-          "status": "pass"
-        },
-        {
-          "name": "omit-scoping-attribute-whitespace-multiple",
-          "status": "pass"
-        },
-        {
-          "name": "clsx-cannot-prune-2",
-          "status": "pass"
-        },
-        {
-          "name": "dynamic-element-tag",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-nested-slots",
-          "status": "pass"
-        },
-        {
-          "name": "omit-scoping-attribute-descendant-global-outer-multiple",
-          "status": "pass"
-        },
-        {
-          "name": "supports-namespace",
-          "status": "pass"
-        },
-        {
-          "name": "omit-scoping-attribute-global",
-          "status": "pass"
-        },
-        {
-          "name": "omit-scoping-attribute-global-descendants",
-          "status": "pass"
-        },
-        {
-          "name": "clsx-cannot-prune-3",
-          "status": "pass"
-        },
-        {
-          "name": "unused-selector-empty-attribute",
-          "status": "pass"
-        },
-        {
-          "name": "global-nested-block",
-          "status": "pass"
-        },
-        {
-          "name": "supports-import",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-if-not-exhaustive",
-          "status": "pass"
-        },
-        {
-          "name": "unused-selector",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-each-else",
-          "status": "pass"
-        },
-        {
-          "name": "is",
-          "status": "pass"
-        },
-        {
-          "name": "not-selector",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-key",
-          "status": "pass"
-        },
-        {
-          "name": "view-transition",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-global",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-if-not-exhaustive",
-          "status": "pass"
-        },
-        {
-          "name": "custom-css-hash",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-missing-fallback",
-          "status": "pass"
-        },
-        {
-          "name": "basic",
-          "status": "pass"
-        },
-        {
-          "name": "keyframes-from-to",
-          "status": "pass"
-        },
-        {
-          "name": "selector-list",
-          "status": "pass"
-        },
-        {
-          "name": "comment-repeated",
-          "status": "pass"
-        },
-        {
-          "name": "nested-css-combinator",
-          "status": "pass"
-        },
-        {
-          "name": "omit-scoping-attribute-whitespace",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator",
-          "status": "pass"
-        },
-        {
-          "name": "spread",
-          "status": "pass"
-        },
-        {
-          "name": "global-with-child-combinator-2",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-selector-dialog-open",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-rendertag-global",
-          "status": "pass"
-        },
-        {
-          "name": "unused-selector-string-concat",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-former-element-in-slot",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-each",
-          "status": "pass"
-        },
-        {
-          "name": "render-tag-loop",
-          "status": "pass"
-        },
-        {
-          "name": "local-inside-global",
-          "status": "pass"
-        },
-        {
-          "name": "omit-scoping-attribute-descendant-global-inner-multiple",
-          "status": "pass"
-        },
-        {
-          "name": "global-with-class",
-          "status": "pass"
-        },
-        {
-          "name": "class-directive",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator",
-          "status": "pass"
-        },
-        {
-          "name": "unused-selector-multiple",
-          "status": "pass"
-        },
-        {
-          "name": "omit-scoping-attribute-descendant-global-inner",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-slots-between",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-each-2",
-          "status": "pass"
-        },
-        {
-          "name": "directive-special-character",
-          "status": "pass"
-        },
-        {
-          "name": "combinator-child",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-await-not-exhaustive",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-render-tag",
-          "status": "pass"
-        },
-        {
-          "name": "global-with-root",
-          "status": "pass"
-        },
-        {
-          "name": "nested-css",
-          "status": "pass"
-        },
-        {
-          "name": "global-with-child-combinator",
-          "status": "pass"
-        },
-        {
-          "name": "special-characters",
-          "status": "pass"
-        },
-        {
-          "name": "omit-scoping-attribute-descendant",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-selector-only-name",
-          "status": "pass"
-        },
-        {
-          "name": "double-hyphen",
-          "status": "pass"
-        },
-        {
-          "name": "unused-selector-ternary",
-          "status": "pass"
-        },
-        {
-          "name": "keyframes",
-          "status": "pass"
-        },
-        {
-          "name": "quote-mark-inside-string",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-render-tag",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-component-named-snippet",
-          "status": "pass"
-        },
-        {
-          "name": "empty-rule-dev",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-selects-slot-fallback",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-await",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-star",
-          "status": "pass"
-        },
-        {
-          "name": "unused-ts-as-expression",
-          "status": "pass"
-        },
-        {
-          "name": "empty-class",
-          "status": "pass"
-        },
-        {
-          "name": "unused-selector-child-combinator",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-nested-slots-flattened",
-          "status": "pass"
-        },
-        {
-          "name": "comment-html",
-          "status": "pass"
-        },
-        {
-          "name": "root",
-          "status": "pass"
-        },
-        {
-          "name": "media-query-word",
-          "status": "pass"
-        },
-        {
-          "name": "unknown-at-rule",
-          "status": "pass"
-        },
-        {
-          "name": "omit-scoping-attribute-attribute-selector-contains",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-component",
-          "status": "pass"
-        },
-        {
-          "name": "global-block",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-await",
-          "status": "pass"
-        },
-        {
-          "name": "supports-nested-page",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-selector-case-sensitive",
-          "status": "pass"
-        },
-        {
-          "name": "dynamic-element",
-          "status": "pass"
-        },
-        {
-          "name": "has",
-          "status": "pass"
-        },
-        {
-          "name": "global-local",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-each-else-nested",
-          "status": "pass"
-        },
-        {
-          "name": "omit-scoping-attribute-attribute-selector-pipe-equals",
-          "status": "pass"
-        },
-        {
-          "name": "unused-selector-ternary-nested",
-          "status": "pass"
-        },
-        {
-          "name": "undefined-with-scope",
-          "status": "pass"
-        },
-        {
-          "name": "omit-scoping-attribute-multiple-descendants",
-          "status": "pass"
-        },
-        {
-          "name": "clsx-cannot-prune-1",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-each-nested",
-          "status": "pass"
-        },
-        {
-          "name": "global-local-nested",
-          "status": "pass"
-        },
-        {
-          "name": "unused-selector-trailing",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-with-spread",
-          "status": "pass"
-        },
-        {
-          "name": "nested",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-each",
-          "status": "pass"
-        },
-        {
-          "name": "clsx-can-prune",
-          "status": "pass"
-        },
-        {
-          "name": "snippets-elements",
-          "status": "pass"
-        },
-        {
-          "name": "nesting-selectors",
-          "status": "pass"
-        },
-        {
-          "name": "omit-scoping-attribute",
-          "status": "pass"
-        },
-        {
-          "name": "global-keyframes-with-no-elements",
-          "status": "pass"
-        },
-        {
-          "name": "preserve-specificity",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-selector-word-arbitrary-whitespace",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-selector-unquoted",
-          "status": "pass"
-        },
-        {
-          "name": "global-keyframes",
-          "status": "pass"
-        },
-        {
-          "name": "weird-selectors",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-svelteelement",
-          "status": "pass"
-        },
-        {
-          "name": "not-selector-global",
-          "status": "pass"
-        },
-        {
-          "name": "omit-scoping-attribute-class-dynamic",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-if-not-exhaustive-with-each",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-slot",
-          "status": "pass"
-        },
-        {
-          "name": "omit-scoping-attribute-attribute-selector-equals",
-          "status": "pass"
-        },
-        {
-          "name": "comments-after-last-selector",
-          "status": "pass"
-        },
-        {
-          "name": "global",
-          "status": "pass"
-        },
-        {
-          "name": "descendant-selector-non-top-level-outer",
-          "status": "pass"
-        },
-        {
-          "name": "global-with-nesting",
-          "status": "pass"
-        },
-        {
-          "name": "has-with-render-tag",
-          "status": "pass"
-        },
-        {
-          "name": "descendant-selector-unmatched",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-selects-slot-fallback",
-          "status": "pass"
-        },
-        {
-          "name": "container-query",
-          "status": "pass"
-        },
-        {
-          "name": "animations",
-          "status": "pass"
-        },
-        {
-          "name": "supports-query",
-          "status": "pass"
-        },
-        {
-          "name": "unused-selector-leading",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-slot-named-between-default",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-selector-matches-derictive",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-each-else-nested",
-          "status": "pass"
-        },
-        {
-          "name": "unused-nested-at-rule",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-former-element-in-slot",
-          "status": "pass"
-        },
-        {
-          "name": "general-siblings-combinator-each-2",
-          "status": "pass"
-        },
-        {
-          "name": "siblings-combinator-each-else",
-          "status": "pass"
-        },
-        {
-          "name": "selectedcontent",
-          "status": "pass"
-        },
-        {
-          "name": "global-with-unused-descendant",
+          "name": "dynamic-element-custom-element",
           "status": "pass"
         }
       ]
@@ -12175,8 +11629,8 @@
     {
       "id": "hydration",
       "name": "Hydration",
-      "total": 77,
-      "passed": 77,
+      "total": 78,
+      "passed": 78,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -12342,6 +11796,10 @@
           "status": "pass"
         },
         {
+          "name": "boundary-pending-attribute",
+          "status": "pass"
+        },
+        {
           "name": "script",
           "status": "pass"
         },
@@ -12492,81 +11950,80 @@
       ]
     },
     {
-      "id": "parser-legacy",
-      "name": "Parser Legacy",
-      "total": 83,
+      "id": "server-side-rendering",
+      "name": "SSR",
+      "total": 82,
       "passed": 82,
       "failed": 0,
-      "skipped": 1,
+      "skipped": 0,
       "percentage": 100,
       "tests": [
         {
-          "name": "action-duplicate",
+          "name": "bindings-zero",
           "status": "pass"
         },
         {
-          "name": "dynamic-import",
+          "name": "directives",
           "status": "pass"
         },
         {
-          "name": "convert-entities",
+          "name": "textarea-value",
           "status": "pass"
         },
         {
-          "name": "attribute-style-directive-shorthand",
+          "name": "select-value-implicit-value-complex",
           "status": "pass"
         },
         {
-          "name": "script-context-module-unquoted",
+          "name": "attribute-boolean",
           "status": "pass"
         },
         {
-          "name": "whitespace-after-script-tag",
+          "name": "hydratable-clobbering",
           "status": "pass"
         },
         {
-          "name": "each-block-destructured",
+          "name": "bindings-readonly",
           "status": "pass"
         },
         {
-          "name": "attribute-escaped",
+          "name": "head-title",
           "status": "pass"
         },
         {
-          "name": "each-block-else",
+          "name": "css-empty",
           "status": "pass"
         },
         {
-          "name": "element-with-attribute",
+          "name": "bindings-empty-string",
           "status": "pass"
         },
         {
-          "name": "javascript-comments",
-          "status": "skip",
-          "skip_reason": "Known incompatibility with OXC parser"
-        },
-        {
-          "name": "if-block-else",
+          "name": "option-scoped-class",
           "status": "pass"
         },
         {
-          "name": "attribute-style-directive-modifiers",
+          "name": "css-injected-options-minify",
           "status": "pass"
         },
         {
-          "name": "nbsp",
+          "name": "dynamic-text",
           "status": "pass"
         },
         {
-          "name": "element-with-text",
+          "name": "spread-attributes-boolean",
           "status": "pass"
         },
         {
-          "name": "generic-snippets",
+          "name": "head-html-and-component",
           "status": "pass"
         },
         {
-          "name": "implicitly-closed-li-block",
+          "name": "spread-attributes-white-space",
+          "status": "pass"
+        },
+        {
+          "name": "falsy-dynamic-component",
           "status": "pass"
         },
         {
@@ -12578,55 +12035,87 @@
           "status": "pass"
         },
         {
+          "name": "bindings-group",
+          "status": "pass"
+        },
+        {
+          "name": "hydratable-unserializable",
+          "status": "pass"
+        },
+        {
+          "name": "invalid-nested-svelte-element",
+          "status": "pass"
+        },
+        {
+          "name": "head-component-props-id",
+          "status": "pass"
+        },
+        {
           "name": "comment",
           "status": "pass"
         },
         {
-          "name": "loose-invalid-expression",
+          "name": "select-value-bind-store",
           "status": "pass"
         },
         {
-          "name": "event-handler",
+          "name": "component-data-empty",
           "status": "pass"
         },
         {
-          "name": "no-error-if-before-closing",
+          "name": "text-area-bind",
           "status": "pass"
         },
         {
-          "name": "await-catch",
+          "name": "computed",
           "status": "pass"
         },
         {
-          "name": "animation",
+          "name": "component-yield",
           "status": "pass"
         },
         {
-          "name": "attribute-containing-solidus",
+          "name": "context-not-set-throws",
           "status": "pass"
         },
         {
-          "name": "script-comment-only",
+          "name": "head-multiple-title",
           "status": "pass"
         },
         {
-          "name": "attribute-style-directive-string",
+          "name": "component-with-different-extension",
           "status": "pass"
         },
         {
-          "name": "spread",
+          "name": "component",
           "status": "pass"
         },
         {
-          "name": "unusual-identifier",
+          "name": "attribute-escape-quotes-spread-2",
           "status": "pass"
         },
         {
-          "name": "action-with-call",
+          "name": "head-svelte-components-raw-content",
           "status": "pass"
         },
         {
-          "name": "self-closing-element",
+          "name": "select-value-implicit-value",
+          "status": "pass"
+        },
+        {
+          "name": "destructure-state-iterable",
+          "status": "pass"
+        },
+        {
+          "name": "static-text",
+          "status": "pass"
+        },
+        {
+          "name": "component-refs-and-attributes",
+          "status": "pass"
+        },
+        {
+          "name": "attribute-escaped-quotes",
           "status": "pass"
         },
         {
@@ -12634,31 +12123,27 @@
           "status": "pass"
         },
         {
-          "name": "binding",
+          "name": "import-non-component",
           "status": "pass"
         },
         {
-          "name": "script",
+          "name": "head-raw-elements-content",
           "status": "pass"
         },
         {
-          "name": "loose-unclosed-tag",
+          "name": "component-binding",
           "status": "pass"
         },
         {
-          "name": "whitespace-normal",
+          "name": "default-data",
           "status": "pass"
         },
         {
-          "name": "loose-unclosed-block",
+          "name": "attribute-spread-with-null",
           "status": "pass"
         },
         {
-          "name": "attribute-empty",
-          "status": "pass"
-        },
-        {
-          "name": "elements",
+          "name": "constructor-prefer-passed-context",
           "status": "pass"
         },
         {
@@ -12666,27 +12151,15 @@
           "status": "pass"
         },
         {
-          "name": "action",
-          "status": "pass"
-        },
-        {
-          "name": "comment-with-ignores",
-          "status": "pass"
-        },
-        {
-          "name": "self-reference",
-          "status": "pass"
-        },
-        {
           "name": "attribute-dynamic",
           "status": "pass"
         },
         {
-          "name": "attribute-dynamic-boolean",
+          "name": "select-value",
           "status": "pass"
         },
         {
-          "name": "attribute-multiple",
+          "name": "dynamic-text-escaped",
           "status": "pass"
         },
         {
@@ -12694,23 +12167,15 @@
           "status": "pass"
         },
         {
-          "name": "slotted-element",
+          "name": "if-block-true",
           "status": "pass"
         },
         {
-          "name": "transition-intro",
+          "name": "component-refs",
           "status": "pass"
         },
         {
-          "name": "textarea-end-tag",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-style-directive",
-          "status": "pass"
-        },
-        {
-          "name": "refs",
+          "name": "attribute-escaped-quotes-spread",
           "status": "pass"
         },
         {
@@ -12718,11 +12183,15 @@
           "status": "pass"
         },
         {
-          "name": "if-block",
+          "name": "empty-elements-closed",
           "status": "pass"
         },
         {
-          "name": "implicitly-closed-li",
+          "name": "static-div",
+          "status": "pass"
+        },
+        {
+          "name": "component-data-dynamic",
           "status": "pass"
         },
         {
@@ -12730,243 +12199,810 @@
           "status": "pass"
         },
         {
-          "name": "whitespace-leading-trailing",
+          "name": "destructure-state",
           "status": "pass"
         },
         {
-          "name": "element-with-attribute-empty-string",
+          "name": "head-meta-hydrate-duplicate",
           "status": "pass"
         },
         {
-          "name": "loose-invalid-block",
+          "name": "sanitize-name",
           "status": "pass"
         },
         {
-          "name": "element-with-mustache",
+          "name": "bindings",
           "status": "pass"
         },
         {
-          "name": "attribute-style",
+          "name": "reactivity-window",
           "status": "pass"
         },
         {
-          "name": "attribute-unquoted",
+          "name": "attribute-template-literal-sanitization",
           "status": "pass"
         },
         {
-          "name": "binding-shorthand",
+          "name": "css-injected-options",
           "status": "pass"
         },
         {
-          "name": "attribute-static-boolean",
+          "name": "spread-attributes",
           "status": "pass"
         },
         {
-          "name": "script-attribute-with-curly-braces",
+          "name": "attribute-spread-hidden",
           "status": "pass"
         },
         {
-          "name": "loose-unclosed-open-tag",
+          "name": "select-value-scoped-class",
           "status": "pass"
         },
         {
-          "name": "action-with-identifier",
+          "name": "component-binding-renamed",
           "status": "pass"
         },
         {
-          "name": "convert-entities-in-element",
+          "name": "if-block-false",
           "status": "pass"
         },
         {
-          "name": "attribute-class-directive",
+          "name": "head-no-duplicates-with-binding",
           "status": "pass"
         },
         {
-          "name": "space-between-mustaches",
+          "name": "helpers",
           "status": "pass"
         },
         {
-          "name": "component-dynamic",
+          "name": "select-value-component",
           "status": "pass"
         },
         {
-          "name": "await-then-catch",
+          "name": "default-data-override",
           "status": "pass"
         },
         {
-          "name": "style-inside-head",
+          "name": "css-injected-options-nested",
           "status": "pass"
         },
         {
-          "name": "attribute-curly-bracket",
+          "name": "comment-preserve",
           "status": "pass"
         },
         {
-          "name": "action-with-literal",
+          "name": "triple",
           "status": "pass"
         },
         {
-          "name": "each-block-indexed",
+          "name": "entities",
           "status": "pass"
         },
         {
-          "name": "if-block-elseif",
+          "name": "legacy-imports",
           "status": "pass"
         },
         {
-          "name": "transition-intro-no-params",
-          "status": "pass"
-        },
-        {
-          "name": "whitespace-after-style-tag",
-          "status": "pass"
-        },
-        {
-          "name": "each-block-keyed",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-with-whitespace",
-          "status": "pass"
-        },
-        {
-          "name": "attribute-shorthand",
+          "name": "store-init-props",
           "status": "pass"
         }
       ]
     },
     {
-      "id": "runtime-browser",
-      "name": "Runtime Browser",
-      "total": 31,
-      "passed": 31,
+      "id": "sourcemaps",
+      "name": "Sourcemaps",
+      "total": 0,
+      "passed": 0,
       "failed": 0,
       "skipped": 0,
-      "percentage": 100,
+      "percentage": 0,
+      "tests": []
+    },
+    {
+      "id": "preprocess",
+      "name": "Preprocess",
+      "total": 19,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 19,
+      "percentage": 0,
       "tests": [
         {
-          "name": "binding-width-height-initialize",
-          "status": "pass"
+          "name": "comments",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
         },
         {
-          "name": "component-css-custom-properties",
-          "status": "pass"
+          "name": "script-self-closing",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
         },
         {
-          "name": "head-scripts",
-          "status": "pass"
+          "name": "style-attributes-modified",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
         },
         {
-          "name": "svelte-self-css-custom-properties-dynamic",
-          "status": "pass"
+          "name": "style-self-closing",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
         },
         {
-          "name": "component-slot-binding-dimensions",
-          "status": "pass"
+          "name": "script-multiple",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
         },
         {
-          "name": "component-css-custom-properties-dynamic",
-          "status": "pass"
+          "name": "ignores-null",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
         },
         {
-          "name": "hydrate-large-text-node",
-          "status": "pass"
+          "name": "attributes-with-equals",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
         },
         {
-          "name": "inline-style-directive-update-with-spread",
-          "status": "pass"
+          "name": "dependencies",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
         },
         {
-          "name": "inline-style-directive-important",
-          "status": "pass"
+          "name": "style",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
         },
         {
-          "name": "component-css-custom-properties-dynamic-svg",
-          "status": "pass"
+          "name": "attributes-with-closing-tag",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
         },
         {
-          "name": "svelte-self-css-custom-properties",
-          "status": "pass"
+          "name": "script",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
         },
         {
-          "name": "html-tag-script",
-          "status": "pass"
+          "name": "markup",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
         },
         {
-          "name": "bind-playbackrate",
-          "status": "pass"
+          "name": "style-attributes",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
         },
         {
-          "name": "binding-width-height-this-timing",
-          "status": "pass"
+          "name": "style-attributes-modified-longer",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
         },
         {
-          "name": "browser-events-ending-with-capture",
-          "status": "pass"
+          "name": "style-async",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
         },
         {
-          "name": "svelte-component-css-custom-properties2",
-          "status": "pass"
+          "name": "partial-names",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
         },
         {
-          "name": "component-event-handler-contenteditable-false",
-          "status": "pass"
+          "name": "filename",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
         },
         {
-          "name": "fine-grained-hydration-clean-attr",
-          "status": "pass"
+          "name": "empty-sourcemap",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
         },
         {
-          "name": "svelte-self-css-custom-properties2",
-          "status": "pass"
+          "name": "multiple-preprocessors",
+          "status": "skip",
+          "skip_reason": "Preprocess API not implemented"
+        }
+      ]
+    },
+    {
+      "id": "print",
+      "name": "Print",
+      "total": 40,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 40,
+      "percentage": 0,
+      "tests": [
+        {
+          "name": "style-directive",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
         },
         {
-          "name": "inline-style-directive-precedence",
-          "status": "pass"
+          "name": "svelte-window",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
         },
         {
-          "name": "css-props-dynamic-component",
-          "status": "pass"
+          "name": "svelte-self",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
         },
         {
-          "name": "bind-muted",
-          "status": "pass"
+          "name": "html-document",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
         },
         {
-          "name": "html-tag-script-2",
-          "status": "pass"
+          "name": "attribute",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
         },
         {
-          "name": "mount-in-iframe",
-          "status": "pass"
+          "name": "svelte-element",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
         },
         {
-          "name": "head-script",
-          "status": "pass"
+          "name": "await-block",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
         },
         {
-          "name": "svelte-component-css-custom-properties",
-          "status": "pass"
+          "name": "key-block",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
         },
         {
-          "name": "svelte-component-css-custom-properties-dynamic",
-          "status": "pass"
+          "name": "svelte-head",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
         },
         {
-          "name": "sole-script-tag",
-          "status": "pass"
+          "name": "spread-attribute",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
         },
         {
-          "name": "bind-volume",
-          "status": "pass"
+          "name": "comment",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
         },
         {
-          "name": "binding-files",
-          "status": "pass"
+          "name": "block-element-separation",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
         },
         {
-          "name": "dynamic-element-custom-element",
-          "status": "pass"
+          "name": "svelte-fragment",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "slot-element",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "const-tag",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "use-directive",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "svelte-options",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "component",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "regular-element",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "style",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "expression-tag",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "class-directive",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "script",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "svelte-boundary",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "snippet-block",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "let-directive",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "transition-directive",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "formatting",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "svelte-document",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "render-tag",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "each-block",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "if-block",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "svelte-component",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "bind-directive",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "on-directive",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "text",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "html-tag",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "attach-tag",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "animate-directive",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "block",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        }
+      ]
+    },
+    {
+      "id": "migrate",
+      "name": "Migrate",
+      "total": 76,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 76,
+      "percentage": 0,
+      "tests": [
+        {
+          "name": "props-interface",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "import-type-$-prefix",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "impossible-migrate-with-errors",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "props-and-labeled",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "remove-blocks-whitespace",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "slot-usages",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "svelte-self-skip-filename",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "self-closing-named-slot",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "svelte-self",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "slots-multiple",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "unused-beforeUpdate-afterUpdate-extra-imports",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "impossible-migrate-$props-props-var-1",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "derivations",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "props-rest-props",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "reactive-statements-reorder-1",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "jsdoc-with-comments",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "svelte-element",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "slot-non-identifier",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "state-ts",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "named-slots",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "each-block-const",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "$$slots-used-as-variable",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "slot-use_ts",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "props",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "accessors",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "event-handlers-with-alias",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "impossible-migrate-beforeUpdate-afterUpdate",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "slots-with-$$props",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "slot-use_ts-2",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "state-no-initial",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "impossible-migrate-$state-state-var-2",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "impossible-migrate-$bindable-bindable-var-1",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "impossible-migrate-$derived-derived-var-4",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "impossible-migrate-$derived-derived-var-3",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "not-blank-css-if-error",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "props-ts",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "reactive-statements-reorder-not-deleting-additions",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "impossible-migrate-$state-state-var-3",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "$$slots-used-as-variable-$$props",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "impossible-migrate-prop-and-$$props",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "slot-use_ts-3",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "slot-dont-mess-with-attributes",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "impossible-migrate-$derived-derived-var-2",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "props-export-alias",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "effects-with-alias-run",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "single-assignment-labeled",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "shadowed-forwarded-slot",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "props-rest-props-ts",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "props-rest-props-jsdoc",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "svelte-self-name-conflict",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "unused-beforeUpdate-afterUpdate",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "state-and-derivations-sequence",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "not-prepend-props-to-export-let",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "reactive-statements-reorder-with-comments",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "svelte-component",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "reactive-statements-inner-block",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "reactive-statements-reorder-2",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "impossible-migrate-slot-non-identifier",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "slot-shadow-props",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "impossible-migrate-slot-change-name",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "slots-custom-element",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "is-not-where-has",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "self-closing-elements",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "export-props-multiple-declarations",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "impossible-migrate-prop-non-identifier",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "effects",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "css-ignore",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "slots",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "reassigned-deriveds",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "impossible-migrate-$state-state-var-1",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "svelte-ignore",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "labeled-statement-reassign-state",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "impossible-migrate-$derived-derived-var-1",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "event-handlers",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "slots-below-imports",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
+        },
+        {
+          "name": "script-context-module",
+          "status": "skip",
+          "skip_reason": "Migrate API not implemented"
         }
       ]
     }
