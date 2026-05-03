@@ -3004,6 +3004,20 @@ pub fn walk_js_expression_node(
                 }
 
                 metadata.dependencies.insert(binding_idx);
+
+                // Mirror `Identifier.js` L162-191: a `{@const}` binding cannot
+                // be referenced from inside a named snippet declared at the
+                // same level when `experimental.async` is on. The JS-side
+                // identifier visitor performs this check for script
+                // identifiers; template expression tags walk through here
+                // and never hit it, so re-run the check.
+                if binding.kind == BindingKind::Template && context.analysis.experimental_async {
+                    super::super::identifier::check_const_tag_snippet_reference_public(
+                        name.as_str(),
+                        binding_idx,
+                        context,
+                    )?;
+                }
             }
         }
         JsNode::MemberExpression {
