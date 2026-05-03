@@ -76,10 +76,10 @@ pub fn visit(slot: &mut SlotElement, context: &mut VisitorContext) -> Result<(),
     // Visit attribute expressions to register template references
     // (e.g., <slot dummy={dummy}> needs `dummy` tracked as template reference)
     // This corresponds to context.next() in the official SlotElement.js visitor
-    for attr in &slot.attributes {
+    for attr in &mut slot.attributes {
         match attr {
             Attribute::Attribute(a) => {
-                super::attribute::visit_attribute_value_expressions(&a.value, context)?;
+                super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
             }
             Attribute::SpreadAttribute(spread) => {
                 super::script::walk_expression(&spread.expression, context)?;
