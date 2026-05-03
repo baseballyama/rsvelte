@@ -5435,7 +5435,6 @@ fn ends_with_css_hex_escape(text: &str) -> bool {
             i += 1; // skip backslash
             if chars[i].is_ascii_hexdigit() {
                 // Hex escape: consume up to 6 hex digits
-                let start = i;
                 let mut hex_count = 0;
                 while i < len && hex_count < 6 && chars[i].is_ascii_hexdigit() {
                     i += 1;
@@ -5450,7 +5449,6 @@ fn ends_with_css_hex_escape(text: &str) -> bool {
                     i += 1;
                 }
                 // Otherwise the escape is fully terminated, continue
-                let _ = start; // suppress unused warning
             } else {
                 // Single-char escape (e.g., \. or \@) - skip the escaped char
                 i += 1;
