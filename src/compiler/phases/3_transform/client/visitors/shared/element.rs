@@ -84,11 +84,12 @@ where
             let has_reactive_state =
                 super::utils::expression_has_reactive_state(&expr_tag.expression, context);
 
-            // In the official Svelte compiler, the CallExpression analyze visitor sets
-            // has_state = true when there are non-pure function calls (not just reactive state).
-            // This ensures expressions with calls go into template_effect (update) rather than init.
-            // See: svelte/src/compiler/phases/2-analyze/visitors/CallExpression.js
-            let has_call = super::utils::expression_has_call(&expr_tag.expression, context);
+            // Phase 2's ExpressionTag visitor sets `has_call` (and `has_state`)
+            // on `expr_tag.metadata.expression` after running the same
+            // non-pure-call check the official compiler does. Read the cached
+            // result instead of re-walking the expression.
+            // See: 2-analyze/visitors/CallExpression.js
+            let has_call = expr_tag.metadata.expression.has_call();
 
             // Apply transforms via build_expression (handles props: x -> x())
             let transformed = build_expression(context, &expression, &metadata);
