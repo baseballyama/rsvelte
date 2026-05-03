@@ -329,113 +329,28 @@ fn extract_expression_from_tag(expr_tag: &ExpressionTag) -> JsExpr {
 
 /// Extract metadata from an ExpressionTag.
 ///
-/// Walks the JSON AST to determine has_call and has_member_expression flags.
+/// Phase 2's `ExpressionTag` visitor (`walk_js_expression_node`) already
+/// populates `expr_tag.metadata.expression` with `has_call`, `has_await`,
+/// `has_member_expression`, `has_assignment`, dependencies, and
+/// references. Convert that template-level metadata into the Phase 3
+/// shape via the existing `from_template_metadata` bit-copy and reset
+/// `has_state`/`dynamic` to match the previous behaviour — the caller
+/// recomputes `has_state` via `expression_has_reactive_state(...)` so
+/// that transforms registered later in the pipeline are accounted for.
 fn extract_metadata_from_tag(expr_tag: &ExpressionTag) -> ExpressionMetadata {
-    let val = expr_tag.expression.as_json();
-    // Single-pass extraction of all metadata flags from the AST.
-    // Replaces 4+ separate walks (ast_contains_node_type * 4 + expression_has_await)
-    // with one combined walk.
-    let mut has_call = false;
-    let mut has_member = false;
-    let mut has_assignment = false;
-    let mut has_await = false;
-
-    if !is_literal_value(val) {
-        ast_extract_metadata_flags(
-            val,
-            &mut has_call,
-            &mut has_member,
-            &mut has_assignment,
-            &mut has_await,
-        );
-    }
-
-    let mut metadata = ExpressionMetadata::default();
-    metadata.set_has_call(has_call);
-    metadata.set_has_await(has_await);
-    // has_state is set by the caller using expression_has_reactive_state
+    let mut metadata = ExpressionMetadata::from_template_metadata(&expr_tag.metadata.expression);
     metadata.set_has_state(false);
-    metadata.set_has_member_expression(has_member);
-    metadata.set_has_assignment(has_assignment);
     metadata.set_dynamic(false);
-    // blockers defaults to empty Vec
     metadata
-}
-
-/// Single-pass AST walk to extract metadata flags (has_call, has_member, has_assignment, has_await).
-///
-/// Replaces multiple calls to `ast_contains_node_type` + `expression_has_await` with
-/// a single recursive walk. Skips function bodies (matching Phase 2 behavior).
-/// Short-circuits once all flags are set.
-fn ast_extract_metadata_flags(
-    val: &serde_json::Value,
-    has_call: &mut bool,
-    has_member: &mut bool,
-    has_assignment: &mut bool,
-    has_await: &mut bool,
-) {
-    // Short-circuit if all flags already true
-    if *has_call && *has_member && *has_assignment && *has_await {
-        return;
-    }
-
-    match val {
-        serde_json::Value::Object(obj) => {
-            let this_type = obj.get("type").and_then(|t| t.as_str());
-
-            // Check each flag
-            if let Some(t) = this_type {
-                if !*has_call && t == "CallExpression" {
-                    *has_call = true;
-                }
-                if !*has_member && t == "MemberExpression" {
-                    *has_member = true;
-                }
-                if !*has_assignment && (t == "AssignmentExpression" || t == "UpdateExpression") {
-                    *has_assignment = true;
-                }
-                if !*has_await && t == "AwaitExpression" {
-                    *has_await = true;
-                }
-
-                // Short-circuit after checking this node
-                if *has_call && *has_member && *has_assignment && *has_await {
-                    return;
-                }
-
-                // Do NOT recurse into function bodies (matches Phase 2 behavior)
-                if matches!(
-                    t,
-                    "ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration"
-                ) {
-                    return;
-                }
-            }
-
-            // Recurse into all fields
-            for v in obj.values() {
-                ast_extract_metadata_flags(v, has_call, has_member, has_assignment, has_await);
-                if *has_call && *has_member && *has_assignment && *has_await {
-                    return;
-                }
-            }
-        }
-        serde_json::Value::Array(arr) => {
-            for v in arr {
-                ast_extract_metadata_flags(v, has_call, has_member, has_assignment, has_await);
-                if *has_call && *has_member && *has_assignment && *has_await {
-                    return;
-                }
-            }
-        }
-        _ => {}
-    }
 }
 
 /// Check if a JSON value represents a literal (non-reactive) value.
 ///
-/// Literals include: numbers, strings, booleans, null, undefined
-/// These never have state and don't need reactive wrappers.
+/// Literals include: numbers, strings, booleans, null, undefined.
+/// Only used by the test module now that `extract_metadata_from_tag`
+/// reads the cached Phase 2 metadata directly; kept around because the
+/// tests cover what counts as "literal" for snapshot stability.
+#[cfg(test)]
 fn is_literal_value(val: &serde_json::Value) -> bool {
     match val {
         serde_json::Value::Null => true,
