@@ -326,28 +326,94 @@ fn extract_expression_from_tag(expr_tag: &ExpressionTag) -> JsExpr {
 
 /// Extract metadata from an ExpressionTag.
 ///
-/// Phase 2's `ExpressionTag` visitor populates `expr_tag.metadata.expression`
-/// with `has_await`, `has_member_expression`, `has_assignment`, dependencies
-/// and references — copy those across via `from_template_metadata`.
+/// Compute Phase-3 metadata flags by walking the expression's JSON.
 ///
-/// `has_call` is recomputed from the JSON because Phase 2's
-/// `walk_js_expression_node` follows the official compiler and only sets
-/// `has_call` for *non-pure* calls (callee binds to a local) or calls that
-/// touch dependencies. Several Phase 3 consumers of this metadata
-/// (attribute memoisation, etc.) historically expect `has_call` to mean
-/// "any `CallExpression` in the tree" so they wrap things like
-/// `class={fn()}` in `$.derived(...)`. Until those consumers are migrated
-/// to the narrower official semantics, we preserve the broad check here to
-/// avoid regressing 22+ runtime fixtures that depend on it.
+/// `expr_tag.metadata.expression` (set by Phase 2) is **not** reliable
+/// for the ExpressionTags that live inside attribute / style-directive
+/// `AttributeValue::Sequence` parts, because the parent visitors only
+/// walk the inner expression with a scratch `ExpressionMetadata` and
+/// throw it away. Reading the field would yield all-default flags and
+/// silently break things like `<p style:font-size="{settings.fontSize}px">`,
+/// which then loses its `($.get(...), $.untrack(() => ...))` legacy-state
+/// untrack wrapper.
+///
+/// The cheaper "use the cached metadata" path is fine for the
+/// standalone-expression call sites (where the ExpressionTag visitor
+/// did run in Phase 2) but we don't currently distinguish those, so do
+/// the broad walk here for every consumer.
+///
+/// `has_state` / `dynamic` are reset; the caller recomputes `has_state`
+/// via `expression_has_reactive_state(...)` so transforms registered
+/// later in the pipeline are accounted for.
 fn extract_metadata_from_tag(expr_tag: &ExpressionTag) -> ExpressionMetadata {
-    let mut metadata = ExpressionMetadata::from_template_metadata(&expr_tag.metadata.expression);
-    metadata.set_has_state(false);
-    metadata.set_dynamic(false);
+    let mut metadata = ExpressionMetadata::default();
+    metadata.references = expr_tag.metadata.expression.references.clone();
+
     let val = expr_tag.expression.as_json();
     if !is_literal_value(val) {
-        metadata.set_has_call(json_contains_call(val));
+        let mut has_call = false;
+        let mut has_member = false;
+        let mut has_assignment = false;
+        let mut has_await = false;
+        walk_metadata_flags(
+            val,
+            &mut has_call,
+            &mut has_member,
+            &mut has_assignment,
+            &mut has_await,
+        );
+        metadata.set_has_call(has_call);
+        metadata.set_has_member_expression(has_member);
+        metadata.set_has_assignment(has_assignment);
+        metadata.set_has_await(has_await);
     }
     metadata
+}
+
+/// Single-pass walk that sets the four AST-derived flags on which
+/// Phase 3 memoisation / untrack wrapping decisions depend. Mirrors the
+/// pre-bd01699 `ast_extract_metadata_flags` helper.
+fn walk_metadata_flags(
+    val: &serde_json::Value,
+    has_call: &mut bool,
+    has_member: &mut bool,
+    has_assignment: &mut bool,
+    has_await: &mut bool,
+) {
+    if *has_call && *has_member && *has_assignment && *has_await {
+        return;
+    }
+    match val {
+        serde_json::Value::Object(obj) => {
+            if let Some(t) = obj.get("type").and_then(|t| t.as_str()) {
+                match t {
+                    "CallExpression" => *has_call = true,
+                    "MemberExpression" => *has_member = true,
+                    "AssignmentExpression" | "UpdateExpression" => *has_assignment = true,
+                    "AwaitExpression" => *has_await = true,
+                    "ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration" => {
+                        return;
+                    }
+                    _ => {}
+                }
+            }
+            for v in obj.values() {
+                walk_metadata_flags(v, has_call, has_member, has_assignment, has_await);
+                if *has_call && *has_member && *has_assignment && *has_await {
+                    return;
+                }
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for v in arr {
+                walk_metadata_flags(v, has_call, has_member, has_assignment, has_await);
+                if *has_call && *has_member && *has_assignment && *has_await {
+                    return;
+                }
+            }
+        }
+        _ => {}
+    }
 }
 
 /// True when the ExpressionTag contains a `CallExpression` somewhere in
