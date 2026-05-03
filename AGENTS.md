@@ -119,9 +119,9 @@ Source: `pnpm run compatibility-report` (generated 2026-05-04, Svelte commit `04
 | Print | 40/40 | |
 | Preprocess | 19/19 | Each fixture's `_config.js` JS preprocessor hand-ported in `tests/common/preprocess_fixtures.rs` |
 | Sourcemaps | 0/0 | No fixtures yet |
-| Migrate | 0/76 | Not implemented |
+| Migrate | 0/76 | **Out of scope** — rsvelte is a Svelte 5 compiler port, not a Svelte 4 → 5 migration tool |
 
-**Compatibility report total: 3096/3096 implemented passing (78 skipped, 0 failing) — every implemented category at 100%.**
+**Compatibility report total: 3096/3096 in-scope passing — every in-scope category at 100%. The 76 `migrate` fixtures are intentionally out of scope and do not count against the total.**
 
 ## Implementation Status
 
@@ -136,9 +136,12 @@ Source: `pnpm run compatibility-report` (generated 2026-05-04, Svelte commit `04
 **Print** - `src/compiler/print/` provides AST-to-source conversion (40/40 fixtures).
 **Preprocess** - `src/compiler/preprocess/` provides the markup/script/style preprocessor pipeline (19/19 fixtures). Each fixture's `_config.js` JS preprocessor is hand-ported into Rust closures in `tests/common/preprocess_fixtures.rs`.
 
+### Out of scope
+
+**Migrate** — Svelte 4 → 5 migrator. rsvelte is a port of the Svelte 5 compiler, not a migration tool, so the 76 `migrate` fixtures are intentionally not implemented and the category is reported as skipped (out of scope) rather than as an implementation gap. Do not start work on this without an explicit scope change.
+
 ### Not implemented
 
-**Migrate** - Svelte 4 → 5 migrator not started; 76 official fixtures skipped.
 **Sourcemaps** - No fixtures collected yet.
 
 ## Quick Reference
