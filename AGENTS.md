@@ -101,7 +101,7 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `pnpm run compatibility-report` (generated 2026-05-03, Svelte commit `04c0368aa8d8`). Re-run `pnpm run test-and-update` to refresh.
+Source: `pnpm run compatibility-report` (generated 2026-05-04, Svelte commit `04c0368aa8d8`). Re-run `pnpm run test-and-update` to refresh.
 
 | Suite | Pass/Total | Notes |
 |-------|------------|-------|
@@ -117,11 +117,11 @@ Source: `pnpm run compatibility-report` (generated 2026-05-03, Svelte commit `04
 | Runtime Runes | 865/865 | |
 | Runtime Browser | 31/31 | |
 | Print | 40/40 | |
+| Preprocess | 19/19 | Each fixture's `_config.js` JS preprocessor hand-ported in `tests/common/preprocess_fixtures.rs` |
 | Sourcemaps | 0/0 | No fixtures yet |
-| Preprocess | 0/19 | Not implemented |
 | Migrate | 0/76 | Not implemented |
 
-**Compatibility report total: 3077/3077 implemented passing (97 skipped, 0 failing) — every implemented category at 100%.**
+**Compatibility report total: 3096/3096 implemented passing (78 skipped, 0 failing) — every implemented category at 100%.**
 
 ## Implementation Status
 
@@ -134,10 +134,10 @@ Source: `pnpm run compatibility-report` (generated 2026-05-03, Svelte commit `04
 **Validator** - Warning/error detection including A11y
 **Compiler Errors** - Error detection patterns
 **Print** - `src/compiler/print/` provides AST-to-source conversion (40/40 fixtures).
+**Preprocess** - `src/compiler/preprocess/` provides the markup/script/style preprocessor pipeline (19/19 fixtures). Each fixture's `_config.js` JS preprocessor is hand-ported into Rust closures in `tests/common/preprocess_fixtures.rs`.
 
 ### Not implemented
 
-**Preprocess** - `src/compiler/preprocess/` has scaffolding only; 19 official fixtures still skipped.
 **Migrate** - Svelte 4 → 5 migrator not started; 76 official fixtures skipped.
 **Sourcemaps** - No fixtures collected yet.
 

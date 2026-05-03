@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-03T14:49:39.371962+00:00",
+  "generated_at": "2026-05-03T15:46:35.706331+00:00",
   "commit_sha": "04c0368aa8d8",
   "summary": {
     "total": 3174,
-    "passed": 3077,
+    "passed": 3096,
     "failed": 0,
-    "skipped": 97,
+    "skipped": 78,
     "percentage": 100
   },
   "categories": [
@@ -12302,105 +12302,86 @@
       "id": "preprocess",
       "name": "Preprocess",
       "total": 19,
-      "passed": 0,
+      "passed": 19,
       "failed": 0,
-      "skipped": 19,
-      "percentage": 0,
+      "skipped": 0,
+      "percentage": 100,
       "tests": [
         {
           "name": "comments",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         },
         {
           "name": "script-self-closing",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         },
         {
           "name": "style-attributes-modified",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         },
         {
           "name": "style-self-closing",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         },
         {
           "name": "script-multiple",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         },
         {
           "name": "ignores-null",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         },
         {
           "name": "attributes-with-equals",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         },
         {
           "name": "dependencies",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         },
         {
           "name": "style",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         },
         {
           "name": "attributes-with-closing-tag",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         },
         {
           "name": "script",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         },
         {
           "name": "markup",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         },
         {
           "name": "style-attributes",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         },
         {
           "name": "style-attributes-modified-longer",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         },
         {
           "name": "style-async",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         },
         {
           "name": "partial-names",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         },
         {
           "name": "filename",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         },
         {
           "name": "empty-sourcemap",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         },
         {
           "name": "multiple-preprocessors",
-          "status": "skip",
-          "skip_reason": "Preprocess API not implemented"
+          "status": "pass"
         }
       ]
     },
