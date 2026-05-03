@@ -84,10 +84,13 @@ where
             let has_reactive_state =
                 super::utils::expression_has_reactive_state(&expr_tag.expression, context);
 
-            // Phase 3 needs the broad "any CallExpression in the tree" check
-            // for memoisation decisions; Phase 2's cached has_call follows the
-            // narrower official semantics. See `expression_tag_has_call`.
-            let has_call = expression_tag_has_call(expr_tag);
+            // The Phase 2 cached `has_call` is the narrow "non-pure callee"
+            // flag (matches the official compiler). Component prop / dynamic
+            // CSS prop memoisation reads this through the closure passed to
+            // `build_attribute_value`, so feeding it the broad walk would
+            // wrap pure calls like `<Child prop={encodeURIComponent('x')}>`
+            // in `$.derived(...)` (regresses the `purity` snapshot fixture).
+            let has_call = expr_tag.metadata.expression.has_call();
 
             // Apply transforms via build_expression (handles props: x -> x())
             let transformed = build_expression(context, &expression, &metadata);
@@ -131,9 +134,10 @@ where
                     let has_reactive_state =
                         super::utils::expression_has_reactive_state(&expr_tag.expression, context);
 
-                    // Phase 3 needs the broad "any CallExpression in the tree"
-                    // check for memoisation decisions; see `expression_tag_has_call`.
-                    let has_call = expression_tag_has_call(expr_tag);
+                    // Use Phase 2's narrow has_call (matches the official
+                    // compiler) — see the matching comment in the
+                    // `AttributeValue::Expression` arm above for why.
+                    let has_call = expr_tag.metadata.expression.has_call();
 
                     // Apply transforms via build_expression (handles props: x -> x())
                     let transformed = build_expression(context, &expression, &metadata);
@@ -347,7 +351,6 @@ fn extract_expression_from_tag(expr_tag: &ExpressionTag) -> JsExpr {
 /// later in the pipeline are accounted for.
 fn extract_metadata_from_tag(expr_tag: &ExpressionTag) -> ExpressionMetadata {
     let mut metadata = ExpressionMetadata::default();
-    metadata.references = expr_tag.metadata.expression.references.clone();
 
     let val = expr_tag.expression.as_json();
     if !is_literal_value(val) {
