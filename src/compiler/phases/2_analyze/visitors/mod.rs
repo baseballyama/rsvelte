@@ -80,8 +80,6 @@ mod literal;
 mod member_expression;
 mod new_expression;
 mod property_definition;
-mod spread_element;
-mod tagged_template_expression;
 mod template_element;
 mod update_expression;
 mod variable_declarator;

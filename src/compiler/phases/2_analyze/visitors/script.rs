@@ -417,8 +417,21 @@ fn visit_children(
             }
             walk_body(node, context)?;
         }
-        "ReturnStatement" | "ThrowStatement" | "SpreadElement" | "UnaryExpression"
-        | "YieldExpression" | "RestElement" => {
+        "SpreadElement" => {
+            // `[...x]` is treated like `[...x.values()]` — spreading triggers
+            // the iterator protocol so it counts as both a call and a state
+            // read for blocker / async tracking.
+            // Corresponds to SpreadElement.js in the official compiler.
+            if let Some(expression) = context.current_expression() {
+                expression.set_has_call(true);
+                expression.set_has_state(true);
+            }
+            if let Some(argument) = node.get("argument") {
+                walk_js_node(argument, context)?;
+            }
+        }
+        "ReturnStatement" | "ThrowStatement" | "UnaryExpression" | "YieldExpression"
+        | "RestElement" => {
             // argument
             if let Some(argument) = node.get("argument") {
                 walk_js_node(argument, context)?;
@@ -499,6 +512,18 @@ fn visit_children(
             }
         }
         "TaggedTemplateExpression" => {
+            // `tag\`...\`` invokes `tag(strings, ...exprs)` — it counts as a
+            // call (and therefore reads state) unless the tag itself is a
+            // pure reference.
+            // Corresponds to TaggedTemplateExpression.js in the official compiler.
+            let tag_is_pure = node
+                .get("tag")
+                .map(|tag| super::shared::utils::is_pure(tag, context))
+                .unwrap_or(false);
+            if !tag_is_pure && let Some(expression) = context.current_expression() {
+                expression.set_has_call(true);
+                expression.set_has_state(true);
+            }
             // tag, quasi
             if let Some(tag) = node.get("tag") {
                 walk_js_node(tag, context)?;
@@ -730,10 +755,19 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
             Ok(())
         }
 
+        // SpreadElement: `[...x]` is treated like `[...x.values()]` — the
+        // spread itself is a call/state read for blocker tracking.
+        JsNode::SpreadElement { argument, .. } => {
+            if let Some(expression) = context.current_expression() {
+                expression.set_has_call(true);
+                expression.set_has_state(true);
+            }
+            walk_js_node_typed(arena.get_js_node(*argument), context)?;
+            Ok(())
+        }
+
         // Unary: argument (JsNodeId)
-        JsNode::UnaryExpression { argument, .. }
-        | JsNode::SpreadElement { argument, .. }
-        | JsNode::RestElement { argument, .. } => {
+        JsNode::UnaryExpression { argument, .. } | JsNode::RestElement { argument, .. } => {
             walk_js_node_typed(arena.get_js_node(*argument), context)?;
             Ok(())
         }
@@ -841,9 +875,18 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
             Ok(())
         }
 
-        // TaggedTemplateExpression: tag + quasi (JsNodeId)
+        // TaggedTemplateExpression: tag + quasi (JsNodeId).
+        // `tag\`...\`` invokes `tag(strings, ...exprs)` — counts as a call
+        // and state read unless the tag is a pure reference.
         JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
-            walk_js_node_typed(arena.get_js_node(*tag), context)?;
+            let tag_node = arena.get_js_node(*tag);
+            if !super::shared::utils::is_pure_node(tag_node, context)
+                && let Some(expression) = context.current_expression()
+            {
+                expression.set_has_call(true);
+                expression.set_has_state(true);
+            }
+            walk_js_node_typed(tag_node, context)?;
             walk_js_node_typed(arena.get_js_node(*quasi), context)?;
             Ok(())
         }
