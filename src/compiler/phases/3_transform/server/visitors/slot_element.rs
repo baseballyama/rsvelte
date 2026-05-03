@@ -119,7 +119,11 @@ impl<'a> ServerCodeGenerator<'a> {
                 if parts.len() == 1 {
                     match &parts[0] {
                         AttributeValuePart::Text(text) => {
-                            format!("\"{}\"", text.data.replace('"', "\\\""))
+                            // Escape backslashes first, then quotes — otherwise
+                            // a `\` in the source would pair with the `\"` we
+                            // insert and produce an unterminated string literal.
+                            let escaped = text.data.replace('\\', "\\\\").replace('"', "\\\"");
+                            format!("\"{}\"", escaped)
                         }
                         AttributeValuePart::ExpressionTag(expr_tag) => {
                             let start = expr_tag.expression.start().unwrap_or(0) as usize;
