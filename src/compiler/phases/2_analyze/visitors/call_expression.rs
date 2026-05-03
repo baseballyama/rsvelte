@@ -921,23 +921,13 @@ fn is_inspect_trace_valid_placement(context: &VisitorContext) -> bool {
         return false;
     }
 
-    // Check it's the first statement in the block
+    // Check it's the first statement in the block by comparing source positions:
+    // distinct AST nodes have distinct `start` offsets within a single parse.
     if let Some(body) = grandparent.get("body").and_then(|b| b.as_array())
         && let Some(first) = body.first()
     {
-        // Compare by checking if the types and positions match
-        // Since we can't directly compare Value pointers, we compare serialized forms
-        let first_str = serde_json::to_string(first).ok();
-        let parent_str = serde_json::to_string(parent).ok();
-
-        if first_str.is_some() && first_str == parent_str {
-            return true;
-        }
-
-        // Alternative: compare start positions
         let first_start = first.get("start").and_then(|s| s.as_u64());
         let parent_start = parent.get("start").and_then(|s| s.as_u64());
-
         return first_start.is_some() && first_start == parent_start;
     }
 
