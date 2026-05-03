@@ -1084,6 +1084,7 @@ impl Parser<'_> {
                     name: CompactString::from(""),
                     name_loc,
                     value,
+                    metadata: Default::default(),
                 })));
             }
 
@@ -1123,6 +1124,7 @@ impl Parser<'_> {
                 name: CompactString::from(name),
                 name_loc,
                 value,
+                metadata: Default::default(),
             })));
         }
 
@@ -1197,6 +1199,7 @@ impl Parser<'_> {
             name: name.clone(),
             name_loc,
             value,
+            metadata: Default::default(),
         })))
     }
 

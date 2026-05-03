@@ -570,6 +570,23 @@ impl serde::Serialize for Attribute {
     }
 }
 
+/// Metadata populated by Phase 2 analysis for `AttributeNode`.
+///
+/// Not serialised to snapshot output (the official compiler keeps these on a
+/// `metadata` sidecar that is also internal). Phase 3 transforms can read
+/// these flags to avoid re-walking the attribute value.
+#[derive(Debug, Clone, Default)]
+pub struct AttributeNodeMetadata {
+    /// True when the `class={...}` attribute value is a non-trivial JS
+    /// expression and so needs the runtime `$.clsx(...)` wrapper to flatten
+    /// arrays / objects of class names.
+    pub needs_clsx: bool,
+    /// True when an `on*` event attribute is on a regular HTML element and
+    /// the event name is delegated by the runtime (the parent `mount`/`hydrate`
+    /// helper installs a single shared listener for it).
+    pub delegated: bool,
+}
+
 /// A regular attribute: `name="value"` or `name={expression}`.
 #[derive(Debug, Clone, Deserialize)]
 pub struct AttributeNode {
@@ -579,6 +596,11 @@ pub struct AttributeNode {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
     pub value: AttributeValue,
+    /// Internal metadata. Always defaults on construction; populated during
+    /// Phase 2 analysis. Skipped during (de)serialisation so snapshot output
+    /// is unchanged.
+    #[serde(skip)]
+    pub metadata: AttributeNodeMetadata,
 }
 
 impl serde::Serialize for AttributeNode {

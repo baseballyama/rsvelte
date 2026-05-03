@@ -251,7 +251,7 @@ pub fn visit(
 
     // Analyze attribute expressions to detect needs_context, expression metadata, etc.
     // This is needed because attribute expressions may reference props, stores, etc.
-    for attr in &element.attributes {
+    for attr in &mut element.attributes {
         match attr {
             Attribute::Attribute(attr_node) => {
                 super::attribute::visit(attr_node, context)?;

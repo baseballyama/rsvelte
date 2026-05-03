@@ -858,6 +858,7 @@ fn synthesize_for_element_attrs(
                 raw: "".into(),
                 data: "".into(),
             })]),
+            metadata: Default::default(),
         }));
     }
 
@@ -874,6 +875,7 @@ fn synthesize_for_element_attrs(
                 raw: "".into(),
                 data: "".into(),
             })]),
+            metadata: Default::default(),
         }));
     }
 }

@@ -380,6 +380,7 @@ fn create_textarea_value_attribute(nodes: Vec<TemplateNode>) -> Attribute {
         name: "value".into(),
         name_loc: None,
         value: AttributeValue::Sequence(parts),
+        metadata: Default::default(),
     })
 }
 
@@ -1011,6 +1012,10 @@ pub fn visit(
                     {
                         context.emit_warning(warnings::attribute_quoted());
                     }
+                }
+                // Mutable re-borrow so the visitor can populate
+                // `attr_node.metadata` (needs_clsx / delegated).
+                if let Attribute::Attribute(attr_node) = &mut element.attributes[i] {
                     attribute::visit(attr_node, context)?;
                 }
             }
