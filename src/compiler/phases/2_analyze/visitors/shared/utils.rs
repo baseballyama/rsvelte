@@ -319,7 +319,7 @@ fn get_rune_from_json(node: &Value, scope: &Scope) -> Option<String> {
     let keypath = get_global_keypath(callee, scope)?;
 
     // Check if it's a valid rune
-    if !is_rune(&keypath) {
+    if !super::function::is_rune(&keypath) {
         return None;
     }
 
@@ -396,19 +396,6 @@ fn get_global_keypath(node: &Value, scope: &Scope) -> Option<String> {
     }
 
     Some(result)
-}
-
-/// Check if a string is a valid rune name.
-///
-/// # Arguments
-///
-/// * `name` - The name to check
-///
-/// # Returns
-///
-/// `true` if the name is a valid rune
-fn is_rune(name: &str) -> bool {
-    super::function::is_rune(name)
 }
 
 /// Validate an assignment or update expression.
@@ -2436,7 +2423,7 @@ pub fn get_rune_from_node(
         JsNode::CallExpression { callee, .. } => {
             let callee_node = arena.get_js_node(*callee);
             let keypath = get_global_keypath_node(callee_node, scope, arena)?;
-            if !is_rune(&keypath) {
+            if !super::function::is_rune(&keypath) {
                 return None;
             }
             Some(keypath)

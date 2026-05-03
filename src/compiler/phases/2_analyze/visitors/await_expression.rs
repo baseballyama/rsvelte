@@ -141,35 +141,6 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
     Ok(())
 }
 
-/// Check if an expression is in a reactive context by walking up the JS AST path.
-fn is_reactive_expression_js(js_path: &[JsPathEntry], in_derived: bool) -> bool {
-    if in_derived {
-        return true;
-    }
-
-    for entry in js_path.iter().rev() {
-        let parent = entry.as_value();
-        let parent_type = parent.get("type").and_then(|t| t.as_str());
-
-        // Function boundaries stop the search
-        match parent_type {
-            Some("ArrowFunctionExpression")
-            | Some("FunctionExpression")
-            | Some("FunctionDeclaration") => {
-                return false;
-            }
-            _ => {}
-        }
-
-        // Check if parent has metadata (indicating reactive template context)
-        if parent.get("metadata").is_some() {
-            return true;
-        }
-    }
-
-    false
-}
-
 /// Check if an expression is the last evaluated expression in its reactive context.
 ///
 /// Corresponds to `is_last_evaluated_expression` in AwaitExpression.js.

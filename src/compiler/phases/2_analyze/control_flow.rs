@@ -6,7 +6,7 @@
 //! The algorithm is a faithful port of Svelte's `get_possible_element_siblings()` in css-prune.js.
 
 use super::types::{DomStructure, SiblingCertainty};
-use crate::ast::template::{Attribute, Fragment, IfBlock, TemplateNode};
+use crate::ast::template::{Attribute, Fragment, TemplateNode};
 use rustc_hash::FxHashMap;
 
 /// Node existence values, mirroring Svelte's NODE_DEFINITELY_EXISTS / NODE_PROBABLY_EXISTS.
@@ -556,22 +556,6 @@ fn is_block(node: &TemplateNode) -> bool {
     )
 }
 
-/// Check if an if block is "exhaustive" (always renders something).
-#[allow(dead_code)]
-fn is_if_block_exhaustive(block: &IfBlock) -> bool {
-    match &block.alternate {
-        None => false,
-        Some(alt_fragment) => {
-            if alt_fragment.nodes.len() == 1
-                && let Some(TemplateNode::IfBlock(inner_if)) = alt_fragment.nodes.first()
-            {
-                return is_if_block_exhaustive(inner_if);
-            }
-            !alt_fragment.nodes.is_empty()
-        }
-    }
-}
-
 /// Check if any entry in the map has NODE_DEFINITELY_EXISTS.
 fn has_definite_elements(map: &FxHashMap<usize, u8>) -> bool {
     map.values().any(|&v| v == NODE_DEFINITELY_EXISTS)
@@ -592,10 +576,7 @@ fn add_to_map_entry(map: &mut FxHashMap<usize, u8>, key: usize, value: u8) {
 
 /// Returns the higher existence value (DEFINITELY > PROBABLY > 0).
 fn higher_existence(a: u8, b: u8) -> u8 {
-    if b == 0 {
-        return a;
-    }
-    if a > b { a } else { b }
+    a.max(b)
 }
 
 /// Mark elements that are adjacent to opaque boundaries (slots, render tags, components).

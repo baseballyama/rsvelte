@@ -24,18 +24,6 @@ pub fn decode_map(processed: &Processed) -> Option<SimpleDecodedMap> {
     }
 }
 
-/// Decode a source map from various input formats.
-///
-/// This is a more general version that handles:
-/// - JSON strings
-/// - SimpleDecodedMap objects
-pub fn decode_sourcemap_input(input: &SourceMapInput) -> Option<SimpleDecodedMap> {
-    match input {
-        SourceMapInput::Json(json_str) => serde_json::from_str(json_str).ok(),
-        SourceMapInput::Decoded(decoded) => Some(decoded.clone()),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

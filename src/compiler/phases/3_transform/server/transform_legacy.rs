@@ -187,11 +187,18 @@ pub(crate) fn transform_export_let_declarations(script: &str) -> String {
                 if export_let_declaration_seems_complete(&full_declaration) {
                     // Also peek to see if the next line would be a continuation
                     // (e.g., starts with '.' for method chains, or '&&', '||', etc.)
+                    //
+                    // Check for two-character operators before the corresponding
+                    // single-character ones so that `**`/`||`/`&&`/`>>`/`<<` are
+                    // not first matched against `*`/`|`/`&`/`>`/`<`.
                     let next_continues = lines.peek().is_some_and(|next| {
                         let next_trimmed = next.trim();
-                        next_trimmed.starts_with('.')
-                            || next_trimmed.starts_with("&&")
+                        next_trimmed.starts_with("&&")
                             || next_trimmed.starts_with("||")
+                            || next_trimmed.starts_with("**")
+                            || next_trimmed.starts_with(">>")
+                            || next_trimmed.starts_with("<<")
+                            || next_trimmed.starts_with('.')
                             || next_trimmed.starts_with('?')
                             || next_trimmed.starts_with(':')
                             || next_trimmed.starts_with('+')
