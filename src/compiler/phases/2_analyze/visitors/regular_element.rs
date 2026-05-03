@@ -1099,16 +1099,9 @@ pub fn visit(
     // Increment element depth for child analysis
     context.element_depth += 1;
 
-    // Push this element to the path before visiting children
-    // This allows child elements to check their ancestors for a11y rules
-    // SAFETY: We need to convert &mut RegularElement to &TemplateNode temporarily.
-    // This is safe because:
-    // 1. We only store a reference in the path vector
-    // 2. We immediately pop it after analyzing children
-    // 3. The element is not mutated while the reference is in the path
-    let element_ref: &TemplateNode =
-        unsafe { &*(element as *const RegularElement as *const TemplateNode) };
-    context.path.push(element_ref);
+    // The current `TemplateNode::RegularElement` is already on `context.path`
+    // (pushed by `visit_node` before dispatching here), so we don't push
+    // again — doing so would double-count the element for ancestor checks.
 
     // Push this element to element_ancestors for node_invalid_placement validation
     context.element_ancestors.push(element.name.to_string());
@@ -1252,8 +1245,7 @@ pub fn visit(
     context.element_ancestors.pop();
     context.block_depth_at_element.pop();
 
-    // Pop this element from the path
-    context.path.pop();
+    // Note: `context.path` is popped by `visit_node` after dispatch.
 
     // Decrement element depth
     context.element_depth -= 1;

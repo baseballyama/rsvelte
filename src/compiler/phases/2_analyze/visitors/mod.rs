@@ -627,11 +627,28 @@ pub fn analyze_template(
 }
 
 /// Visit a template node and dispatch to the appropriate visitor.
+///
+/// Pushes the node onto `context.path` before dispatching, so that the inner
+/// visitors and any helpers they call (e.g. `attribute::visit` reading
+/// `context.path.last()` for delegated-event detection) see the correct
+/// `TemplateNode` enum as their immediate parent. Without this, paths read
+/// garbage discriminants from inner-struct casts and matches like
+/// `Some(TemplateNode::RegularElement(_))` silently never fire.
+///
+/// SAFETY: We push a `&TemplateNode` raw-pointer-cast from `node` (which is
+/// `&mut TemplateNode`) and immediately pop it after the inner visitor
+/// returns. The inner visitor receives `&mut InnerStruct` (e.g.
+/// `&mut RegularElement`), which aliases the same memory for the duration of
+/// its run. None of the path readers traverse the alias's mutated subtrees,
+/// so the only observable property they rely on — the enum discriminant —
+/// stays valid.
 pub fn visit_node(
     node: &mut TemplateNode,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
-    match node {
+    let node_ptr: *const TemplateNode = node as *const _;
+    context.path.push(unsafe { &*node_ptr });
+    let result = match node {
         TemplateNode::Text(text) => text::visit(text, context),
         TemplateNode::RegularElement(element) => regular_element::visit(element, context),
         TemplateNode::Component(component) => component::visit(component, context),
@@ -659,7 +676,9 @@ pub fn visit_node(
         TemplateNode::AttachTag(tag) => attach_tag::visit(tag, context),
         TemplateNode::SvelteOptions(options) => svelte_options::visit(options, context),
         TemplateNode::Comment(_) => Ok(()), // Comments don't need analysis
-    }
+    };
+    context.path.pop();
+    result
 }
 
 /// Build sibling relationships for CSS sibling combinator detection.
