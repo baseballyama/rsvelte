@@ -62,48 +62,57 @@ pub fn visit_component(
         }
     }
 
-    // TODO: Link this node to all snippets it could render
-    // node.metadata.snippets = new Set()
+    // Determine which snippets this component might render. `resolved` is
+    // true when we can list those candidates exactly; if false, the official
+    // compiler treats every locally-defined snippet as a possible render
+    // target, so Phase 3 must not rely on the set being a precise list.
     //
-    // 'resolved' means we know which snippets this component might render.
-    // If false, then node.metadata.snippets is populated with every locally
-    // defined snippet once analysis is complete.
+    // We currently only resolve the easy cases — an expression attribute
+    // whose value is a literal can never reference a snippet, so it doesn't
+    // taint resolution. Identifier / member / call expressions, spreads,
+    // and bind directives all leave us with no static knowledge of which
+    // snippet the component will receive, so they fall back to "unresolved".
     let mut resolved = true;
-
-    // Analyze attributes to determine which snippets might be rendered
     for attr in &component.attributes {
         match attr {
             Attribute::SpreadAttribute(_) | Attribute::BindDirective(_) => {
-                // Can't resolve snippets if there are spreads or bindings
                 resolved = false;
             }
             Attribute::Attribute(a) => {
-                // Check if this is an expression attribute
-                if matches!(
-                    &a.value,
-                    crate::ast::template::AttributeValue::Expression(_)
-                ) {
-                    // TODO: Analyze the expression to see if it references snippets
-                    // For now, we conservatively mark as unresolved
-                    // The full implementation would:
-                    // 1. Extract the expression
-                    // 2. If it's an Identifier, check if it resolves to a snippet
-                    // 3. If it's a Literal, it doesn't reference snippets
-                    // 4. Otherwise, mark as unresolved
+                if let crate::ast::template::AttributeValue::Expression(expr_tag) = &a.value {
+                    let expr_type = expr_tag.expression.node_type().unwrap_or("");
+                    if expr_type != "Literal" {
+                        // Identifier / member / call etc. — could reference a
+                        // snippet binding we can't statically resolve here.
+                        resolved = false;
+                    }
                 }
             }
             _ => {}
         }
     }
 
-    // If resolved, collect snippet blocks from children
-    if resolved {
-        // TODO: Iterate over component.fragment.nodes and add SnippetBlocks
-        // to node.metadata.snippets
+    // Even when `resolved` is false, the official compiler still seeds the
+    // metadata set with the locally-defined snippets (so the runtime can
+    // pick from the right pool). When `resolved` is true, the same seed
+    // is the actually-rendered set. We use the SnippetBlock's `start`
+    // offset as a stable identity within a single parse.
+    component.metadata.snippets.clear();
+    for node in &component.fragment.nodes {
+        if let TemplateNode::SnippetBlock(snippet) = node {
+            component.metadata.snippets.insert(snippet.start as usize);
+        }
     }
 
-    // TODO: context.state.analysis.snippet_renderers.set(node, resolved)
-    // This requires tracking snippet renderers in the analysis
+    // Track this component as a snippet renderer in the analysis so Phase 3
+    // can decide whether to emit the resolved-set fast path or the
+    // every-local-snippet fallback. The key is encoded with the component's
+    // `start` offset (unique within a parse) so multiple components on the
+    // same name remain distinct.
+    context
+        .analysis
+        .snippet_renderers
+        .insert(format!("Component@{}", component.start), resolved);
 
     // Mark the subtree as dynamic
     super::super::shared::fragment::mark_subtree_dynamic(&context.path);
