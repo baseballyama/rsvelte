@@ -9,6 +9,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::events:
     build_event, convert_arrow_to_named_function,
 };
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
+#[cfg(test)]
 use crate::compiler::utils::can_delegate_event;
 
 /// Visit an Attribute node and generate client-side code.
@@ -191,17 +192,13 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
 
     // Determine if this event should be delegated.
     //
-    // Event delegation is used when:
-    // 1. The event is delegatable (click, input, etc. - see can_delegate_event())
-    // 2. The element containing this attribute is a RegularElement (not SvelteElement or special elements)
-    // 3. The event is not in capture mode
+    // `node.metadata.delegated` is populated by Phase 2 when the event is
+    // attached to a `RegularElement` and `can_delegate_event(event_name)`
+    // returns true. Capture-mode listeners can never use the shared
+    // delegated table, so we additionally require `!capture` here.
     //
-    // Since visit_event_attribute is only called from visit_regular_element when
-    // processing a RegularElement's attributes, the element is always a RegularElement.
-    // So we just need to check if the event type is delegatable and not captured.
-    //
-    // Note: SvelteElement would need separate handling if we add that visitor.
-    let delegated = !capture && can_delegate_event(event_name);
+    // SvelteElement would need separate handling if we add that visitor.
+    let delegated = !capture && node.metadata.delegated;
 
     if delegated {
         context.state.events.insert(event_name.to_string());
