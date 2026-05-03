@@ -585,6 +585,17 @@ fn validate_rune_usage(
     Ok(())
 }
 
+/// Public alias used by the template-side walker (`walk_js_expression_node`)
+/// so it can perform the same `const_tag_invalid_reference` check that the
+/// JS-side identifier visitor does. See `check_const_tag_snippet_reference`.
+pub(super) fn check_const_tag_snippet_reference_public(
+    name: &str,
+    binding_idx: usize,
+    context: &VisitorContext,
+) -> Result<(), AnalysisError> {
+    check_const_tag_snippet_reference(name, binding_idx, context)
+}
+
 /// Check if a {@const} binding referenced from within a named snippet of a
 /// Component or SvelteBoundary is invalid.
 ///
