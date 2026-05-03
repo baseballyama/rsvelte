@@ -60,19 +60,12 @@ pub fn visit(
     // Mark the subtree as dynamic (event handlers require runtime evaluation)
     mark_subtree_dynamic(&context.path);
 
-    // Walk the expression to track dependencies and references
+    // Walk the expression to track dependencies and references and populate
+    // `directive.metadata.expression` so Phase 3 can read `has_call` /
+    // `has_state` without re-walking the expression.
     if let Some(ref expression) = directive.expression {
-        // Create metadata for tracking expression dependencies
-        // Note: In the full implementation, this metadata would be attached to
-        // the parent element's metadata.expression field
-        let mut metadata = crate::ast::template::ExpressionMetadata::default();
-
         let node = expression.as_node();
-        walk_js_expression_node(&node, context, &mut metadata)?;
-
-        // The metadata tracking is handled by the parent element visitor
-        // (RegularElement, SvelteElement, etc.) which creates and manages
-        // the metadata.expression field
+        walk_js_expression_node(&node, context, &mut directive.metadata.expression)?;
     }
 
     Ok(())

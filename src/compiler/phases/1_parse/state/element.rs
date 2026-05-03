@@ -1283,6 +1283,7 @@ impl Parser<'_> {
                 name_loc,
                 expression,
                 modifiers,
+                metadata: Default::default(),
             },
         )))
     }

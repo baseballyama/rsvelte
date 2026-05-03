@@ -99,125 +99,6 @@ pub fn convert_arrow_to_named_function(handler: JsExpr, name: CompactString) -> 
     }
 }
 
-/// Check if a JSON expression contains a call expression.
-/// This is used to determine if an event handler needs to be memoized.
-fn expression_has_call(expr: &Expression) -> bool {
-    json_value_has_call(expr.as_json())
-}
-
-/// Check if a JSON value contains a call expression.
-fn json_value_has_call(value: &serde_json::Value) -> bool {
-    match value {
-        serde_json::Value::Object(obj) => {
-            let node_type = obj
-                .get("type")
-                .and_then(|t| t.as_str())
-                .unwrap_or("Unknown");
-
-            // If this is a CallExpression, return true
-            if node_type == "CallExpression" {
-                return true;
-            }
-
-            // Recurse into child expressions based on node type
-            match node_type {
-                "MemberExpression" => {
-                    if let Some(object) = obj.get("object")
-                        && json_value_has_call(object)
-                    {
-                        return true;
-                    }
-                    if let Some(property) = obj.get("property")
-                        && obj
-                            .get("computed")
-                            .and_then(|v| v.as_bool())
-                            .unwrap_or(false)
-                        && json_value_has_call(property)
-                    {
-                        return true;
-                    }
-                }
-                "BinaryExpression" | "LogicalExpression" => {
-                    if let Some(left) = obj.get("left")
-                        && json_value_has_call(left)
-                    {
-                        return true;
-                    }
-                    if let Some(right) = obj.get("right")
-                        && json_value_has_call(right)
-                    {
-                        return true;
-                    }
-                }
-                "UnaryExpression" | "AwaitExpression" => {
-                    if let Some(arg) = obj.get("argument")
-                        && json_value_has_call(arg)
-                    {
-                        return true;
-                    }
-                }
-                "ConditionalExpression" => {
-                    if let Some(test) = obj.get("test")
-                        && json_value_has_call(test)
-                    {
-                        return true;
-                    }
-                    if let Some(consequent) = obj.get("consequent")
-                        && json_value_has_call(consequent)
-                    {
-                        return true;
-                    }
-                    if let Some(alternate) = obj.get("alternate")
-                        && json_value_has_call(alternate)
-                    {
-                        return true;
-                    }
-                }
-                "ArrayExpression" => {
-                    if let Some(serde_json::Value::Array(elements)) = obj.get("elements") {
-                        for elem in elements {
-                            if json_value_has_call(elem) {
-                                return true;
-                            }
-                        }
-                    }
-                }
-                "ObjectExpression" => {
-                    if let Some(serde_json::Value::Array(props)) = obj.get("properties") {
-                        for prop in props {
-                            if let serde_json::Value::Object(prop_obj) = prop
-                                && let Some(val) = prop_obj.get("value")
-                                && json_value_has_call(val)
-                            {
-                                return true;
-                            }
-                        }
-                    }
-                }
-                "SequenceExpression" => {
-                    if let Some(serde_json::Value::Array(exprs)) = obj.get("expressions") {
-                        for expr in exprs {
-                            if json_value_has_call(expr) {
-                                return true;
-                            }
-                        }
-                    }
-                }
-                "ChainExpression" => {
-                    if let Some(expr) = obj.get("expression")
-                        && json_value_has_call(expr)
-                    {
-                        return true;
-                    }
-                }
-                _ => {}
-            }
-            false
-        }
-        _ => false,
-    }
-}
-
 /// Build an event handler function.
 ///
 /// Corresponds to `build_event_handler` in
@@ -236,7 +117,7 @@ pub fn build_event_handler(
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 
     expression: Option<&Expression>,
-    _node: &OnDirective,
+    node: &OnDirective,
     context: &mut ComponentContext,
 ) -> JsExpr {
     // Null handler = bubble event to parent component
@@ -263,8 +144,10 @@ pub fn build_event_handler(
 
     let expression = expression.unwrap();
 
-    // Check if expression has a call (for memoization)
-    let has_call = expression_has_call(expression);
+    // Check if expression has a call (for memoization). Phase 2's
+    // `OnDirective` visitor already cached this on
+    // `node.metadata.expression.has_call()`.
+    let has_call = node.metadata.expression.has_call();
 
     // Convert the expression to JS
     let handler = convert_expression(expression, context);
@@ -471,6 +354,7 @@ mod tests {
             name_loc: None,
             modifiers: smallvec::smallvec![],
             expression: None,
+            metadata: Default::default(),
         }
     }
 

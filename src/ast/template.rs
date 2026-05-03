@@ -766,6 +766,17 @@ impl serde::Serialize for BindDirective {
     }
 }
 
+/// Metadata populated during Phase 2 analysis for `on:` directives.
+///
+/// Skipped from (de)serialisation so snapshot output is unchanged.
+#[derive(Debug, Clone, Default)]
+pub struct OnDirectiveMetadata {
+    /// Mirrors `node.metadata.expression` from the official compiler so
+    /// Phase 3 can decide whether the handler needs `$.derived(...)`-style
+    /// memoisation without re-walking the expression.
+    pub expression: ExpressionMetadata,
+}
+
 /// An on directive: `on:event={handler}`.
 #[derive(Debug, Clone, Deserialize)]
 pub struct OnDirective {
@@ -775,6 +786,10 @@ pub struct OnDirective {
     pub name_loc: Option<SourceLocation>,
     pub expression: Option<Expression>,
     pub modifiers: SmallVec<[CompactString; 2]>,
+    /// Internal metadata, populated during Phase 2 analysis. Skipped during
+    /// (de)serialisation so snapshot output is unchanged.
+    #[serde(skip)]
+    pub metadata: OnDirectiveMetadata,
 }
 
 impl serde::Serialize for OnDirective {
