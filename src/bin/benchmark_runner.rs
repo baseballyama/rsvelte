@@ -66,13 +66,25 @@ fn parse_args() -> Result<Config, String> {
             "--iterations" => {
                 i += 1;
                 if i < args.len() {
-                    iterations = args[i].parse().unwrap_or(5);
+                    match args[i].parse() {
+                        Ok(n) => iterations = n,
+                        Err(_) => eprintln!(
+                            "warning: invalid --iterations value '{}', using default {}",
+                            args[i], iterations
+                        ),
+                    }
                 }
             }
             "--warmup" => {
                 i += 1;
                 if i < args.len() {
-                    warmup = args[i].parse().unwrap_or(2);
+                    match args[i].parse() {
+                        Ok(n) => warmup = n,
+                        Err(_) => eprintln!(
+                            "warning: invalid --warmup value '{}', using default {}",
+                            args[i], warmup
+                        ),
+                    }
                 }
             }
             _ => {}

@@ -147,7 +147,7 @@ fn run_parser_tests(test_type: &str, modern: bool) -> Category {
     let mut tests = Vec::new();
     let mut passed = 0;
     let mut failed = 0;
-    let skipped = 0;
+    let mut skipped = 0;
 
     for sample_dir in &samples {
         let test_name = sample_dir
@@ -160,12 +160,28 @@ fn run_parser_tests(test_type: &str, modern: bool) -> Category {
         let output_path = sample_dir.join("output.json");
 
         if !input_path.exists() || !output_path.exists() {
+            skipped += 1;
+            tests.push(TestCase {
+                name: test_name,
+                status: "skip".to_string(),
+                error_message: None,
+                skip_reason: Some("missing input or output fixture".to_string()),
+            });
             continue;
         }
 
         let input = match fs::read_to_string(&input_path) {
             Ok(s) => s,
-            Err(_) => continue,
+            Err(e) => {
+                skipped += 1;
+                tests.push(TestCase {
+                    name: test_name,
+                    status: "skip".to_string(),
+                    error_message: None,
+                    skip_reason: Some(format!("failed to read input: {}", e)),
+                });
+                continue;
+            }
         };
 
         let options = ParseOptions {
@@ -541,7 +557,7 @@ fn run_css_tests() -> Category {
     let mut tests = Vec::new();
     let mut passed = 0;
     let mut failed = 0;
-    let skipped = 0;
+    let mut skipped = 0;
 
     for sample_dir in &samples {
         let test_name = sample_dir
@@ -554,12 +570,28 @@ fn run_css_tests() -> Category {
         let expected_css_path = sample_dir.join("expected.css");
 
         if !input_path.exists() {
+            skipped += 1;
+            tests.push(TestCase {
+                name: test_name,
+                status: "skip".to_string(),
+                error_message: None,
+                skip_reason: Some("missing input fixture".to_string()),
+            });
             continue;
         }
 
         let input = match fs::read_to_string(&input_path) {
             Ok(s) => s,
-            Err(_) => continue,
+            Err(e) => {
+                skipped += 1;
+                tests.push(TestCase {
+                    name: test_name,
+                    status: "skip".to_string(),
+                    error_message: None,
+                    skip_reason: Some(format!("failed to read input: {}", e)),
+                });
+                continue;
+            }
         };
 
         // Run with timeout using a channel

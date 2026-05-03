@@ -20,7 +20,6 @@ use rustc_hash::FxHashSet;
 
 /// A store reference with location context
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 struct StoreRef {
     /// The full name including $ (e.g., "$store")
     name: String,
