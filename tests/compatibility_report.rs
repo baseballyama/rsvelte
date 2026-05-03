@@ -1120,6 +1120,99 @@ fn normalize_print_output(s: &str) -> String {
     output
 }
 
+/// Run the `preprocess` category by feeding each official Svelte fixture
+/// through the rsvelte `preprocess` API with hand-ported preprocessor
+/// closures (see `tests/common/preprocess_fixtures.rs`). Mirrors
+/// `tests/preprocess.rs` so the compat dashboard stays in lock-step.
+fn run_preprocess_tests() -> CategoryResult {
+    use svelte_compiler_rust::compiler::preprocess::preprocess;
+
+    let samples = get_svelte_test_samples("preprocess");
+    let mut result = CategoryResult::new("preprocess");
+
+    let runtime = match tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(rt) => rt,
+        Err(e) => {
+            // Mark every fixture as errored and bail; this should never
+            // happen in practice but the report should still be writable.
+            for sample_dir in &samples {
+                let name = sample_dir
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("unknown")
+                    .to_string();
+                result.add_sample(SampleResult {
+                    name,
+                    status: TestStatus::Error,
+                    error: Some(format!("tokio runtime build failed: {}", e)),
+                    skip_reason: None,
+                    details: None,
+                });
+            }
+            return result;
+        }
+    };
+
+    for sample_dir in &samples {
+        let name = sample_dir
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown")
+            .to_string();
+
+        let input = match fs::read_to_string(sample_dir.join("input.svelte")) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        let expected = match fs::read_to_string(sample_dir.join("output.svelte")) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+
+        let preprocessors = match common::preprocess_fixtures::build_preprocessors(&name) {
+            Some(g) => g,
+            None => {
+                result.add_sample(SampleResult {
+                    name,
+                    status: TestStatus::Failed,
+                    error: Some("no Rust preprocessor wired up".to_string()),
+                    skip_reason: None,
+                    details: None,
+                });
+                continue;
+            }
+        };
+        let filename = common::preprocess_fixtures::filename_for(&name);
+
+        let (status, error) = match runtime.block_on(preprocess(input, preprocessors, filename)) {
+            Ok(processed) => {
+                if processed.code == expected {
+                    (TestStatus::Passed, None)
+                } else {
+                    (TestStatus::Failed, Some("Output mismatch".to_string()))
+                }
+            }
+            Err(e) => (
+                TestStatus::Failed,
+                Some(format!("preprocess error: {:?}", e)),
+            ),
+        };
+
+        result.add_sample(SampleResult {
+            name,
+            status,
+            error,
+            skip_reason: None,
+            details: None,
+        });
+    }
+
+    result
+}
+
 fn run_not_implemented_tests(category: &str, reason: &str) -> CategoryResult {
     let samples = get_svelte_test_samples(category);
     let mut result = CategoryResult::new(category);
@@ -1378,16 +1471,25 @@ fn generate_compatibility_report() {
     );
     report.add_category(print);
 
-    // Not yet implemented categories
-    for (category, reason) in &[
-        ("preprocess", "Preprocess API not implemented"),
-        ("migrate", "Migrate API not implemented"),
-    ] {
-        print!("Running {} tests... ", category);
-        let result = run_not_implemented_tests(category, reason);
-        println!("all {} skipped", result.stats.total);
-        report.add_category(result);
-    }
+    // Preprocess category — implemented in `src/compiler/preprocess` and
+    // exercised standalone in `tests/preprocess.rs`. Each fixture's
+    // `_config.js` JS preprocessor is hand-ported in
+    // `tests/common/preprocess_fixtures.rs`.
+    print!("Running preprocess tests... ");
+    let pre = run_preprocess_tests();
+    println!(
+        "{}/{} passed ({:.1}%)",
+        pre.stats.passed,
+        pre.stats.run_count(),
+        pre.stats.pass_percentage()
+    );
+    report.add_category(pre);
+
+    // Migrate is the only remaining unimplemented category.
+    print!("Running migrate tests... ");
+    let migrate = run_not_implemented_tests("migrate", "Migrate API not implemented");
+    println!("all {} skipped", migrate.stats.total);
+    report.add_category(migrate);
 
     // Finalize and save
     report.finalize();
