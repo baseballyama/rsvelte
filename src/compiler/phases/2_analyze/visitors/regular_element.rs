@@ -1048,6 +1048,16 @@ pub fn visit(
                     super::attach_tag::visit(attach, context)?;
                 }
             }
+            Attribute::TransitionDirective(_) => {
+                if let Attribute::TransitionDirective(directive) = &element.attributes[i] {
+                    super::transition_directive::visit(directive, context)?;
+                }
+            }
+            Attribute::AnimateDirective(_) => {
+                if let Attribute::AnimateDirective(directive) = &element.attributes[i] {
+                    super::animate_directive::visit(directive, context)?;
+                }
+            }
             _ => {}
         }
     }
