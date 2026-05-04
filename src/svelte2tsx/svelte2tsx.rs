@@ -372,22 +372,125 @@ pub fn svelte2tsx(
     // Step 9: Process template nodes in-place via MagicString
     template::process_template_inplace(&ast.fragment, source, &options, &mut str);
 
-    // Step 9.1: Hoist top-level `{#snippet}` blocks to right after
-    // `function $$render() {`. The official compiler emits top-level snippets
-    // as `const name = ...` declarations at the top of `$$render()` so that
-    // their bodies share scope with the rest of the instance script (which
-    // is what fixtures like `snippet-instance-script.v5` expect). Without an
-    // instance script there's nowhere to hoist to from inside `$$render`, so
-    // skip the move in that case — they stay where the template processor
-    // left them.
+    // Step 9.1: Hoist top-level `{#snippet}` blocks.
+    //
+    // Two destinations:
+    // - **Outside `$$render` (module-level)** — when the source has a
+    //   `<script context="module">` AND the snippet body's free variables only
+    //   reference module-script bindings, imports, params, or globals. Matches
+    //   the JS reference's `hoist_to_module` branch in `index.ts`.
+    // - **Inside `$$render` (top of body)** — the default for snippets that
+    //   close over instance-script values, or when there's no module script.
+    //
+    // The "outside" target is `script_tag_close_pos = instance.content_offset - 1`,
+    // i.e. the byte position of the `>` of `<script>`. The script-tag overwrite
+    // in Step 10 is split there so the moved snippet chunks land between the
+    // imports / `;type` block and the `function $$render() {` declaration.
+    let mut hoistable_snippet_ranges: Vec<(u32, u32)> = Vec::new();
+    let mut nonhoistable_snippet_ranges: Vec<(u32, u32)> = Vec::new();
     if let Some(instance) = ast.instance.as_ref() {
-        let target = instance.content_offset;
-        for node in ast.fragment.nodes.iter() {
-            if let crate::ast::template::TemplateNode::SnippetBlock(snippet) = node {
-                if snippet.start < snippet.end {
-                    str.move_range(snippet.start, snippet.end, target);
+        let module_script_present = ast.module.is_some();
+
+        // Collect every top-level snippet first so we can run a fixed-point
+        // pass over their inter-dependencies (a snippet that references the
+        // name of a non-hoistable snippet is itself non-hoistable).
+        let snippets: Vec<&crate::ast::template::SnippetBlock> = ast
+            .fragment
+            .nodes
+            .iter()
+            .filter_map(|n| {
+                if let crate::ast::template::TemplateNode::SnippetBlock(s) = n {
+                    if s.start < s.end {
+                        Some(s.as_ref())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let snippet_names: Vec<String> = snippets
+            .iter()
+            .filter_map(|s| {
+                let exp_s = s.expression.start()? as usize;
+                let exp_e = s.expression.end()? as usize;
+                source.get(exp_s..exp_e).map(|s| s.to_string())
+            })
+            .collect();
+        let snippet_name_set: std::collections::HashSet<String> =
+            snippet_names.iter().cloned().collect();
+
+        // Initial blocked set: snippets that directly reference an
+        // instance-script value (or a $store of one).
+        let mut blocked = vec![false; snippets.len()];
+        if module_script_present {
+            for (i, snippet) in snippets.iter().enumerate() {
+                if !is_snippet_module_hoistable(snippet, source, &exported_names) {
+                    blocked[i] = true;
                 }
             }
+
+            // Fixed-point: a snippet that references the name of a blocked
+            // snippet is itself blocked. Matches the JS reference's `while`
+            // loop in `analyzeSnippets` that grows `disallowed_values`.
+            let mut changed = true;
+            while changed {
+                changed = false;
+                for i in 0..snippets.len() {
+                    if blocked[i] {
+                        continue;
+                    }
+                    let body_start = snippets[i].start as usize;
+                    let body_end = snippets[i].end as usize;
+                    if body_start >= source.len() || body_end > source.len() {
+                        continue;
+                    }
+                    for ident in lexical_identifiers(&source[body_start..body_end]) {
+                        if ident == snippet_names[i] {
+                            continue; // self-reference
+                        }
+                        if snippet_name_set.contains(&ident) {
+                            // Find the index of this snippet by name and check
+                            // if it's blocked.
+                            for (j, name) in snippet_names.iter().enumerate() {
+                                if name == &ident && blocked[j] {
+                                    blocked[i] = true;
+                                    changed = true;
+                                    break;
+                                }
+                            }
+                            if blocked[i] {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // No module script => everything stays inside $$render (or stays
+            // put if no instance script exists either).
+            for b in blocked.iter_mut() {
+                *b = true;
+            }
+        }
+
+        for (i, snippet) in snippets.iter().enumerate() {
+            if blocked[i] {
+                nonhoistable_snippet_ranges.push((snippet.start, snippet.end));
+            } else {
+                hoistable_snippet_ranges.push((snippet.start, snippet.end));
+            }
+        }
+
+        let inside_target = instance.content_offset;
+        // Reserve outside target for now; the actual move happens in Step 10
+        // after the script-tag overwrite has been split. To keep `move_range`
+        // behaviour predictable, do the inside-render moves here (target is
+        // already valid because `instance.content_offset` is a chunk start).
+        for (s, e) in nonhoistable_snippet_ranges.iter() {
+            str.move_range(*s, *e, inside_target);
         }
     }
 
@@ -639,32 +742,52 @@ pub fn svelte2tsx(
                 String::new()
             };
 
-            // Build the <script> replacement:
-            //   `<script...>` → `;\nimports\nfunction $$render() {\n`
-            let mut script_replacement = String::from(";\n");
+            // Build the <script> replacement, split into two parts so that
+            // module-hoistable snippets can be moved into the gap:
+            //   Part A: `;\n[\n if module]<imports><before_render_type>`
+            //   Part B: `[async_prefix]function $$render(){...`
+            let mut part_a = String::from(";\n");
             if has_module_script {
-                script_replacement.push('\n');
+                part_a.push('\n');
             }
-            script_replacement.push_str(&import_text);
+            part_a.push_str(&import_text);
             if !ts_component_props_before_render.is_empty() {
-                script_replacement.push_str(&ts_component_props_before_render);
+                part_a.push_str(&ts_component_props_before_render);
             }
             let trailing_newline = if ts_component_props_inside_render.is_empty() {
                 "\n"
             } else {
                 ""
             };
-            script_replacement.push_str(&format!(
+            let part_b = format!(
                 "{}function $$render{}() {{{}{}{}",
                 async_prefix,
                 render_generics,
                 dollar_decls,
                 ts_component_props_inside_render,
                 trailing_newline
-            ));
+            );
 
-            if script_start < content_start {
-                str.overwrite(script_start, content_start, &script_replacement);
+            let split_pos =
+                if !hoistable_snippet_ranges.is_empty() && content_start > script_start + 1 {
+                    Some(content_start - 1)
+                } else {
+                    None
+                };
+            if let Some(sp) = split_pos {
+                if script_start < sp {
+                    str.overwrite(script_start, sp, &part_a);
+                }
+                for (s, e) in hoistable_snippet_ranges.iter() {
+                    str.move_range(*s, *e, sp);
+                }
+                str.overwrite(sp, content_start, &part_b);
+            } else if script_start < content_start {
+                str.overwrite(
+                    script_start,
+                    content_start,
+                    &format!("{}{}", part_a, part_b),
+                );
             }
 
             if inline_type_at_let {
@@ -742,24 +865,39 @@ pub fn svelte2tsx(
                 String::new()
             };
 
-            if script_start < content_start {
-                let trailing_newline = if ts_component_props_inside_render.is_empty() {
-                    "\n"
+            let trailing_newline = if ts_component_props_inside_render.is_empty() {
+                "\n"
+            } else {
+                ""
+            };
+            let part_a = format!(";{}", ts_component_props_before_render);
+            let part_b = format!(
+                "{}function $$render{}() {{{}{}{}",
+                async_prefix,
+                render_generics,
+                dollar_decls,
+                ts_component_props_inside_render,
+                trailing_newline
+            );
+            let split_pos =
+                if !hoistable_snippet_ranges.is_empty() && content_start > script_start + 1 {
+                    Some(content_start - 1)
                 } else {
-                    ""
+                    None
                 };
+            if let Some(sp) = split_pos {
+                if script_start < sp {
+                    str.overwrite(script_start, sp, &part_a);
+                }
+                for (s, e) in hoistable_snippet_ranges.iter() {
+                    str.move_range(*s, *e, sp);
+                }
+                str.overwrite(sp, content_start, &part_b);
+            } else if script_start < content_start {
                 str.overwrite(
                     script_start,
                     content_start,
-                    &format!(
-                        ";{}{}function $$render{}() {{{}{}{}",
-                        ts_component_props_before_render,
-                        async_prefix,
-                        render_generics,
-                        dollar_decls,
-                        ts_component_props_inside_render,
-                        trailing_newline
-                    ),
+                    &format!("{}{}", part_a, part_b),
                 );
             }
 
@@ -1623,6 +1761,142 @@ fn find_last_two_byte_sequence(buf: &[u8], a: u8, b: u8) -> Option<usize> {
         i -= 1;
     }
     None
+}
+
+/// Decide whether a top-level `{#snippet}` block is module-hoistable.
+///
+/// A snippet is module-hoistable when its body's free variables resolve only
+/// to allowed references — imports, module-script values, snippet params,
+/// or globals. References to instance-script values (`let`, `const`, etc.)
+/// block hoisting. Matches the JS reference's
+/// `hoist_to_module = (globals.size === 0 || every(isAllowedReference))`
+/// in `svelte2tsx/index.ts`.
+fn is_snippet_module_hoistable(
+    snippet: &crate::ast::template::SnippetBlock,
+    source: &str,
+    exported_names: &super::script::ExportedNames,
+) -> bool {
+    // Param names shadow outer references inside the body.
+    let mut params_set: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for p in snippet.parameters.iter() {
+        if let (Some(s), Some(e)) = (p.start(), p.end()) {
+            let s = s as usize;
+            let e = e as usize;
+            if s < e && e <= source.len() {
+                for tok in lexical_identifiers(&source[s..e]) {
+                    params_set.insert(tok);
+                }
+            }
+        }
+    }
+
+    // Also exclude the snippet's own name from references (its declaration
+    // shouldn't be considered a free var of itself).
+    if let (Some(s), Some(e)) = (snippet.expression.start(), snippet.expression.end()) {
+        let s = s as usize;
+        let e = e as usize;
+        if s < e && e <= source.len() {
+            for tok in lexical_identifiers(&source[s..e]) {
+                params_set.insert(tok);
+            }
+        }
+    }
+
+    // Use the entire snippet source range. Param identifiers are excluded
+    // above; the lexical scan over the whole `{#snippet ...}` ... `{/snippet}`
+    // range is conservative but adequate for fixture cases.
+    let body_start = snippet.start;
+    let body_end = snippet.end;
+    if (body_start as usize) >= source.len() || (body_end as usize) > source.len() {
+        return true;
+    }
+    let body_text = &source[body_start as usize..body_end as usize];
+
+    // Lexical scan: any identifier in the body that resolves to an
+    // instance-script value (and isn't an import or a snippet param) blocks
+    // hoisting.
+    //
+    // `$name` references trigger auto-store subscription; the JS reference
+    // adds the un-prefixed `name` to `disallowed_values` via
+    // `addDisallowed(getAccessedStores())`, so any `$name` whose underlying
+    // `name` is bound in the instance script (value OR import) also blocks.
+    for ident in lexical_identifiers(body_text) {
+        if params_set.contains(&ident) {
+            continue;
+        }
+        if let Some(stripped) = ident.strip_prefix('$') {
+            if !stripped.is_empty() && !stripped.starts_with('$') {
+                // Auto-store subscription targets — `addDisallowed(getAccessedStores())`
+                // in the JS reference is component-wide, so check both module
+                // and instance scopes.
+                if exported_names.instance_value_names.contains(stripped)
+                    || exported_names.instance_import_names.contains(stripped)
+                    || exported_names.module_value_names.contains(stripped)
+                    || exported_names.module_import_names.contains(stripped)
+                {
+                    return false;
+                }
+            }
+        }
+        if exported_names.instance_value_names.contains(&ident)
+            && !exported_names.instance_import_names.contains(&ident)
+        {
+            return false;
+        }
+    }
+    true
+}
+
+/// Lex a string into ASCII-identifier tokens. Skips `//` and `/* */` comments
+/// and `'`, `"`, ``\``` strings so identifiers inside literals aren't picked
+/// up as references.
+fn lexical_identifiers(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let bytes = text.as_bytes();
+    let len = bytes.len();
+    let mut i = 0usize;
+    while i < len {
+        let b = bytes[i];
+        if b == b'/' && i + 1 < len {
+            if bytes[i + 1] == b'/' {
+                while i < len && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            } else if bytes[i + 1] == b'*' {
+                i += 2;
+                while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(len);
+                continue;
+            }
+        }
+        if b == b'\'' || b == b'"' || b == b'`' {
+            let quote = b;
+            i += 1;
+            while i < len && bytes[i] != quote {
+                if bytes[i] == b'\\' && i + 1 < len {
+                    i += 2;
+                    continue;
+                }
+                i += 1;
+            }
+            i = (i + 1).min(len);
+            continue;
+        }
+        if is_ident_char(b) && !b.is_ascii_digit() {
+            let start = i;
+            i += 1;
+            while i < len && is_ident_char(bytes[i]) {
+                i += 1;
+            }
+            out.push(text[start..i].to_string());
+            continue;
+        }
+        i += 1;
+    }
+    out
 }
 
 /// Return true if `type_text` mentions any of `names` as a whole identifier

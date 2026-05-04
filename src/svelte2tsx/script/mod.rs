@@ -74,6 +74,19 @@ pub struct ExportedNames {
     /// the instance script. Used to detect runtime-value dependencies in the
     /// `$props()` type annotation (in addition to the `typeof ...` heuristic).
     pub instance_value_names: HashSet<String>,
+    /// Names imported into the instance script (default, named, namespace).
+    /// Imports are "allowed references" for hoistability analysis — a snippet
+    /// or interface that references an imported binding is still hoistable
+    /// because the imported value resolves to a stable, module-scoped binding.
+    pub instance_import_names: HashSet<String>,
+    /// Names declared at the top level of the module (`<script context="module">`)
+    /// script. Used by the snippet hoist analyser: a reference to `$X` in a
+    /// snippet body must block hoisting whenever `X` is bound anywhere in the
+    /// component (module or instance), because the JS reference's
+    /// `addDisallowed(getAccessedStores())` is component-wide.
+    pub module_value_names: HashSet<String>,
+    /// Names imported into the module script.
+    pub module_import_names: HashSet<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -115,6 +128,9 @@ impl ExportedNames {
             props_let_abs_pos: None,
             instance_type_names: HashSet::new(),
             instance_value_names: HashSet::new(),
+            instance_import_names: HashSet::new(),
+            module_value_names: HashSet::new(),
+            module_import_names: HashSet::new(),
         }
     }
     /// Build the generics string for `$$render` from `$$Generic` declarations.
@@ -702,7 +718,8 @@ pub fn process_instance_script(
                                     s.local.name.to_string()
                                 }
                             };
-                            declared_names.insert(name);
+                            declared_names.insert(name.clone());
+                            exported_names.instance_import_names.insert(name);
                         }
                     }
                 }
@@ -1147,7 +1164,7 @@ pub fn process_module_script(
     script: &Script,
     source: &str,
     str: &mut MagicString,
-    _exported_names: &mut ExportedNames,
+    exported_names: &mut ExportedNames,
 ) {
     // Module script exports are kept as-is (with the export keyword).
     // They are not component props and do not go into the return statement.
@@ -1164,6 +1181,84 @@ pub fn process_module_script(
     // `function $$render() {...}` and the official compiler keeps angle-bracket
     // assertions there as-is (mirrored by `process_instance_script_content`).
     rewrite_module_script_type_assertions(script, source, str);
+
+    // Snapshot top-level module-script names for the snippet hoist analysis.
+    with_parsed_script(script, source, |program, _raw_content| {
+        for stmt in program.body.iter() {
+            match stmt {
+                oxc::Statement::ImportDeclaration(import) => {
+                    if let Some(ref specifiers) = import.specifiers {
+                        for spec in specifiers.iter() {
+                            let name = match spec {
+                                oxc::ImportDeclarationSpecifier::ImportDefaultSpecifier(s) => {
+                                    s.local.name.to_string()
+                                }
+                                oxc::ImportDeclarationSpecifier::ImportNamespaceSpecifier(s) => {
+                                    s.local.name.to_string()
+                                }
+                                oxc::ImportDeclarationSpecifier::ImportSpecifier(s) => {
+                                    s.local.name.to_string()
+                                }
+                            };
+                            exported_names.module_import_names.insert(name.clone());
+                            exported_names.module_value_names.insert(name);
+                        }
+                    }
+                }
+                oxc::Statement::VariableDeclaration(var_decl) => {
+                    for declarator in var_decl.declarations.iter() {
+                        for n in extract_all_names_from_binding_pattern(&declarator.id) {
+                            exported_names.module_value_names.insert(n);
+                        }
+                    }
+                }
+                oxc::Statement::FunctionDeclaration(func) => {
+                    if let Some(ref id) = func.id {
+                        exported_names
+                            .module_value_names
+                            .insert(id.name.to_string());
+                    }
+                }
+                oxc::Statement::ClassDeclaration(class) => {
+                    if let Some(ref id) = class.id {
+                        exported_names
+                            .module_value_names
+                            .insert(id.name.to_string());
+                    }
+                }
+                oxc::Statement::ExportNamedDeclaration(export) => {
+                    if let Some(ref decl) = export.declaration {
+                        match decl {
+                            oxc::Declaration::VariableDeclaration(var_decl) => {
+                                for declarator in var_decl.declarations.iter() {
+                                    for n in extract_all_names_from_binding_pattern(&declarator.id)
+                                    {
+                                        exported_names.module_value_names.insert(n);
+                                    }
+                                }
+                            }
+                            oxc::Declaration::FunctionDeclaration(func) => {
+                                if let Some(ref id) = func.id {
+                                    exported_names
+                                        .module_value_names
+                                        .insert(id.name.to_string());
+                                }
+                            }
+                            oxc::Declaration::ClassDeclaration(class) => {
+                                if let Some(ref id) = class.id {
+                                    exported_names
+                                        .module_value_names
+                                        .insert(id.name.to_string());
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    });
 }
 
 /// Walk every `TSTypeAssertion` in a module script's AST and rewrite
