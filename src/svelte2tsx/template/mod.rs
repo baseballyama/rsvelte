@@ -1447,6 +1447,14 @@ fn has_named_slot_children(fragment: &Fragment, source: &str) -> bool {
                     return true;
                 }
             }
+            // `<svelte:fragment slot="name" let:foo>` is the Svelte 4 idiom
+            // for distributing children into a named slot — it shows up here
+            // as `SvelteFragment`. Treat it like the others.
+            TemplateNode::SvelteFragment(el) => {
+                if get_slot_attr_value(&el.attributes, source).is_some() {
+                    return true;
+                }
+            }
             _ => {}
         }
     }
