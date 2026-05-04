@@ -21,7 +21,7 @@ const ROOT = path.resolve(__dirname, '..');
 const REPOS_DIR = path.join(ROOT, '.real-world-tests');
 
 // Load compilers
-const svelte = await import(path.join(ROOT, 'svelte/packages/svelte/src/compiler/index.js'));
+const svelte = await import(path.join(ROOT, 'submodules/svelte/packages/svelte/src/compiler/index.js'));
 
 let rsvelte;
 const bindingPaths = [

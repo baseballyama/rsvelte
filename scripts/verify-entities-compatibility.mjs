@@ -12,7 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Load Svelte's entities.js
-const entitiesPath = join(__dirname, '../svelte/packages/svelte/src/compiler/phases/1-parse/utils/entities.js');
+const entitiesPath = join(__dirname, '../submodules/svelte/packages/svelte/src/compiler/phases/1-parse/utils/entities.js');
 const entitiesModule = await import(entitiesPath);
 const svelteEntities = entitiesModule.default;
 

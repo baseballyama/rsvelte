@@ -34,7 +34,9 @@ pub fn get_svelte_commit_hash() -> String {
 
 /// Get path to the Svelte submodule.
 pub fn svelte_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("svelte")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("submodules")
+        .join("svelte")
 }
 
 /// Get path to fixtures directory for current Svelte commit.

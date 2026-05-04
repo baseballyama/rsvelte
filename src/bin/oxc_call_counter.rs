@@ -151,7 +151,7 @@ fn strip_scripts(source: &str) -> String {
 
 fn collect_files() -> Vec<(String, String)> {
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let test_dir = base.join("svelte/packages/svelte/tests");
+    let test_dir = base.join("submodules/svelte/packages/svelte/tests");
     let categories = [
         "parser-modern/samples",
         "snapshot/samples",

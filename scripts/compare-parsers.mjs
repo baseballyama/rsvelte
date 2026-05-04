@@ -15,7 +15,7 @@ import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "fs";
 import { execSync } from "child_process";
 import { join } from "path";
 import { tmpdir } from "os";
-import { parse } from "../svelte/packages/svelte/src/compiler/index.js";
+import { parse } from "../submodules/svelte/packages/svelte/src/compiler/index.js";
 
 const args = process.argv.slice(2);
 const inputFile = args[0];

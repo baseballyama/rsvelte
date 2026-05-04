@@ -11,7 +11,7 @@ use svelte_compiler_rust::{ParseOptions, parse, parse_parallel};
 /// Get sample Svelte files for benchmarking.
 fn get_sample_files() -> Vec<(String, String)> {
     let samples_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("svelte/packages/svelte/tests/parser-modern/samples");
+        .join("submodules/svelte/packages/svelte/tests/parser-modern/samples");
 
     if !samples_dir.exists() {
         return Vec::new();

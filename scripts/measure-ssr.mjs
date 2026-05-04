@@ -10,7 +10,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const CANON_BIN = path.join(ROOT, 'target/release/canonicalize_and_compare');
 
-const svelte = await import(path.join(ROOT, 'svelte/packages/svelte/src/compiler/index.js'));
+const svelte = await import(path.join(ROOT, 'submodules/svelte/packages/svelte/src/compiler/index.js'));
 let rsvelte;
 for (const p of [
   path.join(ROOT, 'svelte/rsvelte.linux-x64-gnu.node'),

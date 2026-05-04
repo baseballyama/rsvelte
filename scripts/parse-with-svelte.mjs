@@ -10,7 +10,7 @@
  */
 
 import { readFileSync, writeFileSync } from "fs";
-import { parse } from "../svelte/packages/svelte/src/compiler/index.js";
+import { parse } from "../submodules/svelte/packages/svelte/src/compiler/index.js";
 
 const args = process.argv.slice(2);
 const modern = args.includes("--modern");
