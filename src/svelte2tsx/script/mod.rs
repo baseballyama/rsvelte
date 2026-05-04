@@ -1019,6 +1019,142 @@ pub fn process_module_script(
     // Import-based store subscriptions are NOT injected here because they need
     // to go inside the $$render function body, which is handled separately.
     inject_store_subscriptions_vars_only(script, source, str);
+
+    // Rewrite TypeScript angle-bracket type assertions (`<X>e`) into the
+    // `e as X` form. Inside the module script the rewrite is required because
+    // the generated `.tsx` parses the module-script body at top level, where
+    // `<X>e` would be lexed as JSX. The instance-script body sits inside
+    // `function $$render() {...}` and the official compiler keeps angle-bracket
+    // assertions there as-is (mirrored by `process_instance_script_content`).
+    rewrite_module_script_type_assertions(script, source, str);
+}
+
+/// Walk every `TSTypeAssertion` in a module script's AST and rewrite
+/// `<Type>expr` to `expr as Type` via `MagicString.overwrite`. Nested
+/// assertions are handled outer-first since the outer overwrite covers the
+/// inner span, and the inner expression text we splice in already preserves
+/// its own assertion form.
+fn rewrite_module_script_type_assertions(script: &Script, source: &str, str: &mut MagicString) {
+    let content_offset = script.content_offset as usize;
+
+    with_parsed_script(script, source, |program, raw_content| {
+        let mut assertions: Vec<(u32, u32, u32, u32)> = Vec::new();
+        for stmt in program.body.iter() {
+            collect_ts_type_assertions_stmt(stmt, &mut assertions);
+        }
+        // Apply outermost-first so that overwriting an outer assertion replaces
+        // any inner ones with their already-converted text.
+        assertions.sort_by_key(|(start, end, _, _)| (*start, std::cmp::Reverse(*end)));
+        let mut last_end: u32 = 0;
+        for (start, end, type_start, type_end) in assertions {
+            // Skip ranges that are inside an already-rewritten outer one.
+            if start < last_end {
+                continue;
+            }
+            let type_text = &raw_content[type_start as usize..type_end as usize];
+            // The expression starts at `>` + maybe whitespace; we identify it as
+            // everything between `type_end` and the closing `>`.
+            // Find the `>` that closes the angle bracket (the next byte after
+            // `type_end` may be whitespace, then `>`).
+            let bytes = raw_content.as_bytes();
+            let mut gt_pos = type_end as usize;
+            while gt_pos < bytes.len() && bytes[gt_pos] != b'>' {
+                gt_pos += 1;
+            }
+            if gt_pos >= bytes.len() {
+                continue;
+            }
+            let expr_start = gt_pos + 1;
+            let expr_text = raw_content[expr_start..end as usize].trim_start();
+            let new_text = format!("{} as {}", expr_text, type_text);
+            let abs_start = (start as usize + content_offset) as u32;
+            let abs_end = (end as usize + content_offset) as u32;
+            str.overwrite(abs_start, abs_end, &new_text);
+            last_end = end;
+        }
+    });
+}
+
+fn collect_ts_type_assertions_stmt(stmt: &oxc::Statement, out: &mut Vec<(u32, u32, u32, u32)>) {
+    match stmt {
+        oxc::Statement::VariableDeclaration(var_decl) => {
+            for declarator in var_decl.declarations.iter() {
+                if let Some(init) = &declarator.init {
+                    collect_ts_type_assertions_expr(init, out);
+                }
+            }
+        }
+        oxc::Statement::ExpressionStatement(es) => {
+            collect_ts_type_assertions_expr(&es.expression, out);
+        }
+        oxc::Statement::ExportNamedDeclaration(export) => {
+            if let Some(decl) = &export.declaration {
+                if let oxc::Declaration::VariableDeclaration(var_decl) = decl {
+                    for declarator in var_decl.declarations.iter() {
+                        if let Some(init) = &declarator.init {
+                            collect_ts_type_assertions_expr(init, out);
+                        }
+                    }
+                }
+            }
+        }
+        _ => {
+            // Other statement kinds (functions, classes, ifs, blocks…) are not
+            // part of the simple module-script `let x = <X>...;` pattern this
+            // pass targets. Extend if a fixture demands it.
+        }
+    }
+}
+
+fn collect_ts_type_assertions_expr(expr: &oxc::Expression, out: &mut Vec<(u32, u32, u32, u32)>) {
+    if let oxc::Expression::TSTypeAssertion(assertion) = expr {
+        let span = assertion.span;
+        let type_span = oxc_ast_span(&assertion.type_annotation);
+        out.push((span.start, span.end, type_span.0, type_span.1));
+        // Recurse into the wrapped expression in case it's another assertion.
+        collect_ts_type_assertions_expr(&assertion.expression, out);
+    }
+}
+
+fn oxc_ast_span(ty: &oxc::TSType) -> (u32, u32) {
+    use oxc::TSType::*;
+    let span = match ty {
+        TSAnyKeyword(t) => t.span,
+        TSBigIntKeyword(t) => t.span,
+        TSBooleanKeyword(t) => t.span,
+        TSIntrinsicKeyword(t) => t.span,
+        TSNeverKeyword(t) => t.span,
+        TSNullKeyword(t) => t.span,
+        TSNumberKeyword(t) => t.span,
+        TSObjectKeyword(t) => t.span,
+        TSStringKeyword(t) => t.span,
+        TSSymbolKeyword(t) => t.span,
+        TSUndefinedKeyword(t) => t.span,
+        TSUnknownKeyword(t) => t.span,
+        TSVoidKeyword(t) => t.span,
+        TSThisType(t) => t.span,
+        TSTypeReference(t) => t.span,
+        TSArrayType(t) => t.span,
+        TSConditionalType(t) => t.span,
+        TSConstructorType(t) => t.span,
+        TSFunctionType(t) => t.span,
+        TSImportType(t) => t.span,
+        TSIndexedAccessType(t) => t.span,
+        TSInferType(t) => t.span,
+        TSIntersectionType(t) => t.span,
+        TSLiteralType(t) => t.span,
+        TSMappedType(t) => t.span,
+        TSNamedTupleMember(t) => t.span,
+        TSTemplateLiteralType(t) => t.span,
+        TSTupleType(t) => t.span,
+        TSTypeLiteral(t) => t.span,
+        TSTypeOperatorType(t) => t.span,
+        TSTypePredicate(t) => t.span,
+        TSTypeQuery(t) => t.span,
+        TSUnionType(t) => t.span,
+        _ => return (0, 0),
+    };
+    (span.start, span.end)
 }
 
 // =============================================================================
