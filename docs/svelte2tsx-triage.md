@@ -18,6 +18,9 @@ Latest: **207/245 (84.5%)** as of 2026-05-04.
 | 2026-05-04 | 207/245 | #35 | B (partial) | force-inside-render `$$ComponentProps` lands at `node.parent.pos` instead of $$render top |
 | 2026-05-04 | 208/245 | #37 | B (shadow) | force-inside-render also when props type mentions an instance-script type/interface name |
 | 2026-05-04 | 210/245 | #39 | E (rune path) | SvelteKit `+page` / `+layout` `data` / `form` / `params` autotype injection for `$props()` |
+| 2026-05-04 | 211/245 | #41 | E (snapshot) | `/** @type {Snapshot} */` injection on `export const snapshot` for SvelteKit route files |
+| 2026-05-04 | 213/245 | #42 | A (instance) | per-snippet module hoist for fixtures with both a module and an instance script |
+| 2026-05-04 | 216/245 | #43 | A (module-only) | per-snippet module hoist for module-only components + empty-body snippet emission fix; closes Cluster A |
 
 ## Failure clusters
 
@@ -204,12 +207,7 @@ fixtures (`if sample_name.ends_with(".v5") { V5 } else { V4 }`) and expect
 
 ## Open blockers per cluster (post 207/245)
 
-- **Cluster A — snippet-module-hoist-1/3/4/5/6 (5 fixtures)**: requires per-snippet free-variable analysis. Algorithm (from JS `index.ts` lines 235-248):
-  1. For each top-level `{#snippet}`, compute `globals` = identifiers referenced in body that aren't declared inside.
-  2. If module script exists AND every global is "allowed" (not in instance script's value-declaration set), hoist to position right after last module-script import (or `moduleAst.astOffset` if no imports).
-  3. Else if instance script exists, move to start of `$$render`.
-  4. Else don't move.
-  Currently rsvelte does step 3 unconditionally for all top-level snippets. Implementing requires walking each snippet body via OXC, plus tracking instance-script declared names.
+- **Cluster A — closed (#42 + #43)**.
 - **Cluster B — ts-runes-hoistable-props-1/2/4/5/6 + false-10/15 (7 fixtures, false-5 fixed in #37)**: requires a real port of `HoistableInterfaces.ts`. An attempted lexical-scan resolver (collect candidate `type X = ...` / `interface X { ... }` decls, walk body via byte-level token scan, gate on `instance_value_names` minus imports) was abandoned in this loop iteration: it fired in cases the JS reference declines to hoist (e.g. `$$Props` legacy alias; `interface A` shadowing a module-level `namespace A`; `interface Abc` referencing an instance namespace via `A.Abc`), regressing the suite from 208 → 192. Real port needs to:
   1. Track module-script declared names (types + values + namespaces) so candidates whose name shadows any module name aren't hoisted.
   2. Treat instance-script `namespace X` as a value declaration (not a type), so `A.Abc` correctly blocks hoisting.
