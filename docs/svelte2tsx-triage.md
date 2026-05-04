@@ -16,6 +16,7 @@ Latest: **207/245 (84.5%)** as of 2026-05-04.
 | 2026-05-04 | 204/245 | #31, #32, #33 | J + A (partial) | type assertion in module script; comment scanner; bulk snippet hoist |
 | 2026-05-04 | 205/245 | #34 | G (snippet) | typeparams threading on `{#snippet}` |
 | 2026-05-04 | 207/245 | #35 | B (partial) | force-inside-render `$$ComponentProps` lands at `node.parent.pos` instead of $$render top |
+| 2026-05-04 | 208/245 | #37 | B (shadow) | force-inside-render also when props type mentions an instance-script type/interface name |
 
 ## Failure clusters
 
@@ -208,7 +209,12 @@ fixtures (`if sample_name.ends_with(".v5") { V5 } else { V4 }`) and expect
   3. Else if instance script exists, move to start of `$$render`.
   4. Else don't move.
   Currently rsvelte does step 3 unconditionally for all top-level snippets. Implementing requires walking each snippet body via OXC, plus tracking instance-script declared names.
-- **Cluster B — ts-runes-hoistable-props-1/2/4/5/6 + false-5/10/15 (8 fixtures)**: requires a port of `HoistableInterfaces.ts`. The hoistable-types path needs to emit eligible top-level `type/interface` declarations BEFORE `function $$render()` and leave the rest in place. We have `hoistable_type_ranges` declared but unpopulated; populating it requires walking `type X = ...`, `interface X { ... }` and tracking which depend only on imports/types/module-scope/generics (not instance-script values).
+- **Cluster B — ts-runes-hoistable-props-1/2/4/5/6 + false-10/15 (7 fixtures, false-5 fixed in #37)**: requires a real port of `HoistableInterfaces.ts`. An attempted lexical-scan resolver (collect candidate `type X = ...` / `interface X { ... }` decls, walk body via byte-level token scan, gate on `instance_value_names` minus imports) was abandoned in this loop iteration: it fired in cases the JS reference declines to hoist (e.g. `$$Props` legacy alias; `interface A` shadowing a module-level `namespace A`; `interface Abc` referencing an instance namespace via `A.Abc`), regressing the suite from 208 → 192. Real port needs to:
+  1. Track module-script declared names (types + values + namespaces) so candidates whose name shadows any module name aren't hoisted.
+  2. Treat instance-script `namespace X` as a value declaration (not a type), so `A.Abc` correctly blocks hoisting.
+  3. Hardcode-skip `$$Props` (legacy alias).
+  4. Distinguish object property keys (e.g. `data:` in `{ data: T }`) from real type-references — a token-only scan can't, AST visitor needed.
+  Until this is done, leave types in place inside `$$render`.
 - **Cluster C — V4 codegen (~17 fixtures, all non-`.v5`)**: V4 export path in `src/svelte2tsx/svelte2tsx.rs` is incomplete. Flipping the test runner to pick V4 for non-`.v5` regresses to 122/245. Save for last.
 - **Cluster D — `$store` template usage (5 fixtures)**: `__sveltets_2_ensureAction` / `__sveltets_2_cssProp` rewriting differs for store-prefixed identifiers. Requires `htmlxtojsx_v2/utils/node-utils.ts::store_subscriptions` port.
 - **Cluster E — SvelteKit autotypes (4 fixtures)**: detect `+page.svelte` / `+layout.svelte` filename and inline `import('./$types.js').PageData` types. Touches `ExportedNames.ts::sveltekit_autotype`.
