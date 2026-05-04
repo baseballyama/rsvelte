@@ -644,6 +644,7 @@ pub fn process_instance_script(
     is_ts: bool,
     basename: &str,
     emit_jsdoc: bool,
+    is_dts_mode: bool,
 ) {
     let offset = script.content_offset;
     with_parsed_script(script, source, |program, raw_content| {
@@ -801,6 +802,15 @@ pub fn process_instance_script(
                     exported_names
                         .instance_type_names
                         .insert(iface.id.name.to_string());
+
+                    // dts mode: rewrite `interface X { ... }` (and any `extends`
+                    // clauses) into `type X = ... & { ... }` because indirectly
+                    // using interfaces inside the return type of a function
+                    // breaks .d.ts generation. Mirrors
+                    // `processInstanceScriptContent.ts::transformInterfacesToTypes`.
+                    if is_dts_mode {
+                        rewrite_interface_to_type_dts(iface, raw_content, offset, str);
+                    }
                 }
                 oxc::Statement::TSTypeAliasDeclaration(type_alias) => {
                     if type_alias.id.name == "$$Slots" {
@@ -1263,9 +1273,98 @@ pub fn process_module_script(
 
 /// Walk every `TSTypeAssertion` in a module script's AST and rewrite
 /// `<Type>expr` to `expr as Type` via `MagicString.overwrite`. Nested
-/// assertions are handled outer-first since the outer overwrite covers the
-/// inner span, and the inner expression text we splice in already preserves
-/// its own assertion form.
+/// Rewrite a top-level `interface X { ... }` (with optional `extends Y, Z`)
+/// into `type X = Y & Z & { ... }` for dts-mode output. Indirectly using
+/// interfaces inside the return type of a function is forbidden by the
+/// declaration emitter, so the JS reference's
+/// `transformInterfacesToTypes(...)` performs this rewrite. Mirror that here.
+///
+/// Concretely:
+/// - `interface X { … }`                  → `type X ={ … }`
+/// - `interface X extends Y { … }`        → `type X = Y &  { … }`
+/// - `interface X extends Y, Z { … }`     → `type X = Y & Z &  { … }`
+/// - `interface X<T> extends Y { … }`     → `type X<T> = Y &  { … }`
+fn rewrite_interface_to_type_dts(
+    iface: &oxc_ast::ast::TSInterfaceDeclaration<'_>,
+    raw_content: &str,
+    offset: u32,
+    str: &mut MagicString,
+) {
+    // 1. `interface` -> `type`
+    let iface_kw_start = iface.span.start;
+    let iface_kw_end = iface_kw_start + 9; // "interface".len()
+    if (iface_kw_end as usize) <= raw_content.len()
+        && &raw_content[iface_kw_start as usize..iface_kw_end as usize] == "interface"
+    {
+        str.overwrite(iface_kw_start + offset, iface_kw_end + offset, "type");
+    }
+
+    let extends = &iface.extends;
+    if !extends.is_empty() {
+        {
+            // 2. `extends` -> `=`. The `extends` token sits between `iface.id`
+            //    (or its type-parameter list) and the first heritage entry.
+            let first_heritage = &extends[0];
+            let first_start = first_heritage.span.start as usize;
+            // Walk back from the heritage entry through whitespace, then
+            // expect "extends" right before. The OXC AST doesn't expose the
+            // keyword span directly.
+            let bytes = raw_content.as_bytes();
+            let mut p = first_start;
+            while p > 0 {
+                let prev = bytes[p - 1];
+                if prev == b' ' || prev == b'\t' || prev == b'\n' || prev == b'\r' {
+                    p -= 1;
+                } else {
+                    break;
+                }
+            }
+            // p is now just past "extends" (or at the closing `>` of generics
+            // if no `extends` token — but `iface.extends` is non-empty so
+            // `extends` must exist).
+            let extends_end = p;
+            if extends_end >= 7 {
+                let prev_kw = &raw_content[extends_end - 7..extends_end];
+                if prev_kw == "extends" {
+                    str.overwrite(
+                        (extends_end - 7) as u32 + offset,
+                        extends_end as u32 + offset,
+                        "=",
+                    );
+                }
+            }
+
+            // 3. Replace each `,` between heritage entries with ` &`.
+            let mut prev_end = first_heritage.span.end;
+            for entry in extends.iter().skip(1) {
+                let entry_start = entry.span.start;
+                if entry_start > prev_end {
+                    let between = &raw_content[prev_end as usize..entry_start as usize];
+                    if let Some(comma_off) = between.find(',') {
+                        let comma_abs = prev_end + comma_off as u32;
+                        str.overwrite(comma_abs + offset, comma_abs + 1 + offset, " &");
+                    }
+                }
+                prev_end = entry.span.end;
+            }
+
+            // 4. Append ` & ` immediately before the body's `{`.
+            let last_extends_end = extends.last().unwrap().span.end;
+            let after = &raw_content[last_extends_end as usize..];
+            if let Some(brace_off) = after.find('{') {
+                let brace_abs = last_extends_end + brace_off as u32;
+                str.append_left(brace_abs + offset, " & ");
+            }
+        }
+    } else {
+        // No extends: insert `=` immediately before the body's `{`.
+        let body_start = iface.body.span.start;
+        if (body_start as usize) <= raw_content.len() {
+            str.append_left(body_start + offset, "=");
+        }
+    }
+}
+
 fn rewrite_module_script_type_assertions(script: &Script, source: &str, str: &mut MagicString) {
     let content_offset = script.content_offset as usize;
 

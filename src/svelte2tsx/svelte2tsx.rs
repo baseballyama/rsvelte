@@ -218,6 +218,7 @@ pub fn svelte2tsx(
             options.is_ts_file,
             &basename,
             options.emit_jsdoc,
+            matches!(options.mode, Svelte2TsxMode::Dts),
         );
     }
 
