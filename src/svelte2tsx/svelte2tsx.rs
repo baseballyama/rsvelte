@@ -1445,49 +1445,97 @@ fn find_instance_imports(script: &crate::ast::template::Script, source: &str) ->
             // All import declarations (including side-effect imports like `import ''`)
             // should be lifted. The parser only creates ImportDeclaration nodes for
             // valid `import` statements with a source clause.
-            let mut start = import.span.start;
+            let start = import.span.start;
             let end = import.span.end;
 
-            // Include leading comments (e.g., `// @ts-ignore` or `/*hi*/`)
-            // by scanning backwards from the import start.
+            // Include leading comments (e.g., `// @ts-ignore`, `/*hi*/`,
+            // `/** @typedef ... */`) by scanning backwards from the import
+            // start. Multiple comments separated by blank lines are all
+            // pulled in — matches the JS svelte2tsx behaviour exposed by
+            // `js-jsdoc-before-first-import`.
             let bytes = raw_content.as_bytes();
-            let mut pos = start as usize;
-            // Skip whitespace backwards (but not newlines for line comments)
-            while pos > 0 {
-                let prev = bytes[pos - 1];
-                if prev == b' ' || prev == b'\t' {
-                    pos -= 1;
-                } else {
-                    break;
-                }
-            }
-            // Check for block comment `*/`
-            if pos >= 2 && bytes[pos - 2] == b'*' && bytes[pos - 1] == b'/' {
-                // Find the opening `/*`
-                if let Some(comment_start) = raw_content[..pos - 2].rfind("/*") {
-                    start = comment_start as u32;
-                }
-            }
-            // Check for line comment on previous line: `// ...`
-            // Look backwards past the newline
-            if pos > 0 && bytes[pos - 1] == b'\n' {
-                let line_end = pos - 1;
-                let mut line_start = line_end;
-                while line_start > 0 && bytes[line_start - 1] != b'\n' {
-                    line_start -= 1;
-                }
-                let line = &raw_content[line_start..line_end];
-                let trimmed = line.trim();
-                if trimmed.starts_with("//") {
-                    start = line_start as u32;
-                }
-            }
+            let new_start = scan_back_past_leading_comments(bytes, start as usize);
 
-            imports.push((start, end));
+            imports.push((new_start as u32, end));
         }
     }
     imports.sort_by_key(|&(s, _)| s);
     imports
+}
+
+/// Walk backwards from `pos` past whitespace, line comments (`// ...`), and
+/// block comments (`/* ... */` including JSDoc), pulling each into the hoisted
+/// region. Whitespace is only consumed when it precedes a comment we
+/// successfully recognise — otherwise we keep the previous committed offset
+/// so non-comment whitespace stays attached to the original line.
+fn scan_back_past_leading_comments(bytes: &[u8], pos: usize) -> usize {
+    let mut committed = pos;
+    loop {
+        // First try a comment immediately adjacent to `committed` (no
+        // whitespace between, e.g. `/*hi*/import …`).
+        if committed >= 2 && bytes[committed - 2] == b'*' && bytes[committed - 1] == b'/' {
+            let prefix = &bytes[..committed - 2];
+            if let Some(open) = find_last_two_byte_sequence(prefix, b'/', b'*') {
+                committed = open;
+                continue;
+            }
+        }
+        // Otherwise probe past whitespace and look for a comment ending there.
+        let mut p = committed;
+        while p > 0 {
+            let b = bytes[p - 1];
+            if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
+                p -= 1;
+            } else {
+                break;
+            }
+        }
+        if p == 0 || p == committed {
+            return committed;
+        }
+        // Block comment `*/` ending at p?
+        if p >= 2 && bytes[p - 2] == b'*' && bytes[p - 1] == b'/' {
+            let prefix = &bytes[..p - 2];
+            if let Some(open) = find_last_two_byte_sequence(prefix, b'/', b'*') {
+                committed = open;
+                continue;
+            } else {
+                return committed;
+            }
+        }
+        // Line comment `// ...` ending at p (just before the newline that p
+        // skipped). Valid when the immediately-preceding line, after any
+        // indentation, starts with `//`.
+        let line_end = p;
+        let mut line_start = line_end;
+        while line_start > 0 && bytes[line_start - 1] != b'\n' {
+            line_start -= 1;
+        }
+        let line = &bytes[line_start..line_end];
+        let mut i = 0;
+        while i < line.len() && (line[i] == b' ' || line[i] == b'\t') {
+            i += 1;
+        }
+        if i + 1 < line.len() && line[i] == b'/' && line[i + 1] == b'/' {
+            committed = line_start;
+            continue;
+        }
+        return committed;
+    }
+}
+
+fn find_last_two_byte_sequence(buf: &[u8], a: u8, b: u8) -> Option<usize> {
+    if buf.len() < 2 {
+        return None;
+    }
+    let mut i = buf.len() - 1;
+    while i >= 1 {
+        if buf[i - 1] == a && buf[i] == b {
+            return Some(i - 1);
+        }
+        i -= 1;
+    }
+    None
 }
 
 /// Split a generics string like "T extends Record<string, any>, U" into
