@@ -1146,9 +1146,14 @@ fn handle_snippet_block(
     // Position markers are added to help the language server:
     // - `/*Ωignore_positionΩ*/` after the name and after `async ()`
     // - Return type wrapped in `/*Ωignore_startΩ*/.../*Ωignore_endΩ*/`
+    let use_ts_syntax = options.is_ts_file || !options.emit_jsdoc;
+    let type_params_str = match (use_ts_syntax, block.type_params.as_ref()) {
+        (true, Some(tp)) => format!("<{}>", tp),
+        _ => String::new(),
+    };
     let header = format!(
-        "  const {}/*\u{03A9}ignore_position\u{03A9}*/ = ({})/*\u{03A9}ignore_start\u{03A9}*/: ReturnType<import('svelte').Snippet>/*\u{03A9}ignore_end\u{03A9}*/ => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
-        name_text, params_text
+        "  const {}/*\u{03A9}ignore_position\u{03A9}*/ = {}({})/*\u{03A9}ignore_start\u{03A9}*/: ReturnType<import('svelte').Snippet>/*\u{03A9}ignore_end\u{03A9}*/ => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
+        name_text, type_params_str, params_text
     );
     str.overwrite(block.start, body_start, &header);
 
