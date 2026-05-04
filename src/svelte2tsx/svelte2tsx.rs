@@ -365,6 +365,25 @@ pub fn svelte2tsx(
     // Step 9: Process template nodes in-place via MagicString
     template::process_template_inplace(&ast.fragment, source, &options, &mut str);
 
+    // Step 9.1: Hoist top-level `{#snippet}` blocks to right after
+    // `function $$render() {`. The official compiler emits top-level snippets
+    // as `const name = ...` declarations at the top of `$$render()` so that
+    // their bodies share scope with the rest of the instance script (which
+    // is what fixtures like `snippet-instance-script.v5` expect). Without an
+    // instance script there's nowhere to hoist to from inside `$$render`, so
+    // skip the move in that case — they stay where the template processor
+    // left them.
+    if let Some(instance) = ast.instance.as_ref() {
+        let target = instance.content_offset;
+        for node in ast.fragment.nodes.iter() {
+            if let crate::ast::template::TemplateNode::SnippetBlock(snippet) = node {
+                if snippet.start < snippet.end {
+                    str.move_range(snippet.start, snippet.end, target);
+                }
+            }
+        }
+    }
+
     // Step 9.5: Collect slot and event information from the template
     let template_info = template::collect_template_info(&ast.fragment, source);
 
