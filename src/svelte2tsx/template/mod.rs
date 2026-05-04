@@ -1168,15 +1168,31 @@ fn handle_snippet_block(
     // Position markers are added to help the language server:
     // - `/*Ωignore_positionΩ*/` after the name and after `async ()`
     // - Return type wrapped in `/*Ωignore_startΩ*/.../*Ωignore_endΩ*/`
+    //
+    // Two emission modes match the JS reference (`SnippetBlock.ts`):
+    // - TS syntax (TS file or non-JSDoc emit): `: ReturnType<...>` after the
+    //   parameter list, with `<typeParams>` if the snippet declared generics
+    // - JSDoc syntax (JS file + JSDoc emit): `/** @returns {ReturnType<...>} */`
+    //   before the `(params)` arrow, no generic-params syntax
     let use_ts_syntax = options.is_ts_file || !options.emit_jsdoc;
     let type_params_str = match (use_ts_syntax, block.type_params.as_ref()) {
         (true, Some(tp)) => format!("<{}>", tp),
         _ => String::new(),
     };
-    let header = format!(
-        "  const {}/*\u{03A9}ignore_position\u{03A9}*/ = {}({})/*\u{03A9}ignore_start\u{03A9}*/: ReturnType<import('svelte').Snippet>/*\u{03A9}ignore_end\u{03A9}*/ => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
-        name_text, type_params_str, params_text
-    );
+    let header = if use_ts_syntax {
+        format!(
+            "  const {}/*\u{03A9}ignore_position\u{03A9}*/ = {}({})/*\u{03A9}ignore_start\u{03A9}*/: ReturnType<import('svelte').Snippet>/*\u{03A9}ignore_end\u{03A9}*/ => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
+            name_text, type_params_str, params_text
+        )
+    } else {
+        // JSDoc emission uses one fewer leading space (the `/** @returns */`
+        // marker takes the visual slot otherwise occupied by the TS `:` and
+        // its surrounding `/*Ωignore*/` comments).
+        format!(
+            " const {}/*\u{03A9}ignore_position\u{03A9}*/ = /** @returns {{ReturnType<import('svelte').Snippet>}} */ ({}) => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
+            name_text, params_text
+        )
+    };
     if has_body_nodes {
         str.overwrite(block.start, body_start, &header);
         // Process body

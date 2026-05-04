@@ -609,9 +609,26 @@ pub fn svelte2tsx(
         // Detect `generics` attribute on the script tag
         let script_tag_text = &source[script_start as usize..content_start as usize];
         let generics_param = extract_generics_from_script_tag(script_tag_text);
+        let use_jsdoc_generics = options.emit_jsdoc && !options.is_ts_file;
+        // For JS files emitting JSDoc, the generics live on a `/** @template T */`
+        // line *before* `function $$render()`, not as `<T>` on the function.
+        let template_comment = if use_jsdoc_generics {
+            generics_param
+                .as_ref()
+                .filter(|g| !g.is_empty())
+                .map(|g| format!("\n/** @template {} */\n", g))
+                .unwrap_or_default()
+        } else {
+            String::new()
+        };
         let render_generics = if !exported_names.dollar_generics.is_empty() {
             // Use $$Generic declarations (wrapped in ignore markers)
             exported_names.build_dollar_generics_str()
+        } else if use_jsdoc_generics {
+            // JSDoc-emit branch: keep render_generics empty; the `@template`
+            // comment is emitted before the function declaration via
+            // `template_comment`.
+            String::new()
         } else {
             generics_param
                 .as_ref()
@@ -620,7 +637,7 @@ pub fn svelte2tsx(
                         // TS files: no ignore markers around generics
                         format!("<{}>", g)
                     } else {
-                        // JS files: wrap generics content in ignore markers
+                        // JS files (non-JSDoc): wrap content in ignore markers
                         format!(
                             "</*\u{03A9}ignore_start\u{03A9}*/{}>/*\u{03A9}ignore_end\u{03A9}*/",
                             g
@@ -785,8 +802,9 @@ pub fn svelte2tsx(
                 ""
             };
             let part_b = format!(
-                "{}{}function $$render{}() {{{}{}{}",
+                "{}{}{}function $$render{}() {{{}{}{}",
                 ts_component_props_before_render,
+                template_comment,
                 async_prefix,
                 render_generics,
                 dollar_decls,
@@ -930,8 +948,9 @@ pub fn svelte2tsx(
             // part_b so it follows any hoisted type/interface declarations.
             let part_a = String::from(";");
             let part_b = format!(
-                "{}{}function $$render{}() {{{}{}{}",
+                "{}{}{}function $$render{}() {{{}{}{}",
                 ts_component_props_before_render,
+                template_comment,
                 async_prefix,
                 render_generics,
                 dollar_decls,
