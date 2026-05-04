@@ -2118,36 +2118,59 @@ fn handle_export_named_decl(
                             }
                         }
 
-                        // SvelteKit `+page.svelte` / `+layout.svelte`:
-                        // `export const snapshot = ...` should get a Snapshot
-                        // type annotation injected. Matches the JS reference's
-                        // `emitKitType(...)` call from `handleVariableStatement`
-                        // for the const branch.
+                        // SvelteKit `+page.svelte` / `+layout.svelte`: inject
+                        // `import('./$types.js').*` annotations on the
+                        // well-known prop names and on `export const snapshot`.
+                        // Mirrors `emitKitType(...)` in the JS reference's
+                        // `handleVariableStatement`.
                         if is_instance
-                            && !is_let
                             && classify_kit_route_file(basename).is_some()
                             && !has_type_annotation
                         {
                             if let Some(name) = binding_pattern_simple_name(&declarator.id) {
-                                if name == "snapshot" {
+                                let kit_layout = classify_kit_route_file(basename);
+                                let inject_type: Option<&str> = if !is_let {
+                                    // `export const snapshot = ...`
+                                    match name.as_str() {
+                                        "snapshot" => Some("import('./$types.js').Snapshot"),
+                                        _ => None,
+                                    }
+                                } else {
+                                    // `export let data | form | params`
+                                    match (name.as_str(), kit_layout) {
+                                        ("data", Some(true)) => {
+                                            Some("import('./$types.js').LayoutData")
+                                        }
+                                        ("data", Some(false)) => {
+                                            Some("import('./$types.js').PageData")
+                                        }
+                                        ("form", Some(false)) => {
+                                            Some("import('./$types.js').ActionData")
+                                        }
+                                        ("params", Some(true)) => {
+                                            Some("import('./$types.js').LayoutProps['params']")
+                                        }
+                                        ("params", Some(false)) => {
+                                            Some("import('./$types.js').PageProps['params']")
+                                        }
+                                        _ => None,
+                                    }
+                                };
+                                if let Some(kit_type) = inject_type {
                                     if let oxc::BindingPattern::BindingIdentifier(id) =
                                         &declarator.id
                                     {
                                         let name_start = id.span.start + offset;
                                         let name_end = id.span.end + offset;
-                                        // Match the JS reference's
-                                        // `if (this.emitJsDoc && !this.isTsFile)` —
-                                        // JSDoc form only when JS file under JSDoc emit.
                                         if emit_jsdoc && !is_ts {
-                                            // JSDoc path: `/** @type {...} */ ` before the name.
-                                            let inject =
-                                                "/** @type {import('./$types.js').Snapshot} */ ";
-                                            str.append_left(name_start, inject);
+                                            let inject = format!("/** @type {{{}}} */ ", kit_type);
+                                            str.append_left(name_start, &inject);
                                         } else {
-                                            // TS path: `: import('./$types.js').Snapshot` after the name,
-                                            // wrapped in /*Ωignore*/ markers.
-                                            let inject = "/*\u{03A9}ignore_start\u{03A9}*/: import('./$types.js').Snapshot/*\u{03A9}ignore_end\u{03A9}*/";
-                                            str.append_left(name_end, inject);
+                                            let inject = format!(
+                                                "/*\u{03A9}ignore_start\u{03A9}*/: {}/*\u{03A9}ignore_end\u{03A9}*/",
+                                                kit_type
+                                            );
+                                            str.append_left(name_end, &inject);
                                         }
                                     }
                                 }
