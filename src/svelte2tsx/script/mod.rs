@@ -1687,19 +1687,11 @@ fn resolve_hoistable_type_decls(
     let raw_bytes = raw_content.as_bytes();
     for (i, c) in candidates.iter().enumerate() {
         if hoistable[i] {
-            // Extend the move range backward through preceding whitespace so
-            // the original indentation travels with the moved chunk —
-            // matches the JS reference's `node.pos` (which spans the
-            // preceding trivia) minus a single whitespace-skip.
-            let mut start = c.rel_start as usize;
-            while start > 0 {
-                let prev = raw_bytes[start - 1];
-                if prev == b' ' || prev == b'\t' || prev == b'\n' || prev == b'\r' {
-                    start -= 1;
-                } else {
-                    break;
-                }
-            }
+            // Extend the move range backward through preceding trivia
+            // (whitespace + line / block comments) so JSDoc and explanatory
+            // comments on the declaration travel with the hoisted chunk.
+            // Matches TypeScript's `node.pos`, which spans leading trivia.
+            let start = walk_back_through_trivia(raw_bytes, c.rel_start as usize);
             exported_names
                 .hoistable_type_ranges
                 .push((start as u32 + offset, c.rel_end + offset));
@@ -1713,6 +1705,85 @@ fn resolve_hoistable_type_decls(
 #[inline]
 fn is_ident_char_for_str(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || ch == '_' || ch == '$'
+}
+
+/// Walk backwards from `from` through whitespace, `//` line comments and
+/// `/* … */` (or `/** … */`) block comments, returning the resulting
+/// position. The returned index is the start of the contiguous trivia run.
+fn walk_back_through_trivia(bytes: &[u8], from: usize) -> usize {
+    let mut p = from;
+    loop {
+        let before = p;
+        // Skip pure whitespace.
+        while p > 0 && matches!(bytes[p - 1], b' ' | b'\t' | b'\n' | b'\r') {
+            p -= 1;
+        }
+
+        // Try to absorb a preceding block comment `/* … */` or `/** … */`.
+        if p >= 2 && bytes[p - 2] == b'*' && bytes[p - 1] == b'/' {
+            // Find the matching `/*` to the left.
+            let mut q = p as isize - 3;
+            while q >= 1 && !(bytes[q as usize - 1] == b'/' && bytes[q as usize] == b'*') {
+                q -= 1;
+            }
+            if q >= 1 {
+                p = (q - 1) as usize;
+                continue;
+            }
+        }
+
+        // Try to absorb a preceding `// …` line comment. After whitespace
+        // skip, `p` is at the start of the line that follows the comment.
+        if p > 0 {
+            let mut line_start = p;
+            while line_start > 0 && bytes[line_start - 1] != b'\n' {
+                line_start -= 1;
+            }
+            if line_start + 1 < p {
+                let line = &bytes[line_start..p];
+                if let Some(off) = find_line_comment_start(line) {
+                    p = line_start + off;
+                    continue;
+                }
+            }
+        }
+
+        if p == before {
+            break;
+        }
+    }
+    p
+}
+
+/// Find the byte offset of `//` in a single line, ignoring `//` that appears
+/// inside string literals. Returns `None` if no line-comment is present.
+fn find_line_comment_start(line: &[u8]) -> Option<usize> {
+    let mut i = 0usize;
+    let mut in_str: Option<u8> = None;
+    while i < line.len() {
+        let b = line[i];
+        if let Some(quote) = in_str {
+            if b == b'\\' && i + 1 < line.len() {
+                i += 2;
+                continue;
+            }
+            if b == quote {
+                in_str = None;
+            }
+            i += 1;
+            continue;
+        }
+        if b == b'\'' || b == b'"' || b == b'`' {
+            in_str = Some(b);
+            i += 1;
+            continue;
+        }
+        if b == b'/' && i + 1 < line.len() && line[i + 1] == b'/' {
+            return Some(i);
+        }
+        i += 1;
+    }
+    None
 }
 
 /// Return true if `text` contains `name` as a whole identifier (not as a
