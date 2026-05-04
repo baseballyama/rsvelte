@@ -1,11 +1,14 @@
 [submodule "svelte"]
-	path = svelte
+	path = submodules/svelte
 	url = https://github.com/sveltejs/svelte.git
 	ignore = dirty
 [submodule "vite-plugin-svelte"]
-	path = vite-plugin-svelte
+	path = submodules/vite-plugin-svelte
 	url = git@github.com:baseballyama/vite-plugin-svelte.git
 	branch = rsvelte
 [submodule "language-tools"]
-	path = language-tools
+	path = submodules/language-tools
 	url = https://github.com/sveltejs/language-tools.git
+[submodule "submodules/typescript-go"]
+	path = submodules/typescript-go
+	url = https://github.com/microsoft/typescript-go

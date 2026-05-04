@@ -16,13 +16,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 // Import Svelte compiler functions
-import { parse } from '../svelte/packages/svelte/src/compiler/index.js';
-import pkg from '../svelte/packages/svelte/compiler/index.js';
+import { parse } from '../submodules/svelte/packages/svelte/src/compiler/index.js';
+import pkg from '../submodules/svelte/packages/svelte/compiler/index.js';
 const { compile, compileModule } = pkg;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
-const SVELTE_TESTS = path.join(ROOT, 'svelte/packages/svelte/tests');
+const SVELTE_TESTS = path.join(ROOT, 'submodules/svelte/packages/svelte/tests');
 
 // Get Svelte commit hash
 function getSvelteCommitHash() {

@@ -3,7 +3,7 @@
  * Benchmark comparison between Rust and JS Svelte compilers.
  */
 
-import { compile } from '../svelte/packages/svelte/src/compiler/index.js';
+import { compile } from '../submodules/svelte/packages/svelte/src/compiler/index.js';
 import { performance } from 'perf_hooks';
 
 // Generate synthetic large file (same as Rust benchmark)

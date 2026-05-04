@@ -13,7 +13,7 @@ This project aims to create a complete port of the official Svelte compiler in R
 
 ## Architecture
 
-Directory structure mirrors the official Svelte compiler at `svelte/packages/svelte/src/compiler/`.
+Directory structure mirrors the official Svelte compiler at `submodules/svelte/packages/svelte/src/compiler/`.
 
 ```
 src/compiler/phases/
@@ -21,6 +21,20 @@ src/compiler/phases/
 ├── 2_analyze/   # Analysis (scope tree, bindings)
 └── 3_transform/ # Code generation (AST → JS/CSS)
 ```
+
+Upstream reference repos live under `submodules/`:
+
+```
+submodules/
+├── svelte/                  # Svelte 5 compiler (mirror target)
+├── language-tools/          # svelte2tsx, language-server, svelte-check, typescript-plugin, svelte-vscode
+├── vite-plugin-svelte/      # Vite integration
+└── typescript-go/           # tsgo — type-check backend for Wave 2 svelte-check
+```
+
+See `docs/ecosystem-implementation-plan.md` for the multi-wave plan to port
+the Svelte ecosystem (svelte2tsx, svelte-check, vite-plugin-svelte) on top
+of the rsvelte compiler.
 
 **Key Design Decisions:**
 
@@ -33,12 +47,12 @@ src/compiler/phases/
 
 **CRITICAL**: All implementations must follow the official Svelte compiler implementation.
 
-1. **Reference Implementation** - Always check `svelte/packages/svelte/src/compiler/` before implementing
+1. **Reference Implementation** - Always check `submodules/svelte/packages/svelte/src/compiler/` before implementing
 2. **Structural Consistency** - Mirror directory structure, module organization, and naming
 3. **Exact Output** - Output must match the official compiler exactly (verified by tests)
 4. **Test-Driven** - Verify all changes against the official Svelte test suite
 
-When implementing, reference the corresponding file in `svelte/packages/svelte/src/compiler/` and use the same algorithms and logic.
+When implementing, reference the corresponding file in `submodules/svelte/packages/svelte/src/compiler/` and use the same algorithms and logic.
 
 ## Development Workflow
 
@@ -148,7 +162,7 @@ Source: `pnpm run compatibility-report` (generated 2026-05-04, Svelte commit `04
 
 ### Adding Features
 
-1. Check `svelte/packages/svelte/src/compiler/phases/{phase}/` for the reference implementation (requires `git submodule update --init`)
+1. Check `submodules/svelte/packages/svelte/src/compiler/phases/{phase}/` for the reference implementation (requires `git submodule update --init`)
 2. Implement in the corresponding Rust module under `src/compiler/phases/`
 3. Run tests: `cargo test`
 4. Debug differences with `node scripts/compare-parsers.mjs`

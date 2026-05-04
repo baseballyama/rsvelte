@@ -7,8 +7,8 @@ use std::path::PathBuf;
 fn main() {
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let dirs = [
-        "svelte/packages/svelte/tests/runtime-runes/samples",
-        "svelte/packages/svelte/tests/runtime-legacy/samples",
+        "submodules/svelte/packages/svelte/tests/runtime-runes/samples",
+        "submodules/svelte/packages/svelte/tests/runtime-legacy/samples",
     ];
     let mut files = Vec::new();
     for dir in &dirs {

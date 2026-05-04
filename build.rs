@@ -5,7 +5,7 @@ fn main() {
 
     // Read the Svelte version from the submodule's package.json
     // so that the generated code can include the correct version string.
-    let svelte_pkg = std::path::Path::new("svelte/packages/svelte/package.json");
+    let svelte_pkg = std::path::Path::new("submodules/svelte/packages/svelte/package.json");
     if svelte_pkg.exists()
         && let Ok(contents) = std::fs::read_to_string(svelte_pkg)
     {

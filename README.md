@@ -157,7 +157,7 @@ Unimplemented suites: Preprocess, Print, Migrate (not included in compatibility 
 
 ## Architecture
 
-The directory structure mirrors the official Svelte compiler (`svelte/packages/svelte/src/compiler/`).
+The directory structure mirrors the official Svelte compiler (`submodules/svelte/packages/svelte/src/compiler/`).
 
 ```
 src/compiler/phases/

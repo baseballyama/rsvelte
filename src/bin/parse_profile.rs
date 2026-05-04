@@ -464,8 +464,8 @@ fn create_simple_expr_file() -> String {
 fn collect_real_files() -> Vec<(String, String)> {
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let dirs = [
-        "svelte/packages/svelte/tests/runtime-runes/samples",
-        "svelte/packages/svelte/tests/runtime-legacy/samples",
+        "submodules/svelte/packages/svelte/tests/runtime-runes/samples",
+        "submodules/svelte/packages/svelte/tests/runtime-legacy/samples",
     ];
 
     let mut files = Vec::new();

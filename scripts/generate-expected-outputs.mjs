@@ -4,14 +4,14 @@
  * This runs the official Svelte compiler and saves the output to JSON.
  */
 
-import pkg from '../svelte/packages/svelte/compiler/index.js';
+import pkg from '../submodules/svelte/packages/svelte/compiler/index.js';
 const { compile } = pkg;
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SVELTE_TESTS = join(__dirname, '../svelte/packages/svelte/tests');
+const SVELTE_TESTS = join(__dirname, '../submodules/svelte/packages/svelte/tests');
 
 const TEST_CATEGORIES = [
   { id: 'runtime-runes', mainFile: 'main.svelte' },

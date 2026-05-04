@@ -238,7 +238,7 @@ docker exec svelte-compiler-rust-dev cargo test --release --test runtime
 
 # Profile
 ./scripts/bench.sh --profile
-cargo flamegraph --bin profiler -- --file svelte/packages/svelte/tests/runtime-runes/samples/form-default-value-spread/main.svelte --iterations 200 --warmup 20
+cargo flamegraph --bin profiler -- --file submodules/svelte/packages/svelte/tests/runtime-runes/samples/form-default-value-spread/main.svelte --iterations 200 --warmup 20
 
 # Parse flamegraph
 python3 -c "

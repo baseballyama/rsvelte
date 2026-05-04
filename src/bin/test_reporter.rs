@@ -64,7 +64,9 @@ struct TestCase {
 // ============================================================================
 
 fn svelte_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("svelte")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("submodules")
+        .join("svelte")
 }
 
 fn get_commit_sha() -> String {

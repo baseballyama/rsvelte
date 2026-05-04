@@ -136,7 +136,7 @@ Svelte test suite first. This keeps "compatibility" honest.
 
 1. Confirm the fixture is in the submodule:
    ```bash
-   ls svelte/packages/svelte/tests/<suite>/samples/<your-sample>
+   ls submodules/svelte/packages/svelte/tests/<suite>/samples/<your-sample>
    ```
 2. Make sure your local fixtures are fresh:
    ```bash

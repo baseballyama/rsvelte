@@ -13,7 +13,7 @@
  *   node scripts/generate-real-world-fixtures.mjs
  */
 
-import { compile, parse } from '../svelte/packages/svelte/src/compiler/index.js';
+import { compile, parse } from '../submodules/svelte/packages/svelte/src/compiler/index.js';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
