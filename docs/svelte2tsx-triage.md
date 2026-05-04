@@ -30,6 +30,7 @@ Latest: **207/245 (84.5%)** as of 2026-05-04.
 | 2026-05-05 | 228/245 | #55 | B (hoist polish) | use `prepend_right` so `;` markers travel with moved chunks; capture leading JSDoc/comments via trivia walk-back |
 | 2026-05-05 | 228/245 | #57 | I (jsdoc) | snippet headers use `/** @returns */` in JSDoc mode; `<script generics>` becomes `/** @template */`; typedef uses single space |
 | 2026-05-05 | 229/245 | #59 | B (close) | no-imports shadow check excludes hoistable names; part_b prefix `\n` between hoisted chunk and synth `;type $$ComponentProps`; closes Cluster B |
+| 2026-05-05 | 230/245 | #61 | H (close) | slot let-forwarding for `<svelte:self>` and `<svelte:component>` — emits `{const {$$_$$, foo,} = $$_inst.$$slot_def.default;$$_$$;` blocks; closes Cluster H |
 
 ## Compatibility-report dashboard wiring
 
