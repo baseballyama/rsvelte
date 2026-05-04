@@ -157,7 +157,7 @@ Reference: `submodules/language-tools/packages/svelte2tsx/src/svelte2tsx/utils/t
 
 | Fixture | Symptom |
 |---|---|
-| `circle-drawer-example` | extra space after `{` in `createElement`'s attribute object — formatting only |
+| `circle-drawer-example` | extra space after `{` in `createElement`'s attribute object — formatting only. Investigation note: the current heuristic in `src/svelte2tsx/template/mod.rs::handle_regular_element` uses `count_tag_to_attr_spaces(...) + 1`, which over-pads when the input is `<div class="x">` (single space) and under-pads when the input is `<button on:click="...">` (extra chars come from the `:` / `"` prefixes that the JS port emits via `MagicString.appendRight` instead of via the prefix string we currently use). Fixing this likely means replicating the JS port's per-attribute appendRight strategy in `magic_string.rs` rather than tweaking the formula. |
 | `await.v5` | `await` block body emitted in wrong order vs `let { ... } = $props()` |
 | `comments-in-attributes.v5` | template comments inside attribute lists not rewritten correctly |
 | `const-tag-component` | `{@const}` inside a component slot — `const $$_tnenopmoC0` declaration form mismatch |
