@@ -21,7 +21,34 @@ debug a failure. For the higher-level project goals, see [`AGENTS.md`](AGENTS.md
 
 ## Environment setup
 
-### Native (recommended for daily work)
+### Nix (recommended — everyone gets the same toolchain)
+
+The repo ships a `flake.nix` that pins Rust (stable, latest channel via
+[fenix]), Node 22, pnpm, and `wasm-pack`. `flake.lock` pins the exact builds,
+so every contributor and CI run uses the same compiler versions byte-for-byte.
+
+Prerequisites: install Nix with flakes enabled. The
+[Determinate Systems installer](https://install.determinate.systems/) does this
+in one command.
+
+```bash
+git clone <repo-url>
+cd rsvelte
+git submodule update --init --recursive
+
+nix develop                      # drops you into a shell with the full toolchain
+git config core.hooksPath .githooks
+pnpm install
+pnpm run generate-fixtures
+cargo test
+```
+
+If you use [direnv](https://direnv.net/), `direnv allow` activates the shell
+automatically when you `cd` into the repo.
+
+[fenix]: https://github.com/nix-community/fenix
+
+### Native (without Nix)
 
 You need:
 - Rust **1.90+** (see `Cargo.toml` `rust-version`). Use `rustup update stable`.
