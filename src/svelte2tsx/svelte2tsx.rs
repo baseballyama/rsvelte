@@ -388,8 +388,9 @@ pub fn svelte2tsx(
     // imports / `;type` block and the `function $$render() {` declaration.
     let mut hoistable_snippet_ranges: Vec<(u32, u32)> = Vec::new();
     let mut nonhoistable_snippet_ranges: Vec<(u32, u32)> = Vec::new();
-    if let Some(instance) = ast.instance.as_ref() {
+    {
         let module_script_present = ast.module.is_some();
+        let has_instance = ast.instance.is_some();
 
         // Collect every top-level snippet first so we can run a fixed-point
         // pass over their inter-dependencies (a snippet that references the
@@ -452,8 +453,6 @@ pub fn svelte2tsx(
                             continue; // self-reference
                         }
                         if snippet_name_set.contains(&ident) {
-                            // Find the index of this snippet by name and check
-                            // if it's blocked.
                             for (j, name) in snippet_names.iter().enumerate() {
                                 if name == &ident && blocked[j] {
                                     blocked[i] = true;
@@ -484,14 +483,14 @@ pub fn svelte2tsx(
             }
         }
 
-        let inside_target = instance.content_offset;
-        // Reserve outside target for now; the actual move happens in Step 10
-        // after the script-tag overwrite has been split. To keep `move_range`
-        // behaviour predictable, do the inside-render moves here (target is
-        // already valid because `instance.content_offset` is a chunk start).
-        for (s, e) in nonhoistable_snippet_ranges.iter() {
-            str.move_range(*s, *e, inside_target);
+        // Inside-target moves require an instance script to anchor against.
+        if let Some(instance) = ast.instance.as_ref() {
+            let inside_target = instance.content_offset;
+            for (s, e) in nonhoistable_snippet_ranges.iter() {
+                str.move_range(*s, *e, inside_target);
+            }
         }
+        let _ = has_instance;
     }
 
     // Step 9.5: Collect slot and event information from the template
@@ -1005,7 +1004,30 @@ pub fn svelte2tsx(
     } else if has_module_script {
         // Module script but no instance script
         let module = ast.module.as_ref().unwrap();
+        let mod_content_start = module.content_offset;
         let mod_end = module.end;
+
+        // Module-hoistable snippets land either:
+        // - right after the last top-level import in the module script, or
+        // - at `mod_content_start` (right after `<script module ...>`'s `>`)
+        //   if the module has no imports.
+        //
+        // Mirrors the JS reference's `snippetHoistTargetForModule = lastImport
+        // ? lastImport.end + moduleAst.astOffset : moduleAst.astOffset` and the
+        // accompanying `appendLeft(target, '\n')` for the no-imports case.
+        if !hoistable_snippet_ranges.is_empty() {
+            let module_imports = find_instance_imports(module, source);
+            let module_hoist_target = match module_imports.last() {
+                Some(&(_, last_end)) => mod_content_start + last_end,
+                None => mod_content_start,
+            };
+            // JS reference: `str.appendLeft(snippetHoistTargetForModule, '\n')`
+            // for both the imports-present and no-imports branches.
+            str.append_left(module_hoist_target, "\n");
+            for (s, e) in hoistable_snippet_ranges.iter() {
+                str.move_range(*s, *e, module_hoist_target);
+            }
+        }
 
         // For module-script-only components, inject store subscriptions for
         // module-level imports at the start of the $$render async wrapper.

@@ -1136,7 +1136,8 @@ fn handle_snippet_block(
         String::new()
     };
 
-    let body_start = if !block.body.nodes.is_empty() {
+    let has_body_nodes = !block.body.nodes.is_empty();
+    let body_start = if has_body_nodes {
         block.body.nodes[0].start()
     } else {
         block.end
@@ -1155,20 +1156,24 @@ fn handle_snippet_block(
         "  const {}/*\u{03A9}ignore_position\u{03A9}*/ = {}({})/*\u{03A9}ignore_start\u{03A9}*/: ReturnType<import('svelte').Snippet>/*\u{03A9}ignore_end\u{03A9}*/ => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
         name_text, type_params_str, params_text
     );
-    str.overwrite(block.start, body_start, &header);
+    if has_body_nodes {
+        str.overwrite(block.start, body_start, &header);
+        // Process body
+        process_fragment_inplace(&block.body, source, options, str, counter);
 
-    // Process body
-    process_fragment_inplace(&block.body, source, options, str, counter);
-
-    let body_end = if !block.body.nodes.is_empty() {
-        block.body.nodes.last().unwrap().end()
+        let body_end = block.body.nodes.last().unwrap().end();
+        if body_end < block.end {
+            // Overwrite `{/snippet}` with closing
+            str.overwrite(body_end, block.end, "};return __sveltets_2_any(0)};");
+        }
     } else {
-        body_start
-    };
-
-    // Overwrite `{/snippet}` with closing
-    if body_end < block.end {
-        str.overwrite(body_end, block.end, "};return __sveltets_2_any(0)};");
+        // Empty body: collapse the whole `{#snippet name(params)}{/snippet}`
+        // into a single declaration. Without this branch the closing
+        // `};return __sveltets_2_any(0)};` was never emitted because both the
+        // body-start overwrite and the would-be closing overwrite landed at
+        // the same offset.
+        let combined = format!("{}}};return __sveltets_2_any(0)}};", header);
+        str.overwrite(block.start, block.end, &combined);
     }
 }
 
