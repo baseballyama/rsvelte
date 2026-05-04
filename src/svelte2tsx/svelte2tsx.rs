@@ -203,6 +203,11 @@ pub fn svelte2tsx(
     }
 
     // Step 7: Process instance script (<script>)
+    let basename = std::path::Path::new(&options.filename)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_string();
     if let Some(ref instance) = ast.instance {
         super::script::process_instance_script(
             instance,
@@ -211,6 +216,7 @@ pub fn svelte2tsx(
             &mut exported_names,
             &mut events,
             options.is_ts_file,
+            &basename,
         );
     }
 
@@ -605,12 +611,13 @@ pub fn svelte2tsx(
 
             // For best-effort auto-generated types, insert INSIDE $$render.
             //
-            // If we have an explicit `props_let_abs_pos` (TS hoistable inline-object
-            // type case), defer the insertion to a `str.append_left` after the
-            // overwrite so the `;type $$ComponentProps = ...;` lands right before
-            // the `let { ... } = $props()` statement, matching the JS reference's
+            // If we have an explicit `props_let_abs_pos`, defer the insertion to
+            // a `str.append_left` after the overwrite so the
+            // `;type $$ComponentProps = ...;` lands right before the
+            // `let { ... } = $props()` statement, matching the JS reference's
+            // `preprendStr(node.parent.pos + astOffset, ...)` /
             // `move(generic_arg.pos, generic_arg.end, node.parent.pos)`.
-            let inline_type_at_let = force_inside_render
+            let inline_type_at_let = (force_inside_render || exported_names.type_already_inserted)
                 && exported_names.props_let_abs_pos.is_some()
                 && exported_names.props_type_text.is_some();
             let ts_component_props_inside_render = if (exported_names.type_already_inserted
@@ -664,10 +671,17 @@ pub fn svelte2tsx(
                     exported_names.props_let_abs_pos,
                     exported_names.props_type_text.as_ref(),
                 ) {
-                    str.append_left(
-                        let_pos,
-                        &format!(";type $$ComponentProps =  {};", type_text),
-                    );
+                    let snippet = if force_inside_render {
+                        format!(";type $$ComponentProps =  {};", type_text)
+                    } else {
+                        // type_already_inserted (auto-generated SvelteKit / fallback type).
+                        // JS reference wraps in surroundWithIgnoreComments.
+                        format!(
+                            "/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
+                            type_text
+                        )
+                    };
+                    str.append_left(let_pos, &snippet);
                 }
             }
         } else {
@@ -705,7 +719,8 @@ pub fn svelte2tsx(
 
             // For best-effort auto-generated types, insert INSIDE $$render.
             // See the imports branch above for the `inline_type_at_let` rationale.
-            let inline_type_at_let = force_inside_render_no_imports
+            let inline_type_at_let = (force_inside_render_no_imports
+                || exported_names.type_already_inserted)
                 && exported_names.props_let_abs_pos.is_some()
                 && exported_names.props_type_text.is_some();
             let ts_component_props_inside_render = if (exported_names.type_already_inserted
@@ -752,10 +767,15 @@ pub fn svelte2tsx(
                     exported_names.props_let_abs_pos,
                     exported_names.props_type_text.as_ref(),
                 ) {
-                    str.append_left(
-                        let_pos,
-                        &format!(";type $$ComponentProps =  {};", type_text),
-                    );
+                    let snippet = if force_inside_render_no_imports {
+                        format!(";type $$ComponentProps =  {};", type_text)
+                    } else {
+                        format!(
+                            "/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
+                            type_text
+                        )
+                    };
+                    str.append_left(let_pos, &snippet);
                 }
             }
         }

@@ -593,6 +593,32 @@ struct PropsRuneInfo {
 /// * `str` - The MagicString for source manipulation
 /// * `exported_names` - Accumulator for exported names
 /// * `events` - Accumulator for component events
+/// Classify a Svelte component basename for SvelteKit autotype injection.
+///
+/// Returns:
+/// - `Some(true)` if the file is a SvelteKit `+layout.svelte` (uses
+///   `LayoutData` / `LayoutProps`).
+/// - `Some(false)` if it's `+page.svelte` (uses `PageData` / `ActionData` /
+///   `PageProps`).
+/// - `None` otherwise.
+pub fn classify_kit_route_file(basename: &str) -> Option<bool> {
+    // Strip `@anchor` then strip extension. `kitPageFiles` are:
+    // `+page`, `+layout`, `+page.server`, `+layout.server`, `+server`.
+    // Only `+page` and `+layout` produce `.svelte` route files in practice.
+    let trimmed = if let Some(at_pos) = basename.find('@') {
+        &basename[..at_pos]
+    } else if let Some(dot_pos) = basename.rfind('.') {
+        &basename[..dot_pos]
+    } else {
+        basename
+    };
+    match trimmed {
+        "+page" => Some(false),
+        "+layout" => Some(true),
+        _ => None,
+    }
+}
+
 pub fn process_instance_script(
     script: &Script,
     source: &str,
@@ -600,6 +626,7 @@ pub fn process_instance_script(
     exported_names: &mut ExportedNames,
     _events: &mut ComponentEvents,
     is_ts: bool,
+    basename: &str,
 ) {
     let offset = script.content_offset;
     with_parsed_script(script, source, |program, raw_content| {
@@ -883,7 +910,15 @@ pub fn process_instance_script(
 
         // Pass 4: Apply $props() $$ComponentProps typedef transformations
         if let Some(info) = props_rune_info {
-            apply_props_typedef(&info, offset, str, exported_names, raw_content, is_ts);
+            apply_props_typedef(
+                &info,
+                offset,
+                str,
+                exported_names,
+                raw_content,
+                is_ts,
+                basename,
+            );
         }
     });
 
@@ -912,6 +947,7 @@ fn apply_props_typedef(
     exported_names: &mut ExportedNames,
     raw_content: &str,
     is_ts: bool,
+    basename: &str,
 ) {
     if info.has_type_annotation && info.is_hoistable_type {
         // TS case with inline object type: `: { a: number, b: string }`
@@ -980,15 +1016,48 @@ fn apply_props_typedef(
             exported_names.props_jsdoc_type = Some(jsdoc_type.clone());
         }
     } else if !info.prop_types.is_empty() || info.has_rest {
-        // Auto-generate typedef from destructured props
+        // Auto-generate typedef from destructured props.
+        //
+        // For SvelteKit `+page.svelte` / `+layout.svelte` route files, override
+        // the inferred `any` for the well-known prop names `data`, `form`,
+        // `params` with `import('./$types.js').*` references — matches the JS
+        // reference's `isKitRouteFile` branch in `ExportedNames.handle$propsRune`.
+        let kit_layout = classify_kit_route_file(basename);
         let type_entries: Vec<String> = info
             .prop_types
             .iter()
             .map(|(name, optional, inferred_type)| {
-                if *optional {
-                    format!("{}?: {}", name, inferred_type)
+                let actual_type = if let Some(is_layout) = kit_layout {
+                    match name.as_str() {
+                        "data" => Some(
+                            if is_layout {
+                                "import('./$types.js').LayoutData"
+                            } else {
+                                "import('./$types.js').PageData"
+                            }
+                            .to_string(),
+                        ),
+                        "form" if !is_layout => {
+                            Some("import('./$types.js').ActionData".to_string())
+                        }
+                        "params" => Some(
+                            if is_layout {
+                                "import('./$types.js').LayoutProps['params']"
+                            } else {
+                                "import('./$types.js').PageProps['params']"
+                            }
+                            .to_string(),
+                        ),
+                        _ => None,
+                    }
                 } else {
-                    format!("{}: {}", name, inferred_type)
+                    None
+                };
+                let resolved = actual_type.as_deref().unwrap_or(inferred_type);
+                if *optional {
+                    format!("{}?: {}", name, resolved)
+                } else {
+                    format!("{}: {}", name, resolved)
                 }
             })
             .collect();
@@ -1013,6 +1082,22 @@ fn apply_props_typedef(
             exported_names.props_type_text = Some(type_body);
             // Mark that this is a best-effort type that needs to go inside $$render
             exported_names.type_already_inserted = true;
+            // Track the let position so the caller (`svelte2tsx::svelte2tsx`)
+            // can insert the synthesised `;type $$ComponentProps = ...;` right
+            // before the `let { ... } = $props()` statement instead of at the
+            // very start of `$$render` — matches the JS reference's
+            // `preprendStr(node.parent.pos + astOffset, ...)`.
+            let raw_bytes = raw_content.as_bytes();
+            let mut p = info.let_pos as usize;
+            while p > 0 {
+                let prev = raw_bytes[p - 1];
+                if prev == b' ' || prev == b'\t' || prev == b'\n' || prev == b'\r' {
+                    p -= 1;
+                } else {
+                    break;
+                }
+            }
+            exported_names.props_let_abs_pos = Some(p as u32 + offset);
         } else {
             // JS case: Insert JSDoc typedef between `let` and `{`
             let typedef_text = format!(
