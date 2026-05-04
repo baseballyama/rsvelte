@@ -64,6 +64,16 @@ pub struct ExportedNames {
     /// statement when the type can't be hoisted out of $$render (matches JS reference's
     /// `move(generic_arg.pos, generic_arg.end, node.parent.pos)`).
     pub props_let_abs_pos: Option<u32>,
+    /// Names of top-level `type X = ...` and `interface X { ... }` declarations
+    /// in the instance script. Used to detect "shadowed" type references in the
+    /// `$props()` type annotation: if `let { ... }: { x: T } = $props()` mentions
+    /// any name in this set, the synthesised `$$ComponentProps` cannot be hoisted
+    /// out of `$$render` because the name resolves to an instance-scope binding.
+    pub instance_type_names: HashSet<String>,
+    /// Names of top-level value declarations (let/const/var/function/class) from
+    /// the instance script. Used to detect runtime-value dependencies in the
+    /// `$props()` type annotation (in addition to the `typeof ...` heuristic).
+    pub instance_value_names: HashSet<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -103,6 +113,8 @@ impl ExportedNames {
             dollar_generic_positions: Vec::new(),
             hoistable_type_ranges: Vec::new(),
             props_let_abs_pos: None,
+            instance_type_names: HashSet::new(),
+            instance_value_names: HashSet::new(),
         }
     }
     /// Build the generics string for `$$render` from `$$Generic` declarations.
@@ -741,6 +753,9 @@ pub fn process_instance_script(
                     } else if iface.id.name == "$$Events" {
                         exported_names.has_events_type = true;
                     }
+                    exported_names
+                        .instance_type_names
+                        .insert(iface.id.name.to_string());
                 }
                 oxc::Statement::TSTypeAliasDeclaration(type_alias) => {
                     if type_alias.id.name == "$$Slots" {
@@ -748,6 +763,9 @@ pub fn process_instance_script(
                     } else if type_alias.id.name == "$$Events" {
                         exported_names.has_events_type = true;
                     }
+                    exported_names
+                        .instance_type_names
+                        .insert(type_alias.id.name.to_string());
                     // Detect `type X = $$Generic;` or `type X = $$Generic<constraint>;`
                     let type_text = &raw_content[type_alias.type_annotation.span().start as usize
                         ..type_alias.type_annotation.span().end as usize];
@@ -854,6 +872,13 @@ pub fn process_instance_script(
                     );
                 }
             }
+        }
+
+        // Snapshot instance-script value declarations so callers (in particular
+        // the force-inside-render heuristic for `$$ComponentProps`) can detect
+        // when the props type references an instance-scope binding.
+        for name in declared_names.iter() {
+            exported_names.instance_value_names.insert(name.clone());
         }
 
         // Pass 4: Apply $props() $$ComponentProps typedef transformations
