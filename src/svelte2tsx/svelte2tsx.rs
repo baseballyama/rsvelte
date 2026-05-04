@@ -597,10 +597,20 @@ pub fn svelte2tsx(
                 String::new()
             };
 
-            // For best-effort auto-generated types, insert INSIDE $$render
+            // For best-effort auto-generated types, insert INSIDE $$render.
+            //
+            // If we have an explicit `props_let_abs_pos` (TS hoistable inline-object
+            // type case), defer the insertion to a `str.append_left` after the
+            // overwrite so the `;type $$ComponentProps = ...;` lands right before
+            // the `let { ... } = $props()` statement, matching the JS reference's
+            // `move(generic_arg.pos, generic_arg.end, node.parent.pos)`.
+            let inline_type_at_let = force_inside_render
+                && exported_names.props_let_abs_pos.is_some()
+                && exported_names.props_type_text.is_some();
             let ts_component_props_inside_render = if (exported_names.type_already_inserted
                 || force_inside_render)
                 && exported_names.props_type_text.is_some()
+                && !inline_type_at_let
             {
                 let type_text = exported_names.props_type_text.as_ref().unwrap();
                 if force_inside_render {
@@ -642,6 +652,18 @@ pub fn svelte2tsx(
             if script_start < content_start {
                 str.overwrite(script_start, content_start, &script_replacement);
             }
+
+            if inline_type_at_let {
+                if let (Some(let_pos), Some(type_text)) = (
+                    exported_names.props_let_abs_pos,
+                    exported_names.props_type_text.as_ref(),
+                ) {
+                    str.append_left(
+                        let_pos,
+                        &format!(";type $$ComponentProps =  {};", type_text),
+                    );
+                }
+            }
         } else {
             // No imports: overwrite the entire <script> tag at once
             let force_inside_render_no_imports = exported_names.has_component_props_typedef
@@ -673,10 +695,15 @@ pub fn svelte2tsx(
                 String::new()
             };
 
-            // For best-effort auto-generated types, insert INSIDE $$render
+            // For best-effort auto-generated types, insert INSIDE $$render.
+            // See the imports branch above for the `inline_type_at_let` rationale.
+            let inline_type_at_let = force_inside_render_no_imports
+                && exported_names.props_let_abs_pos.is_some()
+                && exported_names.props_type_text.is_some();
             let ts_component_props_inside_render = if (exported_names.type_already_inserted
                 || force_inside_render_no_imports)
                 && exported_names.props_type_text.is_some()
+                && !inline_type_at_let
             {
                 let type_text = exported_names.props_type_text.as_ref().unwrap();
                 if force_inside_render_no_imports {
@@ -710,6 +737,18 @@ pub fn svelte2tsx(
                         trailing_newline
                     ),
                 );
+            }
+
+            if inline_type_at_let {
+                if let (Some(let_pos), Some(type_text)) = (
+                    exported_names.props_let_abs_pos,
+                    exported_names.props_type_text.as_ref(),
+                ) {
+                    str.append_left(
+                        let_pos,
+                        &format!(";type $$ComponentProps =  {};", type_text),
+                    );
+                }
             }
         }
 

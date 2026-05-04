@@ -59,6 +59,11 @@ pub struct ExportedNames {
     /// Type/interface declarations from instance script that should be hoisted
     /// before $$render(). Each entry is (start, end) relative to source (absolute positions).
     pub hoistable_type_ranges: Vec<(u32, u32)>,
+    /// Absolute source position of the `let` keyword in `let { ... } = $props()`.
+    /// Used to insert `;type $$ComponentProps = ...;` right before the `$props()`
+    /// statement when the type can't be hoisted out of $$render (matches JS reference's
+    /// `move(generic_arg.pos, generic_arg.end, node.parent.pos)`).
+    pub props_let_abs_pos: Option<u32>,
 }
 
 #[derive(Debug, Clone)]
@@ -97,6 +102,7 @@ impl ExportedNames {
             dollar_generics: Vec::new(),
             dollar_generic_positions: Vec::new(),
             hoistable_type_ranges: Vec::new(),
+            props_let_abs_pos: None,
         }
     }
     /// Build the generics string for `$$render` from `$$Generic` declarations.
@@ -879,7 +885,7 @@ fn apply_props_typedef(
     offset: u32,
     str: &mut MagicString,
     exported_names: &mut ExportedNames,
-    _raw_content: &str,
+    raw_content: &str,
     is_ts: bool,
 ) {
     if info.has_type_annotation && info.is_hoistable_type {
@@ -897,6 +903,24 @@ fn apply_props_typedef(
             );
         }
         exported_names.has_component_props_typedef = true;
+        // Track the position right BEFORE the leading whitespace of the
+        // `let { ... } = $props()` declaration so the caller can insert
+        // `;type $$ComponentProps = ...;` there when the type cannot be
+        // hoisted out of $$render (e.g. when it references `typeof <runtime-var>`
+        // or a generic). This matches the JS reference's
+        // `move(generic_arg.pos, generic_arg.end, node.parent.pos)` — TypeScript's
+        // `pos` lands right after the previous statement's trailing trivia.
+        let raw_bytes = raw_content.as_bytes();
+        let mut p = info.let_pos as usize;
+        while p > 0 {
+            let prev = raw_bytes[p - 1];
+            if prev == b' ' || prev == b'\t' || prev == b'\n' || prev == b'\r' {
+                p -= 1;
+            } else {
+                break;
+            }
+        }
+        exported_names.props_let_abs_pos = Some(p as u32 + offset);
     } else if info.has_type_annotation && !info.is_hoistable_type {
         // TS case with named type reference: `: Props` or `: Props<T>`
         // Keep the type annotation as-is, use it directly in props_type_text
