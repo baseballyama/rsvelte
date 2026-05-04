@@ -208,6 +208,20 @@ pub fn svelte2tsx(
         .and_then(|s| s.to_str())
         .unwrap_or("")
         .to_string();
+    let script_generic_names: std::collections::HashSet<String> = ast
+        .instance
+        .as_ref()
+        .map(|instance| {
+            let tag_text = &source[instance.start as usize..instance.content_offset as usize];
+            extract_generics_from_script_tag(tag_text)
+        })
+        .unwrap_or_default()
+        .map(|raw| {
+            split_generic_param_names(&raw)
+                .into_iter()
+                .collect::<std::collections::HashSet<String>>()
+        })
+        .unwrap_or_default();
     if let Some(ref instance) = ast.instance {
         super::script::process_instance_script(
             instance,
@@ -219,6 +233,7 @@ pub fn svelte2tsx(
             &basename,
             options.emit_jsdoc,
             matches!(options.mode, Svelte2TsxMode::Dts),
+            &script_generic_names,
         );
     }
 
@@ -694,11 +709,19 @@ pub fn svelte2tsx(
                             })
                             .unwrap_or(false);
                     // Check if type references a type/interface name that is
-                    // declared at the top level of the instance script (i.e.
-                    // would shadow any module-level declaration with the same
-                    // name once hoisted out of $$render).
+                    // declared at the top level of the instance script AND
+                    // *isn't* also slated for hoisting. References to a
+                    // hoisted type are fine — the hoisted declaration sits
+                    // above `function $$render()`, so referring to it from
+                    // a hoisted `$$ComponentProps` resolves correctly.
+                    let non_hoistable_instance_types: std::collections::HashSet<String> =
+                        exported_names
+                            .instance_type_names
+                            .difference(&exported_names.hoistable_instance_type_names)
+                            .cloned()
+                            .collect();
                     let has_shadowed_type =
-                        type_text_references_any(type_text, &exported_names.instance_type_names);
+                        type_text_references_any(type_text, &non_hoistable_instance_types);
                     has_typeof || has_generic_dep || has_shadowed_type
                 };
 
@@ -743,24 +766,27 @@ pub fn svelte2tsx(
             };
 
             // Build the <script> replacement, split into two parts so that
-            // module-hoistable snippets can be moved into the gap:
-            //   Part A: `;\n[\n if module]<imports><before_render_type>`
-            //   Part B: `[async_prefix]function $$render(){...`
+            // module-hoistable snippets and types can be moved into the gap:
+            //   Part A: `;\n[\n if module]<imports>`
+            //   Part B: `<before_render_type><async_prefix>function $$render(){...`
+            //
+            // The synthesised `;type $$ComponentProps = ...;` lives in part_b
+            // (not part_a) so it lands AFTER any hoisted type/interface
+            // declarations — `$$ComponentProps` may reference them, so it has
+            // to appear after them in the output.
             let mut part_a = String::from(";\n");
             if has_module_script {
                 part_a.push('\n');
             }
             part_a.push_str(&import_text);
-            if !ts_component_props_before_render.is_empty() {
-                part_a.push_str(&ts_component_props_before_render);
-            }
             let trailing_newline = if ts_component_props_inside_render.is_empty() {
                 "\n"
             } else {
                 ""
             };
             let part_b = format!(
-                "{}function $$render{}() {{{}{}{}",
+                "{}{}function $$render{}() {{{}{}{}",
+                ts_component_props_before_render,
                 async_prefix,
                 render_generics,
                 dollar_decls,
@@ -768,15 +794,39 @@ pub fn svelte2tsx(
                 trailing_newline
             );
 
-            let split_pos =
-                if !hoistable_snippet_ranges.is_empty() && content_start > script_start + 1 {
-                    Some(content_start - 1)
-                } else {
-                    None
-                };
+            let has_hoistable_chunks = !hoistable_snippet_ranges.is_empty()
+                || !exported_names.hoistable_type_ranges.is_empty();
+            // Split position: right after the `<` of `<script>`. This matches
+            // the JS reference's `scriptTag.start + 1`, so moved chunks land
+            // between the `;` (from the `<` overwrite) and the function
+            // declaration that replaces the rest of the script tag.
+            let split_pos = if has_hoistable_chunks && content_start > script_start + 1 {
+                Some(script_start + 1)
+            } else {
+                None
+            };
             if let Some(sp) = split_pos {
                 if script_start < sp {
                     str.overwrite(script_start, sp, &part_a);
+                }
+                // Move hoistable type/interface declarations first so they
+                // sit BEFORE the snippets in the chunk list, matching the JS
+                // reference's `scriptTag.start + 1` ordering.
+                //
+                // Each chunk already extends backward through the original
+                // leading whitespace (see `resolve_hoistable_type_decls`),
+                // so a single `;` prepend is enough — the chunk supplies
+                // its own newline + indent, and the trailing `;` mirrors
+                // `appendLeft(node.end, ';')` from the JS reference so the
+                // declaration is statement-terminated.
+                let mut type_ranges = exported_names.hoistable_type_ranges.clone();
+                type_ranges.sort_by_key(|(s, _)| *s);
+                for (s, e) in type_ranges {
+                    if s < e && (e as usize) <= source.len() {
+                        str.prepend_left(s, ";");
+                        str.append_left(e, ";");
+                        str.move_range(s, e, sp);
+                    }
                 }
                 for (s, e) in hoistable_snippet_ranges.iter() {
                     str.move_range(*s, *e, sp);
@@ -870,24 +920,52 @@ pub fn svelte2tsx(
             } else {
                 ""
             };
-            let part_a = format!(";{}", ts_component_props_before_render);
+            // No-imports branch: same split rationale as the imports branch
+            // above — keep the synthesised `;type $$ComponentProps = ...;` in
+            // part_b so it follows any hoisted type/interface declarations.
+            let part_a = String::from(";");
             let part_b = format!(
-                "{}function $$render{}() {{{}{}{}",
+                "{}{}function $$render{}() {{{}{}{}",
+                ts_component_props_before_render,
                 async_prefix,
                 render_generics,
                 dollar_decls,
                 ts_component_props_inside_render,
                 trailing_newline
             );
-            let split_pos =
-                if !hoistable_snippet_ranges.is_empty() && content_start > script_start + 1 {
-                    Some(content_start - 1)
-                } else {
-                    None
-                };
+            let has_hoistable_chunks = !hoistable_snippet_ranges.is_empty()
+                || !exported_names.hoistable_type_ranges.is_empty();
+            // Split position: right after the `<` of `<script>`. This matches
+            // the JS reference's `scriptTag.start + 1`, so moved chunks land
+            // between the `;` (from the `<` overwrite) and the function
+            // declaration that replaces the rest of the script tag.
+            let split_pos = if has_hoistable_chunks && content_start > script_start + 1 {
+                Some(script_start + 1)
+            } else {
+                None
+            };
             if let Some(sp) = split_pos {
                 if script_start < sp {
                     str.overwrite(script_start, sp, &part_a);
+                }
+                // Move hoistable type/interface declarations first so they
+                // sit BEFORE the snippets in the chunk list, matching the JS
+                // reference's `scriptTag.start + 1` ordering.
+                //
+                // Each chunk already extends backward through the original
+                // leading whitespace (see `resolve_hoistable_type_decls`),
+                // so a single `;` prepend is enough — the chunk supplies
+                // its own newline + indent, and the trailing `;` mirrors
+                // `appendLeft(node.end, ';')` from the JS reference so the
+                // declaration is statement-terminated.
+                let mut type_ranges = exported_names.hoistable_type_ranges.clone();
+                type_ranges.sort_by_key(|(s, _)| *s);
+                for (s, e) in type_ranges {
+                    if s < e && (e as usize) <= source.len() {
+                        str.prepend_left(s, ";");
+                        str.append_left(e, ";");
+                        str.move_range(s, e, sp);
+                    }
                 }
                 for (s, e) in hoistable_snippet_ranges.iter() {
                     str.move_range(*s, *e, sp);

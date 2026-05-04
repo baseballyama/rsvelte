@@ -87,6 +87,16 @@ pub struct ExportedNames {
     pub module_value_names: HashSet<String>,
     /// Names imported into the module script.
     pub module_import_names: HashSet<String>,
+    /// Names of top-level `type X = ...` / `interface X { ... }` declarations
+    /// in the module script. Used by the hoist analyser to detect a candidate
+    /// instance-script type that would shadow a module-scope name once
+    /// hoisted.
+    pub module_type_names: HashSet<String>,
+    /// Subset of `instance_type_names` that have been determined hoistable.
+    /// References to these from `$$ComponentProps` do NOT trigger
+    /// force-inside-render, because the hoisted declaration is still in scope
+    /// when the synthesised type is read.
+    pub hoistable_instance_type_names: HashSet<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -131,6 +141,8 @@ impl ExportedNames {
             instance_import_names: HashSet::new(),
             module_value_names: HashSet::new(),
             module_import_names: HashSet::new(),
+            module_type_names: HashSet::new(),
+            hoistable_instance_type_names: HashSet::new(),
         }
     }
     /// Build the generics string for `$$render` from `$$Generic` declarations.
@@ -645,12 +657,17 @@ pub fn process_instance_script(
     basename: &str,
     emit_jsdoc: bool,
     is_dts_mode: bool,
+    script_generic_names: &HashSet<String>,
 ) {
     let offset = script.content_offset;
     with_parsed_script(script, source, |program, raw_content| {
         // Pass 1: collect top-level declared names and possible exports
         let mut possible_exports: HashMap<String, PossibleExport> = HashMap::new();
         let mut declared_names: HashSet<String> = HashSet::new();
+        // Top-level `type` / `interface` declarations that may be hoistable
+        // out of `function $$render()`. Resolved (with `instance_value_names`
+        // and `module_*_names`) into `hoistable_type_ranges` after Pass 1.
+        let mut candidates: Vec<HoistCandidate> = Vec::new();
 
         // Also collect $props() rune info for typedef generation
         let mut props_rune_info: Option<PropsRuneInfo> = None;
@@ -734,6 +751,18 @@ pub fn process_instance_script(
                         declared_names.insert(id.name.to_string());
                     }
                 }
+                // Track instance-script namespace and enum names so the
+                // hoist analyser treats `A.Abc` references as blocking when
+                // `A` is bound in the instance script. Mirrors the JS
+                // reference's `disallowed_types.add(...)` for namespaces.
+                oxc::Statement::TSModuleDeclaration(module) => {
+                    if let oxc_ast::ast::TSModuleDeclarationName::Identifier(id) = &module.id {
+                        declared_names.insert(id.name.to_string());
+                    }
+                }
+                oxc::Statement::TSEnumDeclaration(enum_decl) => {
+                    declared_names.insert(enum_decl.id.name.to_string());
+                }
                 oxc::Statement::ExportNamedDeclaration(export) => {
                     // Also check exports for declared names
                     if let Some(ref decl) = export.declaration {
@@ -794,14 +823,20 @@ pub fn process_instance_script(
                 }
                 // Detect $$Slots and $$Events type/interface declarations
                 oxc::Statement::TSInterfaceDeclaration(iface) => {
-                    if iface.id.name == "$$Slots" {
+                    let name = iface.id.name.to_string();
+                    if name == "$$Slots" {
                         exported_names.has_slots_type = true;
-                    } else if iface.id.name == "$$Events" {
+                    } else if name == "$$Events" {
                         exported_names.has_events_type = true;
                     }
-                    exported_names
-                        .instance_type_names
-                        .insert(iface.id.name.to_string());
+                    exported_names.instance_type_names.insert(name.clone());
+                    if !is_special_type_name(&name) {
+                        candidates.push(HoistCandidate {
+                            name,
+                            rel_start: iface.span.start,
+                            rel_end: iface.span.end,
+                        });
+                    }
 
                     // dts mode: rewrite `interface X { ... }` (and any `extends`
                     // clauses) into `type X = ... & { ... }` because indirectly
@@ -813,14 +848,20 @@ pub fn process_instance_script(
                     }
                 }
                 oxc::Statement::TSTypeAliasDeclaration(type_alias) => {
-                    if type_alias.id.name == "$$Slots" {
+                    let name = type_alias.id.name.to_string();
+                    if name == "$$Slots" {
                         exported_names.has_slots_type = true;
-                    } else if type_alias.id.name == "$$Events" {
+                    } else if name == "$$Events" {
                         exported_names.has_events_type = true;
                     }
-                    exported_names
-                        .instance_type_names
-                        .insert(type_alias.id.name.to_string());
+                    exported_names.instance_type_names.insert(name.clone());
+                    if !is_special_type_name(&name) {
+                        candidates.push(HoistCandidate {
+                            name,
+                            rel_start: type_alias.span.start,
+                            rel_end: type_alias.span.end,
+                        });
+                    }
                     // Detect `type X = $$Generic;` or `type X = $$Generic<constraint>;`
                     let type_text = &raw_content[type_alias.type_annotation.span().start as usize
                         ..type_alias.type_annotation.span().end as usize];
@@ -936,6 +977,22 @@ pub fn process_instance_script(
         // when the props type references an instance-scope binding.
         for name in declared_names.iter() {
             exported_names.instance_value_names.insert(name.clone());
+        }
+
+        // Resolve which instance-script type/interface declarations are
+        // hoistable above `function $$render()`. Mirrors
+        // `HoistableInterfaces.moveHoistableInterfaces` in the JS reference,
+        // including the early-exit `if (!this.props_interface.name) return;`
+        // — without a `$props()` typed annotation there's nothing for the
+        // hoisted types to feed, so we leave them in place.
+        if props_rune_info.is_some() {
+            resolve_hoistable_type_decls(
+                &candidates,
+                raw_content,
+                offset,
+                exported_names,
+                script_generic_names,
+            );
         }
 
         // Pass 4: Apply $props() $$ComponentProps typedef transformations
@@ -1261,9 +1318,49 @@ pub fn process_module_script(
                                         .insert(id.name.to_string());
                                 }
                             }
+                            oxc::Declaration::TSTypeAliasDeclaration(t) => {
+                                exported_names
+                                    .module_type_names
+                                    .insert(t.id.name.to_string());
+                            }
+                            oxc::Declaration::TSInterfaceDeclaration(iface) => {
+                                exported_names
+                                    .module_type_names
+                                    .insert(iface.id.name.to_string());
+                            }
                             _ => {}
                         }
                     }
+                }
+                oxc::Statement::TSTypeAliasDeclaration(t) => {
+                    exported_names
+                        .module_type_names
+                        .insert(t.id.name.to_string());
+                }
+                oxc::Statement::TSInterfaceDeclaration(iface) => {
+                    exported_names
+                        .module_type_names
+                        .insert(iface.id.name.to_string());
+                }
+                // Module-level `namespace X { ... }` and `enum X { ... }`
+                // contribute both a value and a type binding, so an
+                // instance-script `interface X` would shadow the module
+                // declaration once hoisted.
+                oxc::Statement::TSModuleDeclaration(module_decl) => {
+                    if let oxc_ast::ast::TSModuleDeclarationName::Identifier(id) = &module_decl.id {
+                        exported_names
+                            .module_value_names
+                            .insert(id.name.to_string());
+                        exported_names.module_type_names.insert(id.name.to_string());
+                    }
+                }
+                oxc::Statement::TSEnumDeclaration(enum_decl) => {
+                    exported_names
+                        .module_value_names
+                        .insert(enum_decl.id.name.to_string());
+                    exported_names
+                        .module_type_names
+                        .insert(enum_decl.id.name.to_string());
                 }
                 _ => {}
             }
@@ -1278,6 +1375,372 @@ pub fn process_module_script(
 /// interfaces inside the return type of a function is forbidden by the
 /// declaration emitter, so the JS reference's
 /// `transformInterfacesToTypes(...)` performs this rewrite. Mirror that here.
+/// One top-level `type X = ...` or `interface X { ... }` from the instance
+/// script that may be hoistable above `function $$render()`.
+#[derive(Debug, Clone)]
+struct HoistCandidate {
+    name: String,
+    /// Span relative to the script content (raw_content).
+    rel_start: u32,
+    rel_end: u32,
+}
+
+/// Names that have a special meaning in svelte2tsx and must never be hoisted.
+fn is_special_type_name(name: &str) -> bool {
+    matches!(name, "$$Props" | "$$Slots" | "$$Events")
+}
+
+/// Walk a TS type body lexically and collect:
+/// - identifiers that appear in `typeof IDENT` positions (value dependencies)
+/// - identifiers that match a known candidate-name (type dependencies)
+/// - identifiers that match an instance-script value declaration that isn't
+///   an import (treated as a value dependency — a namespace `A` referenced
+///   via `A.Abc` would land here, mirroring the JS reference's
+///   `disallowed_types.add(node.name.text)` for namespace declarations)
+///
+/// This is intentionally narrow — non-candidate identifiers (like property
+/// keys or generic param names) are ignored, so we only flag references that
+/// actually matter for the hoist decision. The JS reference uses TS AST
+/// walking to be exact; this lexical filter matches its decisions on the
+/// fixtures the rsvelte port currently cares about.
+fn collect_type_body_deps(
+    body: &str,
+    candidate_names: &HashSet<String>,
+    self_name: &str,
+    generics: &HashSet<String>,
+    instance_value_names: &HashSet<String>,
+    instance_import_names: &HashSet<String>,
+) -> (HashSet<String>, HashSet<String>) {
+    let mut value_deps: HashSet<String> = HashSet::new();
+    let mut type_deps: HashSet<String> = HashSet::new();
+    let bytes = body.as_bytes();
+    let len = bytes.len();
+    let mut i = 0usize;
+    while i < len {
+        let b = bytes[i];
+        // Skip line/block comments and strings.
+        if b == b'/' && i + 1 < len {
+            if bytes[i + 1] == b'/' {
+                while i < len && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            } else if bytes[i + 1] == b'*' {
+                i += 2;
+                while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(len);
+                continue;
+            }
+        }
+        if b == b'\'' || b == b'"' || b == b'`' {
+            let quote = b;
+            i += 1;
+            while i < len && bytes[i] != quote {
+                if bytes[i] == b'\\' && i + 1 < len {
+                    i += 2;
+                    continue;
+                }
+                i += 1;
+            }
+            i = (i + 1).min(len);
+            continue;
+        }
+        if (b.is_ascii_alphabetic() || b == b'_' || b == b'$') && !b.is_ascii_digit() {
+            let start = i;
+            i += 1;
+            while i < len
+                && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_' || bytes[i] == b'$')
+            {
+                i += 1;
+            }
+            let ident = &body[start..i];
+            if ident == self_name || generics.contains(ident) {
+                continue;
+            }
+            // `typeof <ident>` lookbehind.
+            let mut j = start;
+            while j > 0 && matches!(bytes[j - 1], b' ' | b'\t' | b'\r' | b'\n') {
+                j -= 1;
+            }
+            let preceded_by_typeof =
+                j >= 6 && &body[j - 6..j] == "typeof" && (j == 6 || !is_ident_byte(bytes[j - 7]));
+            // Detect property-key context: `key:` or `key?:` (with optional
+            // whitespace) — these are object-type member keys, not type
+            // references, so they shouldn't count as deps even if they
+            // happen to share a name with an instance-script binding.
+            let mut k = i;
+            while k < len && matches!(bytes[k], b' ' | b'\t' | b'\r' | b'\n') {
+                k += 1;
+            }
+            let is_property_key = k < len
+                && (bytes[k] == b':' || (bytes[k] == b'?' && k + 1 < len && bytes[k + 1] == b':'));
+
+            if preceded_by_typeof {
+                value_deps.insert(ident.to_string());
+            } else if is_property_key {
+                // skip — property keys aren't dependencies
+            } else if candidate_names.contains(ident) {
+                type_deps.insert(ident.to_string());
+            } else if instance_value_names.contains(ident) && !instance_import_names.contains(ident)
+            {
+                // Identifier resolves to an instance-script value (a `let`,
+                // `const`, `class`, `enum`, or namespace) that isn't an
+                // import. Even outside a `typeof`, mentioning such a name
+                // inside a type body forbids hoisting because hoisting would
+                // place the type at module scope where the binding is gone.
+                value_deps.insert(ident.to_string());
+            }
+            continue;
+        }
+        i += 1;
+    }
+    (value_deps, type_deps)
+}
+
+#[inline]
+fn is_ident_byte(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
+}
+
+/// Determine which `HoistCandidate`s can be hoisted above `function $$render()`
+/// and record their absolute source ranges (and names) on `exported_names`.
+///
+/// `script_generic_names` is the set of generic parameter names declared on
+/// the `<script generics="...">` attribute. Any candidate that references
+/// one of those names (even transitively, via another candidate) can't be
+/// hoisted — `T` in scope on `function $$render<T>()` isn't visible at
+/// module scope.
+fn resolve_hoistable_type_decls(
+    candidates: &[HoistCandidate],
+    raw_content: &str,
+    offset: u32,
+    exported_names: &mut ExportedNames,
+    script_generic_names: &HashSet<String>,
+) {
+    if candidates.is_empty() {
+        return;
+    }
+    let candidate_names: HashSet<String> = candidates.iter().map(|c| c.name.clone()).collect();
+    // Per-candidate: collect generic parameter names (so `interface Props<T>`
+    // doesn't see `T` as a dependency).
+    let generics: Vec<HashSet<String>> = candidates
+        .iter()
+        .map(|c| {
+            let mut g = HashSet::new();
+            // Look at the text between `name` and the first `{` / `=`. If a
+            // `<...>` block exists in that range, parse comma-separated entries
+            // and take their leading identifier.
+            let s = c.rel_start as usize;
+            let e = c.rel_end as usize;
+            if s >= raw_content.len() || e > raw_content.len() {
+                return g;
+            }
+            let header_end = raw_content[s..e]
+                .find(|ch: char| ch == '{' || ch == '=')
+                .map(|p| s + p)
+                .unwrap_or(e);
+            let header = &raw_content[s..header_end];
+            if let (Some(lt), Some(gt)) = (header.find('<'), header.rfind('>')) {
+                if lt < gt {
+                    let inner = &header[lt + 1..gt];
+                    for part in inner.split(',') {
+                        let trimmed = part.trim();
+                        let name = trimmed
+                            .split(|ch: char| !is_ident_char_for_str(ch))
+                            .find(|s| !s.is_empty())
+                            .unwrap_or("");
+                        if !name.is_empty() {
+                            g.insert(name.to_string());
+                        }
+                    }
+                }
+            }
+            g
+        })
+        .collect();
+
+    // Pre-compute deps for each candidate.
+    let deps: Vec<(HashSet<String>, HashSet<String>)> = candidates
+        .iter()
+        .enumerate()
+        .map(|(i, c)| {
+            let s = c.rel_start as usize;
+            let e = c.rel_end.min(raw_content.len() as u32) as usize;
+            let body = if s < e { &raw_content[s..e] } else { "" };
+            collect_type_body_deps(
+                body,
+                &candidate_names,
+                &c.name,
+                &generics[i],
+                &exported_names.instance_value_names,
+                &exported_names.instance_import_names,
+            )
+        })
+        .collect();
+
+    // Initial blocked: candidates whose name shadows a module-script
+    // declaration of any kind.
+    let mut blocked = vec![false; candidates.len()];
+    for (i, c) in candidates.iter().enumerate() {
+        if exported_names.module_value_names.contains(&c.name)
+            || exported_names.module_import_names.contains(&c.name)
+            || exported_names.module_type_names.contains(&c.name)
+        {
+            blocked[i] = true;
+        }
+    }
+
+    // Initial blocked: candidates that reference any `<script generics="...">`
+    // parameter name. Hoisting them out of `function $$render<T>(){...}` would
+    // put them at module scope where `T` no longer exists.
+    if !script_generic_names.is_empty() {
+        for (i, c) in candidates.iter().enumerate() {
+            if blocked[i] {
+                continue;
+            }
+            let s = c.rel_start as usize;
+            let e = c.rel_end.min(raw_content.len() as u32) as usize;
+            if s >= e {
+                continue;
+            }
+            let body = &raw_content[s..e];
+            for name in script_generic_names.iter() {
+                if has_whole_ident(body, name) {
+                    blocked[i] = true;
+                    break;
+                }
+            }
+        }
+    }
+    // Initial blocked: candidates with a value_dep that isn't allowed.
+    // "Allowed" = NOT in instance_value_names except imports, OR in any
+    // module-script set (module-script bindings are stable references).
+    for (i, (value_deps, _)) in deps.iter().enumerate() {
+        if blocked[i] {
+            continue;
+        }
+        for v in value_deps {
+            // Resolve `$name` references back to their underlying `name`,
+            // so the analysis treats `typeof $store` the same way as
+            // `addDisallowed(getAccessedStores())` in the JS reference.
+            let resolved: &str = if let Some(stripped) = v.strip_prefix('$') {
+                if !stripped.is_empty() && !stripped.starts_with('$') {
+                    stripped
+                } else {
+                    v.as_str()
+                }
+            } else {
+                v.as_str()
+            };
+            let in_instance_value = exported_names.instance_value_names.contains(resolved);
+            let in_instance_import = exported_names.instance_import_names.contains(resolved);
+            let in_module = exported_names.module_value_names.contains(resolved)
+                || exported_names.module_import_names.contains(resolved);
+            // The JS reference: `disallowed_values` = instance script values
+            // EXCEPT imports. So a value_dep blocks iff it's an instance
+            // value AND NOT an import (and NOT a module-script binding).
+            if in_instance_value && !in_instance_import && !in_module {
+                blocked[i] = true;
+                break;
+            }
+        }
+    }
+
+    // Fixed-point: a candidate that depends on a blocked candidate's type is
+    // itself blocked. Promote candidates to hoistable when all type-deps are
+    // hoistable.
+    let mut hoistable = vec![false; candidates.len()];
+    let mut progress = true;
+    while progress {
+        progress = false;
+        for i in 0..candidates.len() {
+            if hoistable[i] || blocked[i] {
+                continue;
+            }
+            let (_, type_deps) = &deps[i];
+            let mut can_hoist = true;
+            for dep in type_deps {
+                let dep_idx = candidates.iter().position(|c| &c.name == dep);
+                if let Some(idx) = dep_idx {
+                    if blocked[idx] {
+                        blocked[i] = true;
+                        can_hoist = false;
+                        break;
+                    }
+                    if !hoistable[idx] {
+                        can_hoist = false;
+                    }
+                }
+                // type_deps are limited to candidate_names by
+                // `collect_type_body_deps`, so anything else simply doesn't
+                // appear here.
+            }
+            if can_hoist {
+                hoistable[i] = true;
+                progress = true;
+            }
+        }
+    }
+
+    let raw_bytes = raw_content.as_bytes();
+    for (i, c) in candidates.iter().enumerate() {
+        if hoistable[i] {
+            // Extend the move range backward through preceding whitespace so
+            // the original indentation travels with the moved chunk —
+            // matches the JS reference's `node.pos` (which spans the
+            // preceding trivia) minus a single whitespace-skip.
+            let mut start = c.rel_start as usize;
+            while start > 0 {
+                let prev = raw_bytes[start - 1];
+                if prev == b' ' || prev == b'\t' || prev == b'\n' || prev == b'\r' {
+                    start -= 1;
+                } else {
+                    break;
+                }
+            }
+            exported_names
+                .hoistable_type_ranges
+                .push((start as u32 + offset, c.rel_end + offset));
+            exported_names
+                .hoistable_instance_type_names
+                .insert(c.name.clone());
+        }
+    }
+}
+
+#[inline]
+fn is_ident_char_for_str(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || ch == '_' || ch == '$'
+}
+
+/// Return true if `text` contains `name` as a whole identifier (not as a
+/// substring of a longer one).
+fn has_whole_ident(text: &str, name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+    let bytes = text.as_bytes();
+    let nbytes = name.as_bytes();
+    if nbytes.len() > bytes.len() {
+        return false;
+    }
+    let mut i = 0usize;
+    while i + nbytes.len() <= bytes.len() {
+        if &bytes[i..i + nbytes.len()] == nbytes {
+            let before_ok = i == 0 || !is_ident_byte(bytes[i - 1]);
+            let after_idx = i + nbytes.len();
+            let after_ok = after_idx == bytes.len() || !is_ident_byte(bytes[after_idx]);
+            if before_ok && after_ok {
+                return true;
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
 ///
 /// Concretely:
 /// - `interface X { … }`                  → `type X ={ … }`
