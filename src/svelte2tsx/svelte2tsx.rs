@@ -823,7 +823,12 @@ pub fn svelte2tsx(
                 type_ranges.sort_by_key(|(s, _)| *s);
                 for (s, e) in type_ranges {
                     if s < e && (e as usize) <= source.len() {
-                        str.prepend_left(s, ";");
+                        // `prepend_right` / `append_left` add to the moved
+                        // chunk itself (intro / outro of the [s..e] chunk),
+                        // so the `;` markers travel with the chunk to its
+                        // hoist target — `prepend_left` would leave the
+                        // semicolon stranded at the original location.
+                        str.prepend_right(s, ";");
                         str.append_left(e, ";");
                         str.move_range(s, e, sp);
                     }
@@ -962,7 +967,12 @@ pub fn svelte2tsx(
                 type_ranges.sort_by_key(|(s, _)| *s);
                 for (s, e) in type_ranges {
                     if s < e && (e as usize) <= source.len() {
-                        str.prepend_left(s, ";");
+                        // `prepend_right` / `append_left` add to the moved
+                        // chunk itself (intro / outro of the [s..e] chunk),
+                        // so the `;` markers travel with the chunk to its
+                        // hoist target — `prepend_left` would leave the
+                        // semicolon stranded at the original location.
+                        str.prepend_right(s, ";");
                         str.append_left(e, ";");
                         str.move_range(s, e, sp);
                     }
