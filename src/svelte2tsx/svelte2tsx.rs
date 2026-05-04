@@ -918,9 +918,15 @@ pub fn svelte2tsx(
             }
         }
 
-        // Overwrite `</script>` with slot declaration + `async () => {`
+        // Overwrite `</script>` with slot declaration + `async () => {`.
+        //
+        // In DTS mode the JS reference skips `slotsDeclaration` entirely
+        // (`slots.size > 0 && mode !== 'dts' ? ... : ''`) — the .d.ts output
+        // doesn't need runtime slot helpers, so the createSlot binding would
+        // just be dead code.
         if content_end < script_end {
-            if has_slot_elements {
+            let emit_slot_decl = has_slot_elements && !matches!(options.mode, Svelte2TsxMode::Dts);
+            if emit_slot_decl {
                 let slot_generic = if exported_names.has_slots_type {
                     "<$$Slots>"
                 } else {
