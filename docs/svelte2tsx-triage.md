@@ -26,6 +26,7 @@ Latest: **207/245 (84.5%)** as of 2026-05-04.
 | 2026-05-05 | 221/245 | #48 | F (interface→type) | rewrite `interface X { ... }` to `type X = ... & { ... }` in dts mode |
 | 2026-05-05 | 221/245 | #49 | J (each spacing) | per-binding prefix-spaces on `for(let ...)` headers; narrows await.v5 / ts-await-generics.v5 |
 | 2026-05-05 | 224/245 | #51 | B (hoist) | port HoistableInterfaces — top-level types/interfaces hoist out of `$$render` when their deps allow |
+| 2026-05-05 | 225/245 | #53 | E (V4 export let) | extend SvelteKit autotype injection to `export let data | form | params` for `+page` / `+layout` |
 
 ## Failure clusters
 
