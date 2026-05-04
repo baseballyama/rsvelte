@@ -27,6 +27,7 @@ Latest: **207/245 (84.5%)** as of 2026-05-04.
 | 2026-05-05 | 221/245 | #49 | J (each spacing) | per-binding prefix-spaces on `for(let ...)` headers; narrows await.v5 / ts-await-generics.v5 |
 | 2026-05-05 | 224/245 | #51 | B (hoist) | port HoistableInterfaces — top-level types/interfaces hoist out of `$$render` when their deps allow |
 | 2026-05-05 | 225/245 | #53 | E (V4 export let) | extend SvelteKit autotype injection to `export let data | form | params` for `+page` / `+layout` |
+| 2026-05-05 | 228/245 | #55 | B (hoist polish) | use `prepend_right` so `;` markers travel with moved chunks; capture leading JSDoc/comments via trivia walk-back |
 
 ## Failure clusters
 
