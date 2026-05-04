@@ -21,6 +21,10 @@ Latest: **207/245 (84.5%)** as of 2026-05-04.
 | 2026-05-04 | 211/245 | #41 | E (snapshot) | `/** @type {Snapshot} */` injection on `export const snapshot` for SvelteKit route files |
 | 2026-05-04 | 213/245 | #42 | A (instance) | per-snippet module hoist for fixtures with both a module and an instance script |
 | 2026-05-04 | 216/245 | #43 | A (module-only) | per-snippet module hoist for module-only components + empty-body snippet emission fix; closes Cluster A |
+| 2026-05-05 | 219/245 | #46 | F (slot decl) | skip `__sveltets_createSlot` binding in dts mode (script branch) |
+| 2026-05-05 | 220/245 | #47 | F (slot decl) | skip `__sveltets_createSlot` in dts mode for module-only / template-only paths |
+| 2026-05-05 | 221/245 | #48 | F (interface→type) | rewrite `interface X { ... }` to `type X = ... & { ... }` in dts mode |
+| 2026-05-05 | 221/245 | #49 | J (each spacing) | per-binding prefix-spaces on `for(let ...)` headers; narrows await.v5 / ts-await-generics.v5 |
 
 ## Failure clusters
 
@@ -217,7 +221,7 @@ fixtures (`if sample_name.ends_with(".v5") { V5 } else { V4 }`) and expect
 - **Cluster C — V4 codegen (~17 fixtures, all non-`.v5`)**: V4 export path in `src/svelte2tsx/svelte2tsx.rs` is incomplete. Flipping the test runner to pick V4 for non-`.v5` regresses to 122/245. Save for last.
 - **Cluster D — `$store` template usage (5 fixtures)**: `__sveltets_2_ensureAction` / `__sveltets_2_cssProp` rewriting differs for store-prefixed identifiers. Requires `htmlxtojsx_v2/utils/node-utils.ts::store_subscriptions` port.
 - **Cluster E — SvelteKit autotypes (2 remaining; rune path landed in #39)**: `jsdoc-sveltekit-autotypes.v5` and `jsdoc-sveltekit-autotypes-runes.v5` still fail. The runes-JSDoc one is one line away — needs `/** @type {import('./$types.js').Snapshot} */` injected before `export const snapshot = {}` when the file is a Kit route file. The legacy `export let` JSDoc one needs the same plus per-prop `/** @type {...} */` injection on each `export let`. Both go through `handle_export_named_decl`, which doesn't currently know about the Kit basename. Plumb `basename` through and copy the `emitKitType` logic from `ExportedNames.ts`.
-- **Cluster F — DTS (5 fixtures)**: needs `emitDts.ts` port (largest single file in JS reference).
+- **Cluster F — DTS partial (3/5 fixtures landed)**: `creates-dts`, `creates-no-script-dts`, `ts-creates-dts`, `ts-$$generics-dts`, `transforms-interfaces-dts` all pass after #46 / #47 / #48. Remaining DTS fixtures need the actual `emitDts.ts` port (largest single file in JS reference).
 - **Cluster G — generics non-snippet (2 fixtures, `ts-$$generics-interface-references` / `ts-await-generics.v5`)**: thread generic type parameters through `function $$render<T>()`. Partial fix landed for snippets in #34.
 - **Cluster H — slot let-forwarding (2 fixtures)**: gated on `MagicString.appendRight`-per-attribute rewrite (see Cluster J finding below).
 - **Cluster I — JSDoc emit (3 fixtures)**: `js-jsdoc-before-first-import`, `jsdoc-various.v5`, JSDoc sveltekit-autotypes ones. Misplaces leading comments and emits `@template T` differently.
