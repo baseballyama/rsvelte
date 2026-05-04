@@ -1085,12 +1085,15 @@ fn apply_props_typedef(
 
         if is_inline_object_type {
             // Inline object type: transform `/** @type {{ a: number }} */` to
-            // `/** @typedef {{ a: number }}  $$ComponentProps *//** @type {$$ComponentProps} */`
+            // `/** @typedef {{ a: number }} $$ComponentProps *//** @type {$$ComponentProps} */`.
+            // Mirrors the JS reference's `overwrite(end, end + 2, ' $$ComponentProps */' + ...)`
+            // which produces a single space between the closing `}}` and the
+            // alias name.
             if let (Some(jsdoc_start), Some(jsdoc_end)) = (info.jsdoc_start, info.jsdoc_end) {
                 let abs_start = jsdoc_start + offset;
                 let abs_end = jsdoc_end + offset;
                 let typedef = format!(
-                    "/** @typedef {}  $$ComponentProps *//** @type {{$$ComponentProps}} */",
+                    "/** @typedef {} $$ComponentProps *//** @type {{$$ComponentProps}} */",
                     jsdoc_type
                 );
                 str.overwrite(abs_start, abs_end, &typedef);
