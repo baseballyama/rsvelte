@@ -688,6 +688,7 @@ fn handle_each_block(
     }
 
     let expr_text = get_expression_text(&block.expression, source);
+    let has_context = block.context.is_some();
     let context_text = block
         .context
         .as_ref()
@@ -707,16 +708,36 @@ fn handle_each_block(
     // When the loop variable shadows the collection variable (e.g., `{#each items as items}`),
     // a temporary variable is used to avoid the shadowing issue:
     //   `{ const $$_each = __sveltets_2_ensureArray(items); for(let items of $$_each){`
+    // Match the JS reference's prefix-spacing for `{#each ... }` headers.
+    // The JS port uses MagicString.transform() with per-position chunk moves
+    // and appendLefts; the surviving leading whitespace ends up being:
+    //   - 1 space when there's no context binding (no `as item`)
+    //   - 2 spaces when there's a context binding (`as item`)
+    //   - 3 spaces when there's a context + index binding (`as item, i`)
+    //   - 4 spaces when there's a context + index + key binding
+    //     (`as item, i (key)`)
+    // Replicate that spacing here so the column-position assertions in the
+    // language-tools fixtures match.
     let needs_temp_var = context_text == expr_text;
+    let prefix_spaces = 1
+        + (has_context as usize)
+        + (block.index.is_some() as usize)
+        + (block.key.is_some() as usize);
+    let prefix = " ".repeat(prefix_spaces);
     let mut header = if needs_temp_var {
         format!(
-            "  {{ const $$_each = __sveltets_2_ensureArray({}); for(let {} of $$_each){{",
-            expr_text, context_text
+            "{}{{ const $$_each = __sveltets_2_ensureArray({}); for(let {} of $$_each){{",
+            prefix, expr_text, context_text
         )
     } else {
+        // The no-context case (`{#each X}` without `as`) has a wrinkle: the
+        // JS reference emits `$$each_item;` after `){` AND collapses the body
+        // whitespace differently. Until we have an exact MagicString.transform
+        // port, fall back to a `__item` binding which matches the bulk of
+        // existing fixtures.
         format!(
-            "  for(let {} of __sveltets_2_ensureArray({})){{",
-            context_text, expr_text
+            "{}for(let {} of __sveltets_2_ensureArray({})){{",
+            prefix, context_text, expr_text
         )
     };
 
