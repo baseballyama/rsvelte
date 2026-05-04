@@ -1369,6 +1369,14 @@ fn generate_compatibility_report() {
     );
     report.add_category(pre);
 
+    // svelte2tsx category — wave 1 of the ecosystem port (see
+    // `docs/ecosystem-implementation-plan.md` and
+    // `docs/svelte2tsx-triage.md`). Currently exercised standalone in
+    // `tests/svelte2tsx_fixtures.rs`; wiring into this dashboard is
+    // deferred until the relaxed-comparison helper chain in that file is
+    // factored into `tests/common/` so both runners share logic. As of
+    // 2026-05-05 the standalone runner passes 228/245 (≈93%).
+
     // Migrate (Svelte 4 → 5 migrator) is intentionally out of scope for
     // rsvelte — the project is a port of the Svelte 5 compiler, not a
     // migration tool, so its 76 fixtures are reported as skipped rather

@@ -28,6 +28,22 @@ Latest: **207/245 (84.5%)** as of 2026-05-04.
 | 2026-05-05 | 224/245 | #51 | B (hoist) | port HoistableInterfaces — top-level types/interfaces hoist out of `$$render` when their deps allow |
 | 2026-05-05 | 225/245 | #53 | E (V4 export let) | extend SvelteKit autotype injection to `export let data | form | params` for `+page` / `+layout` |
 | 2026-05-05 | 228/245 | #55 | B (hoist polish) | use `prepend_right` so `;` markers travel with moved chunks; capture leading JSDoc/comments via trivia walk-back |
+| 2026-05-05 | 228/245 | #57 | I (jsdoc) | snippet headers use `/** @returns */` in JSDoc mode; `<script generics>` becomes `/** @template */`; typedef uses single space |
+
+## Compatibility-report dashboard wiring
+
+The plan calls for "Wave 1 完走時に svelte2tsx を compatibility report に組み込み".
+The standalone runner (`tests/svelte2tsx_fixtures.rs`) currently passes
+228/245 (93.1%) using a deep relaxed-comparison helper chain. Wiring
+that into the dashboard (`tests/compatibility_report.rs`) requires
+factoring those helpers out into `tests/common/svelte2tsx_compare.rs` so
+both runners share the same logic — otherwise the dashboard's strict
+matcher reports a much lower number (~58/245) and confuses readers.
+
+Status: a strict-match wiring was prototyped and reverted in this
+iteration; an in-comment placeholder in `tests/compatibility_report.rs`
+records the deferral so the next contributor knows where to plug in
+once the helper extraction lands.
 
 ## Failure clusters
 
