@@ -583,7 +583,13 @@ pub fn svelte2tsx(
                                     .any(|name| type_text.contains(name.as_str()))
                             })
                             .unwrap_or(false);
-                    has_typeof || has_generic_dep
+                    // Check if type references a type/interface name that is
+                    // declared at the top level of the instance script (i.e.
+                    // would shadow any module-level declaration with the same
+                    // name once hoisted out of $$render).
+                    let has_shadowed_type =
+                        type_text_references_any(type_text, &exported_names.instance_type_names);
+                    has_typeof || has_generic_dep || has_shadowed_type
                 };
 
             let ts_component_props_before_render = if exported_names.has_component_props_typedef
@@ -681,7 +687,9 @@ pub fn svelte2tsx(
                                     .any(|name| type_text.contains(name.as_str()))
                             })
                             .unwrap_or(false);
-                    has_typeof || has_generic_dep
+                    let has_shadowed_type =
+                        type_text_references_any(type_text, &exported_names.instance_type_names);
+                    has_typeof || has_generic_dep || has_shadowed_type
                 };
 
             let ts_component_props_before_render = if exported_names.has_component_props_typedef
@@ -1594,6 +1602,44 @@ fn find_last_two_byte_sequence(buf: &[u8], a: u8, b: u8) -> Option<usize> {
         i -= 1;
     }
     None
+}
+
+/// Return true if `type_text` mentions any of `names` as a whole identifier
+/// (i.e. surrounded by non-identifier characters on both sides).
+///
+/// Used to detect when a `$$ComponentProps` body references a type/interface
+/// or value declared at the top level of the instance script — in which case
+/// the synthesised `;type $$ComponentProps = ...;` cannot be hoisted above
+/// `function $$render()`.
+fn type_text_references_any(type_text: &str, names: &std::collections::HashSet<String>) -> bool {
+    if names.is_empty() {
+        return false;
+    }
+    let bytes = type_text.as_bytes();
+    for name in names.iter() {
+        if name.is_empty() {
+            continue;
+        }
+        let nbytes = name.as_bytes();
+        let mut i = 0usize;
+        while i + nbytes.len() <= bytes.len() {
+            if &bytes[i..i + nbytes.len()] == nbytes {
+                let before_ok = i == 0 || !is_ident_char(bytes[i - 1]);
+                let after_idx = i + nbytes.len();
+                let after_ok = after_idx == bytes.len() || !is_ident_char(bytes[after_idx]);
+                if before_ok && after_ok {
+                    return true;
+                }
+            }
+            i += 1;
+        }
+    }
+    false
+}
+
+#[inline]
+fn is_ident_char(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
 }
 
 /// Split a generics string like "T extends Record<string, any>, U" into
