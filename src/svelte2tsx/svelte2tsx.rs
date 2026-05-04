@@ -801,8 +801,21 @@ pub fn svelte2tsx(
             } else {
                 ""
             };
+            // When there's a hoistable type/interface, JS reference puts a
+            // newline between the moved declaration and the synthesised
+            // `;type $$ComponentProps = ...;function $$render() {` (which
+            // sits in `ts_component_props_before_render`). Mirror that with
+            // a `\n` prefix on part_b in that case.
+            let part_b_prefix = if !exported_names.hoistable_type_ranges.is_empty()
+                && !ts_component_props_before_render.is_empty()
+            {
+                "\n"
+            } else {
+                ""
+            };
             let part_b = format!(
-                "{}{}{}function $$render{}() {{{}{}{}",
+                "{}{}{}{}function $$render{}() {{{}{}{}",
+                part_b_prefix,
                 ts_component_props_before_render,
                 template_comment,
                 async_prefix,
@@ -898,8 +911,18 @@ pub fn svelte2tsx(
                                     .any(|name| type_text.contains(name.as_str()))
                             })
                             .unwrap_or(false);
+                    // Match the imports branch: skip names that are
+                    // themselves slated for hoisting — referencing them
+                    // from `$$ComponentProps` is fine when the hoisted
+                    // declaration sits above `$$render`.
+                    let non_hoistable_instance_types: std::collections::HashSet<String> =
+                        exported_names
+                            .instance_type_names
+                            .difference(&exported_names.hoistable_instance_type_names)
+                            .cloned()
+                            .collect();
                     let has_shadowed_type =
-                        type_text_references_any(type_text, &exported_names.instance_type_names);
+                        type_text_references_any(type_text, &non_hoistable_instance_types);
                     has_typeof || has_generic_dep || has_shadowed_type
                 };
 
@@ -947,8 +970,16 @@ pub fn svelte2tsx(
             // above — keep the synthesised `;type $$ComponentProps = ...;` in
             // part_b so it follows any hoisted type/interface declarations.
             let part_a = String::from(";");
+            let part_b_prefix = if !exported_names.hoistable_type_ranges.is_empty()
+                && !ts_component_props_before_render.is_empty()
+            {
+                "\n"
+            } else {
+                ""
+            };
             let part_b = format!(
-                "{}{}{}function $$render{}() {{{}{}{}",
+                "{}{}{}{}function $$render{}() {{{}{}{}",
+                part_b_prefix,
                 ts_component_props_before_render,
                 template_comment,
                 async_prefix,
