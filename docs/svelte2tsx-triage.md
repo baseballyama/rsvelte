@@ -25,6 +25,7 @@ Latest: **207/245 (84.5%)** as of 2026-05-04.
 | 2026-05-05 | 220/245 | #47 | F (slot decl) | skip `__sveltets_createSlot` in dts mode for module-only / template-only paths |
 | 2026-05-05 | 221/245 | #48 | F (interface→type) | rewrite `interface X { ... }` to `type X = ... & { ... }` in dts mode |
 | 2026-05-05 | 221/245 | #49 | J (each spacing) | per-binding prefix-spaces on `for(let ...)` headers; narrows await.v5 / ts-await-generics.v5 |
+| 2026-05-05 | 224/245 | #51 | B (hoist) | port HoistableInterfaces — top-level types/interfaces hoist out of `$$render` when their deps allow |
 
 ## Failure clusters
 
