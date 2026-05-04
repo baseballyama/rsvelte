@@ -1796,9 +1796,16 @@ fn handle_svelte_component(
     }
 
     let ctor_var = reversed_component_name(&scomp_name, idx);
-    let opener = if has_events {
-        let inst_var = reversed_component_instance_name(&scomp_name, idx);
-        let on_calls = build_on_calls(&inst_var, &on_directives, source);
+    let inst_var = reversed_component_instance_name(&scomp_name, idx);
+    // Need an instance variable when there are `on:` events OR `let:`
+    // directives — both rely on `inst.$on(...)` / `inst.$$slot_def`.
+    let needs_inst = has_events || has_lets_scomp;
+    let mut opener = if needs_inst {
+        let on_calls = if has_events {
+            build_on_calls(&inst_var, &on_directives, source)
+        } else {
+            String::new()
+        };
         format!(
             " {{ const {} = __sveltets_2_ensureComponent({}); const {} = new {}({{ target: __sveltets_2_any(), props: {{{}}}}});{}",
             ctor_var, expr_text, inst_var, ctor_var, attrs_str, on_calls
@@ -1809,15 +1816,28 @@ fn handle_svelte_component(
             ctor_var, expr_text, ctor_var, attrs_str
         )
     };
+
+    // Slot let-forwarding: `{const { $$_$$, prop, } = inst.$$slot_def.default; $$_$$;`
+    // Mirrors `defaultSlotLetTransformation` in the JS reference's
+    // `htmlxtojsx_v2/nodes/InlineComponent.ts`.
+    if has_lets_scomp {
+        let destructure = build_let_destructure_string(&let_directives_scomp, source);
+        opener.push_str(&format!(
+            "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
+            destructure, inst_var
+        ));
+    }
+
     str.overwrite(comp.start, opening_tag_end, &opener);
 
     process_fragment_inplace(&comp.fragment, source, options, str, counter);
 
     let closing_tag_start = find_closing_tag_start(source, comp.end);
+    let closing_text = if has_lets_scomp { "}}" } else { "}" };
     if closing_tag_start < comp.end {
-        str.overwrite(closing_tag_start, comp.end, "}");
+        str.overwrite(closing_tag_start, comp.end, closing_text);
     } else {
-        str.append_left(comp.end, "}");
+        str.append_left(comp.end, closing_text);
     }
 }
 
@@ -2036,10 +2056,13 @@ fn handle_svelte_self(
     }
 
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
+    let closing_tag_start = find_closing_tag_start(source, el.end);
+    let has_closing_tag = closing_tag_start < el.end;
 
-    // Separate on: directives from regular attributes
+    // Separate on: + let: directives from regular attributes
     let mut has_on_directives = false;
     let mut on_directives = Vec::new();
+    let let_directives = get_let_directives(&el.attributes);
     let mut prop_parts = Vec::new();
 
     for attr in &el.attributes {
@@ -2048,25 +2071,25 @@ fn handle_svelte_self(
                 has_on_directives = true;
                 on_directives.push(on);
             }
-            _ => {
-                // Use the generic attribute formatting
-                match attr {
-                    Attribute::Attribute(node) => {
-                        if let Some(s) = format_attribute_node(node, source) {
-                            prop_parts.push(s);
-                        }
-                    }
-                    Attribute::SpreadAttribute(spread) => {
-                        if let Some(s) = format_spread_attribute(spread, source) {
-                            prop_parts.push(s);
-                        }
-                    }
-                    Attribute::BindDirective(bind) => {
-                        prop_parts.push(format_bind_directive(bind, source));
-                    }
-                    _ => {}
-                }
+            Attribute::LetDirective(_) => {
+                // Handled below via `let_directives` — not emitted as a prop.
             }
+            _ => match attr {
+                Attribute::Attribute(node) => {
+                    if let Some(s) = format_attribute_node(node, source) {
+                        prop_parts.push(s);
+                    }
+                }
+                Attribute::SpreadAttribute(spread) => {
+                    if let Some(s) = format_spread_attribute(spread, source) {
+                        prop_parts.push(s);
+                    }
+                }
+                Attribute::BindDirective(bind) => {
+                    prop_parts.push(format_bind_directive(bind, source));
+                }
+                _ => {}
+            },
         }
     }
 
@@ -2081,37 +2104,67 @@ fn handle_svelte_self(
         }
     };
 
-    if has_on_directives {
+    let needs_inst_var = has_on_directives || !let_directives.is_empty();
+    let var_name = if needs_inst_var {
         let idx = counter.next_for("svelteself");
-        let var_name = format!("$$_svelteself{}", idx);
+        Some(format!("$$_svelteself{}", idx))
+    } else {
+        None
+    };
 
-        let mut result = format!(
+    let create_call = if let Some(ref name) = var_name {
+        format!(
             " {{ const {} = __sveltets_2_createComponentAny({{{}}});",
-            var_name, props_inner
-        );
+            name, props_inner
+        )
+    } else {
+        format!(" {{ __sveltets_2_createComponentAny({{{}}});", props_inner)
+    };
 
-        // Add $on() calls for each event directive
+    let mut opener = create_call;
+
+    // Inline `$on()` registration immediately after the const declaration.
+    if let Some(ref name) = var_name {
         for on in &on_directives {
             if let Some(ref expr) = on.expression {
                 let expr_text = get_expression_text(expr, source);
-                result.push_str(&format!(
-                    "{}.$on(\"{}\", {}); ",
-                    var_name, on.name, expr_text
-                ));
+                opener.push_str(&format!("{}.$on(\"{}\", {}); ", name, on.name, expr_text));
             } else {
-                result.push_str(&format!("{}.$on(\"{}\", () => {{}}); ", var_name, on.name));
+                opener.push_str(&format!("{}.$on(\"{}\", () => {{}}); ", name, on.name));
             }
         }
-
-        result.push('}');
-        str.overwrite(el.start, el.end, &result);
-    } else {
-        let result = format!(
-            " {{ __sveltets_2_createComponentAny({{{}}});}}",
-            props_inner
-        );
-        str.overwrite(el.start, el.end, &result);
     }
+
+    // `let:` directives become a `{const { $$_$$, name, ... } = inst.$$slot_def.default; $$_$$;`
+    // block right after the create call, with a matching `}` at the end.
+    // Mirrors the JS reference's `defaultSlotLetTransformation` in
+    // `htmlxtojsx_v2/nodes/InlineComponent.ts`.
+    let has_lets = !let_directives.is_empty();
+    if has_lets {
+        let destructure = build_let_destructure_string(&let_directives, source);
+        let inst_name = var_name
+            .as_ref()
+            .expect("let: directive requires an instance variable name");
+        opener.push_str(&format!(
+            "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
+            destructure, inst_name
+        ));
+    }
+
+    if !has_closing_tag {
+        // Self-closing `<svelte:self ... />` — no body to process; the
+        // opener's `{` needs a closing `}` immediately, plus another `}` if
+        // there's a let-forward block to close.
+        let trailing = if has_lets { "}}" } else { "}" };
+        let combined = format!("{}{}", opener, trailing);
+        str.overwrite(el.start, el.end, &combined);
+        return;
+    }
+
+    str.overwrite(el.start, opening_tag_end, &opener);
+    process_fragment_inplace(&el.fragment, source, options, str, counter);
+    let trailing = if has_lets { "}}" } else { "}" };
+    str.overwrite(closing_tag_start, el.end, trailing);
 }
 
 /// Handle Svelte special elements (svelte:body, svelte:window, etc.).
