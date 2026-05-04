@@ -744,7 +744,7 @@ mod svelte2tsx_tests {
     #[test]
     fn test_svelte2tsx_fixtures() {
         let samples_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("language-tools/packages/svelte2tsx/test/svelte2tsx/samples");
+            .join("submodules/language-tools/packages/svelte2tsx/test/svelte2tsx/samples");
 
         if !samples_dir.exists() {
             eprintln!(
