@@ -1522,6 +1522,9 @@ fn process_component_children_with_slots(
             TemplateNode::Component(child_comp) => {
                 get_slot_attr_value(&child_comp.attributes, source).is_some()
             }
+            TemplateNode::SvelteFragment(el) => {
+                get_slot_attr_value(&el.attributes, source).is_some()
+            }
             _ => false,
         };
 
@@ -1543,6 +1546,9 @@ fn process_component_children_with_slots(
                         child_comp, inst_var, source, options, str, counter,
                     );
                 }
+                TemplateNode::SvelteFragment(el) => {
+                    handle_named_slot_svelte_fragment(el, inst_var, source, options, str, counter);
+                }
                 _ => {
                     process_node_inplace(node, source, options, str, counter);
                 }
@@ -1557,6 +1563,9 @@ fn process_component_children_with_slots(
                     }
                     TemplateNode::Component(c) => {
                         get_slot_attr_value(&c.attributes, source).is_none()
+                    }
+                    TemplateNode::SvelteFragment(el) => {
+                        get_slot_attr_value(&el.attributes, source).is_none()
                     }
                     TemplateNode::Text(_) => true,
                     _ => true,
@@ -1641,6 +1650,65 @@ fn handle_named_slot_element(
     } else {
         str.append_left(el.end, " }}");
     }
+}
+
+/// Handle a `<svelte:fragment slot="name" let:foo>` child inside a parent
+/// component. `<svelte:fragment>` itself doesn't render to HTML — it's a
+/// virtual element used to distribute children into a named slot. The JS
+/// reference still emits a `svelteHTML.createElement("svelte:fragment", { })`
+/// (with `slot` and `let:` attributes stripped), wrapped in the slot let
+/// destructure block.
+fn handle_named_slot_svelte_fragment(
+    el: &SvelteElement,
+    inst_var: &str,
+    source: &str,
+    options: &Svelte2TsxOptions,
+    str: &mut MagicString,
+    counter: &mut Counter,
+) {
+    let slot_name = get_slot_attr_value(&el.attributes, source).unwrap_or_default();
+    let let_directives = get_let_directives(&el.attributes);
+    let let_destructure =
+        build_let_destructure_string(&let_directives.iter().copied().collect::<Vec<_>>(), source);
+
+    // Leading ` ` matches the JS reference, which produces
+    // `\t {const ... ;{ svelteHTML.createElement(...)` after the tab indent
+    // is preserved.
+    let block_open = format!(
+        " {{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def[\"{}\"];$$_$$;",
+        let_destructure, inst_var, slot_name
+    );
+
+    let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
+    let closing_tag_start = find_closing_tag_start(source, el.end);
+    let has_closing_tag = closing_tag_start < el.end;
+
+    // Emit the slot-def block + a `svelteHTML.createElement("svelte:fragment", {  })`
+    // with the `slot` / `let:` attributes stripped. The `{  }` retains two
+    // spaces when no attributes are left (mirrors the JS reference's
+    // position-preserving emission, which leaves the original whitespace
+    // around the attribute list intact even after the attributes are blanked).
+    let attrs_str = build_named_slot_element_attrs(&el.attributes, source);
+    let inner = if attrs_str.is_empty() {
+        "  ".to_string()
+    } else {
+        attrs_str
+    };
+    let opener = format!(
+        "{}{{ svelteHTML.createElement(\"svelte:fragment\", {{{}}});",
+        block_open, inner
+    );
+
+    if !has_closing_tag {
+        // Self-closing `<svelte:fragment slot="x" />` — body has no nodes.
+        let combined = format!("{} }}}}", opener);
+        str.overwrite(el.start, el.end, &combined);
+        return;
+    }
+
+    str.overwrite(el.start, opening_tag_end, &opener);
+    process_fragment_inplace(&el.fragment, source, options, str, counter);
+    str.overwrite(closing_tag_start, el.end, " }}");
 }
 
 /// Handle a component child with `slot="name"` attribute inside a parent component.
