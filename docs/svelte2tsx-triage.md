@@ -1,4 +1,4 @@
-# svelte2tsx — Wave 1 triage (45 failing fixtures)
+# svelte2tsx — Wave 1 triage
 
 Run with:
 
@@ -6,7 +6,16 @@ Run with:
 cargo test --release --no-default-features --test svelte2tsx_fixtures -- --nocapture
 ```
 
-Baseline: **200/245 (81.6%)** as of 2026-05-04.
+Latest: **207/245 (84.5%)** as of 2026-05-04.
+
+## Progress log
+
+| Date | Pass rate | PR | Cluster | Notes |
+|---|---|---|---|---|
+| 2026-05-03 | 200/245 (81.6%) | — | baseline | initial triage |
+| 2026-05-04 | 204/245 | #31, #32, #33 | J + A (partial) | type assertion in module script; comment scanner; bulk snippet hoist |
+| 2026-05-04 | 205/245 | #34 | G (snippet) | typeparams threading on `{#snippet}` |
+| 2026-05-04 | 207/245 | #35 | B (partial) | force-inside-render `$$ComponentProps` lands at `node.parent.pos` instead of $$render top |
 
 ## Failure clusters
 
@@ -190,6 +199,24 @@ Tackle in this order; each cluster unlocks the next.
 After all 10 clusters land, flip the test runner to pick V4 for non-`.v5`
 fixtures (`if sample_name.ends_with(".v5") { V5 } else { V4 }`) and expect
 245/245.
+
+## Open blockers per cluster (post 207/245)
+
+- **Cluster A — snippet-module-hoist-1/3/4/5/6 (5 fixtures)**: requires per-snippet free-variable analysis. Algorithm (from JS `index.ts` lines 235-248):
+  1. For each top-level `{#snippet}`, compute `globals` = identifiers referenced in body that aren't declared inside.
+  2. If module script exists AND every global is "allowed" (not in instance script's value-declaration set), hoist to position right after last module-script import (or `moduleAst.astOffset` if no imports).
+  3. Else if instance script exists, move to start of `$$render`.
+  4. Else don't move.
+  Currently rsvelte does step 3 unconditionally for all top-level snippets. Implementing requires walking each snippet body via OXC, plus tracking instance-script declared names.
+- **Cluster B — ts-runes-hoistable-props-1/2/4/5/6 + false-5/10/15 (8 fixtures)**: requires a port of `HoistableInterfaces.ts`. The hoistable-types path needs to emit eligible top-level `type/interface` declarations BEFORE `function $$render()` and leave the rest in place. We have `hoistable_type_ranges` declared but unpopulated; populating it requires walking `type X = ...`, `interface X { ... }` and tracking which depend only on imports/types/module-scope/generics (not instance-script values).
+- **Cluster C — V4 codegen (~17 fixtures, all non-`.v5`)**: V4 export path in `src/svelte2tsx/svelte2tsx.rs` is incomplete. Flipping the test runner to pick V4 for non-`.v5` regresses to 122/245. Save for last.
+- **Cluster D — `$store` template usage (5 fixtures)**: `__sveltets_2_ensureAction` / `__sveltets_2_cssProp` rewriting differs for store-prefixed identifiers. Requires `htmlxtojsx_v2/utils/node-utils.ts::store_subscriptions` port.
+- **Cluster E — SvelteKit autotypes (4 fixtures)**: detect `+page.svelte` / `+layout.svelte` filename and inline `import('./$types.js').PageData` types. Touches `ExportedNames.ts::sveltekit_autotype`.
+- **Cluster F — DTS (5 fixtures)**: needs `emitDts.ts` port (largest single file in JS reference).
+- **Cluster G — generics non-snippet (2 fixtures, `ts-$$generics-interface-references` / `ts-await-generics.v5`)**: thread generic type parameters through `function $$render<T>()`. Partial fix landed for snippets in #34.
+- **Cluster H — slot let-forwarding (2 fixtures)**: gated on `MagicString.appendRight`-per-attribute rewrite (see Cluster J finding below).
+- **Cluster I — JSDoc emit (3 fixtures)**: `js-jsdoc-before-first-import`, `jsdoc-various.v5`, JSDoc sveltekit-autotypes ones. Misplaces leading comments and emits `@template T` differently.
+- **Cluster J one-offs (~6 fixtures)**: per-attribute spacing in `createElement` and `for(let ...)` headers — same root cause: bulk `overwrite()` + padding heuristics can't preserve original positions. Real fix: replicate JS reference's per-`appendRight` strategy in `magic_string.rs`.
 
 ## Working tips
 
