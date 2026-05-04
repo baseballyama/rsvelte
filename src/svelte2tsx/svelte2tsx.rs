@@ -217,6 +217,7 @@ pub fn svelte2tsx(
             &mut events,
             options.is_ts_file,
             &basename,
+            options.emit_jsdoc,
         );
     }
 

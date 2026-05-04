@@ -627,6 +627,7 @@ pub fn process_instance_script(
     _events: &mut ComponentEvents,
     is_ts: bool,
     basename: &str,
+    emit_jsdoc: bool,
 ) {
     let offset = script.content_offset;
     with_parsed_script(script, source, |program, raw_content| {
@@ -834,6 +835,8 @@ pub fn process_instance_script(
                     &possible_exports,
                     raw_content,
                     is_ts,
+                    basename,
+                    emit_jsdoc,
                 );
             }
         }
@@ -1354,6 +1357,8 @@ fn handle_export_named_decl(
     possible_exports: &HashMap<String, PossibleExport>,
     raw_content: &str,
     is_ts: bool,
+    basename: &str,
+    emit_jsdoc: bool,
 ) {
     let node_start = export.span.start + offset;
 
@@ -1453,6 +1458,42 @@ fn handle_export_named_decl(
                                 );
                                 let inject_pos = declarator.span.end + offset;
                                 str.append_left(inject_pos, &inject);
+                            }
+                        }
+
+                        // SvelteKit `+page.svelte` / `+layout.svelte`:
+                        // `export const snapshot = ...` should get a Snapshot
+                        // type annotation injected. Matches the JS reference's
+                        // `emitKitType(...)` call from `handleVariableStatement`
+                        // for the const branch.
+                        if is_instance
+                            && !is_let
+                            && classify_kit_route_file(basename).is_some()
+                            && !has_type_annotation
+                        {
+                            if let Some(name) = binding_pattern_simple_name(&declarator.id) {
+                                if name == "snapshot" {
+                                    if let oxc::BindingPattern::BindingIdentifier(id) =
+                                        &declarator.id
+                                    {
+                                        let name_start = id.span.start + offset;
+                                        let name_end = id.span.end + offset;
+                                        // Match the JS reference's
+                                        // `if (this.emitJsDoc && !this.isTsFile)` —
+                                        // JSDoc form only when JS file under JSDoc emit.
+                                        if emit_jsdoc && !is_ts {
+                                            // JSDoc path: `/** @type {...} */ ` before the name.
+                                            let inject =
+                                                "/** @type {import('./$types.js').Snapshot} */ ";
+                                            str.append_left(name_start, inject);
+                                        } else {
+                                            // TS path: `: import('./$types.js').Snapshot` after the name,
+                                            // wrapped in /*Ωignore*/ markers.
+                                            let inject = "/*\u{03A9}ignore_start\u{03A9}*/: import('./$types.js').Snapshot/*\u{03A9}ignore_end\u{03A9}*/";
+                                            str.append_left(name_end, inject);
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
