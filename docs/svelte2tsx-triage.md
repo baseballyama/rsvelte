@@ -17,6 +17,7 @@ Latest: **207/245 (84.5%)** as of 2026-05-04.
 | 2026-05-04 | 205/245 | #34 | G (snippet) | typeparams threading on `{#snippet}` |
 | 2026-05-04 | 207/245 | #35 | B (partial) | force-inside-render `$$ComponentProps` lands at `node.parent.pos` instead of $$render top |
 | 2026-05-04 | 208/245 | #37 | B (shadow) | force-inside-render also when props type mentions an instance-script type/interface name |
+| 2026-05-04 | 210/245 | #39 | E (rune path) | SvelteKit `+page` / `+layout` `data` / `form` / `params` autotype injection for `$props()` |
 
 ## Failure clusters
 
@@ -217,7 +218,7 @@ fixtures (`if sample_name.ends_with(".v5") { V5 } else { V4 }`) and expect
   Until this is done, leave types in place inside `$$render`.
 - **Cluster C — V4 codegen (~17 fixtures, all non-`.v5`)**: V4 export path in `src/svelte2tsx/svelte2tsx.rs` is incomplete. Flipping the test runner to pick V4 for non-`.v5` regresses to 122/245. Save for last.
 - **Cluster D — `$store` template usage (5 fixtures)**: `__sveltets_2_ensureAction` / `__sveltets_2_cssProp` rewriting differs for store-prefixed identifiers. Requires `htmlxtojsx_v2/utils/node-utils.ts::store_subscriptions` port.
-- **Cluster E — SvelteKit autotypes (4 fixtures)**: detect `+page.svelte` / `+layout.svelte` filename and inline `import('./$types.js').PageData` types. Touches `ExportedNames.ts::sveltekit_autotype`.
+- **Cluster E — SvelteKit autotypes (2 remaining; rune path landed in #39)**: `jsdoc-sveltekit-autotypes.v5` and `jsdoc-sveltekit-autotypes-runes.v5` still fail. The runes-JSDoc one is one line away — needs `/** @type {import('./$types.js').Snapshot} */` injected before `export const snapshot = {}` when the file is a Kit route file. The legacy `export let` JSDoc one needs the same plus per-prop `/** @type {...} */` injection on each `export let`. Both go through `handle_export_named_decl`, which doesn't currently know about the Kit basename. Plumb `basename` through and copy the `emitKitType` logic from `ExportedNames.ts`.
 - **Cluster F — DTS (5 fixtures)**: needs `emitDts.ts` port (largest single file in JS reference).
 - **Cluster G — generics non-snippet (2 fixtures, `ts-$$generics-interface-references` / `ts-await-generics.v5`)**: thread generic type parameters through `function $$render<T>()`. Partial fix landed for snippets in #34.
 - **Cluster H — slot let-forwarding (2 fixtures)**: gated on `MagicString.appendRight`-per-attribute rewrite (see Cluster J finding below).
