@@ -1038,7 +1038,9 @@ pub fn svelte2tsx(
         // For module-script-only components, inject store subscriptions for
         // module-level imports at the start of the $$render async wrapper.
         let store_decls = super::script::collect_module_import_store_declarations(source);
-        let slot_decl_mod = if has_slot_elements {
+        // Suppress the `__sveltets_createSlot` binding in dts mode; matches
+        // `createRenderFunction.ts`'s `slots.size > 0 && mode !== 'dts'` gate.
+        let slot_decl_mod = if has_slot_elements && !is_dts_mode {
             "\n/*\u{03A9}ignore_start\u{03A9}*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot();/*\u{03A9}ignore_end\u{03A9}*/"
         } else {
             ""
@@ -1075,7 +1077,7 @@ pub fn svelte2tsx(
         str.prepend_str(header_str);
     } else {
         // No script tags at all: prepend the full wrapper
-        let slot_decl_tmpl = if has_slot_elements {
+        let slot_decl_tmpl = if has_slot_elements && !is_dts_mode {
             "\n/*\u{03A9}ignore_start\u{03A9}*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot();/*\u{03A9}ignore_end\u{03A9}*/"
         } else {
             ""
