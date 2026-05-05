@@ -1287,11 +1287,27 @@ fn handle_regular_element(
         }
     }
 
+    // One-way `bind:` directives (`contentRect`, `clientWidth`, …) are
+    // emitted as a typed assignment AFTER the createElement call instead of
+    // becoming a prop. Mirrors `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`
+    // (the `oneWayBindingAttributes` and `oneWayBindingAttributesNotOnElement`
+    // branches).
+    let one_way_suffix =
+        build_one_way_binding_suffix(&el.attributes, source, None, options.is_ts_file);
+
+    // When all surviving props are empty but a one-way binding was stripped
+    // out, the JS reference still leaves whitespace inside `{ }` because the
+    // original attribute span gets blanked, not removed. Add a single space
+    // so `createElement("div", { })` matches.
+    if attrs_str.is_empty() && !one_way_suffix.is_empty() {
+        attrs_str.push(' ');
+    }
+
     // Overwrite the entire opening tag.
     // Leading space preserves approximate column positions (matching JS svelte2tsx).
     let opener = format!(
-        " {{ svelteHTML.createElement(\"{}\", {{{}}});",
-        el.name, attrs_str
+        " {{ svelteHTML.createElement(\"{}\", {{{}}});{}",
+        el.name, attrs_str, one_way_suffix
     );
     str.overwrite(el.start, opening_tag_end, &opener);
 
@@ -2378,7 +2394,13 @@ fn build_attributes_string(attributes: &[Attribute], source: &str) -> String {
                 }
             }
             Attribute::BindDirective(bind) => {
-                parts.push(format_bind_directive(bind, source));
+                // One-way `bind:` (e.g. `bind:contentRect`, `bind:clientWidth`)
+                // doesn't go on the createElement props — it's emitted as a
+                // typed assignment statement after the createElement (handled
+                // by `build_one_way_binding_suffix`).
+                if !is_one_way_bind(&bind.name) {
+                    parts.push(format_bind_directive(bind, source));
+                }
             }
             Attribute::OnDirective(on) => {
                 parts.push(format_on_directive(on, source));
@@ -2643,6 +2665,83 @@ fn format_spread_attribute(spread: &SpreadAttribute, source: &str) -> Option<Str
 fn format_bind_directive(bind: &BindDirective, source: &str) -> String {
     let expr_text = get_expression_text(&bind.expression, source);
     format!("\"bind:{}\":{},", bind.name, expr_text)
+}
+
+/// One-way HTML element bindings whose value reflects an element property
+/// (`clientWidth`, etc.). Mirrors the JS reference's `oneWayBindingAttributes`
+/// in `htmlxtojsx_v2/nodes/Binding.ts`.
+fn is_one_way_binding_attribute(name: &str) -> bool {
+    matches!(
+        name,
+        "clientWidth"
+            | "clientHeight"
+            | "offsetWidth"
+            | "offsetHeight"
+            | "duration"
+            | "seeking"
+            | "ended"
+            | "readyState"
+            | "naturalWidth"
+            | "naturalHeight"
+    )
+}
+
+/// One-way bindings whose property is *not* on the element directly — they
+/// expose values like `DOMRectReadOnly` that need a typed null assignment.
+/// Mirrors `oneWayBindingAttributesNotOnElement` in Binding.ts.
+fn one_way_binding_not_on_element_type(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "contentRect" => "DOMRectReadOnly",
+        "contentBoxSize" => "ResizeObserverSize[]",
+        "borderBoxSize" => "ResizeObserverSize[]",
+        "devicePixelContentBoxSize" => "ResizeObserverSize[]",
+        "buffered" => "import('svelte/elements').SvelteMediaTimeRange[]",
+        "played" => "import('svelte/elements').SvelteMediaTimeRange[]",
+        "seekable" => "import('svelte/elements').SvelteMediaTimeRange[]",
+        _ => return None,
+    })
+}
+
+/// Build the suffix that's appended right after `svelteHTML.createElement(...)`
+/// for one-way `bind:` directives on a regular HTML element. Returns an empty
+/// string when no one-way bindings are present. Mirrors `appendOneWayBinding`
+/// + the not-on-element branch in `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`.
+fn build_one_way_binding_suffix(
+    attributes: &[Attribute],
+    source: &str,
+    element_var: Option<&str>,
+    is_ts_file: bool,
+) -> String {
+    let mut out = String::new();
+    for attr in attributes {
+        let Attribute::BindDirective(bind) = attr else {
+            continue;
+        };
+        let expr_text = get_expression_text(&bind.expression, source);
+        if let Some(ty) = one_way_binding_not_on_element_type(&bind.name) {
+            // `name = (null as Type);` (TS) / `/** @type {Type} */ (null)` (JSDoc).
+            let value = if is_ts_file {
+                format!("null as {}", ty)
+            } else {
+                format!("/** @type {{{}}} */ (null)", ty)
+            };
+            out.push_str(&format!(
+                "{}= /*\u{03A9}ignore_start\u{03A9}*/{}/*\u{03A9}ignore_end\u{03A9}*/;",
+                expr_text, value
+            ));
+        } else if is_one_way_binding_attribute(&bind.name) {
+            // `name = elementVar.attrName;` — only emitted when we have a
+            // reference to the element variable.
+            if let Some(var) = element_var {
+                out.push_str(&format!("{}= {}.{};", expr_text, var, bind.name));
+            }
+        }
+    }
+    out
+}
+
+fn is_one_way_bind(name: &str) -> bool {
+    is_one_way_binding_attribute(name) || one_way_binding_not_on_element_type(name).is_some()
 }
 
 /// Format an on directive: `on:click={handler}` → `"on:click":handler,`
