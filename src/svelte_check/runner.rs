@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 use crate::compiler::{CompileOptions, GenerateMode, compile};
 
 use super::diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
+use super::overlay::{OverlayLayout, materialize_overlay};
 use super::walker::find_svelte_files;
 
 /// Inputs to a `svelte-check` run.
@@ -22,6 +23,14 @@ pub struct RunOptions {
     pub ignore: Vec<String>,
     /// Whether to treat warnings as errors for exit-code purposes.
     pub fail_on_warnings: bool,
+    /// When `true`, materialise `.tsx` shadow files + an overlay
+    /// tsconfig under `<workspace>/.svelte-check/`. Used by the
+    /// upcoming tsgo integration; on its own this only emits files
+    /// without spawning a TypeScript compiler.
+    pub emit_overlay: bool,
+    /// Optional path to a project tsconfig.json the overlay should
+    /// `extends`. None → write a self-contained overlay tsconfig.
+    pub tsconfig: Option<PathBuf>,
 }
 
 impl Default for RunOptions {
@@ -30,15 +39,20 @@ impl Default for RunOptions {
             workspace: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             ignore: Vec::new(),
             fail_on_warnings: false,
+            emit_overlay: false,
+            tsconfig: None,
         }
     }
 }
 
 /// Result of a `svelte-check` run.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct RunResult {
     pub diagnostics: Vec<Diagnostic>,
     pub files_checked: usize,
+    /// `Some` only when `RunOptions::emit_overlay` was set; mainly used
+    /// by the upcoming tsgo subprocess pipeline.
+    pub overlay: Option<OverlayLayout>,
 }
 
 impl RunResult {
@@ -75,6 +89,7 @@ pub fn run(options: &RunOptions) -> RunResult {
     let mut result = RunResult {
         diagnostics: Vec::new(),
         files_checked: 0,
+        overlay: None,
     };
     for file in &files {
         result.files_checked += 1;
@@ -94,6 +109,28 @@ pub fn run(options: &RunOptions) -> RunResult {
         };
         run_one_file(file, &source, &mut result.diagnostics);
     }
+
+    if options.emit_overlay {
+        match materialize_overlay(&options.workspace, &files, options.tsconfig.as_deref()) {
+            Ok(layout) => {
+                result.overlay = Some(layout);
+            }
+            Err(e) => {
+                // Surface the overlay error as a workspace-level
+                // diagnostic so the user sees it in the same stream as
+                // compile errors.
+                result.diagnostics.push(Diagnostic {
+                    file: options.workspace.clone(),
+                    severity: DiagnosticSeverity::Error,
+                    code: Some("overlay-error".into()),
+                    message: format!("overlay generation failed: {e}"),
+                    range: None,
+                    source: "svelte",
+                });
+            }
+        }
+    }
+
     result
 }
 

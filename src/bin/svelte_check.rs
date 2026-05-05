@@ -32,6 +32,18 @@ struct Cli {
     /// Treat warnings as errors when computing the exit code.
     #[arg(long = "fail-on-warnings", default_value_t = false)]
     fail_on_warnings: bool,
+
+    /// Materialise `.tsx` shadow files + an overlay tsconfig under
+    /// `<workspace>/.svelte-check/`. The directory layout matches the
+    /// JS reference's `--tsgo` cache, so a follow-up step can hand it
+    /// straight to a TypeScript compiler.
+    #[arg(long = "emit-overlay", default_value_t = false)]
+    emit_overlay: bool,
+
+    /// Path to a tsconfig.json the overlay should `extends`. Optional —
+    /// the overlay is self-contained otherwise.
+    #[arg(long = "tsconfig")]
+    tsconfig: Option<PathBuf>,
 }
 
 fn main() -> ExitCode {
@@ -66,6 +78,8 @@ fn main() -> ExitCode {
         workspace: workspace.clone(),
         ignore,
         fail_on_warnings: cli.fail_on_warnings,
+        emit_overlay: cli.emit_overlay,
+        tsconfig: cli.tsconfig,
     };
 
     let result = run(&options);
