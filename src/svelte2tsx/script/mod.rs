@@ -59,6 +59,14 @@ pub struct ExportedNames {
     /// Type/interface declarations from instance script that should be hoisted
     /// before $$render(). Each entry is (start, end) relative to source (absolute positions).
     pub hoistable_type_ranges: Vec<(u32, u32)>,
+    /// Type/interface declarations referenced by `$$Generic<X>` constraints that
+    /// must be moved before $$render() so the generic constraint sees the type.
+    /// Mirrors `nodesToMove` in the JS reference (`processInstanceScriptContent`).
+    /// Each entry is `(start, end)` in absolute source positions; processing
+    /// differs from `hoistable_type_ranges` (no `;` markers, no leading-trivia
+    /// walk-back, append `\n` after the chunk to mirror `moveNode`'s
+    /// `originalEndChar + '\n'` overwrite).
+    pub dollar_generic_referenced_ranges: Vec<(u32, u32)>,
     /// Absolute source position of the `let` keyword in `let { ... } = $props()`.
     /// Used to insert `;type $$ComponentProps = ...;` right before the `$props()`
     /// statement when the type can't be hoisted out of $$render (matches JS reference's
@@ -135,6 +143,7 @@ impl ExportedNames {
             dollar_generics: Vec::new(),
             dollar_generic_positions: Vec::new(),
             hoistable_type_ranges: Vec::new(),
+            dollar_generic_referenced_ranges: Vec::new(),
             props_let_abs_pos: None,
             instance_type_names: HashSet::new(),
             instance_value_names: HashSet::new(),
@@ -979,6 +988,13 @@ pub fn process_instance_script(
             exported_names.instance_value_names.insert(name.clone());
         }
 
+        // Unconditionally hoist instance-script type/interface declarations whose
+        // names appear as `$$Generic<X>` constraints. Mirrors the JS reference's
+        // `nodesToMove = interfacesAndTypes.getNodesWithNames(generics.getTypeReferences())`
+        // path in `processInstanceScriptContent`, which moves these regardless of
+        // whether the component uses the `$props()` rune.
+        hoist_dollar_generic_referenced_types(&candidates, raw_content, offset, exported_names);
+
         // Resolve which instance-script type/interface declarations are
         // hoistable above `function $$render()`. Mirrors
         // `HoistableInterfaces.moveHoistableInterfaces` in the JS reference,
@@ -1708,6 +1724,54 @@ fn resolve_hoistable_type_decls(
 #[inline]
 fn is_ident_char_for_str(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || ch == '_' || ch == '$'
+}
+
+/// Hoist instance-script type/interface declarations whose names appear as
+/// `$$Generic<X>` constraints. Mirrors the JS reference's `nodesToMove` path
+/// (`interfacesAndTypes.getNodesWithNames(generics.getTypeReferences())`) which
+/// moves these unconditionally regardless of `$props()` rune usage — without
+/// hoisting, the constraint references the type before it's defined.
+fn hoist_dollar_generic_referenced_types(
+    candidates: &[HoistCandidate],
+    raw_content: &str,
+    offset: u32,
+    exported_names: &mut ExportedNames,
+) {
+    if candidates.is_empty() || exported_names.dollar_generics.is_empty() {
+        return;
+    }
+    // Constraint text is a single identifier matching a candidate name. Inline
+    // type expressions like `{a: string}` won't match (correct: only named
+    // type references can be hoisted by name).
+    let referenced: HashSet<&str> = exported_names
+        .dollar_generics
+        .iter()
+        .filter_map(|(_, c)| c.as_deref())
+        .filter(|s| s.chars().all(is_ident_char_for_str) && !s.is_empty())
+        .collect();
+    if referenced.is_empty() {
+        return;
+    }
+    for c in candidates {
+        if !referenced.contains(c.name.as_str()) {
+            continue;
+        }
+        if exported_names
+            .hoistable_instance_type_names
+            .contains(&c.name)
+        {
+            continue;
+        }
+        // Use `c.rel_start` directly (no trivia walk-back) so the moved chunk
+        // starts with the declaration keyword — mirrors `node.getStart()` in
+        // the JS reference's `moveNode`.
+        exported_names
+            .dollar_generic_referenced_ranges
+            .push((c.rel_start + offset, c.rel_end + offset));
+        exported_names
+            .hoistable_instance_type_names
+            .insert(c.name.clone());
+    }
 }
 
 /// Walk backwards from `from` through whitespace, `//` line comments and
