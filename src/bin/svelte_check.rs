@@ -26,7 +26,8 @@ struct Cli {
     #[arg(long = "workspace")]
     workspace: Option<PathBuf>,
 
-    /// Output format: human, human-verbose, machine, machine-verbose.
+    /// Output format: human, human-verbose, machine, machine-verbose,
+    /// github-actions (alias: github).
     #[arg(long = "output", default_value = "human-verbose")]
     output: String,
 
