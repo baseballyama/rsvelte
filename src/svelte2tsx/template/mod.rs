@@ -693,7 +693,7 @@ fn handle_each_block(
         .context
         .as_ref()
         .map(|c| get_expression_text(c, source).to_string())
-        .unwrap_or_else(|| "__item".to_string());
+        .unwrap_or_else(|| "$$each_item".to_string());
 
     let body_start = if !block.body.nodes.is_empty() {
         block.body.nodes[0].start()
@@ -730,14 +730,15 @@ fn handle_each_block(
             prefix, expr_text, context_text
         )
     } else {
-        // The no-context case (`{#each X}` without `as`) has a wrinkle: the
-        // JS reference emits `$$each_item;` after `){` AND collapses the body
-        // whitespace differently. Until we have an exact MagicString.transform
-        // port, fall back to a `__item` binding which matches the bulk of
-        // existing fixtures.
+        // No-context case (`{#each X}` without `as`): mirror the JS
+        // reference's `for(let $$each_item of ...){${context ? '' :
+        // '$$each_item;'}` — emit `$$each_item;` immediately after `){` so
+        // the synthesised binding is referenced (otherwise TypeScript would
+        // mark it unused).
+        let suffix = if has_context { "" } else { "$$each_item;" };
         format!(
-            "{}for(let {} of __sveltets_2_ensureArray({})){{",
-            prefix, context_text, expr_text
+            "{}for(let {} of __sveltets_2_ensureArray({})){{{}",
+            prefix, context_text, expr_text, suffix
         )
     };
 
