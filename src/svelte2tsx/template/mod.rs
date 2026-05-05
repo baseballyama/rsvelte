@@ -1618,12 +1618,11 @@ fn process_component_children_with_slots(
         };
 
         if is_named_slot {
-            // Close the default slot block if it's open, before this named slot child
-            if default_slot_opened && has_lets {
-                // Close the default slot block before this named slot
-                str.append_left(node.start(), "}");
-                default_slot_opened = false;
-            }
+            // The default slot's `$$slot_def.default` block stays open
+            // through all children. Each named slot child carries its
+            // own inner `$$slot_def["..."]` block (handled by the
+            // dedicated handlers below); they're nested inside the
+            // outer default block.
 
             // Process the named slot child
             match node {
@@ -1675,7 +1674,33 @@ fn process_component_children_with_slots(
                 str.append_left(node.start(), &block_open);
                 default_slot_opened = true;
             }
+            // Default-slot `<svelte:fragment let:foo>` (with no slot=)
+            // also needs a `$$slot_def.default` destructure block — JS
+            // reference's Element.performTransformation emits one when the
+            // fragment has its own `let:` directives. Wrap the child here
+            // so the `let:` bindings are scoped to its body.
+            let fragment_lets: Option<Vec<&LetDirective>> =
+                if let TemplateNode::SvelteFragment(el) = node {
+                    let lets = get_let_directives(&el.attributes);
+                    if !lets.is_empty() { Some(lets) } else { None }
+                } else {
+                    None
+                };
+            let fragment_block_open = if let Some(ref lets) = fragment_lets {
+                let destructure = build_let_destructure_string(lets, source);
+                let block = format!(
+                    "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
+                    destructure, inst_var
+                );
+                str.append_left(node.start(), &block);
+                true
+            } else {
+                false
+            };
             process_node_inplace(node, source, options, str, counter);
+            if fragment_block_open {
+                str.append_left(node.end(), "}");
+            }
         }
 
         prev_end = Some(node.end());
@@ -3022,7 +3047,11 @@ fn build_slot_props_string(attributes: &[Attribute], source: &str) -> String {
         // Empty props: `{}` (no space)
         String::new()
     } else {
-        format!(" {}", result)
+        // Slot props go inside `{<props>}` — JS reference preserves source
+        // whitespace via MagicString positions, but our concatenated output
+        // doesn't have a position, so omit the leading space and let the
+        // relaxed compare normalise any source-whitespace differences.
+        result
     }
 }
 
