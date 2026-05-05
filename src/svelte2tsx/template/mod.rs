@@ -1269,14 +1269,27 @@ fn handle_regular_element(
     // Process children
     process_fragment_inplace(&el.fragment, source, options, str, counter);
 
-    // Find and overwrite the closing tag
-    let closing_tag_start = find_closing_tag_start(source, el.end);
-    if closing_tag_start < el.end {
-        // Non-self-closing: preserve space before closing brace
-        str.overwrite(closing_tag_start, el.end, " }");
-    } else {
-        // Self-closing element: close block without leading space
+    // Find and overwrite the closing tag.
+    // HTML void elements (`<input>`, `<br>`, …) and source-level self-closing
+    // tags (`<x />`) have no `</tag>` in the source, so we must NOT call
+    // `find_closing_tag_start` on them — it scans backwards for `</` and would
+    // wrongly match a preceding sibling's closing tag, blanking it (and the
+    // void element itself) on overwrite. Mirrors the JS reference's
+    // `prependLeft(node.end, '}')` for void/self-closing tags.
+    let is_self_closing_source = source[el.start as usize..el.end as usize]
+        .trim_end()
+        .ends_with("/>");
+    let is_void = crate::compiler::utils::is_void_element(&el.name);
+    if is_void || is_self_closing_source {
         str.append_left(el.end, "}");
+    } else {
+        let closing_tag_start = find_closing_tag_start(source, el.end);
+        if closing_tag_start < el.end {
+            // Non-self-closing: preserve space before closing brace
+            str.overwrite(closing_tag_start, el.end, " }");
+        } else {
+            str.append_left(el.end, "}");
+        }
     }
 }
 
@@ -1974,11 +1987,16 @@ fn handle_svelte_dynamic_element(
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
     let attrs_str = build_attributes_string(&el.attributes, source);
 
-    // Check if this is a self-closing element (no separate closing tag)
+    // Check if this is a self-closing element (no separate closing tag).
+    // Also covers HTML void elements like `<input>`, `<br>`, `<img>` which have
+    // no closing tag in the source — `is_void_element` keeps the opener and
+    // closing brace on a single line, mirroring the JS reference's behaviour
+    // for void tags.
     let is_self_closing = el.fragment.nodes.is_empty()
-        && source[el.start as usize..el.end as usize]
+        && (source[el.start as usize..el.end as usize]
             .trim_end()
-            .ends_with("/>");
+            .ends_with("/>")
+            || crate::compiler::utils::is_void_element(&el.name));
 
     if is_self_closing {
         // Self-closing: emit everything in one go
