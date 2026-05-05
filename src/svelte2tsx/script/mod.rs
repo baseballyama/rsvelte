@@ -2415,14 +2415,27 @@ fn handle_reactive_statement(
                         _ => false,
                     };
 
-                    // Determine if this is a new variable declaration
-                    let all_declared = !lhs_names.is_empty()
-                        && lhs_names.iter().all(|n| {
-                            declared_names.contains(n) || reactive_declared_names.contains(n)
-                        });
+                    // Mirrors `nodes/ImplicitTopLevelNames.ts::modifyCode`:
+                    //   - all LHS names are NEW → replace `$:` with `let `,
+                    //     drop the parens.
+                    //   - some are declared, some are new → prepend
+                    //     `let <new>;\n` BEFORE the `$:` line, keep `$:` form.
+                    //   - all already declared → keep `$:` form unchanged.
+                    //
+                    // The "declared" check uses `rootScope.declared` only
+                    // (i.e. real `let`/`const` declarations), NOT names
+                    // already declared via earlier reactive statements —
+                    // matching the JS reference's `rootVariables` parameter.
+                    let new_names: Vec<String> = lhs_names
+                        .iter()
+                        .filter(|n| !declared_names.contains(*n))
+                        .cloned()
+                        .collect();
+                    let all_new = !lhs_names.is_empty() && new_names.len() == lhs_names.len();
 
                     let is_new_declaration =
-                        !is_store_assignment && !all_declared && !lhs_names.is_empty();
+                        !is_store_assignment && all_new && !lhs_names.is_empty();
+                    let is_partial_new = !is_store_assignment && !all_new && !new_names.is_empty();
 
                     // Get the RHS text from the raw content
                     let rhs_start = assign.right.span().start;
@@ -2443,6 +2456,21 @@ fn handle_reactive_statement(
                     let rhs_abs_start = rhs_start + offset;
                     let rhs_abs_end = rhs_end + offset;
                     str.overwrite(rhs_abs_start, rhs_abs_end, &wrapped_rhs);
+
+                    if is_partial_new {
+                        // For each new name, declare `let <name>;\n` before the
+                        // `$:` line — JS reference uses `prependRight` at
+                        // `node.label.getStart()`. The `$:` form is kept so
+                        // the assignment still triggers reactivity.
+                        let mut decls = String::new();
+                        for name in &new_names {
+                            decls.push_str(&format!("let {};\n", name));
+                        }
+                        str.prepend_right(label_start, &decls);
+                        for name in &new_names {
+                            reactive_declared_names.insert(name.clone());
+                        }
+                    }
 
                     if is_new_declaration {
                         // Replace `$:` with `let ` (and handle parenthesized expressions)
