@@ -826,7 +826,8 @@ pub fn svelte2tsx(
             );
 
             let has_hoistable_chunks = !hoistable_snippet_ranges.is_empty()
-                || !exported_names.hoistable_type_ranges.is_empty();
+                || !exported_names.hoistable_type_ranges.is_empty()
+                || !exported_names.dollar_generic_referenced_ranges.is_empty();
             // Split position: right after the `<` of `<script>`. This matches
             // the JS reference's `scriptTag.start + 1`, so moved chunks land
             // between the `;` (from the `<` overwrite) and the function
@@ -861,6 +862,20 @@ pub fn svelte2tsx(
                         // semicolon stranded at the original location.
                         str.prepend_right(s, ";");
                         str.append_left(e, ";");
+                        str.move_range(s, e, sp);
+                    }
+                }
+                // Move `$$Generic<X>`-referenced types. Mirrors the JS
+                // reference's `nodesToMove` path (`moveNode`) — uses
+                // `node.getStart()` (no leading trivia) and ends the chunk
+                // with `\n` so the following text in `part_b` (`function
+                // $$render`) starts on its own line.
+                let mut nodes_to_move = exported_names.dollar_generic_referenced_ranges.clone();
+                nodes_to_move.sort_by_key(|(s, _)| *s);
+                for (s, e) in nodes_to_move {
+                    if s < e && (e as usize) <= source.len() {
+                        str.prepend_right(s, "\n");
+                        str.append_left(e, "\n");
                         str.move_range(s, e, sp);
                     }
                 }
@@ -989,7 +1004,8 @@ pub fn svelte2tsx(
                 trailing_newline
             );
             let has_hoistable_chunks = !hoistable_snippet_ranges.is_empty()
-                || !exported_names.hoistable_type_ranges.is_empty();
+                || !exported_names.hoistable_type_ranges.is_empty()
+                || !exported_names.dollar_generic_referenced_ranges.is_empty();
             // Split position: right after the `<` of `<script>`. This matches
             // the JS reference's `scriptTag.start + 1`, so moved chunks land
             // between the `;` (from the `<` overwrite) and the function
@@ -1024,6 +1040,20 @@ pub fn svelte2tsx(
                         // semicolon stranded at the original location.
                         str.prepend_right(s, ";");
                         str.append_left(e, ";");
+                        str.move_range(s, e, sp);
+                    }
+                }
+                // Move `$$Generic<X>`-referenced types. Mirrors the JS
+                // reference's `nodesToMove` path (`moveNode`) — uses
+                // `node.getStart()` (no leading trivia) and ends the chunk
+                // with `\n` so the following text in `part_b` (`function
+                // $$render`) starts on its own line.
+                let mut nodes_to_move = exported_names.dollar_generic_referenced_ranges.clone();
+                nodes_to_move.sort_by_key(|(s, _)| *s);
+                for (s, e) in nodes_to_move {
+                    if s < e && (e as usize) <= source.len() {
+                        str.prepend_right(s, "\n");
+                        str.append_left(e, "\n");
                         str.move_range(s, e, sp);
                     }
                 }
