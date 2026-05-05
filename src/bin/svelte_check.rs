@@ -44,6 +44,12 @@ struct Cli {
     /// the overlay is self-contained otherwise.
     #[arg(long = "tsconfig")]
     tsconfig: Option<PathBuf>,
+
+    /// Run `tsgo` (or `tsc`) against the overlay tsconfig and report
+    /// the resulting TypeScript diagnostics mapped back to the
+    /// original `.svelte` source. Implies `--emit-overlay`.
+    #[arg(long = "tsgo", default_value_t = false)]
+    tsgo: bool,
 }
 
 fn main() -> ExitCode {
@@ -78,8 +84,9 @@ fn main() -> ExitCode {
         workspace: workspace.clone(),
         ignore,
         fail_on_warnings: cli.fail_on_warnings,
-        emit_overlay: cli.emit_overlay,
+        emit_overlay: cli.emit_overlay || cli.tsgo,
         tsconfig: cli.tsconfig,
+        use_tsgo: cli.tsgo,
     };
 
     let result = run(&options);
