@@ -657,34 +657,83 @@ pub fn svelte2tsx(
             // positions are blanked with whitespace-preserving content.
 
             let mut import_text = String::new();
-            for (i, &(import_start, import_end)) in imports.iter().enumerate() {
-                let abs_start = import_start + content_start;
+            for (i, &(comments_start, import_start_rel, import_end)) in imports.iter().enumerate() {
+                let abs_comments_start = comments_start + content_start;
+                let abs_import_start = import_start_rel + content_start;
                 let abs_end = import_end + content_start;
-                let raw_text = &source[abs_start as usize..abs_end as usize];
-                // Strip leading indentation from each line of lifted imports
-                let text: String = raw_text
+
+                // Split into the leading comment region and the import
+                // statement itself so they can be processed independently.
+                // The JS reference (`utils/tsAst.ts::moveNode`) moves each
+                // leading comment as its own chunk and drops the trivia
+                // between them; for the first import,
+                // `handleFirstInstanceImport` inserts an extra `\n` either
+                // before a leading multiline comment or before the `import`
+                // keyword.
+                let comments_raw = &source[abs_comments_start as usize..abs_import_start as usize];
+                let import_raw = &source[abs_import_start as usize..abs_end as usize];
+
+                let comment_lines: Vec<&str> = comments_raw
+                    .lines()
+                    .map(|line| line.trim())
+                    .filter(|line| !line.is_empty())
+                    .collect();
+
+                // Was the last comment on the same line as the `import`
+                // keyword? True when `comments_raw`'s final line is not
+                // whitespace-only — e.g. `/*hi*/import X` keeps the comment
+                // and the import on a single line.
+                let last_comment_inline = !comments_raw.is_empty()
+                    && comments_raw
+                        .lines()
+                        .last()
+                        .is_some_and(|l| !l.trim().is_empty());
+
+                let import_text_clean: String = import_raw
                     .lines()
                     .map(|line| line.trim_start())
                     .collect::<Vec<_>>()
                     .join("\n");
 
-                // Check if there's a blank line before this import
-                // (indicates an import group boundary)
+                // Preserve gap when this import is part of a separate group
+                // (a blank line in the source between this import and the
+                // previous one).
                 if i > 0 {
-                    let prev_end = imports[i - 1].1 + content_start;
-                    let between = &source[prev_end as usize..abs_start as usize];
+                    let prev_end = imports[i - 1].2 + content_start;
+                    let between = &source[prev_end as usize..abs_comments_start as usize];
                     let newline_count = between.chars().filter(|&c| c == '\n').count();
                     if newline_count >= 2 {
-                        // Preserve blank line between import groups
                         import_text.push('\n');
                     }
                 }
 
-                import_text.push_str(&text);
+                let first_comment_is_block =
+                    comment_lines.first().is_some_and(|c| c.starts_with("/*"));
+                let needs_leading_newline =
+                    i == 0 && (comment_lines.is_empty() || first_comment_is_block);
+
+                if needs_leading_newline {
+                    import_text.push('\n');
+                }
+                for (idx, line) in comment_lines.iter().enumerate() {
+                    import_text.push_str(line);
+                    let is_last = idx + 1 == comment_lines.len();
+                    if !(is_last && last_comment_inline) {
+                        import_text.push('\n');
+                    }
+                }
+                if i == 0 && !first_comment_is_block && !comment_lines.is_empty() {
+                    // `appendRight(firstImport.getStart(), '\n')` —
+                    // separating the trailing leading-line-comment from the
+                    // import keyword with an explicit blank line.
+                    import_text.push('\n');
+                }
+
+                import_text.push_str(&import_text_clean);
 
                 // Add semicolon to the last import if it doesn't have one
                 if i == imports.len() - 1 {
-                    let last_char = text.as_bytes()[text.len() - 1];
+                    let last_char = import_text_clean.as_bytes()[import_text_clean.len() - 1];
                     if last_char != b';' {
                         import_text.push_str(";\n");
                     } else {
@@ -694,10 +743,10 @@ pub fn svelte2tsx(
                     import_text.push('\n');
                 }
 
-                // Blank out the import in its original position.
-                // The indentation before the import stays because it's
-                // outside the import span.
-                str.overwrite(abs_start, abs_end, "");
+                // Blank out the original [leading comments .. import] span.
+                // The indentation before the comments stays because it's
+                // outside the captured span.
+                str.overwrite(abs_comments_start, abs_end, "");
             }
 
             // Build $$ComponentProps type declaration for TS files
@@ -791,7 +840,13 @@ pub fn svelte2tsx(
             // (not part_a) so it lands AFTER any hoisted type/interface
             // declarations — `$$ComponentProps` may reference them, so it has
             // to appear after them in the output.
-            let mut part_a = String::from(";\n");
+            // `import_text` provides its own leading `\n` (or absorbs it
+            // into a leading-line-comment) — see the new-line accounting
+            // above. `part_a` only carries the `;` (which replaces the `<`)
+            // plus an extra `\n` when there is also a module script (mirrors
+            // `'\n' + (hasModuleScript ? '\n' : '')` in
+            // `handleFirstInstanceImport`).
+            let mut part_a = String::from(";");
             if has_module_script {
                 part_a.push('\n');
             }
@@ -1193,7 +1248,7 @@ pub fn svelte2tsx(
         if !hoistable_snippet_ranges.is_empty() {
             let module_imports = find_instance_imports(module, source);
             let module_hoist_target = match module_imports.last() {
-                Some(&(_, last_end)) => mod_content_start + last_end,
+                Some(&(_, _, last_end)) => mod_content_start + last_end,
                 None => mod_content_start,
             };
             // JS reference: `str.appendLeft(snippetHoistTargetForModule, '\n')`
@@ -1839,7 +1894,14 @@ fn find_script_close_tag_start(source: &str, script_end: u32) -> u32 {
 ///
 /// Returns a sorted list of (start, end) positions relative to the script
 /// content (i.e., relative to `script.content_offset`).
-fn find_instance_imports(script: &crate::ast::template::Script, source: &str) -> Vec<(u32, u32)> {
+/// Returns `(comments_start, import_start, import_end)` for each top-level
+/// import in `script`. `comments_start <= import_start` — the leading comment
+/// span lets the caller hoist JSDoc / line comments alongside their import,
+/// matching the JS reference's `moveNode` per-comment moves.
+fn find_instance_imports(
+    script: &crate::ast::template::Script,
+    source: &str,
+) -> Vec<(u32, u32, u32)> {
     use oxc_allocator::Allocator;
     use oxc_ast::ast as oxc;
     use oxc_parser::Parser as OxcParser;
@@ -1880,10 +1942,10 @@ fn find_instance_imports(script: &crate::ast::template::Script, source: &str) ->
             let bytes = raw_content.as_bytes();
             let new_start = scan_back_past_leading_comments(bytes, start as usize);
 
-            imports.push((new_start as u32, end));
+            imports.push((new_start as u32, start, end));
         }
     }
-    imports.sort_by_key(|&(s, _)| s);
+    imports.sort_by_key(|&(s, _, _)| s);
     imports
 }
 
