@@ -16,7 +16,8 @@ mod svelte2tsx_tests {
     use std::path::{Path, PathBuf};
 
     use svelte_compiler_rust::svelte2tsx::{
-        Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion, svelte2tsx,
+        RewriteExternalImportsOptions, Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions,
+        SvelteVersion, svelte2tsx,
     };
 
     // =========================================================================
@@ -77,12 +78,30 @@ mod svelte2tsx_tests {
 
         // Read config.json overrides if present
         let mut filename = svelte_filename.to_string();
+        let mut rewrite_external_imports: Option<RewriteExternalImportsOptions> = None;
         let config_path = sample_dir.join("config.json");
         if config_path.exists() {
             if let Ok(config_str) = fs::read_to_string(&config_path) {
                 if let Ok(config) = serde_json::from_str::<serde_json::Value>(&config_str) {
                     if let Some(f) = config.get("filename").and_then(|v| v.as_str()) {
                         filename = f.to_string();
+                    }
+                    if let Some(rew) = config.get("rewriteExternalImports") {
+                        let workspace = rew
+                            .get("workspacePath")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+                        let generated = rew
+                            .get("generatedPath")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+                        if !workspace.is_empty() && !generated.is_empty() {
+                            rewrite_external_imports = Some(RewriteExternalImportsOptions {
+                                source_path: filename.clone(),
+                                generated_path: generated.to_string(),
+                                workspace_path: workspace.to_string(),
+                            });
+                        }
                     }
                 }
             }
@@ -97,6 +116,7 @@ mod svelte2tsx_tests {
             version,
             runes: None,
             emit_jsdoc,
+            rewrite_external_imports,
         }
     }
 
