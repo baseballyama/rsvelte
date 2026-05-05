@@ -1287,6 +1287,29 @@ fn handle_regular_element(
         }
     }
 
+    // V4-style action / transition / animate directive emission. Action
+    // becomes `const $$action_N = __sveltets_2_ensureAction(…);` BEFORE
+    // the createElement; transition / animate become
+    // `__sveltets_2_ensureTransition(…);` appended AFTER it. The
+    // createElement's second argument also needs to wrap any actions
+    // with `__sveltets_2_union(...)`. Mirrors
+    // `htmlxtojsx_v2/nodes/{Action,Transition,Animation}.ts`.
+    let (directive_prefix, directive_suffix, action_count) =
+        build_directive_prefix_suffix(&el.attributes, source, &el.name);
+    let actions_arg = if action_count > 0 {
+        let mut args = String::from(", __sveltets_2_union(");
+        for i in 0..action_count {
+            if i > 0 {
+                args.push(',');
+            }
+            args.push_str(&format!("$$action_{}", i));
+        }
+        args.push(')');
+        args
+    } else {
+        String::new()
+    };
+
     // `bind:` directives generate a suffix appended right after the
     // createElement call. Mirrors `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`.
     // For `bind:this` and one-way bindings on the element (`offsetHeight`,
@@ -1315,17 +1338,30 @@ fn handle_regular_element(
         attrs_str.push(' ');
     }
 
-    // Overwrite the entire opening tag.
-    // Leading space preserves approximate column positions (matching JS svelte2tsx).
-    let opener = if let Some(ref var) = element_var {
+    // Overwrite the entire opening tag. Action declarations (if any) are
+    // emitted *before* the inner `{ … createElement(…); … }` block so
+    // they're in scope for the `__sveltets_2_union(...)` arg. The inner
+    // `{` opens a separate block scope.
+    let element_var_decl = if let Some(ref var) = element_var {
+        format!("const {} = ", var)
+    } else {
+        String::new()
+    };
+    let opener = if !directive_prefix.is_empty() {
         format!(
-            " {{ const {} = svelteHTML.createElement(\"{}\", {{{}}});{}",
-            var, el.name, attrs_str, bind_suffix
+            " {{{}{{ {}svelteHTML.createElement(\"{}\"{}, {{{}}});{}{}",
+            directive_prefix,
+            element_var_decl,
+            el.name,
+            actions_arg,
+            attrs_str,
+            directive_suffix,
+            bind_suffix,
         )
     } else {
         format!(
-            " {{ svelteHTML.createElement(\"{}\", {{{}}});{}",
-            el.name, attrs_str, bind_suffix
+            " {{ {}svelteHTML.createElement(\"{}\"{}, {{{}}});{}{}",
+            element_var_decl, el.name, actions_arg, attrs_str, directive_suffix, bind_suffix,
         )
     };
     str.overwrite(el.start, opening_tag_end, &opener);
@@ -1340,19 +1376,23 @@ fn handle_regular_element(
     // wrongly match a preceding sibling's closing tag, blanking it (and the
     // void element itself) on overwrite. Mirrors the JS reference's
     // `prependLeft(node.end, '}')` for void/self-closing tags.
+    //
+    // When `directive_prefix` opened an extra outer block for the action
+    // declarations, emit a matching extra `}` to close it.
+    let extra_close = if directive_prefix.is_empty() { "" } else { "}" };
     let is_self_closing_source = source[el.start as usize..el.end as usize]
         .trim_end()
         .ends_with("/>");
     let is_void = crate::compiler::utils::is_void_element(&el.name);
     if is_void || is_self_closing_source {
-        str.append_left(el.end, "}");
+        str.append_left(el.end, &format!("}}{}", extra_close));
     } else {
         let closing_tag_start = find_closing_tag_start(source, el.end);
         if closing_tag_start < el.end {
             // Non-self-closing: preserve space before closing brace
-            str.overwrite(closing_tag_start, el.end, " }");
+            str.overwrite(closing_tag_start, el.end, &format!(" }}{}", extra_close));
         } else {
-            str.append_left(el.end, "}");
+            str.append_left(el.end, &format!("}}{}", extra_close));
         }
     }
 }
@@ -1451,6 +1491,30 @@ fn handle_component(
 
     // Build the replacement for the opening tag.
     let inst_var = reversed_component_instance_name(&comp.name, idx);
+    // Component-side `bind:` suffix: type-widener + `$$bindings` marker.
+    // Mirrors the JS reference's component branch in
+    // `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`:
+    //   `() => expr = __sveltets_2_any(null); inst.$$bindings = 'name';`
+    // is appended (as ignore-wrapped statements) for every non-`bind:this`
+    // binding on a component.
+    let component_bind_suffix = {
+        let mut out = String::new();
+        for attr in &comp.attributes {
+            if let Attribute::BindDirective(bind) = attr {
+                if bind.name == "this" {
+                    let expr_text = get_expression_text(&bind.expression, source);
+                    out.push_str(&format!("{} = {};", expr_text, inst_var));
+                    continue;
+                }
+                let expr_text = get_expression_text(&bind.expression, source);
+                out.push_str(&format!(
+                    "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/{}.$$bindings = '{}';",
+                    expr_text, inst_var, bind.name
+                ));
+            }
+        }
+        out
+    };
     let opener = if needs_instance {
         let on_calls = if has_events {
             build_on_calls(&inst_var, &on_directives, source)
@@ -1458,8 +1522,8 @@ fn handle_component(
             String::new()
         };
         format!(
-            " {{ const {} = __sveltets_2_ensureComponent({}); const {} = new {}({{ target: __sveltets_2_any(), props: {{{}}}}});{}",
-            ctor_var, comp.name, inst_var, ctor_var, attrs_str, on_calls
+            " {{ const {} = __sveltets_2_ensureComponent({}); const {} = new {}({{ target: __sveltets_2_any(), props: {{{}}}}});{}{}",
+            ctor_var, comp.name, inst_var, ctor_var, attrs_str, component_bind_suffix, on_calls
         )
     } else {
         format!(
@@ -1468,6 +1532,10 @@ fn handle_component(
         )
     };
     str.overwrite(comp.start, opening_tag_end, &opener);
+
+    // Handle closing tag
+    let closing_tag_start = find_closing_tag_start(source, comp.end);
+    let is_self_closing = closing_tag_start >= comp.end;
 
     // Handle children with slot awareness
     if has_lets || children_have_named_slots {
@@ -1486,15 +1554,36 @@ fn handle_component(
         process_fragment_inplace(&comp.fragment, source, options, str, counter);
     }
 
-    // Handle closing tag
-    let closing_tag_start = find_closing_tag_start(source, comp.end);
-    let is_self_closing = closing_tag_start >= comp.end;
+    // For components with `let:` but NO children (in either bracketed
+    // or self-closing form) emit the let-forwarding block as an inline
+    // open+close. Mirrors `defaultSlotLetTransformation` for the
+    // self-closing branch in the JS reference's `InlineComponent`.
+    let has_children_for_block = comp
+        .fragment
+        .nodes
+        .iter()
+        .any(|n| !matches!(n, TemplateNode::Text(t) if t.start >= t.end));
+    let needs_inline_block = has_lets && !has_children_for_block;
+    let inline_block = if needs_inline_block {
+        format!(
+            "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;}}",
+            build_let_destructure_string(&let_directives, source),
+            inst_var
+        )
+    } else {
+        String::new()
+    };
 
     if !is_self_closing {
-        // Non-self-closing: output component name before closing brace.
-        // A space before the name is included to preserve whitespace from
-        // the source closing tag.
+        if needs_inline_block {
+            // No children but bracketed (e.g. `<C let:x></C>`) — append
+            // the slot-def block before the closing tag so the `let`
+            // bindings have a scope.
+            str.append_left(closing_tag_start, &inline_block);
+        }
         str.overwrite(closing_tag_start, comp.end, &format!(" {}}}", comp.name));
+    } else if needs_inline_block {
+        str.append_left(comp.end, &format!("{}{}}}", inline_block, comp.name));
     } else {
         str.append_left(comp.end, "}");
     }
@@ -2463,21 +2552,26 @@ fn build_attributes_string_with_tag(
             Attribute::StyleDirective(style) => {
                 parts.push(format_style_directive(style, source));
             }
-            Attribute::TransitionDirective(transition) => {
-                if let Some(s) = format_transition_directive(transition, source) {
-                    parts.push(s);
-                }
+            Attribute::TransitionDirective(_)
+            | Attribute::UseDirective(_)
+            | Attribute::AnimateDirective(_) => {
+                // Mirrors the JS reference's V4-style directive output:
+                // these are emitted as `__sveltets_2_ensureXxx(name(...))`
+                // statements *outside* the createElement props (action
+                // becomes a `const $$action_N = …;` BEFORE createElement,
+                // transition/animate become `__sveltets_2_ensureTransition(…);`
+                // appended AFTER). Handled by
+                // `build_directive_prefix_suffix` at the call site.
             }
-            Attribute::UseDirective(use_dir) => {
-                if let Some(s) = format_use_directive(use_dir, source) {
-                    parts.push(s);
-                }
+            Attribute::LetDirective(_) => {
+                // Let directives don't produce TSX output here.
             }
-            Attribute::AnimateDirective(_) | Attribute::LetDirective(_) => {
-                // These don't produce TSX output
-            }
-            Attribute::AttachTag(_) => {
-                // Attach tags on elements don't produce TSX attribute output
+            Attribute::AttachTag(attach) => {
+                // `{@attach expr}` becomes a `[Symbol("@attach")]: expr,`
+                // computed key in the createElement props. Mirrors the JS
+                // reference's `htmlxtojsx_v2/nodes/AttachTag.ts`.
+                let expr_text = get_expression_text(&attach.expression, source);
+                parts.push(format!("[Symbol(\"@attach\")]:{},", expr_text));
             }
         }
     }
@@ -2532,7 +2626,15 @@ fn build_component_props_string(attributes: &[Attribute], source: &str) -> Strin
                 }
             }
             Attribute::BindDirective(bind) => {
-                parts.push(format_bind_directive(bind, source));
+                // `bind:foo={expr}` on a component becomes a regular prop
+                // `foo:expr,` (no `bind:` prefix) — mirrors the JS reference
+                // for InlineComponent. `bind:this` is filtered out; the
+                // ensureBindings() helper is added at the call site.
+                if bind.name == "this" {
+                    continue;
+                }
+                let expr_text = get_expression_text(&bind.expression, source);
+                parts.push(format!("{}:{},", bind.name, expr_text));
             }
             Attribute::OnDirective(_) => {
                 // Excluded from component props - handled as $on() calls
@@ -2562,8 +2664,11 @@ fn build_component_props_string(attributes: &[Attribute], source: &str) -> Strin
             Attribute::AnimateDirective(_) => {
                 // Animate directives don't produce TSX output
             }
-            Attribute::AttachTag(_) => {
-                // Attach tags on elements don't produce TSX attribute output
+            Attribute::AttachTag(attach) => {
+                // `{@attach expr}` becomes `[Symbol("@attach")]:expr,`
+                // — same prop-key form as on regular elements.
+                let expr_text = get_expression_text(&attach.expression, source);
+                parts.push(format!("[Symbol(\"@attach\")]:{},", expr_text));
             }
         }
     }
@@ -2902,7 +3007,109 @@ fn format_style_directive(style: &StyleDirective, source: &str) -> String {
     }
 }
 
-/// Format a transition directive: `transition:fade={params}` → `__sveltets_2_ensureTransition(fade)(element, params);`
+/// Format a transition directive in the JS reference's element-suffix form:
+/// `transition:fade={params}` → `__sveltets_2_ensureTransition(fade(svelteHTML.mapElementTag('<tag>'),(params)));`
+/// (mirrors `htmlxtojsx_v2/nodes/Transition.ts`). Used as a *suffix*
+/// appended after `svelteHTML.createElement(…)`, not as a createElement
+/// prop. Expressions like `in:`, `out:`, and `animate:` use the same shape.
+fn format_transition_directive_v4(name: &str, expr: Option<&str>, tag: &str) -> String {
+    if let Some(expr_text) = expr {
+        format!(
+            "__sveltets_2_ensureTransition({}(svelteHTML.mapElementTag('{}'),({})));",
+            name, tag, expr_text
+        )
+    } else {
+        format!(
+            "__sveltets_2_ensureTransition({}(svelteHTML.mapElementTag('{}')));",
+            name, tag
+        )
+    }
+}
+
+/// Like `format_transition_directive_v4` but uses
+/// `__sveltets_2_ensureAnimation(...)` and adds the
+/// `__sveltets_2_AnimationMove` placeholder argument the JS reference
+/// passes for `animate:` directives.
+fn format_animate_directive_v4(name: &str, expr: Option<&str>, tag: &str) -> String {
+    if let Some(expr_text) = expr {
+        format!(
+            "__sveltets_2_ensureAnimation({}(svelteHTML.mapElementTag('{}'),__sveltets_2_AnimationMove,({})));",
+            name, tag, expr_text
+        )
+    } else {
+        format!(
+            "__sveltets_2_ensureAnimation({}(svelteHTML.mapElementTag('{}'),__sveltets_2_AnimationMove));",
+            name, tag
+        )
+    }
+}
+
+/// Build the directive prefix (action declarations) and suffix
+/// (transition / animate calls) that wrap `svelteHTML.createElement(...)`
+/// for an HTML element. Mirrors the JS reference's
+/// `htmlxtojsx_v2/nodes/{Action,Transition,Animation}.ts`.
+///
+/// Returns `(prefix, suffix, action_count)`. `prefix` is the sequence of
+/// `const $$action_N = __sveltets_2_ensureAction(…);` statements that
+/// must be emitted *before* the createElement call; `suffix` collects
+/// the transition / animate calls that go *after* it. `action_count`
+/// is the number of actions — the createElement's second argument
+/// becomes `__sveltets_2_union($$action_0[, $$action_1, …])` when this
+/// is non-zero.
+fn build_directive_prefix_suffix(
+    attributes: &[Attribute],
+    source: &str,
+    tag: &str,
+) -> (String, String, usize) {
+    let mut prefix = String::new();
+    let mut suffix = String::new();
+    let mut action_count = 0usize;
+
+    for attr in attributes {
+        match attr {
+            Attribute::UseDirective(use_dir) => {
+                let expr = use_dir
+                    .expression
+                    .as_ref()
+                    .map(|e| get_expression_text(e, source));
+                let id = format!("$$action_{}", action_count);
+                action_count += 1;
+                if let Some(expr_text) = expr {
+                    prefix.push_str(&format!(
+                        "const {} = __sveltets_2_ensureAction({}(svelteHTML.mapElementTag('{}'),({})));",
+                        id, use_dir.name, tag, expr_text
+                    ));
+                } else {
+                    prefix.push_str(&format!(
+                        "const {} = __sveltets_2_ensureAction({}(svelteHTML.mapElementTag('{}')));",
+                        id, use_dir.name, tag
+                    ));
+                }
+            }
+            Attribute::TransitionDirective(t) => {
+                let expr = t
+                    .expression
+                    .as_ref()
+                    .map(|e| get_expression_text(e, source));
+                suffix.push_str(&format_transition_directive_v4(&t.name, expr, tag));
+            }
+            Attribute::AnimateDirective(a) => {
+                let expr = a
+                    .expression
+                    .as_ref()
+                    .map(|e| get_expression_text(e, source));
+                suffix.push_str(&format_animate_directive_v4(&a.name, expr, tag));
+            }
+            _ => {}
+        }
+    }
+
+    (prefix, suffix, action_count)
+}
+
+/// Legacy V5-style transition formatter — kept for non-Element callers
+/// (svelte:dynamic-element handlers) that haven't been ported to the V4
+/// suffix form yet.
 fn format_transition_directive(transition: &TransitionDirective, source: &str) -> Option<String> {
     if let Some(ref expr) = transition.expression {
         let expr_text = get_expression_text(expr, source);
@@ -2918,7 +3125,7 @@ fn format_transition_directive(transition: &TransitionDirective, source: &str) -
     }
 }
 
-/// Format a use directive: `use:action={params}` → `__sveltets_2_ensureAction(action)(element, params);`
+/// Legacy V5-style use formatter — see `format_transition_directive`.
 fn format_use_directive(use_dir: &UseDirective, source: &str) -> Option<String> {
     if let Some(ref expr) = use_dir.expression {
         let expr_text = get_expression_text(expr, source);
