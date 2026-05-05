@@ -16,6 +16,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 pub mod preprocess_fixtures;
+pub mod svelte2tsx;
 
 // ============================================================================
 // Path utilities

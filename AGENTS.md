@@ -115,7 +115,7 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `pnpm run compatibility-report` (generated 2026-05-04, Svelte commit `04c0368aa8d8`). Re-run `pnpm run test-and-update` to refresh.
+Source: `pnpm run compatibility-report` (generated 2026-05-05, Svelte commit `04c0368aa8d8`). Re-run `pnpm run test-and-update` to refresh.
 
 | Suite | Pass/Total | Notes |
 |-------|------------|-------|
@@ -133,9 +133,10 @@ Source: `pnpm run compatibility-report` (generated 2026-05-04, Svelte commit `04
 | Print | 40/40 | |
 | Preprocess | 19/19 | Each fixture's `_config.js` JS preprocessor hand-ported in `tests/common/preprocess_fixtures.rs` |
 | Sourcemaps | 0/0 | No fixtures yet |
+| svelte2tsx | 245/245 | Wave 1 of the ecosystem port. 2 skipped (`expected.error.json` error fixtures). Driven by `tests/common/svelte2tsx.rs` |
 | Migrate | 0/76 | **Out of scope** — rsvelte is a Svelte 5 compiler port, not a Svelte 4 → 5 migration tool |
 
-**Compatibility report total: 3096/3096 in-scope passing — every in-scope category at 100%. The 76 `migrate` fixtures are intentionally out of scope and do not count against the total.**
+**Compatibility report total: 3341/3341 in-scope passing — every in-scope category at 100%. The 76 `migrate` fixtures are intentionally out of scope and do not count against the total.**
 
 ## Implementation Status
 
