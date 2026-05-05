@@ -434,11 +434,20 @@ fn handle_text(text: &Text, source: &str, str: &mut MagicString) {
         return;
     }
     let raw = &source[text.start as usize..text.end as usize];
-    // Remove non-whitespace, keep whitespace
-    let mut replacement: String = raw.chars().filter(|c| c.is_whitespace()).collect();
-    if replacement.is_empty() && !raw.is_empty() {
-        // Minimum of 1 space
+    // Match JS reference (`htmlxtojsx_v2/nodes/Text.ts`) which inspects
+    // `node.data` — the parsed-and-trimmed inner text — not the raw range.
+    // Svelte's parser strips leading/trailing whitespace from text data, so
+    // for `\n    x\n` we should look at just `x` when deciding whether the
+    // fallback ` ` replacement applies. Our `Text.data` keeps surrounding
+    // whitespace, so trim it here.
+    let data_trim = text.data.trim_matches(|c: char| c.is_whitespace());
+    let mut replacement: String = data_trim.chars().filter(|c| c.is_whitespace()).collect();
+    if replacement.is_empty() && !data_trim.is_empty() {
         replacement = " ".to_string();
+    } else if data_trim.is_empty() {
+        // Pure whitespace text — keep the original whitespace structure so
+        // surrounding indentation is preserved.
+        replacement = raw.to_string();
     }
     str.overwrite(text.start, text.end, &replacement);
 }
@@ -598,10 +607,37 @@ fn handle_if_block(
         block.end
     };
 
-    // Overwrite `{#if condition}` with `if(condition){`
-    str.overwrite(block.start, consequent_start, &format!("if({})", test_text));
-    // Insert opening brace
-    str.append_left(consequent_start, "{");
+    // Mirror `htmlxtojsx_v2/nodes/IfElseBlock.ts::handleIf`: an IfBlock that
+    // is the elseif branch of an outer IfBlock starts at the `{` of
+    // `{:else if EXPR}` (with `expression.start` *before* `block.start` —
+    // svelte 5 records the test expression at its source-level position).
+    // Overwrite `{:else if ` → `} else if (` and the trailing `}` → `){`,
+    // exactly as the JS reference does.
+    if block.elseif {
+        let (test_start, test_end) = get_expression_range(&block.test).unwrap_or((0, 0));
+        let bytes = source.as_bytes();
+        let mut brace_open = test_start as usize;
+        while brace_open > 0 && bytes[brace_open - 1] != b'{' {
+            brace_open -= 1;
+        }
+        if brace_open > 0 {
+            brace_open -= 1; // include the `{`
+        }
+        str.overwrite(brace_open as u32, test_start, "} else if (");
+
+        let mut close_brace = test_end as usize;
+        while close_brace < bytes.len() && bytes[close_brace] != b'}' {
+            close_brace += 1;
+        }
+        if close_brace < bytes.len() {
+            str.overwrite(test_end, (close_brace + 1) as u32, "){");
+        }
+    } else {
+        // Overwrite `{#if condition}` with `if(condition){`
+        str.overwrite(block.start, consequent_start, &format!("if({})", test_text));
+        // Insert opening brace
+        str.append_left(consequent_start, "{");
+    }
 
     // Process children
     process_fragment_inplace(&block.consequent, source, options, str, counter);
@@ -621,18 +657,11 @@ fn handle_if_block(
             alternate.nodes.len() == 1 && matches!(alternate.nodes[0], TemplateNode::IfBlock(_));
 
         if has_elseif {
-            // Find the {:else if ...} tag range
-            // We need to find where the consequent ends and the alternate starts
-            let consequent_end = if !block.consequent.nodes.is_empty() {
-                block.consequent.nodes.last().unwrap().end()
-            } else {
-                block.start
-            };
-
-            // Overwrite `{:else if` with `} else `
-            str.overwrite(consequent_end, alternate_start, "} else ");
-
-            // Process the elseif block (which will handle its own if()/else)
+            // Don't insert anything between consequent end and the nested
+            // IfBlock — the nested IfBlock with `block.elseif == true`
+            // owns the `} else if (EXPR){` rewrite (see branch above).
+            // Process the elseif block (which will handle its own
+            // `} else if(...) {` rewrite).
             process_fragment_inplace(alternate, source, options, str, counter);
 
             // No closing `}` needed since the inner if block handles `{/if}`
