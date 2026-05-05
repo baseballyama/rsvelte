@@ -64,14 +64,14 @@ CLI flags shipped:
 | Rust `svelte-check` binary in `target/release/svelte_check` | ✅ | Build green. |
 | Passes existing JS svelte-check fixture set (golden output comparisons) | ❌ | Not wired up — needs a fixture runner that reads `submodules/language-tools/packages/svelte-check/test/`. |
 | ≥ 2× faster than JS svelte-check on a 1000-file project | ❌ | No benchmark yet. |
-| CI-friendly: machine-readable JSON, GH Actions annotation, non-zero exit on errors | 🟡 | `machine` / `machine-verbose` formats and exit codes work. **GitHub Actions annotation format (`::error file=…,line=…::msg`) is not implemented**. |
+| CI-friendly: machine-readable JSON, GH Actions annotation, non-zero exit on errors | ✅ | `machine` / `machine-verbose` formats, exit codes, and `--output github-actions` (workflow-command annotations) all shipped. |
 
 ### What to ship next (in priority order)
 
-1. **GitHub Actions annotation output format** (small — 0.5 day).
-   - Add `OutputFormat::GithubActions` to `src/svelte_check/writers.rs`.
-   - Format: `::error file=<rel>,line=<L>,col=<C>::<message>` (and `::warning` / `::notice`).
-   - Wire into the CLI `--output` parser.
+1. ~~**GitHub Actions annotation output format**~~ — ✅ landed in PR #87.
+   `--output github-actions` (alias `--output github`) emits
+   `::error file=…,line=…,col=…::message` (and `::warning` / `::notice`)
+   with proper `%25` / `%0A` / `%0D` escaping.
 
 2. **Watch mode + incremental cache** (medium — 1–2 days).
    - The JS reference uses a manifest at `<cacheDir>/manifest.json` keyed by
