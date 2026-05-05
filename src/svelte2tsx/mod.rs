@@ -8,6 +8,6 @@ pub mod svelte2tsx;
 pub mod template;
 
 pub use svelte2tsx::{
-    Svelte2TsxError, Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions, Svelte2TsxResult,
-    SvelteVersion, svelte2tsx,
+    RewriteExternalImportsOptions, Svelte2TsxError, Svelte2TsxMode, Svelte2TsxNamespace,
+    Svelte2TsxOptions, Svelte2TsxResult, SvelteVersion, svelte2tsx,
 };
