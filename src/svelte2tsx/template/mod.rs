@@ -1344,12 +1344,23 @@ fn handle_component(
     // after any leading whitespace from the attribute spacing.
     if is_svelte5 && has_children {
         // Insert children prop: strip leading whitespace from attrs_str,
-        // prepend children, then re-add leading whitespace
+        // prepend children, then re-add leading whitespace.
+        //
+        // When `has_lets` is true (the component has `let:` directives),
+        // the JS reference's slot-def block already provides the
+        // visual offset, so the children prop is inserted without
+        // leading whitespace — `props: {children:() => ..., ...}` rather
+        // than `props: {  children:() => ..., ...}`.
         let children_text = "children:() => { return __sveltets_2_any(0); },";
         let trimmed = attrs_str.trim_start();
         if trimmed.is_empty() {
             // No other attrs: just children (no leading space)
             attrs_str = children_text.to_string();
+        } else if has_lets || children_have_named_slots {
+            // Skip leading whitespace when slot let-forwarding is in play
+            // (whether the let: is on the component itself or on a
+            // <svelte:fragment slot="..." let:...> child).
+            attrs_str = format!("{}{}", children_text, trimmed);
         } else {
             // Has other attrs: insert children before them, preserving leading whitespace
             let leading_ws: String = attrs_str
@@ -1684,13 +1695,24 @@ fn handle_named_slot_svelte_fragment(
     let has_closing_tag = closing_tag_start < el.end;
 
     // Emit the slot-def block + a `svelteHTML.createElement("svelte:fragment", {  })`
-    // with the `slot` / `let:` attributes stripped. The `{  }` retains two
-    // spaces when no attributes are left (mirrors the JS reference's
-    // position-preserving emission, which leaves the original whitespace
-    // around the attribute list intact even after the attributes are blanked).
+    // with the `slot` / `let:` attributes stripped. The JS reference's
+    // position-preserving emission leaves one space per stripped attribute
+    // visible inside the empty `{}` (so `slot="x" let:y` → 2 spaces,
+    // `slot="x" let:y let:z` → 3 spaces, etc.).
     let attrs_str = build_named_slot_element_attrs(&el.attributes, source);
     let inner = if attrs_str.is_empty() {
-        "  ".to_string()
+        let stripped_count = el
+            .attributes
+            .iter()
+            .filter(|a| {
+                matches!(
+                    a,
+                    Attribute::Attribute(node)
+                        if node.name == "slot"
+                ) || matches!(a, Attribute::LetDirective(_))
+            })
+            .count();
+        " ".repeat(stripped_count.max(1))
     } else {
         attrs_str
     };
