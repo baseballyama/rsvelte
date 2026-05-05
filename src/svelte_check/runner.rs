@@ -11,7 +11,9 @@ use std::path::{Path, PathBuf};
 use crate::compiler::{CompileOptions, GenerateMode, compile};
 
 use super::diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
+use super::mapper::map_tsgo_diagnostics;
 use super::overlay::{OverlayLayout, materialize_overlay};
+use super::tsgo::{TsgoError, find_compiler, run_tsgo};
 use super::walker::find_svelte_files;
 
 /// Inputs to a `svelte-check` run.
@@ -31,6 +33,10 @@ pub struct RunOptions {
     /// Optional path to a project tsconfig.json the overlay should
     /// `extends`. None → write a self-contained overlay tsconfig.
     pub tsconfig: Option<PathBuf>,
+    /// When `true`, also run `tsgo` (or `tsc`) against the overlay
+    /// tsconfig and surface mapped TypeScript diagnostics on the
+    /// original `.svelte` source. Implies `emit_overlay`.
+    pub use_tsgo: bool,
 }
 
 impl Default for RunOptions {
@@ -41,6 +47,7 @@ impl Default for RunOptions {
             fail_on_warnings: false,
             emit_overlay: false,
             tsconfig: None,
+            use_tsgo: false,
         }
     }
 }
@@ -110,9 +117,13 @@ pub fn run(options: &RunOptions) -> RunResult {
         run_one_file(file, &source, &mut result.diagnostics);
     }
 
-    if options.emit_overlay {
+    let need_overlay = options.emit_overlay || options.use_tsgo;
+    if need_overlay {
         match materialize_overlay(&options.workspace, &files, options.tsconfig.as_deref()) {
             Ok(layout) => {
+                if options.use_tsgo {
+                    run_tsgo_phase(&layout, &options.workspace, &mut result.diagnostics);
+                }
                 result.overlay = Some(layout);
             }
             Err(e) => {
@@ -132,6 +143,52 @@ pub fn run(options: &RunOptions) -> RunResult {
     }
 
     result
+}
+
+fn run_tsgo_phase(layout: &OverlayLayout, workspace: &Path, out: &mut Vec<Diagnostic>) {
+    let binary = match find_compiler(workspace) {
+        Ok(b) => b,
+        Err(TsgoError::NotFound) => {
+            out.push(Diagnostic {
+                file: workspace.to_path_buf(),
+                severity: DiagnosticSeverity::Warning,
+                code: Some("tsgo-not-found".into()),
+                message: "Skipping TypeScript diagnostics: no `tsgo` or `tsc` binary found. \
+                     Install `@typescript/native-preview` or set `TSGO_BIN`."
+                    .into(),
+                range: None,
+                source: "ts",
+            });
+            return;
+        }
+        Err(e) => {
+            out.push(Diagnostic {
+                file: workspace.to_path_buf(),
+                severity: DiagnosticSeverity::Error,
+                code: Some("tsgo-error".into()),
+                message: format!("{e}"),
+                range: None,
+                source: "ts",
+            });
+            return;
+        }
+    };
+    match run_tsgo(&binary, &layout.overlay_tsconfig, workspace) {
+        Ok(raw) => {
+            let mapped = map_tsgo_diagnostics(&raw, layout, workspace);
+            out.extend(mapped);
+        }
+        Err(e) => {
+            out.push(Diagnostic {
+                file: workspace.to_path_buf(),
+                severity: DiagnosticSeverity::Error,
+                code: Some("tsgo-error".into()),
+                message: format!("tsgo execution failed: {e}"),
+                range: None,
+                source: "ts",
+            });
+        }
+    }
 }
 
 fn run_one_file(file: &Path, source: &str, out: &mut Vec<Diagnostic>) {

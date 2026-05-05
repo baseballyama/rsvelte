@@ -10,8 +10,10 @@
 //! Wave 2.
 
 pub mod diagnostic;
+pub mod mapper;
 pub mod overlay;
 pub mod runner;
+pub mod tsgo;
 pub mod walker;
 pub mod writers;
 
