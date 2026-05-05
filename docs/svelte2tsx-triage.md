@@ -1,12 +1,21 @@
-# svelte2tsx — Wave 1 triage
+# svelte2tsx — Wave 1 triage (CLOSED)
+
+> **Wave 1 status: ✅ COMPLETE — 245/245 (100%) as of 2026-05-05.** This
+> document is preserved as a historical record of the cluster-by-cluster
+> attack order. The remaining-work table at the bottom is no longer
+> actionable; every cluster is closed.
 
 Run with:
 
 ```bash
-cargo test --release --no-default-features --test svelte2tsx_fixtures -- --nocapture
+cargo test --release --test svelte2tsx_fixtures -- --nocapture
 ```
 
-Latest: **207/245 (84.5%)** as of 2026-05-04.
+Latest: **245/245 (100%)** as of 2026-05-05.
+
+The runner is also wired into `pnpm run compatibility-report` as the
+`svelte2tsx` category (PR #79). Total compat-report in-scope passing:
+**3341/3341**.
 
 ## Progress log
 
