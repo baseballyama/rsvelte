@@ -1270,7 +1270,7 @@ fn handle_regular_element(
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
 
     // Build attribute string
-    let mut attrs_str = build_attributes_string(&el.attributes, source);
+    let mut attrs_str = build_attributes_string_with_tag(&el.attributes, source, &el.name);
 
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior.
     // The JS MagicString preserves whitespace between tag name and first attribute,
@@ -1287,28 +1287,47 @@ fn handle_regular_element(
         }
     }
 
-    // One-way `bind:` directives (`contentRect`, `clientWidth`, …) are
-    // emitted as a typed assignment AFTER the createElement call instead of
-    // becoming a prop. Mirrors `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`
-    // (the `oneWayBindingAttributes` and `oneWayBindingAttributesNotOnElement`
-    // branches).
-    let one_way_suffix =
-        build_one_way_binding_suffix(&el.attributes, source, None, options.is_ts_file);
+    // `bind:` directives generate a suffix appended right after the
+    // createElement call. Mirrors `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`.
+    // For `bind:this` and one-way bindings on the element (`offsetHeight`,
+    // …) we also need a `const $$_xxx = …` declaration so the assignment
+    // can reference the element value.
+    let needs_element_var = any_bind_needs_element_var(&el.attributes);
+    let element_var = if needs_element_var {
+        let sanitized = sanitize_tag_for_var(&el.name);
+        let idx = counter.next_for(&sanitized);
+        Some(format!("$$_{}{}", sanitized, idx))
+    } else {
+        None
+    };
+    let bind_suffix = build_bind_directive_suffix(
+        &el.attributes,
+        source,
+        element_var.as_deref(),
+        &el.name,
+        options.is_ts_file,
+    );
 
-    // When all surviving props are empty but a one-way binding was stripped
-    // out, the JS reference still leaves whitespace inside `{ }` because the
-    // original attribute span gets blanked, not removed. Add a single space
-    // so `createElement("div", { })` matches.
-    if attrs_str.is_empty() && !one_way_suffix.is_empty() {
+    // When all surviving props are empty but a `bind:` directive was
+    // stripped, JS reference still leaves whitespace inside `{ }`. Add a
+    // single space so `createElement("div", { })` matches.
+    if attrs_str.is_empty() && !bind_suffix.is_empty() {
         attrs_str.push(' ');
     }
 
     // Overwrite the entire opening tag.
     // Leading space preserves approximate column positions (matching JS svelte2tsx).
-    let opener = format!(
-        " {{ svelteHTML.createElement(\"{}\", {{{}}});{}",
-        el.name, attrs_str, one_way_suffix
-    );
+    let opener = if let Some(ref var) = element_var {
+        format!(
+            " {{ const {} = svelteHTML.createElement(\"{}\", {{{}}});{}",
+            var, el.name, attrs_str, bind_suffix
+        )
+    } else {
+        format!(
+            " {{ svelteHTML.createElement(\"{}\", {{{}}});{}",
+            el.name, attrs_str, bind_suffix
+        )
+    };
     str.overwrite(el.start, opening_tag_end, &opener);
 
     // Process children
@@ -2379,6 +2398,14 @@ fn handle_svelte_special_element(
 ///
 /// Returns the inner content for `{ ... }` in createElement or component props.
 fn build_attributes_string(attributes: &[Attribute], source: &str) -> String {
+    build_attributes_string_with_tag(attributes, source, "")
+}
+
+fn build_attributes_string_with_tag(
+    attributes: &[Attribute],
+    source: &str,
+    parent_tag: &str,
+) -> String {
     let mut parts: Vec<String> = Vec::new();
 
     for attr in attributes {
@@ -2394,11 +2421,11 @@ fn build_attributes_string(attributes: &[Attribute], source: &str) -> String {
                 }
             }
             Attribute::BindDirective(bind) => {
-                // One-way `bind:` (e.g. `bind:contentRect`, `bind:clientWidth`)
-                // doesn't go on the createElement props — it's emitted as a
-                // typed assignment statement after the createElement (handled
-                // by `build_one_way_binding_suffix`).
-                if !is_one_way_bind(&bind.name) {
+                // `bind:this` and one-way bindings (`bind:contentRect`,
+                // `bind:clientWidth`, …) don't appear in the createElement
+                // props — they're emitted as typed assignment statements
+                // after the createElement call (`build_bind_directive_suffix`).
+                if !bind_is_filtered_from_props(&bind.name, parent_tag) {
                     parts.push(format_bind_directive(bind, source));
                 }
             }
@@ -2702,14 +2729,40 @@ fn one_way_binding_not_on_element_type(name: &str) -> Option<&'static str> {
     })
 }
 
-/// Build the suffix that's appended right after `svelteHTML.createElement(...)`
-/// for one-way `bind:` directives on a regular HTML element. Returns an empty
-/// string when no one-way bindings are present. Mirrors `appendOneWayBinding`
-/// + the not-on-element branch in `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`.
-fn build_one_way_binding_suffix(
+fn is_one_way_bind(name: &str) -> bool {
+    is_one_way_binding_attribute(name) || one_way_binding_not_on_element_type(name).is_some()
+}
+
+/// Whether a `bind:` directive should be filtered out of the createElement
+/// props (because it gets emitted via a typed assignment after createElement).
+fn bind_is_filtered_from_props(name: &str, parent_tag: &str) -> bool {
+    name == "this" || is_one_way_bind(name) || (name == "group" && parent_tag == "input")
+}
+
+/// Whether a `bind:` directive forces declaration of an element variable
+/// (`const $$_div0 = svelteHTML.createElement(...)`) so the assignment can
+/// reference it. Mirrors the JS reference's `referencedName` flag in
+/// `htmlxtojsx_v2/nodes/Element.ts`.
+fn bind_needs_element_var(name: &str) -> bool {
+    name == "this" || is_one_way_binding_attribute(name)
+}
+
+/// Build the suffix appended right after the `svelteHTML.createElement(...)`
+/// call for all `bind:` directives on a regular HTML element. Mirrors the
+/// branches of `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`:
+///
+/// - `bind:this`               → `<expr> = <element_var>;`
+/// - one-way (clientWidth, …)  → `<expr>= <element_var>.<attr>;`
+/// - one-way-not-on-element    → `<expr>= /** @type {T} */ (null);` (typed null)
+/// - any other `bind:foo`      → keeps the prop, then appends an
+///                                ignored-comments-wrapped
+///                                `() => <expr> = __sveltets_2_any(null);`
+///                                so TS widens the type.
+fn build_bind_directive_suffix(
     attributes: &[Attribute],
     source: &str,
     element_var: Option<&str>,
+    parent_tag: &str,
     is_ts_file: bool,
 ) -> String {
     let mut out = String::new();
@@ -2718,8 +2771,16 @@ fn build_one_way_binding_suffix(
             continue;
         };
         let expr_text = get_expression_text(&bind.expression, source);
-        if let Some(ty) = one_way_binding_not_on_element_type(&bind.name) {
-            // `name = (null as Type);` (TS) / `/** @type {Type} */ (null)` (JSDoc).
+        if bind.name == "this" {
+            if let Some(var) = element_var {
+                out.push_str(&format!("{} = {};", expr_text, var));
+            }
+        } else if bind.name == "group" && parent_tag == "input" {
+            // `bind:group` on `<input>` only gets a type-widening
+            // assignment; mirrors the dedicated branch in
+            // `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`.
+            out.push_str(&format!("{} = __sveltets_2_any(null);", expr_text));
+        } else if let Some(ty) = one_way_binding_not_on_element_type(&bind.name) {
             let value = if is_ts_file {
                 format!("null as {}", ty)
             } else {
@@ -2730,18 +2791,43 @@ fn build_one_way_binding_suffix(
                 expr_text, value
             ));
         } else if is_one_way_binding_attribute(&bind.name) {
-            // `name = elementVar.attrName;` — only emitted when we have a
-            // reference to the element variable.
             if let Some(var) = element_var {
                 out.push_str(&format!("{}= {}.{};", expr_text, var, bind.name));
             }
+        } else {
+            // Generic two-way binding: type-widener so TS doesn't infer
+            // an overly-narrow type.
+            out.push_str(&format!(
+                "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/",
+                expr_text
+            ));
         }
     }
     out
 }
 
-fn is_one_way_bind(name: &str) -> bool {
-    is_one_way_binding_attribute(name) || one_way_binding_not_on_element_type(name).is_some()
+/// Whether any `bind:` directive on this element forces a `const $$_xxx = …`
+/// declaration of the createElement value.
+fn any_bind_needs_element_var(attributes: &[Attribute]) -> bool {
+    attributes
+        .iter()
+        .any(|attr| matches!(attr, Attribute::BindDirective(b) if bind_needs_element_var(&b.name)))
+}
+
+/// Sanitize an HTML/SVG tag name for use as a JavaScript identifier:
+/// replaces any non-`[A-Za-z0-9_$]` byte with `_`. Mirrors
+/// `sanitizePropName` in the JS reference (sanitization rules are
+/// equivalent for the tag-name use case here).
+fn sanitize_tag_for_var(name: &str) -> String {
+    name.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '_' || c == '$' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect()
 }
 
 /// Format an on directive: `on:click={handler}` → `"on:click":handler,`
