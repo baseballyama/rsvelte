@@ -436,3 +436,21 @@ pub fn napi_resolve_id(importer: Option<String>, specifier: String) -> napi::Res
         None => Ok(Value::Null),
     }
 }
+
+/// Run rsvelte's preprocessor pipeline. v0.1 only supports the empty
+/// pipeline (no preprocessors → input passed through unchanged) — the
+/// JS shim should keep using its existing JS preprocessor path until
+/// `napi_preprocess` learns to bridge JS callbacks via
+/// `napi::ThreadsafeFunction` (tracked in
+/// `docs/ecosystem-implementation-plan.md` Wave 3 tradeoffs).
+///
+/// Shape mirrors `svelte/preprocess`: `{ code, map, dependencies }`.
+#[napi(js_name = "preprocess")]
+pub fn napi_preprocess(source: String, filename: Option<String>) -> napi::Result<Value> {
+    let _ = filename;
+    Ok(serde_json::json!({
+        "code": source,
+        "map": Value::Null,
+        "dependencies": Value::Array(vec![]),
+    }))
+}
