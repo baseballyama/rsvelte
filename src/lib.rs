@@ -35,6 +35,7 @@ pub mod error;
 pub mod svelte2tsx;
 #[cfg(feature = "native")]
 pub mod svelte_check;
+pub mod vps;
 
 #[cfg(feature = "napi")]
 pub mod napi;

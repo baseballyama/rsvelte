@@ -395,3 +395,44 @@ fn parse_svelte2tsx_options(options: &Value) -> Svelte2TsxOptions {
 
     opts
 }
+
+// =============================================================================
+// vite-plugin-svelte (Wave 3) NAPI surface
+// =============================================================================
+
+use crate::vps::{ResolveOptions, hmr_diff as rust_hmr_diff, resolve_id as rust_resolve_id};
+
+/// Diff two `.svelte` source versions. Returns `{ change, instanceChanged,
+/// moduleChanged }` so the JS shim can decide between Vite's hot-update
+/// patch and a full reload. Mirrors the JS reference's
+/// `vite-plugin-svelte/src/plugins/hot-update.js`.
+#[napi(js_name = "hmrDiff")]
+pub fn napi_hmr_diff(prev: String, curr: String) -> napi::Result<Value> {
+    let diff = rust_hmr_diff(&prev, &curr);
+    let kind = match diff.change {
+        crate::vps::HmrChange::HotUpdate => "hot-update",
+        crate::vps::HmrChange::FullReload => "full-reload",
+        crate::vps::HmrChange::Unchanged => "unchanged",
+    };
+    Ok(serde_json::json!({
+        "change": kind,
+        "instanceChanged": diff.instance_changed,
+        "moduleChanged": diff.module_changed,
+    }))
+}
+
+/// Resolve a relative module specifier from an importer's directory.
+/// Returns `null` for bare specifiers — the JS shim falls back to
+/// Vite's main resolver in that case.
+#[napi(js_name = "resolveId")]
+pub fn napi_resolve_id(importer: Option<String>, specifier: String) -> napi::Result<Value> {
+    let importer_path = importer.as_ref().map(std::path::Path::new);
+    let res = rust_resolve_id(ResolveOptions {
+        importer: importer_path,
+        specifier: &specifier,
+    });
+    match res {
+        Some(r) => Ok(serde_json::json!({ "resolved": r.resolved })),
+        None => Ok(Value::Null),
+    }
+}
