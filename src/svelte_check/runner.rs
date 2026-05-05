@@ -6,6 +6,7 @@
 //! transform errors + compiler warnings). The TypeScript pipeline
 //! (svelte2tsx → tsgo → diagnostic mapper) is the next milestone.
 
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use crate::compiler::{CompileOptions, GenerateMode, compile};
@@ -15,6 +16,41 @@ use super::mapper::map_tsgo_diagnostics;
 use super::overlay::{OverlayLayout, materialize_overlay};
 use super::tsgo::{TsgoError, find_compiler, run_tsgo};
 use super::walker::find_svelte_files;
+
+/// Per-warning override: promote to error or drop entirely. Mirrors
+/// the JS reference's `--compiler-warnings code:error,code:ignore`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WarningOverride {
+    Error,
+    Ignore,
+}
+
+/// Diagnostic sources the run should keep. Mirrors the JS reference's
+/// `--diagnostic-sources svelte,ts,css` filter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DiagnosticSource {
+    Svelte,
+    Ts,
+    Css,
+}
+
+impl DiagnosticSource {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            DiagnosticSource::Svelte => "svelte",
+            DiagnosticSource::Ts => "ts",
+            DiagnosticSource::Css => "css",
+        }
+    }
+    pub fn parse(s: &str) -> Option<Self> {
+        Some(match s {
+            "svelte" => DiagnosticSource::Svelte,
+            "ts" | "js" => DiagnosticSource::Ts,
+            "css" => DiagnosticSource::Css,
+            _ => return None,
+        })
+    }
+}
 
 /// Inputs to a `svelte-check` run.
 #[derive(Debug, Clone)]
@@ -37,6 +73,13 @@ pub struct RunOptions {
     /// tsconfig and surface mapped TypeScript diagnostics on the
     /// original `.svelte` source. Implies `emit_overlay`.
     pub use_tsgo: bool,
+    /// Compiler-warning overrides keyed by warning code (e.g.
+    /// `css-unused-selector` → `Ignore`). Empty = pass all warnings
+    /// through unchanged. Mirrors the JS `--compiler-warnings`.
+    pub compiler_warnings: HashMap<String, WarningOverride>,
+    /// Subset of diagnostic sources to surface. `None` = all sources.
+    /// Mirrors the JS `--diagnostic-sources`.
+    pub diagnostic_sources: Option<HashSet<DiagnosticSource>>,
 }
 
 impl Default for RunOptions {
@@ -48,6 +91,8 @@ impl Default for RunOptions {
             emit_overlay: false,
             tsconfig: None,
             use_tsgo: false,
+            compiler_warnings: HashMap::new(),
+            diagnostic_sources: None,
         }
     }
 }
@@ -142,7 +187,38 @@ pub fn run(options: &RunOptions) -> RunResult {
         }
     }
 
+    apply_filters(&mut result.diagnostics, options);
+
     result
+}
+
+/// Apply compiler-warnings + diagnostic-source filters in place.
+fn apply_filters(diagnostics: &mut Vec<Diagnostic>, options: &RunOptions) {
+    if !options.compiler_warnings.is_empty() {
+        diagnostics.retain_mut(|d| {
+            if d.severity != DiagnosticSeverity::Warning {
+                return true;
+            }
+            let Some(code) = d.code.as_deref() else {
+                return true;
+            };
+            match options.compiler_warnings.get(code) {
+                Some(WarningOverride::Ignore) => false,
+                Some(WarningOverride::Error) => {
+                    d.severity = DiagnosticSeverity::Error;
+                    true
+                }
+                None => true,
+            }
+        });
+    }
+    if let Some(allowed) = &options.diagnostic_sources {
+        diagnostics.retain(|d| {
+            DiagnosticSource::parse(d.source)
+                .map(|s| allowed.contains(&s))
+                .unwrap_or(true)
+        });
+    }
 }
 
 fn run_tsgo_phase(layout: &OverlayLayout, workspace: &Path, out: &mut Vec<Diagnostic>) {
@@ -240,4 +316,72 @@ fn range_from_warning(
             column: end_pos.column as u32,
         },
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn diag(severity: DiagnosticSeverity, code: &str, source: &'static str) -> Diagnostic {
+        Diagnostic {
+            file: PathBuf::from("Foo.svelte"),
+            severity,
+            code: Some(code.into()),
+            message: "msg".into(),
+            range: None,
+            source,
+        }
+    }
+
+    #[test]
+    fn compiler_warnings_ignore_drops_warning_keeps_error() {
+        let mut diags = vec![
+            diag(DiagnosticSeverity::Warning, "css-unused-selector", "svelte"),
+            diag(DiagnosticSeverity::Error, "css-unused-selector", "svelte"),
+            diag(DiagnosticSeverity::Warning, "a11y-foo", "svelte"),
+        ];
+        let mut overrides = HashMap::new();
+        overrides.insert("css-unused-selector".into(), WarningOverride::Ignore);
+        let opts = RunOptions {
+            compiler_warnings: overrides,
+            ..RunOptions::default()
+        };
+        apply_filters(&mut diags, &opts);
+        assert_eq!(diags.len(), 2);
+        assert_eq!(diags[0].severity, DiagnosticSeverity::Error);
+        assert_eq!(diags[1].code.as_deref(), Some("a11y-foo"));
+    }
+
+    #[test]
+    fn compiler_warnings_error_promotes_warning() {
+        let mut diags = vec![diag(DiagnosticSeverity::Warning, "a11y-foo", "svelte")];
+        let mut overrides = HashMap::new();
+        overrides.insert("a11y-foo".into(), WarningOverride::Error);
+        let opts = RunOptions {
+            compiler_warnings: overrides,
+            ..RunOptions::default()
+        };
+        apply_filters(&mut diags, &opts);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].severity, DiagnosticSeverity::Error);
+    }
+
+    #[test]
+    fn diagnostic_sources_filter_keeps_only_listed() {
+        let mut diags = vec![
+            diag(DiagnosticSeverity::Warning, "x", "svelte"),
+            diag(DiagnosticSeverity::Error, "x", "ts"),
+            diag(DiagnosticSeverity::Warning, "x", "css"),
+        ];
+        let mut allowed = HashSet::new();
+        allowed.insert(DiagnosticSource::Svelte);
+        allowed.insert(DiagnosticSource::Ts);
+        let opts = RunOptions {
+            diagnostic_sources: Some(allowed),
+            ..RunOptions::default()
+        };
+        apply_filters(&mut diags, &opts);
+        let sources: Vec<_> = diags.iter().map(|d| d.source).collect();
+        assert_eq!(sources, vec!["svelte", "ts"]);
+    }
 }

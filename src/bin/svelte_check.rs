@@ -5,9 +5,14 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use std::collections::{HashMap, HashSet};
+
 use clap::Parser;
 use svelte_compiler_rust::svelte_check::{
-    OutputFormat, RunOptions, run, writers::write_diagnostic, writers::write_summary,
+    OutputFormat, RunOptions, run,
+    runner::{DiagnosticSource, WarningOverride},
+    writers::write_diagnostic,
+    writers::write_summary,
 };
 
 #[derive(Parser, Debug)]
@@ -50,6 +55,16 @@ struct Cli {
     /// original `.svelte` source. Implies `--emit-overlay`.
     #[arg(long = "tsgo", default_value_t = false)]
     tsgo: bool,
+
+    /// Comma-separated `code:error|ignore` overrides for compiler
+    /// warnings. Example: `css-unused-selector:ignore,a11y-no-noninteractive-element-to-interactive-role:error`.
+    #[arg(long = "compiler-warnings")]
+    compiler_warnings: Option<String>,
+
+    /// Comma-separated list of diagnostic sources to surface (any
+    /// subset of `svelte`, `ts`/`js`, `css`). Default: all sources.
+    #[arg(long = "diagnostic-sources")]
+    diagnostic_sources: Option<String>,
 }
 
 fn main() -> ExitCode {
@@ -80,6 +95,9 @@ fn main() -> ExitCode {
         })
         .unwrap_or_default();
 
+    let compiler_warnings = parse_compiler_warnings(cli.compiler_warnings.as_deref());
+    let diagnostic_sources = parse_diagnostic_sources(cli.diagnostic_sources.as_deref());
+
     let options = RunOptions {
         workspace: workspace.clone(),
         ignore,
@@ -87,6 +105,8 @@ fn main() -> ExitCode {
         emit_overlay: cli.emit_overlay || cli.tsgo,
         tsconfig: cli.tsconfig,
         use_tsgo: cli.tsgo,
+        compiler_warnings,
+        diagnostic_sources,
     };
 
     let result = run(&options);
@@ -101,4 +121,44 @@ fn main() -> ExitCode {
     print!("{}", out);
 
     ExitCode::from(result.exit_code(cli.fail_on_warnings) as u8)
+}
+
+fn parse_compiler_warnings(raw: Option<&str>) -> HashMap<String, WarningOverride> {
+    let mut map = HashMap::new();
+    let Some(raw) = raw else {
+        return map;
+    };
+    for entry in raw.split(',') {
+        let entry = entry.trim();
+        if entry.is_empty() {
+            continue;
+        }
+        let (code, level) = match entry.split_once(':') {
+            Some(pair) => pair,
+            None => continue,
+        };
+        let level = match level.trim() {
+            "error" => WarningOverride::Error,
+            "ignore" => WarningOverride::Ignore,
+            _ => continue,
+        };
+        // Accept both hyphenated (`css-unused-selector`) and
+        // underscored (`css_unused_selector`) codes — the JS reference
+        // documents hyphens, the rsvelte compiler emits underscores.
+        let normalised = code.trim().replace('-', "_");
+        map.insert(normalised, level);
+    }
+    map
+}
+
+fn parse_diagnostic_sources(raw: Option<&str>) -> Option<HashSet<DiagnosticSource>> {
+    let raw = raw?;
+    let mut set = HashSet::new();
+    for entry in raw.split(',') {
+        let entry = entry.trim();
+        if let Some(s) = DiagnosticSource::parse(entry) {
+            set.insert(s);
+        }
+    }
+    if set.is_empty() { None } else { Some(set) }
 }
