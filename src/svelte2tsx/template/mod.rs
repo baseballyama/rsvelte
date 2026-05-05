@@ -2392,7 +2392,17 @@ fn build_component_props_string(attributes: &[Attribute], source: &str) -> Strin
                     continue;
                 }
                 if let Some(s) = format_attribute_node(node, source) {
-                    parts.push(s);
+                    if node.name.starts_with("--") {
+                        // CSS custom properties on components must be wrapped
+                        // with `__sveltets_2_cssProp` so TS does not flag the
+                        // `--xx` key as an invalid prop. Mirrors the JS
+                        // reference's `name.unshift('...__sveltets_2_cssProp({')`
+                        // / `value.push('})')` in `htmlxtojsx_v2/nodes/Attribute.ts`.
+                        let inner = s.strip_suffix(',').unwrap_or(&s);
+                        parts.push(format!("...__sveltets_2_cssProp({{{}}}),", inner));
+                    } else {
+                        parts.push(s);
+                    }
                 }
             }
             Attribute::SpreadAttribute(spread) => {
