@@ -133,10 +133,17 @@ mod svelte2tsx_tests {
     fn relaxed_compare(actual: &str, expected: &str) -> bool {
         // Strip component export tail from expected.
         // V4: `\n\nexport default class ...`
+        // V4 (JSDoc/$$IsomorphicComponent): `*/ export const ...` (the
+        //   `/** @type {$$IsomorphicComponent} */ export const Input__SvelteComponent_`
+        //   form has no preceding newline because the JSDoc and `export` sit
+        //   on the same line — fall back to the `\n/** @template ` marker
+        //   that precedes the `__sveltets_Render` class).
         // V5: `\nconst ...` or `\nexport const ...`
         let expect_cut = expected
             .rfind("\n\nexport default class")
             .or_else(|| expected.rfind("\nexport const "))
+            .or_else(|| expected.rfind("\n/** @template "))
+            .or_else(|| expected.rfind("\nclass __sveltets_Render"))
             .or_else(|| expected.rfind("\nconst "));
         let expect_cut = match expect_cut {
             Some(pos) => pos,
