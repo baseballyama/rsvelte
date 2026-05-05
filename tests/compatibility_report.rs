@@ -1369,13 +1369,22 @@ fn generate_compatibility_report() {
     );
     report.add_category(pre);
 
-    // svelte2tsx category — wave 1 of the ecosystem port (see
-    // `docs/ecosystem-implementation-plan.md` and
-    // `docs/svelte2tsx-triage.md`). Currently exercised standalone in
-    // `tests/svelte2tsx_fixtures.rs`; wiring into this dashboard is
-    // deferred until the relaxed-comparison helper chain in that file is
-    // factored into `tests/common/` so both runners share logic. As of
-    // 2026-05-05 the standalone runner passes 228/245 (≈93%).
+    // svelte2tsx category — wave 1 of the ecosystem port. The same
+    // runner that powers `tests/svelte2tsx_fixtures.rs` is invoked here
+    // via `tests/common/svelte2tsx.rs` so this dashboard and the
+    // standalone runner stay in lockstep.
+    print!("Running svelte2tsx tests... ");
+    if let Some(svelte2tsx_result) = common::svelte2tsx::run_as_category() {
+        println!(
+            "{}/{} passed ({:.1}%)",
+            svelte2tsx_result.stats.passed,
+            svelte2tsx_result.stats.run_count(),
+            svelte2tsx_result.stats.pass_percentage()
+        );
+        report.add_category(svelte2tsx_result);
+    } else {
+        println!("skipped (language-tools submodule not available)");
+    }
 
     // Migrate (Svelte 4 → 5 migrator) is intentionally out of scope for
     // rsvelte — the project is a port of the Svelte 5 compiler, not a
