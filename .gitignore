@@ -52,7 +52,23 @@ node_modules/
 .claude/worktrees/
 language-tools
 
-# verify-svelte-compat: per-target ephemeral data
-compat-targets/.cache/
-compat-targets/*/.compat-meta.json
-compat-targets/*/.rsvelte/
+# verify-svelte-compat: per-target ephemeral data. The whole directory
+# is regenerated on demand (each target is a clone of an external repo
+# the skill bisects against), so nothing inside it should be tracked.
+compat-targets/
+
+# Tool / review scratch artefacts. None of these are inputs to a build;
+# they're outputs of local tooling (benchmarks, profilers, code-review
+# skills) that get regenerated on demand and should not pollute git.
+.benchmark-files.txt
+benchmark-results.json
+libmagic_string.rlib
+profile.json.gz
+*.profile.json.gz
+REVIEW_REPORT.md
+.review-artifacts/
+# `pbcopy` here is the user's clipboard-redirect mishap (a markdown
+# doc accidentally piped to `> pbcopy`), not the macOS binary. Ignore
+# so it doesn't show up in `git status` for everyone who has the same
+# pattern in their shell history.
+pbcopy
