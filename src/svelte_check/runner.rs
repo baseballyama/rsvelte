@@ -13,7 +13,7 @@ use crate::compiler::{CompileOptions, GenerateMode, compile};
 
 use super::diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
 use super::mapper::map_tsgo_diagnostics;
-use super::overlay::{OverlayLayout, materialize_overlay};
+use super::overlay::{OverlayLayout, materialize_overlay_with};
 use super::tsgo::{TsgoError, find_compiler, run_tsgo};
 use super::walker::find_svelte_files;
 
@@ -80,6 +80,11 @@ pub struct RunOptions {
     /// Subset of diagnostic sources to surface. `None` = all sources.
     /// Mirrors the JS `--diagnostic-sources`.
     pub diagnostic_sources: Option<HashSet<DiagnosticSource>>,
+    /// When `true`, the overlay reads/writes a `manifest.json` cache
+    /// under `<cacheDir>/` and skips re-emitting `.tsx` shadows whose
+    /// source `(mtime_ms, size)` hasn't changed since the previous run.
+    /// Mirrors the JS reference's `--incremental` flag.
+    pub incremental: bool,
 }
 
 impl Default for RunOptions {
@@ -93,6 +98,7 @@ impl Default for RunOptions {
             use_tsgo: false,
             compiler_warnings: HashMap::new(),
             diagnostic_sources: None,
+            incremental: false,
         }
     }
 }
@@ -148,7 +154,12 @@ pub fn run(options: &RunOptions) -> RunResult {
 
     let need_overlay = options.emit_overlay || options.use_tsgo;
     if need_overlay {
-        match materialize_overlay(&options.workspace, &files, options.tsconfig.as_deref()) {
+        match materialize_overlay_with(
+            &options.workspace,
+            &files,
+            options.tsconfig.as_deref(),
+            options.incremental,
+        ) {
             Ok(layout) => {
                 if options.use_tsgo {
                     run_tsgo_phase(&layout, &options.workspace, &mut result.diagnostics);

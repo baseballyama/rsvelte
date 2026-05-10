@@ -66,6 +66,14 @@ struct Cli {
     /// subset of `svelte`, `ts`/`js`, `css`). Default: all sources.
     #[arg(long = "diagnostic-sources")]
     diagnostic_sources: Option<String>,
+
+    /// Reuse the `<workspace>/.svelte-check/manifest.json` cache to
+    /// skip rewriting `.tsx` shadows whose source `.svelte` hasn't
+    /// changed since the previous run. Mirrors the JS reference's
+    /// `--incremental`. Safe to enable everywhere — a missing /
+    /// stale-version manifest just means a cold rebuild.
+    #[arg(long = "incremental", default_value_t = false)]
+    incremental: bool,
 }
 
 fn main() -> ExitCode {
@@ -108,6 +116,7 @@ fn main() -> ExitCode {
         use_tsgo: cli.tsgo,
         compiler_warnings,
         diagnostic_sources,
+        incremental: cli.incremental,
     };
 
     let result = run(&options);
