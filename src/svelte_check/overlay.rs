@@ -188,6 +188,15 @@ fn build_overlay_tsconfig(cache_dir: &Path, original: Option<&Path>) -> String {
     compiler_opts.insert("rootDirs".into(), serde_json::json!([".", "./svelte"]));
     obj.insert("compilerOptions", serde_json::Value::Object(compiler_opts));
     obj.insert("include", serde_json::json!(["./svelte/**/*"]));
+    // Override `files` so any `.svelte` entries listed in the base
+    // tsconfig don't reach tsc — TS rejects arbitrary extensions in the
+    // `files` array even with `allowArbitraryExtensions`, producing
+    // TS6054 before it ever checks anything. The fuller story (forward
+    // user-listed `.ts` entries, merge user's `include`/`exclude`
+    // rebased to the overlay dir) is mirrored in
+    // `submodules/language-tools/packages/svelte-check/src/incremental.ts::buildOverlayTsconfig`
+    // and tracked as future work.
+    obj.insert("files", serde_json::json!([]));
     serde_json::to_string_pretty(&obj).unwrap_or_else(|_| "{}".into())
 }
 
