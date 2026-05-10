@@ -67,6 +67,11 @@ string_wizard = "0.0.27"
 # File system
 walkdir = "2.5"
 
+# Watch mode for the svelte-check CLI (Wave 2). `notify` is intentionally
+# a regular dep, not feature-gated, because the only consumer is the
+# Wave 2 binary and gating it would just add a feature combo to manage.
+notify = { version = "8", default-features = false, features = ["macos_kqueue"] }
+
 # CLI argument parsing (svelte-check binary, Wave 2)
 clap = { version = "4.5", features = ["derive"] }
 
