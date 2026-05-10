@@ -12,7 +12,7 @@ This document captures the state of the ecosystem port at the end of the
 | Wave | Tool                          | Status | Where to start                   |
 |------|-------------------------------|--------|----------------------------------|
 | 1    | `svelte2tsx`                  | ✅ 245/245 (100%), in compat report | — |
-| 2    | `svelte-check`                | 🟡 v0.4 usable | `src/svelte_check/` |
+| 2    | `svelte-check`                | 🟡 v0.5 — incremental cache + watch + parallel compile + golden tests landed | `src/svelte_check/` |
 | 3    | `vite-plugin-svelte` NAPI shim | 🟡 v0.2 — NAPI primitives in place | `src/vps/`, `src/napi.rs` |
 | 4    | `svelte-language-server`      | ⛔ Deferred upstream of tsgo `tsserver` | — |
 
@@ -22,33 +22,40 @@ The shipped totals:
 
 - **Compatibility report:** 3341/3341 in-scope passing — every category at 100%.
 - **`cargo test --release --test svelte2tsx_fixtures`** — 245/245.
-- **`cargo test --release --lib svelte_check`** — 8/8 (walker, overlay,
-  tsgo parser, filter logic).
+- **`cargo test --release --lib svelte_check`** — 19/19 (walker, overlay
+  emit + incremental cache + prune, manifest round-trip + version
+  guard + prune, tsgo parser, watch path filter, filter logic).
+- **`cargo test --release --test svelte_check_golden`** — 3/3
+  (Svelte-side clean assertions on the upstream `test-success` /
+  `test-error` fixtures; full TS-error assertion gated on a TS
+  toolchain being available).
 - **`cargo test --release --lib vps`** — 8/8 (hmr_diff, resolve_id).
 
 Verified against `cargo clippy --all-targets --all-features -- -D warnings`.
 
 ---
 
-## Wave 2 — `svelte-check` (🟡 v0.4)
+## Wave 2 — `svelte-check` (🟡 v0.5)
 
 ### What's in `main`
 
 | Module                          | Responsibility |
 |---------------------------------|----------------|
 | `src/svelte_check/walker.rs`    | Find `.svelte` files (skip `node_modules`, hidden dirs, user `--ignore`). |
-| `src/svelte_check/runner.rs`    | Orchestrate compile + overlay + tsgo + filters. |
+| `src/svelte_check/runner.rs`    | Orchestrate compile (parallelised via rayon) + overlay + tsgo + filters. |
 | `src/svelte_check/diagnostic.rs`| Canonical `Diagnostic` shape. |
-| `src/svelte_check/overlay.rs`   | `materialize_overlay()` — emit `.tsx` shadows + `.d.ts` shims + overlay `tsconfig.json` under `<workspace>/.svelte-check/`. |
+| `src/svelte_check/overlay.rs`   | `materialize_overlay_with()` — emit `.tsx` shadows + `.d.ts` shims + overlay `tsconfig.json` under `<workspace>/.svelte-check/`. Honours the manifest cache when `incremental=true`. |
+| `src/svelte_check/manifest.rs`  | Persistent `<cacheDir>/manifest.json` with `(mtime_ms, size)` keying for the incremental cache. |
 | `src/svelte_check/tsgo.rs`      | Locate `tsgo` / `tsc`, spawn it, parse `file(L,C): error TSnnn: …` output. Graceful warning if no compiler is found. |
-| `src/svelte_check/mapper.rs`    | Map tsgo diagnostics back to `.svelte` positions via the inline source map svelte2tsx wrote into each `.tsx`. |
-| `src/svelte_check/writers.rs`   | `human` / `human-verbose` / `machine` / `machine-verbose` formatters. |
+| `src/svelte_check/mapper.rs`    | Map tsgo diagnostics back to `.svelte` positions via the source map svelte2tsx wrote into each `.tsx`. |
+| `src/svelte_check/watch.rs`     | `--watch` loop on top of the `notify` crate. Filters to `.svelte` / `.ts` / `.js` / `tsconfig.json` etc, debounces 250ms, skips events under the cache dir. |
+| `src/svelte_check/writers.rs`   | `human` / `human-verbose` / `machine` / `machine-verbose` / `github-actions` formatters. |
 | `src/bin/svelte_check.rs`       | CLI entry point. |
 
 CLI flags shipped:
 
 - `--workspace <path>`
-- `--output {human, human-verbose, machine, machine-verbose}`
+- `--output {human, human-verbose, machine, machine-verbose, github-actions}`
 - `--ignore <comma-list>`
 - `--fail-on-warnings`
 - `--emit-overlay`
@@ -56,52 +63,68 @@ CLI flags shipped:
 - `--tsgo`
 - `--compiler-warnings <code:error|ignore,…>`
 - `--diagnostic-sources <svelte|ts|css,…>`
+- `--incremental`
+- `--watch`
+- `--preserve-watch-output`
 
 ### Wave 2 acceptance criteria — current scoring
 
 | Criterion | Status | Notes |
 |---|---|---|
 | Rust `svelte-check` binary in `target/release/svelte_check` | ✅ | Build green. |
-| Passes existing JS svelte-check fixture set (golden output comparisons) | ❌ | Not wired up — needs a fixture runner that reads `submodules/language-tools/packages/svelte-check/test/`. |
-| ≥ 2× faster than JS svelte-check on a 1000-file project | ❌ | No benchmark yet. |
+| Passes existing JS svelte-check fixture set (golden output comparisons) | 🟡 | `tests/svelte_check_golden.rs` runs against the upstream `test-success` / `test-error` fixtures. Svelte-side assertions always run; the full TS error set is gated on `tsgo` / `tsc` being available. The TS error path currently hits a missing-svelte2tsx-shim issue that's tracked in the "Next" list below. |
+| ≥ 2× faster than JS svelte-check on a 1000-file project | 🟡 | `scripts/benchmark-svelte-check.mjs` measures rsvelte standalone (cold parse, cold overlay, warm incremental). Pass `--js` to compare against `npx svelte-check`. Local sample: warm `--incremental --emit-overlay` is ~5x faster than a cold overlay emit on a 500-file fixture. JS comparison needs a clean machine. |
 | CI-friendly: machine-readable JSON, GH Actions annotation, non-zero exit on errors | ✅ | `machine` / `machine-verbose` formats, exit codes, and `--output github-actions` (workflow-command annotations) all shipped. |
+| Incremental rebuilds via on-disk cache | ✅ | `--incremental` reads/writes `<workspace>/.svelte-check/manifest.json`, keyed on `(mtime_ms, size)`. Stale `.tsx` / `.d.ts` shadows are pruned on each pass. |
+| Watch mode | ✅ | `--watch` (+ optional `--preserve-watch-output`) wraps `notify` recursive watchers, filtered to `.svelte` / `.ts` / `.js` / `.tsx` / `.jsx` / `.mts` / `.cts` plus `tsconfig.json` / `svelte.config.{js,ts}`. 250ms debounce. |
+| Compile step parallelised | ✅ | `runner.rs::compile_files` fans out across rayon's global pool when the `native` feature is on. |
 
 ### What to ship next (in priority order)
 
 1. ~~**GitHub Actions annotation output format**~~ — ✅ landed in PR #87.
-   `--output github-actions` (alias `--output github`) emits
-   `::error file=…,line=…,col=…::message` (and `::warning` / `::notice`)
-   with proper `%25` / `%0A` / `%0D` escaping.
+2. ~~**Watch mode + incremental cache**~~ — ✅ landed (`manifest.rs`,
+   `watch.rs`, `--incremental` / `--watch` / `--preserve-watch-output`).
+3. ~~**Compile in parallel**~~ — ✅ landed (`runner.rs::compile_files`
+   fans out across rayon's global pool).
+4. ~~**Golden-output tests against the JS reference**~~ — ✅ landed
+   (`tests/svelte_check_golden.rs`). The exact TS-error set is still
+   gated on a TS toolchain being installed and on the `svelte2tsx`
+   shim issue below.
+5. ~~**Performance benchmark**~~ — ✅ landed
+   (`scripts/benchmark-svelte-check.mjs`). The acceptance number
+   (≥ 2× JS svelte-check on 1000 files) still needs to be measured on
+   a clean reference machine.
 
-2. **Watch mode + incremental cache** (medium — 1–2 days).
-   - The JS reference uses a manifest at `<cacheDir>/manifest.json` keyed by
-     source-file `(mtime, size)` to skip unchanged `.svelte` files between
-     runs. Port `loadManifest` / `pruneDeletedManifestEntries` /
-     `getOutputPaths` from
-     `submodules/language-tools/packages/svelte-check/src/incremental.ts:60..390`.
-   - Add `--watch` and `--preserve-watch-output` flags. Use the `notify`
-     crate for file-system events (watch the workspace + the overlay
-     `.svelte-check` dir).
-   - When tsgo is the configured backend, pass `--incremental` and let
-     tsgo own its `tsbuildinfo.json`.
+#### Still open
 
-3. **Golden-output tests against the JS reference** (medium — 1 day).
-   - JS test fixtures live under
-     `submodules/language-tools/packages/svelte-check/test/`. Each fixture
-     has an input project plus an expected JSON / human output snapshot.
-   - Run our binary on each fixture, normalise paths
-     (workspace-root-relative), and compare against the snapshot. Use
-     `relaxed_compare` if absolute-path-noise is unavoidable.
+- **svelte2tsx shim pass-through into the overlay** (medium — 0.5 day).
+  When `tsgo` / `tsc` runs against the overlay it hits
+  `__sveltets_2_with_any_event` "Cannot find name" errors because
+  svelte2tsx's shim `.d.ts` files (e.g.
+  `svelte-shims-v4.d.ts`, `svelte-jsx-v4.d.ts`) aren't part of the
+  overlay's compile set. The JS reference's
+  `resolveSvelte2tsxShims` finds these files in the
+  `svelte2tsx` package and includes them in the overlay's `files`
+  array. Port that lookup and add the discovered shims into
+  `build_overlay_tsconfig`. Once landed,
+  `tests/svelte_check_golden.rs::test_error_fixture_emits_expected_ts_errors`
+  should pass cleanly when tsgo / tsc is available.
 
-4. **Performance benchmark** (small — 0.5 day).
-   - Sample workload: SvelteKit demo app or a 1000-file synthetic project.
-   - Compare wall-clock against `npx svelte-check`.
+- **Per-file diagnostic warning cache** (small — 0.5 day).
+  `manifest.rs` currently caches `(mtime, size, paths)` only. The JS
+  reference also caches Svelte compiler warnings + CSS diagnostics
+  per file so an incremental run can replay the diagnostic stream
+  without re-invoking the compiler. Add a `compiler_warnings`
+  field to `ManifestEntry` (need to drop the `&'static str` source on
+  `Diagnostic` in favour of a small enum or `Cow` so it round-trips
+  through serde).
 
-5. **Compile in parallel** (small — 0.5 day, depends on `rayon`).
-   - Today `runner.rs::run` walks files sequentially. The compile step is
-     pure CPU and trivially parallel; `files.par_iter().flat_map(…)`
-     should give a near-linear speedup on multi-core. Already a transitive
-     dep behind the `native` feature.
+- **Forward user-listed `.ts` entries / `include` patterns into the
+  overlay tsconfig** (small — 0.5 day). We currently set `files: []`
+  in the overlay to drop inherited `.svelte` entries; the cleaner
+  fix mirrors `buildOverlayTsconfig` in the JS reference — keep
+  non-`.svelte` `files` entries verbatim and rebase user
+  `include` / `exclude` onto the overlay dir.
 
 ---
 
