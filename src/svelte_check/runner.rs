@@ -138,29 +138,13 @@ impl RunResult {
 /// will plug in here in a follow-up.
 pub fn run(options: &RunOptions) -> RunResult {
     let files = find_svelte_files(&options.workspace, &options.ignore);
+    let files_checked = files.len();
+    let diagnostics = compile_files(&files);
     let mut result = RunResult {
-        diagnostics: Vec::new(),
-        files_checked: 0,
+        diagnostics,
+        files_checked,
         overlay: None,
     };
-    for file in &files {
-        result.files_checked += 1;
-        let source = match std::fs::read_to_string(file) {
-            Ok(s) => s,
-            Err(e) => {
-                result.diagnostics.push(Diagnostic {
-                    file: file.clone(),
-                    severity: DiagnosticSeverity::Error,
-                    code: Some("read-error".into()),
-                    message: format!("could not read file: {e}"),
-                    range: None,
-                    source: "svelte",
-                });
-                continue;
-            }
-        };
-        run_one_file(file, &source, &mut result.diagnostics);
-    }
 
     let need_overlay = options.emit_overlay || options.use_tsgo;
     if need_overlay {
@@ -267,35 +251,68 @@ fn run_tsgo_phase(layout: &OverlayLayout, workspace: &Path, out: &mut Vec<Diagno
     }
 }
 
-fn run_one_file(file: &Path, source: &str, out: &mut Vec<Diagnostic>) {
+/// Compile every `.svelte` file in `files` and return diagnostics in
+/// stable input order. The compile step is pure CPU and trivially
+/// parallel; with the `native` feature we fan out across rayon's
+/// global pool, otherwise we fall back to sequential iteration.
+fn compile_files(files: &[PathBuf]) -> Vec<Diagnostic> {
+    #[cfg(feature = "rayon")]
+    {
+        use rayon::prelude::*;
+        files
+            .par_iter()
+            .flat_map_iter(|file| diagnostics_for_file(file).into_iter())
+            .collect()
+    }
+    #[cfg(not(feature = "rayon"))]
+    {
+        files
+            .iter()
+            .flat_map(|file| diagnostics_for_file(file).into_iter())
+            .collect()
+    }
+}
+
+fn diagnostics_for_file(file: &Path) -> Vec<Diagnostic> {
+    let source = match std::fs::read_to_string(file) {
+        Ok(s) => s,
+        Err(e) => {
+            return vec![Diagnostic {
+                file: file.to_path_buf(),
+                severity: DiagnosticSeverity::Error,
+                code: Some("read-error".into()),
+                message: format!("could not read file: {e}"),
+                range: None,
+                source: "svelte",
+            }];
+        }
+    };
     let opts = CompileOptions {
         generate: GenerateMode::Client,
         filename: Some(file.display().to_string()),
         ..Default::default()
     };
-    match compile(source, opts) {
-        Ok(res) => {
-            for w in res.warnings {
-                out.push(Diagnostic {
-                    file: file.to_path_buf(),
-                    severity: DiagnosticSeverity::Warning,
-                    code: Some(w.code),
-                    message: w.message,
-                    range: range_from_warning(w.start.as_ref(), w.end.as_ref()),
-                    source: "svelte",
-                });
-            }
-        }
-        Err(e) => {
-            out.push(Diagnostic {
+    match compile(&source, opts) {
+        Ok(res) => res
+            .warnings
+            .into_iter()
+            .map(|w| Diagnostic {
                 file: file.to_path_buf(),
-                severity: DiagnosticSeverity::Error,
-                code: Some("compile-error".into()),
-                message: format!("{e}"),
-                range: None,
+                severity: DiagnosticSeverity::Warning,
+                code: Some(w.code),
+                message: w.message,
+                range: range_from_warning(w.start.as_ref(), w.end.as_ref()),
                 source: "svelte",
-            });
-        }
+            })
+            .collect(),
+        Err(e) => vec![Diagnostic {
+            file: file.to_path_buf(),
+            severity: DiagnosticSeverity::Error,
+            code: Some("compile-error".into()),
+            message: format!("{e}"),
+            range: None,
+            source: "svelte",
+        }],
     }
 }
 
