@@ -273,38 +273,186 @@ fn build_overlay_tsconfig(cache_dir: &Path, original: Option<&Path>, workspace: 
     compiler_opts.insert("allowArbitraryExtensions".into(), true.into());
     compiler_opts.insert("rootDirs".into(), serde_json::json!([".", "./svelte"]));
     obj.insert("compilerOptions", serde_json::Value::Object(compiler_opts));
-    obj.insert("include", serde_json::json!(["./svelte/**/*"]));
+
+    // Inherited config-file specs: read the user's tsconfig.json (if
+    // any) and merge its `include` / `exclude` / `files` arrays into
+    // the overlay, rebased so paths are resolved from the overlay dir
+    // (one level deeper than the original tsconfig dir). Without this
+    // the overlay's `include = ["./svelte/**/*"]` blocks every plain
+    // `.ts` / `.js` file in the project from being type-checked.
+    let user_specs = original
+        .and_then(|p| read_tsconfig_specs(p, cache_dir))
+        .unwrap_or_default();
+
+    let mut include_value = vec!["./svelte/**/*".to_string()];
+    include_value.extend(user_specs.include);
+    obj.insert(
+        "include",
+        serde_json::Value::Array(
+            include_value
+                .into_iter()
+                .map(serde_json::Value::String)
+                .collect(),
+        ),
+    );
+    if !user_specs.exclude.is_empty() {
+        obj.insert(
+            "exclude",
+            serde_json::Value::Array(
+                user_specs
+                    .exclude
+                    .into_iter()
+                    .map(serde_json::Value::String)
+                    .collect(),
+            ),
+        );
+    }
+
     // Pull the svelte2tsx shim `.d.ts` files into the overlay's `files`
     // array. Without these, tsgo / tsc trips on every reference to
     // `__sveltets_2_with_any_event` etc that svelte2tsx emits into the
     // `.tsx` shadow. Mirrors `resolveSvelte2tsxShims` in the JS
     // reference (`incremental.ts:1108`).
     //
-    // We always set `files` (even if shim discovery turned up empty)
-    // so any `.svelte` entries listed in the base tsconfig — TS rejects
-    // arbitrary extensions in the `files` array even with
-    // `allowArbitraryExtensions` — get overridden out. The fuller story
-    // (forward user-listed `.ts` entries, merge user's `include` /
-    // `exclude` rebased to the overlay dir) is still tracked as future
-    // work in the Wave 2 handover.
+    // We always set `files` so any `.svelte` entries listed in the base
+    // tsconfig (TS rejects arbitrary extensions in `files` even with
+    // `allowArbitraryExtensions` → TS6054) get overridden out. Non-
+    // `.svelte` entries from the user's `files` are forwarded.
     let shim_paths = resolve_svelte2tsx_shims(workspace);
-    let mut shim_rels: Vec<String> = shim_paths
+    let mut files_entries: Vec<String> = shim_paths
         .iter()
         .map(|p| path_relative(cache_dir, p))
         .collect();
-    shim_rels.sort();
-    let files_value = if shim_rels.is_empty() {
-        serde_json::json!([])
-    } else {
-        serde_json::Value::Array(
-            shim_rels
-                .into_iter()
-                .map(serde_json::Value::String)
-                .collect(),
-        )
-    };
+    files_entries.extend(user_specs.files);
+    files_entries.sort();
+    files_entries.dedup();
+    let files_value = serde_json::Value::Array(
+        files_entries
+            .into_iter()
+            .map(serde_json::Value::String)
+            .collect(),
+    );
     obj.insert("files", files_value);
     serde_json::to_string_pretty(&obj).unwrap_or_else(|_| "{}".into())
+}
+
+#[derive(Debug, Default)]
+struct InheritedSpecs {
+    /// User `include` patterns rebased to be relative to the overlay
+    /// dir (POSIX, forward slashes).
+    include: Vec<String>,
+    /// User `exclude` patterns, rebased.
+    exclude: Vec<String>,
+    /// User `files` entries minus any `.svelte` paths (which would
+    /// trigger TS6054 since the overlay's `allowArbitraryExtensions`
+    /// only applies to module resolution, not to the `files` array).
+    files: Vec<String>,
+}
+
+/// Read the user's tsconfig.json (JSONC: comments allowed) and pluck
+/// the `include` / `exclude` / `files` arrays. Each path is rebased
+/// from `tsconfig_dir` (the location of the original tsconfig) onto
+/// `cache_dir` (the overlay dir, one level deeper). Returns `None`
+/// when the file can't be read or the JSON shape isn't recognised —
+/// in that case the overlay falls back to "shim files only", which
+/// matches the pre-rebase behaviour.
+fn read_tsconfig_specs(tsconfig_path: &Path, cache_dir: &Path) -> Option<InheritedSpecs> {
+    let raw = fs::read_to_string(tsconfig_path).ok()?;
+    let stripped = strip_jsonc_comments(&raw);
+    let parsed: serde_json::Value = serde_json::from_str(&stripped).ok()?;
+    let tsconfig_dir = tsconfig_path.parent()?;
+
+    let rebase = |spec: &str| -> String {
+        // tsconfig globs are relative to tsconfig_dir; we want them
+        // relative to cache_dir. Resolve to absolute first via a
+        // best-effort join (specs may contain `**` etc — that's a
+        // pattern, not a real path component, but for the prefix walk
+        // path_relative does it's fine).
+        let abs = tsconfig_dir.join(spec);
+        path_relative(cache_dir, &abs)
+    };
+
+    let extract = |key: &str| -> Vec<String> {
+        parsed
+            .get(key)
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
+    };
+
+    let include = extract("include").into_iter().map(|s| rebase(&s)).collect();
+    let exclude = extract("exclude").into_iter().map(|s| rebase(&s)).collect();
+    let files = extract("files")
+        .into_iter()
+        .filter(|s| !s.ends_with(".svelte"))
+        .map(|s| rebase(&s))
+        .collect();
+    Some(InheritedSpecs {
+        include,
+        exclude,
+        files,
+    })
+}
+
+/// Strip `//` line comments and `/* ... */` block comments from a
+/// string while leaving JSON string literals intact. Tsconfig is
+/// canonically JSONC, but `serde_json` only accepts strict JSON.
+/// Tracks string state so that `"// not a comment"` survives.
+fn strip_jsonc_comments(src: &str) -> String {
+    let mut out = String::with_capacity(src.len());
+    let bytes = src.as_bytes();
+    let mut i = 0;
+    let mut in_string = false;
+    let mut escape = false;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if in_string {
+            out.push(c as char);
+            if escape {
+                escape = false;
+            } else if c == b'\\' {
+                escape = true;
+            } else if c == b'"' {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+        if c == b'"' {
+            in_string = true;
+            out.push(c as char);
+            i += 1;
+            continue;
+        }
+        if c == b'/' && i + 1 < bytes.len() {
+            match bytes[i + 1] {
+                b'/' => {
+                    // Line comment to end of line.
+                    while i < bytes.len() && bytes[i] != b'\n' {
+                        i += 1;
+                    }
+                    continue;
+                }
+                b'*' => {
+                    // Block comment until `*/`.
+                    i += 2;
+                    while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                        i += 1;
+                    }
+                    i = (i + 2).min(bytes.len());
+                    continue;
+                }
+                _ => {}
+            }
+        }
+        out.push(c as char);
+        i += 1;
+    }
+    out
 }
 
 /// Locate the svelte2tsx shim `.d.ts` files needed by the overlay's
