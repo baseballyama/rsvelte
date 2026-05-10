@@ -229,7 +229,7 @@ pub fn materialize_overlay_with(
     }
 
     let overlay_tsconfig = cache_dir.join("tsconfig.json");
-    let tsconfig_json = build_overlay_tsconfig(&cache_dir, tsconfig_path);
+    let tsconfig_json = build_overlay_tsconfig(&cache_dir, tsconfig_path, workspace);
     fs::write(&overlay_tsconfig, tsconfig_json)?;
 
     if incremental {
@@ -262,7 +262,7 @@ fn looks_like_ts_svelte(source: &str) -> bool {
     lower.contains("lang=\"ts\"") || lower.contains("lang='ts'") || lower.contains("lang=ts")
 }
 
-fn build_overlay_tsconfig(cache_dir: &Path, original: Option<&Path>) -> String {
+fn build_overlay_tsconfig(cache_dir: &Path, original: Option<&Path>, workspace: &Path) -> String {
     let mut obj: BTreeMap<&str, serde_json::Value> = BTreeMap::new();
     if let Some(orig) = original {
         let rel = path_relative(cache_dir, orig);
@@ -274,16 +274,72 @@ fn build_overlay_tsconfig(cache_dir: &Path, original: Option<&Path>) -> String {
     compiler_opts.insert("rootDirs".into(), serde_json::json!([".", "./svelte"]));
     obj.insert("compilerOptions", serde_json::Value::Object(compiler_opts));
     obj.insert("include", serde_json::json!(["./svelte/**/*"]));
-    // Override `files` so any `.svelte` entries listed in the base
-    // tsconfig don't reach tsc — TS rejects arbitrary extensions in the
-    // `files` array even with `allowArbitraryExtensions`, producing
-    // TS6054 before it ever checks anything. The fuller story (forward
-    // user-listed `.ts` entries, merge user's `include`/`exclude`
-    // rebased to the overlay dir) is mirrored in
-    // `submodules/language-tools/packages/svelte-check/src/incremental.ts::buildOverlayTsconfig`
-    // and tracked as future work.
-    obj.insert("files", serde_json::json!([]));
+    // Pull the svelte2tsx shim `.d.ts` files into the overlay's `files`
+    // array. Without these, tsgo / tsc trips on every reference to
+    // `__sveltets_2_with_any_event` etc that svelte2tsx emits into the
+    // `.tsx` shadow. Mirrors `resolveSvelte2tsxShims` in the JS
+    // reference (`incremental.ts:1108`).
+    //
+    // We always set `files` (even if shim discovery turned up empty)
+    // so any `.svelte` entries listed in the base tsconfig — TS rejects
+    // arbitrary extensions in the `files` array even with
+    // `allowArbitraryExtensions` — get overridden out. The fuller story
+    // (forward user-listed `.ts` entries, merge user's `include` /
+    // `exclude` rebased to the overlay dir) is still tracked as future
+    // work in the Wave 2 handover.
+    let shim_paths = resolve_svelte2tsx_shims(workspace);
+    let mut shim_rels: Vec<String> = shim_paths
+        .iter()
+        .map(|p| path_relative(cache_dir, p))
+        .collect();
+    shim_rels.sort();
+    let files_value = if shim_rels.is_empty() {
+        serde_json::json!([])
+    } else {
+        serde_json::Value::Array(
+            shim_rels
+                .into_iter()
+                .map(serde_json::Value::String)
+                .collect(),
+        )
+    };
+    obj.insert("files", files_value);
     serde_json::to_string_pretty(&obj).unwrap_or_else(|_| "{}".into())
+}
+
+/// Locate the svelte2tsx shim `.d.ts` files needed by the overlay's
+/// `.tsx` shadows. Walks up from `workspace` looking for the first
+/// `node_modules/svelte2tsx/<shim>.d.ts` along the chain — same
+/// resolution shape Node uses, so both flat and nested install layouts
+/// (npm, pnpm hoisted, workspaces) work. Returns an empty Vec when no
+/// shims can be found; the overlay still works in that case but tsgo /
+/// tsc will surface "Cannot find name '__sveltets_*'" diagnostics.
+fn resolve_svelte2tsx_shims(workspace: &Path) -> Vec<PathBuf> {
+    const SHIM_NAMES: &[&str] = &["svelte-shims-v4.d.ts", "svelte-jsx-v4.d.ts"];
+
+    // Roots to check. We canonicalize so callers passing a relative
+    // path still get sensible parent-walk behaviour.
+    let start = workspace
+        .canonicalize()
+        .unwrap_or_else(|_| workspace.to_path_buf());
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    let mut cursor: Option<&Path> = Some(start.as_path());
+    while let Some(dir) = cursor {
+        candidates.push(dir.join("node_modules/svelte2tsx"));
+        cursor = dir.parent();
+    }
+
+    let mut out: Vec<PathBuf> = Vec::new();
+    for shim in SHIM_NAMES {
+        for root in &candidates {
+            let path = root.join(shim);
+            if path.exists() {
+                out.push(path);
+                break;
+            }
+        }
+    }
+    out
 }
 
 /// POSIX-style relative path from `from_dir` to `to_path` (so the
