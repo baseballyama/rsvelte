@@ -12,7 +12,7 @@ This document captures the state of the ecosystem port at the end of the
 | Wave | Tool                          | Status | Where to start                   |
 |------|-------------------------------|--------|----------------------------------|
 | 1    | `svelte2tsx`                  | ✅ 245/245 (100%), in compat report | — |
-| 2    | `svelte-check`                | 🟡 v0.8 — hires source maps + SvelteKit kit-file `addedCode` augmentation (`+page.ts`, hooks, params surface their type errors) | `src/svelte_check/` |
+| 2    | `svelte-check`                | 🟡 v0.9 — hires source maps + SvelteKit kit-file `addedCode` augmentation for `.ts` (TS) and `.js` (JSDoc); `svelte.config.js` `kit.files` overrides applied; each/await/key template wrappers preserve expression chunks | `src/svelte_check/` |
 | 3    | `vite-plugin-svelte` NAPI shim | 🟡 v0.3 — NAPI primitives + preprocess bridge in place | `src/vps/`, `src/napi.rs` |
 | 4    | `svelte-language-server`      | ⛔ Deferred upstream of tsgo `tsserver` | — |
 
@@ -35,7 +35,7 @@ Verified against `cargo clippy --all-targets --all-features -- -D warnings`.
 
 ---
 
-## Wave 2 — `svelte-check` (🟡 v0.8)
+## Wave 2 — `svelte-check` (🟡 v0.9)
 
 ### What's in `main`
 
@@ -48,7 +48,7 @@ Verified against `cargo clippy --all-targets --all-features -- -D warnings`.
 | `src/svelte_check/manifest.rs`  | Persistent `<cacheDir>/manifest.json` with `(mtime_ms, size)` keying for the incremental cache. |
 | `src/svelte_check/tsgo.rs`      | Locate `tsgo` / `tsc`, spawn it, parse `file(L,C): error TSnnn: …` output. Graceful warning if no compiler is found. |
 | `src/svelte_check/mapper.rs`    | Map tsgo diagnostics back to `.svelte` positions via the source map svelte2tsx wrote into each `.tsx`. Kit-file diagnostics are reverse-mapped through the `AddedCode` table to the original `.ts` position. |
-| `src/svelte_check/kit_file.rs`  | SvelteKit kit-file detection (`+page.ts`, hooks, params) + `addedCode` type-stub injection via oxc parsing. Mirrors `submodules/language-tools/packages/svelte2tsx/src/helpers/sveltekit.ts`. TS path only — JSDoc emission for `.js` kit files is a follow-up. |
+| `src/svelte_check/kit_file.rs`  | SvelteKit kit-file detection (`+page.ts`, hooks, params) + `addedCode` type-stub injection via oxc parsing. Mirrors `submodules/language-tools/packages/svelte2tsx/src/helpers/sveltekit.ts`. Both `.ts` (TS annotations) and `.js` (JSDoc — `@type` / `@satisfies` / `@param`) paths are implemented. `load_kit_files_settings(workspace)` statically parses `svelte.config.{js,cjs,mjs}` to pick up `kit.files.{params,hooks.{server,client,universal}}` overrides — dynamic expressions fall back to defaults. |
 | `src/svelte_check/watch.rs`     | `--watch` loop on top of the `notify` crate. Filters to `.svelte` / `.ts` / `.js` / `tsconfig.json` etc, debounces 250ms, skips events under the cache dir. |
 | `src/svelte_check/writers.rs`   | `human` / `human-verbose` / `machine` / `machine-verbose` / `github-actions` formatters. |
 | `src/bin/svelte_check.rs`       | CLI entry point. |
@@ -102,13 +102,15 @@ CLI flags shipped:
   (medium — 1-2 days). Unedited chunks now emit per-character
   segments (`magic_string.rs::generate_mappings`), so script-region
   diagnostics resolve to exact line/column. The template emitter
-  has been partially refactored so the inner expression of
-  `{@render …}`, `{@debug …}`, and `{#if …}` test conditions is
-  left as an unchanged source chunk (just prefix/suffix wraps
-  around the expression range). Still synthesised wholesale via a
-  single `overwrite`: each-block / await-block headers (need
-  `move_range`-style relocation of the context binding) and
-  component / element opening tags (multi-part attr+directive
+  now preserves the inner expression as an unchanged source chunk
+  for: `{@render …}`, `{@debug …}`, `{#if …}` test conditions,
+  `{#each EXPR as …}` collection, `{#await PROMISE then …}` /
+  `{#await PROMISE catch …}` (no-pending forms), and `{#key EXPR}`.
+  Still synthesised wholesale via a single `overwrite`:
+  `{#await PROMISE}…{:then VALUE}…` (the pending form — needs
+  `MagicString::relocate` to move the expression past the pending
+  fragment), each-block context/index/key bindings (same reason),
+  and component / element opening tags (multi-part attr+directive
   bake). Closing those is what unlocks exact column mapping for
   diagnostics on attribute expressions inside `<Component a={x} />`
   rewrites.
@@ -117,11 +119,14 @@ CLI flags shipped:
   `src/svelte_check/kit_file.rs`. Route files (`+page.ts`,
   `+layout.ts`, `+server.ts`), hooks, and params files now get
   module-level type stubs injected via `addedCode` before tsgo / tsc
-  sees them. The golden test no longer skips `+*` kit files.
-  Open follow-ups: JSDoc augmentation for `.js` kit files (JS path
-  parses with oxc but emission needs the `addJsDoc*` shape ported from
-  the JS reference); reading user `svelte.config.js` `kit.files`
-  overrides (currently we use the defaults from `defaultKitFilesSettings`).
+  sees them — for both `.ts` (TS annotations) and `.js` (JSDoc)
+  paths. `load_kit_files_settings(workspace)` statically parses
+  `svelte.config.{js,cjs,mjs}` so user-customised
+  `kit.files.{params,hooks.…}` paths are honoured. The golden test
+  no longer skips `+*` kit files. Open follow-up: re-exports /
+  spread / dynamic property values in `svelte.config.js` aren't
+  resolved (we statically read string literals only) — fall back to
+  defaults in those cases.
 
 - **Per-file diagnostic warning cache** (small — 0.5 day).
   `manifest.rs` currently caches `(mtime, size, paths)` only. The JS
