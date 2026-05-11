@@ -143,7 +143,7 @@ Source: `pnpm run compatibility-report` (generated 2026-05-05, Svelte commit `04
 | Wave | Scope | Status |
 |---|---|---|
 | 1 | svelte2tsx | ✅ 245/245 (100%), wired into compatibility report |
-| 2 | svelte-check | 🟡 v0.9 — walker + overlay + tsgo + incremental cache + watch + parallel compile + hires svelte2tsx source maps + SvelteKit kit-file `addedCode` augmentation for both `.ts` (TS annotations) and `.js` (JSDoc) files. `svelte.config.js` `kit.files` overrides are statically parsed and applied. Each / await (no-pending) / key template wrappers now preserve the expression chunk; element-opener attributes and await-with-pending still bake. |
+| 2 | svelte-check | 🟡 v0.10 — walker + overlay + tsgo + incremental cache (incl. per-file warning cache at `<cacheDir>/warnings.json`) + watch + parallel compile + hires svelte2tsx source maps + SvelteKit kit-file `addedCode` augmentation for both `.ts` (TS annotations) and `.js` (JSDoc) files. `svelte.config.js` `kit.files` overrides are statically parsed and applied. Each / await (no-pending) / key / await-with-pending template wrappers now preserve the expression chunk (await-with-pending via `MagicString::move_range`). Element-opener attribute bakes remain — needs a structured-bake refactor. |
 | 3 | vite-plugin-svelte NAPI shim | 🟡 v0.3 — Rust-side `hmr_diff` + `resolve_id` + `preprocess` NAPI bindings. `preprocess` accepts JS preprocessor groups and bridges each `markup`/`script`/`style` callback through `ThreadsafeFunction<Value>`, resolving the returned `Promise<Processed>`. JS shim package fork is out of scope for the rsvelte repo. |
 | 4 | svelte-language-server | ⛔ Deferred (waiting on tsgo `tsserver` mode upstream) |
 

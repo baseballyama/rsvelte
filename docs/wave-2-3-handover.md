@@ -12,7 +12,7 @@ This document captures the state of the ecosystem port at the end of the
 | Wave | Tool                          | Status | Where to start                   |
 |------|-------------------------------|--------|----------------------------------|
 | 1    | `svelte2tsx`                  | ✅ 245/245 (100%), in compat report | — |
-| 2    | `svelte-check`                | 🟡 v0.9 — hires source maps + SvelteKit kit-file `addedCode` augmentation for `.ts` (TS) and `.js` (JSDoc); `svelte.config.js` `kit.files` overrides applied; each/await/key template wrappers preserve expression chunks | `src/svelte_check/` |
+| 2    | `svelte-check`                | 🟡 v0.10 — hires source maps + SvelteKit kit-file `addedCode` augmentation for `.ts` (TS) and `.js` (JSDoc); `svelte.config.js` `kit.files` overrides applied; each/await(no-pending)/key + await-with-pending template wrappers preserve expression chunks; per-file warning cache | `src/svelte_check/` |
 | 3    | `vite-plugin-svelte` NAPI shim | 🟡 v0.3 — NAPI primitives + preprocess bridge in place | `src/vps/`, `src/napi.rs` |
 | 4    | `svelte-language-server`      | ⛔ Deferred upstream of tsgo `tsserver` | — |
 
@@ -35,7 +35,7 @@ Verified against `cargo clippy --all-targets --all-features -- -D warnings`.
 
 ---
 
-## Wave 2 — `svelte-check` (🟡 v0.9)
+## Wave 2 — `svelte-check` (🟡 v0.10)
 
 ### What's in `main`
 
@@ -105,13 +105,17 @@ CLI flags shipped:
   now preserves the inner expression as an unchanged source chunk
   for: `{@render …}`, `{@debug …}`, `{#if …}` test conditions,
   `{#each EXPR as …}` collection, `{#await PROMISE then …}` /
-  `{#await PROMISE catch …}` (no-pending forms), and `{#key EXPR}`.
-  Still synthesised wholesale via a single `overwrite`:
-  `{#await PROMISE}…{:then VALUE}…` (the pending form — needs
-  `MagicString::relocate` to move the expression past the pending
-  fragment), each-block context/index/key bindings (same reason),
-  and component / element opening tags (multi-part attr+directive
-  bake). Closing those is what unlocks exact column mapping for
+  `{#await PROMISE catch …}` (no-pending forms), `{#key EXPR}`,
+  and `{#await PROMISE}…{:then VALUE}…` (via
+  `MagicString::move_range` relocating the expression past the
+  pending fragment). Still synthesised wholesale via a single
+  `overwrite`: each-block context/index/key bindings (relocate
+  needed if we want their columns preserved), and component /
+  element opening tags (multi-part attr+directive bake). Closing
+  those last cases needs a structured-bake refactor of
+  `build_attributes_string_with_tag` (return `Vec<Segment>` instead
+  of `String`, then split the `str.overwrite` around expression
+  source ranges) — what unlocks exact column mapping for
   diagnostics on attribute expressions inside `<Component a={x} />`
   rewrites.
 
@@ -128,14 +132,14 @@ CLI flags shipped:
   resolved (we statically read string literals only) — fall back to
   defaults in those cases.
 
-- **Per-file diagnostic warning cache** (small — 0.5 day).
-  `manifest.rs` currently caches `(mtime, size, paths)` only. The JS
-  reference also caches Svelte compiler warnings + CSS diagnostics
-  per file so an incremental run can replay the diagnostic stream
-  without re-invoking the compiler. Add a `compiler_warnings`
-  field to `ManifestEntry` (need to drop the `&'static str` source on
-  `Diagnostic` in favour of a small enum or `Cow` so it round-trips
-  through serde).
+- ~~**Per-file diagnostic warning cache**~~ — ✅ landed at
+  `<cacheDir>/warnings.json` as a sidecar of `manifest.json`. Each
+  entry is `(mtime_ms, size, diagnostics)`; `--incremental` runs
+  skip the rsvelte compile pass for files whose stats match and
+  replay the cached diagnostics. The `&'static str` issue is
+  side-stepped by a `SerializableDiagnostic` mirror that owns its
+  `source: String`; `into_live()` interns it back to the known set
+  (`svelte` / `ts` / `css`).
 
 - **Forward user-listed `.ts` entries / `include` patterns into the
   overlay tsconfig** (small — 0.5 day). We currently set `files: []`
