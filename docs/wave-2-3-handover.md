@@ -101,14 +101,17 @@ CLI flags shipped:
 - **Per-character source-map segments inside edited chunks**
   (medium — 1-2 days). Unedited chunks now emit per-character
   segments (`magic_string.rs::generate_mappings`), so script-region
-  diagnostics resolve to exact line/column. Edited chunks still emit
-  a single anchor at `chunk.start`, which means diagnostics on
-  template wrappers (e.g. `<Component a={1} />` rewritten into a
-  helper call) fall back to the wrapper's source-start position
-  rather than the specific attribute/expression. Closing this would
-  require the template emitter to use `append_left`/`append_right`
-  around unchanged source text instead of wholesale `overwrite()`
-  calls — a deeper svelte2tsx refactor.
+  diagnostics resolve to exact line/column. The template emitter
+  has been partially refactored so the inner expression of
+  `{@render …}`, `{@debug …}`, and `{#if …}` test conditions is
+  left as an unchanged source chunk (just prefix/suffix wraps
+  around the expression range). Still synthesised wholesale via a
+  single `overwrite`: each-block / await-block headers (need
+  `move_range`-style relocation of the context binding) and
+  component / element opening tags (multi-part attr+directive
+  bake). Closing those is what unlocks exact column mapping for
+  diagnostics on attribute expressions inside `<Component a={x} />`
+  rewrites.
 
 - ~~**SvelteKit "kit file" type augmentation**~~ — ✅ landed in
   `src/svelte_check/kit_file.rs`. Route files (`+page.ts`,

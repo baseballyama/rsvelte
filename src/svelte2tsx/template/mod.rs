@@ -538,33 +538,70 @@ fn handle_const_tag(tag: &ConstTag, _source: &str, str: &mut MagicString) {
 ///
 /// `{@debug myfile}` → `;myfile;`
 /// `{@debug a, b}` → `;a;b;`
+///
+/// Each identifier is left as an unchanged source chunk (with `;`
+/// inserted before and after) so per-character source-map segments
+/// resolve diagnostics to the user's identifier position, not the
+/// `{@debug` anchor.
 fn handle_debug_tag(tag: &DebugTag, source: &str, str: &mut MagicString) {
     if tag.start >= tag.end {
         return;
     }
-    // Build the replacement: each identifier as a statement
-    let mut replacement = String::new();
-    replacement.push(';');
+    let mut idents: Vec<(u32, u32)> = Vec::with_capacity(tag.identifiers.len());
     for ident in &tag.identifiers {
-        let text = get_expression_text(ident, source);
-        replacement.push_str(text);
-        replacement.push(';');
+        if let Some(range) = get_expression_range(ident) {
+            idents.push(range);
+        }
     }
-    str.overwrite(tag.start, tag.end, &replacement);
+    // Fall back to the previous one-shot rewrite when no identifiers
+    // expose a usable span — keeps the synthesised path identical.
+    if idents.is_empty() {
+        let mut replacement = String::new();
+        replacement.push(';');
+        for ident in &tag.identifiers {
+            let text = get_expression_text(ident, source);
+            replacement.push_str(text);
+            replacement.push(';');
+        }
+        str.overwrite(tag.start, tag.end, &replacement);
+        return;
+    }
+    // Replace `{@debug ` with `;`, then between every identifier replace
+    // the source separator (`,` plus optional whitespace) with `;`, then
+    // replace the trailing `}` with `;`.
+    let first_start = idents[0].0;
+    str.overwrite(tag.start, first_start, ";");
+    for window in idents.windows(2) {
+        let prev_end = window[0].1;
+        let next_start = window[1].0;
+        if prev_end < next_start {
+            str.overwrite(prev_end, next_start, ";");
+        }
+    }
+    let last_end = idents.last().unwrap().1;
+    if last_end < tag.end {
+        str.overwrite(last_end, tag.end, ";");
+    }
 }
 
 /// Handle a render tag: `{@render snippet(args)}`.
 ///
 /// `{@render foo(1)}` → `;__sveltets_2_ensureSnippet(foo(1));`
-fn handle_render_tag(tag: &RenderTag, source: &str, str: &mut MagicString) {
+///
+/// The wrapper is split into a prefix `;__sveltets_2_ensureSnippet(`
+/// and a suffix `);` so the inner expression stays as an unchanged
+/// source chunk in MagicString. That preserves per-character source-map
+/// segments inside the snippet expression — a TS diagnostic at e.g.
+/// `foo(1)`'s `1` resolves to its exact `.svelte` column instead of
+/// snapping to the `{@render` anchor.
+fn handle_render_tag(tag: &RenderTag, _source: &str, str: &mut MagicString) {
     if tag.start >= tag.end {
         return;
     }
 
     if let Some((expr_start, expr_end)) = get_expression_range(&tag.expression) {
-        let expr_text = &source[expr_start as usize..expr_end as usize];
-        let replacement = format!(";__sveltets_2_ensureSnippet({});", expr_text);
-        str.overwrite(tag.start, tag.end, &replacement);
+        str.overwrite(tag.start, expr_start, ";__sveltets_2_ensureSnippet(");
+        str.overwrite(expr_end, tag.end, ");");
     } else {
         str.overwrite(tag.start, tag.end, " ");
     }
@@ -633,8 +670,25 @@ fn handle_if_block(
             str.overwrite(test_end, (close_brace + 1) as u32, "){");
         }
     } else {
-        // Overwrite `{#if condition}` with `if(condition){`
-        str.overwrite(block.start, consequent_start, &format!("if({})", test_text));
+        // Split the `{#if EXPR}` rewrite so the test expression stays as
+        // an unchanged source chunk in MagicString — preserves
+        // per-character source-map segments for TS diagnostics inside
+        // the condition. Falls back to the bulk `overwrite` when the
+        // expression has no concrete source range (e.g. synthesised).
+        if let Some((test_start, test_end)) = get_expression_range(&block.test)
+            && test_start >= block.start
+            && test_end <= consequent_start
+        {
+            str.overwrite(block.start, test_start, "if(");
+            // [test_start, test_end) left untouched.
+            if test_end < consequent_start {
+                str.overwrite(test_end, consequent_start, ")");
+            } else {
+                str.append_left(consequent_start, ")");
+            }
+        } else {
+            str.overwrite(block.start, consequent_start, &format!("if({})", test_text));
+        }
         // Insert opening brace
         str.append_left(consequent_start, "{");
     }
