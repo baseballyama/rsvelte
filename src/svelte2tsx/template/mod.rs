@@ -966,12 +966,6 @@ fn handle_await_block(
             block.end
         };
 
-        // Opening: `{#await promise}` → `   { `
-        // The `await` expression is placed at the {:then} boundary
-        str.overwrite(block.start, pending_start, "   { ");
-
-        process_fragment_inplace(pending, source, options, str, counter);
-
         // Handle then
         if let Some(ref then) = block.then {
             let then_start = if !then.nodes.is_empty() {
@@ -986,21 +980,52 @@ fn handle_await_block(
                 pending_start
             };
 
-            if !value_text.is_empty() {
-                str.overwrite(
-                    prev_end,
-                    then_start,
-                    &format!(
-                        "const $$_value = await ({});{{ const {} = $$_value; ",
-                        expr_text, value_text
-                    ),
-                );
+            // The PROMISE expression source-wise lives inside the
+            // `{#await PROMISE}` opener but generated-wise belongs at the
+            // `{:then VALUE}` boundary. `move_range` relocates the
+            // expression chunk past the pending fragment so its
+            // per-character source map survives intact; the `const
+            // $$_value = await (…); { const VALUE = $$_value; ` wrapper
+            // is attached as the relocated chunk's intro / outro so it
+            // travels with the expression.
+            if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
+                str.move_range(expr_start, expr_end, prev_end);
+                str.overwrite(block.start, expr_start, "   { ");
+                if expr_end < pending_start {
+                    str.overwrite(expr_end, pending_start, "");
+                }
+                str.prepend_right(expr_start, "const $$_value = await (");
+                let suffix = if !value_text.is_empty() {
+                    format!(");{{ const {} = $$_value; ", value_text)
+                } else {
+                    ");{ ".to_string()
+                };
+                str.append_left(expr_end, &suffix);
+                if prev_end < then_start {
+                    str.overwrite(prev_end, then_start, "");
+                }
+                process_fragment_inplace(pending, source, options, str, counter);
             } else {
-                str.overwrite(
-                    prev_end,
-                    then_start,
-                    &format!("const $$_value = await ({});{{ ", expr_text),
-                );
+                // Parser couldn't span the expression — fall back to
+                // the original monolithic bake.
+                str.overwrite(block.start, pending_start, "   { ");
+                process_fragment_inplace(pending, source, options, str, counter);
+                if !value_text.is_empty() {
+                    str.overwrite(
+                        prev_end,
+                        then_start,
+                        &format!(
+                            "const $$_value = await ({});{{ const {} = $$_value; ",
+                            expr_text, value_text
+                        ),
+                    );
+                } else {
+                    str.overwrite(
+                        prev_end,
+                        then_start,
+                        &format!("const $$_value = await ({});{{ ", expr_text),
+                    );
+                }
             }
 
             process_fragment_inplace(then, source, options, str, counter);
