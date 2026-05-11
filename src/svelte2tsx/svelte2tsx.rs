@@ -8,7 +8,7 @@ use std::fmt;
 use crate::ast::template::Root;
 use crate::compiler::phases::phase1_parse::{self, ParseOptions};
 
-use super::magic_string::MagicString;
+use super::magic_string::{GenerateMapOptions, MagicString};
 use super::script::{ComponentEvents, ExportedNames};
 use super::template;
 
@@ -1619,6 +1619,20 @@ pub fn svelte2tsx(
 
     str.append_str(&closing);
 
+    // Generate the source map *before* the final import-rewrite post-pass.
+    // The rewrite only swaps the contents of relative-import string
+    // literals; for the type-error positions svelte-check actually
+    // surfaces (identifiers, expressions, etc.), the small column drift
+    // on those lines is acceptable. Doing it before keeps the map in
+    // sync with the MagicString chunk graph.
+    let source_map = str
+        .generate_map(GenerateMapOptions {
+            file: None,
+            source: Some(options.filename.clone()),
+            include_content: false,
+        })
+        .to_json();
+
     let mut code = str.to_string();
 
     // Final post-pass: rewrite `../`-relative import specifiers in the
@@ -1635,7 +1649,7 @@ pub fn svelte2tsx(
 
     Ok(Svelte2TsxResult {
         code,
-        map: None, // TODO: Generate source map from MagicString
+        map: Some(source_map),
         exported_names,
         events,
     })

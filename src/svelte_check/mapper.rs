@@ -31,6 +31,10 @@ pub fn map_tsgo_diagnostics(
     workspace: &Path,
 ) -> Vec<Diagnostic> {
     // Build a lookup from absolute / canonicalised tsx path → entry.
+    // tsc emits paths relative to its cwd (= workspace), so we key on
+    // (a) the absolute tsx_path, (b) its canonicalised form, and
+    // (c) the path relative to workspace — that last one is what shows
+    // up in raw diagnostics like `.svelte-check/svelte/Foo.svelte.tsx`.
     let mut by_tsx: HashMap<PathBuf, &OverlayEntry> = HashMap::new();
     for entry in &overlay.entries {
         let canon = entry
@@ -39,23 +43,26 @@ pub fn map_tsgo_diagnostics(
             .unwrap_or_else(|_| entry.tsx_path.clone());
         by_tsx.insert(canon, entry);
         by_tsx.insert(entry.tsx_path.clone(), entry);
+        if let Ok(rel) = entry.tsx_path.strip_prefix(workspace) {
+            by_tsx.insert(rel.to_path_buf(), entry);
+        }
     }
     let mut maps: HashMap<PathBuf, EntryMap> = HashMap::new();
     let mut out: Vec<Diagnostic> = Vec::with_capacity(raw.len());
     for diag in raw {
-        // Skip noise from the synthesised ignore-comment regions —
-        // mirrors the JS reference's check for `/*Ωignore_startΩ*/`
-        // ranges. We don't have those exact ranges yet (Wave 2 v0.3
-        // will add an explicit map of ignored ranges to the overlay
-        // entry); for now we drop diagnostics on lines whose mapped
-        // position falls back to (0,0).
-        let canon = diag
-            .file
-            .canonicalize()
-            .unwrap_or_else(|_| diag.file.clone());
+        // tsc emits relative paths (cwd = workspace). Resolve them
+        // against `workspace` so canonicalize / map lookup work even
+        // when our process CWD isn't the workspace.
+        let absolute = if diag.file.is_absolute() {
+            diag.file.clone()
+        } else {
+            workspace.join(&diag.file)
+        };
+        let canon = absolute.canonicalize().unwrap_or_else(|_| absolute.clone());
         let entry_match = by_tsx
             .get(&canon)
             .copied()
+            .or_else(|| by_tsx.get(&absolute).copied())
             .or_else(|| by_tsx.get(&diag.file).copied());
         if let Some(entry) = entry_match {
             let entry_map = match maps.get(&entry.tsx_path) {
@@ -74,10 +81,26 @@ pub fn map_tsgo_diagnostics(
             };
             // sourcemap crate uses 0-indexed line/col; tsgo emits
             // 1-indexed.
-            let token = entry_map
-                .map
-                .lookup_token(diag.line.saturating_sub(1), diag.column.saturating_sub(1));
+            let q_line = diag.line.saturating_sub(1);
+            let q_col = diag.column.saturating_sub(1);
+            let token = entry_map.map.lookup_token(q_line, q_col);
             if let Some(t) = token {
+                // MagicString emits one segment per generated line for
+                // unedited chunks (the spec doesn't require per-character
+                // segments). Interpolate forward when the token lies on
+                // the same generated line as the query and at-or-before
+                // the queried column — that's the offset from the
+                // chunk's anchor mapping, which is also the offset in
+                // the original source.
+                let (src_line, src_col) = if t.get_dst_line() == q_line && q_col >= t.get_dst_col()
+                {
+                    (
+                        t.get_src_line(),
+                        t.get_src_col() + (q_col - t.get_dst_col()),
+                    )
+                } else {
+                    (t.get_src_line(), t.get_src_col())
+                };
                 out.push(Diagnostic {
                     file: entry_map.svelte_source.clone(),
                     severity: severity_from_str(&diag.severity),
@@ -85,12 +108,12 @@ pub fn map_tsgo_diagnostics(
                     message: diag.message.clone(),
                     range: Some(Range {
                         start: Position {
-                            line: t.get_src_line() + 1,
-                            column: t.get_src_col(),
+                            line: src_line + 1,
+                            column: src_col,
                         },
                         end: Position {
-                            line: t.get_src_line() + 1,
-                            column: t.get_src_col(),
+                            line: src_line + 1,
+                            column: src_col,
                         },
                     }),
                     source: "ts",

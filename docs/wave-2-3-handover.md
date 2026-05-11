@@ -12,7 +12,7 @@ This document captures the state of the ecosystem port at the end of the
 | Wave | Tool                          | Status | Where to start                   |
 |------|-------------------------------|--------|----------------------------------|
 | 1    | `svelte2tsx`                  | ✅ 245/245 (100%), in compat report | — |
-| 2    | `svelte-check`                | 🟡 v0.5 — incremental cache + watch + parallel compile + golden tests landed | `src/svelte_check/` |
+| 2    | `svelte-check`                | 🟡 v0.6 — svelte2tsx source maps + diagnostic remapping to `.svelte` positions landed | `src/svelte_check/` |
 | 3    | `vite-plugin-svelte` NAPI shim | 🟡 v0.2 — NAPI primitives in place | `src/vps/`, `src/napi.rs` |
 | 4    | `svelte-language-server`      | ⛔ Deferred upstream of tsgo `tsserver` | — |
 
@@ -35,7 +35,7 @@ Verified against `cargo clippy --all-targets --all-features -- -D warnings`.
 
 ---
 
-## Wave 2 — `svelte-check` (🟡 v0.5)
+## Wave 2 — `svelte-check` (🟡 v0.6)
 
 ### What's in `main`
 
@@ -72,7 +72,7 @@ CLI flags shipped:
 | Criterion | Status | Notes |
 |---|---|---|
 | Rust `svelte-check` binary in `target/release/svelte_check` | ✅ | Build green. |
-| Passes existing JS svelte-check fixture set (golden output comparisons) | 🟡 | `tests/svelte_check_golden.rs` runs against the upstream `test-success` / `test-error` fixtures. Svelte-side assertions always run; the full TS error set is gated on `tsgo` / `tsc` being available. The TS error path currently hits a missing-svelte2tsx-shim issue that's tracked in the "Next" list below. |
+| Passes existing JS svelte-check fixture set (golden output comparisons) | 🟡 | `tests/svelte_check_golden.rs` runs against the upstream `test-success` / `test-error` fixtures. Svelte-side assertions always run; the TS path additionally asserts (a) every expected TS error code is produced, (b) no leakage of `.tsx`/overlay paths, and (c) per-file presence of every expected diagnostic. Exact line/column tightening still deferred — see "Still open". |
 | ≥ 2× faster than JS svelte-check on a 1000-file project | 🟡 | `scripts/benchmark-svelte-check.mjs` measures rsvelte standalone (cold parse, cold overlay, warm incremental). Pass `--js` to compare against `npx svelte-check`. Local sample: warm `--incremental --emit-overlay` is ~5x faster than a cold overlay emit on a 500-file fixture. JS comparison needs a clean machine. |
 | CI-friendly: machine-readable JSON, GH Actions annotation, non-zero exit on errors | ✅ | `machine` / `machine-verbose` formats, exit codes, and `--output github-actions` (workflow-command annotations) all shipped. |
 | Incremental rebuilds via on-disk cache | ✅ | `--incremental` reads/writes `<workspace>/.svelte-check/manifest.json`, keyed on `(mtime_ms, size)`. Stale `.tsx` / `.d.ts` shadows are pruned on each pass. |
@@ -97,18 +97,25 @@ CLI flags shipped:
 
 #### Still open
 
-- **svelte2tsx shim pass-through into the overlay** (medium — 0.5 day).
-  When `tsgo` / `tsc` runs against the overlay it hits
-  `__sveltets_2_with_any_event` "Cannot find name" errors because
-  svelte2tsx's shim `.d.ts` files (e.g.
-  `svelte-shims-v4.d.ts`, `svelte-jsx-v4.d.ts`) aren't part of the
-  overlay's compile set. The JS reference's
-  `resolveSvelte2tsxShims` finds these files in the
-  `svelte2tsx` package and includes them in the overlay's `files`
-  array. Port that lookup and add the discovered shims into
-  `build_overlay_tsconfig`. Once landed,
-  `tests/svelte_check_golden.rs::test_error_fixture_emits_expected_ts_errors`
-  should pass cleanly when tsgo / tsc is available.
+- **Per-character source-map segments** (medium — 1 day). MagicString
+  currently emits one segment per generated line for unedited
+  stretches; `mapper.rs` interpolates forward when the query lands on
+  the same generated line as a token, which fixes the easy "in-script
+  unedited" case. Edited template wrappers (e.g. helper calls around
+  a `<Component>`) still emit one segment per chunk, so a TS2741 on
+  the inner element drifts off to a column deep in the wrapped
+  helper. Per-character segments inside unedited chunks would close
+  that gap; alternatively, emit a segment at the start of each
+  significant template sub-range.
+
+- **SvelteKit "kit file" type augmentation** (medium — 1-2 days). The
+  JS reference's `incremental.ts::mapCliDiagnosticsToLsp` injects
+  module-level type stubs into `+page.ts` / `+page.js` / etc. via
+  `addedCode` before handing them to tsc. Without that injection,
+  TypeScript can't see `export const ssr: boolean` and the
+  `src/routes/+page.ts` TS2322 in the upstream sanity fixture never
+  fires. The golden test currently filters out `+*` kit files; port
+  the augmentation to lift that filter.
 
 - **Per-file diagnostic warning cache** (small — 0.5 day).
   `manifest.rs` currently caches `(mtime, size, paths)` only. The JS

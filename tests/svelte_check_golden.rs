@@ -203,24 +203,14 @@ fn test_error_fixture_emits_expected_ts_error_codes() {
     };
     let result = run(&opts);
 
-    // Until svelte2tsx emits source maps, the position information for
-    // a tsc / tsgo diagnostic still points at the generated `.tsx`
-    // overlay rather than the original `.svelte` line / column. So
-    // this test asserts the *set of TypeScript error codes* matches
-    // the JS reference's expected list — that's already enough to
-    // catch the two large failure modes:
-    //   1. The shim `.d.ts` files aren't reaching the overlay (every
-    //      error becomes TS2304 "Cannot find name").
-    //   2. Some of the expected user-source type errors silently
-    //      stopped firing.
-    //
-    // Once svelte2tsx grows source-map output, this test should be
-    // re-tightened to the file/line/col-exact comparison the JS
-    // reference uses (the `ExpectedTsError` shape is already there).
-    let actual_codes: HashSet<u32> = result
+    let ts_errors: Vec<_> = result
         .diagnostics
         .iter()
         .filter(|d| d.severity == DiagnosticSeverity::Error && d.source == "ts")
+        .collect();
+
+    let actual_codes: HashSet<u32> = ts_errors
+        .iter()
         .filter_map(|d| {
             d.code
                 .as_deref()
@@ -257,4 +247,63 @@ fn test_error_fixture_emits_expected_ts_error_codes() {
          Full diagnostics:\n{:#?}",
         result.diagnostics,
     );
+
+    // Wave 2 v0.6 sourcemap tightening: every TS diagnostic must now be
+    // mapped back to a `.svelte` source file. A diagnostic pointing at
+    // a `.tsx` (or `.svelte.tsx`) is a regression — either svelte2tsx
+    // stopped emitting source maps, or the mapper failed to thread
+    // them through to OverlayEntry / diagnostic remapping.
+    let leaking: Vec<_> = ts_errors
+        .iter()
+        .filter(|d| {
+            let s = d.file.to_string_lossy();
+            s.ends_with(".tsx") || s.contains("/.svelte-check/")
+        })
+        .collect();
+    assert!(
+        leaking.is_empty(),
+        "TS diagnostics leaked overlay `.tsx` paths instead of being \
+         mapped back to `.svelte` sources. svelte2tsx source-map output \
+         or mapper integration is broken. Offending:\n{:#?}",
+        leaking,
+    );
+
+    // For every expected TS code on a `.svelte` file, ensure there is
+    // at least one actual diagnostic pointing at a file matching the
+    // JS reference's expected file. We do not yet pin exact
+    // line/column because:
+    //   (a) tsc and tsgo report slightly different positions for the
+    //       same overlay (we may be running against either backend);
+    //   (b) MagicString emits one source-map segment per generated
+    //       line for unedited stretches, so template-area diagnostics
+    //       interpolate within a wrapped helper call and can drift
+    //       from the JS reference's column.
+    // Tightening to exact positions requires both tsgo-only test mode
+    // and per-character source-map segments. Tracked in the Wave 2
+    // handover.
+    //
+    // SvelteKit "kit files" (`+page.ts` etc.) are excluded from this
+    // check: they require the JS reference's `addedCode` type-stub
+    // injection to surface their type errors, and that augmentation
+    // is not yet ported to rsvelte's overlay generator.
+    let expected = expected_test_error_diagnostics();
+    for exp in &expected {
+        if exp.file.contains("/+") {
+            continue;
+        }
+        let hit = ts_errors.iter().any(|d| {
+            d.file
+                .to_string_lossy()
+                .replace('\\', "/")
+                .ends_with(&exp.file)
+                && d.code.as_deref() == Some(format!("TS{}", exp.code).as_str())
+        });
+        assert!(
+            hit,
+            "expected diagnostic not found: TS{} in {} \
+             (file/line/col tightening only checks file+code for now). \
+             Actual ts errors:\n{:#?}",
+            exp.code, exp.file, ts_errors,
+        );
+    }
 }
