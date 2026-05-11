@@ -768,7 +768,13 @@ impl MagicString {
             // Process chunk content.
             if !chunk.content.is_empty() {
                 if !chunk.edited {
-                    // Unedited: character-level identity mapping.
+                    // Unedited: emit one segment per character ("hires"
+                    // mode). Per-line-only mapping forces consumers to
+                    // interpolate, which breaks at edited-chunk
+                    // boundaries; per-character segments let
+                    // `lookup_token` return the exact original column
+                    // for any generated position inside an unedited
+                    // region.
                     let (src_line, src_col) = orig_loc(chunk.start);
                     let mut cur_src_line = src_line;
                     let mut cur_src_col = src_col;
@@ -786,7 +792,8 @@ impl MagicString {
                         &mut first_segment_on_line,
                     );
 
-                    // Walk through the content looking for newlines.
+                    // Walk character-by-character, emitting one segment
+                    // per character anchored to its original position.
                     for ch in chunk.content.chars() {
                         if ch == '\n' {
                             mappings.push(';');
@@ -811,6 +818,17 @@ impl MagicString {
                         } else {
                             generated_column += 1;
                             cur_src_col += 1;
+                            emit_segment(
+                                &mut mappings,
+                                generated_column,
+                                &mut generated_column,
+                                0,
+                                cur_src_line,
+                                &mut original_line,
+                                cur_src_col,
+                                &mut original_column,
+                                &mut first_segment_on_line,
+                            );
                         }
                     }
                 } else {

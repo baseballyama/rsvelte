@@ -12,7 +12,7 @@ This document captures the state of the ecosystem port at the end of the
 | Wave | Tool                          | Status | Where to start                   |
 |------|-------------------------------|--------|----------------------------------|
 | 1    | `svelte2tsx`                  | ✅ 245/245 (100%), in compat report | — |
-| 2    | `svelte-check`                | 🟡 v0.6 — svelte2tsx source maps + diagnostic remapping to `.svelte` positions landed | `src/svelte_check/` |
+| 2    | `svelte-check`                | 🟡 v0.7 — hires source maps (per-character segments in unedited chunks), exact line/column for script-region TS diagnostics | `src/svelte_check/` |
 | 3    | `vite-plugin-svelte` NAPI shim | 🟡 v0.2 — NAPI primitives in place | `src/vps/`, `src/napi.rs` |
 | 4    | `svelte-language-server`      | ⛔ Deferred upstream of tsgo `tsserver` | — |
 
@@ -35,7 +35,7 @@ Verified against `cargo clippy --all-targets --all-features -- -D warnings`.
 
 ---
 
-## Wave 2 — `svelte-check` (🟡 v0.6)
+## Wave 2 — `svelte-check` (🟡 v0.7)
 
 ### What's in `main`
 
@@ -97,16 +97,17 @@ CLI flags shipped:
 
 #### Still open
 
-- **Per-character source-map segments** (medium — 1 day). MagicString
-  currently emits one segment per generated line for unedited
-  stretches; `mapper.rs` interpolates forward when the query lands on
-  the same generated line as a token, which fixes the easy "in-script
-  unedited" case. Edited template wrappers (e.g. helper calls around
-  a `<Component>`) still emit one segment per chunk, so a TS2741 on
-  the inner element drifts off to a column deep in the wrapped
-  helper. Per-character segments inside unedited chunks would close
-  that gap; alternatively, emit a segment at the start of each
-  significant template sub-range.
+- **Per-character source-map segments inside edited chunks**
+  (medium — 1-2 days). Unedited chunks now emit per-character
+  segments (`magic_string.rs::generate_mappings`), so script-region
+  diagnostics resolve to exact line/column. Edited chunks still emit
+  a single anchor at `chunk.start`, which means diagnostics on
+  template wrappers (e.g. `<Component a={1} />` rewritten into a
+  helper call) fall back to the wrapper's source-start position
+  rather than the specific attribute/expression. Closing this would
+  require the template emitter to use `append_left`/`append_right`
+  around unchanged source text instead of wholesale `overwrite()`
+  calls — a deeper svelte2tsx refactor.
 
 - **SvelteKit "kit file" type augmentation** (medium — 1-2 days). The
   JS reference's `incremental.ts::mapCliDiagnosticsToLsp` injects

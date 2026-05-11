@@ -81,26 +81,21 @@ pub fn map_tsgo_diagnostics(
             };
             // sourcemap crate uses 0-indexed line/col; tsgo emits
             // 1-indexed.
+            //
+            // MagicString emits per-character segments inside unedited
+            // chunks, so `lookup_token` returns the exact source
+            // position for any generated column inside such a chunk.
+            // For edited chunks it returns the chunk's start anchor
+            // (anchored to the original source range start) — which is
+            // the right answer: we can't pinpoint a sub-position inside
+            // synthesised template wrappers, so the diagnostic falls
+            // back to the start of the rewritten source range.
             let q_line = diag.line.saturating_sub(1);
             let q_col = diag.column.saturating_sub(1);
             let token = entry_map.map.lookup_token(q_line, q_col);
             if let Some(t) = token {
-                // MagicString emits one segment per generated line for
-                // unedited chunks (the spec doesn't require per-character
-                // segments). Interpolate forward when the token lies on
-                // the same generated line as the query and at-or-before
-                // the queried column — that's the offset from the
-                // chunk's anchor mapping, which is also the offset in
-                // the original source.
-                let (src_line, src_col) = if t.get_dst_line() == q_line && q_col >= t.get_dst_col()
-                {
-                    (
-                        t.get_src_line(),
-                        t.get_src_col() + (q_col - t.get_dst_col()),
-                    )
-                } else {
-                    (t.get_src_line(), t.get_src_col())
-                };
+                let src_line = t.get_src_line();
+                let src_col = t.get_src_col();
                 out.push(Diagnostic {
                     file: entry_map.svelte_source.clone(),
                     severity: severity_from_str(&diag.severity),
