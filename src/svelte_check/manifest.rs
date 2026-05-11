@@ -20,8 +20,18 @@ use std::time::SystemTime;
 
 use serde::{Deserialize, Serialize};
 
+use super::diagnostic::{Diagnostic, DiagnosticSeverity, Range};
+
 /// On-disk schema version. Bump on any breaking change.
 pub const MANIFEST_VERSION: u32 = 1;
+
+/// Sidecar cache of per-file `Diagnostic`s, persisted alongside the
+/// overlay manifest at `<cacheDir>/warnings.json`. On the next
+/// incremental run, files whose `(mtime_ms, size)` matches the cached
+/// stats skip recompilation and emit the cached diagnostics directly,
+/// so warnings persist across runs (matching the JS reference's
+/// `--incremental` behaviour).
+pub const WARNINGS_VERSION: u32 = 1;
 
 /// One cached entry per `.svelte` source. Keyed in `Manifest::entries`
 /// by the absolute path to the source `.svelte` file.
@@ -213,6 +223,214 @@ fn relativize(workspace: &Path, path: &Path) -> String {
     rel.to_string_lossy().replace('\\', "/")
 }
 
+// =============================================================================
+// Per-file diagnostic (warning) cache — `<cacheDir>/warnings.json`.
+// =============================================================================
+
+/// Cached diagnostics for a single source file. The `mtime_ms` / `size`
+/// stats are compared against the live file at lookup time — a mismatch
+/// invalidates the entry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CachedDiagnostics {
+    pub mtime_ms: i64,
+    pub size: u64,
+    pub diagnostics: Vec<SerializableDiagnostic>,
+}
+
+/// Serializable mirror of `Diagnostic`. `source` is owned (`String`) so
+/// the type can round-trip via serde; the live `Diagnostic` uses
+/// `&'static str` since runtime always picks from a known set.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SerializableDiagnostic {
+    pub file: PathBuf,
+    pub severity: DiagnosticSeverity,
+    pub code: Option<String>,
+    pub message: String,
+    pub range: Option<Range>,
+    pub source: String,
+}
+
+impl SerializableDiagnostic {
+    pub fn from_live(d: &Diagnostic) -> Self {
+        Self {
+            file: d.file.clone(),
+            severity: d.severity,
+            code: d.code.clone(),
+            message: d.message.clone(),
+            range: d.range,
+            source: d.source.to_string(),
+        }
+    }
+
+    /// Restore as a live `Diagnostic`. `source` is interned back to a
+    /// `&'static str` via the known set of sources — anything outside
+    /// the set falls back to `"svelte"` (the safe default — these are
+    /// rsvelte compile warnings, not foreign diagnostics).
+    pub fn into_live(self) -> Diagnostic {
+        let source: &'static str = match self.source.as_str() {
+            "ts" => "ts",
+            "css" => "css",
+            _ => "svelte",
+        };
+        Diagnostic {
+            file: self.file,
+            severity: self.severity,
+            code: self.code,
+            message: self.message,
+            range: self.range,
+            source,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct WarningCache {
+    pub version: u32,
+    /// Keyed by absolute source path in memory; serialised with
+    /// workspace-relative paths via [`save_warnings`].
+    pub entries: HashMap<PathBuf, CachedDiagnostics>,
+}
+
+impl WarningCache {
+    pub fn empty() -> Self {
+        Self {
+            version: WARNINGS_VERSION,
+            entries: HashMap::new(),
+        }
+    }
+}
+
+pub fn load_warnings(path: &Path, workspace: &Path) -> WarningCache {
+    let Ok(text) = fs::read_to_string(path) else {
+        return WarningCache::empty();
+    };
+    #[derive(Deserialize)]
+    struct OnDisk {
+        version: u32,
+        #[serde(default)]
+        entries: HashMap<String, OnDiskEntry>,
+    }
+    #[derive(Deserialize)]
+    struct OnDiskEntry {
+        mtime_ms: i64,
+        size: u64,
+        #[serde(default)]
+        diagnostics: Vec<OnDiskDiagnostic>,
+    }
+    #[derive(Deserialize)]
+    struct OnDiskDiagnostic {
+        file: String,
+        severity: DiagnosticSeverity,
+        #[serde(default)]
+        code: Option<String>,
+        message: String,
+        #[serde(default)]
+        range: Option<Range>,
+        source: String,
+    }
+    let parsed: OnDisk = match serde_json::from_str(&text) {
+        Ok(v) => v,
+        Err(_) => return WarningCache::empty(),
+    };
+    if parsed.version != WARNINGS_VERSION {
+        return WarningCache::empty();
+    }
+    let mut entries = HashMap::with_capacity(parsed.entries.len());
+    for (key, raw) in parsed.entries {
+        let key_abs = absolutize(workspace, Path::new(&key));
+        let diagnostics = raw
+            .diagnostics
+            .into_iter()
+            .map(|d| SerializableDiagnostic {
+                file: absolutize(workspace, Path::new(&d.file)),
+                severity: d.severity,
+                code: d.code,
+                message: d.message,
+                range: d.range,
+                source: d.source,
+            })
+            .collect();
+        entries.insert(
+            key_abs,
+            CachedDiagnostics {
+                mtime_ms: raw.mtime_ms,
+                size: raw.size,
+                diagnostics,
+            },
+        );
+    }
+    WarningCache {
+        version: parsed.version,
+        entries,
+    }
+}
+
+pub fn save_warnings(path: &Path, cache: &WarningCache, workspace: &Path) -> std::io::Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    #[derive(Serialize)]
+    struct OnDisk<'a> {
+        version: u32,
+        entries: HashMap<String, OnDiskEntry<'a>>,
+    }
+    #[derive(Serialize)]
+    struct OnDiskEntry<'a> {
+        mtime_ms: i64,
+        size: u64,
+        diagnostics: Vec<OnDiskDiagnostic<'a>>,
+    }
+    #[derive(Serialize)]
+    struct OnDiskDiagnostic<'a> {
+        file: String,
+        severity: DiagnosticSeverity,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        code: Option<&'a str>,
+        message: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        range: Option<Range>,
+        source: &'a str,
+    }
+    let mut out_entries: HashMap<String, OnDiskEntry> = HashMap::with_capacity(cache.entries.len());
+    for (key, entry) in &cache.entries {
+        let diags = entry
+            .diagnostics
+            .iter()
+            .map(|d| OnDiskDiagnostic {
+                file: relativize(workspace, &d.file),
+                severity: d.severity,
+                code: d.code.as_deref(),
+                message: &d.message,
+                range: d.range,
+                source: &d.source,
+            })
+            .collect();
+        out_entries.insert(
+            relativize(workspace, key),
+            OnDiskEntry {
+                mtime_ms: entry.mtime_ms,
+                size: entry.size,
+                diagnostics: diags,
+            },
+        );
+    }
+    let body = OnDisk {
+        version: cache.version,
+        entries: out_entries,
+    };
+    let json = serde_json::to_string_pretty(&body).map_err(std::io::Error::other)?;
+    fs::write(path, json)
+}
+
+/// Drop cache entries whose source `.svelte` no longer appears in
+/// `current_sources`. Unlike the manifest, we don't unlink artifacts —
+/// the cache itself is the only sidecar.
+pub fn prune_warnings(cache: &mut WarningCache, current_sources: &[PathBuf]) {
+    let live: std::collections::HashSet<&Path> =
+        current_sources.iter().map(|p| p.as_path()).collect();
+    cache.entries.retain(|k, _| live.contains(k.as_path()));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -317,5 +535,91 @@ mod tests {
         assert!(!manifest.entries.contains_key(&tmp.join("Dead.svelte")));
         assert!(!dead_out.exists(), "orphan .tsx should have been unlinked");
         assert!(!dead_dts.exists(), "orphan .d.ts should have been unlinked");
+    }
+
+    #[test]
+    fn warnings_cache_round_trips_via_relative_paths() {
+        let tmp = std::env::temp_dir().join(format!("svc_warnings_round_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+
+        let abs = tmp.join("src/Foo.svelte");
+        let mut cache = WarningCache::empty();
+        cache.entries.insert(
+            abs.clone(),
+            CachedDiagnostics {
+                mtime_ms: 99,
+                size: 100,
+                diagnostics: vec![SerializableDiagnostic {
+                    file: abs.clone(),
+                    severity: DiagnosticSeverity::Warning,
+                    code: Some("a11y_alt_text".into()),
+                    message: "img missing alt".into(),
+                    range: Some(Range {
+                        start: super::super::diagnostic::Position { line: 1, column: 2 },
+                        end: super::super::diagnostic::Position { line: 1, column: 5 },
+                    }),
+                    source: "svelte".into(),
+                }],
+            },
+        );
+        let path = tmp.join("warnings.json");
+        save_warnings(&path, &cache, &tmp).unwrap();
+        let body = fs::read_to_string(&path).unwrap();
+        assert!(
+            body.contains("\"src/Foo.svelte\""),
+            "key should be relative: {body}"
+        );
+
+        let round = load_warnings(&path, &tmp);
+        let entry = round.entries.get(&abs).expect("entry restored");
+        assert_eq!(entry.mtime_ms, 99);
+        assert_eq!(entry.diagnostics.len(), 1);
+        assert_eq!(entry.diagnostics[0].code.as_deref(), Some("a11y_alt_text"));
+        // Restored diagnostic's `source` is interned back to a known
+        // &'static str.
+        let live = entry.diagnostics[0].clone().into_live();
+        assert_eq!(live.source, "svelte");
+    }
+
+    #[test]
+    fn warnings_cache_load_rejects_version_mismatch() {
+        let tmp = std::env::temp_dir().join(format!("svc_warnings_ver_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+        let path = tmp.join("warnings.json");
+        fs::write(&path, r#"{"version":9999,"entries":{}}"#).unwrap();
+        let cache = load_warnings(&path, &tmp);
+        assert!(cache.entries.is_empty());
+        assert_eq!(cache.version, WARNINGS_VERSION);
+    }
+
+    #[test]
+    fn warnings_cache_prune_drops_missing_sources() {
+        let tmp = std::env::temp_dir().join(format!("svc_warnings_prune_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+        let alive = tmp.join("Alive.svelte");
+        let dead = tmp.join("Dead.svelte");
+
+        let mut cache = WarningCache::empty();
+        let mk = |p: &Path| CachedDiagnostics {
+            mtime_ms: 0,
+            size: 0,
+            diagnostics: vec![SerializableDiagnostic {
+                file: p.to_path_buf(),
+                severity: DiagnosticSeverity::Warning,
+                code: None,
+                message: "x".into(),
+                range: None,
+                source: "svelte".into(),
+            }],
+        };
+        cache.entries.insert(alive.clone(), mk(&alive));
+        cache.entries.insert(dead.clone(), mk(&dead));
+
+        prune_warnings(&mut cache, std::slice::from_ref(&alive));
+        assert!(cache.entries.contains_key(&alive));
+        assert!(!cache.entries.contains_key(&dead));
     }
 }

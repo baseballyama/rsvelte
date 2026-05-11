@@ -13,6 +13,9 @@ use crate::compiler::{CompileOptions, GenerateMode, compile};
 
 use super::diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
 use super::kit_file::load_kit_files_settings;
+use super::manifest::{
+    self, CachedDiagnostics, SerializableDiagnostic, WarningCache, current_stats,
+};
 use super::mapper::map_tsgo_diagnostics;
 use super::overlay::{OverlayLayout, materialize_overlay_with_kit};
 use super::tsgo::{TsgoError, find_compiler, run_tsgo};
@@ -149,7 +152,7 @@ pub fn run(options: &RunOptions) -> RunResult {
     let files = relevant.svelte;
     let kit_files = relevant.kit;
     let files_checked = files.len();
-    let diagnostics = compile_files(&files);
+    let diagnostics = compile_files_with_cache(&files, &options.workspace, options.incremental);
     let mut result = RunResult {
         diagnostics,
         files_checked,
@@ -288,6 +291,88 @@ fn compile_files(files: &[PathBuf]) -> Vec<Diagnostic> {
             .flat_map(|file| diagnostics_for_file(file).into_iter())
             .collect()
     }
+}
+
+/// Same as [`compile_files`] but reads `<workspace>/.svelte-check/warnings.json`
+/// when `incremental` is true. Files whose `(mtime_ms, size)` matches a
+/// cached entry skip the compile pass and emit the cached diagnostics
+/// directly. After the run, the cache is rewritten with the fresh
+/// `(stats, diagnostics)` pairs so the next incremental run benefits.
+fn compile_files_with_cache(
+    files: &[PathBuf],
+    workspace: &Path,
+    incremental: bool,
+) -> Vec<Diagnostic> {
+    if !incremental {
+        return compile_files(files);
+    }
+
+    let cache_path = workspace.join(".svelte-check").join("warnings.json");
+    let mut cache = manifest::load_warnings(&cache_path, workspace);
+    manifest::prune_warnings(&mut cache, files);
+
+    // Per-file lookup → either reuse cached diagnostics or recompile.
+    // The output preserves the input file order via a (file -> diags) map.
+    let outputs: Vec<(PathBuf, CachedDiagnostics)> = {
+        #[cfg(feature = "rayon")]
+        {
+            use rayon::prelude::*;
+            files
+                .par_iter()
+                .map(|file| compile_or_reuse(file, &cache))
+                .collect()
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            files
+                .iter()
+                .map(|file| compile_or_reuse(file, &cache))
+                .collect()
+        }
+    };
+
+    let mut diagnostics = Vec::new();
+    cache.entries.clear();
+    for (file, entry) in outputs {
+        for d in &entry.diagnostics {
+            diagnostics.push(d.clone().into_live());
+        }
+        cache.entries.insert(file, entry);
+    }
+
+    let _ = manifest::save_warnings(&cache_path, &cache, workspace);
+    diagnostics
+}
+
+fn compile_or_reuse(file: &Path, cache: &WarningCache) -> (PathBuf, CachedDiagnostics) {
+    let stats = current_stats(file);
+    if let (Some((mtime, size)), Some(entry)) = (stats, cache.entries.get(file))
+        && entry.mtime_ms == mtime
+        && entry.size == size
+    {
+        return (
+            file.to_path_buf(),
+            CachedDiagnostics {
+                mtime_ms: mtime,
+                size,
+                diagnostics: entry.diagnostics.clone(),
+            },
+        );
+    }
+
+    let diagnostics: Vec<SerializableDiagnostic> = diagnostics_for_file(file)
+        .iter()
+        .map(SerializableDiagnostic::from_live)
+        .collect();
+    let (mtime_ms, size) = stats.unwrap_or((0, 0));
+    (
+        file.to_path_buf(),
+        CachedDiagnostics {
+            mtime_ms,
+            size,
+            diagnostics,
+        },
+    )
 }
 
 fn diagnostics_for_file(file: &Path) -> Vec<Diagnostic> {
