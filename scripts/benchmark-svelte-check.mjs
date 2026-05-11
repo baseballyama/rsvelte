@@ -27,6 +27,18 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..');
 const RSVELTE_BIN = join(REPO_ROOT, 'target', 'release', 'svelte_check');
+// Prefer the locally built JS svelte-check checkout under
+// `submodules/language-tools` over `npx`, which would otherwise
+// re-fetch the package on every run and slosh I/O into the timing.
+const JS_SVELTE_CHECK_BIN = join(
+    REPO_ROOT,
+    'submodules',
+    'language-tools',
+    'packages',
+    'svelte-check',
+    'bin',
+    'svelte-check'
+);
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -153,15 +165,44 @@ try {
         { warmup: 1 }
     );
 
-    if (COMPARE_JS) {
-        console.log('\nJS svelte-check (npx):');
-        timeMs('npx svelte-check', () => {
-            spawnSync(
-                'npx',
-                ['--yes', 'svelte-check', '--workspace', fixture, '--output', 'machine'],
-                { stdio: 'ignore' }
-            );
+    // Apples-to-apples vs JS: also drive the TS pass through tsgo/tsc so
+    // the two pipelines are doing comparable work. Skips when no
+    // TypeScript backend can be located.
+    const haveTsgo = !!process.env.TSGO_BIN
+        || spawnSync('which', ['tsgo'], { stdio: 'ignore' }).status === 0
+        || spawnSync('which', ['tsc'], { stdio: 'ignore' }).status === 0;
+    if (haveTsgo) {
+        const args = ['--workspace', fixture, '--tsgo', '--output', 'machine'];
+        timeMs('with --tsgo (cold, end-to-end)', () => {
+            spawnSync(RSVELTE_BIN, args, { stdio: 'ignore' });
         });
+    } else {
+        console.log(
+            '  (skipped --tsgo run — no tsgo / tsc on PATH; set TSGO_BIN to enable)'
+        );
+    }
+
+    if (COMPARE_JS) {
+        const localExists = spawnSync('test', ['-x', JS_SVELTE_CHECK_BIN]).status === 0;
+        if (localExists) {
+            console.log('\nJS svelte-check (submodules/language-tools build):');
+            timeMs('node submodules/.../svelte-check', () => {
+                spawnSync(
+                    'node',
+                    [JS_SVELTE_CHECK_BIN, '--workspace', fixture, '--output', 'machine'],
+                    { stdio: 'ignore' }
+                );
+            });
+        } else {
+            console.log('\nJS svelte-check (npx, slower — falling back):');
+            timeMs('npx svelte-check', () => {
+                spawnSync(
+                    'npx',
+                    ['--yes', 'svelte-check', '--workspace', fixture, '--output', 'machine'],
+                    { stdio: 'ignore' }
+                );
+            });
+        }
     } else {
         console.log('\n(skipped JS comparison — pass --js to enable)');
     }
