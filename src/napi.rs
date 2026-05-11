@@ -3,6 +3,7 @@
 //! This module provides Node.js native addon bindings via napi-rs,
 //! allowing the Rust Svelte compiler to be used from JavaScript/TypeScript.
 
+use napi::Env;
 use napi_derive::napi;
 use serde_json::Value;
 
@@ -437,20 +438,220 @@ pub fn napi_resolve_id(importer: Option<String>, specifier: String) -> napi::Res
     }
 }
 
-/// Run rsvelte's preprocessor pipeline. v0.1 only supports the empty
-/// pipeline (no preprocessors → input passed through unchanged) — the
-/// JS shim should keep using its existing JS preprocessor path until
-/// `napi_preprocess` learns to bridge JS callbacks via
-/// `napi::ThreadsafeFunction` (tracked in
-/// `docs/ecosystem-implementation-plan.md` Wave 3 tradeoffs).
+/// Run rsvelte's preprocessor pipeline, bridging JS preprocessor
+/// callbacks through `napi::threadsafe_function::ThreadsafeFunction`.
+///
+/// `preprocessors` is an array of `{ name?, markup?, script?, style? }`
+/// JS objects matching `svelte/preprocess`'s `PreprocessorGroup`. Each
+/// callback may be sync or `async` and may return either a
+/// `{ code, map?, dependencies?, attributes? }` object or
+/// `undefined`/`null` to skip the file. Callbacks are invoked on the
+/// JS thread via N-API's ThreadsafeFunction machinery — the heavy
+/// lifting (tag extraction, source-map chaining) stays in Rust.
 ///
 /// Shape mirrors `svelte/preprocess`: `{ code, map, dependencies }`.
 #[napi(js_name = "preprocess")]
-pub fn napi_preprocess(source: String, filename: Option<String>) -> napi::Result<Value> {
-    let _ = filename;
-    Ok(serde_json::json!({
-        "code": source,
-        "map": Value::Null,
-        "dependencies": Value::Array(vec![]),
-    }))
+pub fn napi_preprocess(
+    env: Env,
+    source: String,
+    preprocessors: Vec<napi::bindgen_prelude::Object>,
+    filename: Option<String>,
+) -> napi::Result<napi::JsObject> {
+    // Extract ThreadsafeFunctions synchronously so the JS-bound `Object`
+    // values never cross the await boundary (they're not Send).
+    let extracted = preprocess_bridge::extract_groups(preprocessors)?;
+    let rust_groups = preprocess_bridge::build_groups(extracted);
+
+    env.execute_tokio_future(
+        async move {
+            crate::compiler::preprocess::preprocess(source, rust_groups, filename)
+                .await
+                .map_err(|e| napi::Error::from_reason(format!("{e}")))
+        },
+        |_env, processed| Ok(preprocess_bridge::processed_to_json(processed)),
+    )
+}
+
+mod preprocess_bridge {
+    use crate::compiler::preprocess::types::{
+        AttributeValue as RsAttrValue, MarkupPreprocessorFn, MarkupPreprocessorOptions,
+        PreprocessError, PreprocessorFn, PreprocessorGroup, PreprocessorOptions,
+        PreprocessorResult, Processed, SimpleDecodedMap, SourceMapInput,
+    };
+    use napi::bindgen_prelude::{Object, Promise};
+    use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction};
+    use rustc_hash::FxHashMap;
+    use serde_json::Value;
+
+    pub(super) type Tsfn = ThreadsafeFunction<Value, ErrorStrategy::CalleeHandled>;
+
+    pub(super) struct Extracted {
+        pub name: Option<String>,
+        pub markup: Option<Tsfn>,
+        pub script: Option<Tsfn>,
+        pub style: Option<Tsfn>,
+    }
+
+    pub(super) fn extract_groups(groups: Vec<Object>) -> napi::Result<Vec<Extracted>> {
+        groups
+            .into_iter()
+            .map(|obj| {
+                Ok(Extracted {
+                    name: obj.get::<_, String>("name")?,
+                    markup: obj.get::<_, Tsfn>("markup")?,
+                    script: obj.get::<_, Tsfn>("script")?,
+                    style: obj.get::<_, Tsfn>("style")?,
+                })
+            })
+            .collect()
+    }
+
+    pub(super) fn build_groups(extracted: Vec<Extracted>) -> Vec<PreprocessorGroup> {
+        extracted
+            .into_iter()
+            .map(|g| PreprocessorGroup {
+                name: g.name,
+                markup: g.markup.map(make_markup_bridge),
+                script: g.script.map(|t| make_tag_bridge(t, "script")),
+                style: g.style.map(|t| make_tag_bridge(t, "style")),
+            })
+            .collect()
+    }
+
+    fn make_markup_bridge(tsfn: Tsfn) -> MarkupPreprocessorFn {
+        Box::new(
+            move |opts: MarkupPreprocessorOptions| -> PreprocessorResult {
+                let tsfn = tsfn.clone();
+                Box::pin(async move {
+                    let arg = serde_json::json!({
+                        "content": opts.content,
+                        "filename": opts.filename,
+                    });
+                    let ret_val = await_tsfn(&tsfn, arg).await?;
+                    Ok(json_to_processed(ret_val))
+                })
+            },
+        )
+    }
+
+    fn make_tag_bridge(tsfn: Tsfn, _kind: &'static str) -> PreprocessorFn {
+        Box::new(move |opts: PreprocessorOptions| -> PreprocessorResult {
+            let tsfn = tsfn.clone();
+            Box::pin(async move {
+                let arg = serde_json::json!({
+                    "content": opts.content,
+                    "attributes": attrs_to_json(&opts.attributes),
+                    "markup": opts.markup,
+                    "filename": opts.filename,
+                });
+                let ret_val = await_tsfn(&tsfn, arg).await?;
+                Ok(json_to_processed(ret_val))
+            })
+        })
+    }
+
+    async fn await_tsfn(tsfn: &Tsfn, arg: Value) -> Result<Value, PreprocessError> {
+        // Callbacks are expected to return a Promise (matching the JS
+        // `(opts) => Promise<Processed | void>` contract). Sync callers
+        // should `async (opts) => …` — `Promise.resolve(...)` is not
+        // injected on the Rust side.
+        let promise: Promise<Value> = tsfn
+            .call_async(Ok(arg))
+            .await
+            .map_err(|e| PreprocessError::Other(format!("{e}")))?;
+        promise
+            .await
+            .map_err(|e| PreprocessError::Other(format!("{e}")))
+    }
+
+    fn attrs_to_json(attrs: &FxHashMap<String, RsAttrValue>) -> Value {
+        let mut map = serde_json::Map::new();
+        for (k, v) in attrs {
+            map.insert(
+                k.clone(),
+                match v {
+                    RsAttrValue::Boolean(b) => Value::Bool(*b),
+                    RsAttrValue::String(s) => Value::String(s.clone()),
+                },
+            );
+        }
+        Value::Object(map)
+    }
+
+    fn json_to_processed(val: Value) -> Option<Processed> {
+        let obj = val.as_object()?;
+
+        let code = obj.get("code").and_then(|v| v.as_str()).map(String::from)?;
+
+        let map = obj.get("map").and_then(json_to_sourcemap_input);
+
+        let dependencies = obj
+            .get("dependencies")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        let attributes = obj.get("attributes").and_then(json_to_attributes);
+
+        Some(Processed {
+            code,
+            map,
+            dependencies,
+            attributes,
+        })
+    }
+
+    fn json_to_sourcemap_input(val: &Value) -> Option<SourceMapInput> {
+        match val {
+            Value::Null => None,
+            Value::String(s) => Some(SourceMapInput::Json(s.clone())),
+            Value::Object(_) => {
+                // Either a decoded map or an encoded one — serialize to JSON
+                // so the existing chaining path (which expects either form)
+                // handles both.
+                let s = serde_json::to_string(val).ok()?;
+                if let Ok(decoded) = serde_json::from_str::<SimpleDecodedMap>(&s) {
+                    return Some(SourceMapInput::Decoded(decoded));
+                }
+                Some(SourceMapInput::Json(s))
+            }
+            _ => None,
+        }
+    }
+
+    fn json_to_attributes(val: &Value) -> Option<FxHashMap<String, RsAttrValue>> {
+        let obj = val.as_object()?;
+        let mut out = FxHashMap::default();
+        for (k, v) in obj {
+            let av = match v {
+                Value::Bool(b) => RsAttrValue::Boolean(*b),
+                Value::String(s) => RsAttrValue::String(s.clone()),
+                _ => continue,
+            };
+            out.insert(k.clone(), av);
+        }
+        Some(out)
+    }
+
+    pub(super) fn processed_to_json(p: Processed) -> Value {
+        let map = match p.map {
+            None => Value::Null,
+            Some(SourceMapInput::Json(s)) => {
+                serde_json::from_str::<Value>(&s).unwrap_or(Value::Null)
+            }
+            Some(SourceMapInput::Decoded(decoded)) => {
+                serde_json::to_value(&decoded).unwrap_or(Value::Null)
+            }
+        };
+        let deps: Vec<Value> = p.dependencies.into_iter().map(Value::String).collect();
+        serde_json::json!({
+            "code": p.code,
+            "map": map,
+            "dependencies": deps,
+        })
+    }
 }

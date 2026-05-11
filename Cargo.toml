@@ -79,7 +79,7 @@ clap = { version = "4.5", features = ["derive"] }
 chrono = "0.4"
 
 # N-API support (optional)
-napi = { version = "2", default-features = false, features = ["napi9", "serde-json"], optional = true }
+napi = { version = "2", default-features = false, features = ["napi9", "serde-json", "async", "tokio_rt"], optional = true }
 napi-derive = { version = "2", optional = true }
 
 # WASM support (optional)

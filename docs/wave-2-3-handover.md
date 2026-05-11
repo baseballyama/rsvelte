@@ -13,7 +13,7 @@ This document captures the state of the ecosystem port at the end of the
 |------|-------------------------------|--------|----------------------------------|
 | 1    | `svelte2tsx`                  | ✅ 245/245 (100%), in compat report | — |
 | 2    | `svelte-check`                | 🟡 v0.8 — hires source maps + SvelteKit kit-file `addedCode` augmentation (`+page.ts`, hooks, params surface their type errors) | `src/svelte_check/` |
-| 3    | `vite-plugin-svelte` NAPI shim | 🟡 v0.2 — NAPI primitives in place | `src/vps/`, `src/napi.rs` |
+| 3    | `vite-plugin-svelte` NAPI shim | 🟡 v0.3 — NAPI primitives + preprocess bridge in place | `src/vps/`, `src/napi.rs` |
 | 4    | `svelte-language-server`      | ⛔ Deferred upstream of tsgo `tsserver` | — |
 
 `migrate` (Svelte 4→5) is intentionally out of scope.
@@ -141,7 +141,7 @@ CLI flags shipped:
 
 ---
 
-## Wave 3 — vite-plugin-svelte NAPI shim (🟡 v0.2)
+## Wave 3 — vite-plugin-svelte NAPI shim (🟡 v0.3)
 
 ### What's in `main`
 
@@ -152,7 +152,7 @@ CLI flags shipped:
 | `napi_svelte2tsx`    | ✅      | Pre-existing. |
 | `napi_hmr_diff`      | ✅ new  | `src/vps/hmr.rs` — lexical script-tag-body diff returning `unchanged` / `hot-update` / `full-reload`. |
 | `napi_resolve_id`    | ✅ new  | `src/vps/resolver.rs` — relative-specifier resolution with implicit extensions and `dir/index.<ext>` lookup. |
-| `napi_preprocess`    | 🟡 stub | Pass-through; doesn't run preprocessors. The JS shim should keep handling JS preprocessor callbacks until the bridge below lands. |
+| `napi_preprocess`    | ✅ new  | Accepts `Vec<{ name?, markup?, script?, style? }>` JS objects. Each callback is bridged through `napi::threadsafe_function::ThreadsafeFunction<Value>` and `await_tsfn` resolves the returned `Promise<{ code, map?, dependencies?, attributes? }>` (sync callbacks should `async (opts) => …`). `src/napi.rs::preprocess_bridge`. |
 
 ### Wave 3 acceptance criteria — current scoring
 
@@ -164,17 +164,7 @@ CLI flags shipped:
 
 ### What to ship next (in priority order)
 
-1. **Preprocessor `ThreadsafeFunction` bridge** (medium — 2–3 days).
-   - Replace the `napi_preprocess` pass-through with a real binding that
-     accepts an array of `{ markup?, script?, style? }` JS callbacks.
-   - Each callback is wrapped in a `napi::threadsafe_function::ThreadsafeFunction<…>`
-     and invoked via `tokio::task::spawn_blocking` from the Rust side
-     (the runtime is already brought in by the existing async preprocess).
-   - Map JS exceptions back to `napi::Error::from_reason(String)`.
-   - JS-side input shape mirrors `svelte`: `{ markup, script, style }` of
-     `(content: string, filename: string) => Promise<{ code, map?, dependencies? }>`.
-
-2. **JS shim package fork** (medium — 2–3 days).
+1. **JS shim package fork** (medium — 2–3 days).
    - Create `packages/vite-plugin-svelte-rsvelte/` (new top-level package).
    - Mirror the structure of
      `submodules/vite-plugin-svelte/packages/vite-plugin-svelte/src/index.js`
@@ -185,7 +175,7 @@ CLI flags shipped:
    - Use `napi_compile` for `.svelte` transforms, `napi_hmr_diff` inside
      `handleHotUpdate`, and `napi_resolve_id` inside `resolveId`.
 
-3. **E2E smoke test** (small — 1 day, depends on the shim above).
+2. **E2E smoke test** (small — 1 day, depends on the shim above).
    - Wire the new package into one of the
      `submodules/vite-plugin-svelte/packages/e2e-tests/` fixtures and
      verify it boots, hot-updates a template-only change, and full-reloads
