@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use crate::compiler::{CompileOptions, GenerateMode, compile};
 
 use super::diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
-use super::kit_file::KitFilesSettings;
+use super::kit_file::load_kit_files_settings;
 use super::mapper::map_tsgo_diagnostics;
 use super::overlay::{OverlayLayout, materialize_overlay_with_kit};
 use super::tsgo::{TsgoError, find_compiler, run_tsgo};
@@ -144,7 +144,7 @@ impl RunResult {
 /// and collect the resulting diagnostics. tsgo / svelte2tsx integration
 /// will plug in here in a follow-up.
 pub fn run(options: &RunOptions) -> RunResult {
-    let kit_settings = KitFilesSettings::default();
+    let kit_settings = load_kit_files_settings(&options.workspace);
     let relevant = find_relevant_files(&options.workspace, &options.ignore, &kit_settings);
     let files = relevant.svelte;
     let kit_files = relevant.kit;
