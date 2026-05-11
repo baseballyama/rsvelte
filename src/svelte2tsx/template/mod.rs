@@ -807,38 +807,67 @@ fn handle_each_block(
         + (block.index.is_some() as usize)
         + (block.key.is_some() as usize);
     let prefix = " ".repeat(prefix_spaces);
-    let mut header = if needs_temp_var {
-        format!(
-            "{}{{ const $$_each = __sveltets_2_ensureArray({}); for(let {} of $$_each){{",
-            prefix, expr_text, context_text
+
+    // Build the wrapper around the expression chunk so MagicString can
+    // preserve the expression's per-character mapping back to the
+    // original source. Context/index/key bindings come AFTER the
+    // expression in source but appear earlier (or later) in the for-loop
+    // header — bake them as ordinary text. Their column mapping is lost
+    // but they're rarely the target of type errors.
+    let (header_before_expr, header_after_expr) = if needs_temp_var {
+        (
+            format!("{}{{ const $$_each = __sveltets_2_ensureArray(", prefix),
+            {
+                let mut s = format!("); for(let {} of $$_each){{", context_text);
+                if let Some(ref index) = block.index {
+                    s.push_str(&format!("let {} = 1;", index));
+                }
+                if let Some(ref key) = block.key {
+                    let key_text = get_expression_text(key, source);
+                    s.push_str(key_text);
+                    s.push(';');
+                }
+                s
+            },
         )
     } else {
-        // No-context case (`{#each X}` without `as`): mirror the JS
-        // reference's `for(let $$each_item of ...){${context ? '' :
-        // '$$each_item;'}` — emit `$$each_item;` immediately after `){` so
-        // the synthesised binding is referenced (otherwise TypeScript would
-        // mark it unused).
         let suffix = if has_context { "" } else { "$$each_item;" };
-        format!(
-            "{}for(let {} of __sveltets_2_ensureArray({})){{{}",
-            prefix, context_text, expr_text, suffix
+        (
+            format!(
+                "{}for(let {} of __sveltets_2_ensureArray(",
+                prefix, context_text
+            ),
+            {
+                let mut s = format!("))){{{}", suffix);
+                if let Some(ref index) = block.index {
+                    s.push_str(&format!("let {} = 1;", index));
+                }
+                if let Some(ref key) = block.key {
+                    let key_text = get_expression_text(key, source);
+                    s.push_str(key_text);
+                    s.push(';');
+                }
+                s
+            },
         )
     };
 
-    // Add index variable if present
-    if let Some(ref index) = block.index {
-        header.push_str(&format!("let {} = 1;", index));
+    if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
+        str.overwrite(block.start, expr_start, &header_before_expr);
+        if expr_end < body_start {
+            str.overwrite(expr_end, body_start, &header_after_expr);
+        } else {
+            // expr_end >= body_start (no space between expr and body opener).
+            // Append the suffix immediately after the expression chunk so
+            // MagicString anchors it at the right boundary.
+            str.append_left(expr_end, &header_after_expr);
+        }
+    } else {
+        // Parser produced no span for the expression — fall back to the
+        // monolithic bake (original behaviour).
+        let header = format!("{}{}{}", header_before_expr, expr_text, header_after_expr);
+        str.overwrite(block.start, body_start, &header);
     }
-
-    // Add key expression if present
-    if let Some(ref key) = block.key {
-        let key_text = get_expression_text(key, source);
-        header.push_str(key_text);
-        header.push(';');
-    }
-
-    // Overwrite `{#each items as item, i (key)}` with the for loop header
-    str.overwrite(block.start, body_start, &header);
 
     // Process body children
     process_fragment_inplace(&block.body, source, options, str, counter);
@@ -1046,42 +1075,45 @@ fn handle_await_block(
             block.end
         };
 
-        if has_catch {
-            // With catch: use try/catch format
-            if !value_text.is_empty() {
-                str.overwrite(
-                    block.start,
-                    then_start,
-                    &format!(
-                        "   {{ try {{ const $$_value = await ({});{{ const {} = $$_value; ",
-                        expr_text, value_text
-                    ),
-                );
+        // In source order, `{#await PROMISE then VALUE}` is followed
+        // directly by the then-body. The generated wrapper also places
+        // the expression before VALUE (and VALUE before the body), so
+        // we can preserve PROMISE's chunk in place by splitting the
+        // header overwrite into a prefix / suffix pair around the
+        // expression range.
+        let (header_prefix, header_suffix) = if has_catch {
+            (
+                "   { try { const $$_value = await (",
+                if !value_text.is_empty() {
+                    format!(");{{ const {} = $$_value; ", value_text)
+                } else {
+                    ");{ ".to_string()
+                },
+            )
+        } else {
+            (
+                "   { const $$_value = await (",
+                if !value_text.is_empty() {
+                    format!(");{{ const {} = $$_value; ", value_text)
+                } else {
+                    ");{ ".to_string()
+                },
+            )
+        };
+
+        if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
+            str.overwrite(block.start, expr_start, header_prefix);
+            if expr_end < then_start {
+                str.overwrite(expr_end, then_start, &header_suffix);
             } else {
-                str.overwrite(
-                    block.start,
-                    then_start,
-                    &format!("   {{ try {{ const $$_value = await ({});{{ ", expr_text),
-                );
+                str.append_left(expr_end, &header_suffix);
             }
         } else {
-            // No catch: simple format
-            if !value_text.is_empty() {
-                str.overwrite(
-                    block.start,
-                    then_start,
-                    &format!(
-                        "   {{ const $$_value = await ({});{{ const {} = $$_value; ",
-                        expr_text, value_text
-                    ),
-                );
-            } else {
-                str.overwrite(
-                    block.start,
-                    then_start,
-                    &format!("   {{ const $$_value = await ({});{{ ", expr_text),
-                );
-            }
+            str.overwrite(
+                block.start,
+                then_start,
+                &format!("{}{}{}", header_prefix, expr_text, header_suffix),
+            );
         }
 
         process_fragment_inplace(then, source, options, str, counter);
@@ -1137,7 +1169,25 @@ fn handle_await_block(
             block.end
         };
 
-        if !error_text.is_empty() {
+        let (header_prefix, header_suffix) = (
+            "   { try { await (",
+            if !error_text.is_empty() {
+                format!(
+                    ");}} catch($$_e) {{ const {} = __sveltets_2_any();",
+                    error_text
+                )
+            } else {
+                ");} catch {".to_string()
+            },
+        );
+        if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
+            str.overwrite(block.start, expr_start, header_prefix);
+            if expr_end < catch_start {
+                str.overwrite(expr_end, catch_start, &header_suffix);
+            } else {
+                str.append_left(expr_end, &header_suffix);
+            }
+        } else if !error_text.is_empty() {
             str.overwrite(
                 block.start,
                 catch_start,
@@ -1191,8 +1241,18 @@ fn handle_key_block(
         block.end
     };
 
-    // Overwrite `{#key expression}` with `{expr; `
-    str.overwrite(block.start, content_start, &format!("{{{};", expr_text));
+    // Preserve the expression chunk in place so its per-character
+    // mapping survives. `{#key ` → `{` (prefix); `}` → `;` (suffix).
+    if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
+        str.overwrite(block.start, expr_start, "{");
+        if expr_end < content_start {
+            str.overwrite(expr_end, content_start, ";");
+        } else {
+            str.append_left(expr_end, ";");
+        }
+    } else {
+        str.overwrite(block.start, content_start, &format!("{{{};", expr_text));
+    }
 
     // Process children
     process_fragment_inplace(&block.fragment, source, options, str, counter);
