@@ -12,7 +12,7 @@ This document captures the state of the ecosystem port at the end of the
 | Wave | Tool                          | Status | Where to start                   |
 |------|-------------------------------|--------|----------------------------------|
 | 1    | `svelte2tsx`                  | ✅ 245/245 (100%), in compat report | — |
-| 2    | `svelte-check`                | 🟡 v0.7 — hires source maps (per-character segments in unedited chunks), exact line/column for script-region TS diagnostics | `src/svelte_check/` |
+| 2    | `svelte-check`                | 🟡 v0.8 — hires source maps + SvelteKit kit-file `addedCode` augmentation (`+page.ts`, hooks, params surface their type errors) | `src/svelte_check/` |
 | 3    | `vite-plugin-svelte` NAPI shim | 🟡 v0.2 — NAPI primitives in place | `src/vps/`, `src/napi.rs` |
 | 4    | `svelte-language-server`      | ⛔ Deferred upstream of tsgo `tsserver` | — |
 
@@ -35,7 +35,7 @@ Verified against `cargo clippy --all-targets --all-features -- -D warnings`.
 
 ---
 
-## Wave 2 — `svelte-check` (🟡 v0.7)
+## Wave 2 — `svelte-check` (🟡 v0.8)
 
 ### What's in `main`
 
@@ -47,7 +47,8 @@ Verified against `cargo clippy --all-targets --all-features -- -D warnings`.
 | `src/svelte_check/overlay.rs`   | `materialize_overlay_with()` — emit `.tsx` shadows + `.d.ts` shims + overlay `tsconfig.json` under `<workspace>/.svelte-check/`. Honours the manifest cache when `incremental=true`. |
 | `src/svelte_check/manifest.rs`  | Persistent `<cacheDir>/manifest.json` with `(mtime_ms, size)` keying for the incremental cache. |
 | `src/svelte_check/tsgo.rs`      | Locate `tsgo` / `tsc`, spawn it, parse `file(L,C): error TSnnn: …` output. Graceful warning if no compiler is found. |
-| `src/svelte_check/mapper.rs`    | Map tsgo diagnostics back to `.svelte` positions via the source map svelte2tsx wrote into each `.tsx`. |
+| `src/svelte_check/mapper.rs`    | Map tsgo diagnostics back to `.svelte` positions via the source map svelte2tsx wrote into each `.tsx`. Kit-file diagnostics are reverse-mapped through the `AddedCode` table to the original `.ts` position. |
+| `src/svelte_check/kit_file.rs`  | SvelteKit kit-file detection (`+page.ts`, hooks, params) + `addedCode` type-stub injection via oxc parsing. Mirrors `submodules/language-tools/packages/svelte2tsx/src/helpers/sveltekit.ts`. TS path only — JSDoc emission for `.js` kit files is a follow-up. |
 | `src/svelte_check/watch.rs`     | `--watch` loop on top of the `notify` crate. Filters to `.svelte` / `.ts` / `.js` / `tsconfig.json` etc, debounces 250ms, skips events under the cache dir. |
 | `src/svelte_check/writers.rs`   | `human` / `human-verbose` / `machine` / `machine-verbose` / `github-actions` formatters. |
 | `src/bin/svelte_check.rs`       | CLI entry point. |
@@ -109,14 +110,15 @@ CLI flags shipped:
   around unchanged source text instead of wholesale `overwrite()`
   calls — a deeper svelte2tsx refactor.
 
-- **SvelteKit "kit file" type augmentation** (medium — 1-2 days). The
-  JS reference's `incremental.ts::mapCliDiagnosticsToLsp` injects
-  module-level type stubs into `+page.ts` / `+page.js` / etc. via
-  `addedCode` before handing them to tsc. Without that injection,
-  TypeScript can't see `export const ssr: boolean` and the
-  `src/routes/+page.ts` TS2322 in the upstream sanity fixture never
-  fires. The golden test currently filters out `+*` kit files; port
-  the augmentation to lift that filter.
+- ~~**SvelteKit "kit file" type augmentation**~~ — ✅ landed in
+  `src/svelte_check/kit_file.rs`. Route files (`+page.ts`,
+  `+layout.ts`, `+server.ts`), hooks, and params files now get
+  module-level type stubs injected via `addedCode` before tsgo / tsc
+  sees them. The golden test no longer skips `+*` kit files.
+  Open follow-ups: JSDoc augmentation for `.js` kit files (JS path
+  parses with oxc but emission needs the `addJsDoc*` shape ported from
+  the JS reference); reading user `svelte.config.js` `kit.files`
+  overrides (currently we use the defaults from `defaultKitFilesSettings`).
 
 - **Per-file diagnostic warning cache** (small — 0.5 day).
   `manifest.rs` currently caches `(mtime, size, paths)` only. The JS

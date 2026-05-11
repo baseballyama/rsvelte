@@ -10,6 +10,7 @@
 //! Wave 2.
 
 pub mod diagnostic;
+pub mod kit_file;
 pub mod manifest;
 pub mod mapper;
 pub mod overlay;

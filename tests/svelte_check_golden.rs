@@ -268,10 +268,9 @@ fn test_error_fixture_emits_expected_ts_error_codes() {
         leaking,
     );
 
-    // For every expected TS code on a `.svelte` file, ensure there is
-    // at least one actual diagnostic pointing at a file matching the
-    // JS reference's expected file. We do not yet pin exact
-    // line/column because:
+    // For every expected TS code, ensure there is at least one actual
+    // diagnostic pointing at a file matching the JS reference's
+    // expected file. We do not yet pin exact line/column because:
     //   (a) tsc and tsgo report slightly different positions for the
     //       same overlay (we may be running against either backend);
     //   (b) MagicString emits one source-map segment per generated
@@ -281,16 +280,8 @@ fn test_error_fixture_emits_expected_ts_error_codes() {
     // Tightening to exact positions requires both tsgo-only test mode
     // and per-character source-map segments. Tracked in the Wave 2
     // handover.
-    //
-    // SvelteKit "kit files" (`+page.ts` etc.) are excluded from this
-    // check: they require the JS reference's `addedCode` type-stub
-    // injection to surface their type errors, and that augmentation
-    // is not yet ported to rsvelte's overlay generator.
     let expected = expected_test_error_diagnostics();
     for exp in &expected {
-        if exp.file.contains("/+") {
-            continue;
-        }
         let hit = ts_errors.iter().any(|d| {
             d.file
                 .to_string_lossy()

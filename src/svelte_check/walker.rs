@@ -8,6 +8,19 @@ use std::path::{Path, PathBuf};
 
 use walkdir::WalkDir;
 
+use super::kit_file::{KitFilesSettings, is_kit_file};
+
+/// Result of `find_relevant_files` — split into Svelte sources and
+/// SvelteKit `.ts` / `.js` "kit files" (route, hooks, params). The two
+/// halves are processed by different paths downstream: Svelte files
+/// flow through svelte2tsx; kit files flow through the addedCode
+/// augmentation pipeline.
+#[derive(Debug, Default)]
+pub struct RelevantFiles {
+    pub svelte: Vec<PathBuf>,
+    pub kit: Vec<PathBuf>,
+}
+
 /// Find every `.svelte` file under `root`, skipping `node_modules` and any
 /// user-supplied `filter_paths` (relative path fragments — entries whose
 /// path contains any fragment as a path component are skipped).
@@ -40,6 +53,51 @@ pub fn find_svelte_files(root: &Path, filter_paths: &[String]) -> Vec<PathBuf> {
         }
     }
     out.sort();
+    out
+}
+
+/// Find both `.svelte` files and SvelteKit `.ts` / `.js` files (route,
+/// hooks, params) under `root`. Mirrors `incremental.ts`'s `findFiles`
+/// filter `endsWith('.svelte') || (isJsOrTsFile && isKitFile)`.
+pub fn find_relevant_files(
+    root: &Path,
+    filter_paths: &[String],
+    settings: &KitFilesSettings,
+) -> RelevantFiles {
+    let mut out = RelevantFiles::default();
+    let walker = WalkDir::new(root)
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_string_lossy();
+            if name == "node_modules" || name.starts_with('.') {
+                return false;
+            }
+            if filter_paths.is_empty() {
+                return true;
+            }
+            let path = e.path();
+            !filter_paths.iter().any(|frag| {
+                path.components()
+                    .any(|c| c.as_os_str().to_string_lossy() == *frag)
+            })
+        });
+    for entry in walker.flatten() {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let path = entry.path();
+        if path.extension().is_some_and(|e| e == "svelte") {
+            out.svelte.push(entry.into_path());
+            continue;
+        }
+        let is_ts_or_js = path.extension().is_some_and(|e| e == "ts" || e == "js");
+        if is_ts_or_js && is_kit_file(path, settings) {
+            out.kit.push(entry.into_path());
+        }
+    }
+    out.svelte.sort();
+    out.kit.sort();
     out
 }
 

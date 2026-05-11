@@ -18,6 +18,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use super::kit_file::{self, AddedCode, KitFilesSettings};
 use super::manifest::{self, Manifest, ManifestEntry, current_stats};
 use crate::svelte2tsx::{
     RewriteExternalImportsOptions, Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions,
@@ -35,6 +36,17 @@ pub struct OverlayEntry {
     pub source_map: Option<String>,
 }
 
+/// One emitted SvelteKit `.ts` / `.js` shadow with injected type stubs.
+/// The shadow lives at `<emit_dir>/<rel>` (same extension as source), so
+/// downstream diagnostic mapping is a simple path strip — we don't need
+/// a source map because every insertion is a pure positive shift.
+#[derive(Debug, Clone)]
+pub struct KitOverlayEntry {
+    pub source_path: PathBuf,
+    pub out_path: PathBuf,
+    pub added_code: Vec<AddedCode>,
+}
+
 #[derive(Debug, Clone)]
 pub struct OverlayLayout {
     pub workspace: PathBuf,
@@ -42,6 +54,7 @@ pub struct OverlayLayout {
     pub emit_dir: PathBuf,
     pub overlay_tsconfig: PathBuf,
     pub entries: Vec<OverlayEntry>,
+    pub kit_entries: Vec<KitOverlayEntry>,
 }
 
 #[derive(Debug)]
@@ -79,6 +92,24 @@ pub fn materialize_overlay(
     tsconfig_path: Option<&Path>,
 ) -> Result<OverlayLayout, OverlayError> {
     materialize_overlay_with(workspace, files, tsconfig_path, false)
+}
+
+/// Same as [`materialize_overlay_with`] but also materialises SvelteKit
+/// kit files (`+page.ts`, hooks, params) with addedCode-style type
+/// augmentation. Kit files land at `<emit_dir>/<rel>` with their
+/// original extension so the overlay tsconfig's `rootDirs` mapping
+/// keeps module resolution intact.
+pub fn materialize_overlay_with_kit(
+    workspace: &Path,
+    svelte_files: &[PathBuf],
+    kit_files: &[PathBuf],
+    tsconfig_path: Option<&Path>,
+    incremental: bool,
+    settings: &KitFilesSettings,
+) -> Result<OverlayLayout, OverlayError> {
+    let mut layout = materialize_overlay_with(workspace, svelte_files, tsconfig_path, incremental)?;
+    layout.kit_entries = materialize_kit_files(workspace, &layout.emit_dir, kit_files, settings)?;
+    Ok(layout)
 }
 
 /// Same as [`materialize_overlay`] but with an explicit `incremental`
@@ -242,7 +273,49 @@ pub fn materialize_overlay_with(
         emit_dir,
         overlay_tsconfig,
         entries,
+        kit_entries: Vec::new(),
     })
+}
+
+fn materialize_kit_files(
+    workspace: &Path,
+    emit_dir: &Path,
+    kit_files: &[PathBuf],
+    settings: &KitFilesSettings,
+) -> Result<Vec<KitOverlayEntry>, OverlayError> {
+    let mut out = Vec::with_capacity(kit_files.len());
+    for source in kit_files {
+        let abs = if source.is_absolute() {
+            source.clone()
+        } else {
+            workspace.join(source)
+        };
+        let rel = abs.strip_prefix(workspace).unwrap_or(&abs).to_path_buf();
+        let out_path = emit_dir.join(&rel);
+        if let Some(parent) = out_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let raw = fs::read_to_string(&abs)?;
+        let Some(adds) = kit_file::build_added_code(&abs, &raw, settings) else {
+            // Not a kit file we recognise (or nothing to augment) —
+            // drop a verbatim copy so module resolution still works.
+            fs::write(&out_path, &raw)?;
+            out.push(KitOverlayEntry {
+                source_path: abs,
+                out_path,
+                added_code: Vec::new(),
+            });
+            continue;
+        };
+        let augmented = kit_file::apply_added_code(&raw, &adds);
+        fs::write(&out_path, &augmented)?;
+        out.push(KitOverlayEntry {
+            source_path: abs,
+            out_path,
+            added_code: adds,
+        });
+    }
+    Ok(out)
 }
 
 /// Append a literal extension (`".tsx"`, `".d.ts"`) to a relative path

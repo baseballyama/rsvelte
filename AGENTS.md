@@ -143,7 +143,7 @@ Source: `pnpm run compatibility-report` (generated 2026-05-05, Svelte commit `04
 | Wave | Scope | Status |
 |---|---|---|
 | 1 | svelte2tsx | ✅ 245/245 (100%), wired into compatibility report |
-| 2 | svelte-check | 🟡 v0.7 — walker + overlay + tsgo + incremental cache + watch + parallel compile + hires svelte2tsx source maps. Unedited chunks emit per-character segments so TS diagnostics in script regions resolve to exact `.svelte` line/column; edited template wrappers still anchor at chunk start. SvelteKit kit-file `addedCode` augmentation deferred. |
+| 2 | svelte-check | 🟡 v0.8 — walker + overlay + tsgo + incremental cache + watch + parallel compile + hires svelte2tsx source maps + SvelteKit kit-file `addedCode` augmentation (`+page.ts`, `+server.ts`, hooks, params surface their type errors). Edited template wrappers still anchor at chunk start; JSDoc emission for `.js` kit files deferred. |
 | 3 | vite-plugin-svelte NAPI shim | 🟡 v0.2 — Rust-side `hmr_diff` + `resolve_id` + NAPI bindings. `preprocess` NAPI is a pass-through; bridging JS preprocessor callbacks via `ThreadsafeFunction` is the documented next step. JS shim package fork is out of scope for the rsvelte repo. |
 | 4 | svelte-language-server | ⛔ Deferred (waiting on tsgo `tsserver` mode upstream) |
 
