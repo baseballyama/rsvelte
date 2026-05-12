@@ -141,12 +141,15 @@ CLI flags shipped:
   `source: String`; `into_live()` interns it back to the known set
   (`svelte` / `ts` / `css`).
 
-- **Forward user-listed `.ts` entries / `include` patterns into the
-  overlay tsconfig** (small — 0.5 day). We currently set `files: []`
-  in the overlay to drop inherited `.svelte` entries; the cleaner
-  fix mirrors `buildOverlayTsconfig` in the JS reference — keep
-  non-`.svelte` `files` entries verbatim and rebase user
-  `include` / `exclude` onto the overlay dir.
+- ~~**Forward user-listed `.ts` entries / `include` patterns into the
+  overlay tsconfig**~~ — ✅ landed in `a0cd047`
+  (`overlay.rs::build_overlay_tsconfig`). The user's `include` /
+  `exclude` / `files` arrays are rebased onto the overlay dir,
+  `.svelte` entries from `files` are filtered out (TS rejects
+  arbitrary extensions in `files`), and JSONC comments in the
+  user's tsconfig are stripped before parsing. Mirrors
+  `buildOverlayTsconfig` in
+  `submodules/language-tools/packages/svelte-check/src/incremental.ts`.
 
 ---
 
