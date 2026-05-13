@@ -1,6 +1,6 @@
 ---
 name: perf-loop
-description: Rust の性能改善を「計測 → 仮説 → 変更 → 再計測」のループで地道に回すための汎用スキル。プロファイラの選び方、Cargo の最適化設定、データ構造・アロケーション・ハッシュ・分岐などの定石をフェーズ順に適用する。1 回 1 変更 1 計測の規律を厳守する。rsvelte 専用ゴール（100x 達成）特化の `perf` スキルに対し、こちらは方法論と汎用テクニックに重きを置く補完スキル。「Rust の性能改善」「ボトルネック調査」「プロファイル取って最適化」などの依頼で使用。
+description: Rust の性能改善を「計測 → 仮説 → 変更 → 再計測」のループで地道に回すためのスキル。プロファイラの選び方、Cargo の最適化設定、データ構造・アロケーション・ハッシュ・分岐などの定石をフェーズ順に適用する。1 回 1 変更 1 計測の規律を厳守する。rsvelte 固有の既知ボトルネック（`serde_json::Value` 駆逐、`bumpalo` 導入、`Atom<'a>`、codegen 直書き）と OXC 対応表、NAPI 検証手順も §7 に収録。「Rust の性能改善」「ボトルネック調査」「プロファイル取って最適化」などの依頼で使用。
 argument-hint: "[focus area, e.g. parser | hot function name | 'continue']"
 allowed-tools: Read, Grep, Glob, Bash, Edit, Write, Agent, WebSearch, WebFetch
 effort: max
@@ -17,7 +17,7 @@ effort: max
 3. **効かなかったら revert。** 「ちょっと速くなったかも」を残さない。ノイズと改善を混同しない。
 4. **ホットでない場所は触らない。** プロファイルで上位 5 関数に入らないコードは原則対象外。
 5. **正しさは速さに優先する。** 各イテレーションの後に `cargo test --release` を必ず通す。
-6. **シンプルに保つ。** 既存の `perf` スキルにある通り、複雑性を上塗りせず、データ構造・アルゴリズム自体をシンプルにする方向で攻める。最適化後のコードが前より読みにくくなったらアプローチを疑う。
+6. **シンプルに保つ。** 複雑性を上塗りせず、データ構造・アルゴリズム自体をシンプルにする方向で攻める。最適化後のコードが前より読みにくくなったらアプローチを疑う。高速なプログラムは、シンプルなデータ構造に対してシンプルなコードが書かれている。
 
 ## 1. 計測レイヤーの選び方
 
@@ -232,9 +232,9 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 - 次の改善案が「コードを著しく読みにくくする」かつ期待 < 5%
 - ループを 3 周回しても 1% も動かない（仮説の質を疑う、別フェーズへ）
 
-## 7. rsvelte 固有のクイックリファレンス
+## 7. rsvelte 固有のロードマップ
 
-このリポジトリで本スキルを使う場合の即実行コマンド:
+### 7.1 計測コマンド（即実行）
 
 ```bash
 # ベースライン（必須）
@@ -248,25 +248,133 @@ samply record ./target/profiling/profiler --file path/to/large.svelte --iteratio
 # macOS なら Instruments も可
 instruments -t "Time Profiler" ./target/profiling/profiler -- --file path/to/large.svelte --iterations 100
 
-# 仮説の素探し（既知の重い箇所）
-rg "serde_json::Value" src/ --type rust -l
-rg "\.clone\(\)" src/compiler/ --type rust -c
-rg "format!\(" src/compiler/ --type rust -c
-rg "Box::new" src/ --type rust -c
-
 # 回帰確認（速さより正しさ）
 cargo test --release
-
-# NAPI 経由のエンドツーエンド確認
-cargo build --release --features napi --lib
-cp target/release/libsvelte_compiler_rust.dylib svelte/rsvelte.darwin-arm64.node
 ```
 
-rsvelte 固有の大きな伸びしろ（既存 `perf` スキル参照）:
-- `serde_json::Value` の駆逐 → typed AST（5〜20x 余地）
-- `bumpalo` アリーナ導入（2〜5x）
-- `Atom<'a>` での文字列インターン（1.5〜3x）
-- codegen の直接書き出し化（2〜5x）
+### 7.2 既知の大物ボトルネック（rsvelte 固有）
+
+`perf-loop` の §4 プレイブックを rsvelte の実コードに当てると、以下が「まだ手付かずの大物」になる。プロファイルで該当領域が上位に出たらここに戻る。
+
+#### A. `serde_json::Value` の駆逐 → typed AST
+
+- **現状**: JS 式を `serde_json::Value` で持っており、毎回ヒープ確保・シリアライズ往復・実行時フィールド検索が発生
+- **既にある経路**: `src/ast/typed_expr.rs` に `JsNode` enum（100+ バリアント）と `TypedExpr` がある。`Expression::Typed(TypedExpr)` 側に寄せる
+- **手順**:
+  1. `Expression::Value(serde_json::Value)` を作っている場所を全て洗い出し、対応する `JsNode` バリアントに置換
+  2. 不足バリアントがあれば `typed_expr.rs` に追加
+  3. ホットパスから `serde_json::Value` を完全に外す
+- **着手の grep**:
+  ```bash
+  rg "Expression::Value" src/ --type rust
+  rg "serde_json::Value" src/ --type rust -l
+  rg "json!\(" src/ --type rust -l
+  ```
+
+#### B. `bumpalo` アリーナの導入
+
+- **現状**: `bumpalo` は Cargo.toml に入っているが**未使用**。AST ノードは個別に `Box<T>` / `Vec<T>` でヒープ確保されている
+- **OXC の流儀**: `oxc_allocator::Box<'a, T>` / `Vec<'a, T>` で単一の Bump からまとめて確保 → ポインタ加算で alloc、アリーナ一括解放
+- **手順**:
+  1. AST に lifetime を導入: `Root<'a>`, `Fragment<'a>`, `TemplateNode<'a>`, ...
+  2. `Box<T>` → `bumpalo::boxed::Box<'a, T>`、`Vec<T>` → `bumpalo::collections::Vec<'a, T>`
+  3. パーサに allocator を貫通: `Parser<'a> { alloc: &'a Bump }`
+  4. **大規模リファクタなので段階的に**。まずパーサ層から
+- **参考**: `~/.cargo/registry/src/*/oxc_allocator-*/src/`
+
+```rust
+// Before:
+struct Element {
+    name: String,
+    children: Vec<TemplateNode>,
+}
+
+// After (OXC スタイル):
+struct Element<'a> {
+    name: &'a str,                        // ソースまたはアリーナから借用
+    children: Vec<'a, TemplateNode<'a>>,
+}
+```
+
+#### C. `Atom<'a>` での文字列インターン
+
+- **現状**: `CompactString`（短い文字列はインラインだが長いものはヒープ）。重複文字列はその都度コピー
+- **OXC の流儀**: `Atom<'a>` でソース or アリーナから借用、頻出文字列（`"div"`, `"class"` 等）はポインタ比較
+- **手順**:
+  1. ソース直結の識別子・タグ名は `&'a str`（元ソースへの参照）に変える
+  2. 生成側の文字列はアリーナから確保
+  3. 頻出文字列は簡易インターナを検討
+- **参考**: `oxc_span::Atom`
+
+#### D. codegen の直接書き出し化
+
+- **現状**: 中間 `JsNode` ツリーを組み、それを文字列にシリアライズする 2 段構え
+- **OXC の流儀**: AST → `String` バッファに直接 `write!()`、インデントはカウンタで管理。中間表現なし
+- **手順**:
+  1. transform フェーズの出力を `String` バッファに直書き
+  2. `String::with_capacity(estimate)` で再 alloc 抑制
+  3. ホットループでは `format!` を避け `write!()` に
+- **参考**: `oxc_codegen`
+
+```rust
+struct CodeWriter {
+    buf: String,
+    indent: u32,
+}
+
+impl CodeWriter {
+    fn write_expression(&mut self, expr: &Expression) {
+        // self.buf に直接書く。中間ノードは作らない
+    }
+}
+```
+
+#### E. `.clone()` 駆除
+
+- **現状**: AST 型を渡すために `.clone()` が多用されている箇所がある（特に transform フェーズ）
+- **着手の grep**:
+  ```bash
+  rg "\.clone\(\)" src/compiler/phases/3_transform/ --type rust -c
+  ```
+- 共有所有が必要なら `Rc<T>` / `Arc<T>`、読み専有が多ければ `Cow<'a, T>`。Visitor は基本 `&mut` で受ける
+
+#### F. パーサ層
+
+- **方針**: 既に JS は OXC 任せ。Svelte テンプレートパーサだけが自前
+- バイトレベル走査（`&[u8]`）／UTF-8 再検証回避（`from_utf8_unchecked` は要根拠コメント）／文字種テーブルの事前計算／正規表現禁止（OXC も使っていない）
+- ソースからの借用を徹底し、パース中の `String` alloc を最小化
+
+### 7.3 OXC クレート → rsvelte の対応
+
+| OXC クレート | 役割 | rsvelte で参照すべき場面 |
+|------------|------|------------------------|
+| `oxc_allocator` | アリーナ確保 | §7.2 B の実装時 |
+| `oxc_ast` | typed AST | §7.2 A・B の AST 設計 |
+| `oxc_parser` | JS/TS パーサ | §7.2 F のパーサ最適化 |
+| `oxc_codegen` | コード生成 | §7.2 D の直書き codegen |
+| `oxc_span` | `Atom<'a>`・`Span` | §7.2 C の文字列インターン |
+| `oxc_syntax` | 演算子テーブル等 | キーワード／演算子の高速判定 |
+
+ローカルキャッシュからソースを読む:
+
+```bash
+ls ~/.cargo/registry/src/*/oxc_allocator-*/src/
+ls ~/.cargo/registry/src/*/oxc_parser-*/src/
+ls ~/.cargo/registry/src/*/oxc_codegen-*/src/
+ls ~/.cargo/registry/src/*/oxc_ast-*/src/
+```
+
+### 7.4 NAPI 経由のエンドツーエンド検証
+
+```bash
+cargo build --release --features napi --lib
+cp target/release/libsvelte_compiler_rust.dylib svelte/rsvelte.darwin-arm64.node
+cd svelte && USE_RSVELTE=true npx vitest run \
+  packages/svelte/tests/runtime-runes/test.ts \
+  packages/svelte/tests/runtime-legacy/test.ts
+```
+
+性能改善で「rsvelte 単体は速いが Vite から呼ぶと遅い」「テストは通るが NAPI 経由で壊れる」を防ぐため、最終確認は NAPI 経由で行う。
 
 ## 8. ワークフロー（`$ARGUMENTS` 指定時の挙動）
 
