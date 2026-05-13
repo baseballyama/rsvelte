@@ -3580,7 +3580,7 @@ pub(crate) fn normalize_iife_parens(s: &str) -> String {
         // Look for `(function` pattern (not inside strings)
         if chars[i] == '('
             && i + 9 < len
-            && &s[i + 1..i + 9] == "function"
+            && chars[i + 1..i + 9].iter().copied().eq("function".chars())
             && !chars[i + 9].is_alphanumeric()
         {
             // Try to match the IIFE pattern
