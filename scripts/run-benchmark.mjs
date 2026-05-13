@@ -263,24 +263,35 @@ async function runBenchmarkTask(files, task) {
 	};
 }
 
+/**
+ * Strip the script's `task`/`taskLabel` framing so the result matches the docs
+ * `BenchmarkTaskResults` shape (just javascript / rust* / speedup).
+ */
+function asTaskResults(taskResult) {
+	const { javascript, rustSingleThread, rustMultiThread, speedup } = taskResult;
+	return { javascript, rustSingleThread, rustMultiThread, speedup };
+}
+
 async function main() {
 	console.error('Collecting Svelte test files...');
 	const files = collectTestFiles();
 	console.error(`Found ${files.length} files`);
 
-	const tasks = ['compile-client', 'compile-server', 'parse'];
-	const results = {};
+	// `compile-server` benchmarks are currently broken (Rust durations report
+	// near-zero, yielding `Infinity` speedups) and would mislead the report —
+	// omit until the runner is fixed.
+	const compileClient = await runBenchmarkTask(files, 'compile-client');
+	const parse = await runBenchmarkTask(files, 'parse');
 
-	for (const task of tasks) {
-		results[task] = await runBenchmarkTask(files, task);
-	}
-
-	// Output combined JSON
+	// Output combined JSON. Compile-client lives at the top level for
+	// backward compatibility with the existing benchmark page; parse is a
+	// nested sibling so the page can render a parser-only section.
 	const output = {
 		generatedAt: new Date().toISOString(),
 		commitSha: getCommitSha(),
 		testFilesCount: files.length,
-		...results,
+		...asTaskResults(compileClient),
+		parse: asTaskResults(parse),
 	};
 
 	console.log(JSON.stringify(output, null, 2));

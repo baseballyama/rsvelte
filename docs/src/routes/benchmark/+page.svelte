@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
 	import type { PageData } from './$types';
-	import type { BenchmarkResults } from '$lib/types/benchmark';
+	import type { BenchmarkTaskResults } from '$lib/types/benchmark';
 
 	let { data }: { data: PageData } = $props();
 
@@ -32,10 +32,10 @@
 		return v.toFixed(1);
 	};
 
-	const getMaxDuration = (r: BenchmarkResults): number =>
+	const getMaxDuration = (r: BenchmarkTaskResults): number =>
 		Math.max(r.javascript.durationMs, r.rustSingleThread.durationMs, r.rustMultiThread.durationMs);
 
-	const getAnimatedWidth = (r: BenchmarkResults, duration: number): number => {
+	const getAnimatedWidth = (r: BenchmarkTaskResults, duration: number): number => {
 		const maxDuration = getMaxDuration(r);
 		const targetWidth = (duration / maxDuration) * 100;
 		if (animationComplete) return targetWidth;
@@ -45,7 +45,7 @@
 		return (simulated / maxDuration) * 100;
 	};
 
-	const getAnimatedTime = (r: BenchmarkResults, duration: number): number => {
+	const getAnimatedTime = (r: BenchmarkTaskResults, duration: number): number => {
 		if (animationComplete) return duration;
 		const maxDuration = getMaxDuration(r);
 		const scale = maxDuration / ANIMATION_DURATION_MS;
@@ -53,7 +53,7 @@
 		return Math.min(simulated, duration);
 	};
 
-	const isBarComplete = (r: BenchmarkResults, duration: number): boolean => {
+	const isBarComplete = (r: BenchmarkTaskResults, duration: number): boolean => {
 		if (animationComplete) return true;
 		const maxDuration = getMaxDuration(r);
 		const scale = maxDuration / ANIMATION_DURATION_MS;
@@ -204,9 +204,9 @@ node scripts/run-benchmark.mjs &gt; docs/static/benchmark-results.json</code></p
 
 			<div class="chart">
 				{#each [
-					{ name: 'JavaScript', sub: r.javascript.name, dur: r.javascript.durationMs, tone: 'js' },
-					{ name: 'Rust · single', sub: r.rustSingleThread.name, dur: r.rustSingleThread.durationMs, tone: 'rs' },
-					{ name: 'Rust · multi', sub: r.rustMultiThread.name, dur: r.rustMultiThread.durationMs, tone: 'rm' }
+					{ name: 'JavaScript', sub: 'svelte/compiler', dur: r.javascript.durationMs, tone: 'js' },
+					{ name: 'Rust · single', sub: 'no parallelism', dur: r.rustSingleThread.durationMs, tone: 'rs' },
+					{ name: 'Rust · multi', sub: 'rayon fan-out', dur: r.rustMultiThread.durationMs, tone: 'rm' }
 				] as bar, i (bar.name)}
 					<article class="chart-row" style="--i: {i};">
 						<div class="row-meta">
@@ -230,10 +230,54 @@ node scripts/run-benchmark.mjs &gt; docs/static/benchmark-results.json</code></p
 			</div>
 		</section>
 
+		<!-- PARSER-ONLY -->
+		{#if r.parse}
+			{@const p = r.parse}
+			<section class="spec parse-section">
+				<header class="spec-head">
+					<span class="kicker">§ 03 — Parser only</span>
+					<h2><em>Phase 1</em> alone.</h2>
+					<p class="lede">
+						Parsing isolated from analysis and codegen. The Rust port hits
+						<strong>{p.speedup.multiThreadVsJs.toFixed(1)}×</strong> over JavaScript
+						multi-threaded (<strong>{p.speedup.singleThreadVsJs.toFixed(1)}×</strong>
+						single-threaded).
+					</p>
+				</header>
+
+				<div class="chart">
+					{#each [
+						{ name: 'JavaScript', sub: 'svelte/compiler · parse', dur: p.javascript.durationMs, tone: 'js' },
+						{ name: 'Rust · single', sub: 'parser instance reused per file', dur: p.rustSingleThread.durationMs, tone: 'rs' },
+						{ name: 'Rust · multi', sub: 'rayon fan-out', dur: p.rustMultiThread.durationMs, tone: 'rm' }
+					] as bar (bar.name)}
+						<article class="chart-row">
+							<div class="row-meta">
+								<strong>{bar.name}</strong>
+								<span class="row-sub">{bar.sub}</span>
+							</div>
+							<div class="row-bar">
+								<span class="bar-track">
+									<span
+										class="bar-fill {bar.tone}"
+										class:complete={isBarComplete(p, bar.dur)}
+										style="width: {getAnimatedWidth(p, bar.dur)}%;"
+									></span>
+								</span>
+								<span class="row-time" class:complete={isBarComplete(p, bar.dur)}>
+									{formatDuration(getAnimatedTime(p, bar.dur))}
+								</span>
+							</div>
+						</article>
+					{/each}
+				</div>
+			</section>
+		{/if}
+
 		<!-- THROUGHPUT -->
 		<section class="metrics">
 			<header class="spec-head">
-				<span class="kicker">§ 03 — Throughput</span>
+				<span class="kicker">§ 04 — Throughput</span>
 				<h2><em>Higher</em> is better.</h2>
 				<p class="lede">
 					Files compiled per second on the same corpus. Multi-threaded rsvelte fans out
@@ -279,7 +323,7 @@ node scripts/run-benchmark.mjs &gt; docs/static/benchmark-results.json</code></p
 		<!-- HOW TO RUN -->
 		<section class="howto">
 			<header class="spec-head">
-				<span class="kicker">§ 04 — Reproduce</span>
+				<span class="kicker">§ 05 — Reproduce</span>
 				<h2>Run it <em>yourself</em>.</h2>
 			</header>
 
