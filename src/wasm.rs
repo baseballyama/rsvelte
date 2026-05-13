@@ -79,7 +79,13 @@ pub fn parse_svelte(source: &str) -> ParseResultWasm {
 
     match parse(source, options) {
         Ok(ast) => {
-            let ast_json = serde_json::to_string_pretty(&ast).unwrap_or_default();
+            // Serializing the AST resolves `JsNodeId`s through the thread-local
+            // serialize arena; without it the Serialize impls panic ("serialize
+            // arena not set"), which surfaces in the browser as a WASM
+            // "unreachable" trap.
+            let ast_json = crate::ast::arena::with_serialize_arena(&ast.arena, || {
+                serde_json::to_string_pretty(&ast).unwrap_or_default()
+            });
             ParseResultWasm {
                 success: true,
                 ast_json,
