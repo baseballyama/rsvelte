@@ -18,4 +18,5 @@ export interface BenchmarkResults extends BenchmarkTaskResults {
 	commitSha: string;
 	testFilesCount: number;
 	parse: BenchmarkTaskResults;
+	svelte2tsx?: BenchmarkTaskResults;
 }

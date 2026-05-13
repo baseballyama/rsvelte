@@ -1,39 +1,57 @@
 {
-  "generatedAt": "2026-05-13T07:34:21.257Z",
-  "commitSha": "95b3f13",
+  "generatedAt": "2026-05-13T09:25:35.205Z",
+  "commitSha": "1a845bf",
   "testFilesCount": 3637,
   "javascript": {
-    "durationMs": 965.1157223333331,
-    "throughputFilesPerSec": 3768.460005197022
+    "durationMs": 959.4235419999999,
+    "throughputFilesPerSec": 3790.817965982328
   },
   "rustSingleThread": {
-    "durationMs": 405.1601666666667,
-    "throughputFilesPerSec": 8976.696870085532
+    "durationMs": 404.14090000000004,
+    "throughputFilesPerSec": 8999.33661750147
   },
   "rustMultiThread": {
-    "durationMs": 54.6369,
-    "throughputFilesPerSec": 66566.73420344127
+    "durationMs": 55.585633333333334,
+    "throughputFilesPerSec": 65430.57588621521
   },
   "speedup": {
-    "singleThreadVsJs": 2.3820597426285315,
-    "multiThreadVsJs": 17.66417425463987
+    "singleThreadVsJs": 2.3739827916451905,
+    "multiThreadVsJs": 17.26027904092724
   },
   "parse": {
     "javascript": {
-      "durationMs": 207.04649966664147,
-      "throughputFilesPerSec": 17566.10232897349
+      "durationMs": 216.3832499999747,
+      "throughputFilesPerSec": 16808.14018645355
     },
     "rustSingleThread": {
-      "durationMs": 8.751866666666666,
-      "throughputFilesPerSec": 415568.48824631696
+      "durationMs": 8.566033333333332,
+      "throughputFilesPerSec": 424583.9186554649
     },
     "rustMultiThread": {
-      "durationMs": 1.9089,
-      "throughputFilesPerSec": 1905285.7666719053
+      "durationMs": 1.6194,
+      "throughputFilesPerSec": 2245893.5408175867
     },
     "speedup": {
-      "singleThreadVsJs": 23.657410190585033,
-      "multiThreadVsJs": 108.46377477428962
+      "singleThreadVsJs": 25.260612652294306,
+      "multiThreadVsJs": 133.61939607260388
+    }
+  },
+  "svelte2tsx": {
+    "javascript": {
+      "durationMs": 343.5215273333403,
+      "throughputFilesPerSec": 10587.400528383167
+    },
+    "rustSingleThread": {
+      "durationMs": 192.62973333333335,
+      "throughputFilesPerSec": 18880.781990734555
+    },
+    "rustMultiThread": {
+      "durationMs": 25.08583333333333,
+      "throughputFilesPerSec": 144982.22768494836
+    },
+    "speedup": {
+      "singleThreadVsJs": 1.783325561370624,
+      "multiThreadVsJs": 13.693845556921517
     }
   }
 }

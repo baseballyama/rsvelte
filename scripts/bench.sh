@@ -55,7 +55,7 @@ const fmtMs = (v) => v.toFixed(0) + 'ms';
 console.log('=== Benchmark Results (' + r.testFilesCount + ' files) ===');
 console.log('');
 
-for (const task of ['compile-client', 'compile-server', 'parse']) {
+for (const task of ['compile-client', 'compile-server', 'parse', 'svelte2tsx']) {
     const d = r[task];
     if (!d) continue;
     console.log(d.taskLabel + ':');
@@ -139,7 +139,7 @@ console.log('');
 console.log('Task               | JS       | Rust     | Speedup');
 console.log('-------------------|----------|----------|--------');
 
-for (const task of ['compile-client', 'compile-server', 'parse']) {
+for (const task of ['compile-client', 'compile-server', 'parse', 'svelte2tsx']) {
     const d = r[task];
     if (!d) continue;
     const label = d.taskLabel.padEnd(18);

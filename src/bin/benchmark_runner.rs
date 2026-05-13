@@ -11,6 +11,9 @@ use std::time::Instant;
 #[cfg(feature = "native")]
 use rayon::prelude::*;
 
+use svelte_compiler_rust::svelte2tsx::{
+    Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion, svelte2tsx,
+};
 use svelte_compiler_rust::{CompileOptions, GenerateMode, ParseOptions, compile, parse};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -18,6 +21,7 @@ enum Task {
     CompileClient,
     CompileServer,
     Parse,
+    Svelte2Tsx,
 }
 
 #[derive(Debug)]
@@ -53,6 +57,7 @@ fn parse_args() -> Result<Config, String> {
                         "compile-client" => Task::CompileClient,
                         "compile-server" => Task::CompileServer,
                         "parse" => Task::Parse,
+                        "svelte2tsx" => Task::Svelte2Tsx,
                         other => return Err(format!("Unknown task: {}", other)),
                     };
                 }
@@ -151,6 +156,20 @@ fn process_file(source: &str, filename: &str, task: &Task) {
                 ..Default::default()
             };
             let _ = parse(source, options);
+        }
+        Task::Svelte2Tsx => {
+            let options = Svelte2TsxOptions {
+                filename: filename.to_string(),
+                is_ts_file: false,
+                mode: Svelte2TsxMode::Ts,
+                accessors: false,
+                namespace: Svelte2TsxNamespace::Html,
+                version: SvelteVersion::V5,
+                runes: None,
+                emit_jsdoc: false,
+                rewrite_external_imports: None,
+            };
+            let _ = svelte2tsx(source, options);
         }
     }
 }

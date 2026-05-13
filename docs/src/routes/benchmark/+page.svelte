@@ -274,10 +274,57 @@ node scripts/run-benchmark.mjs &gt; docs/static/benchmark-results.json</code></p
 			</section>
 		{/if}
 
+		<!-- SVELTE2TSX -->
+		{#if r.svelte2tsx}
+			{@const s = r.svelte2tsx}
+			<section class="spec parse-section">
+				<header class="spec-head">
+					<span class="kicker">§ 04 — svelte2tsx</span>
+					<h2><em>TSX</em> generation.</h2>
+					<p class="lede">
+						svelte2tsx converts <code>.svelte</code> files to TSX so TypeScript can type-check them.
+						The Rust port hits
+						<strong>{s.speedup.multiThreadVsJs.toFixed(1)}×</strong> over the upstream
+						<code>svelte2tsx</code> package multi-threaded (<strong
+							>{s.speedup.singleThreadVsJs.toFixed(1)}×</strong
+						>
+						single-threaded).
+					</p>
+				</header>
+
+				<div class="chart">
+					{#each [
+						{ name: 'JavaScript', sub: 'language-tools · svelte2tsx', dur: s.javascript.durationMs, tone: 'js' },
+						{ name: 'Rust · single', sub: 'no parallelism', dur: s.rustSingleThread.durationMs, tone: 'rs' },
+						{ name: 'Rust · multi', sub: 'rayon fan-out', dur: s.rustMultiThread.durationMs, tone: 'rm' }
+					] as bar (bar.name)}
+						<article class="chart-row">
+							<div class="row-meta">
+								<strong>{bar.name}</strong>
+								<span class="row-sub">{bar.sub}</span>
+							</div>
+							<div class="row-bar">
+								<span class="bar-track">
+									<span
+										class="bar-fill {bar.tone}"
+										class:complete={isBarComplete(s, bar.dur)}
+										style="width: {getAnimatedWidth(s, bar.dur)}%;"
+									></span>
+								</span>
+								<span class="row-time" class:complete={isBarComplete(s, bar.dur)}>
+									{formatDuration(getAnimatedTime(s, bar.dur))}
+								</span>
+							</div>
+						</article>
+					{/each}
+				</div>
+			</section>
+		{/if}
+
 		<!-- THROUGHPUT -->
 		<section class="metrics">
 			<header class="spec-head">
-				<span class="kicker">§ 04 — Throughput</span>
+				<span class="kicker">§ 05 — Throughput</span>
 				<h2><em>Higher</em> is better.</h2>
 				<p class="lede">
 					Files compiled per second on the same corpus. Multi-threaded rsvelte fans out
@@ -323,7 +370,7 @@ node scripts/run-benchmark.mjs &gt; docs/static/benchmark-results.json</code></p
 		<!-- HOW TO RUN -->
 		<section class="howto">
 			<header class="spec-head">
-				<span class="kicker">§ 05 — Reproduce</span>
+				<span class="kicker">§ 06 — Reproduce</span>
 				<h2>Run it <em>yourself</em>.</h2>
 			</header>
 

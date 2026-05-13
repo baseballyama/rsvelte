@@ -8,6 +8,7 @@
 
 import pkg from '../submodules/svelte/packages/svelte/compiler/index.js';
 const { compile, parse } = pkg;
+import { svelte2tsx as upstreamSvelte2tsx } from '../submodules/language-tools/packages/svelte2tsx/index.mjs';
 import { execSync, spawn } from 'child_process';
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
@@ -85,6 +86,15 @@ function processFileJS(file, task) {
 			break;
 		case 'parse':
 			parse(file.content, { modern: true });
+			break;
+		case 'svelte2tsx':
+			upstreamSvelte2tsx(file.content, {
+				filename: file.path,
+				isTsFile: false,
+				mode: 'ts',
+				typingsNamespace: 'svelteHTML',
+				version: '5',
+			});
 			break;
 	}
 }
@@ -219,6 +229,7 @@ async function runBenchmarkTask(files, task) {
 		'compile-client': 'Compile (Client)',
 		'compile-server': 'Compile (SSR)',
 		parse: 'Parse',
+		svelte2tsx: 'svelte2tsx',
 	}[task];
 
 	console.error(`\n=== ${taskLabel} ===`);
@@ -282,16 +293,18 @@ async function main() {
 	// omit until the runner is fixed.
 	const compileClient = await runBenchmarkTask(files, 'compile-client');
 	const parse = await runBenchmarkTask(files, 'parse');
+	const svelte2tsx = await runBenchmarkTask(files, 'svelte2tsx');
 
 	// Output combined JSON. Compile-client lives at the top level for
-	// backward compatibility with the existing benchmark page; parse is a
-	// nested sibling so the page can render a parser-only section.
+	// backward compatibility with the existing benchmark page; parse and
+	// svelte2tsx are nested siblings so the page can render extra sections.
 	const output = {
 		generatedAt: new Date().toISOString(),
 		commitSha: getCommitSha(),
 		testFilesCount: files.length,
 		...asTaskResults(compileClient),
 		parse: asTaskResults(parse),
+		svelte2tsx: asTaskResults(svelte2tsx),
 	};
 
 	console.log(JSON.stringify(output, null, 2));
