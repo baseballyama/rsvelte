@@ -1,9 +1,10 @@
+import { base } from '$app/paths';
 import type { PageLoad } from './$types';
 import type { BenchmarkResults } from '$lib/types/benchmark';
 
 export const load: PageLoad = async ({ fetch }) => {
 	try {
-		const response = await fetch('/benchmark-results.json');
+		const response = await fetch(`${base}/benchmark-results.json`);
 		if (!response.ok) {
 			return {
 				results: null,

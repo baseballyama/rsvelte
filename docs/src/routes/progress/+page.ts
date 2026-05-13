@@ -1,9 +1,10 @@
+import { base } from '$app/paths';
 import type { PageLoad } from './$types';
 import type { TestResults } from '$lib/types/test-results';
 
 export const load: PageLoad = async ({ fetch }) => {
 	try {
-		const response = await fetch('/test-results.json');
+		const response = await fetch(`${base}/test-results.json`);
 
 		if (!response.ok) {
 			return {

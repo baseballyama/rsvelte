@@ -76,7 +76,6 @@
 	<nav class="strip">
 		<div class="strip-l">
 			<a href="{base}/" class="mark">rsvelte</a>
-			<span class="badge">v0.1 · preview</span>
 		</div>
 		<div class="strip-r">
 			<a href="{base}/playground">Playground</a>
@@ -261,39 +260,6 @@
 		</div>
 	</section>
 
-	<!-- ================================================================
-	     COLOPHON — print-style end matter: typography credits, links,
-	     and a fat italic "001" issue number on the right.
-	     ================================================================ -->
-	<footer class="colophon">
-		<div class="col col-wide">
-			<span class="kicker kicker-light">Colophon</span>
-			<p>
-				Set in <em>Fraunces</em> (variable, with SOFT 100 / WONK 1 on the italics),
-				<em>Instrument Sans</em> for body, and <em>JetBrains Mono</em> for the technical
-				readouts. Built with <em>Svelte 5</em> + <em>SvelteKit</em>; the compiler is written in
-				Rust and currently tracks <span class="chip chip-dark">sveltejs/svelte@5.51.3</span>.
-			</p>
-		</div>
-		<div class="col">
-			<span class="kicker kicker-light">Index</span>
-			<ul>
-				<li><a href="{base}/playground">/playground</a></li>
-				<li><a href="{base}/progress">/progress</a></li>
-				<li><a href="{base}/benchmark">/benchmark</a></li>
-				<li>
-					<a href="https://github.com/baseballyama/rsvelte" target="_blank" rel="noopener"
-						>github.com/baseballyama/rsvelte<span class="chev">↗</span></a
-					>
-				</li>
-			</ul>
-		</div>
-		<div class="col col-num">
-			<span class="kicker kicker-light">No.</span>
-			<p class="issue-num"><em>001</em></p>
-			<p class="meta">Tokyo · MMXXVI</p>
-		</div>
-	</footer>
 </div>
 
 <style>
@@ -392,16 +358,6 @@
 		color: var(--ink);
 		text-decoration: none;
 		line-height: 1;
-	}
-
-	.strip .badge {
-		padding: 0.3rem 0.6rem 0.25rem;
-		border: 1px solid var(--hairline-strong);
-		border-radius: 999px;
-		text-transform: uppercase;
-		font-size: 0.62rem;
-		letter-spacing: 0.14em;
-		color: var(--ink-soft);
 	}
 
 	.strip-r {
@@ -1158,95 +1114,6 @@
 	}
 
 	/* ============================================================
-	   COLOPHON
-	   ============================================================ */
-	.colophon {
-		padding: clamp(4rem, 8vh, 7rem) clamp(1.5rem, 6vw, 6rem) clamp(3rem, 6vh, 5rem);
-		background: var(--ink);
-		color: var(--bg);
-		display: grid;
-		grid-template-columns: 2fr 1fr 1fr;
-		gap: clamp(2rem, 4vw, 4rem);
-		position: relative;
-		z-index: 1;
-	}
-
-	.col {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-	}
-
-	.kicker-light {
-		color: var(--accent);
-		font-size: 0.7rem;
-	}
-
-	.colophon p {
-		font-size: 0.95rem;
-		line-height: 1.7;
-		color: rgba(241, 232, 214, 0.7);
-		margin: 0;
-		max-width: 56ch;
-	}
-
-	.colophon p em {
-		font-style: italic;
-		color: var(--bg);
-		font-family: var(--display);
-		font-variation-settings: 'opsz' 14, 'SOFT' 100, 'WONK' 1;
-		font-weight: 400;
-		padding-right: 0.04em;
-	}
-
-	.colophon ul {
-		list-style: none;
-		padding: 0;
-		font-family: var(--mono);
-		font-size: 0.82rem;
-		margin: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 0.45rem;
-	}
-
-	.colophon a {
-		color: rgba(241, 232, 214, 0.85);
-		text-decoration: none;
-		transition: color 0.25s ease;
-		display: inline-flex;
-		align-items: baseline;
-		gap: 0.3em;
-	}
-
-	.colophon a:hover {
-		color: var(--accent);
-	}
-
-	.colophon .chev {
-		font-size: 0.85em;
-	}
-
-	.col-num {
-		align-items: flex-end;
-		text-align: right;
-	}
-
-	.issue-num {
-		font-family: var(--display);
-		font-size: clamp(4rem, 8vw, 7rem);
-		color: var(--bg);
-		margin: 0;
-		line-height: 0.9;
-	}
-
-	.issue-num em {
-		font-style: italic;
-		font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
-		font-weight: 400;
-	}
-
-	/* ============================================================
 	   RESPONSIVE
 	   ============================================================ */
 	@media (max-width: 880px) {
@@ -1288,9 +1155,6 @@
 			font-size: 0.65rem;
 			letter-spacing: 0.1em;
 		}
-		.strip .badge {
-			display: none;
-		}
 		.spec-row {
 			grid-template-columns: minmax(5rem, 7rem) 1fr;
 		}
@@ -1300,14 +1164,6 @@
 		.why-item {
 			grid-template-columns: 1fr;
 			gap: 1rem;
-		}
-		.colophon {
-			grid-template-columns: 1fr;
-			gap: 2.5rem;
-		}
-		.col-num {
-			align-items: flex-start;
-			text-align: left;
 		}
 	}
 
