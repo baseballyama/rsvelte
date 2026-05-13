@@ -71,6 +71,16 @@ pub(super) fn transform_destructure_assignments_with_props(
         return statement.to_string();
     }
 
+    // Byte-level fast path: a destructure assignment requires either `]` or `}`
+    // (the close of the destructuring pattern) somewhere in the statement. If
+    // neither byte appears at all, no destructure can match — skip the per-call
+    // hashset construction and the char-vec allocations in the slow path. This
+    // is the common case for plain declarations like `let x = $state(0);` which
+    // call this function once per statement when `state_vars` is non-empty.
+    if memchr::memchr2(b']', b'}', statement.as_bytes()).is_none() {
+        return statement.to_string();
+    }
+
     let mut result = statement.to_string();
 
     // Build HashSets once for O(1) lookups across all iterations
