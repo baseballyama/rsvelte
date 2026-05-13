@@ -4,6 +4,20 @@
 
 A Rust port of the official Svelte 5 compiler. Targets **100% test compatibility** with `svelte/compiler` and is designed to slot into the [OXC](https://oxc.rs/) JavaScript/TypeScript toolchain.
 
+## Packages
+
+rsvelte ships drop-in replacements for the main pieces of the Svelte toolchain. All packages are published under the `@rsvelte` scope on npm.
+
+| Package | Drop-in for | Status |
+|---|---|---|
+| [`@rsvelte/compiler`](npm/compiler) | [`svelte/compiler`](https://svelte.dev/docs/svelte-compiler) | ✅ 100% test compat ([details](#compatibility)) |
+| [`@rsvelte/svelte2tsx`](npm/svelte2tsx) | [`svelte2tsx`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx) | ✅ 245 / 245 fixtures |
+| [`@rsvelte/svelte-check`](npm/svelte-check) | [`svelte-check`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) CLI | 🟡 In progress (walker + overlay + tsgo backend) |
+| [`@rsvelte/vite-plugin-svelte`](https://github.com/baseballyama/vite-plugin-svelte/tree/rsvelte) | [`@sveltejs/vite-plugin-svelte`](https://github.com/sveltejs/vite-plugin-svelte) | 🟡 Fork that swaps in the Rust compiler |
+| [`@rsvelte/vite-plugin-svelte-native`](npm/vite-plugin-svelte-native) | — | NAPI bindings consumed by the Vite plugin |
+
+See [`docs/ecosystem-implementation-plan.md`](docs/ecosystem-implementation-plan.md) for the full ecosystem port plan.
+
 ## Quick Start
 
 ### Node.js
