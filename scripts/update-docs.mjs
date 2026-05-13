@@ -25,7 +25,7 @@ const rootDir = path.resolve(__dirname, '..');
 function getSvelteCommitHash() {
 	try {
 		const result = execSync('git rev-parse HEAD', {
-			cwd: path.join(rootDir, 'svelte'),
+			cwd: path.join(rootDir, 'submodules', 'svelte'),
 			encoding: 'utf-8'
 		});
 		return result.trim();

@@ -17,19 +17,66 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: true
+          submodules: recursive
 
-      - name: Setup Rust
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
-      - name: Generate test results
-        run: cargo run --release --bin test_reporter -- --output docs/static/test-results.json
+      - name: Resolve Svelte submodule SHA
+        id: svelte-sha
+        shell: bash
+        run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache fixtures
+        uses: actions/cache@v4
+        with:
+          # Mirrors the cache used by CI (`.github/workflows/ci.yml`) so that
+          # the deploy job reuses generated fixtures when the Svelte submodule
+          # SHA is unchanged. Keep the key version (`v2`) in sync with CI.
+          path: fixtures
+          key: fixtures-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
+
+      - name: Build Svelte compiler
+        # `generate-fixtures` and `compatibility-report` both import directly
+        # from the Svelte submodule; its workspace deps (acorn, magic-string,
+        # …) must be installed first.
+        run: |
+          cd submodules/svelte
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Generate fixtures
+        run: pnpm run generate-fixtures
+        timeout-minutes: 15
+
+      - name: Generate compatibility report
+        # Writes `fixtures/{svelte-short-commit}/compatibility-report.json`,
+        # which `scripts/update-docs.mjs` then converts into
+        # `docs/static/test-results.json` for the progress dashboard.
+        run: pnpm run compatibility-report
+        timeout-minutes: 30
+        env:
+          RUST_MIN_STACK: '33554432'
+
+      - name: Update docs test-results.json
+        run: node scripts/update-docs.mjs
 
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
@@ -37,19 +84,14 @@ jobs:
       - name: Build WASM
         run: wasm-pack build --target web --no-default-features --features wasm
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Setup Node.js
+      - name: Setup pnpm cache for docs
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'pnpm'
           cache-dependency-path: docs/pnpm-lock.yaml
 
-      - name: Install dependencies
+      - name: Install docs dependencies
         working-directory: docs
         run: pnpm install --frozen-lockfile
 
