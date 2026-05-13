@@ -3752,9 +3752,16 @@ pub(crate) fn strip_arrow_function_parens(s: String) -> String {
     // bytes (0x80..=0xBF) can never collide with ASCII bytes — so byte-level
     // string-boundary tracking is safe even when the generated code contains
     // non-ASCII characters inside string/template literals.
+    //
+    // `result` is lazily allocated on the first strip. `memmem::find` above
+    // confirms `(() =>` appears somewhere, but in plenty of inputs every match
+    // is shadowed (inside a string literal, immediately followed by `(` so it's
+    // an IIFE, or preceded by an identifier so it's a call argument). Deferring
+    // the `String::with_capacity` until we actually strip avoids a wasted
+    // heap allocation in the "false-positive memmem hit" case.
     let bytes = s.as_bytes();
     let len = bytes.len();
-    let mut result = String::with_capacity(s.len());
+    let mut result: Option<String> = None;
     let mut last_copied: usize = 0;
     let mut i: usize = 0;
     let mut in_string = false;
@@ -3860,6 +3867,7 @@ pub(crate) fn strip_arrow_function_parens(s: String) -> String {
                         // Slicing on `&s` is byte-indexed but the cut points
                         // (`i`, `i+1`, `j`, `j+1`) are all ASCII delimiters, so
                         // slices are guaranteed to land on UTF-8 char boundaries.
+                        let result = result.get_or_insert_with(|| String::with_capacity(s.len()));
                         result.push_str(&s[last_copied..i]);
                         result.push_str(&s[inner_start..j]);
                         last_copied = j + 1;
@@ -3873,10 +3881,10 @@ pub(crate) fn strip_arrow_function_parens(s: String) -> String {
         i += 1;
     }
 
-    if last_copied == 0 {
-        // No strip happened — return the original string without any copy.
+    // `result` was never initialized → no strip happened, return `s` unchanged.
+    let Some(mut result) = result else {
         return s;
-    }
+    };
     if last_copied < len {
         result.push_str(&s[last_copied..]);
     }
