@@ -16,18 +16,14 @@
 //! let ast = parse(source, ParseOptions::default()).unwrap();
 //! ```
 
-// Use jemalloc as the global allocator for better multi-threaded performance.
-// `tikv-jemallocator` doesn't ship a Windows backend, so the dependency itself
-// is target-gated in Cargo.toml — mirror the same exclusion here so the
-// `feature = "jemalloc"` gate doesn't try to reference an unlinked crate on
-// Windows targets when the default features are enabled.
-#[cfg(all(
-    feature = "jemalloc",
-    not(target_arch = "wasm32"),
-    not(target_os = "windows")
-))]
-#[global_allocator]
-static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+// `#[global_allocator]` deliberately lives in each binary entry point
+// (src/main.rs, src/bin/*.rs) and in the napi cdylib root (src/napi.rs)
+// rather than here. Defining it in the lib root causes a duplicate
+// `#[global_allocator]` symbol when the lib is built with both `cdylib`
+// and `rlib` crate-types and a downstream bin links against both copies —
+// cargo issue rust-lang/cargo#6313. The system-allocator fallback for the
+// rlib path is intentional; everything that actually runs in production
+// (the napi/cdylib, the bins) installs jemalloc itself.
 
 pub mod ast;
 pub mod compiler;

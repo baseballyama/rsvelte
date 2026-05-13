@@ -3,6 +3,21 @@
 //! This module provides Node.js native addon bindings via napi-rs,
 //! allowing the Rust Svelte compiler to be used from JavaScript/TypeScript.
 
+// Jemalloc is installed here (rather than at the lib root) so that the
+// rlib doesn't carry a `#[global_allocator]` symbol — which collides with
+// the cdylib's copy on Linux + fat LTO when a downstream bin links against
+// both crate-type outputs (cargo issue rust-lang/cargo#6313). This module
+// is only compiled when the `napi` feature is on, so the rlib stays clean
+// for normal builds, and the cdylib gets jemalloc when it ships as the
+// NAPI prebuilt.
+#[cfg(all(
+    feature = "jemalloc",
+    not(target_arch = "wasm32"),
+    not(target_os = "windows")
+))]
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 use napi::Env;
 use napi_derive::napi;
 use serde_json::Value;
