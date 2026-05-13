@@ -403,11 +403,19 @@ impl MagicString {
         // Preserve intro of first chunk, but clear its outro – the last chunk's outro is kept.
         self.chunks[first].outro.clear();
 
-        let mut cur = self.chunks[first].next;
-        while let Some(ci) = cur {
-            if self.chunks[ci].start >= end {
-                break;
-            }
+        // Walk by ORIGINAL position (via `by_start` lookups on the previous
+        // chunk's `end`), not via `chunks[ci].next`. After a `move_range`
+        // call the linked list can interleave chunks whose original ranges
+        // lie outside `[start, end)`, but `by_start` still maps the
+        // contiguous original layout — so position-based traversal only
+        // touches chunks whose source range is genuinely inside this
+        // overwrite.
+        let mut cur_end = self.chunks[first].end;
+        while cur_end < end {
+            let ci = match self.by_start.get(&cur_end) {
+                Some(&i) => i,
+                None => break,
+            };
             self.chunks[ci].content.clear();
             self.chunks[ci].edited = true;
             self.chunks[ci].intro.clear();
@@ -416,7 +424,7 @@ impl MagicString {
                 break;
             }
             self.chunks[ci].outro.clear();
-            cur = self.chunks[ci].next;
+            cur_end = self.chunks[ci].end;
         }
 
         self
@@ -435,21 +443,19 @@ impl MagicString {
         self.split_at(start);
         self.split_at(end);
 
-        let first = *self
-            .by_start
-            .get(&start)
-            .expect("remove: no chunk at start");
-
-        let mut cur = Some(first);
-        while let Some(ci) = cur {
-            if self.chunks[ci].start >= end {
-                break;
-            }
+        // Walk by original position (see comment in `overwrite`) so chunks
+        // relocated via `move_range` aren't incorrectly cleared.
+        let mut cur_start = start;
+        while cur_start < end {
+            let ci = match self.by_start.get(&cur_start) {
+                Some(&i) => i,
+                None => break,
+            };
             self.chunks[ci].content.clear();
             self.chunks[ci].edited = true;
             self.chunks[ci].intro.clear();
             self.chunks[ci].outro.clear();
-            cur = self.chunks[ci].next;
+            cur_start = self.chunks[ci].end;
         }
 
         self

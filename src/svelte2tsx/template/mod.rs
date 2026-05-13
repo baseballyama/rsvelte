@@ -838,7 +838,7 @@ fn handle_each_block(
                 prefix, context_text
             ),
             {
-                let mut s = format!("))){{{}", suffix);
+                let mut s = format!(")){{{}", suffix);
                 if let Some(ref index) = block.index {
                     s.push_str(&format!("let {} = 1;", index));
                 }
