@@ -37,7 +37,7 @@
 		editor = monaco.editor.create(container, {
 			value,
 			language,
-			theme: 'svelte-dark',
+			theme: 'svelte-cream',
 			readOnly: readonly,
 			automaticLayout: true,
 			minimap: { enabled: false },
@@ -177,12 +177,11 @@
 	}
 
 	:global(.highlighted-range) {
-		background-color: rgba(255, 107, 53, 0.2) !important;
-		border: 1px solid rgba(255, 107, 53, 0.5);
-		border-radius: 3px;
+		background-color: rgba(255, 62, 0, 0.14) !important;
+		border-bottom: 1px solid rgba(255, 62, 0, 0.55);
 	}
 
 	:global(.highlighted-range-inline) {
-		background-color: rgba(255, 107, 53, 0.3) !important;
+		background-color: rgba(255, 62, 0, 0.22) !important;
 	}
 </style>

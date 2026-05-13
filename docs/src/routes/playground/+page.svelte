@@ -732,41 +732,8 @@
 		color: var(--ink);
 	}
 
-	/* Hose AstViewer's dark theme so it reads on cream. The component owns
-	   most of its layout; we just override colors and typography to match
-	   the editorial palette. */
-	.ast-host :global(.ast-viewer) {
-		background: var(--bg);
-		color: var(--ink);
-		font-family: var(--mono);
-		padding: 1rem 1.25rem;
-	}
-
-	.ast-host :global(.ast-node) {
-		font-family: var(--mono);
-		color: var(--ink);
-	}
-
-	.ast-host :global(.ast-node .key) {
-		color: var(--ink);
-	}
-
-	.ast-host :global(.ast-node .string) {
-		color: var(--accent-deep);
-	}
-
-	.ast-host :global(.ast-node .number) {
-		color: var(--accent);
-	}
-
-	.ast-host :global(.ast-node .boolean),
-	.ast-host :global(.ast-node .null) {
-		color: var(--ink-soft);
-	}
-
-	.ast-host :global(.ast-node.highlighted) {
-		background: rgba(255, 62, 0, 0.12);
-	}
+	/* AstViewer reads the page's CSS variables and themes itself; we only
+	   provide the scroll container here. */
 
 	@media (max-width: 1100px) {
 		.workspace {

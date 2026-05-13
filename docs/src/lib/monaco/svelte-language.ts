@@ -303,33 +303,63 @@ export const svelteTokensProvider: Monaco.languages.IMonarchLanguage = {
 	}
 };
 
-export const svelteDarkTheme: Monaco.editor.IStandaloneThemeData = {
-	base: 'vs-dark',
+export const svelteCreamTheme: Monaco.editor.IStandaloneThemeData = {
+	base: 'vs',
 	inherit: true,
 	rules: [
-		{ token: 'keyword.svelte', foreground: 'FF6B35', fontStyle: 'bold' },
-		{ token: 'keyword.svelte.rune', foreground: 'FF9F1C', fontStyle: 'bold' },
-		{ token: 'tag', foreground: '569CD6' },
-		{ token: 'attribute.name', foreground: '9CDCFE' },
-		{ token: 'attribute.name.svelte', foreground: 'FF9F1C' },
-		{ token: 'attribute.value', foreground: 'CE9178' },
-		{ token: 'delimiter.curly', foreground: 'FFD93D' },
-		{ token: 'keyword.js', foreground: 'C586C0' },
-		{ token: 'keyword.type', foreground: '4EC9B0' },
-		{ token: 'string', foreground: 'CE9178' },
-		{ token: 'number', foreground: 'B5CEA8' },
-		{ token: 'comment.html', foreground: '6A9955' },
-		{ token: 'operator', foreground: 'D4D4D4' },
-		{ token: 'identifier', foreground: '9CDCFE' }
+		{ token: 'keyword.svelte', foreground: 'C52F00', fontStyle: 'bold' },
+		{ token: 'keyword.svelte.rune', foreground: 'FF3E00', fontStyle: 'bold' },
+		{ token: 'tag', foreground: '3A2A1A' },
+		{ token: 'attribute.name', foreground: '1A1612' },
+		{ token: 'attribute.name.svelte', foreground: 'C52F00' },
+		{ token: 'attribute.value', foreground: '7A4520' },
+		{ token: 'delimiter.curly', foreground: '7A7062' },
+		{ token: 'delimiter.parenthesis', foreground: '7A7062' },
+		{ token: 'delimiter.square', foreground: '7A7062' },
+		{ token: 'delimiter.angle', foreground: '7A7062' },
+		{ token: 'delimiter', foreground: '7A7062' },
+		{ token: 'keyword.js', foreground: '5A3A8A' },
+		{ token: 'keyword.type', foreground: '1D5D4A' },
+		{ token: 'string', foreground: '7A4520' },
+		{ token: 'string.escape', foreground: 'C52F00' },
+		{ token: 'number', foreground: '2E5A3A' },
+		{ token: 'number.float', foreground: '2E5A3A' },
+		{ token: 'number.hex', foreground: '2E5A3A' },
+		{ token: 'comment', foreground: '9A8B75', fontStyle: 'italic' },
+		{ token: 'comment.html', foreground: '9A8B75', fontStyle: 'italic' },
+		{ token: 'operator', foreground: '1A1612' },
+		{ token: 'identifier', foreground: '1A1612' }
 	],
 	colors: {
-		'editor.background': '#1a1a2e',
-		'editor.foreground': '#D4D4D4',
-		'editor.lineHighlightBackground': '#16213e',
-		'editorLineNumber.foreground': '#858585',
-		'editorLineNumber.activeForeground': '#C6C6C6',
-		'editor.selectionBackground': '#264F78',
-		'editor.inactiveSelectionBackground': '#3A3D41'
+		'editor.background': '#F1E8D6',
+		'editor.foreground': '#1A1612',
+		'editor.lineHighlightBackground': '#E6DAC1',
+		'editor.lineHighlightBorder': '#00000000',
+		'editorLineNumber.foreground': '#B8AB93',
+		'editorLineNumber.activeForeground': '#7A7062',
+		'editor.selectionBackground': '#FF3E0033',
+		'editor.inactiveSelectionBackground': '#1A161214',
+		'editorCursor.foreground': '#FF3E00',
+		'editorWhitespace.foreground': '#1A161214',
+		'editorIndentGuide.background': '#1A16120F',
+		'editorIndentGuide.activeBackground': '#1A161229',
+		'editorBracketMatch.background': '#FF3E0020',
+		'editorBracketMatch.border': '#FF3E0080',
+		'scrollbar.shadow': '#00000000',
+		'scrollbarSlider.background': '#1A161220',
+		'scrollbarSlider.hoverBackground': '#1A161240',
+		'scrollbarSlider.activeBackground': '#1A161260',
+		'editorGutter.background': '#F1E8D6',
+		'editorWidget.background': '#E6DAC1',
+		'editorWidget.border': '#1A161229',
+		'editorSuggestWidget.background': '#E6DAC1',
+		'editorSuggestWidget.border': '#1A161229',
+		'editorSuggestWidget.foreground': '#1A1612',
+		'editorSuggestWidget.selectedBackground': '#FF3E0020',
+		'editorSuggestWidget.highlightForeground': '#C52F00',
+		'editorHoverWidget.background': '#E6DAC1',
+		'editorHoverWidget.border': '#1A161229',
+		'editorOverviewRuler.border': '#00000000'
 	}
 };
 
@@ -344,5 +374,5 @@ export function registerSvelteLanguage(monaco: typeof Monaco): void {
 	monaco.languages.setMonarchTokensProvider(SVELTE_LANGUAGE_ID, svelteTokensProvider);
 
 	// Define and apply theme
-	monaco.editor.defineTheme('svelte-dark', svelteDarkTheme);
+	monaco.editor.defineTheme('svelte-cream', svelteCreamTheme);
 }

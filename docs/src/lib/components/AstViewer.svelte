@@ -215,14 +215,25 @@
 
 <style>
 	.ast-viewer {
-		font-family: 'JetBrains Mono', 'Fira Code', monospace;
-		font-size: 13px;
-		line-height: 1.5;
-		padding: 1rem;
+		/* Inherit the editorial palette from the surrounding page when present,
+		   but fall back to a self-contained cream theme so the component is
+		   legible in isolation. */
+		--ast-bg: var(--bg, #f1e8d6);
+		--ast-ink: var(--ink, #1a1612);
+		--ast-ink-soft: var(--ink-soft, #7a7062);
+		--ast-ink-faint: var(--ink-faint, #b8ab93);
+		--ast-accent: var(--accent, #ff3e00);
+		--ast-accent-deep: var(--accent-deep, #c52f00);
+		--ast-hairline: var(--hairline, rgba(26, 22, 18, 0.16));
+
+		font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+		font-size: 12.5px;
+		line-height: 1.65;
+		padding: 1.1rem 1.4rem 2rem;
 		overflow: auto;
 		height: 100%;
-		background: #1a1a2e;
-		color: #e4e4e7;
+		background: transparent;
+		color: var(--ast-ink);
 	}
 
 	.node {
@@ -230,32 +241,31 @@
 	}
 
 	.node.highlighted {
-		background: rgba(255, 107, 53, 0.08);
-		border-radius: 4px;
-		margin: -2px;
-		padding: 2px;
+		background: rgba(255, 62, 0, 0.1);
+		margin: -1px -4px;
+		padding: 1px 4px;
 	}
 
 	.node.highlighted.has-position {
-		border-left: 1px solid rgba(255, 107, 53, 0.5);
-		padding-left: 6px;
+		box-shadow: inset 2px 0 0 var(--ast-accent);
 	}
 
 	.toggle {
 		background: none;
 		border: none;
-		color: #888;
+		color: var(--ast-ink-faint);
 		cursor: pointer;
 		padding: 0;
 		margin-right: 4px;
-		font-size: 10px;
+		font-size: 9px;
 		width: 14px;
 		display: inline-block;
 		text-align: center;
+		transition: color 0.15s ease;
 	}
 
 	.toggle:hover {
-		color: #ff6b35;
+		color: var(--ast-accent);
 	}
 
 	.node-header {
@@ -274,38 +284,43 @@
 
 	.node-header.clickable {
 		cursor: pointer;
-		border-radius: 3px;
 		padding: 1px 4px;
 		margin: -1px -4px;
+		border-radius: 2px;
+		transition: background 0.15s ease;
 	}
 
 	.node-header.clickable:hover {
-		background: rgba(255, 107, 53, 0.2);
+		background: rgba(255, 62, 0, 0.12);
 	}
 
 	.preview {
-		color: #4ec9b0;
-		font-weight: 500;
+		color: var(--ast-accent-deep);
+		font-weight: 600;
+		letter-spacing: 0.005em;
 	}
 
 	.position {
-		color: #888;
-		font-size: 11px;
+		color: var(--ast-ink-faint);
+		font-size: 10.5px;
 		margin-left: 8px;
+		font-variant-numeric: tabular-nums;
+		letter-spacing: 0.04em;
 	}
 
 	.children {
-		margin-left: 20px;
-		border-left: 1px solid #333;
-		padding-left: 8px;
+		margin-left: 14px;
+		border-left: 1px solid var(--ast-hairline);
+		padding-left: 12px;
 	}
 
 	.entry {
-		margin: 2px 0;
+		margin: 1px 0;
 	}
 
 	.key {
-		color: #9cdcfe;
+		color: #5a3a8a;
+		font-weight: 500;
 	}
 
 	.value {
@@ -313,25 +328,30 @@
 	}
 
 	.primitive.string {
-		color: #ce9178;
+		color: #7a4520;
 	}
 
 	.primitive.number {
-		color: #b5cea8;
+		color: #2e5a3a;
+		font-variant-numeric: tabular-nums;
 	}
 
 	.primitive.boolean {
-		color: #569cd6;
+		color: #5a3a8a;
 	}
 
 	.null {
-		color: #569cd6;
+		color: var(--ast-ink-soft);
 		font-style: italic;
 	}
 
 	.empty {
-		color: #888;
+		color: var(--ast-ink-soft);
 		text-align: center;
-		padding: 2rem;
+		padding: 2.5rem 1rem;
+		font-family: 'Fraunces', Georgia, serif;
+		font-style: italic;
+		font-size: 1.05rem;
+		letter-spacing: -0.01em;
 	}
 </style>
