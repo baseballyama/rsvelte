@@ -3746,73 +3746,95 @@ pub(crate) fn strip_arrow_function_parens(s: String) -> String {
         return s;
     }
 
-    let chars: Vec<char> = s.chars().collect();
-    let len = chars.len();
+    // Byte-level scan: copy untouched ranges via slice copies instead of per-char
+    // appends, and skip the up-front `Vec<char>` allocation entirely. JS string
+    // delimiters and the `(() =>` token are all ASCII, and UTF-8 continuation
+    // bytes (0x80..=0xBF) can never collide with ASCII bytes — so byte-level
+    // string-boundary tracking is safe even when the generated code contains
+    // non-ASCII characters inside string/template literals.
+    let bytes = s.as_bytes();
+    let len = bytes.len();
     let mut result = String::with_capacity(s.len());
-    let mut i = 0;
+    let mut last_copied: usize = 0;
+    let mut i: usize = 0;
     let mut in_string = false;
-    let mut string_char = ' ';
+    let mut string_char: u8 = 0;
 
     while i < len {
-        let c = chars[i];
+        let c = bytes[i];
 
-        // Track string boundaries
         if in_string {
-            if c == '\\' && i + 1 < len {
-                result.push(c);
-                result.push(chars[i + 1]);
+            if c == b'\\' && i + 1 < len {
                 i += 2;
                 continue;
             }
             if c == string_char {
                 in_string = false;
             }
-            result.push(c);
             i += 1;
             continue;
         }
-        if c == '"' || c == '\'' || c == '`' {
+        if c == b'"' || c == b'\'' || c == b'`' {
             in_string = true;
             string_char = c;
-            result.push(c);
             i += 1;
             continue;
         }
 
-        // Look for `(() =>` pattern - but only when `(` is NOT a function call.
-        // If preceded by an identifier char, `)`, or `]`, it's a call, not wrapping parens.
-        if c == '(' && i + 5 < len {
-            let prev_is_call = {
-                let mut k = if i > 0 { i - 1 } else { 0 };
-                while k > 0 && chars[k].is_whitespace() {
+        // Look for `(() =>` pattern — only when `(` is NOT a function call.
+        // We need 6 bytes starting at i: `(`, `(`, `)`, ` `, `=`, `>`.
+        if c == b'('
+            && i + 5 < len
+            && bytes[i + 1] == b'('
+            && bytes[i + 2] == b')'
+            && bytes[i + 3] == b' '
+            && bytes[i + 4] == b'='
+            && bytes[i + 5] == b'>'
+        {
+            // Skip ASCII whitespace before `(` to find the effective prev char.
+            let mut k = i;
+            while k > 0 {
+                let pb = bytes[k - 1];
+                if pb == b' ' || pb == b'\t' || pb == b'\n' || pb == b'\r' {
                     k -= 1;
+                } else {
+                    break;
                 }
-                let pc = if i > 0 { chars[k] } else { ' ' };
-                i > 0 && (pc.is_alphanumeric() || pc == '_' || pc == '$' || pc == ')' || pc == ']')
+            }
+            // Treat any non-ASCII byte conservatively as part of an identifier
+            // (matches `is_alphanumeric()`'s Unicode-aware behavior closely
+            //  enough for the codegen output we see in practice).
+            let prev_is_call = k > 0 && {
+                let pb = bytes[k - 1];
+                pb.is_ascii_alphanumeric()
+                    || pb == b'_'
+                    || pb == b'$'
+                    || pb == b')'
+                    || pb == b']'
+                    || pb >= 0x80
             };
-            let ahead: String = chars[i + 1..std::cmp::min(i + 7, len)].iter().collect();
-            if !prev_is_call && ahead.starts_with("() =>") {
-                // Find the matching `)` for the outer parens
+            if !prev_is_call {
+                // Find the matching `)` for the outer parens.
                 let inner_start = i + 1;
-                let mut depth = 1;
+                let mut depth: i32 = 1;
                 let mut j = inner_start;
                 let mut j_in_string = false;
-                let mut j_string_char = ' ';
+                let mut j_string_char: u8 = 0;
                 while j < len && depth > 0 {
-                    let jc = chars[j];
+                    let jc = bytes[j];
                     if j_in_string {
-                        if jc == '\\' {
+                        if jc == b'\\' {
                             j += 1;
                         } else if jc == j_string_char {
                             j_in_string = false;
                         }
-                    } else if jc == '"' || jc == '\'' || jc == '`' {
+                    } else if jc == b'"' || jc == b'\'' || jc == b'`' {
                         j_in_string = true;
                         j_string_char = jc;
                     } else {
                         match jc {
-                            '(' => depth += 1,
-                            ')' => depth -= 1,
+                            b'(' => depth += 1,
+                            b')' => depth -= 1,
                             _ => {}
                         }
                     }
@@ -3820,20 +3842,27 @@ pub(crate) fn strip_arrow_function_parens(s: String) -> String {
                         j += 1;
                     }
                 }
-                // j is at the closing `)` of the outer parens
+                // j is now at the closing `)` of the outer parens (or past end).
                 if depth == 0 {
-                    // Check that `)` is NOT followed by `(` (which would be an IIFE)
-                    let next_non_ws = {
-                        let mut k = j + 1;
-                        while k < len && chars[k].is_whitespace() {
-                            k += 1;
+                    // Check that `)` is NOT followed by `(` (which would be an IIFE).
+                    let mut k2 = j + 1;
+                    while k2 < len {
+                        let kb = bytes[k2];
+                        if kb == b' ' || kb == b'\t' || kb == b'\n' || kb == b'\r' {
+                            k2 += 1;
+                        } else {
+                            break;
                         }
-                        if k < len { Some(chars[k]) } else { None }
-                    };
-                    if next_non_ws != Some('(') {
-                        // Safe to strip the outer parens
-                        let inner: String = chars[inner_start..j].iter().collect();
-                        result.push_str(&inner);
+                    }
+                    let next_non_ws = if k2 < len { Some(bytes[k2]) } else { None };
+                    if next_non_ws != Some(b'(') {
+                        // Safe to strip the outer parens.
+                        // Slicing on `&s` is byte-indexed but the cut points
+                        // (`i`, `i+1`, `j`, `j+1`) are all ASCII delimiters, so
+                        // slices are guaranteed to land on UTF-8 char boundaries.
+                        result.push_str(&s[last_copied..i]);
+                        result.push_str(&s[inner_start..j]);
+                        last_copied = j + 1;
                         i = j + 1;
                         continue;
                     }
@@ -3841,8 +3870,15 @@ pub(crate) fn strip_arrow_function_parens(s: String) -> String {
             }
         }
 
-        result.push(c);
         i += 1;
+    }
+
+    if last_copied == 0 {
+        // No strip happened — return the original string without any copy.
+        return s;
+    }
+    if last_copied < len {
+        result.push_str(&s[last_copied..]);
     }
 
     result
