@@ -69,8 +69,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -180,8 +178,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
