@@ -11,7 +11,7 @@ const config = {
 			fallback: 'index.html'
 		}),
 		paths: {
-			base: dev ? '' : '/svelte-compiler-rust'
+			base: dev ? '' : '/rsvelte'
 		}
 	}
 };
