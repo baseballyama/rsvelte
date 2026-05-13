@@ -5,6 +5,9 @@ edition = "2024"
 rust-version = "1.90"
 description = "A high-performance Rust implementation of the Svelte compiler"
 license = "MIT"
+repository = "https://github.com/baseballyama/rsvelte"
+homepage = "https://github.com/baseballyama/rsvelte"
+keywords = ["svelte", "compiler", "wasm"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

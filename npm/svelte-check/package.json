@@ -1,0 +1,38 @@
+{
+  "name": "@rsvelte/svelte-check",
+  "version": "0.1.0",
+  "description": "Rust-powered svelte-check CLI — type-checks and diagnoses Svelte projects",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baseballyama/rsvelte.git",
+    "directory": "npm/svelte-check"
+  },
+  "homepage": "https://github.com/baseballyama/rsvelte/tree/main/npm/svelte-check#readme",
+  "bugs": {
+    "url": "https://github.com/baseballyama/rsvelte/issues"
+  },
+  "keywords": [
+    "svelte",
+    "svelte-check",
+    "type-check",
+    "cli",
+    "rust"
+  ],
+  "bin": {
+    "svelte-check": "bin/svelte-check.cjs"
+  },
+  "files": [
+    "bin/svelte-check.cjs"
+  ],
+  "optionalDependencies": {
+    "@rsvelte/svelte-check-darwin-arm64": "workspace:^",
+    "@rsvelte/svelte-check-darwin-x64": "workspace:^",
+    "@rsvelte/svelte-check-linux-arm64-gnu": "workspace:^",
+    "@rsvelte/svelte-check-linux-x64-gnu": "workspace:^",
+    "@rsvelte/svelte-check-win32-x64-msvc": "workspace:^"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

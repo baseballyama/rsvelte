@@ -1,0 +1,24 @@
+{
+  "name": "@rsvelte/compiler",
+  "version": "0.1.0",
+  "description": "A high-performance Rust implementation of the Svelte compiler",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baseballyama/rsvelte.git"
+  },
+  "homepage": "https://github.com/baseballyama/rsvelte#readme",
+  "bugs": {
+    "url": "https://github.com/baseballyama/rsvelte/issues"
+  },
+  "keywords": [
+    "svelte",
+    "compiler",
+    "rust",
+    "wasm"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "directory": "../../pkg"
+  }
+}

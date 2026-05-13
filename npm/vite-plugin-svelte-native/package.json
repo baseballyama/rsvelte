@@ -1,0 +1,38 @@
+{
+  "name": "@rsvelte/vite-plugin-svelte-native",
+  "version": "0.1.0",
+  "description": "NAPI bindings to the rsvelte compiler — used by the @rsvelte vite-plugin-svelte shim",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baseballyama/rsvelte.git",
+    "directory": "npm/vite-plugin-svelte-native"
+  },
+  "homepage": "https://github.com/baseballyama/rsvelte/tree/main/npm/vite-plugin-svelte-native#readme",
+  "bugs": {
+    "url": "https://github.com/baseballyama/rsvelte/issues"
+  },
+  "keywords": [
+    "svelte",
+    "vite",
+    "vite-plugin",
+    "rust",
+    "napi"
+  ],
+  "main": "./index.cjs",
+  "types": "./index.d.ts",
+  "files": [
+    "index.cjs",
+    "index.d.ts"
+  ],
+  "optionalDependencies": {
+    "@rsvelte/vite-plugin-svelte-native-darwin-arm64": "workspace:^",
+    "@rsvelte/vite-plugin-svelte-native-darwin-x64": "workspace:^",
+    "@rsvelte/vite-plugin-svelte-native-linux-arm64-gnu": "workspace:^",
+    "@rsvelte/vite-plugin-svelte-native-linux-x64-gnu": "workspace:^",
+    "@rsvelte/vite-plugin-svelte-native-win32-x64-msvc": "workspace:^"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

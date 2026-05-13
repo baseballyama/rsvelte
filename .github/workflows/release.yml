@@ -1,0 +1,222 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+# Required by changesets/action: write to contents (commit version PR, push tags),
+# write to pull-requests (open the "Version Packages" PR), and id-token: write
+# is left available so we can opt into npm provenance later if desired.
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Per-platform svelte-check binary builds. Each job uploads its rsvelte
+  # `svelte-check` artifact; the `release` job below downloads them all and
+  # stages them into the corresponding `npm/svelte-check-<triple>/` package
+  # directory before `changeset publish` runs. On the "Version Packages" PR
+  # cycle the staged binaries are unused — that's expected; we trade a few
+  # CI minutes for not having to detect publish vs. version-PR up front.
+  build-svelte-check:
+    name: Build svelte-check (${{ matrix.triple }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest, target: aarch64-apple-darwin, triple: darwin-arm64, ext: '' }
+          - { os: macos-latest, target: x86_64-apple-darwin, triple: darwin-x64, ext: '' }
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, ext: '' }
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, ext: '', apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, triple: win32-x64-msvc, ext: '.exe' }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cross-compile linker
+        if: matrix.apt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.apt }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: svelte-check-${{ matrix.target }}
+
+      - name: Build svelte-check
+        shell: bash
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
+        run: cargo build --release --bin svelte_check --target ${{ matrix.target }}
+
+      - name: Stage binary
+        shell: bash
+        run: |
+          mkdir -p stage
+          # cargo writes the binary as the bin's `name` field (`svelte_check`,
+          # with an underscore — Cargo doesn't translate the filename), but we
+          # ship it under the user-facing `svelte-check` name.
+          cp "target/${{ matrix.target }}/release/svelte_check${{ matrix.ext }}" \
+             "stage/svelte-check${{ matrix.ext }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: svelte-check-${{ matrix.triple }}
+          path: stage/svelte-check${{ matrix.ext }}
+          if-no-files-found: error
+          retention-days: 7
+
+  # Per-platform NAPI `.node` builds for @rsvelte/vite-plugin-svelte-native.
+  # Mirrors `build-svelte-check` but builds the crate's cdylib with the `napi`
+  # feature enabled, renames the platform dylib to `rsvelte.node`, and uploads
+  # it for the release job to stage into the matching platform package.
+  build-vps-native:
+    name: Build vps-native (${{ matrix.triple }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest, target: aarch64-apple-darwin, triple: darwin-arm64, dylib: libsvelte_compiler_rust.dylib }
+          - { os: macos-latest, target: x86_64-apple-darwin, triple: darwin-x64, dylib: libsvelte_compiler_rust.dylib }
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, dylib: libsvelte_compiler_rust.so }
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, dylib: libsvelte_compiler_rust.so, apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, triple: win32-x64-msvc, dylib: svelte_compiler_rust.dll }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cross-compile linker
+        if: matrix.apt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.apt }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: vps-native-${{ matrix.target }}
+
+      - name: Build NAPI cdylib
+        shell: bash
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
+          CC_aarch64_unknown_linux_gnu: ${{ matrix.linker }}
+        run: cargo build --release --features napi --lib --target ${{ matrix.target }}
+
+      - name: Stage .node binary
+        shell: bash
+        run: |
+          mkdir -p stage
+          cp "target/${{ matrix.target }}/release/${{ matrix.dylib }}" stage/rsvelte.node
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vps-native-${{ matrix.triple }}
+          path: stage/rsvelte.node
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: [build-svelte-check, build-vps-native]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so changesets can read the merge base when computing
+          # which packages need releasing.
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          # `pattern` matches both svelte-check-* and vps-native-* uploads —
+          # each artifact is unpacked into `artifacts/<name>/`.
+          pattern: '*'
+          path: artifacts
+
+      - name: Stage svelte-check binaries
+        run: pnpm run stage-svelte-check
+
+      - name: Stage vps-native binaries
+        run: pnpm run stage-vps-native
+
+      # changesets/action runs `pnpm publish` via the `publish` script when no
+      # changesets remain on main. pnpm authenticates against npmjs.org from
+      # ~/.npmrc, so we write the token there before the action runs.
+      - name: Configure npm auth
+        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create Release Pull Request or Publish
+        uses: changesets/action@v1
+        with:
+          # When the "Version Packages" PR is merged, this script runs:
+          # sync-version.mjs (version → Cargo.toml / Cargo.lock),
+          # wasm-pack build (regenerates pkg/ with the new version),
+          # finalize-pkg.mjs (rewrites pkg/package.json to @rsvelte/compiler),
+          # changeset publish (pnpm publish all workspace packages).
+          publish: pnpm run release
+          # When changesets exist on main, open/refresh a PR that runs:
+          # changeset version (bump versions, write CHANGELOG)
+          # + sync-version.mjs (mirror the bump into Cargo.toml/Cargo.lock)
+          version: pnpm run version-packages
+          commit: 'chore(release): version packages'
+          title: 'chore(release): version packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

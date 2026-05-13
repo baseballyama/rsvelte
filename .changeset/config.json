@@ -1,0 +1,28 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [
+    [
+      "@rsvelte/svelte-check",
+      "@rsvelte/svelte-check-darwin-arm64",
+      "@rsvelte/svelte-check-darwin-x64",
+      "@rsvelte/svelte-check-linux-arm64-gnu",
+      "@rsvelte/svelte-check-linux-x64-gnu",
+      "@rsvelte/svelte-check-win32-x64-msvc"
+    ],
+    [
+      "@rsvelte/vite-plugin-svelte-native",
+      "@rsvelte/vite-plugin-svelte-native-darwin-arm64",
+      "@rsvelte/vite-plugin-svelte-native-darwin-x64",
+      "@rsvelte/vite-plugin-svelte-native-linux-arm64-gnu",
+      "@rsvelte/vite-plugin-svelte-native-linux-x64-gnu",
+      "@rsvelte/vite-plugin-svelte-native-win32-x64-msvc"
+    ]
+  ],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": []
+}

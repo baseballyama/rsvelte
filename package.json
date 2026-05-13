@@ -1,6 +1,6 @@
 {
   "name": "svelte-compiler-rust-monorepo",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -25,9 +25,18 @@
     "verify-entities": "node scripts/verify-entities-compatibility.mjs",
     "test": "RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 RUST_MIN_STACK=33554432 cargo test",
     "test:single": "RUST_TEST_THREADS=1 RAYON_NUM_THREADS=1 RUST_MIN_STACK=33554432 cargo test",
-    "test:release": "RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 RUST_MIN_STACK=33554432 cargo test --release"
+    "test:release": "RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 RUST_MIN_STACK=33554432 cargo test --release",
+    "sync-version": "node scripts/sync-version.mjs",
+    "finalize-pkg": "node scripts/finalize-pkg.mjs",
+    "stage-svelte-check": "node scripts/stage-svelte-check-binaries.mjs",
+    "stage-vps-native": "node scripts/stage-vps-binaries.mjs",
+    "changeset": "changeset",
+    "version-packages": "changeset version && pnpm run sync-version",
+    "release": "pnpm run sync-version && pnpm run build:wasm && pnpm run finalize-pkg && changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.27.10",
     "oxfmt": "^0.23.0"
-  }
+  },
+  "packageManager": "pnpm@10.0.0"
 }
