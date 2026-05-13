@@ -298,7 +298,63 @@ export const svelteTokensProvider: Monaco.languages.IMonarchLanguage = {
 
 		style: [
 			[/<\/style\s*>/, { token: 'tag', next: '@pop' }],
-			[/./, 'style']
+			[/\/\*/, { token: 'comment.css', next: '@cssComment' }],
+			[/\{/, { token: 'delimiter.curly', next: '@cssBlock' }],
+			{ include: '@cssSelector' }
+		],
+
+		cssSelector: [
+			[/@[\w-]+/, 'keyword.css'],
+			[/\.[\w-]+/, 'attribute.name.css.class'],
+			[/#[\w-]+/, 'attribute.name.css.id'],
+			[/&/, 'keyword.css'],
+			[/::?[\w-]+/, 'attribute.name.css.pseudo'],
+			[/\[[^\]]*\]/, 'attribute.value.css'],
+			[/[\w-]+/, 'tag.css'],
+			[/[>+~,]/, 'operator.css'],
+			[/\*/, 'operator.css'],
+			[/[()]/, 'delimiter.parenthesis'],
+			[/"/, 'string', '@stringDouble'],
+			[/'/, 'string', '@stringSingle'],
+			[/\s+/, 'white'],
+			[/./, '']
+		],
+
+		cssBlock: [
+			[/\}/, { token: 'delimiter.curly', next: '@pop' }],
+			[/\/\*/, { token: 'comment.css', next: '@cssComment' }],
+			// nested rule: a selector followed by `{` (basic detection for `&:hover {` etc.)
+			[/(&[^;{}]*?)(\{)/, ['attribute.name.css.pseudo', { token: 'delimiter.curly', next: '@cssBlock' }]],
+			// property name followed by colon → switch to value state
+			[/([\w-]+)(\s*)(:)/, ['attribute.name.css', 'white', { token: 'delimiter', next: '@cssValue' }]],
+			[/;/, 'delimiter'],
+			[/\s+/, 'white'],
+			[/./, '']
+		],
+
+		cssValue: [
+			[/;/, { token: 'delimiter', next: '@pop' }],
+			[/(?=\})/, { token: '', next: '@pop' }],
+			[/\/\*/, { token: 'comment.css', next: '@cssComment' }],
+			[/"/, 'string', '@stringDouble'],
+			[/'/, 'string', '@stringSingle'],
+			[/!important\b/, 'keyword.css'],
+			[/#[0-9a-fA-F]{3,8}\b/, 'number.hex'],
+			[/[+-]?\d*\.\d+(?:[a-zA-Z%]+)?/, 'number.float'],
+			[/[+-]?\d+(?:[a-zA-Z%]+)?/, 'number'],
+			[/url\b/, 'keyword.css'],
+			[/[\w-]+(?=\s*\()/, 'attribute.value.css.function'],
+			[/[\w-]+/, 'attribute.value.css'],
+			[/[()]/, 'delimiter.parenthesis'],
+			[/,/, 'delimiter'],
+			[/[/*+]/, 'operator.css'],
+			[/\s+/, 'white'],
+			[/./, '']
+		],
+
+		cssComment: [
+			[/\*\//, { token: 'comment.css', next: '@pop' }],
+			[/./, 'comment.css']
 		]
 	}
 };
@@ -309,10 +365,19 @@ export const svelteCreamTheme: Monaco.editor.IStandaloneThemeData = {
 	rules: [
 		{ token: 'keyword.svelte', foreground: 'C52F00', fontStyle: 'bold' },
 		{ token: 'keyword.svelte.rune', foreground: 'FF3E00', fontStyle: 'bold' },
+		{ token: 'keyword.css', foreground: 'C52F00', fontStyle: 'bold' },
 		{ token: 'tag', foreground: '3A2A1A' },
+		{ token: 'tag.css', foreground: '5A3A8A' },
 		{ token: 'attribute.name', foreground: '1A1612' },
 		{ token: 'attribute.name.svelte', foreground: 'C52F00' },
+		{ token: 'attribute.name.css', foreground: '1D5D4A' },
+		{ token: 'attribute.name.css.class', foreground: 'C52F00' },
+		{ token: 'attribute.name.css.id', foreground: 'C52F00' },
+		{ token: 'attribute.name.css.pseudo', foreground: 'FF3E00', fontStyle: 'italic' },
 		{ token: 'attribute.value', foreground: '7A4520' },
+		{ token: 'attribute.value.css', foreground: '7A4520' },
+		{ token: 'attribute.value.css.function', foreground: '5A3A8A' },
+		{ token: 'operator.css', foreground: '7A7062' },
 		{ token: 'delimiter.curly', foreground: '7A7062' },
 		{ token: 'delimiter.parenthesis', foreground: '7A7062' },
 		{ token: 'delimiter.square', foreground: '7A7062' },
