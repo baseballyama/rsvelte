@@ -116,6 +116,14 @@ jobs:
           # Some fixtures (notably the compatibility_report harness) walk
           # deeply nested ASTs and overflow the default 8 MB thread stack.
           RUST_MIN_STACK: '33554432'
+          # Pin svelte-check golden tests to the TS 5.x bundled with the
+          # svelte submodule install above. Without this, `which("tsc")`
+          # in src/svelte_check/tsgo.rs picks up whatever tsc the runner
+          # image preinstalls — on ubuntu-latest that's a TS 6 pre-release
+          # that promotes `moduleResolution: "node"` to a hard TS5107
+          # error and bails out before emitting the user-source diagnostics
+          # the golden test verifies.
+          TSGO_BIN: ${{ github.workspace }}/submodules/svelte/node_modules/.bin/tsc
 
       - name: Collect failure artifacts
         if: failure()

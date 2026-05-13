@@ -71,6 +71,9 @@ jobs:
             -- --test-threads=2
         env:
           RUST_MIN_STACK: '33554432'
+          # Match CI's tsc pin; see .github/workflows/ci.yml for the
+          # background on why we point at the svelte submodule's TS 5.x.
+          TSGO_BIN: ${{ github.workspace }}/submodules/svelte/node_modules/.bin/tsc
 
       - name: Upload coverage report (artifact)
         uses: actions/upload-artifact@v4
