@@ -350,24 +350,27 @@ pub fn svelte2tsx(
                 .any(|&(s, e)| pos >= s && pos < e)
         };
 
-        let src_lower = source.to_lowercase();
+        // Direct case-sensitive substring search over the original source.
+        // The previous implementation called `source.to_lowercase()` once
+        // per call, allocating a full copy of the source for case-
+        // insensitive matching. Svelte HTML is lowercase in practice
+        // (the parser only recognises lowercase tags), so the lowercase
+        // copy is unnecessary overhead.
+        let bytes = source.as_bytes();
         let mut search_from = 0;
-        while let Some(style_start) = src_lower[search_from..].find("<style") {
-            let abs_start = search_from + style_start;
-            // Skip if inside a script tag
+        while let Some(rel) = source[search_from..].find("<style") {
+            let abs_start = search_from + rel;
             if is_inside_script(abs_start) {
                 search_from = abs_start + 1;
                 continue;
             }
-            // Skip if already blanked by the primary handler
             if is_already_blanked(abs_start) {
                 search_from = abs_start + 1;
                 continue;
             }
-            // Make sure it's a tag (next char is space, >, /, or newline)
             let after_tag = abs_start + 6;
-            if after_tag < source.len() {
-                let next_ch = source.as_bytes()[after_tag];
+            if after_tag < bytes.len() {
+                let next_ch = bytes[after_tag];
                 if next_ch == b' '
                     || next_ch == b'>'
                     || next_ch == b'\n'
@@ -375,11 +378,9 @@ pub fn svelte2tsx(
                     || next_ch == b'\t'
                     || next_ch == b'/'
                 {
-                    // Find the </style> closing tag
-                    if let Some(close_pos) = src_lower[abs_start..].find("</style>") {
-                        let abs_end = abs_start + close_pos + 8; // 8 = len("</style>")
+                    if let Some(close_off) = source[abs_start..].find("</style>") {
+                        let abs_end = abs_start + close_off + 8; // 8 = len("</style>")
                         let mut blank_end = abs_end as u32;
-                        let bytes = source.as_bytes();
                         while (blank_end as usize) < bytes.len() {
                             let b = bytes[blank_end as usize];
                             if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
@@ -1907,6 +1908,46 @@ fn node_end_pos(node: &crate::ast::template::TemplateNode) -> u32 {
     }
 }
 
+/// Conservative whole-word substring search. Returns `true` when `needle`
+/// appears in `haystack` with non-identifier bytes on either side. Used as
+/// a fast pre-filter before an expensive AST parse — false positives waste
+/// a few microseconds, but false negatives must be impossible, which holds
+/// because any real `import` or `await` statement contains those exact
+/// bytes as a word.
+fn contains_word(haystack: &[u8], needle: &[u8]) -> bool {
+    if needle.is_empty() || haystack.len() < needle.len() {
+        return false;
+    }
+    let first = needle[0];
+    let mut i = 0;
+    while i + needle.len() <= haystack.len() {
+        let off = match memchr::memchr(first, &haystack[i..]) {
+            Some(o) => o,
+            None => return false,
+        };
+        let pos = i + off;
+        if pos + needle.len() > haystack.len() {
+            return false;
+        }
+        if &haystack[pos..pos + needle.len()] == needle {
+            let before_ok = pos == 0
+                || !(haystack[pos - 1].is_ascii_alphanumeric()
+                    || haystack[pos - 1] == b'_'
+                    || haystack[pos - 1] == b'$');
+            let after = pos + needle.len();
+            let after_ok = after == haystack.len()
+                || !(haystack[after].is_ascii_alphanumeric()
+                    || haystack[after] == b'_'
+                    || haystack[after] == b'$');
+            if before_ok && after_ok {
+                return true;
+            }
+        }
+        i = pos + 1;
+    }
+    false
+}
+
 /// Find the start of `</script>` tag by scanning backwards from the script end position.
 fn find_script_close_tag_start(source: &str, script_end: u32) -> u32 {
     let bytes = source.as_bytes();
@@ -1959,6 +2000,13 @@ fn find_instance_imports(
         .unwrap_or(script_source.len());
     let content_end = script.start as usize + close_tag_offset;
     let raw_content = &source[content_start..content_end];
+
+    // Fast path: an `import` substring is required for any import
+    // declaration to exist. Skip the OXC parse entirely for the majority
+    // of scripts that have no imports.
+    if !contains_word(raw_content.as_bytes(), b"import") {
+        return Vec::new();
+    }
 
     let allocator = Allocator::default();
     // Always use TypeScript source type for import detection.
@@ -2537,6 +2585,12 @@ fn detect_top_level_await(content: &str) -> bool {
     use oxc_ast::ast as oxc;
     use oxc_parser::Parser as OxcParser;
     use oxc_span::SourceType;
+
+    // Fast path: an `await` substring is required for any top-level await
+    // to exist. Skip the OXC parse entirely when the keyword is absent.
+    if !contains_word(content.as_bytes(), b"await") {
+        return false;
+    }
 
     let allocator = Allocator::default();
     let source_type = SourceType::ts().with_module(true);

@@ -1023,10 +1023,11 @@ pub fn process_instance_script(
                 basename,
             );
         }
-    });
 
-    // Inject store subscription declarations after export processing.
-    inject_store_subscriptions(script, source, str);
+        // Pass 5: store subscriptions. Reuses the already-parsed program
+        // so we don't re-parse the instance script content with OXC.
+        inject_store_subscriptions_with_program(program, offset, source, str);
+    });
 }
 
 /// Apply $$ComponentProps typedef transformations based on collected $props() info.
@@ -1254,22 +1255,29 @@ pub fn process_module_script(
 ) {
     // Module script exports are kept as-is (with the export keyword).
     // They are not component props and do not go into the return statement.
+    //
+    // Previously the module script was parsed up to three times (var-only
+    // store-subscription injection, type-assertion rewrite, name snapshot).
+    // Parse once and share the program across all three passes.
+    let offset = script.content_offset;
+    with_parsed_script(script, source, |program, raw_content| {
+        // Inject store subscriptions for module-level variable declarations
+        // only. Import-based store subscriptions are NOT injected here
+        // because they need to go inside the $$render function body.
+        inject_store_subscriptions_vars_only_with_program(program, offset, source, str);
 
-    // Inject store subscriptions for module-level variable declarations only.
-    // Import-based store subscriptions are NOT injected here because they need
-    // to go inside the $$render function body, which is handled separately.
-    inject_store_subscriptions_vars_only(script, source, str);
+        // Rewrite TypeScript angle-bracket type assertions (`<X>e`) into
+        // the `e as X` form. Inside the module script the rewrite is
+        // required because the generated `.tsx` parses the module-script
+        // body at top level, where `<X>e` would be lexed as JSX.
+        rewrite_module_script_type_assertions_with_program(
+            program,
+            raw_content,
+            offset as usize,
+            str,
+        );
 
-    // Rewrite TypeScript angle-bracket type assertions (`<X>e`) into the
-    // `e as X` form. Inside the module script the rewrite is required because
-    // the generated `.tsx` parses the module-script body at top level, where
-    // `<X>e` would be lexed as JSX. The instance-script body sits inside
-    // `function $$render() {...}` and the official compiler keeps angle-bracket
-    // assertions there as-is (mirrored by `process_instance_script_content`).
-    rewrite_module_script_type_assertions(script, source, str);
-
-    // Snapshot top-level module-script names for the snippet hoist analysis.
-    with_parsed_script(script, source, |program, _raw_content| {
+        // Snapshot top-level module-script names for the snippet hoist analysis.
         for stmt in program.body.iter() {
             match stmt {
                 oxc::Statement::ImportDeclaration(import) => {
@@ -1966,45 +1974,41 @@ fn rewrite_interface_to_type_dts(
     }
 }
 
-fn rewrite_module_script_type_assertions(script: &Script, source: &str, str: &mut MagicString) {
-    let content_offset = script.content_offset as usize;
-
-    with_parsed_script(script, source, |program, raw_content| {
-        let mut assertions: Vec<(u32, u32, u32, u32)> = Vec::new();
-        for stmt in program.body.iter() {
-            collect_ts_type_assertions_stmt(stmt, &mut assertions);
+/// Reuses an already-parsed module program (callers parse the module
+/// script once and pass the result here, avoiding a second OXC parse).
+fn rewrite_module_script_type_assertions_with_program(
+    program: &oxc::Program,
+    raw_content: &str,
+    content_offset: usize,
+    str: &mut MagicString,
+) {
+    let mut assertions: Vec<(u32, u32, u32, u32)> = Vec::new();
+    for stmt in program.body.iter() {
+        collect_ts_type_assertions_stmt(stmt, &mut assertions);
+    }
+    assertions.sort_by_key(|(start, end, _, _)| (*start, std::cmp::Reverse(*end)));
+    let mut last_end: u32 = 0;
+    for (start, end, type_start, type_end) in assertions {
+        if start < last_end {
+            continue;
         }
-        // Apply outermost-first so that overwriting an outer assertion replaces
-        // any inner ones with their already-converted text.
-        assertions.sort_by_key(|(start, end, _, _)| (*start, std::cmp::Reverse(*end)));
-        let mut last_end: u32 = 0;
-        for (start, end, type_start, type_end) in assertions {
-            // Skip ranges that are inside an already-rewritten outer one.
-            if start < last_end {
-                continue;
-            }
-            let type_text = &raw_content[type_start as usize..type_end as usize];
-            // The expression starts at `>` + maybe whitespace; we identify it as
-            // everything between `type_end` and the closing `>`.
-            // Find the `>` that closes the angle bracket (the next byte after
-            // `type_end` may be whitespace, then `>`).
-            let bytes = raw_content.as_bytes();
-            let mut gt_pos = type_end as usize;
-            while gt_pos < bytes.len() && bytes[gt_pos] != b'>' {
-                gt_pos += 1;
-            }
-            if gt_pos >= bytes.len() {
-                continue;
-            }
-            let expr_start = gt_pos + 1;
-            let expr_text = raw_content[expr_start..end as usize].trim_start();
-            let new_text = format!("{} as {}", expr_text, type_text);
-            let abs_start = (start as usize + content_offset) as u32;
-            let abs_end = (end as usize + content_offset) as u32;
-            str.overwrite(abs_start, abs_end, &new_text);
-            last_end = end;
+        let type_text = &raw_content[type_start as usize..type_end as usize];
+        let bytes = raw_content.as_bytes();
+        let mut gt_pos = type_end as usize;
+        while gt_pos < bytes.len() && bytes[gt_pos] != b'>' {
+            gt_pos += 1;
         }
-    });
+        if gt_pos >= bytes.len() {
+            continue;
+        }
+        let expr_start = gt_pos + 1;
+        let expr_text = raw_content[expr_start..end as usize].trim_start();
+        let new_text = format!("{} as {}", expr_text, type_text);
+        let abs_start = (start as usize + content_offset) as u32;
+        let abs_end = (end as usize + content_offset) as u32;
+        str.overwrite(abs_start, abs_end, &new_text);
+        last_end = end;
+    }
 }
 
 fn collect_ts_type_assertions_stmt(stmt: &oxc::Statement, out: &mut Vec<(u32, u32, u32, u32)>) {
@@ -3143,41 +3147,60 @@ const SVELTE_RUNES: &[&str] = &[
 /// - Member access like `obj.$store` (preceded by `.`)
 /// - String literals like `'$store'` or `"$store"` (preceded by `'` or `"`)
 fn collect_store_references(source: &str) -> HashSet<String> {
-    let re = Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_]*)").unwrap();
+    // Hand-rolled byte-level scan. The previous implementation compiled a
+    // regex on every call; using `memchr` to jump between `$` bytes is
+    // dramatically faster on the common script-free template (one SIMD
+    // pass returns `None`) and avoids per-match string allocations.
     let mut stores = HashSet::new();
-
-    for cap in re.captures_iter(source) {
-        let m = cap.get(0).unwrap();
-        let full_match = m.as_str();
-        let store_name = cap.get(1).unwrap().as_str();
-
-        // Check what character precedes the `$`
-        let start = m.start();
-        if start > 0 {
-            let prev_byte = source.as_bytes()[start - 1];
-            // Skip member access (obj.$store), string keys ('$store' or "$store")
-            if prev_byte == b'.' || prev_byte == b'\'' || prev_byte == b'"' {
-                continue;
-            }
-            // Skip identifiers that continue (e.g., `foo$bar`)
-            if prev_byte.is_ascii_alphanumeric() || prev_byte == b'_' {
-                continue;
-            }
+    let bytes = source.as_bytes();
+    let len = bytes.len();
+    let mut i = 0usize;
+    while let Some(off) = memchr::memchr(b'$', &bytes[i..]) {
+        let pos = i + off;
+        let next = pos + 1;
+        if next >= len {
+            break;
         }
-
-        // Skip reserved names
-        if RESERVED_STORE_NAMES.contains(&full_match) {
+        let nb = bytes[next];
+        // Skip `$$` prefixed names (like `$$props`).
+        if nb == b'$' {
+            i = next + 1;
             continue;
         }
-
-        // Skip `$$` prefixed names (like `$$props`)
-        if store_name.starts_with('$') {
+        // Skip member access, string keys, identifier continuations.
+        if pos > 0 {
+            let prev = bytes[pos - 1];
+            if prev == b'.'
+                || prev == b'\''
+                || prev == b'"'
+                || prev.is_ascii_alphanumeric()
+                || prev == b'_'
+            {
+                i = next;
+                continue;
+            }
+        }
+        if !(nb.is_ascii_alphabetic() || nb == b'_') {
+            i = next;
             continue;
         }
-
-        stores.insert(store_name.to_string());
+        let mut end = next + 1;
+        while end < len {
+            let b = bytes[end];
+            if b.is_ascii_alphanumeric() || b == b'_' {
+                end += 1;
+            } else {
+                break;
+            }
+        }
+        let full = &source[pos..end];
+        if RESERVED_STORE_NAMES.contains(&full) {
+            i = end;
+            continue;
+        }
+        stores.insert(source[next..end].to_string());
+        i = end;
     }
-
     stores
 }
 
@@ -3320,133 +3343,118 @@ fn create_store_declarations(store_names: &[&str]) -> String {
 /// For imports: injected at the start of the script content (which becomes the
 /// start of the $$render function body after script tag transformation).
 /// For reactive declarations (`$: name = ...`): injected after the labeled statement.
-fn inject_store_subscriptions(script: &Script, source: &str, str: &mut MagicString) {
+/// Reuses an already-parsed program (callers parse the instance script
+/// once and pass the result here, avoiding a second OXC parse).
+fn inject_store_subscriptions_with_program(
+    program: &oxc::Program,
+    offset: u32,
+    source: &str,
+    str: &mut MagicString,
+) {
     let mut accessed_stores = collect_store_references(source);
     if accessed_stores.is_empty() {
         return;
     }
 
-    let offset = script.content_offset;
-
-    with_parsed_script(script, source, |program, _raw_content| {
-        // First pass: detect rune-declared variables and remove them from accessed_stores.
-        // This prevents `let state = $state(0)` from generating a store subscription
-        // for `state`, matching the JS svelte2tsx behavior.
-        for stmt in program.body.iter() {
-            if let oxc::Statement::VariableDeclaration(var_decl) = stmt {
-                for declarator in var_decl.declarations.iter() {
-                    if let Some(rune_base_name) = detect_rune_variable(declarator) {
-                        accessed_stores.remove(&rune_base_name);
-                    }
+    for stmt in program.body.iter() {
+        if let oxc::Statement::VariableDeclaration(var_decl) = stmt {
+            for declarator in var_decl.declarations.iter() {
+                if let Some(rune_base_name) = detect_rune_variable(declarator) {
+                    accessed_stores.remove(&rune_base_name);
                 }
             }
         }
+    }
 
-        // Collect import-based store names (to inject at $$render start)
-        let mut import_store_names: Vec<String> = Vec::new();
+    let mut import_store_names: Vec<String> = Vec::new();
 
-        for stmt in program.body.iter() {
-            match stmt {
-                // Variable declarations: inject after the declaration
-                oxc::Statement::VariableDeclaration(var_decl) => {
-                    // For multi-declarator declarations like `const a = 1, b = 2;`,
-                    // each declarator is processed independently but the injection
-                    // point is after the LAST declarator (matching JS svelte2tsx).
-                    let last_decl_end = var_decl
-                        .declarations
-                        .last()
-                        .map(|d| d.span.end)
-                        .unwrap_or(var_decl.span.end);
-                    let inject_pos = last_decl_end + offset;
+    for stmt in program.body.iter() {
+        match stmt {
+            oxc::Statement::VariableDeclaration(var_decl) => {
+                let last_decl_end = var_decl
+                    .declarations
+                    .last()
+                    .map(|d| d.span.end)
+                    .unwrap_or(var_decl.span.end);
+                let inject_pos = last_decl_end + offset;
 
-                    for declarator in var_decl.declarations.iter() {
-                        let names = extract_all_names_from_binding_pattern(&declarator.id);
-                        let matching: Vec<String> = names
-                            .into_iter()
-                            .filter(|name| accessed_stores.contains(name))
-                            .collect();
+                for declarator in var_decl.declarations.iter() {
+                    let names = extract_all_names_from_binding_pattern(&declarator.id);
+                    let matching: Vec<String> = names
+                        .into_iter()
+                        .filter(|name| accessed_stores.contains(name))
+                        .collect();
 
-                        if !matching.is_empty() {
-                            let name_refs: Vec<&str> =
-                                matching.iter().map(|s| s.as_str()).collect();
-                            let store_decls = create_store_declarations(&name_refs);
-                            str.append_left(inject_pos, &store_decls);
-                        }
+                    if !matching.is_empty() {
+                        let name_refs: Vec<&str> = matching.iter().map(|s| s.as_str()).collect();
+                        let store_decls = create_store_declarations(&name_refs);
+                        str.append_left(inject_pos, &store_decls);
                     }
                 }
+            }
 
-                // Import declarations: collect names for injection at $$render start
-                oxc::Statement::ImportDeclaration(import) => {
-                    collect_import_store_names(import, &accessed_stores, &mut import_store_names);
-                }
+            oxc::Statement::ImportDeclaration(import) => {
+                collect_import_store_names(import, &accessed_stores, &mut import_store_names);
+            }
 
-                // Export named declarations: check the inner variable declaration
-                oxc::Statement::ExportNamedDeclaration(export) => {
-                    if let Some(ref decl) = export.declaration {
-                        if let oxc::Declaration::VariableDeclaration(var_decl) = decl {
-                            let last_decl_end = var_decl
-                                .declarations
-                                .last()
-                                .map(|d| d.span.end)
-                                .unwrap_or(var_decl.span.end);
-                            let inject_pos = last_decl_end + offset;
+            oxc::Statement::ExportNamedDeclaration(export) => {
+                if let Some(ref decl) = export.declaration {
+                    if let oxc::Declaration::VariableDeclaration(var_decl) = decl {
+                        let last_decl_end = var_decl
+                            .declarations
+                            .last()
+                            .map(|d| d.span.end)
+                            .unwrap_or(var_decl.span.end);
+                        let inject_pos = last_decl_end + offset;
 
-                            for declarator in var_decl.declarations.iter() {
-                                let names = extract_all_names_from_binding_pattern(&declarator.id);
-                                let matching: Vec<String> = names
-                                    .into_iter()
-                                    .filter(|name| accessed_stores.contains(name))
-                                    .collect();
+                        for declarator in var_decl.declarations.iter() {
+                            let names = extract_all_names_from_binding_pattern(&declarator.id);
+                            let matching: Vec<String> = names
+                                .into_iter()
+                                .filter(|name| accessed_stores.contains(name))
+                                .collect();
 
-                                if !matching.is_empty() {
-                                    let name_refs: Vec<&str> =
-                                        matching.iter().map(|s| s.as_str()).collect();
-                                    let store_decls = create_store_declarations(&name_refs);
-                                    str.append_left(inject_pos, &store_decls);
-                                }
+                            if !matching.is_empty() {
+                                let name_refs: Vec<&str> =
+                                    matching.iter().map(|s| s.as_str()).collect();
+                                let store_decls = create_store_declarations(&name_refs);
+                                str.append_left(inject_pos, &store_decls);
                             }
                         }
                     }
                 }
+            }
 
-                // Reactive declarations ($: name = ...)
-                oxc::Statement::LabeledStatement(labeled) => {
-                    if labeled.label.name == "$" {
-                        let names = extract_names_from_labeled_body(&labeled.body);
-                        let matching: Vec<String> = names
-                            .into_iter()
-                            .filter(|n| accessed_stores.contains(n))
-                            .collect();
+            oxc::Statement::LabeledStatement(labeled) => {
+                if labeled.label.name == "$" {
+                    let names = extract_names_from_labeled_body(&labeled.body);
+                    let matching: Vec<String> = names
+                        .into_iter()
+                        .filter(|n| accessed_stores.contains(n))
+                        .collect();
 
-                        if !matching.is_empty() {
-                            let inject_pos = labeled.span.end + offset;
-                            let name_refs: Vec<&str> =
-                                matching.iter().map(|s| s.as_str()).collect();
-                            let store_decls = create_store_declarations(&name_refs);
-                            str.append_left(inject_pos, &store_decls);
-                        }
+                    if !matching.is_empty() {
+                        let inject_pos = labeled.span.end + offset;
+                        let name_refs: Vec<&str> = matching.iter().map(|s| s.as_str()).collect();
+                        let store_decls = create_store_declarations(&name_refs);
+                        str.append_left(inject_pos, &store_decls);
                     }
                 }
-
-                _ => {}
             }
-        }
 
-        // Also collect import-based store names from the module script (if any).
-        // Module-script imports that are used as stores need their subscriptions
-        // injected at the $$render function body start (= instance script content_offset).
-        collect_module_script_import_stores(source, &accessed_stores, &mut import_store_names);
-
-        // Inject import-based store subscriptions at the start of the script content.
-        // Sort for deterministic output.
-        import_store_names.sort();
-        import_store_names.dedup();
-        if !import_store_names.is_empty() {
-            let name_refs: Vec<&str> = import_store_names.iter().map(|s| s.as_str()).collect();
-            let store_decls = create_store_declarations(&name_refs);
-            str.append_right(offset, &store_decls);
+            _ => {}
         }
-    });
+    }
+
+    collect_module_script_import_stores(source, &accessed_stores, &mut import_store_names);
+
+    import_store_names.sort();
+    import_store_names.dedup();
+    if !import_store_names.is_empty() {
+        let name_refs: Vec<&str> = import_store_names.iter().map(|s| s.as_str()).collect();
+        let store_decls = create_store_declarations(&name_refs);
+        str.append_right(offset, &store_decls);
+    }
 }
 
 /// Collect import names that are used as stores from an import declaration.
@@ -3508,9 +3516,17 @@ fn collect_module_script_import_stores(
     accessed_stores: &HashSet<String>,
     import_store_names: &mut Vec<String>,
 ) {
-    // Find <script context="module"> in the source
-    let module_pattern = Regex::new(r#"<script[^>]*context\s*=\s*["']module["'][^>]*>"#).unwrap();
-    let module_match = match module_pattern.find(source) {
+    // Fast path: no `<script` substring → no module script.
+    if !source.contains("<script") {
+        return;
+    }
+    // Cache the regex once across calls. The previous implementation
+    // compiled it on every call, which was measurable overhead given the
+    // benchmark's 3000+ files.
+    use std::sync::LazyLock;
+    static MODULE_PATTERN: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r#"<script[^>]*context\s*=\s*["']module["'][^>]*>"#).unwrap());
+    let module_match = match MODULE_PATTERN.find(source) {
         Some(m) => m,
         None => return,
     };
@@ -3528,7 +3544,11 @@ fn collect_module_script_import_stores(
 
     let raw_content = &source[content_start..close_tag];
 
-    // Parse with OXC
+    // Skip the OXC parse when there are no `import` declarations to find.
+    if !raw_content.contains("import") {
+        return;
+    }
+
     let allocator = Allocator::default();
     let source_type = SourceType::mjs();
     let parser = OxcParser::new(&allocator, raw_content, source_type);
@@ -3571,51 +3591,53 @@ pub fn collect_module_import_store_declarations(source: &str) -> String {
 ///
 /// This is used for module scripts where import-based subscriptions should NOT
 /// be injected (they need to go inside the $$render function body instead).
-fn inject_store_subscriptions_vars_only(script: &Script, source: &str, str: &mut MagicString) {
+/// Reuses an already-parsed module program (callers parse the module
+/// script once and pass the result here, avoiding a second OXC parse).
+fn inject_store_subscriptions_vars_only_with_program(
+    program: &oxc::Program,
+    offset: u32,
+    source: &str,
+    str: &mut MagicString,
+) {
     let mut accessed_stores = collect_store_references(source);
     if accessed_stores.is_empty() {
         return;
     }
 
-    let offset = script.content_offset;
-
-    with_parsed_script(script, source, |program, _raw_content| {
-        // First pass: detect rune-declared variables
-        for stmt in program.body.iter() {
-            if let oxc::Statement::VariableDeclaration(var_decl) = stmt {
-                for declarator in var_decl.declarations.iter() {
-                    if let Some(rune_base_name) = detect_rune_variable(declarator) {
-                        accessed_stores.remove(&rune_base_name);
-                    }
+    for stmt in program.body.iter() {
+        if let oxc::Statement::VariableDeclaration(var_decl) = stmt {
+            for declarator in var_decl.declarations.iter() {
+                if let Some(rune_base_name) = detect_rune_variable(declarator) {
+                    accessed_stores.remove(&rune_base_name);
                 }
             }
         }
+    }
 
-        for stmt in program.body.iter() {
-            if let oxc::Statement::VariableDeclaration(var_decl) = stmt {
-                let last_decl_end = var_decl
-                    .declarations
-                    .last()
-                    .map(|d| d.span.end)
-                    .unwrap_or(var_decl.span.end);
-                let inject_pos = last_decl_end + offset;
+    for stmt in program.body.iter() {
+        if let oxc::Statement::VariableDeclaration(var_decl) = stmt {
+            let last_decl_end = var_decl
+                .declarations
+                .last()
+                .map(|d| d.span.end)
+                .unwrap_or(var_decl.span.end);
+            let inject_pos = last_decl_end + offset;
 
-                for declarator in var_decl.declarations.iter() {
-                    let names = extract_all_names_from_binding_pattern(&declarator.id);
-                    let matching: Vec<String> = names
-                        .into_iter()
-                        .filter(|name| accessed_stores.contains(name))
-                        .collect();
+            for declarator in var_decl.declarations.iter() {
+                let names = extract_all_names_from_binding_pattern(&declarator.id);
+                let matching: Vec<String> = names
+                    .into_iter()
+                    .filter(|name| accessed_stores.contains(name))
+                    .collect();
 
-                    if !matching.is_empty() {
-                        let name_refs: Vec<&str> = matching.iter().map(|s| s.as_str()).collect();
-                        let store_decls = create_store_declarations(&name_refs);
-                        str.append_left(inject_pos, &store_decls);
-                    }
+                if !matching.is_empty() {
+                    let name_refs: Vec<&str> = matching.iter().map(|s| s.as_str()).collect();
+                    let store_decls = create_store_declarations(&name_refs);
+                    str.append_left(inject_pos, &store_decls);
                 }
             }
         }
-    });
+    }
 }
 
 /// Check if a variable declarator is a rune pattern like `let state = $state(0)`.

@@ -5,8 +5,10 @@
 //! of the original string. Chunks can be modified (overwrite, remove, prepend, append)
 //! while preserving position information for accurate source mapping.
 
-use std::collections::HashMap;
 use std::fmt;
+
+use rustc_hash::FxHashMap;
+type HashMap<K, V> = FxHashMap<K, V>;
 
 // ---------------------------------------------------------------------------
 // Chunk
@@ -19,16 +21,16 @@ struct Chunk {
     start: u32,
     /// Original end position in the source (exclusive).
     end: u32,
-    /// The original content of this chunk (never mutated).
-    original: String,
-    /// The current content — equals `original` unless `edited` is true.
-    content: String,
+    /// Replacement content when the chunk has been edited. `None` means
+    /// unedited — the effective content is `master_source[start..end]`
+    /// and no copy is stored. The previous implementation kept two extra
+    /// `String` copies (`original` + `content`) per chunk, allocating ~2×
+    /// the source length up-front for every file.
+    content: Option<String>,
     /// Content prepended before this chunk (via `append_left` / `prepend_right`).
     intro: String,
     /// Content appended after this chunk (via `append_right` / `prepend_left` on next).
     outro: String,
-    /// Whether this chunk's content has been replaced via `overwrite` / `remove`.
-    edited: bool,
     /// Index of the next chunk in the arena (linked-list next pointer).
     next: Option<usize>,
     /// Index of the previous chunk in the arena (linked-list prev pointer).
@@ -36,18 +38,21 @@ struct Chunk {
 }
 
 impl Chunk {
-    fn new(start: u32, end: u32, content: &str) -> Self {
+    fn new(start: u32, end: u32) -> Self {
         Self {
             start,
             end,
-            original: content.to_string(),
-            content: content.to_string(),
+            content: None,
             intro: String::new(),
             outro: String::new(),
-            edited: false,
             next: None,
             previous: None,
         }
+    }
+
+    #[inline]
+    fn is_edited(&self) -> bool {
+        self.content.is_some()
     }
 
     /// Split this chunk at `index` (an original-source position). Returns the new
@@ -63,43 +68,25 @@ impl Chunk {
             self.end
         );
 
-        let slice_index = (index - self.start) as usize;
-        let original_before = self.original[..slice_index].to_string();
-        let original_after = self.original[slice_index..].to_string();
-
-        // If the chunk was edited, preserve the edited state in both halves.
-        // An edited chunk with empty content should produce two edited chunks
-        // with empty content (not revert to original text).
-        let (content_before, content_after, new_edited) = if self.edited {
-            // For edited chunks, split the edited content proportionally.
-            // If content is empty (e.g., from a remove/overwrite with ""),
-            // both halves get empty content.
-            if self.content.is_empty() {
-                (String::new(), String::new(), true)
-            } else {
-                // If content was replaced, we can't meaningfully split it,
-                // so put all content in the first half and leave the second empty.
-                let content = std::mem::take(&mut self.content);
-                (content, String::new(), true)
-            }
-        } else {
-            (original_before.clone(), original_after.clone(), false)
+        // If the chunk was edited, the replacement text can't be meaningfully
+        // split — keep it all in the first half and leave the second half as
+        // an empty edited chunk. Mirrors the JS MagicString semantics.
+        let (content_before, content_after) = match self.content.take() {
+            Some(s) => (Some(s), Some(String::new())),
+            None => (None, None),
         };
 
         let new_chunk = Chunk {
             start: index,
             end: self.end,
-            original: original_after,
             content: content_after,
             intro: String::new(),
             outro: std::mem::take(&mut self.outro),
-            edited: new_edited,
             next: self.next,
             previous: None, // caller sets this
         };
 
         self.end = index;
-        self.original = original_before;
         self.content = content_before;
 
         new_chunk
@@ -251,9 +238,9 @@ impl MagicString {
 
     /// Create a new `MagicString` from the given source.
     pub fn new(source: &str) -> Self {
-        let chunk = Chunk::new(0, source.len() as u32, source);
-        let mut by_start = HashMap::new();
-        let mut by_end = HashMap::new();
+        let chunk = Chunk::new(0, source.len() as u32);
+        let mut by_start: HashMap<u32, usize> = HashMap::default();
+        let mut by_end: HashMap<u32, usize> = HashMap::default();
         by_start.insert(0, 0);
         by_end.insert(source.len() as u32, 0);
 
@@ -266,6 +253,18 @@ impl MagicString {
             by_end,
             intro: String::new(),
             outro: String::new(),
+        }
+    }
+
+    /// Return the effective content of a chunk — either the replacement
+    /// text (for edited chunks) or the corresponding slice of the original
+    /// source (for unedited chunks).
+    #[inline]
+    fn chunk_content<'a>(&'a self, ci: usize) -> &'a str {
+        let chunk = &self.chunks[ci];
+        match &chunk.content {
+            Some(s) => s.as_str(),
+            None => &self.original[chunk.start as usize..chunk.end as usize],
         }
     }
 
@@ -398,8 +397,7 @@ impl MagicString {
             .expect("overwrite: no chunk at start");
 
         // Set the content of the first chunk and blank out subsequent ones.
-        self.chunks[first].content = content.to_string();
-        self.chunks[first].edited = true;
+        self.chunks[first].content = Some(content.to_string());
         // Preserve intro of first chunk, but clear its outro – the last chunk's outro is kept.
         self.chunks[first].outro.clear();
 
@@ -416,8 +414,7 @@ impl MagicString {
                 Some(&i) => i,
                 None => break,
             };
-            self.chunks[ci].content.clear();
-            self.chunks[ci].edited = true;
+            self.chunks[ci].content = Some(String::new());
             self.chunks[ci].intro.clear();
             if self.chunks[ci].end == end {
                 // Keep the outro of the last chunk in the range.
@@ -451,8 +448,7 @@ impl MagicString {
                 Some(&i) => i,
                 None => break,
             };
-            self.chunks[ci].content.clear();
-            self.chunks[ci].edited = true;
+            self.chunks[ci].content = Some(String::new());
             self.chunks[ci].intro.clear();
             self.chunks[ci].outro.clear();
             cur_start = self.chunks[ci].end;
@@ -650,7 +646,9 @@ impl MagicString {
         while let Some(ci) = cur {
             let chunk = &self.chunks[ci];
             result.push_str(&chunk.intro);
-            result.push_str(&chunk.content);
+            // Avoid cloning the per-chunk slice for unedited chunks.
+            let body = self.chunk_content(ci);
+            result.push_str(body);
             result.push_str(&chunk.outro);
             cur = chunk.next;
         }
@@ -771,9 +769,16 @@ impl MagicString {
                 }
             }
 
-            // Process chunk content.
-            if !chunk.content.is_empty() {
-                if !chunk.edited {
+            // Process chunk content. Effective body is the replacement
+            // text for edited chunks, or `original[start..end]` for
+            // unedited ones.
+            let edited = chunk.is_edited();
+            let body: &str = match &chunk.content {
+                Some(s) => s.as_str(),
+                None => &self.original[chunk.start as usize..chunk.end as usize],
+            };
+            if !body.is_empty() {
+                if !edited {
                     // Unedited: emit one segment per character ("hires"
                     // mode). Per-line-only mapping forces consumers to
                     // interpolate, which breaks at edited-chunk
@@ -800,7 +805,7 @@ impl MagicString {
 
                     // Walk character-by-character, emitting one segment
                     // per character anchored to its original position.
-                    for ch in chunk.content.chars() {
+                    for ch in body.chars() {
                         if ch == '\n' {
                             mappings.push(';');
                             _generated_line += 1;
@@ -854,7 +859,7 @@ impl MagicString {
                     );
 
                     // Advance through the replacement content.
-                    for ch in chunk.content.chars() {
+                    for ch in body.chars() {
                         if ch == '\n' {
                             mappings.push(';');
                             _generated_line += 1;
