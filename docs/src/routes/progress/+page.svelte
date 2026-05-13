@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import type { PageData } from './$types';
 	import ProgressRing from '$lib/components/ProgressRing.svelte';
 	import CategoryCard from '$lib/components/CategoryCard.svelte';
@@ -35,14 +36,14 @@
 <div class="container">
 	<header class="header">
 		<nav class="nav">
-			<a href="/" class="logo">Svelte Compiler Rust</a>
+			<a href="{base}/" class="logo">Svelte Compiler Rust</a>
 			<div class="nav-links">
-				<a href="/">Home</a>
-				<a href="/playground">Playground</a>
-				<a href="/progress" class="active">Progress</a>
-				<a href="/benchmark">Benchmark</a>
+				<a href="{base}/">Home</a>
+				<a href="{base}/playground">Playground</a>
+				<a href="{base}/progress" class="active">Progress</a>
+				<a href="{base}/benchmark">Benchmark</a>
 				<a
-					href="https://github.com/baseballyama/svelte-compiler-rust"
+					href="https://github.com/baseballyama/rsvelte"
 					target="_blank"
 					rel="noopener"
 				>

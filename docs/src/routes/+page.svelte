@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { base } from '$app/paths';
 
 	let mounted = $state(false);
 
@@ -84,21 +85,21 @@ export default function Component($$anchor) {
 	<!-- Navigation -->
 	<nav class="nav">
 		<div class="nav-content">
-			<a href="/" class="nav-logo">
+			<a href="{base}/" class="nav-logo">
 				<span class="logo-text">Svelte Compiler</span>
 				<span class="logo-rust">Rust</span>
 			</a>
 			<div class="nav-links">
 				<a href="#features">Features</a>
 				<a href="#demo">Demo</a>
-				<a href="progress">Progress</a>
-				<a href="benchmark">Benchmark</a>
+				<a href="{base}/progress">Progress</a>
+				<a href="{base}/benchmark">Benchmark</a>
 				<a
-					href="https://github.com/baseballyama/svelte-compiler-rust"
+					href="https://github.com/baseballyama/rsvelte"
 					target="_blank"
 					rel="noopener">GitHub</a
 				>
-				<a href="playground" class="nav-cta">Try Playground</a>
+				<a href="{base}/playground" class="nav-cta">Try Playground</a>
 			</div>
 		</div>
 	</nav>
@@ -124,7 +125,7 @@ export default function Component($$anchor) {
 				blazing fast compilation speeds.
 			</p>
 			<div class="hero-actions">
-				<a href="playground" class="btn btn-primary">
+				<a href="{base}/playground" class="btn btn-primary">
 					<span>Open Playground</span>
 					<svg
 						width="20"
@@ -138,7 +139,7 @@ export default function Component($$anchor) {
 					</svg>
 				</a>
 				<a
-					href="https://github.com/baseballyama/svelte-compiler-rust"
+					href="https://github.com/baseballyama/rsvelte"
 					class="btn btn-secondary"
 					target="_blank"
 					rel="noopener"
@@ -228,7 +229,7 @@ export default function Component($$anchor) {
 				</div>
 			</div>
 			<div class="demo-cta">
-				<a href="playground" class="btn btn-primary btn-large">
+				<a href="{base}/playground" class="btn btn-primary btn-large">
 					<span>Try It Yourself</span>
 					<svg
 						width="24"
@@ -254,11 +255,11 @@ export default function Component($$anchor) {
 					Start using Svelte Compiler Rust today and experience the difference.
 				</p>
 				<div class="cta-actions">
-					<a href="playground" class="btn btn-primary btn-large">
+					<a href="{base}/playground" class="btn btn-primary btn-large">
 						<span>Open Playground</span>
 					</a>
 					<a
-						href="https://github.com/baseballyama/svelte-compiler-rust"
+						href="https://github.com/baseballyama/rsvelte"
 						class="btn btn-outline btn-large"
 						target="_blank"
 						rel="noopener"
@@ -279,13 +280,13 @@ export default function Component($$anchor) {
 			</div>
 			<div class="footer-links">
 				<a
-					href="https://github.com/baseballyama/svelte-compiler-rust"
+					href="https://github.com/baseballyama/rsvelte"
 					target="_blank"
 					rel="noopener">GitHub</a
 				>
-				<a href="playground">Playground</a>
-				<a href="progress">Progress</a>
-				<a href="benchmark">Benchmark</a>
+				<a href="{base}/playground">Playground</a>
+				<a href="{base}/progress">Progress</a>
+				<a href="{base}/benchmark">Benchmark</a>
 				<a href="https://svelte.dev" target="_blank" rel="noopener">Svelte</a>
 			</div>
 			<div class="footer-copy">Built with Rust. Open Source.</div>

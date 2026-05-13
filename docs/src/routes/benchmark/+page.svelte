@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { base } from '$app/paths';
 	import type { PageData } from './$types';
 	import type { BenchmarkResults } from '$lib/types/benchmark';
 
@@ -123,14 +124,14 @@
 <div class="container">
 	<header class="header">
 		<nav class="nav">
-			<a href="/" class="logo">Svelte Compiler Rust</a>
+			<a href="{base}/" class="logo">Svelte Compiler Rust</a>
 			<div class="nav-links">
-				<a href="/">Home</a>
-				<a href="/playground">Playground</a>
-				<a href="/progress">Progress</a>
-				<a href="/benchmark" class="active">Benchmark</a>
+				<a href="{base}/">Home</a>
+				<a href="{base}/playground">Playground</a>
+				<a href="{base}/progress">Progress</a>
+				<a href="{base}/benchmark" class="active">Benchmark</a>
 				<a
-					href="https://github.com/baseballyama/svelte-compiler-rust"
+					href="https://github.com/baseballyama/rsvelte"
 					target="_blank"
 					rel="noopener"
 				>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
+	import { base } from '$app/paths';
 	import {
 		initCompiler,
 		getVersion,
@@ -149,7 +150,7 @@
 
 <div class="container">
 	<header>
-		<a href=".." class="logo">
+		<a href="{base}/" class="logo">
 			<h1>Svelte Compiler Rust</h1>
 		</a>
 		<span class="version">{version ? `v${version}` : 'Loading...'}</span>
