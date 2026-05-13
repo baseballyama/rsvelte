@@ -78,16 +78,17 @@ jobs:
       - name: Resolve Svelte submodule SHA
         id: svelte-sha
         shell: bash
-        run: echo "sha=$(git submodule status svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
+        run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
 
       - name: Cache fixtures
         uses: actions/cache@v4
         with:
           # Fixtures are keyed on the Svelte submodule SHA; if the SHA hasn't
           # changed we can reuse them and skip generation entirely.
-          # `hashFiles('svelte/.git/...')` doesn't work — submodule checkouts
-          # leave `svelte/.git` as a gitlink file pointing at
-          # `.git/modules/svelte/`, not a directory the action can hash.
+          # `hashFiles('submodules/svelte/.git/...')` doesn't work — submodule
+          # checkouts leave `submodules/svelte/.git` as a gitlink file
+          # pointing at `.git/modules/svelte/`, not a directory the action
+          # can hash.
           path: fixtures
           # Bump `v2` to invalidate previously-cached fixtures: the
           # generate-fixtures script now propagates `compileOptions.hmr`
@@ -96,7 +97,7 @@ jobs:
 
       - name: Build Svelte compiler
         run: |
-          cd svelte
+          cd submodules/svelte
           pnpm install --frozen-lockfile
           pnpm build
 
@@ -167,7 +168,7 @@ jobs:
       - name: Resolve Svelte submodule SHA
         id: svelte-sha
         shell: bash
-        run: echo "sha=$(git submodule status svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
+        run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
 
       - name: Cache fixtures
         uses: actions/cache@v4
@@ -180,7 +181,7 @@ jobs:
 
       - name: Build Svelte compiler
         run: |
-          cd svelte
+          cd submodules/svelte
           pnpm install --frozen-lockfile
           pnpm build
 

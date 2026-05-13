@@ -40,7 +40,7 @@ jobs:
       - name: Resolve Svelte submodule SHA
         id: svelte-sha
         shell: bash
-        run: echo "sha=$(git submodule status svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
+        run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
 
       - name: Cache fixtures
         uses: actions/cache@v4
@@ -53,7 +53,7 @@ jobs:
 
       - name: Build Svelte compiler
         run: |
-          cd svelte
+          cd submodules/svelte
           pnpm install --frozen-lockfile
           pnpm build
 

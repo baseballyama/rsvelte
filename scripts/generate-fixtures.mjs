@@ -27,7 +27,7 @@ const SVELTE_TESTS = path.join(ROOT, 'submodules/svelte/packages/svelte/tests');
 // Get Svelte commit hash
 function getSvelteCommitHash() {
   return execSync('git rev-parse HEAD', {
-    cwd: path.join(ROOT, 'svelte'),
+    cwd: path.join(ROOT, 'submodules/svelte'),
     encoding: 'utf-8',
   }).trim();
 }
