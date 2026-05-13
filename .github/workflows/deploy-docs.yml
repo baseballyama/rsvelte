@@ -90,8 +90,11 @@ jobs:
           cache-dependency-path: docs/pnpm-lock.yaml
 
       - name: Install docs dependencies
+        # `--ignore-workspace` because the repo root became a pnpm workspace
+        # (npm/* publishing packages), and without this `pnpm install` walks
+        # up to the workspace root and skips installing docs/'s own deps.
         working-directory: docs
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-workspace
 
       - name: Build docs
         working-directory: docs
