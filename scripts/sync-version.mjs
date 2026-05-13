@@ -27,14 +27,13 @@ function patchCargoToml() {
 	// Replace the version line in the top-level [package] table only.
 	// `[package]` is the very first table in Cargo.toml; we match from it up
 	// to the next `[` (start of any other table) to scope the replacement.
-	const updated = original.replace(
-		/(\[package\][\s\S]*?\nversion\s*=\s*")([^"]+)(")/,
-		`$1${targetVersion}$3`,
-	);
-	if (updated === original) {
+	const re = /(\[package\][\s\S]*?\nversion\s*=\s*")([^"]+)(")/;
+	const match = original.match(re);
+	if (!match) {
 		throw new Error('Failed to find [package].version in Cargo.toml');
 	}
-	writeFileSync(cargoTomlPath, updated);
+	if (match[2] === targetVersion) return;
+	writeFileSync(cargoTomlPath, original.replace(re, `$1${targetVersion}$3`));
 }
 
 function patchCargoLock() {
@@ -46,11 +45,12 @@ function patchCargoLock() {
 	// Match exactly the entry whose name is the crate we publish.
 	const re =
 		/(\[\[package\]\]\nname = "svelte-compiler-rust"\nversion = ")([^"]+)(")/;
-	const updated = original.replace(re, `$1${targetVersion}$3`);
-	if (updated === original) {
+	const match = original.match(re);
+	if (!match) {
 		throw new Error('Failed to find svelte-compiler-rust entry in Cargo.lock');
 	}
-	writeFileSync(cargoLockPath, updated);
+	if (match[2] === targetVersion) return;
+	writeFileSync(cargoLockPath, original.replace(re, `$1${targetVersion}$3`));
 }
 
 patchCargoToml();
