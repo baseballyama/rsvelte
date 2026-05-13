@@ -4298,11 +4298,19 @@ fn transform_instance_script_for_visitors(
     // prop transforms, store transforms, read-only props, and rest-prop transforms
     // with a single OXC parse + AST walk, eliminating O(M*N) text scanning.
     if analysis.runes {
+        // The AST pass also rewrites the `$effect` rune family (formerly
+        // handled by the text pipeline). A component can use `$effect` without
+        // any state/prop/store binding, so include a script-level byte probe
+        // for `$effect` here — otherwise the AST pass would be skipped and the
+        // rune would leak through untransformed.
+        let has_effect_calls = !store_sub_vars.iter().any(|v| v == "$effect")
+            && memmem::find(result.as_bytes(), b"$effect").is_some();
         let has_transforms = !state_vars.is_empty()
             || !prop_assignment_transform_vars.is_empty()
             || !store_sub_vars.is_empty()
             || !read_only_props.is_empty()
-            || !rest_prop_vars.is_empty();
+            || !rest_prop_vars.is_empty()
+            || has_effect_calls;
 
         if has_transforms {
             // Collect $derived / $derived.by binding names so AST assignment transforms
