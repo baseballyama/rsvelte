@@ -101,6 +101,19 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
 
+      - name: Install language-tools deps
+        # The svelte-check golden test (tests/svelte_check_golden.rs)
+        # runs the rsvelte svelte-check against the upstream test-error
+        # fixture. tsc needs `node_modules/svelte` resolvable from the
+        # fixture (the svelte2tsx shims `/// <reference types="svelte" />`
+        # pull in the package's type definitions). pnpm install at the
+        # language-tools root sets up the workspace symlinks that make
+        # this work — see also `resolve_svelte2tsx_shims` in
+        # src/svelte_check/overlay.rs.
+        run: |
+          cd submodules/language-tools
+          pnpm install --frozen-lockfile
+
       - name: Generate fixtures
         run: pnpm run generate-fixtures
         timeout-minutes: 15

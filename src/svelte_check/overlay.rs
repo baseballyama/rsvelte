@@ -546,7 +546,14 @@ fn resolve_svelte2tsx_shims(workspace: &Path) -> Vec<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
     let mut cursor: Option<&Path> = Some(start.as_path());
     while let Some(dir) = cursor {
+        // Installed via pnpm/npm: workspace symlink lands here once
+        // language-tools has been `pnpm install`-ed.
         candidates.push(dir.join("node_modules/svelte2tsx"));
+        // Workspace source layout: the shims are checked into the
+        // language-tools repo, so they're usable even without an
+        // install step. Lets CI find them when only the submodule was
+        // pulled down (no `pnpm install` for language-tools).
+        candidates.push(dir.join("packages/svelte2tsx"));
         cursor = dir.parent();
     }
 

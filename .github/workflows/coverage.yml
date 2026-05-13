@@ -57,6 +57,14 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
 
+      - name: Install language-tools deps
+        # See .github/workflows/ci.yml for why the svelte-check golden
+        # test needs language-tools' workspace symlinks (node_modules/svelte
+        # in particular).
+        run: |
+          cd submodules/language-tools
+          pnpm install --frozen-lockfile
+
       - name: Generate fixtures
         run: pnpm run generate-fixtures
         timeout-minutes: 15
