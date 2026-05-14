@@ -678,6 +678,82 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             }
         }
 
+        // $effect rune family. The runes are valid only when `$effect` is the
+        // global rune binding (not shadowed by a local declaration, function
+        // parameter, or store subscription).
+        //
+        //   $effect(fn)            -> $.user_effect(fn)
+        //   $effect.pre(fn)        -> $.user_pre_effect(fn)
+        //   $effect.root(fn)       -> $.effect_root(fn)
+        //   $effect.tracking()     -> $.effect_tracking()
+        //   $effect.pending()      -> $.eager($.pending)        (whole-call rewrite)
+        //
+        // The visitor's `scoped_vars` already tracks function/catch parameters
+        // and let/const/var declarations, so `is_shadowed("$effect")` is the
+        // precise replacement for the old statement-wide
+        // `is_function_parameter_in_statement` check used by the text pipeline.
+        if self.is_runes && !self.store_sub_vars.contains("$effect") && !self.is_shadowed("$effect")
+        {
+            match &expr.callee {
+                Expression::Identifier(callee_ident) if callee_ident.name == "$effect" => {
+                    let start = callee_ident.span.start;
+                    let end = callee_ident.span.end;
+                    self.add_replacement(start, end, "$.user_effect".to_string());
+                    for arg in &expr.arguments {
+                        self.visit_argument(arg);
+                    }
+                    return;
+                }
+                Expression::StaticMemberExpression(member) => {
+                    if let Expression::Identifier(obj) = &member.object
+                        && obj.name == "$effect"
+                    {
+                        let prop = member.property.name.as_str();
+                        match prop {
+                            "pre" | "root" => {
+                                let replacement = if prop == "pre" {
+                                    "$.user_pre_effect"
+                                } else {
+                                    "$.effect_root"
+                                };
+                                self.add_replacement(
+                                    member.span.start,
+                                    member.span.end,
+                                    replacement.to_string(),
+                                );
+                                for arg in &expr.arguments {
+                                    self.visit_argument(arg);
+                                }
+                                return;
+                            }
+                            "tracking" if expr.arguments.is_empty() => {
+                                self.add_replacement(
+                                    member.span.start,
+                                    member.span.end,
+                                    "$.effect_tracking".to_string(),
+                                );
+                                return;
+                            }
+                            "pending" if expr.arguments.is_empty() => {
+                                // Whole-call rewrite: `$effect.pending()` becomes
+                                // `$.eager($.pending)`. The empty-arg call is
+                                // restructured into a different call shape, so we
+                                // replace the entire CallExpression span.
+                                self.add_replacement(
+                                    expr.span.start,
+                                    expr.span.end,
+                                    "$.eager($.pending)".to_string(),
+                                );
+                                return;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
         // Normal call expression - walk as usual
         walk::walk_call_expression(self, expr);
     }
@@ -1835,8 +1911,16 @@ pub(super) fn transform_state_vars_ast(
     let has_stores = !store_sub_vars.is_empty();
     let has_read_only = !read_only_props.is_empty();
     let has_rest = !rest_prop_vars.is_empty();
+    // `$effect` rune transforms also live in this AST pass. The runes are only
+    // valid when `is_runes` is true *and* `$effect` is not used as a store
+    // subscription name. The visitor performs the full per-call shadowing
+    // check; here we just need a cheap script-wide gate to avoid the OXC parse
+    // when there is provably nothing to do.
+    let has_effect_calls = is_runes
+        && !store_sub_vars.iter().any(|v| v == "$effect")
+        && memchr::memmem::find(script.as_bytes(), b"$effect").is_some();
 
-    if !has_state && !has_props && !has_stores && !has_read_only && !has_rest {
+    if !has_state && !has_props && !has_stores && !has_read_only && !has_rest && !has_effect_calls {
         return None;
     }
 
@@ -1881,7 +1965,8 @@ pub(super) fn transform_state_vars_ast(
         || (has_rest
             && rest_prop_vars
                 .iter()
-                .any(|v| script_ids.contains(v.as_str())));
+                .any(|v| script_ids.contains(v.as_str())))
+        || (has_effect_calls && script_ids.contains("$effect"));
 
     if !has_any_match {
         return None;

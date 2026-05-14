@@ -603,16 +603,17 @@ pub(super) fn transform_client_runes_with_skip_and_state(
         }
     } // end state.eager guard
 
-    // Skip all $effect rune transforms if $effect is actually a store subscription or function param
-    if !effect_is_store_sub && !effect_is_func_param {
-        // Single-pass replacement of all $effect patterns:
-        //   $effect.pending() -> $.eager($.pending)
-        //   $effect.pre( -> $.user_pre_effect(
-        //   $effect.root( -> $.effect_root(
-        //   $effect.tracking() -> $.effect_tracking()
-        //   $effect( -> $.user_effect(
-        result = replace_effect_patterns(&result);
-    } // end if !effect_is_store_sub
+    // `$effect` rune family — formerly `replace_effect_patterns(&result)` —
+    // is now handled by the AST pass in
+    // `phase3_transform::client::ast_state_transform::transform_state_vars_ast`.
+    // The AST pass runs once per component after this per-statement loop and
+    // performs the same five rewrites (`$effect`, `$effect.pre`, `$effect.root`,
+    // `$effect.tracking()`, `$effect.pending()`) with precise scope-aware
+    // shadowing checks. `effect_is_store_sub` / `effect_is_func_param` no
+    // longer have a consumer in this branch; the AST visitor consults the
+    // same `store_sub_vars` set and uses true lexical scope tracking instead
+    // of the statement-wide `is_function_parameter_in_statement` heuristic.
+    let _ = (effect_is_store_sub, effect_is_func_param);
 
     // Transform $props.id() to $.props_id()
     if memmem::find(result.as_bytes(), b"$props.id()").is_some() {
