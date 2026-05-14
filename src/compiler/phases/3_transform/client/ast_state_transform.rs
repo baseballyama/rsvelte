@@ -391,13 +391,29 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                     return true;
                 }
             }
-            // AST-level recognition of `$state.raw(...)` / `$state.frozen(...)`
-            // declarators that this pass rewrites in `visit_variable_declarator`.
-            if self.is_state_raw_or_frozen_init(init) {
+            // AST-level recognition of `$state(...)` / `$state.raw(...)` /
+            // `$state.frozen(...)` declarators that this pass rewrites in
+            // `visit_variable_declarator`.
+            if self.is_state_call_init(init) || self.is_state_raw_or_frozen_init(init) {
                 return true;
             }
         }
         false
+    }
+
+    /// Returns true if `init` is a plain `$state(...)` CallExpression whose
+    /// `$state` reference is the rune (not shadowed, not a store sub).
+    fn is_state_call_init(&self, init: &Expression<'_>) -> bool {
+        if !self.is_runes || self.is_shadowed("$state") || self.store_sub_vars.contains("$state") {
+            return false;
+        }
+        let Expression::CallExpression(call) = init else {
+            return false;
+        };
+        let Expression::Identifier(ident) = &call.callee else {
+            return false;
+        };
+        ident.name == "$state"
     }
 
     /// Returns true if `init` is a `$state.raw(...)` / `$state.frozen(...)`
@@ -486,6 +502,99 @@ impl<'a, 's> StateVarCollector<'a, 's> {
 
         let replacement = if is_non_reactive {
             arg_text
+        } else {
+            format!("$.state({})", arg_text)
+        };
+
+        self.add_replacement(call.span.start, call.span.end, replacement);
+        true
+    }
+
+    /// AST replacement for plain `$state(value)` rune declarators. Mirrors the
+    /// text-pipeline rewrite that used to live in
+    /// `rune_transforms::transform_client_runes_with_skip_and_state`:
+    ///
+    /// |                    | non-reactive (in `non_reactive_vars`)        | reactive                                      |
+    /// | `$state()` (empty) | `void 0`                                     | `$.state(void 0)`                             |
+    /// | `$state(prim)`     | `prim`                                       | `$.state(prim)`                               |
+    /// | `$state(undefined)`| `void 0` (special case, matches text)        | `$.state(undefined)` (literal kept)           |
+    /// | `$state(obj/arr/…)`| `$.proxy(obj/arr/…)` if `should_proxy_ast`   | `$.state($.proxy(obj/arr/…))`                 |
+    ///
+    /// Proxy decision uses `should_proxy_ast(arg, &[])` — the text pipeline
+    /// it replaces used a scope-less `expression_needs_proxy(...)` here, so
+    /// we pass an empty `non_proxy_vars` to keep behaviour byte-identical.
+    fn try_rewrite_state_call_declarator(&mut self, declarator: &VariableDeclarator<'_>) -> bool {
+        let Some(init) = &declarator.init else {
+            return false;
+        };
+        if !self.is_state_call_init(init) {
+            return false;
+        }
+        let Expression::CallExpression(call) = init else {
+            return false;
+        };
+        // Only simple `let name = $state(...)` bindings — destructured
+        // patterns are handled by the upstream text path's
+        // `transform_state_destructuring` (which produces already-`$.state(…)`
+        // output that we leave untouched).
+        let BindingPattern::BindingIdentifier(id) = &declarator.id else {
+            return false;
+        };
+        if call.arguments.len() > 1 {
+            return false;
+        }
+
+        let var_name = id.name.as_str();
+        let is_non_reactive = self.non_reactive_vars.contains(var_name);
+
+        // Snapshot a few facts from the original argument AST *before* walking,
+        // because the walk drains/replaces inner spans that we want to query
+        // by node kind here (not by post-rewrite text).
+        let (needs_proxy, is_explicit_undefined) = if let Some(arg) = call.arguments.first() {
+            let arg_expr = arg.as_expression();
+            let needs_proxy = arg_expr.map(|e| should_proxy_ast(e, &[])).unwrap_or(false);
+            let is_undef = matches!(
+                arg_expr,
+                Some(Expression::Identifier(id)) if id.name == "undefined"
+            );
+            (needs_proxy, is_undef)
+        } else {
+            (false, false)
+        };
+
+        // Walk the argument first so any inner state-var refs get `$.get(...)`
+        // wrapping, then drain those inner replacements and bake them into
+        // the outer text. This matches the behaviour the old text path
+        // produced indirectly: it emitted `$.state(arg)` (or `$.proxy(arg)`)
+        // which the existing AST pass then re-visited and rewrote inner
+        // refs of.
+        let arg_text = if let Some(arg) = call.arguments.first() {
+            self.visit_argument(arg);
+            let arg_span = arg.span();
+            let transformed = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
+            if transformed.trim().is_empty() {
+                "void 0".to_string()
+            } else {
+                transformed
+            }
+        } else {
+            "void 0".to_string()
+        };
+
+        let replacement = if is_non_reactive {
+            if needs_proxy {
+                format!("$.proxy({})", arg_text)
+            } else if is_explicit_undefined {
+                // Special case from the old text path: in the non-reactive
+                // branch, `$state(undefined)` → `void 0` (not `undefined`).
+                // The reactive branch keeps the literal as-is, so we only
+                // apply this rewrite when non-reactive.
+                "void 0".to_string()
+            } else {
+                arg_text
+            }
+        } else if needs_proxy {
+            format!("$.state($.proxy({}))", arg_text)
         } else {
             format!("$.state({})", arg_text)
         };
@@ -696,13 +805,17 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
     }
 
     fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'ast>) {
-        // Try the `$state.raw(...)` / `$state.frozen(...)` rewrite first. When
-        // it matches, the helper walks into the argument (so inner state-var
-        // refs still get `$.get()` wrapping) and consumes those inner
-        // replacements before emitting the outer span replacement. We then
-        // skip the default walk so `visit_expression(init)` doesn't add the
-        // inner replacements a second time.
+        // Try the `$state.raw(...)` / `$state.frozen(...)` and plain
+        // `$state(...)` rewrites first. When one matches, the helper walks
+        // into the argument (so inner state-var refs still get `$.get()`
+        // wrapping) and consumes those inner replacements before emitting
+        // the outer span replacement. We then skip the default walk so
+        // `visit_expression(init)` doesn't add the inner replacements a
+        // second time.
         if self.try_rewrite_state_raw_or_frozen_declarator(declarator) {
+            return;
+        }
+        if self.try_rewrite_state_call_declarator(declarator) {
             return;
         }
         walk::walk_variable_declarator(self, declarator);
@@ -2027,16 +2140,28 @@ pub(super) fn transform_state_vars_ast(
     let has_stores = !store_sub_vars.is_empty();
     let has_read_only = !read_only_props.is_empty();
     let has_rest = !rest_prop_vars.is_empty();
-    // `$effect` rune transforms also live in this AST pass. The runes are only
-    // valid when `is_runes` is true *and* `$effect` is not used as a store
-    // subscription name. The visitor performs the full per-call shadowing
-    // check; here we just need a cheap script-wide gate to avoid the OXC parse
-    // when there is provably nothing to do.
+    // `$effect` rune transforms and `$state(…)` / `$state.raw(…)` /
+    // `$state.frozen(…)` declarator rewrites also live in this AST pass.
+    // They are only valid when `is_runes` is true *and* the rune name is
+    // not used as a store subscription. The visitor performs the full
+    // per-call shadowing check; here we just need a cheap script-wide
+    // byte probe to avoid the OXC parse when there is provably nothing
+    // to do.
     let has_effect_calls = is_runes
         && !store_sub_vars.iter().any(|v| v == "$effect")
         && memchr::memmem::find(script.as_bytes(), b"$effect").is_some();
+    let has_state_calls = is_runes
+        && !store_sub_vars.iter().any(|v| v == "$state")
+        && memchr::memmem::find(script.as_bytes(), b"$state").is_some();
 
-    if !has_state && !has_props && !has_stores && !has_read_only && !has_rest && !has_effect_calls {
+    if !has_state
+        && !has_props
+        && !has_stores
+        && !has_read_only
+        && !has_rest
+        && !has_effect_calls
+        && !has_state_calls
+    {
         return None;
     }
 
@@ -2082,7 +2207,8 @@ pub(super) fn transform_state_vars_ast(
             && rest_prop_vars
                 .iter()
                 .any(|v| script_ids.contains(v.as_str())))
-        || (has_effect_calls && script_ids.contains("$effect"));
+        || (has_effect_calls && script_ids.contains("$effect"))
+        || (has_state_calls && script_ids.contains("$state"));
 
     if !has_any_match {
         return None;

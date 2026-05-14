@@ -5,28 +5,13 @@ use memchr::memmem;
 use super::destructure_transforms::build_fallback_string;
 use super::{
     ARRAY_LOOKUP_COUNTER, DERIVED_TMP_COUNTER, SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER,
-    contains_direct_await_in_expression, expression_needs_proxy, extract_enclosing_function_name,
+    contains_direct_await_in_expression, extract_enclosing_function_name,
     extract_local_reactive_vars, extract_trace_call_label, find_matching_brace,
     find_matching_paren, find_trace_source_location, is_function_parameter_in_statement,
     strip_top_level_await_from_expr, transform_props_destructuring, unthunk_string,
     wrap_await_with_save_in_async_derived, wrap_state_vars_in_expr,
 };
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
-
-/// Find the position of `$state(` in the string, but skip occurrences that are
-/// already transformed (i.e., preceded by `.` as in `$.state(`).
-pub(super) fn find_unescaped_state_call(s: &str) -> Option<usize> {
-    let mut search_from = 0;
-    while let Some(pos) = memmem::find(&s.as_bytes()[search_from..], b"$state(") {
-        let abs_pos = search_from + pos;
-        if abs_pos > 0 && s.as_bytes()[abs_pos - 1] == b'.' {
-            search_from = abs_pos + 7;
-            continue;
-        }
-        return Some(abs_pos);
-    }
-    None
-}
 
 /// Find the position of `$derived.by(` in the string, skipping already-transformed occurrences.
 pub(super) fn find_unescaped_derived_by_call(s: &str) -> Option<usize> {
@@ -159,140 +144,18 @@ pub(super) fn transform_client_runes_with_skip_and_state(
         // handled by the upstream `transform_state_destructuring` call above
         // (which emits `$.state(...)` directly).
 
-        // Transform $state(x) to $.state(x) for primitives or $.proxy(x) for objects
-        // Loop to handle multiple $state() calls in a single statement
-        // (e.g., inside a function body with multiple state declarations)
-        while let Some(pos) = find_unescaped_state_call(&result) {
-            // Check if this is a declaration
-            let before_pos = &result.as_bytes()[..pos];
-            if !(memmem::find(before_pos, b"let ").is_some()
-                || memmem::find(before_pos, b"const ").is_some()
-                || memmem::find(before_pos, b"var ").is_some())
-            {
-                break;
-            }
-
-            // Extract variable name by finding identifier after let/const/var keyword
-            let decl_pattern = if memmem::find(before_pos, b"let ").is_some() {
-                // Find the closest declaration keyword before this $state call
-                let let_pos = memmem::rfind(&result.as_bytes()[..pos], b"let ");
-                let const_pos = memmem::rfind(&result.as_bytes()[..pos], b"const ");
-                let var_pos = memmem::rfind(&result.as_bytes()[..pos], b"var ");
-                let max_pos = [let_pos, const_pos, var_pos]
-                    .iter()
-                    .filter_map(|p| *p)
-                    .max();
-                if max_pos == let_pos {
-                    "let "
-                } else if max_pos == const_pos {
-                    "const "
-                } else {
-                    "var "
-                }
-            } else if memmem::find(before_pos, b"const ").is_some() {
-                let const_pos = memmem::rfind(&result.as_bytes()[..pos], b"const ");
-                let var_pos = memmem::rfind(&result.as_bytes()[..pos], b"var ");
-                if var_pos.is_some() && var_pos > const_pos {
-                    "var "
-                } else {
-                    "const "
-                }
-            } else {
-                "var "
-            };
-
-            let var_name = if let Some(decl_pos) =
-                memmem::rfind(&result.as_bytes()[..pos], decl_pattern.as_bytes())
-            {
-                let after_keyword = &result[decl_pos + decl_pattern.len()..pos];
-                // Extract valid identifier characters only (before any '=' sign)
-                let before_eq = if let Some(eq_pos) = after_keyword.find('=') {
-                    &after_keyword[..eq_pos]
-                } else {
-                    after_keyword
-                };
-                before_eq
-                    .trim()
-                    .chars()
-                    .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '$')
-                    .collect::<String>()
-            } else {
-                String::new()
-            };
-
-            // Check if we should skip this state variable
-            let state_start = pos + 7; // after "$state("
-            if let Some(content_end) = find_matching_paren(&result[state_start..]) {
-                let content = result[state_start..state_start + content_end].to_string();
-                let trimmed_content = content.trim();
-                let is_object_or_array =
-                    trimmed_content.starts_with('{') || trimmed_content.starts_with('[');
-
-                if skip_state_vars.contains(&var_name.to_string()) {
-                    // Variable is not reassigned, so doesn't need $.state() wrapping
-                    // But we still need $.proxy() if the value might return an object
-                    let needs_proxy = is_object_or_array || expression_needs_proxy(trimmed_content);
-
-                    if needs_proxy {
-                        // Wrap with $.proxy() for deep reactivity
-                        result = format!(
-                            "{}$.proxy({}){}",
-                            &result[..pos],
-                            content,
-                            &result[state_start + content_end + 1..]
-                        );
-                    } else {
-                        // Primitives - just extract the value
-                        // Empty $state() should become "void 0" (not "undefined")
-                        // to match the official Svelte compiler output
-                        let extracted_value = if trimmed_content.is_empty() {
-                            "void 0".to_string()
-                        } else if trimmed_content == "undefined" {
-                            // Explicit undefined should also become void 0
-                            "void 0".to_string()
-                        } else {
-                            content.to_string()
-                        };
-                        result = format!(
-                            "{}{}{}",
-                            &result[..pos],
-                            extracted_value,
-                            &result[state_start + content_end + 1..]
-                        );
-                    }
-                } else if is_object_or_array || expression_needs_proxy(trimmed_content) {
-                    // Objects/arrays or function calls need $.proxy() for deep reactivity
-                    // AND we need $.state() for the reactivity tracking (since variable is reassigned)
-                    // Expected: $.state($.proxy([...]))
-                    result = format!(
-                        "{}$.state($.proxy({})){}",
-                        &result[..pos],
-                        content,
-                        &result[state_start + content_end + 1..]
-                    );
-                } else if trimmed_content.is_empty() {
-                    // Empty $state() - use void 0 explicitly
-                    // Example: $state() -> $.state(void 0)
-                    result = format!(
-                        "{}$.state(void 0){}",
-                        &result[..pos],
-                        &result[state_start + content_end + 1..]
-                    );
-                } else {
-                    // Primitives that ARE reassigned need $.state()
-                    result = format!(
-                        "{}$.state({}){}",
-                        &result[..pos],
-                        content,
-                        &result[state_start + content_end + 1..]
-                    );
-                }
-            } else {
-                // Fallback for unparseable content
-                result = format!("{}$.state({}", &result[..pos], &result[pos + 7..]);
-                break;
-            }
-        }
+        // Plain `$state(...)` rune declarators — formerly rewritten here by a
+        // per-statement byte-level loop — are now rewritten in
+        // `ast_state_transform::transform_state_vars_ast` via
+        // `try_rewrite_state_call_declarator`. The AST visit gets precise
+        // lexical scope checks for `$state` (matching `is_shadowed`),
+        // uses `should_proxy_ast` for the proxy decision, and produces the
+        // same `$.state(...)` / `$.state($.proxy(...))` / `$.proxy(...)` /
+        // bare-`arg` / `void 0` outputs.
+        //
+        // Destructured `$state(...)` patterns are still handled by the
+        // upstream `transform_state_destructuring` call further above (which
+        // emits `$.state(...)` directly).
     } // end if !state_is_store_sub
 
     // Skip all $derived rune transforms if $derived is actually a store subscription or function param
