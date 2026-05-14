@@ -1226,6 +1226,30 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             }
         }
 
+        // `$state.snapshot(x)` -> `$.snapshot(x)`. Only the callee identifier
+        // is rewritten; arguments are visited normally so any inner
+        // state-var refs still get `$.get()` wrapping. The dev-mode
+        // svelte-ignore handler (`mod.rs`) scans the per-statement output
+        // for `$state.snapshot(` and prepends a second `true` argument
+        // *before* this AST rewrite runs, so by the time we get here the
+        // call shape is either `$state.snapshot(x)` or
+        // `$state.snapshot(x, true)` — in both cases we only need to
+        // rename the callee.
+        if self.is_runes
+            && !self.is_shadowed("$state")
+            && !self.store_sub_vars.contains("$state")
+            && let Expression::StaticMemberExpression(member) = &expr.callee
+            && let Expression::Identifier(obj) = &member.object
+            && obj.name == "$state"
+            && member.property.name == "snapshot"
+        {
+            self.add_replacement(member.span.start, member.span.end, "$.snapshot".to_string());
+            for arg in &expr.arguments {
+                self.visit_argument(arg);
+            }
+            return;
+        }
+
         // Normal call expression - walk as usual
         walk::walk_call_expression(self, expr);
     }
