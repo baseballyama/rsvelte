@@ -5131,34 +5131,11 @@ let { foo = false, bar = true } = $props();
         assert_eq!(find_matching_paren("abc"), None);
     }
 
-    #[test]
-    fn test_derived_object_literal_wrapped_in_parens() {
-        // Test that object literals in $derived() are wrapped in parentheses
-        let input = "let count = $derived({ value: 1 });";
-        let options = crate::compiler::CompileOptions::default();
-        let analysis =
-            crate::compiler::phases::phase2_analyze::types::ComponentAnalysis::new("", &options);
-        let result = transform_client_runes_with_skip_and_state(
-            input,
-            &[],   // skip_state_vars
-            &[],   // state_vars
-            &[],   // non_reactive_vars
-            &[],   // prop_source_vars
-            &[],   // exported_names
-            &[],   // proxy_vars
-            false, // dev
-            &analysis,
-            &[], // store_sub_vars
-            &[], // read_only_props
-        );
-        println!("Input:  {}", input);
-        println!("Result: {}", result);
-        assert!(
-            result.contains("$.derived(() => ({"),
-            "Object literal should be wrapped in parentheses: {}",
-            result
-        );
-    }
+    // `test_derived_object_literal_wrapped_in_parens` was deleted along
+    // with the text-based `$derived(...)` rewrite — the paren wrap is
+    // now produced by `ast_state_transform::try_rewrite_derived_call_declarator`
+    // and is exercised by the runtime/snapshot fixtures that round-trip
+    // through the full compile pipeline.
 
     #[test]
     fn test_transform_prop_reads_in_expr() {
@@ -5223,47 +5200,11 @@ let { foo = false, bar = true } = $props();
     }
 }
 
-#[test]
-fn test_derived_object_literal_double_wrap() {
-    // Test that the double wrapping preserves parentheses
-    let input = "let count = $derived({ value: 1 });";
-
-    let options = crate::compiler::CompileOptions::default();
-    let analysis =
-        crate::compiler::phases::phase2_analyze::types::ComponentAnalysis::new("", &options);
-
-    // First transform
-    let result1 = transform_client_runes_with_skip_and_state(
-        input,
-        &[],   // skip_state_vars
-        &[],   // state_vars
-        &[],   // non_reactive_vars
-        &[],   // prop_source_vars
-        &[],   // exported_names
-        &[],   // proxy_vars
-        false, // dev
-        &analysis,
-        &[], // store_sub_vars
-        &[], // read_only_props
-    );
-    println!("After first transform: {}", result1);
-
-    // Second wrap (simulating what happens in the actual code)
-    // Note: "count" is a state variable after $derived transformation
-    let result2 = wrap_state_vars_in_expr(
-        &result1,
-        &["count".to_string()], // state_vars
-        &[],                    // non_reactive_vars
-        &[],                    // proxy_vars
-    );
-    println!("After second wrap: {}", result2);
-
-    assert!(
-        result2.contains("$.derived(() => ({"),
-        "Object literal should still be wrapped in parentheses: {}",
-        result2
-    );
-}
+// `test_derived_object_literal_double_wrap` was deleted along with the
+// text-based `$derived(...)` rewrite — the paren wrap around object
+// literals is now produced by
+// `ast_state_transform::try_rewrite_derived_call_declarator` and is
+// exercised by the runtime/snapshot fixtures end-to-end.
 
 #[test]
 fn test_mutation_wrap_state_vars() {
