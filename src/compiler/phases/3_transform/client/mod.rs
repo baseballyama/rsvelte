@@ -4312,13 +4312,16 @@ fn transform_instance_script_for_visitors(
             && memmem::find(result.as_bytes(), b"$effect").is_some();
         let has_state_calls = !store_sub_vars.iter().any(|v| v == "$state")
             && memmem::find(result.as_bytes(), b"$state").is_some();
+        let has_derived_calls = !store_sub_vars.iter().any(|v| v == "$derived")
+            && memmem::find(result.as_bytes(), b"$derived").is_some();
         let has_transforms = !state_vars.is_empty()
             || !prop_assignment_transform_vars.is_empty()
             || !store_sub_vars.is_empty()
             || !read_only_props.is_empty()
             || !rest_prop_vars.is_empty()
             || has_effect_calls
-            || has_state_calls;
+            || has_state_calls
+            || has_derived_calls;
 
         if has_transforms {
             // Collect $derived / $derived.by binding names so AST assignment transforms

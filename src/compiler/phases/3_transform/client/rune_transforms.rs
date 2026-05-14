@@ -5,11 +5,11 @@ use memchr::memmem;
 use super::destructure_transforms::build_fallback_string;
 use super::{
     ARRAY_LOOKUP_COUNTER, DERIVED_TMP_COUNTER, SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER,
-    contains_direct_await_in_expression, extract_enclosing_function_name,
-    extract_local_reactive_vars, extract_trace_call_label, find_matching_brace,
-    find_matching_paren, find_trace_source_location, is_function_parameter_in_statement,
-    strip_top_level_await_from_expr, transform_props_destructuring, unthunk_string,
-    wrap_await_with_save_in_async_derived, wrap_state_vars_in_expr,
+    contains_direct_await_in_expression, extract_enclosing_function_name, extract_trace_call_label,
+    find_matching_brace, find_matching_paren, find_trace_source_location,
+    is_function_parameter_in_statement, strip_top_level_await_from_expr,
+    transform_props_destructuring, unthunk_string, wrap_await_with_save_in_async_derived,
+    wrap_state_vars_in_expr,
 };
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 
@@ -160,12 +160,27 @@ pub(super) fn transform_client_runes_with_skip_and_state(
 
     // Skip all $derived rune transforms if $derived is actually a store subscription or function param
     if !derived_is_store_sub && !derived_is_func_param {
-        // Transform $derived.by() to $.derived() - must be processed BEFORE $derived()
-        // $derived.by() already has a callback, so pass it directly
-        // But we need to wrap state variable references inside the callback with $.get()
-        // Loop to handle multiple $derived.by() calls in a single statement
-        while let Some(pos) = find_unescaped_derived_by_call(&result) {
-            // Check if this is a destructuring pattern: let { a, b } = $derived.by(expr)
+        // Simple `let x = $derived.by(fn)` declarators are now rewritten in
+        // `ast_state_transform::transform_state_vars_ast` via
+        // `try_rewrite_derived_by_declarator` (precise lexical scope checks
+        // for `$derived`, walks the callback so inner state-var refs still
+        // get `$.get(...)` wrapping, emits the same `$.derived(fn)` text).
+        //
+        // The "inner `const x = $state(...)` is non-reactive inside the
+        // callback" behaviour that the old text path implemented via an
+        // explicit `effective_non_reactive.push(var)` is preserved
+        // structurally: those inner const $state vars are added to
+        // `non_reactive_state_vars` upstream in
+        // `transform_instance_script_for_visitors`, so the AST visitor
+        // already treats their declarations and references as non-reactive
+        // without a $derived.by-specific carve-out here.
+        //
+        // *Destructured* `$derived.by({ ... })` / `[...]` patterns are NOT
+        // handled by the AST migration (which only matches a
+        // `BindingPattern::BindingIdentifier`) — they still need the text
+        // `transform_derived_by_destructuring` helper, which produces a
+        // complete IIFE/`$$d`-temp form and returns the rewritten script.
+        if let Some(pos) = find_unescaped_derived_by_call(&result) {
             let before_derived_by = result[..pos].trim();
             let has_destructuring_by = (memmem::find(before_derived_by.as_bytes(), b"let ")
                 .is_some()
@@ -173,61 +188,18 @@ pub(super) fn transform_client_runes_with_skip_and_state(
                 || memmem::find(before_derived_by.as_bytes(), b"var ").is_some())
                 && (before_derived_by.contains('{') || before_derived_by.contains('['));
 
-            if has_destructuring_by {
-                // Handle destructuring pattern for $derived.by()
-                // $derived.by() always creates a $$d temp (unlike $derived(identifier) which skips it)
-                if let Some(transformed) = transform_derived_by_destructuring(
+            if has_destructuring_by
+                && let Some(transformed) = transform_derived_by_destructuring(
                     &result,
                     state_vars,
                     non_reactive_vars,
                     proxy_vars,
-                ) {
-                    return apply_effect_rune_transforms(transformed);
-                }
+                )
+            {
+                return apply_effect_rune_transforms(transformed);
             }
-
-            let derived_start = pos + 12; // after "$derived.by("
-            if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
-                let content = &result[derived_start..derived_start + content_end];
-
-                // Extract local const $state() declarations from the callback body.
-                // In runes mode, const $state() vars are non-reactive (never reassigned),
-                // so they should not be wrapped with $.get() inside the callback.
-                let local_callback_vars = extract_local_reactive_vars(content);
-                let mut effective_non_reactive = non_reactive_vars.to_vec();
-                if analysis.runes {
-                    for (var, is_const, is_state) in &local_callback_vars {
-                        // Only $state vars can be non-reactive; $derived always needs $.get()
-                        if *is_const && *is_state {
-                            let state_check = format!("const {} = $state(", var);
-                            let raw_check = format!("const {} = $state.raw(", var);
-                            if (content.contains(&state_check) || content.contains(&raw_check))
-                                && !effective_non_reactive.contains(var)
-                            {
-                                effective_non_reactive.push(var.clone());
-                            }
-                        }
-                    }
-                }
-
-                // Wrap state variables inside the callback with $.get()
-                let wrapped_content = wrap_state_vars_in_expr(
-                    content,
-                    state_vars,
-                    &effective_non_reactive,
-                    proxy_vars,
-                );
-                let new_derived = format!("$.derived({})", wrapped_content);
-                result = format!(
-                    "{}{}{}",
-                    &result[..pos],
-                    new_derived,
-                    &result[derived_start + content_end + 1..]
-                );
-            } else {
-                result = format!("{}$.derived({}", &result[..pos], &result[pos + 12..]);
-                break;
-            }
+            // Simple-declarator and "destructuring helper bailed" cases both
+            // fall through to the AST pass without further text rewriting.
         }
 
         // Transform $derived(x) to $.derived(() => x) or $.async_derived() for async
