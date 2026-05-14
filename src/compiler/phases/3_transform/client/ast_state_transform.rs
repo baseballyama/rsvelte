@@ -26,7 +26,8 @@ use rustc_hash::FxHashSet;
 use super::VAR_STATE_VARS;
 use super::destructure_transforms::unthunk_string;
 use super::expression_utils::{
-    contains_direct_await_in_expression, strip_top_level_await_from_expr,
+    contains_direct_await_in_expression, extract_enclosing_function_name, extract_trace_call_label,
+    find_trace_source_location, strip_top_level_await_from_expr,
 };
 
 thread_local! {
@@ -127,10 +128,16 @@ struct StateVarCollector<'a, 's> {
     non_proxy_vars: &'a [String],
     /// Whether the component is in runes mode.
     is_runes: bool,
-    /// Whether dev-mode rewrites should fire (currently only used by the
-    /// `$inspect(...)` AST migration; non-dev behaviour stays in the text
-    /// path).
+    /// Whether dev-mode rewrites should fire (currently used by the
+    /// `$inspect(...)` and `$inspect.trace(...)` AST migrations; non-dev
+    /// behaviour for those calls stays in the text path).
     dev: bool,
+    /// Original component source for `$inspect.trace()` label suffix
+    /// generation. See `AstTransformConfig::analysis_source`.
+    analysis_source: Option<&'s str>,
+    /// Component filename for `$inspect.trace()` label suffix generation.
+    /// See `AstTransformConfig::filename`.
+    filename: Option<&'s str>,
     /// Var-declared state vars that need $.safe_get() instead of $.get().
     var_state_vars: Vec<String>,
     /// Collected replacements.
@@ -178,6 +185,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         non_proxy_vars: &'a [String],
         is_runes: bool,
         dev: bool,
+        analysis_source: Option<&'s str>,
+        filename: Option<&'s str>,
         prop_source_vars: &[String],
         non_bindable_prop_vars: &[String],
         store_sub_vars: &[String],
@@ -206,6 +215,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             non_proxy_vars,
             is_runes,
             dev,
+            analysis_source,
+            filename,
             var_state_vars,
             replacements: Vec::new(),
             scoped_vars: vec![FxHashSet::default()],
@@ -847,6 +858,115 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         true
     }
 
+    /// Detect a `$inspect.trace(...)`-leading function body and emit the
+    /// dev-mode `{ return $.trace(thunk, () => { ...remaining... }); }`
+    /// block rewrite. Mirrors the dev-mode arm of the text-path loop in
+    /// `transform_client_runes_with_skip_and_state`.
+    fn try_rewrite_inspect_trace_function_body(&mut self, body: &FunctionBody<'_>) -> bool {
+        if !self.dev
+            || !self.is_runes
+            || self.is_shadowed("$inspect")
+            || self.store_sub_vars.contains("$inspect")
+        {
+            return false;
+        }
+        let Some(first_stmt) = body.statements.first() else {
+            return false;
+        };
+        // The trace call must be the *first* statement of the block, used
+        // as an expression statement (`$inspect.trace(...);`).
+        let Statement::ExpressionStatement(expr_stmt) = first_stmt else {
+            return false;
+        };
+        let Expression::CallExpression(call) = &expr_stmt.expression else {
+            return false;
+        };
+        let Expression::StaticMemberExpression(member) = &call.callee else {
+            return false;
+        };
+        let Expression::Identifier(obj) = &member.object else {
+            return false;
+        };
+        if obj.name != "$inspect" || member.property.name != "trace" {
+            return false;
+        }
+        if call.arguments.len() > 1 {
+            return false;
+        }
+
+        // Walk the whole body so state-var refs in both the trace
+        // argument and the remaining statements get `$.get(...)` wraps,
+        // then drain those replacements out of the trace-arg range and
+        // the remaining-stmts range so the outer rewrite below carries
+        // the wrapped text.
+        walk::walk_function_body(self, body);
+
+        // Drain trace-arg replacements.
+        let trace_arg_walked = if let Some(arg) = call.arguments.first() {
+            let span = arg.span();
+            let txt = self.apply_and_drain_inner_replacements(span.start, span.end);
+            Some(txt)
+        } else {
+            None
+        };
+
+        // Drain anything else collected inside the trace statement
+        // (callee identifier, etc.) — those go to /dev/null because the
+        // statement itself is being removed.
+        let trace_stmt_span = expr_stmt.span;
+        let _ = self.apply_and_drain_inner_replacements(trace_stmt_span.start, trace_stmt_span.end);
+
+        // Drain remaining statements (everything after the trace stmt,
+        // up to — but not including — the closing `}`). `body.span.end`
+        // is the byte *after* the `}`, so we use `end - 1`.
+        let remaining_start = trace_stmt_span.end;
+        let remaining_end = body.span.end.saturating_sub(1);
+        let remaining_walked = if remaining_start < remaining_end {
+            self.apply_and_drain_inner_replacements(remaining_start, remaining_end)
+        } else {
+            String::new()
+        };
+        let remaining_trimmed = remaining_walked.trim();
+
+        // Build the trace thunk. Non-empty arg → `() => arg`. Empty arg →
+        // fall back to the official compiler's `get_function_label()`
+        // heuristic. When we don't have the original source available we
+        // emit just the bare label without the `(filename:line:col)`
+        // suffix.
+        let trace_thunk = if let Some(arg_txt) = trace_arg_walked
+            && !arg_txt.trim().is_empty()
+        {
+            format!("() => {}", arg_txt.trim())
+        } else {
+            let before_block_post = &self.source[..body.span.start as usize];
+            let default_label_owned = extract_enclosing_function_name(before_block_post)
+                .map(str::to_string)
+                .or_else(|| {
+                    self.analysis_source.and_then(|src| {
+                        extract_trace_call_label(before_block_post, src).map(str::to_string)
+                    })
+                })
+                .unwrap_or_else(|| "trace".to_string());
+            let default_label = default_label_owned.as_str();
+            let source_pos = self
+                .analysis_source
+                .and_then(|src| find_trace_source_location(before_block_post, src, default_label));
+            match (source_pos, self.filename) {
+                (Some((line, col)), Some(filename)) => {
+                    format!("() => '{} ({}:{}:{})'", default_label, filename, line, col)
+                }
+                _ => format!("() => '{}'", default_label),
+            }
+        };
+
+        let replacement = format!(
+            "{{return $.trace({}, () => {{\n{}\n}});\n}}",
+            trace_thunk, remaining_trimmed
+        );
+        self.add_replacement(body.span.start, body.span.end, replacement);
+        true
+    }
+
     /// Walk every argument of a `CallExpression` so inner state-var refs
     /// get `$.get(...)` wrapping, then drain the inner replacements and
     /// return the comma-joined transformed text — the contents that
@@ -1091,6 +1211,18 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             return;
         }
         walk::walk_variable_declarator(self, declarator);
+    }
+
+    fn visit_function_body(&mut self, body: &FunctionBody<'ast>) {
+        // `$inspect.trace(arg)` *dev mode* block rewrite (non-dev removal
+        // remains in the text path because the standalone-line whitespace/
+        // semicolon trimming is statement-shaped). The rune call is always
+        // the first statement of its enclosing function body; we detect
+        // that here and emit a whole-body replacement of the form
+        //   { return $.trace(thunk, () => { …remaining body… }); }
+        if !self.try_rewrite_inspect_trace_function_body(body) {
+            walk::walk_function_body(self, body);
+        }
     }
 
     fn visit_formal_parameters(&mut self, params: &FormalParameters<'ast>) {
@@ -2519,6 +2651,15 @@ pub(super) struct AstTransformConfig<'a> {
     /// expansion into `$.inspect(() => [args], ...)` — non-dev removal of
     /// the same call remains in the text path).
     pub dev: bool,
+    /// The original component source (pre-transform). Used by the
+    /// `$inspect.trace()` empty-arg label builder, which needs to compute
+    /// line/column relative to the user's source (not the in-flight
+    /// post-rune-transform script the visitor walks). `None` disables the
+    /// `(filename:line:col)` suffix and falls back to the bare label.
+    pub analysis_source: Option<&'a str>,
+    /// The component filename (used in the `$inspect.trace()` label
+    /// suffix together with `analysis_source`).
+    pub filename: Option<&'a str>,
     pub prop_source_vars: &'a [String],
     pub prop_assignment_transform_vars: &'a [String],
     pub non_bindable_prop_vars: &'a [String],
@@ -2656,6 +2797,8 @@ pub(super) fn transform_state_vars_ast(
             non_proxy_vars,
             is_runes,
             config.dev,
+            config.analysis_source,
+            config.filename,
             prop_source_vars,
             non_bindable_prop_vars,
             store_sub_vars,
@@ -2700,6 +2843,8 @@ mod tests {
             non_proxy_vars: &[],
             is_runes: true,
             dev: false,
+            analysis_source: None,
+            filename: None,
             prop_source_vars: &[],
             prop_assignment_transform_vars: &[],
             non_bindable_prop_vars: &[],
@@ -2726,6 +2871,8 @@ mod tests {
             non_proxy_vars: &[],
             is_runes: true,
             dev: false,
+            analysis_source: None,
+            filename: None,
             prop_source_vars: &[],
             prop_assignment_transform_vars: &[],
             non_bindable_prop_vars: &[],
@@ -2937,6 +3084,8 @@ mod tests {
             non_proxy_vars: &[],
             is_runes: true,
             dev: false,
+            analysis_source: None,
+            filename: None,
             prop_source_vars: &[],
             prop_assignment_transform_vars: &[],
             non_bindable_prop_vars: &[],

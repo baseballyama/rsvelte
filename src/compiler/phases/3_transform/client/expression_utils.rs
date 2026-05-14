@@ -3535,6 +3535,14 @@ pub(super) fn rfind_matching_paren(s: &str, close_pos: usize) -> Option<usize> {
 /// Find the position of the matching closing brace `}` for a string that starts
 /// right after the opening `{`. Returns the index of the `}` within the string.
 /// Handles nested braces, strings, and comments.
+///
+/// No longer called by any client transform — `$inspect.trace`, which was
+/// its last user, now does the same scope-finding through the OXC AST in
+/// `ast_state_transform::try_rewrite_inspect_trace_function_body`. The
+/// function is left here `#[allow(dead_code)]` because `svelte2tsx` and
+/// other modules still keep their own brace-matching helpers and we may
+/// want to point them at a single shared implementation in a follow-up.
+#[allow(dead_code)]
 pub(super) fn find_matching_brace(s: &str) -> Option<usize> {
     let mut depth = 1i32;
     let bytes = s.as_bytes();

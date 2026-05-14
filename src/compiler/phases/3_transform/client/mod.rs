@@ -4372,6 +4372,8 @@ fn transform_instance_script_for_visitors(
                 non_proxy_vars: &non_proxy_vars,
                 is_runes: true,
                 dev,
+                analysis_source: Some(&analysis.source),
+                filename: Some(analysis.filename.as_str()),
                 prop_source_vars: &prop_source_vars,
                 prop_assignment_transform_vars: &prop_assignment_transform_vars,
                 non_bindable_prop_vars: &non_bindable_prop_vars,
