@@ -27,9 +27,10 @@ use super::destructure_transforms::unthunk_string;
 use super::expression_utils::{
     contains_direct_await_in_expression, extract_enclosing_function_name, extract_trace_call_label,
     find_trace_source_location, strip_top_level_await_from_expr,
+    wrap_await_with_save_in_async_derived,
 };
-use super::rune_transforms::wrap_state_value;
-use super::{SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER, VAR_STATE_VARS};
+use super::rune_transforms::{process_derived_destructuring_pattern, wrap_state_value};
+use super::{DERIVED_TMP_COUNTER, SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER, VAR_STATE_VARS};
 
 thread_local! {
     static AST_TRANSFORM_ALLOCATOR: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -961,6 +962,172 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         self.non_reactive_vars.contains(name)
     }
 
+    /// AST replacement for destructured `$derived(...)` rune declarators.
+    /// Mirrors `rune_transforms::transform_derived_destructuring` — uses the
+    /// shared text-based pattern processor `process_derived_destructuring_pattern`
+    /// for the recursive pattern walk (which itself only operates on strings,
+    /// not the script), but performs detection and source-argument walking
+    /// at the AST level so we avoid scanning the whole script for
+    /// `let|const|var ... = $derived(...)` shapes.
+    ///
+    /// Output shape depends on the source expression:
+    ///   - simple identifier `name` → `base_expr` is just `wrapped_name`
+    ///     (no `$$d` temp needed)
+    ///   - top-level `await` → `$$d = await $.async_derived(...)`, base
+    ///     becomes `$.get($$d)`
+    ///   - object literal → `$$d = $.derived(() => (obj))`,
+    ///     base = `$.get($$d)`
+    ///   - default → `$$d = $.derived(unthunked)`, base = `$.get($$d)`
+    ///
+    /// The pattern (object or array) is then processed by the shared text
+    /// helper, which recursively emits `name = $.derived(() => base.key)`,
+    /// `$$array = $.derived(() => $.to_array(base, count))` for nested
+    /// array patterns, and the `$.exclude_from_object(...)` form for rest
+    /// elements.
+    fn try_rewrite_derived_destructuring_declarator(
+        &mut self,
+        declarator: &VariableDeclarator<'_>,
+    ) -> bool {
+        let Some(init) = &declarator.init else {
+            return false;
+        };
+        if !self.is_derived_call_init(init) {
+            return false;
+        }
+        let Expression::CallExpression(call) = init else {
+            return false;
+        };
+        // Destructured pattern only — simple BindingIdentifier is handled by
+        // try_rewrite_derived_call_declarator.
+        let is_destructured = matches!(
+            &declarator.id,
+            BindingPattern::ObjectPattern(_) | BindingPattern::ArrayPattern(_)
+        );
+        if !is_destructured {
+            return false;
+        }
+        if call.arguments.len() != 1 {
+            return false;
+        }
+
+        // Snapshot the original (pre-walk) source-text shape — the text
+        // version inspects the raw bytes to decide which init shape to
+        // emit. We reuse that.
+        let arg = &call.arguments[0];
+        let arg_span = arg.span();
+        let source_orig = self.source[arg_span.start as usize..arg_span.end as usize].to_string();
+        let source_orig_trimmed = source_orig.trim();
+        let source_is_identifier = !source_orig_trimmed.is_empty()
+            && source_orig_trimmed
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '$');
+        let contains_await = contains_direct_await_in_expression(source_orig_trimmed);
+
+        // Walk the source argument so inner state-var refs get `$.get(...)`
+        // wraps; drain those into the wrapped source text we embed in the
+        // generated declarations.
+        self.visit_argument(arg);
+        let wrapped_source = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
+
+        // Extract the destructured pattern's source text — the recursive
+        // text helper walks this string.
+        let pattern_span = declarator.id.span();
+        let pattern_text =
+            self.source[pattern_span.start as usize..pattern_span.end as usize].to_string();
+        let pattern_text = pattern_text.trim().to_string();
+
+        let mut declarations: Vec<String> = Vec::new();
+
+        let d_name = if source_is_identifier {
+            String::new()
+        } else {
+            DERIVED_TMP_COUNTER.with(|c| {
+                let n = c.get();
+                c.set(n + 1);
+                if n == 0 {
+                    "$$d".to_string()
+                } else {
+                    format!("$$d_{}", n)
+                }
+            })
+        };
+
+        let base_expr = if source_is_identifier {
+            wrapped_source.clone()
+        } else if contains_await {
+            // Async derived destructuring — mirror the text path's
+            // `await $.async_derived(...)` emission.
+            let saved_content = wrap_await_with_save_in_async_derived(wrapped_source.trim());
+            let inner_expr = strip_top_level_await_from_expr(&saved_content);
+            let inner_has_nested_await = contains_direct_await_in_expression(&inner_expr);
+
+            if inner_has_nested_await {
+                let is_object = saved_content.trim().starts_with('{');
+                let stmt = if is_object {
+                    format!(
+                        "{} = await $.async_derived(async () => ({}))",
+                        d_name, saved_content
+                    )
+                } else {
+                    format!(
+                        "{} = await $.async_derived(async () => {})",
+                        d_name, saved_content
+                    )
+                };
+                declarations.push(stmt);
+            } else {
+                let inner_trimmed = inner_expr.trim();
+                let inner_is_object = inner_trimmed.starts_with('{');
+                if inner_is_object {
+                    declarations.push(format!(
+                        "{} = await $.async_derived(() => ({}))",
+                        d_name, inner_expr
+                    ));
+                } else {
+                    let thunk_arg = unthunk_string(&inner_expr);
+                    declarations.push(format!("{} = await $.async_derived({})", d_name, thunk_arg));
+                }
+            }
+            format!("$.get({})", d_name)
+        } else {
+            // Object literal needs paren-wrap so the arrow body isn't
+            // parsed as a block.
+            if wrapped_source.trim_start().starts_with('{') {
+                declarations.push(format!(
+                    "{} = $.derived(() => ({}))",
+                    d_name, wrapped_source
+                ));
+            } else {
+                let derived_arg = unthunk_string(&wrapped_source);
+                declarations.push(format!("{} = $.derived({})", d_name, derived_arg));
+            }
+            format!("$.get({})", d_name)
+        };
+
+        let mut array_counter: usize = 0;
+        if process_derived_destructuring_pattern(
+            &pattern_text,
+            &base_expr,
+            &mut declarations,
+            &mut array_counter,
+        )
+        .is_none()
+        {
+            return false;
+        }
+        if declarations.is_empty() {
+            return false;
+        }
+
+        // Replacement covers [pattern_start, init_end] so the keyword and
+        // optional trailing pieces of the VariableDeclaration remain.
+        let replacement = declarations.join(",\n\t");
+        let start = pattern_span.start;
+        let end = call.span.end;
+        self.add_replacement(start, end, replacement);
+        true
+    }
+
     /// AST replacement for `$derived.by(fn)` rune declarators. Mirrors the
     /// text-pipeline rewrite that lived in
     /// `transform_client_runes_with_skip_and_state`'s `$derived.by` loop.
@@ -1549,10 +1716,14 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         // default walk so `visit_expression(init)` doesn't add the inner
         // replacements a second time.
         //
-        // Destructured `$state(...)` / `$state.raw(...)` is checked first
-        // — the other rune-declarator handlers bail for non-Identifier
-        // binding patterns, so the destructure matcher catches them.
+        // Destructured `$state(...)` / `$state.raw(...)` / `$derived(...)`
+        // are checked first — the other rune-declarator handlers bail for
+        // non-Identifier binding patterns, so the destructure matchers
+        // catch them.
         if self.try_rewrite_state_destructuring_declarator(declarator) {
+            return;
+        }
+        if self.try_rewrite_derived_destructuring_declarator(declarator) {
             return;
         }
         if self.try_rewrite_state_raw_or_frozen_declarator(declarator) {
