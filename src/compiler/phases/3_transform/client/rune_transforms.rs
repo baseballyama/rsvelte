@@ -246,24 +246,11 @@ pub(super) fn transform_client_runes_with_skip_and_state(
         }
     } // end if !derived_is_store_sub
 
-    // Transform $state.eager(x) to $.eager(() => x) - thunk wrapping
-    if !state_is_store_sub
-        && !state_is_func_param
-        && let Some(pos) = memmem::find(result.as_bytes(), b"$state.eager(")
-    {
-        let eager_start = pos + 13; // after "$state.eager("
-        if let Some(content_end) = find_matching_paren(&result[eager_start..]) {
-            let content = &result[eager_start..eager_start + content_end];
-            let wrapped_content =
-                wrap_state_vars_in_expr(content, state_vars, non_reactive_vars, proxy_vars);
-            result = format!(
-                "{}$.eager(() => {}){}",
-                &result[..pos],
-                wrapped_content,
-                &result[eager_start + content_end + 1..]
-            );
-        }
-    } // end state.eager guard
+    // `$state.eager(x)` -> `$.eager(() => x)` is now handled by the AST
+    // pass in `ast_state_transform::visit_call_expression` (precise
+    // lexical-scope shadowing check for `$state`, walks the argument for
+    // inner state-var refs and bakes those `$.get(...)` rewrites into
+    // the outer thunk-wrap span).
 
     // `$effect` rune family — formerly `replace_effect_patterns(&result)` —
     // is now handled by the AST pass in
