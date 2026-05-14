@@ -24,6 +24,10 @@ use oxc_syntax::scope::ScopeId;
 use rustc_hash::FxHashSet;
 
 use super::VAR_STATE_VARS;
+use super::destructure_transforms::unthunk_string;
+use super::expression_utils::{
+    contains_direct_await_in_expression, strip_top_level_await_from_expr,
+};
 
 thread_local! {
     static AST_TRANSFORM_ALLOCATOR: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -392,16 +396,36 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                 }
             }
             // AST-level recognition of `$state(...)` / `$state.raw(...)` /
-            // `$state.frozen(...)` / `$derived.by(...)` declarators that this
-            // pass rewrites in `visit_variable_declarator`.
+            // `$state.frozen(...)` / `$derived(...)` / `$derived.by(...)`
+            // declarators that this pass rewrites in
+            // `visit_variable_declarator`.
             if self.is_state_call_init(init)
                 || self.is_state_raw_or_frozen_init(init)
+                || self.is_derived_call_init(init)
                 || self.is_derived_by_init(init)
             {
                 return true;
             }
         }
         false
+    }
+
+    /// Returns true if `init` is a plain `$derived(...)` CallExpression whose
+    /// `$derived` reference is the rune (not shadowed, not a store sub).
+    fn is_derived_call_init(&self, init: &Expression<'_>) -> bool {
+        if !self.is_runes
+            || self.is_shadowed("$derived")
+            || self.store_sub_vars.contains("$derived")
+        {
+            return false;
+        }
+        let Expression::CallExpression(call) = init else {
+            return false;
+        };
+        let Expression::Identifier(ident) = &call.callee else {
+            return false;
+        };
+        ident.name == "$derived"
     }
 
     /// Returns true if `init` is a plain `$state(...)` CallExpression whose
@@ -678,6 +702,145 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         true
     }
 
+    /// AST replacement for plain `$derived(expr)` rune declarators. Mirrors
+    /// the per-rune text loop that previously lived in
+    /// `transform_client_runes_with_skip_and_state`:
+    ///
+    /// The argument shapes we have to keep behaviour-identical with:
+    ///
+    /// 1. Existing function/arrow: `$derived(() => expr)` /
+    ///    `$derived(async () => expr)` / `$derived(function(){…})` —
+    ///    wrapped *again* in a thunk to match the official compiler's
+    ///    `b.thunk()` treatment, giving `$.derived(() => () => expr)`.
+    /// 2. Top-level `await` somewhere in the expression (async derived):
+    ///    rewritten to `await $.async_derived(…)`. Whether the inner
+    ///    thunk is `async () => (…)` or `() => (…)` (and whether the
+    ///    inner is paren-wrapped) is decided by `strip_top_level_await_from_expr`
+    ///    plus a second `contains_direct_await_in_expression` probe.
+    /// 3. Object literal: `$.derived(() => (obj))` — parens required so
+    ///    `() => { … }` is not parsed as a block.
+    /// 4. Bare store-subscription or prop-source identifier: passed
+    ///    through, `$.derived(name)` — store subs and prop getters are
+    ///    already callable, no thunk needed.
+    /// 5. Anything else: `unthunk_string` is applied (`() => name()`
+    ///    -> `name`, `() => $.foo()` -> `$.foo`); the result is what
+    ///    goes inside `$.derived(...)`.
+    ///
+    /// We use the existing text helpers (`contains_direct_await_in_expression`,
+    /// `strip_top_level_await_from_expr`, `unthunk_string`) on the post-walk
+    /// argument text to keep byte-identical output with the old text loop.
+    fn try_rewrite_derived_call_declarator(&mut self, declarator: &VariableDeclarator<'_>) -> bool {
+        let Some(init) = &declarator.init else {
+            return false;
+        };
+        if !self.is_derived_call_init(init) {
+            return false;
+        }
+        let Expression::CallExpression(call) = init else {
+            return false;
+        };
+        // Destructured patterns are still handled by the text helper
+        // `transform_derived_destructuring`. Only simple `BindingIdentifier`
+        // targets are migrated here.
+        let BindingPattern::BindingIdentifier(_) = &declarator.id else {
+            return false;
+        };
+        if call.arguments.len() != 1 {
+            return false;
+        }
+
+        let arg = &call.arguments[0];
+        let arg_expr_opt = arg.as_expression();
+        let arg_span = arg.span();
+
+        // Snapshot the original *source-level* arg text before any walk —
+        // both the await probe and the function-shape check are run against
+        // the original (pre-`$.get(...)`-wrap) tokens to match the text path.
+        let arg_source_text =
+            self.source[arg_span.start as usize..arg_span.end as usize].to_string();
+        let arg_source_trimmed = arg_source_text.trim();
+
+        // Drop a trailing comma inside `$derived(expr,)` — the old text
+        // path stripped it because `() => (expr,)` is a SyntaxError.
+        let arg_for_check = arg_source_trimmed
+            .strip_suffix(',')
+            .map_or(arg_source_trimmed, |s| s.trim_end());
+
+        // Walk the argument once so inner state-var refs get `$.get(...)`,
+        // then drain those inner replacements into a transformed string we
+        // can feed to the text helpers (mirroring `wrap_state_vars_in_expr`
+        // in the old path).
+        self.visit_argument(arg);
+        let walked_arg = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
+        let walked_trimmed = walked_arg.trim();
+        let walked_for_emit = walked_trimmed
+            .strip_suffix(',')
+            .map_or(walked_trimmed, |s| s.trim_end());
+
+        // Case 1: arg is already a function/arrow. The old text path's
+        // condition was `starts_with("()") || starts_with("function")`,
+        // which is broader than just `Expression::ArrowFunctionExpression`
+        // (it also catches e.g. `(x) => x` because that starts with `(`).
+        // Mirror the old check on the original source bytes so we stay
+        // byte-identical in edge cases.
+        let starts_as_function =
+            arg_source_trimmed.starts_with("()") || arg_source_trimmed.starts_with("function");
+        if starts_as_function {
+            let replacement = format!("$.derived(() => {})", walked_for_emit);
+            self.add_replacement(call.span.start, call.span.end, replacement);
+            return true;
+        }
+
+        // Case 2: top-level `await` somewhere in the expression → async derived.
+        if contains_direct_await_in_expression(arg_for_check) {
+            let inner_expr = strip_top_level_await_from_expr(walked_for_emit);
+            let inner_trimmed = inner_expr.trim();
+            let inner_has_nested_await = contains_direct_await_in_expression(inner_trimmed);
+            let replacement = if inner_has_nested_await {
+                let is_obj = walked_for_emit.starts_with('{');
+                if is_obj {
+                    format!("await $.async_derived(async () => ({}))", walked_for_emit)
+                } else {
+                    format!("await $.async_derived(async () => {})", walked_for_emit)
+                }
+            } else {
+                let inner_is_object = inner_trimmed.starts_with('{');
+                if inner_is_object {
+                    format!("await $.async_derived(() => ({}))", inner_expr)
+                } else {
+                    let thunk_arg = unthunk_string(&inner_expr);
+                    format!("await $.async_derived({})", thunk_arg)
+                }
+            };
+            self.add_replacement(call.span.start, call.span.end, replacement);
+            return true;
+        }
+
+        // Case 3: object literal — paren-wrap so the body isn't parsed as a block.
+        if matches!(arg_expr_opt, Some(Expression::ObjectExpression(_))) {
+            let replacement = format!("$.derived(() => ({}))", walked_for_emit);
+            self.add_replacement(call.span.start, call.span.end, replacement);
+            return true;
+        }
+
+        // Case 4: bare store-sub / prop-source identifier — already callable.
+        if let Some(Expression::Identifier(ident)) = arg_expr_opt {
+            let name = ident.name.as_str();
+            if self.store_sub_vars.contains(name) || self.prop_source_vars.contains(name) {
+                let replacement = format!("$.derived({})", walked_for_emit);
+                self.add_replacement(call.span.start, call.span.end, replacement);
+                return true;
+            }
+        }
+
+        // Case 5: default — unthunk if the walked arg is a `name()` /
+        // `$.foo()` shape, otherwise wrap in a thunk.
+        let derived_arg = unthunk_string(walked_for_emit);
+        let replacement = format!("$.derived({})", derived_arg);
+        self.add_replacement(call.span.start, call.span.end, replacement);
+        true
+    }
+
     /// Apply any pending replacements that fall within [range_start, range_end)
     /// to the given source text, remove them from the replacements list, and
     /// return the transformed substring.
@@ -893,6 +1056,9 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             return;
         }
         if self.try_rewrite_derived_by_declarator(declarator) {
+            return;
+        }
+        if self.try_rewrite_derived_call_declarator(declarator) {
             return;
         }
         walk::walk_variable_declarator(self, declarator);
@@ -1132,11 +1298,17 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         // 4. Store subscription reads: $store -> $store()
         if self.is_active_store_sub(name) {
             // Don't transform inside $.untrack() or $.derived() context
-            // (checked by looking at the source text immediately before)
+            // (checked by looking at the source text immediately before).
+            // Also accept the *raw* `$derived(` / `untrack(` shapes — after
+            // the `$derived(...)` and `$.untrack(...)` text replaces moved
+            // into this AST pass, the source we see here may still have the
+            // pre-rewrite tokens around the store-sub reference.
             let before_start = start as usize;
             let trimmed_before = self.source[..before_start].trim_end();
-            let in_getter_context =
-                trimmed_before.ends_with("$.untrack(") || trimmed_before.ends_with("$.derived(");
+            let in_getter_context = trimmed_before.ends_with("$.untrack(")
+                || trimmed_before.ends_with("$.derived(")
+                || trimmed_before.ends_with("$derived(")
+                || trimmed_before.ends_with("untrack(");
             if !in_getter_context {
                 if self.in_shorthand_property {
                     self.add_replacement(start, end, format!("{}: {}()", name, name));
