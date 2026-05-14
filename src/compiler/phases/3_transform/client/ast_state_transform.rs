@@ -392,9 +392,12 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                 }
             }
             // AST-level recognition of `$state(...)` / `$state.raw(...)` /
-            // `$state.frozen(...)` declarators that this pass rewrites in
-            // `visit_variable_declarator`.
-            if self.is_state_call_init(init) || self.is_state_raw_or_frozen_init(init) {
+            // `$state.frozen(...)` / `$derived.by(...)` declarators that this
+            // pass rewrites in `visit_variable_declarator`.
+            if self.is_state_call_init(init)
+                || self.is_state_raw_or_frozen_init(init)
+                || self.is_derived_by_init(init)
+            {
                 return true;
             }
         }
@@ -435,6 +438,30 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             return false;
         }
         matches!(member.property.name.as_str(), "raw" | "frozen")
+    }
+
+    /// Returns true if `init` is a `$derived.by(...)` CallExpression whose
+    /// `$derived` reference is the rune (not shadowed, not a store sub).
+    fn is_derived_by_init(&self, init: &Expression<'_>) -> bool {
+        if !self.is_runes
+            || self.is_shadowed("$derived")
+            || self.store_sub_vars.contains("$derived")
+        {
+            return false;
+        }
+        let Expression::CallExpression(call) = init else {
+            return false;
+        };
+        let Expression::StaticMemberExpression(member) = &call.callee else {
+            return false;
+        };
+        let Expression::Identifier(obj) = &member.object else {
+            return false;
+        };
+        if obj.name != "$derived" {
+            return false;
+        }
+        member.property.name == "by"
     }
 
     /// Add a replacement.
@@ -599,6 +626,54 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             format!("$.state({})", arg_text)
         };
 
+        self.add_replacement(call.span.start, call.span.end, replacement);
+        true
+    }
+
+    /// AST replacement for `$derived.by(fn)` rune declarators. Mirrors the
+    /// text-pipeline rewrite that lived in
+    /// `transform_client_runes_with_skip_and_state`'s `$derived.by` loop.
+    ///
+    /// `$derived.by(fn)` becomes `$.derived(fn)` — the function is passed
+    /// through, no arrow wrap is added (unlike plain `$derived(expr)`,
+    /// which wraps the expression in an arrow and is handled by a later
+    /// migration).
+    ///
+    /// Inner state-var refs inside the function body still get `$.get(...)`
+    /// wrapping via the visitor's normal walk; we drain those inner
+    /// replacements before emitting the outer span replacement to avoid
+    /// the outer replacement clobbering them.
+    fn try_rewrite_derived_by_declarator(&mut self, declarator: &VariableDeclarator<'_>) -> bool {
+        let Some(init) = &declarator.init else {
+            return false;
+        };
+        if !self.is_derived_by_init(init) {
+            return false;
+        }
+        let Expression::CallExpression(call) = init else {
+            return false;
+        };
+        // Only simple `let name = $derived.by(...)` bindings — destructured
+        // patterns are still handled by the upstream text helper
+        // `transform_derived_by_destructuring`.
+        let BindingPattern::BindingIdentifier(_) = &declarator.id else {
+            return false;
+        };
+        if call.arguments.len() != 1 {
+            return false;
+        }
+
+        // Walk the function arg so any state-var refs inside the callback
+        // body get `$.get(...)` wrapping, then drain those inner
+        // replacements and bake them into the outer text. The argument
+        // itself is typically an ArrowFunctionExpression or
+        // FunctionExpression; the walker descends into its body for us.
+        let arg = &call.arguments[0];
+        self.visit_argument(arg);
+        let arg_span = arg.span();
+        let transformed_arg = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
+
+        let replacement = format!("$.derived({})", transformed_arg);
         self.add_replacement(call.span.start, call.span.end, replacement);
         true
     }
@@ -805,17 +880,19 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
     }
 
     fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'ast>) {
-        // Try the `$state.raw(...)` / `$state.frozen(...)` and plain
-        // `$state(...)` rewrites first. When one matches, the helper walks
-        // into the argument (so inner state-var refs still get `$.get()`
-        // wrapping) and consumes those inner replacements before emitting
-        // the outer span replacement. We then skip the default walk so
-        // `visit_expression(init)` doesn't add the inner replacements a
-        // second time.
+        // Try the rune-declarator rewrites first. When one matches, the
+        // helper walks into the argument (so inner state-var refs still
+        // get `$.get()` wrapping) and consumes those inner replacements
+        // before emitting the outer span replacement. We then skip the
+        // default walk so `visit_expression(init)` doesn't add the inner
+        // replacements a second time.
         if self.try_rewrite_state_raw_or_frozen_declarator(declarator) {
             return;
         }
         if self.try_rewrite_state_call_declarator(declarator) {
+            return;
+        }
+        if self.try_rewrite_derived_by_declarator(declarator) {
             return;
         }
         walk::walk_variable_declarator(self, declarator);
@@ -2153,6 +2230,9 @@ pub(super) fn transform_state_vars_ast(
     let has_state_calls = is_runes
         && !store_sub_vars.iter().any(|v| v == "$state")
         && memchr::memmem::find(script.as_bytes(), b"$state").is_some();
+    let has_derived_calls = is_runes
+        && !store_sub_vars.iter().any(|v| v == "$derived")
+        && memchr::memmem::find(script.as_bytes(), b"$derived").is_some();
 
     if !has_state
         && !has_props
@@ -2161,6 +2241,7 @@ pub(super) fn transform_state_vars_ast(
         && !has_rest
         && !has_effect_calls
         && !has_state_calls
+        && !has_derived_calls
     {
         return None;
     }
@@ -2208,7 +2289,8 @@ pub(super) fn transform_state_vars_ast(
                 .iter()
                 .any(|v| script_ids.contains(v.as_str())))
         || (has_effect_calls && script_ids.contains("$effect"))
-        || (has_state_calls && script_ids.contains("$state"));
+        || (has_state_calls && script_ids.contains("$state"))
+        || (has_derived_calls && script_ids.contains("$derived"));
 
     if !has_any_match {
         return None;
