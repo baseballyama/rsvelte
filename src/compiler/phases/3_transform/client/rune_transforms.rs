@@ -145,80 +145,19 @@ pub(super) fn transform_client_runes_with_skip_and_state(
             result = result.replace("$state.snapshot(", "$.snapshot(");
         }
 
-        // Transform $state.raw(x) / $state.frozen(x).
-        // Like $state(), whether we wrap in $.state() depends on whether the
-        // variable is reassigned (is_state_source logic).
-        for rune_call in &["$state.raw(", "$state.frozen("] {
-            while let Some(pos) = memmem::find(result.as_bytes(), rune_call.as_bytes()) {
-                let call_start = pos + rune_call.len();
-                if let Some(content_end) = find_matching_paren(&result[call_start..]) {
-                    let content = result[call_start..call_start + content_end].to_string();
-                    let trimmed_content = content.trim();
-
-                    // Extract variable name
-                    let var_name = {
-                        let before = &result[..pos];
-                        let mut name = String::new();
-                        if memmem::find(before.as_bytes(), b"let ").is_some()
-                            || memmem::find(before.as_bytes(), b"const ").is_some()
-                            || memmem::find(before.as_bytes(), b"var ").is_some()
-                        {
-                            let decl_pattern = if memmem::find(before.as_bytes(), b"let ").is_some()
-                            {
-                                "let "
-                            } else if memmem::find(before.as_bytes(), b"const ").is_some() {
-                                "const "
-                            } else {
-                                "var "
-                            };
-                            if let Some(decl_pos) =
-                                memmem::rfind(before.as_bytes(), decl_pattern.as_bytes())
-                            {
-                                let after_keyword = &before[decl_pos + decl_pattern.len()..];
-                                let before_eq = if let Some(eq_pos) = after_keyword.find('=') {
-                                    &after_keyword[..eq_pos]
-                                } else {
-                                    after_keyword
-                                };
-                                name = before_eq
-                                    .trim()
-                                    .chars()
-                                    .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '$')
-                                    .collect::<String>();
-                            }
-                        }
-                        name
-                    };
-
-                    let is_non_reactive = non_reactive_vars.contains(&var_name);
-                    let value = if trimmed_content.is_empty() {
-                        "void 0".to_string()
-                    } else {
-                        content.clone()
-                    };
-
-                    if is_non_reactive {
-                        // Non-reassigned: just use the raw value
-                        result = format!(
-                            "{}{}{}",
-                            &result[..pos],
-                            value,
-                            &result[call_start + content_end + 1..]
-                        );
-                    } else {
-                        // Reassigned: wrap in $.state()
-                        result = format!(
-                            "{}$.state({}){}",
-                            &result[..pos],
-                            value,
-                            &result[call_start + content_end + 1..]
-                        );
-                    }
-                } else {
-                    break;
-                }
-            }
-        }
+        // `$state.raw(x)` / `$state.frozen(x)` rune declarators — formerly
+        // rewritten here via a per-rune text loop — are now rewritten in
+        // `ast_state_transform::transform_state_vars_ast` via
+        // `try_rewrite_state_raw_or_frozen_declarator`. The AST visit gets
+        // precise lexical scope checks for `$state` (matching `is_shadowed`),
+        // produces the same `$.state(arg)` / bare-`arg` / `void 0` outputs,
+        // and lets the dev-mode `wrap_state_derived_with_tag` pass (now run a
+        // second time after `transform_state_vars_ast`) tag the resulting
+        // declarations.
+        //
+        // Destructured `$state.raw` / `$state.frozen` patterns are still
+        // handled by the upstream `transform_state_destructuring` call above
+        // (which emits `$.state(...)` directly).
 
         // Transform $state(x) to $.state(x) for primitives or $.proxy(x) for objects
         // Loop to handle multiple $state() calls in a single statement

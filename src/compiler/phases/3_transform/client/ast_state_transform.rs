@@ -366,13 +366,19 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     /// This includes state variables ($.state, $.derived, etc.) as well as
     /// prop declarations ($.prop, $.rest_props) and store subscriptions ($.store_get).
     /// These are the already-transformed rune calls (e.g., `$state()` -> `$.state()`).
+    ///
+    /// Also recognises yet-untransformed rune calls that the AST pass rewrites
+    /// here (currently `$state.raw(...)` and `$state.frozen(...)`). Recognising
+    /// them means the declarator name is *not* registered as a local shadow,
+    /// which would otherwise prevent state-var transforms inside any later
+    /// references to the same name.
     fn is_known_transform_declaration(&self, declarator: &VariableDeclarator<'_>) -> bool {
         if let Some(ref init) = declarator.init {
             let init_start = init.span().start as usize;
             let init_end = init.span().end as usize;
             if init_end <= self.source.len() {
                 let init_text = &self.source[init_start..init_end];
-                return init_text.starts_with("$.state(")
+                if init_text.starts_with("$.state(")
                     || init_text.starts_with("$.state.raw(")
                     || init_text.starts_with("$.derived(")
                     || init_text.starts_with("$.derived_by(")
@@ -380,15 +386,112 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                     || init_text.starts_with("$.prop(")
                     || init_text.starts_with("$.prop_source(")
                     || init_text.starts_with("$.rest_props(")
-                    || init_text.starts_with("$.store_get(");
+                    || init_text.starts_with("$.store_get(")
+                {
+                    return true;
+                }
+            }
+            // AST-level recognition of `$state.raw(...)` / `$state.frozen(...)`
+            // declarators that this pass rewrites in `visit_variable_declarator`.
+            if self.is_state_raw_or_frozen_init(init) {
+                return true;
             }
         }
         false
     }
 
+    /// Returns true if `init` is a `$state.raw(...)` / `$state.frozen(...)`
+    /// CallExpression whose `$state` reference is the rune (not shadowed).
+    fn is_state_raw_or_frozen_init(&self, init: &Expression<'_>) -> bool {
+        if !self.is_runes || self.is_shadowed("$state") {
+            return false;
+        }
+        let Expression::CallExpression(call) = init else {
+            return false;
+        };
+        let Expression::StaticMemberExpression(member) = &call.callee else {
+            return false;
+        };
+        let Expression::Identifier(obj) = &member.object else {
+            return false;
+        };
+        if obj.name != "$state" {
+            return false;
+        }
+        matches!(member.property.name.as_str(), "raw" | "frozen")
+    }
+
     /// Add a replacement.
     fn add_replacement(&mut self, start: u32, end: u32, text: String) {
         self.replacements.push(Replacement { start, end, text });
+    }
+
+    /// AST replacement for `$state.raw(value)` / `$state.frozen(value)` rune
+    /// declarators. Mirrors the text-pipeline rewrite that used to live in
+    /// `rune_transforms::transform_client_runes_with_skip_and_state`:
+    /// - Non-reactive binding (in `non_reactive_vars`): replace the whole call
+    ///   span with the argument text (or `void 0` for empty calls).
+    /// - Reactive binding: replace with `$.state(arg)`.
+    ///
+    /// Returns `true` when this declarator matched and was handled — the caller
+    /// then skips the default walk so the init expression is not re-visited
+    /// (which would double-add inner replacements). Returns `false` for
+    /// destructured patterns and for any other declarator shape; those still
+    /// walk normally (and destructured cases are handled by the upstream text
+    /// pipeline's `transform_state_destructuring` helper).
+    fn try_rewrite_state_raw_or_frozen_declarator(
+        &mut self,
+        declarator: &VariableDeclarator<'_>,
+    ) -> bool {
+        let Some(init) = &declarator.init else {
+            return false;
+        };
+        if !self.is_state_raw_or_frozen_init(init) {
+            return false;
+        }
+        let Expression::CallExpression(call) = init else {
+            return false;
+        };
+        // Only simple `let name = $state.raw(...)` bindings — destructured
+        // patterns are handled by the upstream text path's
+        // `transform_state_destructuring` (which produces already-`$.state(…)`
+        // output that we leave untouched).
+        let BindingPattern::BindingIdentifier(id) = &declarator.id else {
+            return false;
+        };
+        if call.arguments.len() > 1 {
+            return false;
+        }
+
+        let var_name = id.name.as_str();
+        let is_non_reactive = self.non_reactive_vars.contains(var_name);
+
+        // Walk the (optional) argument first so any inner state-var refs get
+        // `$.get(...)` wrapping, then drain those inner replacements and bake
+        // them into the outer text — matching the behaviour the text pipeline
+        // produced indirectly (it emitted `$.state(arg)` which the AST then
+        // visited and rewrote inner refs of).
+        let arg_text = if let Some(arg) = call.arguments.first() {
+            self.visit_argument(arg);
+            let arg_span = arg.span();
+            let transformed = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
+            if transformed.trim().is_empty() {
+                "void 0".to_string()
+            } else {
+                transformed
+            }
+        } else {
+            "void 0".to_string()
+        };
+
+        let replacement = if is_non_reactive {
+            arg_text
+        } else {
+            format!("$.state({})", arg_text)
+        };
+
+        self.add_replacement(call.span.start, call.span.end, replacement);
+        true
     }
 
     /// Apply any pending replacements that fall within [range_start, range_end)
@@ -590,6 +693,19 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         }
         // Then walk the declaration normally (to visit initializers, etc.)
         walk::walk_variable_declaration(self, decl);
+    }
+
+    fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'ast>) {
+        // Try the `$state.raw(...)` / `$state.frozen(...)` rewrite first. When
+        // it matches, the helper walks into the argument (so inner state-var
+        // refs still get `$.get()` wrapping) and consumes those inner
+        // replacements before emitting the outer span replacement. We then
+        // skip the default walk so `visit_expression(init)` doesn't add the
+        // inner replacements a second time.
+        if self.try_rewrite_state_raw_or_frozen_declarator(declarator) {
+            return;
+        }
+        walk::walk_variable_declarator(self, declarator);
     }
 
     fn visit_formal_parameters(&mut self, params: &FormalParameters<'ast>) {
