@@ -4365,6 +4365,16 @@ fn transform_instance_script_for_visitors(
             if !store_sub_vars.is_empty() {
                 result = wrap_store_unsub_for_state_sets(&result, &state_vars, &store_sub_vars);
             }
+            // In dev mode the per-statement `wrap_state_derived_with_tag` call
+            // inside `transform_client_runes_with_skip_and_state` tags
+            // `$.state(...)` / `$.derived(...)` declarations that came out of
+            // the *text* rune pipeline. Any declarations produced by the AST
+            // pass — currently `$state.raw(...)` / `$state.frozen(...)` after
+            // their migration — would otherwise miss the `$.tag(...)` wrap, so
+            // run the same idempotent pass once more on the post-AST result.
+            if dev {
+                result = wrap_state_derived_with_tag(&result);
+            }
         }
     }
 
