@@ -3798,9 +3798,17 @@ fn transform_instance_script_for_visitors(
             read_only_props,
         );
 
-        // In dev mode, if the previous output line has a svelte-ignore state_snapshot_uncloneable
-        // comment, add `true` as second argument to $.snapshot() calls to suppress warning
-        if dev && memmem::find(transformed.as_bytes(), b"$.snapshot(").is_some() {
+        // In dev mode, if the previous output line carries a
+        // `<!-- svelte-ignore state_snapshot_uncloneable -->` comment,
+        // add `true` as the second argument to the `$state.snapshot()`
+        // call to suppress the runtime warning. We scan the raw
+        // `$state.snapshot(` shape (not the post-AST `$.snapshot(` shape)
+        // because this per-statement handler runs *before*
+        // `ast_state_transform::transform_state_vars_ast` renames the
+        // callee — see the matching comment in
+        // `rune_transforms::transform_client_runes_with_skip_and_state`
+        // for the migration rationale.
+        if dev && memmem::find(transformed.as_bytes(), b"$state.snapshot(").is_some() {
             let prev_has_ignore = {
                 let mut found = false;
                 for line in result.lines().rev() {
@@ -3820,15 +3828,15 @@ fn transform_instance_script_for_visitors(
             if prev_has_ignore {
                 let mut new_transformed = String::new();
                 let mut remaining = transformed.as_str();
-                while let Some(pos) = memmem::find(remaining.as_bytes(), b"$.snapshot(") {
+                while let Some(pos) = memmem::find(remaining.as_bytes(), b"$state.snapshot(") {
                     new_transformed.push_str(&remaining[..pos]);
-                    let call_start = pos + "$.snapshot(".len();
+                    let call_start = pos + "$state.snapshot(".len();
                     if let Some(content_end) = find_matching_paren(&remaining[call_start..]) {
                         let content = &remaining[call_start..call_start + content_end];
-                        new_transformed.push_str(&format!("$.snapshot({}, true)", content));
+                        new_transformed.push_str(&format!("$state.snapshot({}, true)", content));
                         remaining = &remaining[call_start + content_end + 1..];
                     } else {
-                        new_transformed.push_str("$.snapshot(");
+                        new_transformed.push_str("$state.snapshot(");
                         remaining = &remaining[call_start..];
                     }
                 }

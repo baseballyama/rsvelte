@@ -123,12 +123,14 @@ pub(super) fn transform_client_runes_with_skip_and_state(
             }
         }
 
-        // Transform $state.snapshot(x) to $.snapshot(x)
-        // In dev mode, if preceded by svelte-ignore state_snapshot_uncloneable comment,
-        // add `true` as second argument to suppress runtime warning
-        if memmem::find(result.as_bytes(), b"$state.snapshot(").is_some() {
-            result = result.replace("$state.snapshot(", "$.snapshot(");
-        }
+        // `$state.snapshot(x)` -> `$.snapshot(x)` is now done by the AST pass
+        // in `ast_state_transform::visit_call_expression`. The dev-mode
+        // `svelte-ignore state_snapshot_uncloneable` handler in
+        // `mod.rs::transform_client_with_visitors`'s `process_accumulated`
+        // closure still runs *before* that AST rewrite; it now matches the
+        // un-renamed `$state.snapshot(` shape and emits
+        // `$state.snapshot(x, true)`, which the AST then renames to
+        // `$.snapshot(x, true)` at the callee site.
 
         // `$state.raw(x)` / `$state.frozen(x)` rune declarators — formerly
         // rewritten here via a per-rune text loop — are now rewritten in
