@@ -5,11 +5,9 @@ use memchr::memmem;
 use super::destructure_transforms::build_fallback_string;
 use super::{
     ARRAY_LOOKUP_COUNTER, DERIVED_TMP_COUNTER, SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER,
-    contains_direct_await_in_expression, extract_enclosing_function_name, extract_trace_call_label,
-    find_matching_brace, find_matching_paren, find_trace_source_location,
-    is_function_parameter_in_statement, strip_top_level_await_from_expr,
-    transform_props_destructuring, unthunk_string, wrap_await_with_save_in_async_derived,
-    wrap_state_vars_in_expr,
+    contains_direct_await_in_expression, find_matching_paren, is_function_parameter_in_statement,
+    strip_top_level_await_from_expr, transform_props_destructuring, unthunk_string,
+    wrap_await_with_save_in_async_derived, wrap_state_vars_in_expr,
 };
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 
@@ -268,134 +266,40 @@ pub(super) fn transform_client_runes_with_skip_and_state(
     // `ast_state_transform::visit_call_expression` (precise lexical-scope
     // shadowing check for `$props`).
 
-    // Transform $inspect.trace(...) - in non-dev mode, remove the entire statement
-    // In dev mode, transform the enclosing block body to wrap remaining statements in $.trace()
-    while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect.trace(") {
-        let trace_start = pos + 15; // after "$inspect.trace("
-        if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
-            let trace_arg = result[trace_start..trace_start + content_end]
-                .trim()
-                .to_string();
-            let mut end = trace_start + content_end + 1;
-            // Also consume trailing semicolons and whitespace/newline
-            while end < result.len()
-                && (result.as_bytes()[end] == b';'
-                    || result.as_bytes()[end] == b' '
-                    || result.as_bytes()[end] == b'\t'
-                    || result.as_bytes()[end] == b'\n'
-                    || result.as_bytes()[end] == b'\r')
-            {
-                end += 1;
-            }
-            // Remove leading whitespace/tabs on the same line as $inspect.trace
-            let mut start = pos;
-            while start > 0
-                && (result.as_bytes()[start - 1] == b' ' || result.as_bytes()[start - 1] == b'\t')
-            {
-                start -= 1;
-            }
-
-            if !dev {
-                // In non-dev mode, just remove the $inspect.trace() statement
+    // `$inspect.trace(...)` *dev mode* is now handled by the AST pass in
+    // `ast_state_transform::visit_function_body` (whole-body rewrite to
+    // `{ return $.trace(thunk, () => { …remaining… }); }`).
+    //
+    // The non-dev branch — strip the `$inspect.trace(arg);` statement and
+    // its surrounding whitespace/semicolons — stays here. It does fine
+    // text trimming around the call site (leading tabs/spaces on the
+    // same line, trailing `;`/newlines) that's statement-shaped rather
+    // than expression-shaped and is awkward to express at the AST level.
+    if !dev {
+        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect.trace(") {
+            let trace_start = pos + 15; // after "$inspect.trace("
+            if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
+                let mut end = trace_start + content_end + 1;
+                while end < result.len()
+                    && (result.as_bytes()[end] == b';'
+                        || result.as_bytes()[end] == b' '
+                        || result.as_bytes()[end] == b'\t'
+                        || result.as_bytes()[end] == b'\n'
+                        || result.as_bytes()[end] == b'\r')
+                {
+                    end += 1;
+                }
+                let mut start = pos;
+                while start > 0
+                    && (result.as_bytes()[start - 1] == b' '
+                        || result.as_bytes()[start - 1] == b'\t')
+                {
+                    start -= 1;
+                }
                 result = format!("{}{}", &result[..start], &result[end..]);
             } else {
-                // In dev mode, transform the enclosing function body:
-                // Remove $inspect.trace(...); and wrap remaining body in:
-                //   return $.trace(() => arg, () => { ...remaining... });
-                //
-                // The $inspect.trace() is always the first statement in a block body.
-                // We need to find the enclosing block's closing brace to wrap everything.
-
-                // Remove the $inspect.trace line first
-                let before_trace = &result[..start];
-                let after_trace = &result[end..];
-
-                // Find the opening brace of the enclosing block before $inspect.trace
-                // This is the `{` after the arrow/function that contains $inspect.trace
-                let mut brace_pos = None;
-                let before_bytes = before_trace.as_bytes();
-                let mut i = before_bytes.len();
-                while i > 0 {
-                    i -= 1;
-                    if before_bytes[i] == b'{' {
-                        brace_pos = Some(i);
-                        break;
-                    }
-                    // Skip whitespace and newlines
-                    if before_bytes[i] != b' '
-                        && before_bytes[i] != b'\t'
-                        && before_bytes[i] != b'\n'
-                        && before_bytes[i] != b'\r'
-                    {
-                        break;
-                    }
-                }
-
-                if let Some(brace_idx) = brace_pos {
-                    // Find the matching closing brace for this block
-                    let body_start = brace_idx + 1;
-                    let combined = format!("{}{}", before_trace, after_trace);
-                    let body_content = &combined[body_start..];
-
-                    if let Some(close_brace) = find_matching_brace(body_content) {
-                        // Extract the remaining body (everything between { and } after removing $inspect.trace)
-                        let remaining_body = combined[body_start..body_start + close_brace].trim();
-                        // Skip past the closing brace itself
-                        let after_block = &combined[body_start + close_brace + 1..];
-
-                        // Build the trace argument thunk
-                        let trace_thunk = if trace_arg.is_empty() {
-                            // No argument - extract the label from context
-                            // Uses the same logic as the official compiler's get_function_label():
-                            // 1. Named function -> function name
-                            // 2. Call expression parent (e.g. $effect(() => ...)) -> "$effect(...)"
-                            // 3. Fallback -> "trace"
-                            let before_block = &combined[..brace_idx];
-                            let default_label = extract_enclosing_function_name(before_block)
-                                .unwrap_or_else(|| {
-                                    // Check if the enclosing context is a call expression
-                                    // e.g., $effect(() => { ... }) or $.user_effect(() => { ... })
-                                    extract_trace_call_label(before_block, &analysis.source)
-                                        .unwrap_or("trace")
-                                });
-
-                            // Find source location of the enclosing function/arrow
-                            let trace_source_pos = find_trace_source_location(
-                                before_block,
-                                &analysis.source,
-                                default_label,
-                            );
-                            if let Some((line, col)) = trace_source_pos {
-                                format!(
-                                    "() => '{} ({}:{}:{})'",
-                                    default_label, analysis.filename, line, col
-                                )
-                            } else {
-                                format!("() => '{}'", default_label)
-                            }
-                        } else {
-                            format!("() => {}", trace_arg)
-                        };
-
-                        // Build: { return $.trace(thunk, () => { remaining_body }); }
-                        result = format!(
-                            "{}{{return $.trace({}, () => {{\n{}\n}});\n}}{}",
-                            &combined[..brace_idx],
-                            trace_thunk,
-                            remaining_body,
-                            after_block
-                        );
-                    } else {
-                        // Couldn't find matching brace, just remove the trace call
-                        result = format!("{}{}", before_trace, after_trace);
-                    }
-                } else {
-                    // No enclosing brace found, just remove the trace call
-                    result = format!("{}{}", before_trace, after_trace);
-                }
+                break;
             }
-        } else {
-            break;
         }
     }
 
