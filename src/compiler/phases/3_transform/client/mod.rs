@@ -4386,6 +4386,8 @@ fn transform_instance_script_for_visitors(
                 store_sub_vars: &store_sub_vars,
                 read_only_props: &read_only_props,
                 rest_prop_vars: &rest_prop_vars,
+                analysis: Some(analysis),
+                exported_names: &exported_names,
             };
             if let Some(ast_result) =
                 ast_state_transform::transform_state_vars_ast(&result, &ast_config)

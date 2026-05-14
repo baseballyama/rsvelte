@@ -29,11 +29,41 @@ use super::expression_utils::{
     find_trace_source_location, strip_top_level_await_from_expr,
     wrap_await_with_save_in_async_derived,
 };
+use super::props_transforms::transform_props_destructuring;
 use super::rune_transforms::{process_derived_destructuring_pattern, wrap_state_value};
 use super::{DERIVED_TMP_COUNTER, SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER, VAR_STATE_VARS};
+use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 
 thread_local! {
     static AST_TRANSFORM_ALLOCATOR: RefCell<Allocator> = RefCell::new(Allocator::default());
+}
+
+/// Recursively collect every `BindingIdentifier` name reachable inside a
+/// `BindingPattern`. Used by the props-destructure handler to emit the
+/// `/* $$async_noop:name1,name2 */` async-mode placeholder.
+fn collect_binding_identifier_names(pattern: &BindingPattern<'_>, out: &mut Vec<String>) {
+    match pattern {
+        BindingPattern::BindingIdentifier(id) => out.push(id.name.to_string()),
+        BindingPattern::ObjectPattern(obj) => {
+            for prop in &obj.properties {
+                collect_binding_identifier_names(&prop.value, out);
+            }
+            if let Some(rest) = &obj.rest {
+                collect_binding_identifier_names(&rest.argument, out);
+            }
+        }
+        BindingPattern::ArrayPattern(arr) => {
+            for elem in arr.elements.iter().flatten() {
+                collect_binding_identifier_names(elem, out);
+            }
+            if let Some(rest) = &arr.rest {
+                collect_binding_identifier_names(&rest.argument, out);
+            }
+        }
+        BindingPattern::AssignmentPattern(assign) => {
+            collect_binding_identifier_names(&assign.left, out);
+        }
+    }
 }
 
 /// AST-based should_proxy check, mirroring the official Svelte compiler's `should_proxy()`.
@@ -174,6 +204,19 @@ struct StateVarCollector<'a, 's> {
     /// This allows inner expression transforms (e.g., assignment -> $.set) to extend their
     /// replacement span to cover the redundant parens.
     paren_expr_span: Option<(u32, u32)>,
+
+    /// Component analysis — threaded through so the props-destructure AST
+    /// handler can call `transform_props_destructuring` (which reads
+    /// `analysis.immutable`, `analysis.runes`, `analysis.accessors`,
+    /// `analysis.custom_element`, plus `analysis.root.bindings`).
+    analysis: Option<&'a ComponentAnalysis>,
+    /// Re-exported binding names — used by the props-destructure handler
+    /// to decide whether to emit `$.prop()` for read-only prop reads
+    /// that need export visibility.
+    exported_names: &'a [String],
+    /// Original `prop_source_vars` slice (the AST visitor stores a set
+    /// for O(1) lookups; the text helper takes a slice).
+    prop_source_vars_slice: &'a [String],
 }
 
 impl<'a, 's> StateVarCollector<'a, 's> {
@@ -189,12 +232,14 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         dev: bool,
         analysis_source: Option<&'s str>,
         filename: Option<&'s str>,
-        prop_source_vars: &[String],
+        prop_source_vars: &'a [String],
         non_bindable_prop_vars: &[String],
         store_sub_vars: &[String],
         read_only_props: &[(String, String)],
         rest_prop_vars: &[String],
         prop_assignment_transform_vars: &[String],
+        analysis: Option<&'a ComponentAnalysis>,
+        exported_names: &'a [String],
     ) -> Self {
         let var_state_vars = VAR_STATE_VARS.with(|v| v.borrow().clone());
         let read_only_prop_names: FxHashSet<String> =
@@ -232,6 +277,9 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             state_vars_for_store: state_set_for_store,
             prop_vars_for_store: prop_set_for_store,
             paren_expr_span: None,
+            analysis,
+            exported_names,
+            prop_source_vars_slice: prop_source_vars,
         }
     }
 
@@ -1208,6 +1256,138 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         true
     }
 
+    /// AST replacement for `let { x, y } = $props()` (and the simple
+    /// `let props = $props()` identifier form). Detection happens at the
+    /// AST level; the heavy lifting — flag computation (PROPS_IS_RUNES /
+    /// IMMUTABLE / UPDATED / BINDABLE / LAZY_INITIAL), `$.prop()` /
+    /// `$.rest_props()` emission, comment / default-value handling — is
+    /// delegated to the shared `transform_props_destructuring` text helper,
+    /// which depends on `ComponentAnalysis` for per-binding flags. The
+    /// detection replaces the per-statement byte scan
+    /// `memmem::find(result.as_bytes(), b"$props()")` that used to live
+    /// in `transform_client_runes_with_skip_and_state`.
+    fn try_rewrite_props_destructuring_declaration(
+        &mut self,
+        decl: &VariableDeclaration<'_>,
+    ) -> bool {
+        if decl.declarations.len() != 1 {
+            return false;
+        }
+        let declarator = &decl.declarations[0];
+        let Some(init) = &declarator.init else {
+            return false;
+        };
+        let Expression::CallExpression(call) = init else {
+            return false;
+        };
+        if !call.arguments.is_empty() {
+            return false;
+        }
+        let Expression::Identifier(ident) = &call.callee else {
+            return false;
+        };
+        if ident.name != "$props" || self.is_shadowed("$props") {
+            return false;
+        }
+        // The text helper needs `ComponentAnalysis` for binding-kind /
+        // accessor / immutable lookups. Unit-test paths construct the
+        // visitor with `analysis: None` and therefore bypass this
+        // migration, falling back to whatever the unit test set up.
+        let Some(analysis) = self.analysis else {
+            return false;
+        };
+        let is_supported_pattern = matches!(
+            &declarator.id,
+            BindingPattern::BindingIdentifier(_) | BindingPattern::ObjectPattern(_)
+        );
+        if !is_supported_pattern {
+            return false;
+        }
+
+        // Walk inner expressions (default-value sub-trees, etc.) so any
+        // state-var refs register their `$.get(...)` replacements. We
+        // then drain those into the source substring we feed to the
+        // text helper — `state1` inside `let { x = state1 } = $props()`
+        // becomes `$.get(state1)` in the helper input, and the helper
+        // copies it verbatim into the emitted `$.prop(...)` default arg.
+        walk::walk_variable_declarator(self, declarator);
+        let decl_span = decl.span;
+        let walked_source = self.apply_and_drain_inner_replacements(decl_span.start, decl_span.end);
+
+        let Some(transformed) = transform_props_destructuring(
+            &walked_source,
+            self.prop_source_vars_slice,
+            self.exported_names,
+            analysis,
+            &self.read_only_props,
+            self.dev,
+        ) else {
+            // Helper bailed (e.g., shape it doesn't recognize). Re-walk
+            // is unnecessary since we already walked above; the inner
+            // replacements were drained, so we add them back as the
+            // declaration's bare text plus the walked subspans applied.
+            // Simpler: re-emit the walked text so the AST pass output
+            // matches what the visitor would have produced via normal
+            // walking. This path is rare.
+            self.add_replacement(decl_span.start, decl_span.end, walked_source);
+            return true;
+        };
+
+        // Do NOT register the destructured names in `scoped_vars`.
+        // The text helper either deletes the declaration (read-only
+        // props without defaults — handled by the read-only-prop
+        // mapping in `visit_identifier_reference`) or emits a new
+        // `let name = $.prop(...)` whose references should still be
+        // transformed via `prop_source_vars` (prop getter) /
+        // `rest_prop_vars` (rest access) / `read_only_props`. If we
+        // registered them here, `is_shadowed(name)` would return
+        // true and block those rewrites.
+
+        // Helper output is statement-shaped and ends with `;\n` (or is
+        // empty for read-only-only destructures). Our replacement
+        // needs to also consume the source's trailing `;` so we
+        // don't double up — when the helper returns the empty string
+        // for a read-only-only destructure, leaving the source `;`
+        // in place produces a stray empty statement (`;`) where the
+        // text-pipeline path produced just whitespace.
+        let mut end = decl_span.end as usize;
+        let bytes = self.source.as_bytes();
+        while end < bytes.len() && bytes[end] == b' ' {
+            end += 1;
+        }
+        if end < bytes.len() && bytes[end] == b';' {
+            end += 1;
+        }
+        // The helper's trailing `;\n` is now redundant — we consumed
+        // the source's `;` ourselves and the per-statement-loop
+        // appends a fresh `\n`. Strip them.
+        let mut stripped = transformed
+            .trim_end_matches('\n')
+            .trim_end_matches(';')
+            .to_string();
+
+        // When the helper returns an empty replacement (read-only
+        // `{ name } = $props()` with no defaults), and the component
+        // is compiled in `experimental.async` mode, emit a
+        // `/* $$async_noop:name1,name2 */;` placeholder so the async
+        // body builder hoists the names as `var name1, name2;` and
+        // allocates an empty thunk slot. This mirrors the per-statement
+        // text-path's `process_accumulated` branch in mod.rs that used
+        // to handle this case when the text helper returned empty.
+        if stripped.trim().is_empty() && analysis.experimental_async {
+            let mut names: Vec<String> = Vec::new();
+            collect_binding_identifier_names(&declarator.id, &mut names);
+            stripped = if names.is_empty() {
+                "/* $$async_noop */;".to_string()
+            } else {
+                format!("/* $$async_noop:{} */;", names.join(","))
+            };
+        }
+
+        self.add_replacement(decl_span.start, end as u32, stripped);
+        true
+    }
+
     /// AST replacement for `$derived.by(fn)` rune declarators. Mirrors the
     /// text-pipeline rewrite that lived in
     /// `transform_client_runes_with_skip_and_state`'s `$derived.by` loop.
@@ -1753,6 +1933,17 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
     // -----------------------------------------------------------------------
 
     fn visit_variable_declaration(&mut self, decl: &VariableDeclaration<'ast>) {
+        // `$props()` declarations (`let { x, y } = $props()` or
+        // `let props = $props()`) are handled whole-declaration by the
+        // shared text helper `transform_props_destructuring`, which
+        // computes per-prop `$.prop()` flags from `ComponentAnalysis`.
+        // Detection happens here so we can skip the default walk —
+        // the helper output already contains all the per-prop declarators
+        // we need.
+        if self.try_rewrite_props_destructuring_declaration(decl) {
+            return;
+        }
+
         // Register declared names in the current scope for shadowing detection.
         // For each declarator, check if it's a state variable declaration
         // (initialized with $.state(), $.derived(), etc.). If so, skip registering
@@ -3286,6 +3477,14 @@ pub(super) struct AstTransformConfig<'a> {
     pub store_sub_vars: &'a [String],
     pub read_only_props: &'a [(String, String)],
     pub rest_prop_vars: &'a [String],
+    /// Component analysis. Threaded through so the props-destructure AST
+    /// handler can call `transform_props_destructuring` (which reads
+    /// `analysis.immutable`, `analysis.runes`, `analysis.accessors`,
+    /// `analysis.custom_element`, plus `analysis.root.bindings`).
+    pub analysis: Option<&'a ComponentAnalysis>,
+    /// Names re-exported via `export { ... }` — used by the props-destructure
+    /// handler.
+    pub exported_names: &'a [String],
 }
 
 #[allow(dead_code)]
@@ -3434,6 +3633,8 @@ pub(super) fn transform_state_vars_ast(
             read_only_props,
             rest_prop_vars,
             prop_assignment_transform_vars,
+            config.analysis,
+            config.exported_names,
         );
         collector.visit_program(&parsed.program);
 
@@ -3480,6 +3681,8 @@ mod tests {
             store_sub_vars: &[],
             read_only_props: &[],
             rest_prop_vars: &[],
+            analysis: None,
+            exported_names: &[],
         };
         transform_state_vars_ast(script, &config).unwrap_or_else(|| script.to_string())
     }
@@ -3508,6 +3711,8 @@ mod tests {
             store_sub_vars: &[],
             read_only_props: &[],
             rest_prop_vars: &[],
+            analysis: None,
+            exported_names: &[],
         };
         transform_state_vars_ast(script, &config).unwrap_or_else(|| script.to_string())
     }
@@ -3721,6 +3926,8 @@ mod tests {
             store_sub_vars: &[],
             read_only_props: &[],
             rest_prop_vars: &[],
+            analysis: None,
+            exported_names: &[],
         }
     }
 
