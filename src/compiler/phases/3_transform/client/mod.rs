@@ -4371,6 +4371,7 @@ fn transform_instance_script_for_visitors(
                 derived_vars: &derived_vars,
                 non_proxy_vars: &non_proxy_vars,
                 is_runes: true,
+                dev,
                 prop_source_vars: &prop_source_vars,
                 prop_assignment_transform_vars: &prop_assignment_transform_vars,
                 non_bindable_prop_vars: &non_bindable_prop_vars,

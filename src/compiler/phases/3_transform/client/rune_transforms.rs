@@ -399,50 +399,15 @@ pub(super) fn transform_client_runes_with_skip_and_state(
         }
     }
 
-    // Transform $inspect(...) - in non-dev mode, remove the entire call
-    // In dev mode, transform to $.inspect(() => [args], (...$$args) => console.log(...$$args), true)
-    if let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(") {
-        if dev {
-            // Find the matching closing paren to get the arguments
-            let inspect_start = pos + 9; // after "$inspect("
-            if let Some(content_end) = find_matching_paren(&result[inspect_start..]) {
-                let args_content = &result[inspect_start..inspect_start + content_end];
-
-                // Check if this is $inspect().with() pattern
-                let after_inspect = &result[inspect_start + content_end + 1..];
-                if after_inspect.trim_start().starts_with(".with(") {
-                    // $inspect(...).with(callback) pattern
-                    let with_start_offset =
-                        memmem::find(after_inspect.as_bytes(), b".with(").unwrap();
-                    let with_content_start =
-                        inspect_start + content_end + 1 + with_start_offset + 6;
-                    if let Some(with_end) = find_matching_paren(&result[with_content_start..]) {
-                        let callback = &result[with_content_start..with_content_start + with_end];
-                        let rest = &result[with_content_start + with_end + 1..];
-
-                        // Build: $.inspect(() => [args], (...$$args) => (callback)(...$$args))
-                        // Note: No third argument for $inspect().with
-                        // The callback must be wrapped in parens so arrow functions are valid call targets
-                        result = format!(
-                            "{}$.inspect(() => [{}], (...$$args) => ({})(...$$args)){}",
-                            &result[..pos],
-                            args_content,
-                            callback,
-                            rest
-                        );
-                    }
-                } else {
-                    // Simple $inspect(...) pattern
-                    // Build: $.inspect(() => [args], (...$$args) => console.log(...$$args), true)
-                    result = format!(
-                        "{}$.inspect(() => [{}], (...$$args) => console.log(...$$args), true){}",
-                        &result[..pos],
-                        args_content,
-                        &result[inspect_start + content_end + 1..]
-                    );
-                }
-            }
-        } else {
+    // `$inspect(args)` and `$inspect(args).with(cb)` in *dev mode* are now
+    // handled by the AST pass in
+    // `ast_state_transform::visit_call_expression`. The non-dev branch
+    // below stays here because the standalone-statement detection (which
+    // emits the `/* $$async_hole:... */` async-mode marker or just
+    // strips the call) is statement-shaped rather than expression-shaped
+    // and is awkward to do at the AST level.
+    if !dev && let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(") {
+        {
             // In non-dev mode, remove the entire $inspect(...) call
             // Find matching closing paren
             let inspect_start = pos + 9; // after "$inspect("

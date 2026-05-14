@@ -127,6 +127,10 @@ struct StateVarCollector<'a, 's> {
     non_proxy_vars: &'a [String],
     /// Whether the component is in runes mode.
     is_runes: bool,
+    /// Whether dev-mode rewrites should fire (currently only used by the
+    /// `$inspect(...)` AST migration; non-dev behaviour stays in the text
+    /// path).
+    dev: bool,
     /// Var-declared state vars that need $.safe_get() instead of $.get().
     var_state_vars: Vec<String>,
     /// Collected replacements.
@@ -173,6 +177,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         derived_vars: &[String],
         non_proxy_vars: &'a [String],
         is_runes: bool,
+        dev: bool,
         prop_source_vars: &[String],
         non_bindable_prop_vars: &[String],
         store_sub_vars: &[String],
@@ -200,6 +205,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             derived_vars: derived_vars.iter().cloned().collect(),
             non_proxy_vars,
             is_runes,
+            dev,
             var_state_vars,
             replacements: Vec::new(),
             scoped_vars: vec![FxHashSet::default()],
@@ -841,6 +847,29 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         true
     }
 
+    /// Walk every argument of a `CallExpression` so inner state-var refs
+    /// get `$.get(...)` wrapping, then drain the inner replacements and
+    /// return the comma-joined transformed text — the contents that
+    /// would have been inside the original `(...)` if the call were
+    /// preserved verbatim. Used by `$inspect(args)` etc. where we want
+    /// the args as a list expression `[arg, arg, ...]`.
+    fn walk_and_drain_args_as_text(&mut self, call: &CallExpression<'_>) -> String {
+        if call.arguments.is_empty() {
+            return String::new();
+        }
+        for arg in &call.arguments {
+            self.visit_argument(arg);
+        }
+        // Source spans of each argument; join their transformed text with
+        // `, ` so the result is a valid argument list.
+        let mut parts: Vec<String> = Vec::with_capacity(call.arguments.len());
+        for arg in &call.arguments {
+            let span = arg.span();
+            parts.push(self.apply_and_drain_inner_replacements(span.start, span.end));
+        }
+        parts.join(", ")
+    }
+
     /// Apply any pending replacements that fall within [range_start, range_end)
     /// to the given source text, remove them from the replacements list, and
     /// return the transformed substring.
@@ -1290,6 +1319,68 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
                 format!("$.eager(() => {})", transformed_arg),
             );
             return;
+        }
+
+        // `$inspect(args)` / `$inspect(args).with(cb)` — *dev mode only*.
+        // Non-dev mode still uses the text path in
+        // `transform_client_runes_with_skip_and_state`, because the
+        // standalone-statement detection (which produces the
+        // `/* $$async_hole:... */` marker in async mode) is statement-
+        // shaped rather than expression-shaped and is awkward to do at
+        // the AST level.
+        //
+        // Output shapes:
+        //   $inspect(args)              -> $.inspect(() => [args], (...$$args) => console.log(...$$args), true)
+        //   $inspect(args).with(cb)     -> $.inspect(() => [args], (...$$args) => (cb)(...$$args))
+        //
+        // We match the *outer* `$inspect(...).with(cb)` call first so a
+        // chained pattern isn't double-rewritten by the inner-call branch.
+        if self.dev
+            && self.is_runes
+            && !self.is_shadowed("$inspect")
+            && !self.store_sub_vars.contains("$inspect")
+        {
+            // Outer: `$inspect(args).with(cb)` — CallExpression whose
+            // callee is `<$inspect(args)>.with`.
+            if expr.arguments.len() == 1
+                && let Expression::StaticMemberExpression(member) = &expr.callee
+                && member.property.name == "with"
+                && let Expression::CallExpression(inner) = &member.object
+                && let Expression::Identifier(inner_callee) = &inner.callee
+                && inner_callee.name == "$inspect"
+            {
+                let args_text = self.walk_and_drain_args_as_text(inner);
+                let cb_arg = &expr.arguments[0];
+                self.visit_argument(cb_arg);
+                let cb_span = cb_arg.span();
+                let cb_text = self.apply_and_drain_inner_replacements(cb_span.start, cb_span.end);
+                self.add_replacement(
+                    expr.span.start,
+                    expr.span.end,
+                    format!(
+                        "$.inspect(() => [{}], (...$$args) => ({})(...$$args))",
+                        args_text, cb_text
+                    ),
+                );
+                return;
+            }
+
+            // Inner / simple: `$inspect(args)` — CallExpression with
+            // identifier callee `$inspect`.
+            if let Expression::Identifier(callee_ident) = &expr.callee
+                && callee_ident.name == "$inspect"
+            {
+                let args_text = self.walk_and_drain_args_as_text(expr);
+                self.add_replacement(
+                    expr.span.start,
+                    expr.span.end,
+                    format!(
+                        "$.inspect(() => [{}], (...$$args) => console.log(...$$args), true)",
+                        args_text
+                    ),
+                );
+                return;
+            }
         }
 
         // Normal call expression - walk as usual
@@ -2424,6 +2515,10 @@ pub(super) struct AstTransformConfig<'a> {
     pub derived_vars: &'a [String],
     pub non_proxy_vars: &'a [String],
     pub is_runes: bool,
+    /// Whether dev-mode rune rewrites should fire (e.g. the `$inspect(...)`
+    /// expansion into `$.inspect(() => [args], ...)` — non-dev removal of
+    /// the same call remains in the text path).
+    pub dev: bool,
     pub prop_source_vars: &'a [String],
     pub prop_assignment_transform_vars: &'a [String],
     pub non_bindable_prop_vars: &'a [String],
@@ -2560,6 +2655,7 @@ pub(super) fn transform_state_vars_ast(
             derived_vars,
             non_proxy_vars,
             is_runes,
+            config.dev,
             prop_source_vars,
             non_bindable_prop_vars,
             store_sub_vars,
@@ -2603,6 +2699,7 @@ mod tests {
             derived_vars: &[],
             non_proxy_vars: &[],
             is_runes: true,
+            dev: false,
             prop_source_vars: &[],
             prop_assignment_transform_vars: &[],
             non_bindable_prop_vars: &[],
@@ -2628,6 +2725,7 @@ mod tests {
             derived_vars: &[],
             non_proxy_vars: &[],
             is_runes: true,
+            dev: false,
             prop_source_vars: &[],
             prop_assignment_transform_vars: &[],
             non_bindable_prop_vars: &[],
@@ -2838,6 +2936,7 @@ mod tests {
             derived_vars: &[],
             non_proxy_vars: &[],
             is_runes: true,
+            dev: false,
             prop_source_vars: &[],
             prop_assignment_transform_vars: &[],
             non_bindable_prop_vars: &[],
