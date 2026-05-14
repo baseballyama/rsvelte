@@ -4324,6 +4324,11 @@ fn transform_instance_script_for_visitors(
             && memmem::find(result.as_bytes(), b"$derived").is_some();
         let has_props_calls = !store_sub_vars.iter().any(|v| v == "$props")
             && memmem::find(result.as_bytes(), b"$props").is_some();
+        // Dev-mode `===` / `!==` rewrite is now part of the AST pass
+        // (replaces `transform_strict_equals` from rune_transforms.rs).
+        let has_strict_equals = dev
+            && (memmem::find(result.as_bytes(), b"===").is_some()
+                || memmem::find(result.as_bytes(), b"!==").is_some());
         let has_transforms = !state_vars.is_empty()
             || !prop_assignment_transform_vars.is_empty()
             || !store_sub_vars.is_empty()
@@ -4332,7 +4337,8 @@ fn transform_instance_script_for_visitors(
             || has_effect_calls
             || has_state_calls
             || has_derived_calls
-            || has_props_calls;
+            || has_props_calls
+            || has_strict_equals;
 
         if has_transforms {
             // Collect $derived / $derived.by binding names so AST assignment transforms

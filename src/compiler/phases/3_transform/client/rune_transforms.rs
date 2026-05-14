@@ -367,11 +367,12 @@ pub(super) fn transform_client_runes_with_skip_and_state(
         return transformed;
     }
 
-    // In dev mode, transform === to $.strict_equals() and !== to !$.strict_equals()
-    // This is the BinaryExpression visitor from the official Svelte compiler
-    if dev {
-        result = transform_strict_equals(&result);
-    }
+    // Dev-mode `===` / `!==` → `$.strict_equals(...)` rewrite now lives in
+    // the AST pass (`ast_state_transform::try_rewrite_strict_equals_binary`),
+    // run from `transform_client_with_visitors` after this per-statement
+    // pipeline completes. Component-instance scripts no longer need the
+    // text-based pass. Module scripts (`transform_module_script_runes`)
+    // still call `transform_strict_equals` until that path is migrated.
 
     // In dev mode, wrap $.state() and $.derived() declarations with $.tag() for debugging
     // This allows $inspect.trace() to show variable names in the output.

@@ -18,7 +18,7 @@ use oxc_ast_visit::walk;
 use oxc_parser::Parser;
 use oxc_span::GetSpan;
 use oxc_span::SourceType;
-use oxc_syntax::operator::{AssignmentOperator, UpdateOperator};
+use oxc_syntax::operator::{AssignmentOperator, BinaryOperator, UpdateOperator};
 use oxc_syntax::scope::ScopeFlags;
 use oxc_syntax::scope::ScopeId;
 use rustc_hash::FxHashSet;
@@ -967,6 +967,54 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         true
     }
 
+    /// Dev-mode rewrite of `a === b` / `a !== b` BinaryExpressions to
+    /// `$.strict_equals(a, b)` / `!$.strict_equals(a, b)`. Mirrors the
+    /// official Svelte compiler's `BinaryExpression` visitor — runtime
+    /// hook that surfaces signal-vs-proxy comparison footguns to the user.
+    /// Replaces the text-based pass formerly in
+    /// `rune_transforms::transform_strict_equals` for component instance
+    /// scripts. Returns `true` when the expression was rewritten.
+    fn try_rewrite_strict_equals_binary(&mut self, expr: &BinaryExpression<'_>) -> bool {
+        if !self.dev {
+            return false;
+        }
+        let is_neq = match expr.operator {
+            BinaryOperator::StrictEquality => false,
+            BinaryOperator::StrictInequality => true,
+            _ => return false,
+        };
+
+        // Walk both operands so inner state-var refs (and nested
+        // `===` / `!==` rewrites) register their replacements, then
+        // drain those into the operand-local text. Each drain yields
+        // the fully-transformed operand substring that the outer
+        // replacement carries verbatim.
+        self.visit_expression(&expr.left);
+        self.visit_expression(&expr.right);
+
+        let left_span = expr.left.span();
+        let right_span = expr.right.span();
+        let left_text = self.apply_and_drain_inner_replacements(left_span.start, left_span.end);
+        let right_text = self.apply_and_drain_inner_replacements(right_span.start, right_span.end);
+
+        let replacement = if is_neq {
+            format!(
+                "!$.strict_equals({}, {})",
+                left_text.trim(),
+                right_text.trim()
+            )
+        } else {
+            format!(
+                "$.strict_equals({}, {})",
+                left_text.trim(),
+                right_text.trim()
+            )
+        };
+
+        self.add_replacement(expr.span.start, expr.span.end, replacement);
+        true
+    }
+
     /// Walk every argument of a `CallExpression` so inner state-var refs
     /// get `$.get(...)` wrapping, then drain the inner replacements and
     /// return the comma-joined transformed text — the contents that
@@ -1222,6 +1270,15 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         //   { return $.trace(thunk, () => { …remaining body… }); }
         if !self.try_rewrite_inspect_trace_function_body(body) {
             walk::walk_function_body(self, body);
+        }
+    }
+
+    fn visit_binary_expression(&mut self, expr: &BinaryExpression<'ast>) {
+        // Dev-mode `===` / `!==` rewrite. When matched the helper walks
+        // and drains inner replacements itself, so we skip the default
+        // walk to avoid double-visiting the operands.
+        if !self.try_rewrite_strict_equals_binary(expr) {
+            walk::walk_binary_expression(self, expr);
         }
     }
 
@@ -2710,6 +2767,13 @@ pub(super) fn transform_state_vars_ast(
     let has_props_calls = is_runes
         && !store_sub_vars.iter().any(|v| v == "$props")
         && memchr::memmem::find(script.as_bytes(), b"$props").is_some();
+    // Dev-mode `===` / `!==` → `$.strict_equals(...)` rewrite (formerly
+    // `rune_transforms::transform_strict_equals`). The visitor walks
+    // every BinaryExpression so we only need a byte probe to know
+    // whether to enter the AST pass at all.
+    let has_strict_equals = config.dev
+        && (memchr::memmem::find(script.as_bytes(), b"===").is_some()
+            || memchr::memmem::find(script.as_bytes(), b"!==").is_some());
 
     if !has_state
         && !has_props
@@ -2720,6 +2784,7 @@ pub(super) fn transform_state_vars_ast(
         && !has_state_calls
         && !has_derived_calls
         && !has_props_calls
+        && !has_strict_equals
     {
         return None;
     }
@@ -2769,7 +2834,8 @@ pub(super) fn transform_state_vars_ast(
         || (has_effect_calls && script_ids.contains("$effect"))
         || (has_state_calls && script_ids.contains("$state"))
         || (has_derived_calls && script_ids.contains("$derived"))
-        || (has_props_calls && script_ids.contains("$props"));
+        || (has_props_calls && script_ids.contains("$props"))
+        || has_strict_equals;
 
     if !has_any_match {
         return None;
