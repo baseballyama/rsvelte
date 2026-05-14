@@ -277,10 +277,9 @@ pub(super) fn transform_client_runes_with_skip_and_state(
     // of the statement-wide `is_function_parameter_in_statement` heuristic.
     let _ = (effect_is_store_sub, effect_is_func_param);
 
-    // Transform $props.id() to $.props_id()
-    if memmem::find(result.as_bytes(), b"$props.id()").is_some() {
-        result = result.replace("$props.id()", "$.props_id()");
-    }
+    // `$props.id()` -> `$.props_id()` is now handled by the AST pass in
+    // `ast_state_transform::visit_call_expression` (precise lexical-scope
+    // shadowing check for `$props`).
 
     // Transform $inspect.trace(...) - in non-dev mode, remove the entire statement
     // In dev mode, transform the enclosing block body to wrap remaining statements in $.trace()

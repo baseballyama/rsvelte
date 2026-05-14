@@ -1250,6 +1250,21 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             return;
         }
 
+        // `$props.id()` -> `$.props_id()`. Zero-arg rune call, callee
+        // rename only.
+        if self.is_runes
+            && !self.is_shadowed("$props")
+            && !self.store_sub_vars.contains("$props")
+            && expr.arguments.is_empty()
+            && let Expression::StaticMemberExpression(member) = &expr.callee
+            && let Expression::Identifier(obj) = &member.object
+            && obj.name == "$props"
+            && member.property.name == "id"
+        {
+            self.add_replacement(member.span.start, member.span.end, "$.props_id".to_string());
+            return;
+        }
+
         // Normal call expression - walk as usual
         walk::walk_call_expression(self, expr);
     }
@@ -2429,6 +2444,9 @@ pub(super) fn transform_state_vars_ast(
     let has_derived_calls = is_runes
         && !store_sub_vars.iter().any(|v| v == "$derived")
         && memchr::memmem::find(script.as_bytes(), b"$derived").is_some();
+    let has_props_calls = is_runes
+        && !store_sub_vars.iter().any(|v| v == "$props")
+        && memchr::memmem::find(script.as_bytes(), b"$props").is_some();
 
     if !has_state
         && !has_props
@@ -2438,6 +2456,7 @@ pub(super) fn transform_state_vars_ast(
         && !has_effect_calls
         && !has_state_calls
         && !has_derived_calls
+        && !has_props_calls
     {
         return None;
     }
@@ -2486,7 +2505,8 @@ pub(super) fn transform_state_vars_ast(
                 .any(|v| script_ids.contains(v.as_str())))
         || (has_effect_calls && script_ids.contains("$effect"))
         || (has_state_calls && script_ids.contains("$state"))
-        || (has_derived_calls && script_ids.contains("$derived"));
+        || (has_derived_calls && script_ids.contains("$derived"))
+        || (has_props_calls && script_ids.contains("$props"));
 
     if !has_any_match {
         return None;
