@@ -4,7 +4,7 @@ use memchr::memmem;
 
 use super::destructure_transforms::build_fallback_string;
 use super::{
-    ARRAY_LOOKUP_COUNTER, DERIVED_TMP_COUNTER, SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER,
+    ARRAY_LOOKUP_COUNTER, DERIVED_TMP_COUNTER, SCRIPT_ARRAY_COUNTER,
     contains_direct_await_in_expression, find_matching_paren, is_function_parameter_in_statement,
     strip_top_level_await_from_expr, transform_props_destructuring, unthunk_string,
     wrap_await_with_save_in_async_derived, wrap_state_vars_in_expr,
@@ -47,7 +47,7 @@ pub(super) fn find_unescaped_derived_call(s: &str) -> Option<usize> {
 #[allow(clippy::too_many_arguments)]
 pub(super) fn transform_client_runes_with_skip_and_state(
     line: &str,
-    skip_state_vars: &[String],
+    _skip_state_vars: &[String],
     state_vars: &[String],
     non_reactive_vars: &[String],
     prop_source_vars: &[String],
@@ -89,37 +89,13 @@ pub(super) fn transform_client_runes_with_skip_and_state(
 
     // Skip all $state rune transforms if $state is actually a store subscription or function param
     if !state_is_store_sub && !state_is_func_param {
-        // Handle destructuring patterns with $state/$state.raw BEFORE other $state transforms.
-        // e.g. `let { num } = $state(setup())` -> `let tmp = setup(), num = $.state($.proxy(tmp.num))`
-        if let Some(state_pos) = memmem::find(result.as_bytes(), b"$state(")
-            .or_else(|| memmem::find(result.as_bytes(), b"$state.raw("))
-        {
-            let before_state = &result[..state_pos];
-            if (memmem::find(before_state.as_bytes(), b"let ").is_some()
-                || memmem::find(before_state.as_bytes(), b"const ").is_some()
-                || memmem::find(before_state.as_bytes(), b"var ").is_some())
-                && (before_state.contains('{') || before_state.contains('['))
-            {
-                let is_raw = result[state_pos..].starts_with("$state.raw(");
-                if let Some(transformed) = transform_state_destructuring(
-                    &result,
-                    is_raw,
-                    skip_state_vars,
-                    state_vars,
-                    non_reactive_vars,
-                    proxy_vars,
-                ) {
-                    let mut transformed = apply_effect_rune_transforms(transformed);
-
-                    // In dev mode, wrap $.state() and $.derived() declarations with $.tag()
-                    if dev {
-                        transformed = wrap_state_derived_with_tag(&transformed);
-                    }
-
-                    return transformed;
-                }
-            }
-        }
+        // Destructured `$state(...)` / `$state.raw(...)` declarators are now
+        // rewritten in the AST pass (`ast_state_transform::try_rewrite_state_destructuring_declarator`).
+        // The AST visit handles the same shapes the text helper did
+        // (object pattern with shorthand / renamed / rest, array pattern with
+        // optional rest), emits the same `tmp = wrapped_source, name = $.state(...)`
+        // form, and threads `maybe_tag_declarator` for dev-mode `$.tag(...)`
+        // wrapping. The `wrap_state_value` text helper is shared.
 
         // `$state.snapshot(x)` -> `$.snapshot(x)` is now done by the AST pass
         // in `ast_state_transform::visit_call_expression`. The dev-mode
@@ -1333,263 +1309,6 @@ pub(super) fn transform_derived_by_destructuring(
         return None;
     }
     Some(format!("{} {};", decl_keyword, declarations.join(",\n\t")))
-}
-
-/// Transform `$state()` or `$state.raw()` with destructuring patterns.
-///
-/// Transforms:
-///   `let { a, b } = $state(expr)` -> `let tmp = expr, a = $.state($.proxy(tmp.a)), b = $.state($.proxy(tmp.b))`
-///   `let { a, b } = $state.raw(expr)` -> `let tmp = expr, a = $.state(tmp.a), b = $.state(tmp.b)`
-///
-/// When a variable is not reassigned (in skip_state_vars), the $.state() wrapper is omitted:
-///   `let { foo } = $state(data)` -> `let tmp = data, foo = $.proxy(tmp.foo)`
-///
-/// Corresponds to the official Svelte compiler's VariableDeclaration.js handling of
-/// ObjectPattern/ArrayPattern with $state/$state.raw init.
-pub(super) fn transform_state_destructuring(
-    line: &str,
-    is_raw: bool,
-    skip_state_vars: &[String],
-    state_vars: &[String],
-    non_reactive_vars: &[String],
-    proxy_vars: &[String],
-) -> Option<String> {
-    let trimmed = line.trim();
-
-    // Determine declaration keyword
-    let decl_keyword = if trimmed.starts_with("let ") {
-        "let"
-    } else if trimmed.starts_with("const ") {
-        "const"
-    } else if trimmed.starts_with("var ") {
-        "var"
-    } else {
-        return None;
-    };
-
-    // Find the $state( or $state.raw( position
-    let rune_str = if is_raw { "$state.raw(" } else { "$state(" };
-    let rune_pos = trimmed.find(rune_str)?;
-    let rune_len = rune_str.len();
-
-    // Extract the destructuring pattern between the keyword and the = sign
-    let eq_pos = trimmed[..rune_pos].rfind('=')?;
-    let pattern_start = decl_keyword.len() + 1; // skip "let "/"const "/"var "
-    let pattern = trimmed[pattern_start..eq_pos].trim();
-
-    // Must be a destructuring pattern
-    if !pattern.starts_with('{') && !pattern.starts_with('[') {
-        return None;
-    }
-
-    // Extract the source expression inside $state(...) or $state.raw(...)
-    let source_start = rune_pos + rune_len;
-    let source_end = find_matching_paren(&trimmed[source_start..])?;
-    let source = trimmed[source_start..source_start + source_end].trim();
-
-    // Wrap state variables in the source expression with $.get()
-    let wrapped_source = wrap_state_vars_in_expr(source, state_vars, non_reactive_vars, proxy_vars);
-
-    // Generate a unique tmp variable name: tmp, tmp_1, tmp_2, ...
-    let tmp_idx = STATE_TMP_COUNTER.with(|c| {
-        let current = c.get();
-        c.set(current + 1);
-        current
-    });
-    let tmp_name = if tmp_idx == 0 {
-        "tmp".to_string()
-    } else {
-        format!("tmp_{}", tmp_idx)
-    };
-
-    // Build declarations
-    let mut declarations = Vec::new();
-
-    // First declaration: tmp = <source expression>
-    declarations.push(format!("{} = {}", tmp_name, wrapped_source));
-
-    // Process the destructuring pattern
-    if pattern.starts_with('{') && pattern.ends_with('}') {
-        let inner = &pattern[1..pattern.len() - 1];
-        process_state_object_pattern(inner, &tmp_name, is_raw, skip_state_vars, &mut declarations)?;
-    } else if pattern.starts_with('[') && pattern.ends_with(']') {
-        let inner = &pattern[1..pattern.len() - 1];
-        process_state_array_pattern(
-            inner,
-            &tmp_name,
-            is_raw,
-            skip_state_vars,
-            state_vars,
-            non_reactive_vars,
-            proxy_vars,
-            &mut declarations,
-        )?;
-    } else {
-        return None;
-    }
-
-    if declarations.len() <= 1 {
-        // Only the tmp declaration, no actual properties
-        return None;
-    }
-
-    // Check for trailing semicolon
-    let trailing = if trimmed.ends_with(';') { "" } else { ";" };
-
-    Some(format!(
-        "{} {}{}",
-        decl_keyword,
-        declarations.join(", "),
-        trailing
-    ))
-}
-
-/// Process object destructuring pattern for $state()/$state.raw().
-///
-/// For `{ a, b: c, d = defaultVal }`, generates:
-///   `a = $.state($.proxy(tmp.a)), c = $.state($.proxy(tmp.b)), d = $.state($.proxy(tmp.d))`
-pub(super) fn process_state_object_pattern(
-    inner: &str,
-    tmp_name: &str,
-    is_raw: bool,
-    skip_state_vars: &[String],
-    declarations: &mut Vec<String>,
-) -> Option<()> {
-    let properties = split_derived_object_properties(inner);
-
-    for prop in &properties {
-        let prop = prop.trim();
-        if prop.is_empty() {
-            continue;
-        }
-
-        if let Some(rest_name) = prop.strip_prefix("...") {
-            // Rest element: ...rest
-            let rest_name = rest_name.trim();
-            // Rest elements get the remaining properties
-            // For now, generate a simple spread
-            let is_skip = skip_state_vars.contains(&rest_name.to_string());
-            let value = if is_raw {
-                format!("{}.{}", tmp_name, rest_name)
-            } else if is_skip {
-                format!("$.proxy({}.{})", tmp_name, rest_name)
-            } else {
-                format!("$.state($.proxy({}.{}))", tmp_name, rest_name)
-            };
-            declarations.push(format!("{} = {}", rest_name, value));
-            continue;
-        }
-
-        if let Some(colon_pos) = find_derived_property_colon(prop) {
-            // Renamed property: key: value or key: value = default
-            let key = prop[..colon_pos].trim();
-            let value_part = prop[colon_pos + 1..].trim();
-
-            // Check for default value: key: varname = defaultVal
-            let (var_name, _default_expr) = if let Some(eq_pos) = value_part.find('=') {
-                let vn = value_part[..eq_pos].trim();
-                let de = value_part[eq_pos + 1..].trim();
-                (vn, Some(de))
-            } else {
-                (value_part, None)
-            };
-
-            let is_skip = skip_state_vars.contains(&var_name.to_string());
-            let member_access = format!("{}.{}", tmp_name, key);
-            let wrapped = wrap_state_value(&member_access, is_raw, is_skip);
-            declarations.push(format!("{} = {}", var_name, wrapped));
-        } else {
-            // Shorthand property: name or name = defaultVal
-            let (var_name, _default_expr) = if let Some(eq_pos) = prop.find('=') {
-                let vn = prop[..eq_pos].trim();
-                let de = prop[eq_pos + 1..].trim();
-                (vn, Some(de))
-            } else {
-                (prop, None)
-            };
-
-            let is_skip = skip_state_vars.contains(&var_name.to_string());
-            let member_access = format!("{}.{}", tmp_name, var_name);
-            let wrapped = wrap_state_value(&member_access, is_raw, is_skip);
-            declarations.push(format!("{} = {}", var_name, wrapped));
-        }
-    }
-
-    Some(())
-}
-
-/// Process array destructuring pattern for $state()/$state.raw().
-///
-/// For `[a, b]`, generates:
-///   `$$array = $.derived(() => $.to_array(tmp, 2))`
-///   `a = $.state($.proxy($.get($$array)[0]))`
-///   `b = $.state($.proxy($.get($$array)[1]))`
-#[allow(clippy::too_many_arguments)]
-pub(super) fn process_state_array_pattern(
-    inner: &str,
-    tmp_name: &str,
-    is_raw: bool,
-    skip_state_vars: &[String],
-    state_vars: &[String],
-    non_reactive_vars: &[String],
-    proxy_vars: &[String],
-    declarations: &mut Vec<String>,
-) -> Option<()> {
-    let elements = split_derived_array_elements(inner);
-
-    // For array destructuring, we need an intermediate $$array derived
-    // to handle iterables (like the official compiler's extract_paths does)
-    let has_rest = elements.iter().any(|e| e.trim().starts_with("..."));
-    let element_count = elements.len();
-
-    let global_counter = SCRIPT_ARRAY_COUNTER.with(|c| {
-        let current = c.get();
-        c.set(current + 1);
-        current
-    });
-
-    let array_var = if global_counter == 0 {
-        "$$array".to_string()
-    } else {
-        format!("$$array_{}", global_counter)
-    };
-
-    // Create the $$array derived declaration
-    let to_array_args = if has_rest {
-        format!("$.to_array({})", tmp_name)
-    } else {
-        format!("$.to_array({}, {})", tmp_name, element_count)
-    };
-
-    let wrapped_to_array =
-        wrap_state_vars_in_expr(&to_array_args, state_vars, non_reactive_vars, proxy_vars);
-    declarations.push(format!(
-        "{} = $.derived(() => {})",
-        array_var, wrapped_to_array
-    ));
-
-    for (index, element) in elements.iter().enumerate() {
-        let element = element.trim();
-        if element.is_empty() {
-            continue;
-        }
-
-        if let Some(rest_name) = element.strip_prefix("...") {
-            let rest_name = rest_name.trim();
-            let is_skip = skip_state_vars.contains(&rest_name.to_string());
-            let access = format!("$.get({}).slice({})", array_var, index);
-            let wrapped = wrap_state_value(&access, is_raw, is_skip);
-            declarations.push(format!("{} = {}", rest_name, wrapped));
-            continue;
-        }
-
-        let is_skip = skip_state_vars.contains(&element.to_string());
-        let element_access = format!("$.get({})[{}]", array_var, index);
-        let wrapped = wrap_state_value(&element_access, is_raw, is_skip);
-        declarations.push(format!("{} = {}", element, wrapped));
-    }
-
-    Some(())
 }
 
 /// Wrap a member access expression for $state destructuring.

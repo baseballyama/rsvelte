@@ -23,12 +23,13 @@ use oxc_syntax::scope::ScopeFlags;
 use oxc_syntax::scope::ScopeId;
 use rustc_hash::FxHashSet;
 
-use super::VAR_STATE_VARS;
 use super::destructure_transforms::unthunk_string;
 use super::expression_utils::{
     contains_direct_await_in_expression, extract_enclosing_function_name, extract_trace_call_label,
     find_trace_source_location, strip_top_level_await_from_expr,
 };
+use super::rune_transforms::wrap_state_value;
+use super::{SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER, VAR_STATE_VARS};
 
 thread_local! {
     static AST_TRANSFORM_ALLOCATOR: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -699,6 +700,267 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         true
     }
 
+    /// AST replacement for destructured `$state(...)` / `$state.raw(...)` rune
+    /// declarators. Mirrors `rune_transforms::transform_state_destructuring`:
+    ///
+    /// - `let { a, b } = $state(expr)` →
+    ///   `let tmp = wrapped_expr, a = $.state($.proxy(tmp.a)), b = $.state($.proxy(tmp.b))`
+    /// - `let { a: b } = $state(expr)` (renamed) →
+    ///   `let tmp = wrapped_expr, b = $.state($.proxy(tmp.a))`
+    /// - `let [a, b] = $state(expr)` →
+    ///   `let tmp = wrapped_expr, $$array = $.derived(() => $.to_array(tmp, 2)), a = $.state($.proxy($.get($$array)[0])), b = ...`
+    /// - `$state.raw(...)` skips the inner `$.proxy(...)` wrap (raw → reactive
+    ///   but not proxied; raw + skip → just the member access).
+    ///
+    /// Returns `true` if matched; the caller then skips the default walk so
+    /// the init expression is not re-visited.
+    fn try_rewrite_state_destructuring_declarator(
+        &mut self,
+        declarator: &VariableDeclarator<'_>,
+    ) -> bool {
+        let Some(init) = &declarator.init else {
+            return false;
+        };
+
+        // Determine $state vs $state.raw (text path doesn't handle frozen
+        // destructuring, so we match the same shapes only).
+        let (is_raw, call) = if self.is_state_call_init(init) {
+            let Expression::CallExpression(c) = init else {
+                return false;
+            };
+            (false, c)
+        } else if self.is_state_raw_init(init) {
+            let Expression::CallExpression(c) = init else {
+                return false;
+            };
+            (true, c)
+        } else {
+            return false;
+        };
+
+        if call.arguments.len() > 1 {
+            return false;
+        }
+
+        // Destructured pattern only — simple BindingIdentifier is handled by
+        // try_rewrite_state_call_declarator / try_rewrite_state_raw_or_frozen_declarator.
+        let is_destructured = matches!(
+            &declarator.id,
+            BindingPattern::ObjectPattern(_) | BindingPattern::ArrayPattern(_)
+        );
+        if !is_destructured {
+            return false;
+        }
+
+        // Walk source so inner state-var refs get `$.get(...)` wraps, then
+        // drain those inner replacements into the source substring we'll
+        // embed in the tmp declaration.
+        let source_text = if let Some(arg) = call.arguments.first() {
+            self.visit_argument(arg);
+            let arg_span = arg.span();
+            self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end)
+        } else {
+            "void 0".to_string()
+        };
+
+        let tmp_idx = STATE_TMP_COUNTER.with(|c| {
+            let cur = c.get();
+            c.set(cur + 1);
+            cur
+        });
+        let tmp_name = if tmp_idx == 0 {
+            "tmp".to_string()
+        } else {
+            format!("tmp_{}", tmp_idx)
+        };
+
+        let mut declarations = vec![format!("{} = {}", tmp_name, source_text.trim())];
+
+        match &declarator.id {
+            BindingPattern::ObjectPattern(obj) => {
+                if !self.collect_state_object_pattern(obj, &tmp_name, is_raw, &mut declarations) {
+                    return false;
+                }
+            }
+            BindingPattern::ArrayPattern(arr) => {
+                if !self.collect_state_array_pattern(arr, &tmp_name, is_raw, &mut declarations) {
+                    return false;
+                }
+            }
+            _ => return false,
+        }
+
+        if declarations.len() <= 1 {
+            return false;
+        }
+
+        let replacement = declarations.join(", ");
+        let start = declarator.id.span().start;
+        let end = call.span.end;
+        self.add_replacement(start, end, replacement);
+        true
+    }
+
+    /// Returns true if `init` is a `$state.raw(...)` CallExpression (not
+    /// `$state.frozen(...)`) — the destructuring text path only matched
+    /// `$state.raw(` so the destructuring AST migration narrows to the same.
+    fn is_state_raw_init(&self, init: &Expression<'_>) -> bool {
+        if !self.is_runes || self.is_shadowed("$state") {
+            return false;
+        }
+        let Expression::CallExpression(call) = init else {
+            return false;
+        };
+        let Expression::StaticMemberExpression(member) = &call.callee else {
+            return false;
+        };
+        let Expression::Identifier(obj) = &member.object else {
+            return false;
+        };
+        obj.name == "$state" && member.property.name == "raw"
+    }
+
+    /// Walk an ObjectPattern and append `name = $.state(...)` declarations
+    /// for each property. Returns false if any property is unsupported
+    /// (computed key, nested pattern beyond simple identifier targets,
+    /// etc.) so the caller can bail back to the text path.
+    fn collect_state_object_pattern(
+        &mut self,
+        obj: &ObjectPattern<'_>,
+        tmp_name: &str,
+        is_raw: bool,
+        declarations: &mut Vec<String>,
+    ) -> bool {
+        for prop in &obj.properties {
+            // Inner target must be a plain BindingIdentifier; nested
+            // destructuring inside state isn't supported by the text path
+            // either (it only handles flat patterns).
+            let value_pattern = match &prop.value {
+                BindingPattern::BindingIdentifier(_) => &prop.value,
+                BindingPattern::AssignmentPattern(_) => &prop.value,
+                _ => return false,
+            };
+            // Drop AssignmentPattern wrapper — the text path ignores the
+            // default value, only using the left-hand identifier.
+            let var_ident = match value_pattern {
+                BindingPattern::BindingIdentifier(id) => id,
+                BindingPattern::AssignmentPattern(assign) => match &assign.left {
+                    BindingPattern::BindingIdentifier(id) => id,
+                    _ => return false,
+                },
+                _ => return false,
+            };
+            let var_name = var_ident.name.as_str();
+
+            // Resolve the source-side key text.
+            let key_text = match &prop.key {
+                PropertyKey::StaticIdentifier(id) => id.name.as_str().to_string(),
+                PropertyKey::StringLiteral(s) => s.value.as_str().to_string(),
+                _ => return false,
+            };
+
+            let is_skip = self.is_state_destructure_skip(var_name);
+            let member_access = format!("{}.{}", tmp_name, key_text);
+            let value_expr = wrap_state_value(&member_access, is_raw, is_skip);
+            let value_expr = self.maybe_tag_declarator(var_name, value_expr);
+            declarations.push(format!("{} = {}", var_name, value_expr));
+        }
+
+        if let Some(rest) = &obj.rest {
+            let var_ident = match &rest.argument {
+                BindingPattern::BindingIdentifier(id) => id,
+                _ => return false,
+            };
+            let var_name = var_ident.name.as_str();
+            let is_skip = self.is_state_destructure_skip(var_name);
+            let access = format!("{}.{}", tmp_name, var_name);
+            let value_expr = if is_raw {
+                access
+            } else if is_skip {
+                format!("$.proxy({})", access)
+            } else {
+                format!("$.state($.proxy({}))", access)
+            };
+            let value_expr = self.maybe_tag_declarator(var_name, value_expr);
+            declarations.push(format!("{} = {}", var_name, value_expr));
+        }
+        true
+    }
+
+    /// Walk an ArrayPattern and append the `$$array = $.derived(() => $.to_array(...))`
+    /// helper plus per-element declarations. Mirrors
+    /// `process_state_array_pattern` in the text path.
+    fn collect_state_array_pattern(
+        &mut self,
+        arr: &ArrayPattern<'_>,
+        tmp_name: &str,
+        is_raw: bool,
+        declarations: &mut Vec<String>,
+    ) -> bool {
+        let has_rest = arr.rest.is_some();
+        let element_count = arr.elements.len();
+        let global_counter = SCRIPT_ARRAY_COUNTER.with(|c| {
+            let cur = c.get();
+            c.set(cur + 1);
+            cur
+        });
+        let array_var = if global_counter == 0 {
+            "$$array".to_string()
+        } else {
+            format!("$$array_{}", global_counter)
+        };
+
+        let to_array_args = if has_rest {
+            format!("$.to_array({})", tmp_name)
+        } else {
+            format!("$.to_array({}, {})", tmp_name, element_count)
+        };
+        declarations.push(format!(
+            "{} = $.derived(() => {})",
+            array_var, to_array_args
+        ));
+
+        for (index, elem_opt) in arr.elements.iter().enumerate() {
+            let Some(elem) = elem_opt else { continue };
+            let var_ident = match elem {
+                BindingPattern::BindingIdentifier(id) => id,
+                BindingPattern::AssignmentPattern(assign) => match &assign.left {
+                    BindingPattern::BindingIdentifier(id) => id,
+                    _ => return false,
+                },
+                _ => return false,
+            };
+            let var_name = var_ident.name.as_str();
+            let is_skip = self.is_state_destructure_skip(var_name);
+            let element_access = format!("$.get({})[{}]", array_var, index);
+            let value_expr = wrap_state_value(&element_access, is_raw, is_skip);
+            let value_expr = self.maybe_tag_declarator(var_name, value_expr);
+            declarations.push(format!("{} = {}", var_name, value_expr));
+        }
+
+        if let Some(rest) = &arr.rest {
+            let var_ident = match &rest.argument {
+                BindingPattern::BindingIdentifier(id) => id,
+                _ => return false,
+            };
+            let var_name = var_ident.name.as_str();
+            let is_skip = self.is_state_destructure_skip(var_name);
+            let access = format!("$.get({}).slice({})", array_var, element_count);
+            let value_expr = wrap_state_value(&access, is_raw, is_skip);
+            let value_expr = self.maybe_tag_declarator(var_name, value_expr);
+            declarations.push(format!("{} = {}", var_name, value_expr));
+        }
+        true
+    }
+
+    /// The text destructuring helper passes the `skip_state_vars` list as
+    /// `non_reactive_state_vars` — vars whose binding kind is RawState (i.e.
+    /// non-proxied state). We reuse the same `non_reactive_vars` source the
+    /// rest of the visitor uses.
+    fn is_state_destructure_skip(&self, name: &str) -> bool {
+        self.non_reactive_vars.contains(name)
+    }
+
     /// AST replacement for `$derived.by(fn)` rune declarators. Mirrors the
     /// text-pipeline rewrite that lived in
     /// `transform_client_runes_with_skip_and_state`'s `$derived.by` loop.
@@ -1286,6 +1548,13 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         // before emitting the outer span replacement. We then skip the
         // default walk so `visit_expression(init)` doesn't add the inner
         // replacements a second time.
+        //
+        // Destructured `$state(...)` / `$state.raw(...)` is checked first
+        // — the other rune-declarator handlers bail for non-Identifier
+        // binding patterns, so the destructure matcher catches them.
+        if self.try_rewrite_state_destructuring_declarator(declarator) {
+            return;
+        }
         if self.try_rewrite_state_raw_or_frozen_declarator(declarator) {
             return;
         }
