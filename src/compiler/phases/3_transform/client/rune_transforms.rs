@@ -5,7 +5,7 @@ use memchr::memmem;
 use super::destructure_transforms::build_fallback_string;
 use super::{
     ARRAY_LOOKUP_COUNTER, SCRIPT_ARRAY_COUNTER, find_matching_paren,
-    is_function_parameter_in_statement, transform_props_destructuring,
+    is_function_parameter_in_statement,
 };
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 
@@ -16,13 +16,13 @@ pub(super) fn transform_client_runes_with_skip_and_state(
     _skip_state_vars: &[String],
     _state_vars: &[String],
     _non_reactive_vars: &[String],
-    prop_source_vars: &[String],
-    exported_names: &[String],
+    _prop_source_vars: &[String],
+    _exported_names: &[String],
     _proxy_vars: &[String],
     dev: bool,
-    analysis: &ComponentAnalysis,
+    _analysis: &ComponentAnalysis,
     store_sub_vars: &[String],
-    read_only_props: &[(String, String)],
+    _read_only_props: &[(String, String)],
 ) -> String {
     // Quick pre-check: if no rune-like pattern (`$` followed by letter) appears, skip
     if !line.contains('$') {
@@ -259,19 +259,12 @@ pub(super) fn transform_client_runes_with_skip_and_state(
         }
     }
 
-    // Transform $props() destructuring to $.prop() calls (only for source props)
-    if memmem::find(result.as_bytes(), b"$props()").is_some()
-        && let Some(transformed) = transform_props_destructuring(
-            &result,
-            prop_source_vars,
-            exported_names,
-            analysis,
-            read_only_props,
-            dev,
-        )
-    {
-        return transformed;
-    }
+    // Destructured / identifier `$props()` declarators are now rewritten
+    // in the AST pass
+    // (`ast_state_transform::try_rewrite_props_destructuring_declaration`).
+    // The recursive flag/binding-kind heavy lifting in
+    // `transform_props_destructuring` is reused; only the per-statement
+    // byte scan that used to detect the shape is removed here.
 
     // Dev-mode `===` / `!==` → `$.strict_equals(...)` rewrite now lives in
     // the AST pass (`ast_state_transform::try_rewrite_strict_equals_binary`),
