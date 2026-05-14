@@ -4,35 +4,21 @@ use memchr::memmem;
 
 use super::destructure_transforms::build_fallback_string;
 use super::{
-    ARRAY_LOOKUP_COUNTER, DERIVED_TMP_COUNTER, SCRIPT_ARRAY_COUNTER, find_matching_paren,
-    is_function_parameter_in_statement, transform_props_destructuring, wrap_state_vars_in_expr,
+    ARRAY_LOOKUP_COUNTER, SCRIPT_ARRAY_COUNTER, find_matching_paren,
+    is_function_parameter_in_statement, transform_props_destructuring,
 };
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
-
-/// Find the position of `$derived.by(` in the string, skipping already-transformed occurrences.
-pub(super) fn find_unescaped_derived_by_call(s: &str) -> Option<usize> {
-    let mut search_from = 0;
-    while let Some(pos) = memmem::find(&s.as_bytes()[search_from..], b"$derived.by(") {
-        let abs_pos = search_from + pos;
-        if abs_pos > 0 && s.as_bytes()[abs_pos - 1] == b'.' {
-            search_from = abs_pos + 12;
-            continue;
-        }
-        return Some(abs_pos);
-    }
-    None
-}
 
 /// Transform runes for client-side usage with skip and state variable handling.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn transform_client_runes_with_skip_and_state(
     line: &str,
     _skip_state_vars: &[String],
-    state_vars: &[String],
-    non_reactive_vars: &[String],
+    _state_vars: &[String],
+    _non_reactive_vars: &[String],
     prop_source_vars: &[String],
     exported_names: &[String],
-    proxy_vars: &[String],
+    _proxy_vars: &[String],
     dev: bool,
     analysis: &ComponentAnalysis,
     store_sub_vars: &[String],
@@ -131,32 +117,12 @@ pub(super) fn transform_client_runes_with_skip_and_state(
         // already treats their declarations and references as non-reactive
         // without a $derived.by-specific carve-out here.
         //
-        // *Destructured* `$derived.by({ ... })` / `[...]` patterns are NOT
-        // handled by the AST migration (which only matches a
-        // `BindingPattern::BindingIdentifier`) — they still need the text
-        // `transform_derived_by_destructuring` helper, which produces a
-        // complete IIFE/`$$d`-temp form and returns the rewritten script.
-        if let Some(pos) = find_unescaped_derived_by_call(&result) {
-            let before_derived_by = result[..pos].trim();
-            let has_destructuring_by = (memmem::find(before_derived_by.as_bytes(), b"let ")
-                .is_some()
-                || memmem::find(before_derived_by.as_bytes(), b"const ").is_some()
-                || memmem::find(before_derived_by.as_bytes(), b"var ").is_some())
-                && (before_derived_by.contains('{') || before_derived_by.contains('['));
-
-            if has_destructuring_by
-                && let Some(transformed) = transform_derived_by_destructuring(
-                    &result,
-                    state_vars,
-                    non_reactive_vars,
-                    proxy_vars,
-                )
-            {
-                return apply_effect_rune_transforms(transformed);
-            }
-            // Simple-declarator and "destructuring helper bailed" cases both
-            // fall through to the AST pass without further text rewriting.
-        }
+        // Destructured `$derived.by({ ... })` / `[...]` patterns are now
+        // rewritten in the AST pass
+        // (`ast_state_transform::try_rewrite_derived_by_destructuring_declarator`).
+        // The shared `process_derived_destructuring_pattern` text helper is
+        // reused for the recursive pattern walk; only the per-statement
+        // byte scan that used to detect the shape is removed here.
 
         // Transform $derived(x) to $.derived(() => x) or $.async_derived() for async
         // Handle destructuring patterns specially
@@ -1105,64 +1071,6 @@ fn replace_effect_patterns(input: &str) -> String {
     // Append remaining tail
     out.push_str(&input[last_copied..]);
     out
-}
-
-/// Transform `$derived.by()` with destructuring patterns.
-///
-/// Unlike `$derived(identifier)` which can skip the temp variable,
-/// `$derived.by()` always creates a `$$d` temp variable because the
-/// callback is already provided and needs to be called through `$.derived()`.
-///
-/// Transforms:
-///   `let { a, b } = $derived.by(fn)` -> `let $$d = $.derived(fn), a = $.derived(() => $.get($$d).a), b = $.derived(() => $.get($$d).b)`
-pub(super) fn transform_derived_by_destructuring(
-    line: &str,
-    state_vars: &[String],
-    non_reactive_vars: &[String],
-    proxy_vars: &[String],
-) -> Option<String> {
-    let trimmed = line.trim();
-    let decl_keyword = if trimmed.starts_with("let ") {
-        "let"
-    } else if trimmed.starts_with("const ") {
-        "const"
-    } else if trimmed.starts_with("var ") {
-        "var"
-    } else {
-        return None;
-    };
-    let derived_pos = memmem::find(trimmed.as_bytes(), b"$derived.by(")?;
-    let pattern_start = decl_keyword.len() + 1;
-    let eq_pos = trimmed[..derived_pos].rfind('=')?;
-    let pattern = trimmed[pattern_start..eq_pos].trim();
-    let source_start = derived_pos + 12; // after "$derived.by("
-    let source_end = find_matching_paren(&trimmed[source_start..])?;
-    let source = trimmed[source_start..source_start + source_end].trim();
-    let mut declarations = Vec::new();
-    let mut array_counter = 0;
-    let wrapped_source = wrap_state_vars_in_expr(source, state_vars, non_reactive_vars, proxy_vars);
-    // $derived.by() always creates a $$d temp - the callback is passed directly to $.derived()
-    let d_name = DERIVED_TMP_COUNTER.with(|c| {
-        let n = c.get();
-        c.set(n + 1);
-        if n == 0 {
-            "$$d".to_string()
-        } else {
-            format!("$$d_{}", n)
-        }
-    });
-    declarations.push(format!("{} = $.derived({})", d_name, wrapped_source));
-    let base_expr = format!("$.get({})", d_name);
-    process_derived_destructuring_pattern(
-        pattern,
-        &base_expr,
-        &mut declarations,
-        &mut array_counter,
-    )?;
-    if declarations.is_empty() {
-        return None;
-    }
-    Some(format!("{} {};", decl_keyword, declarations.join(",\n\t")))
 }
 
 /// Wrap a member access expression for $state destructuring.

@@ -1128,6 +1128,86 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         true
     }
 
+    /// AST replacement for destructured `$derived.by(fn)` rune declarators.
+    /// Mirrors `rune_transforms::transform_derived_by_destructuring`.
+    ///
+    /// Unlike plain `$derived(expr)` which has multiple init shapes,
+    /// `$derived.by(fn)` always allocates a fresh `$$d` temp and passes
+    /// the callback directly to `$.derived(...)` — the callback is
+    /// already a function so no arrow wrap is needed. The shared
+    /// recursive `process_derived_destructuring_pattern` then emits the
+    /// per-key/element `name = $.derived(() => $.get($$d).key)` lines.
+    fn try_rewrite_derived_by_destructuring_declarator(
+        &mut self,
+        declarator: &VariableDeclarator<'_>,
+    ) -> bool {
+        let Some(init) = &declarator.init else {
+            return false;
+        };
+        if !self.is_derived_by_init(init) {
+            return false;
+        }
+        let Expression::CallExpression(call) = init else {
+            return false;
+        };
+        let is_destructured = matches!(
+            &declarator.id,
+            BindingPattern::ObjectPattern(_) | BindingPattern::ArrayPattern(_)
+        );
+        if !is_destructured {
+            return false;
+        }
+        if call.arguments.len() != 1 {
+            return false;
+        }
+
+        // Walk the callback so inner state-var refs get `$.get(...)`
+        // wrapping inside the embedded source text, then drain.
+        let arg = &call.arguments[0];
+        let arg_span = arg.span();
+        self.visit_argument(arg);
+        let wrapped_source = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
+
+        let pattern_span = declarator.id.span();
+        let pattern_text =
+            self.source[pattern_span.start as usize..pattern_span.end as usize].to_string();
+        let pattern_text = pattern_text.trim().to_string();
+
+        let d_name = DERIVED_TMP_COUNTER.with(|c| {
+            let n = c.get();
+            c.set(n + 1);
+            if n == 0 {
+                "$$d".to_string()
+            } else {
+                format!("$$d_{}", n)
+            }
+        });
+
+        let mut declarations: Vec<String> =
+            vec![format!("{} = $.derived({})", d_name, wrapped_source)];
+        let base_expr = format!("$.get({})", d_name);
+        let mut array_counter: usize = 0;
+        if process_derived_destructuring_pattern(
+            &pattern_text,
+            &base_expr,
+            &mut declarations,
+            &mut array_counter,
+        )
+        .is_none()
+        {
+            return false;
+        }
+        if declarations.is_empty() {
+            return false;
+        }
+
+        let replacement = declarations.join(",\n\t");
+        let start = pattern_span.start;
+        let end = call.span.end;
+        self.add_replacement(start, end, replacement);
+        true
+    }
+
     /// AST replacement for `$derived.by(fn)` rune declarators. Mirrors the
     /// text-pipeline rewrite that lived in
     /// `transform_client_runes_with_skip_and_state`'s `$derived.by` loop.
@@ -1716,14 +1796,17 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         // default walk so `visit_expression(init)` doesn't add the inner
         // replacements a second time.
         //
-        // Destructured `$state(...)` / `$state.raw(...)` / `$derived(...)`
-        // are checked first — the other rune-declarator handlers bail for
-        // non-Identifier binding patterns, so the destructure matchers
-        // catch them.
+        // Destructured `$state(...)` / `$state.raw(...)` / `$derived(...)` /
+        // `$derived.by(...)` are checked first — the other rune-declarator
+        // handlers bail for non-Identifier binding patterns, so the
+        // destructure matchers catch them.
         if self.try_rewrite_state_destructuring_declarator(declarator) {
             return;
         }
         if self.try_rewrite_derived_destructuring_declarator(declarator) {
+            return;
+        }
+        if self.try_rewrite_derived_by_destructuring_declarator(declarator) {
             return;
         }
         if self.try_rewrite_state_raw_or_frozen_declarator(declarator) {
