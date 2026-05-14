@@ -206,154 +206,40 @@ pub(super) fn transform_client_runes_with_skip_and_state(
         // Handle destructuring patterns specially
         // Loop to handle multiple $derived() calls in a single statement
         // (e.g., inside a function body with multiple derived declarations)
-        while let Some(pos) = find_unescaped_derived_call(&result) {
+        // Simple `let x = $derived(expr)` declarators are now rewritten in
+        // `ast_state_transform::transform_state_vars_ast` via
+        // `try_rewrite_derived_call_declarator`. The AST visit handles the
+        // same five cases the old text loop did (already-a-function thunk
+        // wrap, top-level `await` → `await $.async_derived(...)`, object
+        // literal paren wrap, bare store-sub / prop-source pass-through,
+        // and default `unthunk_string` thunk wrap) and reuses the same
+        // text helpers (`contains_direct_await_in_expression`,
+        // `strip_top_level_await_from_expr`, `unthunk_string`) on the
+        // walked argument text.
+        //
+        // *Destructured* `$derived({...})` / `$derived([...])` patterns are
+        // still handled by the text helper `transform_derived_destructuring`,
+        // which produces a complete IIFE/`$$d`-temp form and returns the
+        // rewritten script.
+        if let Some(pos) = find_unescaped_derived_call(&result) {
             let before_pos_bytes = &result.as_bytes()[..pos];
-            if !(memmem::find(before_pos_bytes, b"let ").is_some()
+            let has_decl = memmem::find(before_pos_bytes, b"let ").is_some()
                 || memmem::find(before_pos_bytes, b"const ").is_some()
-                || memmem::find(before_pos_bytes, b"var ").is_some())
-            {
-                break;
-            }
-
-            // Check if this is a destructuring pattern
-            let before_derived = result[..pos].trim();
-            let has_destructuring = before_derived.contains('{') || before_derived.contains('[');
-
-            if has_destructuring {
-                // Handle destructuring pattern for $derived
-                if let Some(transformed) = transform_derived_destructuring(
-                    &result,
-                    state_vars,
-                    non_reactive_vars,
-                    proxy_vars,
-                ) {
+                || memmem::find(before_pos_bytes, b"var ").is_some();
+            if has_decl {
+                let before_derived = result[..pos].trim();
+                let has_destructuring =
+                    before_derived.contains('{') || before_derived.contains('[');
+                if has_destructuring
+                    && let Some(transformed) = transform_derived_destructuring(
+                        &result,
+                        state_vars,
+                        non_reactive_vars,
+                        proxy_vars,
+                    )
+                {
                     return apply_effect_rune_transforms(transformed);
                 }
-            }
-
-            // Find the content inside $derived(...)
-            let derived_start = pos + 9; // after "$derived("
-            if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
-                let content = &result[derived_start..derived_start + content_end];
-                // Strip trailing comma from $derived(expr,) - the trailing comma is valid
-                // in function call syntax but NOT in arrow function body grouping: () => (expr,) is a SyntaxError
-                let content = content
-                    .trim_end()
-                    .strip_suffix(',')
-                    .map_or(content, |stripped| stripped);
-                // Wrap in arrow function if not already a function
-                let trimmed_content = content.trim();
-                if !trimmed_content.starts_with("()") && !trimmed_content.starts_with("function") {
-                    // Check if the derived expression contains await (async derived)
-                    // Note: We need to check for await NOT inside an inner async function
-                    let contains_direct_await =
-                        contains_direct_await_in_expression(trimmed_content);
-
-                    // Wrap state variables inside the derived expression with $.get()
-                    let wrapped_content =
-                        wrap_state_vars_in_expr(content, state_vars, non_reactive_vars, proxy_vars);
-
-                    // Check if the content is an object literal - if so, wrap in parentheses
-                    // to disambiguate from a block statement
-                    let wrapped_trimmed = wrapped_content.trim();
-                    let is_object_literal = wrapped_trimmed.starts_with('{');
-
-                    let new_derived = if contains_direct_await {
-                        // For async derived in instance script:
-                        // Strip the top-level `await` and check if there are remaining awaits.
-                        // No $.save wrapping (that's only for nested contexts).
-                        let inner_expr = strip_top_level_await_from_expr(wrapped_trimmed);
-                        let inner_has_nested_await =
-                            contains_direct_await_in_expression(&inner_expr);
-
-                        if inner_has_nested_await {
-                            // Still has await after stripping → use async thunk
-                            let is_obj = wrapped_trimmed.starts_with('{');
-                            if is_obj {
-                                format!("await $.async_derived(async () => ({}))", wrapped_trimmed)
-                            } else {
-                                format!("await $.async_derived(async () => {})", wrapped_trimmed)
-                            }
-                        } else {
-                            // No more await → use sync thunk
-                            let inner_trimmed = inner_expr.trim();
-                            let inner_is_object = inner_trimmed.starts_with('{');
-                            if inner_is_object {
-                                format!("await $.async_derived(() => ({}))", inner_expr)
-                            } else {
-                                let thunk_arg = unthunk_string(&inner_expr);
-                                format!("await $.async_derived({})", thunk_arg)
-                            }
-                        }
-                    } else if is_object_literal {
-                        format!("$.derived(() => ({}))", wrapped_content)
-                    } else {
-                        // Check if the content is a store subscription variable (e.g., $store1).
-                        // Store subs are already getter functions, so they can be passed directly
-                        // to $.derived() without wrapping: $.derived($store1) instead of
-                        // $.derived(() => $store1())
-                        let trimmed_wrapped = wrapped_content.trim();
-                        if store_sub_vars.contains(&trimmed_wrapped.to_string()) {
-                            format!("$.derived({})", trimmed_wrapped)
-                        } else if prop_source_vars.iter().any(|p| p == trimmed_wrapped) {
-                            // Prop source: $.derived(propName) - the prop getter IS the derived fn
-                            format!("$.derived({})", trimmed_wrapped)
-                        } else {
-                            // Apply unthunk optimization: $.derived(() => name()) -> $.derived(name)
-                            // This matches the official compiler's b.thunk() + unthunk() behavior
-                            let derived_arg = unthunk_string(&wrapped_content);
-                            format!("$.derived({})", derived_arg)
-                        }
-                    };
-
-                    result = format!(
-                        "{}{}{}",
-                        &result[..pos],
-                        new_derived,
-                        &result[derived_start + content_end + 1..]
-                    );
-                } else {
-                    // The content is already a function - check if it's async
-                    // $derived(async () => { ... }) should become $.derived(() => async () => { ... })
-                    // Note: returns the async function, NOT invokes it
-                    if trimmed_content.starts_with("async ") {
-                        // Wrap: $.derived(() => async () => {...})
-                        let wrapped_content = wrap_state_vars_in_expr(
-                            content,
-                            state_vars,
-                            non_reactive_vars,
-                            proxy_vars,
-                        );
-                        let new_derived = format!("$.derived(() => {})", wrapped_content);
-                        result = format!(
-                            "{}{}{}",
-                            &result[..pos],
-                            new_derived,
-                            &result[derived_start + content_end + 1..]
-                        );
-                    } else {
-                        // Sync arrow function inside $derived():
-                        // $derived(() => { ... }) should become $.derived(() => () => { ... })
-                        // The official compiler wraps ALL $derived() args in b.thunk(), which
-                        // wraps the arrow function: () => (() => { ... })
-                        let wrapped_content = wrap_state_vars_in_expr(
-                            content,
-                            state_vars,
-                            non_reactive_vars,
-                            proxy_vars,
-                        );
-                        let new_derived = format!("$.derived(() => {})", wrapped_content);
-                        result = format!(
-                            "{}{}{}",
-                            &result[..pos],
-                            new_derived,
-                            &result[derived_start + content_end + 1..]
-                        );
-                    }
-                }
-            } else {
-                result = format!("{}$.derived({}", &result[..pos], &result[pos + 9..]);
-                break;
             }
         }
     } // end if !derived_is_store_sub
