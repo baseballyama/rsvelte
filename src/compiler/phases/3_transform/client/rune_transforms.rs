@@ -4,10 +4,8 @@ use memchr::memmem;
 
 use super::destructure_transforms::build_fallback_string;
 use super::{
-    ARRAY_LOOKUP_COUNTER, DERIVED_TMP_COUNTER, SCRIPT_ARRAY_COUNTER,
-    contains_direct_await_in_expression, find_matching_paren, is_function_parameter_in_statement,
-    strip_top_level_await_from_expr, transform_props_destructuring, unthunk_string,
-    wrap_await_with_save_in_async_derived, wrap_state_vars_in_expr,
+    ARRAY_LOOKUP_COUNTER, DERIVED_TMP_COUNTER, SCRIPT_ARRAY_COUNTER, find_matching_paren,
+    is_function_parameter_in_statement, transform_props_destructuring, wrap_state_vars_in_expr,
 };
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 
@@ -17,24 +15,6 @@ pub(super) fn find_unescaped_derived_by_call(s: &str) -> Option<usize> {
     while let Some(pos) = memmem::find(&s.as_bytes()[search_from..], b"$derived.by(") {
         let abs_pos = search_from + pos;
         if abs_pos > 0 && s.as_bytes()[abs_pos - 1] == b'.' {
-            search_from = abs_pos + 12;
-            continue;
-        }
-        return Some(abs_pos);
-    }
-    None
-}
-
-/// Find the position of `$derived(` in the string, skipping already-transformed occurrences.
-pub(super) fn find_unescaped_derived_call(s: &str) -> Option<usize> {
-    let mut search_from = 0;
-    while let Some(pos) = memmem::find(&s.as_bytes()[search_from..], b"$derived(") {
-        let abs_pos = search_from + pos;
-        if abs_pos > 0 && s.as_bytes()[abs_pos - 1] == b'.' {
-            search_from = abs_pos + 9;
-            continue;
-        }
-        if s[abs_pos..].starts_with("$derived.by(") {
             search_from = abs_pos + 12;
             continue;
         }
@@ -197,27 +177,11 @@ pub(super) fn transform_client_runes_with_skip_and_state(
         // still handled by the text helper `transform_derived_destructuring`,
         // which produces a complete IIFE/`$$d`-temp form and returns the
         // rewritten script.
-        if let Some(pos) = find_unescaped_derived_call(&result) {
-            let before_pos_bytes = &result.as_bytes()[..pos];
-            let has_decl = memmem::find(before_pos_bytes, b"let ").is_some()
-                || memmem::find(before_pos_bytes, b"const ").is_some()
-                || memmem::find(before_pos_bytes, b"var ").is_some();
-            if has_decl {
-                let before_derived = result[..pos].trim();
-                let has_destructuring =
-                    before_derived.contains('{') || before_derived.contains('[');
-                if has_destructuring
-                    && let Some(transformed) = transform_derived_destructuring(
-                        &result,
-                        state_vars,
-                        non_reactive_vars,
-                        proxy_vars,
-                    )
-                {
-                    return apply_effect_rune_transforms(transformed);
-                }
-            }
-        }
+        // Destructured `$derived(...)` declarators are now rewritten in the
+        // AST pass (`ast_state_transform::try_rewrite_derived_destructuring_declarator`).
+        // The recursive pattern processor `process_derived_destructuring_pattern`
+        // is shared with the AST handler — only the per-statement byte
+        // scan that used to detect the shape is removed here.
     } // end if !derived_is_store_sub
 
     // `$state.eager(x)` -> `$.eager(() => x)` is now handled by the AST
@@ -1141,116 +1105,6 @@ fn replace_effect_patterns(input: &str) -> String {
     // Append remaining tail
     out.push_str(&input[last_copied..]);
     out
-}
-
-/// Transform `export let x = value` to `let x = $.prop($$props, 'x', 12, value)`.
-/// Transform `$derived()` with destructuring patterns.
-pub(super) fn transform_derived_destructuring(
-    line: &str,
-    state_vars: &[String],
-    non_reactive_vars: &[String],
-    proxy_vars: &[String],
-) -> Option<String> {
-    let trimmed = line.trim();
-    let decl_keyword = if trimmed.starts_with("let ") {
-        "let"
-    } else if trimmed.starts_with("const ") {
-        "const"
-    } else if trimmed.starts_with("var ") {
-        "var"
-    } else {
-        return None;
-    };
-    let derived_pos = memmem::find(trimmed.as_bytes(), b"$derived(")?;
-    let pattern_start = decl_keyword.len() + 1;
-    let eq_pos = trimmed[..derived_pos].rfind('=')?;
-    let pattern = trimmed[pattern_start..eq_pos].trim();
-    let source_start = derived_pos + 9;
-    let source_end = find_matching_paren(&trimmed[source_start..])?;
-    let source = trimmed[source_start..source_start + source_end].trim();
-    let source_is_identifier = source
-        .chars()
-        .all(|c| c.is_alphanumeric() || c == '_' || c == '$');
-    let mut declarations = Vec::new();
-    let mut array_counter = 0;
-    let wrapped_source = wrap_state_vars_in_expr(source, state_vars, non_reactive_vars, proxy_vars);
-    let contains_await = contains_direct_await_in_expression(source);
-    // Only allocate a unique $$d name if we actually need a temp (i.e., source is not a plain identifier)
-    let d_name = if source_is_identifier {
-        String::new()
-    } else {
-        DERIVED_TMP_COUNTER.with(|c| {
-            let n = c.get();
-            c.set(n + 1);
-            if n == 0 {
-                "$$d".to_string()
-            } else {
-                format!("$$d_{}", n)
-            }
-        })
-    };
-    let base_expr = if source_is_identifier {
-        wrapped_source.clone()
-    } else if contains_await {
-        // Async derived destructuring: use $.async_derived()
-        // Apply $.save() wrapping for non-final await expressions
-        let saved_content = wrap_await_with_save_in_async_derived(wrapped_source.trim());
-        let inner_expr = strip_top_level_await_from_expr(&saved_content);
-        let inner_has_nested_await = contains_direct_await_in_expression(&inner_expr);
-
-        if inner_has_nested_await {
-            let is_object = saved_content.trim().starts_with('{');
-            if is_object {
-                declarations.push(format!(
-                    "{} = await $.async_derived(async () => ({}))",
-                    d_name, saved_content
-                ));
-            } else {
-                declarations.push(format!(
-                    "{} = await $.async_derived(async () => {})",
-                    d_name, saved_content
-                ));
-            }
-        } else {
-            let inner_trimmed = inner_expr.trim();
-            let inner_is_object = inner_trimmed.starts_with('{');
-            if inner_is_object {
-                declarations.push(format!(
-                    "{} = await $.async_derived(() => ({}))",
-                    d_name, inner_expr
-                ));
-            } else {
-                let thunk_arg = unthunk_string(&inner_expr);
-                declarations.push(format!("{} = await $.async_derived({})", d_name, thunk_arg));
-            }
-        }
-        format!("$.get({})", d_name)
-    } else {
-        // When the source is an object literal (starts with {), we must wrap it in
-        // parentheses to avoid the arrow function body being parsed as a block:
-        // () => ({a, b}) instead of () => {a, b}
-        if wrapped_source.trim_start().starts_with('{') {
-            declarations.push(format!(
-                "{} = $.derived(() => ({}))",
-                d_name, wrapped_source
-            ));
-        } else {
-            // Apply unthunk optimization: $.derived(() => name()) -> $.derived(name)
-            let derived_arg = unthunk_string(&wrapped_source);
-            declarations.push(format!("{} = $.derived({})", d_name, derived_arg));
-        }
-        format!("$.get({})", d_name)
-    };
-    process_derived_destructuring_pattern(
-        pattern,
-        &base_expr,
-        &mut declarations,
-        &mut array_counter,
-    )?;
-    if declarations.is_empty() {
-        return None;
-    }
-    Some(format!("{} {};", decl_keyword, declarations.join(",\n\t")))
 }
 
 /// Transform `$derived.by()` with destructuring patterns.
