@@ -1265,6 +1265,33 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             return;
         }
 
+        // `$state.eager(x)` -> `$.eager(() => x)`. Whole-call rewrite that
+        // wraps the single argument in a thunk; inner state-var refs in
+        // the argument still need `$.get(...)` wrapping, so we walk the
+        // arg first, drain those inner replacements, and bake them into
+        // the outer replacement.
+        if self.is_runes
+            && !self.is_shadowed("$state")
+            && !self.store_sub_vars.contains("$state")
+            && expr.arguments.len() == 1
+            && let Expression::StaticMemberExpression(member) = &expr.callee
+            && let Expression::Identifier(obj) = &member.object
+            && obj.name == "$state"
+            && member.property.name == "eager"
+        {
+            let arg = &expr.arguments[0];
+            self.visit_argument(arg);
+            let arg_span = arg.span();
+            let transformed_arg =
+                self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
+            self.add_replacement(
+                expr.span.start,
+                expr.span.end,
+                format!("$.eager(() => {})", transformed_arg),
+            );
+            return;
+        }
+
         // Normal call expression - walk as usual
         walk::walk_call_expression(self, expr);
     }
