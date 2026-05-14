@@ -510,6 +510,32 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         self.replacements.push(Replacement { start, end, text });
     }
 
+    /// Dev-mode `$.tag(...)` / `$.tag_proxy(...)` wrap for `let name = $.X(...)`
+    /// rune-declarator outputs. Mirrors the byte-shape match
+    /// `wrap_state_derived_with_tag` performed over the text-pipeline result —
+    /// when the produced replacement leads with `$.state(` / `$.derived(` /
+    /// `$.proxy(`, fold in the tag wrap here. Other shapes (bare arg,
+    /// `void 0`, `await $.async_derived(...)`, etc.) are left untagged to
+    /// match the text-path behaviour exactly.
+    ///
+    /// Folding the tag wrap into the declarator handlers means the post-AST
+    /// `wrap_state_derived_with_tag` re-scan in `transform_client_with_visitors`
+    /// no longer has to walk the script in dev mode, eliminating one
+    /// O(text_len) buffer pass per component.
+    fn maybe_tag_declarator(&self, var_name: &str, replacement: String) -> String {
+        if !self.dev {
+            return replacement;
+        }
+        let head = replacement.as_str();
+        if head.starts_with("$.state(") || head.starts_with("$.derived(") {
+            format!("$.tag({}, '{}')", replacement, var_name)
+        } else if head.starts_with("$.proxy(") {
+            format!("$.tag_proxy({}, '{}')", replacement, var_name)
+        } else {
+            replacement
+        }
+    }
+
     /// AST replacement for `$state.raw(value)` / `$state.frozen(value)` rune
     /// declarators. Mirrors the text-pipeline rewrite that used to live in
     /// `rune_transforms::transform_client_runes_with_skip_and_state`:
@@ -574,6 +600,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             format!("$.state({})", arg_text)
         };
 
+        let replacement = self.maybe_tag_declarator(var_name, replacement);
         self.add_replacement(call.span.start, call.span.end, replacement);
         true
     }
@@ -667,6 +694,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             format!("$.state({})", arg_text)
         };
 
+        let replacement = self.maybe_tag_declarator(var_name, replacement);
         self.add_replacement(call.span.start, call.span.end, replacement);
         true
     }
@@ -697,12 +725,13 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // Only simple `let name = $derived.by(...)` bindings — destructured
         // patterns are still handled by the upstream text helper
         // `transform_derived_by_destructuring`.
-        let BindingPattern::BindingIdentifier(_) = &declarator.id else {
+        let BindingPattern::BindingIdentifier(id) = &declarator.id else {
             return false;
         };
         if call.arguments.len() != 1 {
             return false;
         }
+        let var_name = id.name.as_str();
 
         // Walk the function arg so any state-var refs inside the callback
         // body get `$.get(...)` wrapping, then drain those inner
@@ -715,6 +744,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let transformed_arg = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
 
         let replacement = format!("$.derived({})", transformed_arg);
+        let replacement = self.maybe_tag_declarator(var_name, replacement);
         self.add_replacement(call.span.start, call.span.end, replacement);
         true
     }
@@ -759,12 +789,13 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // Destructured patterns are still handled by the text helper
         // `transform_derived_destructuring`. Only simple `BindingIdentifier`
         // targets are migrated here.
-        let BindingPattern::BindingIdentifier(_) = &declarator.id else {
+        let BindingPattern::BindingIdentifier(id) = &declarator.id else {
             return false;
         };
         if call.arguments.len() != 1 {
             return false;
         }
+        let var_name = id.name.as_str();
 
         let arg = &call.arguments[0];
         let arg_expr_opt = arg.as_expression();
@@ -804,11 +835,17 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             arg_source_trimmed.starts_with("()") || arg_source_trimmed.starts_with("function");
         if starts_as_function {
             let replacement = format!("$.derived(() => {})", walked_for_emit);
+            let replacement = self.maybe_tag_declarator(var_name, replacement);
             self.add_replacement(call.span.start, call.span.end, replacement);
             return true;
         }
 
         // Case 2: top-level `await` somewhere in the expression → async derived.
+        // The text-path `wrap_state_derived_with_tag` did not tag
+        // `$.async_derived(...)` declarations (its byte-pattern list only
+        // covers `$.state(`, `$.derived(`, `$.proxy(`), so we don't tag
+        // here either — `maybe_tag_declarator` rejects the
+        // `await $.async_derived(...)` prefix.
         if contains_direct_await_in_expression(arg_for_check) {
             let inner_expr = strip_top_level_await_from_expr(walked_for_emit);
             let inner_trimmed = inner_expr.trim();
@@ -836,6 +873,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // Case 3: object literal — paren-wrap so the body isn't parsed as a block.
         if matches!(arg_expr_opt, Some(Expression::ObjectExpression(_))) {
             let replacement = format!("$.derived(() => ({}))", walked_for_emit);
+            let replacement = self.maybe_tag_declarator(var_name, replacement);
             self.add_replacement(call.span.start, call.span.end, replacement);
             return true;
         }
@@ -845,6 +883,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             let name = ident.name.as_str();
             if self.store_sub_vars.contains(name) || self.prop_source_vars.contains(name) {
                 let replacement = format!("$.derived({})", walked_for_emit);
+                let replacement = self.maybe_tag_declarator(var_name, replacement);
                 self.add_replacement(call.span.start, call.span.end, replacement);
                 return true;
             }
@@ -854,6 +893,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // `$.foo()` shape, otherwise wrap in a thunk.
         let derived_arg = unthunk_string(walked_for_emit);
         let replacement = format!("$.derived({})", derived_arg);
+        let replacement = self.maybe_tag_declarator(var_name, replacement);
         self.add_replacement(call.span.start, call.span.end, replacement);
         true
     }
