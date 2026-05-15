@@ -20,6 +20,8 @@
 
 use std::cell::UnsafeCell;
 
+use bumpalo::Bump;
+
 use super::typed_expr::JsNode;
 
 /// Handle to a `JsNode` stored in the parse arena.
@@ -56,6 +58,11 @@ pub struct ParseArena {
     /// JsNode children for `Vec<JsNode>` fields (arguments, body, properties, etc.).
     /// Referenced by IdRange.
     js_children: UnsafeCell<Vec<JsNode>>,
+    /// Bump arena reserved for subsequent migration phases (see
+    /// `docs/bumpalo-migration-plan.md`). Currently unused — Phase 0 adds it
+    /// to ParseArena without changing public APIs so that Phase 1+ have a
+    /// place to allocate from.
+    bump: Bump,
 }
 
 // ParseArena is explicitly NOT Sync - it's single-threaded only.
@@ -65,7 +72,9 @@ pub struct ParseArena {
 // between threads is sound because no shared references exist when ownership
 // transfers, and all internal mutation happens through `&self` methods that
 // are documented as single-threaded (UnsafeCell is `!Sync`, so the type
-// remains non-shareable across threads).
+// remains non-shareable across threads). `bumpalo::Bump` is also `Send`
+// (the same constraint applies — single-threaded mutation only), so adding
+// it does not change Send safety.
 unsafe impl Send for ParseArena {}
 
 impl ParseArena {
@@ -75,7 +84,16 @@ impl ParseArena {
         Self {
             js_nodes: UnsafeCell::new(Vec::new()),
             js_children: UnsafeCell::new(Vec::new()),
+            bump: Bump::new(),
         }
+    }
+
+    /// Access the bump allocator used by Phase 1+ of the bumpalo migration.
+    /// Returns a shared reference; the `Bump`'s own allocation APIs take
+    /// `&self`, so callers can append without taking `&mut self`.
+    #[inline]
+    pub fn bump(&self) -> &Bump {
+        &self.bump
     }
 
     // -- JsNode allocation ---------------------------------------------------
@@ -243,10 +261,15 @@ impl Clone for ParseArena {
         // SAFETY: Single-threaded `Clone` — we read both Vecs and clone their
         // contents. No outstanding mutable borrow on `self` during clone (the
         // `&self` parameter prevents concurrent mutation per the borrow checker).
+        //
+        // The `bump` field gets a fresh empty `Bump` on clone (Bump isn't
+        // Clone). This matches the not-yet-used status — Phase 1+ will need
+        // to revisit if it ever stores user-visible state.
         unsafe {
             Self {
                 js_nodes: UnsafeCell::new((*self.js_nodes.get()).clone()),
                 js_children: UnsafeCell::new((*self.js_children.get()).clone()),
+                bump: Bump::new(),
             }
         }
     }
