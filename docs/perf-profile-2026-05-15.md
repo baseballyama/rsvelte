@@ -336,7 +336,12 @@ In decreasing ROI:
 
 2. **`VariableDeclarator.binding.initial` source-span migration.**
    Larger PR — touches ~20 downstream consumers — but ~29ms is on
-   the table.
+   the table. **Partial work landed in #116**
+   (`JsNode::to_json_string()` skips the intermediate `Value`
+   allocation for the 4 `to_value().to_string()` callsites that
+   feed `binding.initial`). The full source-span migration —
+   changing `binding.initial: Option<String>` to a lazy/typed
+   representation and updating downstream parsers — remains open.
 
 3. **Raw fallback elimination.** Parse-phase: model leadingComments
    off-tree so statements stay typed. ~16ms but cross-phase change.
@@ -347,7 +352,18 @@ In decreasing ROI:
    "migrate to typed" PRs that don't first address this are
    migrating dead code.
 
-4. **`visit_children_typed` dispatch hot path.** Structural — no
+4. **`transform_rune_call` typed refactor.** Phase 3 currently
+   calls `node.to_value()` on a typed `CallExpression` (line ~714
+   in `client/visitors/expression_converter.rs`) just to dispatch
+   `transform_rune_call(rune, obj, context)` against a JSON `Map`.
+   The function then re-converts each argument back to `JsExpr`
+   via `convert_json_value`. A parallel `transform_rune_call_typed`
+   path taking `arguments: JsNodeId` would skip the round-trip.
+   ~280 lines mirrored across 11 rune branches; contained scope
+   but substantial single-PR work. Win bounded by # of rune calls
+   × cost-of-to_value-of-CallExpression; likely 3–8ms.
+
+5. **`visit_children_typed` dispatch hot path.** Structural — no
    obvious low-effort win.
 
 ## Recommended priorities
@@ -361,16 +377,34 @@ In rough order of expected ROI (post-2026-05-15 measurements):
    `analyze-perf-trace` instrumentation — see "Phase 2 visitor
    sub-breakdown" below. Two buckets dominate: `script_visit
    (instance)` (35.6%) and `feature_detect` (28.1%).
-3. **Migrate `json_check_features` to a typed JsNode walker.**
-   Concrete next-PR target — see "Updated next-PR target" below.
-   Expected savings: ~5–8% of total compile time.
+3. ~~**Migrate `json_check_features` to a typed JsNode walker.**~~
+   **Done in #112** — -5.3% on the visitor slice / -1.0% of total.
 4. **AST-migrate analyze visitors run from `visit_script_expr`.**
-   Bucket #1 (~14.8% of total compile time). One visitor at a time,
-   mirroring the Phase 3 text→AST arc (#92–#110).
-5. **bumpalo Phase 0–3** — already documented in
-   `docs/bumpalo-migration-plan.md`. Expected +10–20% on transform.
+   Bucket #1 (~14.8% of total compile time). Easy wins exhausted
+   (see "Next-PR candidates" above). Remaining items are
+   substantial single-PR work — `binding.initial` source-span
+   migration (#2 above), Raw fallback elimination (#3),
+   `transform_rune_call` typed refactor (#4).
+5. **bumpalo Phase 0–3** — Phase 0 landed in #115. Phase 1 (Loc
+   migration) is the documented next step but the migration plan
+   itself flags it as a decision point: if Loc allocs aren't hot,
+   stop and reconsider Phases 2–3. See
+   `docs/bumpalo-migration-plan.md` for the full phased plan.
 6. **Template transform investigation** — needs its own profile;
    likely has hot spots untouched by the text→AST arc.
+
+## 2026-05-15 session log
+
+Landed perf PRs from this profile snapshot:
+- #112 — `json_check_features` → typed JsNode walker (-5.3% visitor / -1.0% total)
+- #113 — `walk_js_node_typed` per-variant breakdown (docs)
+- #114 — `ExportNamedDeclaration` Cow borrow (eliminates Raw clone)
+- #115 — Bumpalo Phase 0 (Bump field on ParseArena, no behavior change)
+- #116 — `JsNode::to_json_string()` skips intermediate `Value` allocation
+
+Net effect: the analyze-side easy AST migrations are now exhausted.
+The remaining levers are either substantial single-PR refactors
+(see "Next-PR candidates" #2–#4) or the bumpalo phased migration.
 
 ## Anti-priorities
 
