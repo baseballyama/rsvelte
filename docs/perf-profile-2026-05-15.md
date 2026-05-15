@@ -141,24 +141,117 @@ sits in `analyze_component` after the OXC work finishes. None of
 the analyze visitors have been AST-migrated yet (the 18-PR text→AST
 arc covered Phase 3 only).
 
+## Phase 2 visitor sub-breakdown — measured 2026-05-15
+
+Drilling one level deeper into the "Visitors (rest)" slice. Measured
+by temporarily adding an `analyze-perf-trace` cargo feature with
+atomic-counter instrumentation around every major sub-step inside
+`analyze_component`. (The feature was reverted after the
+measurement — it was throwaway; reproducing requires re-adding it.)
+
+Steady-state (mean of 3 consecutive runs after warm-up):
+
+```
+--- analyze-perf-trace (sub-step breakdown, sorted by time) ---
+  script_visit (instance)            69.3ms ( 35.6%)
+  feature_detect (await/runes)       54.6ms ( 28.1%)
+  analyze_template                   20.8ms ( 10.7%)
+  create_scopes                      15.7ms (  8.1%)
+  build_siblings                      8.2ms (  4.2%)
+  css_analyze                         7.6ms (  3.9%)
+  name_deconflict                     6.9ms (  3.5%)
+  detect_store_subs                   3.3ms (  1.7%)
+  extract_scripts                     2.4ms (  1.2%)
+  script_visit (module)               2.1ms (  1.1%)
+  promote_legacy_state                0.9ms (  0.5%)
+  process_legacy_exports              0.7ms (  0.4%)
+  mark_each_group                     0.5ms (  0.3%)
+  reactive_cycles                     0.4ms (  0.2%)
+  populate_legacy_deps                0.3ms (  0.2%)
+  unused_export_check                 0.3ms (  0.1%)
+  synth_class_style_attrs             0.2ms (  0.1%)
+  runes_warnings                      <0.1ms
+  module_export_check                 <0.1ms
+  (sum of buckets)                  ~195ms
+```
+
+The sum of buckets covers **~98.6%** of the "Visitors (rest)" slice
+(200.3ms in the same run). The remaining ~3ms lives in small
+between-step glue (the `is_module_file` detection, `maybe_runes`
+computation, `slot_snippet_conflict` check, `module_scope_declarations`
+snapshot, etc.) — collectively negligible.
+
+### Reading the result
+
+**Two sub-steps account for ~64% of all visitor time and ~26% of
+total compile time:**
+
+1. **`script_visit (instance)` — 69.3ms, 14.8% of total.**
+   `visitors::visit_script_expr` on the instance script. This is
+   the main AST walk that dispatches to all the per-node analyze
+   visitors (`call_expression`, `assignment_expression`,
+   `identifier`, `function_declaration`, …). It is the single
+   biggest function in the compiler.
+
+2. **`feature_detect (await/runes)` — 54.6ms, 11.7% of total.**
+   `fragment_check_features` (cheap, walks typed template) plus
+   `json_check_features` called twice (instance + module JSON
+   walks). The two JSON walks are the costly half — and the source
+   already has `TODO: migrate json_check_features to JsNode walker`
+   markers in `2_analyze/mod.rs`. The data confirms those TODOs.
+
+The next tier (`analyze_template`, `create_scopes`) is meaningful
+but ~3× smaller per item, and `create_scopes` is data-structure
+heavy (less migratable than JSON walks). Everything below
+`build_siblings` is in the noise.
+
+### Updated next-PR target
+
+Replace the previous "Samply-profile the analyze visitors" item
+with the concrete output:
+
+1. **Migrate `json_check_features` to a typed JsNode walker.**
+   - Bucket #2 (`feature_detect`) — currently ~55ms / 11.7% of total.
+   - Two callsites: `analyze_component` lines ~239-266 (instance +
+     module JSON walks). Both have explicit TODOs.
+   - Mirrors the playbook used for the Phase 3 text→AST migration:
+     replace `inst.content.as_json()` walks with `JsNode`
+     pattern-matching.
+   - Expected savings: cut the JSON-walk half of `feature_detect`
+     (estimate 25–40ms), roughly **5–8% of total compile time** for
+     a single PR.
+
+2. **AST-migrate the analyze visitors run from
+   `visit_script_expr`.** Bucket #1 (~69ms). Bigger surface than #2
+   — the visitor dispatch fans out to many per-node handlers — so
+   this is best attacked one visitor at a time. The text→AST PR arc
+   (#92–#110) is the template.
+
+3. **bumpalo Phase 0–3** — unchanged.
+
+4. **Template transform investigation** — unchanged.
+
 ## Recommended priorities
 
-In rough order of expected ROI (post-2026-05-15 measurement):
+In rough order of expected ROI (post-2026-05-15 measurements):
 
 1. ~~Time-split `ensure_script_parsed` vs. visitors in Analyze.~~
    **Done** — see "Phase 2 sub-breakdown" above. OXC is ~12% of
    analyze; visitors dominate.
-2. **Samply-profile the analyze visitors.** With visitors at
-   ~42% of total compile time, this is now the biggest single
-   lever. Use a long-running scenario or replay the full
-   `compile_profile` workload to find the hot visitor function(s)
-   before deciding what to migrate to AST traversal.
-3. **bumpalo Phase 0–3** — already documented in
+2. ~~Samply-profile the analyze visitors.~~ **Done** via
+   `analyze-perf-trace` instrumentation — see "Phase 2 visitor
+   sub-breakdown" below. Two buckets dominate: `script_visit
+   (instance)` (35.6%) and `feature_detect` (28.1%).
+3. **Migrate `json_check_features` to a typed JsNode walker.**
+   Concrete next-PR target — see "Updated next-PR target" below.
+   Expected savings: ~5–8% of total compile time.
+4. **AST-migrate analyze visitors run from `visit_script_expr`.**
+   Bucket #1 (~14.8% of total compile time). One visitor at a time,
+   mirroring the Phase 3 text→AST arc (#92–#110).
+5. **bumpalo Phase 0–3** — already documented in
    `docs/bumpalo-migration-plan.md`. Expected +10–20% on transform.
-4. **Template transform investigation** — needs its own profile;
+6. **Template transform investigation** — needs its own profile;
    likely has hot spots untouched by the text→AST arc.
-5. **Analyze visitor migration** — once §2 identifies the hot
-   visitor(s), mirror the Phase 3 text→AST treatment for them.
 
 ## Anti-priorities
 
