@@ -321,9 +321,18 @@ attribution is meaningful even with that overlap.
 
 In decreasing ROI:
 
-1. **`ExportNamedDeclaration` to typed pattern matching.** Single
+1. ~~**`ExportNamedDeclaration` to typed pattern matching.** Single
    function, one to_value() callsite, no downstream contract
-   change. Expected ~10–15ms cut.
+   change. Expected ~10–15ms cut.~~ **Plan invalidated by probe:**
+   declaration source breakdown on the same workload showed 1960
+   Raw, **0 typed**, 21 None — the `to_value()` arm is dead in
+   practice. The remaining cost is `.get(...)` introspection on
+   the cloned Raw Value, which cannot be migrated to typed pattern
+   matching without changing the parser to stop boxing
+   declarations as `JsNode::Raw(Value)`. The only quick win is
+   borrowing the Raw Value via `Cow` instead of `.clone()` — see
+   PR following this doc note. Net win: ~3ms, within measurement
+   noise but a clean unallocation.
 
 2. **`VariableDeclarator.binding.initial` source-span migration.**
    Larger PR — touches ~20 downstream consumers — but ~29ms is on
@@ -331,6 +340,12 @@ In decreasing ROI:
 
 3. **Raw fallback elimination.** Parse-phase: model leadingComments
    off-tree so statements stay typed. ~16ms but cross-phase change.
+   *Doubles as a prerequisite for any further "JsNode pattern
+   matching" migration of analyze visitors* — as the
+   ExportNamedDeclaration probe demonstrates, declarations and many
+   other statements currently come through as `Raw(Value)`, so
+   "migrate to typed" PRs that don't first address this are
+   migrating dead code.
 
 4. **`visit_children_typed` dispatch hot path.** Structural — no
    obvious low-effort win.
