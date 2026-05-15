@@ -1083,7 +1083,7 @@ fn extract_literal_string_typed(node: &JsNode) -> Option<String> {
         }
         JsNode::TemplateLiteral { expressions, .. } => {
             if expressions.is_empty() {
-                Some(node.to_value().to_string())
+                Some(node.to_json_string())
             } else {
                 None
             }
@@ -1192,7 +1192,7 @@ fn visit_runes_mode_typed(
                         let b = &mut context.analysis.root.bindings[bi];
                         b.initial = extract_literal_string_typed(arg).or_else(|| {
                             if rune_name == "$derived" {
-                                Some(arg.to_value().to_string())
+                                Some(arg.to_json_string())
                             } else {
                                 None
                             }
@@ -1508,7 +1508,7 @@ fn process_props_object_pattern_typed(
                         binding.kind = BindingKind::BindableProp;
                     } else {
                         binding.initial = extract_literal_string_typed(init)
-                            .or_else(|| Some(init.to_value().to_string()));
+                            .or_else(|| Some(init.to_json_string()));
                         binding.initial_node_type = Some(init.type_str().to_string());
                         if binding.initial_node_type.as_deref() == Some("Identifier")
                             && let JsNode::Identifier { name, .. } = init
