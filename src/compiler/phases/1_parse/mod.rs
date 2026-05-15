@@ -63,6 +63,12 @@ pub(crate) mod utils;
 
 // Re-export CSS parsing for external use
 pub use read::style::parse_css;
+// Re-export deferred-work entry points so profiling/diagnostic tools can
+// invoke them outside the analyze_component pipeline.
+#[doc(hidden)]
+pub use read::script::ensure_script_parsed;
+#[doc(hidden)]
+pub use resolve_lazy::resolve_lazy_expressions;
 
 // Re-export expression from read module
 pub(crate) use read::expression;

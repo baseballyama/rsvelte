@@ -39,6 +39,7 @@ pub use types::{
 };
 pub use visitors::AstType;
 
+use crate::ast::arena::ParseArena;
 use crate::ast::template::Root;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::CompileOptions;
@@ -208,35 +209,32 @@ pub fn analyze_component(
 
     // Check the template fragment for both await expressions and rune references
     // in a single traversal (previously done as two separate walks).
-    let fragment_results = fragment_check_features(&ast.fragment, &store_sub_names);
+    let fragment_results = fragment_check_features(&ast.fragment, &ast.arena, &store_sub_names);
 
     // Check the instance script for both await expressions and rune references
-    // in a single traversal (previously done as two separate walks).
-    // For script checks, we use an empty set for store_subs (scripts can have both
-    // runes and stores, but store_subs are created from template/instance references
-    // after scope building, so they are not relevant for script-level rune detection).
-    // TODO: migrate json_check_features to JsNode walker
+    // in a single traversal. For script checks, we use an empty set for store_subs
+    // (scripts can have both runes and stores, but store_subs are created from
+    // template/instance references after scope building, so they are not relevant
+    // for script-level rune detection).
     let (instance_has_await, instance_has_rune_reference) = ast
         .instance
         .as_ref()
         .map(|inst| {
-            let val = inst.content.as_json();
             let empty_subs: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
-            let r = json_check_features(val, &empty_subs);
+            let r = expression_check_features(&inst.content, &ast.arena, &empty_subs);
             (r.has_await, r.has_rune_reference)
         })
         .unwrap_or((false, false));
 
     // Check the module script for rune references (module scripts don't need await check
     // since the original code only checked instance script for await).
-    // TODO: migrate json_check_features to JsNode walker
     let module_has_rune_reference = if needs_rune_detection {
         ast.module
             .as_ref()
             .map(|module| {
-                let val = module.content.as_json();
                 let empty_subs: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
-                json_check_features(val, &empty_subs).has_rune_reference
+                expression_check_features(&module.content, &ast.arena, &empty_subs)
+                    .has_rune_reference
             })
             .unwrap_or(false)
     } else {
@@ -2366,11 +2364,12 @@ impl FragmentCheckResults {
 /// Check a template fragment for both await expressions and rune references in a single walk.
 fn fragment_check_features(
     fragment: &crate::ast::template::Fragment,
+    arena: &ParseArena,
     store_subs: &rustc_hash::FxHashSet<&str>,
 ) -> FragmentCheckResults {
     let mut results = FragmentCheckResults::default();
     for node in &fragment.nodes {
-        let node_results = node_check_features(node, store_subs);
+        let node_results = node_check_features(node, arena, store_subs);
         results.merge(&node_results);
         if results.all_found() {
             return results;
@@ -2386,13 +2385,14 @@ fn fragment_check_features(
 ///   but rune check walks the body (rune references anywhere indicate runes mode).
 fn node_check_features(
     node: &crate::ast::template::TemplateNode,
+    arena: &ParseArena,
     store_subs: &rustc_hash::FxHashSet<&str>,
 ) -> FragmentCheckResults {
     use crate::ast::template::TemplateNode;
 
     match node {
         TemplateNode::ExpressionTag(tag) => {
-            let json_results = expression_check_features(&tag.expression, store_subs);
+            let json_results = expression_check_features(&tag.expression, arena, store_subs);
             FragmentCheckResults {
                 has_await: json_results.has_await,
                 has_rune_reference: json_results.has_rune_reference,
@@ -2401,99 +2401,99 @@ fn node_check_features(
         TemplateNode::RegularElement(elem) => {
             let mut results = FragmentCheckResults::default();
             for attr in &elem.attributes {
-                let attr_results = attribute_check_features(attr, store_subs);
+                let attr_results = attribute_check_features(attr, arena, store_subs);
                 results.merge(&attr_results);
                 if results.all_found() {
                     return results;
                 }
             }
-            let frag_results = fragment_check_features(&elem.fragment, store_subs);
+            let frag_results = fragment_check_features(&elem.fragment, arena, store_subs);
             results.merge(&frag_results);
             results
         }
         TemplateNode::Component(comp) => {
             let mut results = FragmentCheckResults::default();
             for attr in &comp.attributes {
-                let attr_results = attribute_check_features(attr, store_subs);
+                let attr_results = attribute_check_features(attr, arena, store_subs);
                 results.merge(&attr_results);
                 if results.all_found() {
                     return results;
                 }
             }
-            let frag_results = fragment_check_features(&comp.fragment, store_subs);
+            let frag_results = fragment_check_features(&comp.fragment, arena, store_subs);
             results.merge(&frag_results);
             results
         }
         TemplateNode::IfBlock(block) => {
             let mut results = FragmentCheckResults::default();
-            let expr_results = expression_check_features(&block.test, store_subs);
+            let expr_results = expression_check_features(&block.test, arena, store_subs);
             results.merge_json(&expr_results);
             if results.all_found() {
                 return results;
             }
-            let cons_results = fragment_check_features(&block.consequent, store_subs);
+            let cons_results = fragment_check_features(&block.consequent, arena, store_subs);
             results.merge(&cons_results);
             if results.all_found() {
                 return results;
             }
             if let Some(ref alternate) = block.alternate {
-                let alt_results = fragment_check_features(alternate, store_subs);
+                let alt_results = fragment_check_features(alternate, arena, store_subs);
                 results.merge(&alt_results);
             }
             results
         }
         TemplateNode::EachBlock(block) => {
             let mut results = FragmentCheckResults::default();
-            let expr_results = expression_check_features(&block.expression, store_subs);
+            let expr_results = expression_check_features(&block.expression, arena, store_subs);
             results.merge_json(&expr_results);
             if results.all_found() {
                 return results;
             }
-            let body_results = fragment_check_features(&block.body, store_subs);
+            let body_results = fragment_check_features(&block.body, arena, store_subs);
             results.merge(&body_results);
             if results.all_found() {
                 return results;
             }
             if let Some(ref fallback) = block.fallback {
-                let fb_results = fragment_check_features(fallback, store_subs);
+                let fb_results = fragment_check_features(fallback, arena, store_subs);
                 results.merge(&fb_results);
             }
             results
         }
         TemplateNode::KeyBlock(block) => {
             let mut results = FragmentCheckResults::default();
-            let expr_results = expression_check_features(&block.expression, store_subs);
+            let expr_results = expression_check_features(&block.expression, arena, store_subs);
             results.merge_json(&expr_results);
             if results.all_found() {
                 return results;
             }
-            let frag_results = fragment_check_features(&block.fragment, store_subs);
+            let frag_results = fragment_check_features(&block.fragment, arena, store_subs);
             results.merge(&frag_results);
             results
         }
         TemplateNode::AwaitBlock(block) => {
             let mut results = FragmentCheckResults::default();
-            let expr_results = expression_check_features(&block.expression, store_subs);
+            let expr_results = expression_check_features(&block.expression, arena, store_subs);
             results.merge_json(&expr_results);
             if results.all_found() {
                 return results;
             }
             if let Some(ref pending) = block.pending {
-                let p_results = fragment_check_features(pending, store_subs);
+                let p_results = fragment_check_features(pending, arena, store_subs);
                 results.merge(&p_results);
                 if results.all_found() {
                     return results;
                 }
             }
             if let Some(ref then) = block.then {
-                let t_results = fragment_check_features(then, store_subs);
+                let t_results = fragment_check_features(then, arena, store_subs);
                 results.merge(&t_results);
                 if results.all_found() {
                     return results;
                 }
             }
             if let Some(ref catch) = block.catch {
-                let c_results = fragment_check_features(catch, store_subs);
+                let c_results = fragment_check_features(catch, arena, store_subs);
                 results.merge(&c_results);
             }
             results
@@ -2501,7 +2501,7 @@ fn node_check_features(
         TemplateNode::SnippetBlock(block) => {
             // SnippetBlock: await check returns false (awaits in snippets don't affect parent),
             // but rune check walks the body (rune references anywhere indicate runes mode).
-            let body_results = fragment_check_features(&block.body, store_subs);
+            let body_results = fragment_check_features(&block.body, arena, store_subs);
             FragmentCheckResults {
                 has_await: false,
                 has_rune_reference: body_results.has_rune_reference,
@@ -2516,97 +2516,97 @@ fn node_check_features(
         | TemplateNode::SvelteWindow(elem) => {
             let mut results = FragmentCheckResults::default();
             for attr in &elem.attributes {
-                let attr_results = attribute_check_features(attr, store_subs);
+                let attr_results = attribute_check_features(attr, arena, store_subs);
                 results.merge(&attr_results);
                 if results.all_found() {
                     return results;
                 }
             }
-            let frag_results = fragment_check_features(&elem.fragment, store_subs);
+            let frag_results = fragment_check_features(&elem.fragment, arena, store_subs);
             results.merge(&frag_results);
             results
         }
         TemplateNode::SvelteSelf(elem) => {
             let mut results = FragmentCheckResults::default();
             for attr in &elem.attributes {
-                let attr_results = attribute_check_features(attr, store_subs);
+                let attr_results = attribute_check_features(attr, arena, store_subs);
                 results.merge(&attr_results);
                 if results.all_found() {
                     return results;
                 }
             }
-            let frag_results = fragment_check_features(&elem.fragment, store_subs);
+            let frag_results = fragment_check_features(&elem.fragment, arena, store_subs);
             results.merge(&frag_results);
             results
         }
         TemplateNode::SvelteComponent(elem) => {
             let mut results = FragmentCheckResults::default();
             for attr in &elem.attributes {
-                let attr_results = attribute_check_features(attr, store_subs);
+                let attr_results = attribute_check_features(attr, arena, store_subs);
                 results.merge(&attr_results);
                 if results.all_found() {
                     return results;
                 }
             }
-            let frag_results = fragment_check_features(&elem.fragment, store_subs);
+            let frag_results = fragment_check_features(&elem.fragment, arena, store_subs);
             results.merge(&frag_results);
             results
         }
         TemplateNode::SvelteElement(elem) => {
             let mut results = FragmentCheckResults::default();
             for attr in &elem.attributes {
-                let attr_results = attribute_check_features(attr, store_subs);
+                let attr_results = attribute_check_features(attr, arena, store_subs);
                 results.merge(&attr_results);
                 if results.all_found() {
                     return results;
                 }
             }
-            let frag_results = fragment_check_features(&elem.fragment, store_subs);
+            let frag_results = fragment_check_features(&elem.fragment, arena, store_subs);
             results.merge(&frag_results);
             results
         }
         TemplateNode::TitleElement(elem) => {
             let mut results = FragmentCheckResults::default();
             for attr in &elem.attributes {
-                let attr_results = attribute_check_features(attr, store_subs);
+                let attr_results = attribute_check_features(attr, arena, store_subs);
                 results.merge(&attr_results);
                 if results.all_found() {
                     return results;
                 }
             }
-            let frag_results = fragment_check_features(&elem.fragment, store_subs);
+            let frag_results = fragment_check_features(&elem.fragment, arena, store_subs);
             results.merge(&frag_results);
             results
         }
         TemplateNode::SlotElement(elem) => {
             let mut results = FragmentCheckResults::default();
             for attr in &elem.attributes {
-                let attr_results = attribute_check_features(attr, store_subs);
+                let attr_results = attribute_check_features(attr, arena, store_subs);
                 results.merge(&attr_results);
                 if results.all_found() {
                     return results;
                 }
             }
-            let frag_results = fragment_check_features(&elem.fragment, store_subs);
+            let frag_results = fragment_check_features(&elem.fragment, arena, store_subs);
             results.merge(&frag_results);
             results
         }
         TemplateNode::RenderTag(tag) => {
-            let json_results = expression_check_features(&tag.expression, store_subs);
+            let json_results = expression_check_features(&tag.expression, arena, store_subs);
             FragmentCheckResults {
                 has_await: json_results.has_await,
                 has_rune_reference: json_results.has_rune_reference,
             }
         }
         TemplateNode::HtmlTag(tag) => {
-            let json_results = expression_check_features(&tag.expression, store_subs);
+            let json_results = expression_check_features(&tag.expression, arena, store_subs);
             FragmentCheckResults {
                 has_await: json_results.has_await,
                 has_rune_reference: json_results.has_rune_reference,
             }
         }
         TemplateNode::ConstTag(tag) => {
-            let json_results = expression_check_features(&tag.declaration, store_subs);
+            let json_results = expression_check_features(&tag.declaration, arena, store_subs);
             FragmentCheckResults {
                 has_await: json_results.has_await,
                 has_rune_reference: json_results.has_rune_reference,
@@ -2635,15 +2635,437 @@ impl JsonCheckResults {
     }
 }
 
-/// Check if an expression (stored as JSON) contains an AwaitExpression and/or rune references
+/// Check if an expression contains an AwaitExpression and/or rune references
 /// in a single traversal.
+///
+/// Walks the typed `JsNode` tree directly. Falls back to the legacy
+/// `serde_json::Value` walker for `Expression::Value` (test-only / fallback)
+/// and for `JsNode::Raw(Value)` nodes (rare — used when leadingComments
+/// require JSON-side metadata).
 fn expression_check_features(
     expr: &crate::ast::js::Expression,
+    arena: &ParseArena,
     store_subs: &rustc_hash::FxHashSet<&str>,
 ) -> JsonCheckResults {
-    // TODO: migrate json_check_features to JsNode walker
-    let value = expr.as_json();
-    json_check_features(value, store_subs)
+    use crate::ast::js::Expression;
+    match expr {
+        Expression::Typed(te) => {
+            let mut results = JsonCheckResults::default();
+            js_node_check_features(&te.node, arena, store_subs, &mut results, false);
+            results
+        }
+        Expression::Value(v) => json_check_features(v, store_subs),
+        // `resolve_lazy_expressions` runs before analyze, so Lazy should never
+        // reach here. Return empty results defensively rather than panicking.
+        Expression::Lazy { .. } => JsonCheckResults::default(),
+    }
+}
+
+/// Walk a typed `JsNode` tree, accumulating await / rune-reference detection
+/// into `results`. Mirrors `json_check_features` semantics but avoids the
+/// `Expression::as_json()` materialization and `serde_json::Value` field
+/// lookups that dominated the analyze `feature_detect` bucket.
+///
+/// The function boundary suppresses await detection inside
+/// `FunctionExpression` / `ArrowFunctionExpression` / `FunctionDeclaration`
+/// bodies (same as `json_check_features`), while rune detection continues
+/// across boundaries.
+///
+/// Fields skipped for the rune check (a non-computed property identifier is
+/// not a rune reference, and an `$effect:` label is not a rune reference
+/// either):
+/// - `LabeledStatement.label`
+/// - `MemberExpression.property` when `computed == false`
+/// - `Property.key` when `computed == false`
+///
+/// Those fields can't carry an `AwaitExpression`, so skipping them entirely
+/// is safe for the await check too.
+fn js_node_check_features(
+    node: &JsNode,
+    arena: &ParseArena,
+    store_subs: &rustc_hash::FxHashSet<&str>,
+    results: &mut JsonCheckResults,
+    inside_function: bool,
+) {
+    if results.all_found() {
+        return;
+    }
+
+    if !inside_function && matches!(node, JsNode::AwaitExpression { .. }) {
+        results.has_await = true;
+    }
+
+    if let JsNode::Identifier { name, .. } = node
+        && is_rune_name(name.as_str())
+        && !store_subs.contains(name.as_str())
+    {
+        results.has_rune_reference = true;
+    }
+
+    if results.all_found() {
+        return;
+    }
+
+    let child_inside_function = inside_function
+        || matches!(
+            node,
+            JsNode::FunctionExpression { .. }
+                | JsNode::ArrowFunctionExpression { .. }
+                | JsNode::FunctionDeclaration { .. }
+        );
+
+    macro_rules! walk_id {
+        ($id:expr) => {{
+            js_node_check_features(
+                arena.get_js_node($id),
+                arena,
+                store_subs,
+                results,
+                child_inside_function,
+            );
+            if results.all_found() {
+                return;
+            }
+        }};
+    }
+    macro_rules! walk_opt_id {
+        ($opt:expr) => {{
+            if let Some(id) = $opt {
+                walk_id!(*id);
+            }
+        }};
+    }
+    macro_rules! walk_range {
+        ($range:expr) => {{
+            for child in arena.get_js_children($range) {
+                js_node_check_features(child, arena, store_subs, results, child_inside_function);
+                if results.all_found() {
+                    return;
+                }
+            }
+        }};
+    }
+
+    match node {
+        // Leaves — no children to walk.
+        JsNode::Identifier { .. }
+        | JsNode::PrivateIdentifier { .. }
+        | JsNode::Literal { .. }
+        | JsNode::TemplateElement { .. }
+        | JsNode::ThisExpression { .. }
+        | JsNode::Super { .. }
+        | JsNode::EmptyStatement { .. }
+        | JsNode::DebuggerStatement { .. }
+        | JsNode::Decorator { .. }
+        | JsNode::TSEnumDeclaration { .. }
+        | JsNode::Comment { .. }
+        | JsNode::Null => {}
+
+        JsNode::BinaryExpression { left, right, .. }
+        | JsNode::LogicalExpression { left, right, .. }
+        | JsNode::AssignmentExpression { left, right, .. }
+        | JsNode::AssignmentPattern { left, right, .. } => {
+            walk_id!(*left);
+            walk_id!(*right);
+        }
+
+        JsNode::UnaryExpression { argument, .. }
+        | JsNode::UpdateExpression { argument, .. }
+        | JsNode::AwaitExpression { argument, .. }
+        | JsNode::ThrowStatement { argument, .. }
+        | JsNode::SpreadElement { argument, .. }
+        | JsNode::RestElement { argument, .. } => {
+            walk_id!(*argument);
+        }
+
+        JsNode::ConditionalExpression {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => {
+            walk_id!(*test);
+            walk_id!(*consequent);
+            walk_id!(*alternate);
+        }
+
+        JsNode::CallExpression {
+            callee, arguments, ..
+        }
+        | JsNode::NewExpression {
+            callee, arguments, ..
+        } => {
+            walk_id!(*callee);
+            walk_range!(*arguments);
+        }
+
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            ..
+        } => {
+            walk_id!(*object);
+            if *computed {
+                walk_id!(*property);
+            }
+        }
+
+        JsNode::SequenceExpression { expressions, .. } => walk_range!(*expressions),
+
+        JsNode::ArrayExpression { elements, .. } | JsNode::ArrayPattern { elements, .. } => {
+            for elem in elements.iter().flatten() {
+                js_node_check_features(elem, arena, store_subs, results, child_inside_function);
+                if results.all_found() {
+                    return;
+                }
+            }
+        }
+
+        JsNode::ObjectExpression { properties, .. } | JsNode::ObjectPattern { properties, .. } => {
+            walk_range!(*properties)
+        }
+
+        JsNode::TemplateLiteral {
+            quasis,
+            expressions,
+            ..
+        } => {
+            walk_range!(*quasis);
+            walk_range!(*expressions);
+        }
+
+        JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
+            walk_id!(*tag);
+            walk_id!(*quasi);
+        }
+
+        JsNode::ImportExpression { source, .. } => walk_id!(*source),
+
+        JsNode::YieldExpression { argument, .. } => walk_opt_id!(argument),
+
+        JsNode::ChainExpression { expression, .. } => walk_id!(*expression),
+
+        JsNode::MetaProperty { meta, property, .. } => {
+            walk_id!(*meta);
+            walk_id!(*property);
+        }
+
+        JsNode::Property {
+            key,
+            value,
+            computed,
+            ..
+        } => {
+            if *computed {
+                walk_id!(*key);
+            }
+            walk_id!(*value);
+        }
+
+        // MethodDefinition.key / PropertyDefinition.key: the legacy JSON
+        // walker did NOT skip these (it only special-cased Property.key),
+        // so we preserve that behaviour even when `computed == false`.
+        JsNode::MethodDefinition { key, value, .. } => {
+            walk_id!(*key);
+            walk_id!(*value);
+        }
+        JsNode::PropertyDefinition { key, value, .. } => {
+            walk_id!(*key);
+            walk_opt_id!(value);
+        }
+
+        JsNode::FunctionDeclaration {
+            id, params, body, ..
+        }
+        | JsNode::FunctionExpression {
+            id, params, body, ..
+        } => {
+            walk_opt_id!(id);
+            walk_range!(*params);
+            walk_opt_id!(body);
+        }
+
+        JsNode::ArrowFunctionExpression {
+            id, params, body, ..
+        } => {
+            walk_opt_id!(id);
+            walk_range!(*params);
+            walk_id!(*body);
+        }
+
+        JsNode::ClassDeclaration {
+            id,
+            super_class,
+            body,
+            decorators,
+            ..
+        } => {
+            walk_opt_id!(id);
+            walk_opt_id!(super_class);
+            walk_range!(*decorators);
+            walk_id!(*body);
+        }
+        JsNode::ClassExpression {
+            id,
+            super_class,
+            body,
+            ..
+        } => {
+            walk_opt_id!(id);
+            walk_opt_id!(super_class);
+            walk_id!(*body);
+        }
+
+        JsNode::ClassBody { body, .. }
+        | JsNode::StaticBlock { body, .. }
+        | JsNode::BlockStatement { body, .. }
+        | JsNode::Program { body, .. } => walk_range!(*body),
+
+        JsNode::ExpressionStatement { expression, .. } => walk_id!(*expression),
+
+        JsNode::VariableDeclaration { declarations, .. } => walk_range!(*declarations),
+
+        JsNode::VariableDeclarator { id, init, .. } => {
+            walk_id!(*id);
+            walk_opt_id!(init);
+        }
+
+        JsNode::ReturnStatement { argument, .. } => walk_opt_id!(argument),
+
+        JsNode::IfStatement {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => {
+            walk_id!(*test);
+            walk_id!(*consequent);
+            walk_opt_id!(alternate);
+        }
+
+        JsNode::ForStatement {
+            init,
+            test,
+            update,
+            body,
+            ..
+        } => {
+            walk_opt_id!(init);
+            walk_opt_id!(test);
+            walk_opt_id!(update);
+            walk_id!(*body);
+        }
+
+        JsNode::ForOfStatement {
+            left, right, body, ..
+        }
+        | JsNode::ForInStatement {
+            left, right, body, ..
+        } => {
+            walk_id!(*left);
+            walk_id!(*right);
+            walk_id!(*body);
+        }
+
+        JsNode::WhileStatement { test, body, .. } | JsNode::DoWhileStatement { test, body, .. } => {
+            walk_id!(*test);
+            walk_id!(*body);
+        }
+
+        JsNode::TryStatement {
+            block,
+            handler,
+            finalizer,
+            ..
+        } => {
+            walk_id!(*block);
+            walk_opt_id!(handler);
+            walk_opt_id!(finalizer);
+        }
+        JsNode::CatchClause { param, body, .. } => {
+            walk_opt_id!(param);
+            walk_id!(*body);
+        }
+
+        JsNode::SwitchStatement {
+            discriminant,
+            cases,
+            ..
+        } => {
+            walk_id!(*discriminant);
+            walk_range!(*cases);
+        }
+        JsNode::SwitchCase {
+            test, consequent, ..
+        } => {
+            walk_opt_id!(test);
+            walk_range!(*consequent);
+        }
+
+        JsNode::LabeledStatement { body, .. } => {
+            // Skip `label` — `$effect:` is a label, not a rune reference.
+            walk_id!(*body);
+        }
+        JsNode::BreakStatement { label, .. } | JsNode::ContinueStatement { label, .. } => {
+            // These labels point to LabeledStatement labels and were walked by
+            // the legacy JSON walker (no special case), so we walk them too.
+            walk_opt_id!(label);
+        }
+
+        JsNode::ImportDeclaration {
+            specifiers,
+            source,
+            attributes,
+            ..
+        } => {
+            walk_range!(*specifiers);
+            walk_id!(*source);
+            walk_range!(*attributes);
+        }
+        JsNode::ImportSpecifier {
+            imported, local, ..
+        } => {
+            walk_id!(*imported);
+            walk_id!(*local);
+        }
+        JsNode::ImportDefaultSpecifier { local, .. }
+        | JsNode::ImportNamespaceSpecifier { local, .. } => {
+            walk_id!(*local);
+        }
+        JsNode::ExportNamedDeclaration {
+            declaration,
+            specifiers,
+            source,
+            attributes,
+            ..
+        } => {
+            walk_opt_id!(declaration);
+            walk_range!(*specifiers);
+            walk_opt_id!(source);
+            walk_range!(*attributes);
+        }
+        JsNode::ExportDefaultDeclaration { declaration, .. } => walk_id!(*declaration),
+        JsNode::ExportSpecifier {
+            local, exported, ..
+        } => {
+            walk_id!(*local);
+            walk_id!(*exported);
+        }
+
+        JsNode::TSTypeAnnotation {
+            type_annotation, ..
+        } => walk_id!(*type_annotation),
+        JsNode::TSModuleDeclaration { body, .. } => walk_opt_id!(body),
+
+        // Raw(Value) — fall back to the JSON walker. Used only for statements
+        // that carry leadingComments (rare). The recursion stops at this
+        // boundary; descendants of Raw are not pattern-matched on JsNode.
+        JsNode::Raw(value) => {
+            let sub = json_check_features_inner(value, store_subs, child_inside_function);
+            results.merge(&sub);
+        }
+    }
 }
 
 /// Check if a name is a rune identifier.
@@ -2787,6 +3209,7 @@ fn json_check_features_inner(
 /// than the rune check (which only checks Attribute, OnDirective, BindDirective).
 fn attribute_check_features(
     attr: &crate::ast::template::Attribute,
+    arena: &ParseArena,
     store_subs: &rustc_hash::FxHashSet<&str>,
 ) -> FragmentCheckResults {
     use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart};
@@ -2794,7 +3217,7 @@ fn attribute_check_features(
     match attr {
         Attribute::Attribute(attr_node) => match &attr_node.value {
             AttributeValue::Expression(expr_tag) => {
-                let r = expression_check_features(&expr_tag.expression, store_subs);
+                let r = expression_check_features(&expr_tag.expression, arena, store_subs);
                 FragmentCheckResults {
                     has_await: r.has_await,
                     has_rune_reference: r.has_rune_reference,
@@ -2804,7 +3227,7 @@ fn attribute_check_features(
                 let mut results = FragmentCheckResults::default();
                 for part in parts {
                     if let AttributeValuePart::ExpressionTag(expr_tag) = part {
-                        let r = expression_check_features(&expr_tag.expression, store_subs);
+                        let r = expression_check_features(&expr_tag.expression, arena, store_subs);
                         results.merge_json(&r);
                         if results.all_found() {
                             return results;
@@ -2817,7 +3240,7 @@ fn attribute_check_features(
         },
         Attribute::OnDirective(dir) => {
             if let Some(ref expr) = dir.expression {
-                let r = expression_check_features(expr, store_subs);
+                let r = expression_check_features(expr, arena, store_subs);
                 FragmentCheckResults {
                     has_await: r.has_await,
                     has_rune_reference: r.has_rune_reference,
@@ -2827,7 +3250,7 @@ fn attribute_check_features(
             }
         }
         Attribute::BindDirective(dir) => {
-            let r = expression_check_features(&dir.expression, store_subs);
+            let r = expression_check_features(&dir.expression, arena, store_subs);
             FragmentCheckResults {
                 has_await: r.has_await,
                 has_rune_reference: r.has_rune_reference,
@@ -2835,7 +3258,7 @@ fn attribute_check_features(
         }
         Attribute::ClassDirective(dir) => {
             // Only await check applies here (rune check originally skipped this)
-            let r = expression_check_features(&dir.expression, store_subs);
+            let r = expression_check_features(&dir.expression, arena, store_subs);
             FragmentCheckResults {
                 has_await: r.has_await,
                 has_rune_reference: false,
@@ -2845,7 +3268,7 @@ fn attribute_check_features(
             // Only await check applies here (rune check originally skipped this)
             match &dir.value {
                 crate::ast::template::AttributeValue::Expression(expr_tag) => {
-                    let r = expression_check_features(&expr_tag.expression, store_subs);
+                    let r = expression_check_features(&expr_tag.expression, arena, store_subs);
                     FragmentCheckResults {
                         has_await: r.has_await,
                         has_rune_reference: false,
@@ -2857,7 +3280,8 @@ fn attribute_check_features(
                         if let crate::ast::template::AttributeValuePart::ExpressionTag(expr_tag) =
                             part
                         {
-                            let r = expression_check_features(&expr_tag.expression, store_subs);
+                            let r =
+                                expression_check_features(&expr_tag.expression, arena, store_subs);
                             results.has_await = results.has_await || r.has_await;
                             if results.has_await {
                                 return results;
@@ -2871,7 +3295,7 @@ fn attribute_check_features(
         }
         Attribute::SpreadAttribute(spread) => {
             // Only await check applies here (rune check originally skipped this)
-            let r = expression_check_features(&spread.expression, store_subs);
+            let r = expression_check_features(&spread.expression, arena, store_subs);
             FragmentCheckResults {
                 has_await: r.has_await,
                 has_rune_reference: false,
