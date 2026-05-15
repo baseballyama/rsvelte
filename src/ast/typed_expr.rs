@@ -3698,6 +3698,25 @@ impl JsNode {
             })
         }
     }
+
+    /// Serialize the node directly to a JSON string, skipping the intermediate
+    /// `Value` allocation that `to_value().to_string()` would otherwise build.
+    ///
+    /// Matches `node.to_value().to_string()` byte-for-byte (both use the same
+    /// `Serialize` impl), but cuts the cost of building and dropping a `Value`
+    /// tree just to re-serialize it.
+    pub fn to_json_string(&self) -> String {
+        use crate::ast::arena::{has_serialize_arena, with_serialize_arena};
+        if has_serialize_arena() {
+            serde_json::to_string(self).unwrap_or_else(|_| "null".to_string())
+        } else {
+            DESER_ARENA.with(|a| {
+                with_serialize_arena(&a.borrow(), || {
+                    serde_json::to_string(self).unwrap_or_else(|_| "null".to_string())
+                })
+            })
+        }
+    }
 }
 
 #[cfg(test)]
