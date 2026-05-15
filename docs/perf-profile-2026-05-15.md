@@ -62,27 +62,20 @@ This is what `analyze_component` does, including:
    - …
 
 A back-of-envelope guess at the split: **JS parsing via OXC is
-~30–40% of analyze**, the rest is our visitors. To get a real number,
-add timing splits around each `ensure_script_parsed` call and around
-the visitor invocations.
+~30–40% of analyze**, the rest is our visitors.
 
-**Plausible perf headroom in Analyze**:
+→ **Measured 2026-05-15** (see §"Phase 2 sub-breakdown" below): the
+30–40% guess was wrong by ~3×. OXC is only **~12% of analyze**;
+visitors are **~86%**.
 
-| Sub-step | Likely cost | Headroom |
+**Measured perf headroom in Analyze**:
+
+| Sub-step | Measured cost | Headroom |
 |---|---|---|
-| `ensure_script_parsed` (OXC) | ~30–40% of analyze | Limited — OXC is already tuned; switching parsers isn't realistic. |
-| Visitors (our code) | ~60% of analyze | Real — these are not yet AST-migrated like the transform-side handlers. |
-| `resolve_lazy_expressions` | small | Small — already memoized |
-| Symbol-table / scope build | medium | Real — `FxHashMap` lookups in tight loops |
-
-**Recommended next investigation** (analyze phase):
-
-1. Time `ensure_script_parsed` separately from the visitors. If it's
-   >40% of analyze, **don't touch the visitors** — focus on reducing
-   OXC parse cost (e.g., is `defer_script_parse` actually deferring,
-   or is something forcing the parse twice?).
-2. If visitors dominate, profile with `samply` against a single
-   long-running scenario to find the hot visitor function.
+| `ensure_script_parsed` (OXC) | ~12% of analyze (5.8% of total) | Limited — already small, and OXC is upstream-tuned. |
+| Visitors (our code) | ~86% of analyze (42% of total) | Real and large — these are not yet AST-migrated like the transform-side handlers. |
+| `resolve_lazy_expressions` | ~3% of analyze (1.3% of total) | Negligible. |
+| Symbol-table / scope build | (within "Visitors") | Real — `FxHashMap` lookups in tight loops. |
 
 ### Phase 3 — Transform (48.0%)
 
@@ -112,19 +105,60 @@ scans, but the remaining cost is:
    `JsNodeId` indirection in the Svelte template AST. Phase 3 of
    the plan is where the +10–20% comes from.
 
+## Phase 2 sub-breakdown — measured 2026-05-15
+
+Added by patching `src/bin/compile_profile.rs` to pre-run
+`resolve_lazy_expressions` and `ensure_script_parsed` with their own
+timers. Both are idempotent (early-return when there is no deferred
+work left), so the subsequent `analyze_component` call skips those
+steps internally and reports visitor-only time.
+
+Steady-state (mean of 3 consecutive runs after a cold-start warm-up):
+
+```
+Phase 1 (Parse):         11.6ms (  2.5%)
+Phase 2 (Analyze):      225.9ms ( 49.4%)
+  Resolve lazy:           5.8ms (  1.3% of total,   2.6% of analyze)
+  Ensure script (OXC):   26.6ms (  5.8% of total,  11.8% of analyze)
+  Visitors (rest):      193.5ms ( 42.4% of total,  85.6% of analyze)
+Phase 3 (Transform):    219.6ms ( 48.1%)
+TOTAL:                  457.1ms
+```
+
+(The very first run after `cargo build` is a ~20% slower cold start —
+file-cache miss on 3,637 inputs. Discard it for steady-state numbers.)
+
+### Conclusion
+
+The doc's prior "30–40% OXC" guess is wrong: **OXC parse is only
+~12% of analyze**, and the conditional in the original
+"Recommended next investigation" §1 ("if >40%, focus on OXC") does
+not fire. We do **not** need to audit `defer_script_parse` or look
+for a doubled parse.
+
+The lever is **our visitors**: 193ms / 42% of total compile time
+sits in `analyze_component` after the OXC work finishes. None of
+the analyze visitors have been AST-migrated yet (the 18-PR text→AST
+arc covered Phase 3 only).
+
 ## Recommended priorities
 
-In rough order of expected ROI:
+In rough order of expected ROI (post-2026-05-15 measurement):
 
-1. **Time-split `ensure_script_parsed` vs. visitors in Analyze.**
-   This is a 1-hour task that tells you which 25% of total compile
-   time is OXC vs. our code. Cheap information; do this first.
-2. **bumpalo Phase 0–3** — already documented in
+1. ~~Time-split `ensure_script_parsed` vs. visitors in Analyze.~~
+   **Done** — see "Phase 2 sub-breakdown" above. OXC is ~12% of
+   analyze; visitors dominate.
+2. **Samply-profile the analyze visitors.** With visitors at
+   ~42% of total compile time, this is now the biggest single
+   lever. Use a long-running scenario or replay the full
+   `compile_profile` workload to find the hot visitor function(s)
+   before deciding what to migrate to AST traversal.
+3. **bumpalo Phase 0–3** — already documented in
    `docs/bumpalo-migration-plan.md`. Expected +10–20% on transform.
-3. **Template transform investigation** — needs its own profile;
+4. **Template transform investigation** — needs its own profile;
    likely has hot spots untouched by the text→AST arc.
-4. **Analyze visitor migration** — only if Step 1 shows visitors
-   dominate analyze.
+5. **Analyze visitor migration** — once §2 identifies the hot
+   visitor(s), mirror the Phase 3 text→AST treatment for them.
 
 ## Anti-priorities
 
