@@ -220,6 +220,11 @@ with the concrete output:
    - Expected savings: cut the JSON-walk half of `feature_detect`
      (estimate 25–40ms), roughly **5–8% of total compile time** for
      a single PR.
+   - **Done in #112.** Achieved -5.3% on the visitor slice / -1.0%
+     of total compile time (smaller than the projection — likely
+     because `Expression::as_json()` is cached, so the conversion
+     just shifts to `MODULE_EXPORT_CHECK_NS` which still calls
+     `as_json()` on the module script).
 
 2. **AST-migrate the analyze visitors run from
    `visit_script_expr`.** Bucket #1 (~69ms). Bigger surface than #2
@@ -230,6 +235,105 @@ with the concrete output:
 3. **bumpalo Phase 0–3** — unchanged.
 
 4. **Template transform investigation** — unchanged.
+
+## `walk_js_node_typed` per-variant breakdown — measured 2026-05-15
+
+Drilling one more level into `script_visit (instance)`. Measured by
+temporarily wrapping each match arm in `walk_js_node_typed` (and the
+post-visit `visit_children_typed` call, plus the `Raw(Value)`
+fallback) with an `analyze-perf-trace` atomic counter, then running
+the 3,637-file `compile_profile` workload. Same throw-away pattern
+as the earlier sub-breakdown — feature reverted after capture.
+
+Steady-state (mean of 3 consecutive runs after warm-up):
+
+```
+--- walk_js_node_typed per-variant breakdown (sorted by time) ---
+  visit_children_typed (post-visit walk)       58.2ms ( 33.7%)
+  VariableDeclarator                           28.9ms ( 16.8%)
+  walk_js_node (Raw fallback)                  16.5ms (  9.6%)
+  ExportNamedDeclaration                       15.9ms (  9.2%)
+  FunctionDeclaration                          14.5ms (  8.4%)
+  CallExpression                               13.4ms (  7.8%)
+  ExpressionStatement                          10.8ms (  6.3%)
+  AssignmentExpression                          5.8ms (  3.4%)
+  FunctionExpression+Arrow                      5.3ms (  3.1%)
+  Identifier                                    0.9ms (  0.5%)
+  UpdateExpression                              0.7ms (  0.4%)
+  MemberExpression                              0.5ms (  0.3%)
+  LabeledStatement                              0.4ms (  0.2%)
+  NewExpression                                 0.4ms (  0.2%)
+  Literal                                       0.2ms (  0.1%)
+  (other, no visitor)                           0.1ms (  0.1%)
+  TemplateElement                               0.1ms
+  ImportDeclaration                             <0.1ms
+  AwaitExpression                               <0.1ms
+  ClassDeclaration/Body/Property/Export-default <0.1ms
+  (sum)                                       ~172ms
+```
+
+Buckets are *inclusive* of recursive descent into child nodes, but
+the sum (~172ms) covers ~90% of "Visitors (rest)" (~190ms), so the
+attribution is meaningful even with that overlap.
+
+### Reading the result
+
+- **`visit_children_typed` (33.7%)** is the post-visit recursive
+  descent dispatcher itself — arena lookups + match-arm overhead
+  spread across millions of small node visits. There's no single
+  visitor to migrate here; speedups would need structural changes
+  (e.g. reducing match-arm overhead, or eliminating recursion at
+  some level).
+
+- **`VariableDeclarator` (16.8%, ~29ms / ~6% of total)** is the
+  largest single per-visitor bucket. The `visit_typed` body has
+  five `to_value().to_string()` callsites used to set
+  `binding.initial` for diagnostics and constant folding. *But*:
+  `binding.initial` is consumed by 20+ downstream sites across
+  `phase3_transform/` and `phase2_analyze/`, several of which
+  explicitly parse the JSON representation (e.g. "Check for
+  TemplateLiteral JSON format (from binding.initial)" in
+  `client/visitors/shared/utils.rs`). Migrating to source-span
+  strings would break the JSON-shape contract — a real PR, not a
+  one-liner.
+
+- **`walk_js_node (Raw fallback)` (9.6%, ~16ms)** is statements
+  parsed as `JsNode::Raw(Value)` because they carry
+  `leadingComments` that aren't modelled in typed `JsNode`
+  variants. Fixing this requires a parse-phase change (model
+  comments separately so statements stay typed), not a visitor
+  migration.
+
+- **`ExportNamedDeclaration` (9.2%, ~16ms)** has one `to_value()`
+  callsite (`export_named_declaration.rs:572`) that materialises
+  the entire declaration into a `Value` and then introspects it via
+  `.get("type")`, `.get("declarations")`, etc. Migration would
+  replace the JSON introspection with `JsNode` pattern matching —
+  cleaner scope than VariableDeclarator (only one function uses the
+  materialised Value), but the function body is ~140 lines of JSON
+  walking.
+
+- **`FunctionDeclaration` (8.4%, ~14ms)** — `visit_typed` is
+  already minimal and typed; most of its bucket time is recursive
+  descent into the function body. No actionable migration here.
+
+### Next-PR candidates
+
+In decreasing ROI:
+
+1. **`ExportNamedDeclaration` to typed pattern matching.** Single
+   function, one to_value() callsite, no downstream contract
+   change. Expected ~10–15ms cut.
+
+2. **`VariableDeclarator.binding.initial` source-span migration.**
+   Larger PR — touches ~20 downstream consumers — but ~29ms is on
+   the table.
+
+3. **Raw fallback elimination.** Parse-phase: model leadingComments
+   off-tree so statements stay typed. ~16ms but cross-phase change.
+
+4. **`visit_children_typed` dispatch hot path.** Structural — no
+   obvious low-effort win.
 
 ## Recommended priorities
 
