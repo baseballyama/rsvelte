@@ -183,15 +183,24 @@ fn main() {
         ms(transform_time),
         pct(transform_time)
     );
+    let visit_program = transform_breakdown.visit_program;
     let script_text = transform_breakdown.script_text_transform;
     let template_fragment = transform_breakdown.template_fragment;
+    let assembly_after = transform_breakdown.assembly_after_fragment;
     let css_render = transform_breakdown.css_render;
     let codegen = transform_breakdown.codegen;
     let other = transform_time
+        .saturating_sub(visit_program)
         .saturating_sub(script_text)
         .saturating_sub(template_fragment)
+        .saturating_sub(assembly_after)
         .saturating_sub(css_render)
         .saturating_sub(codegen);
+    println!(
+        "  visit_program:       {:7.2}ms ({:5.1}%)",
+        ms(visit_program),
+        pct(visit_program)
+    );
     println!(
         "  Script-text xform:   {:7.2}ms ({:5.1}%)",
         ms(script_text),
@@ -201,6 +210,11 @@ fn main() {
         "  Template fragment:   {:7.2}ms ({:5.1}%)",
         ms(template_fragment),
         pct(template_fragment)
+    );
+    println!(
+        "  Assembly (post-frag):{:7.2}ms ({:5.1}%)",
+        ms(assembly_after),
+        pct(assembly_after)
     );
     println!(
         "  CSS render:          {:7.2}ms ({:5.1}%)",
@@ -213,7 +227,7 @@ fn main() {
         pct(codegen)
     );
     println!(
-        "  Other:               {:7.2}ms ({:5.1}%)",
+        "  Pre-frag setup:      {:7.2}ms ({:5.1}%)",
         ms(other),
         pct(other)
     );

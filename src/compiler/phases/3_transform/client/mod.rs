@@ -347,7 +347,9 @@ fn transform_client_with_visitors(
     // NOTE: visit_program calls add_state_transformers again internally, so any
     // transform removals must happen AFTER this call.
     use crate::compiler::phases::phase3_transform::client::visitors::program::visit_program;
+    let _vp_start = std::time::Instant::now();
     visit_program(&mut context);
+    super::profile::record_visit_program(_vp_start.elapsed());
 
     // Remove transforms for variables that have shadowed $state declarations.
     // Due to a known analysis bug where inner-scope $state() declarations overwrite
@@ -476,6 +478,7 @@ fn transform_client_with_visitors(
     let _fragment_start = std::time::Instant::now();
     let template_body = fragment(&ast.fragment, &mut context, true);
     super::profile::record_template_fragment(_fragment_start.elapsed());
+    let _assembly_start = std::time::Instant::now();
 
     // Collect results from state
     let hoisted_statements = std::mem::take(&mut context.state.hoisted);
@@ -1899,6 +1902,7 @@ fn transform_client_with_visitors(
     let program = JsProgram { body };
 
     // Generate JavaScript code from the program, optionally with source map data
+    super::profile::record_assembly_after_fragment(_assembly_start.elapsed());
     let _codegen_start = std::time::Instant::now();
     if options.enable_sourcemap {
         let r = generate_with_sourcemap(&program, source, &context.arena)

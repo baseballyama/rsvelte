@@ -15,17 +15,26 @@ use std::time::Duration;
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Phase3Breakdown {
+    pub visit_program: Duration,
     pub script_text_transform: Duration,
     pub template_fragment: Duration,
+    pub assembly_after_fragment: Duration,
     pub css_render: Duration,
     pub codegen: Duration,
 }
 
 thread_local! {
+    static VISIT_PROGRAM: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static SCRIPT_TEXT: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static TEMPLATE_FRAGMENT: Cell<Duration> = const { Cell::new(Duration::ZERO) };
+    static ASSEMBLY_AFTER_FRAGMENT: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static CSS_RENDER: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static CODEGEN: Cell<Duration> = const { Cell::new(Duration::ZERO) };
+}
+
+#[inline]
+pub fn record_visit_program(d: Duration) {
+    VISIT_PROGRAM.with(|c| c.set(c.get() + d));
 }
 
 #[inline]
@@ -36,6 +45,11 @@ pub fn record_script_text(d: Duration) {
 #[inline]
 pub fn record_template_fragment(d: Duration) {
     TEMPLATE_FRAGMENT.with(|c| c.set(c.get() + d));
+}
+
+#[inline]
+pub fn record_assembly_after_fragment(d: Duration) {
+    ASSEMBLY_AFTER_FRAGMENT.with(|c| c.set(c.get() + d));
 }
 
 #[inline]
@@ -50,8 +64,10 @@ pub fn record_codegen(d: Duration) {
 
 pub fn take_breakdown() -> Phase3Breakdown {
     Phase3Breakdown {
+        visit_program: VISIT_PROGRAM.with(|c| c.replace(Duration::ZERO)),
         script_text_transform: SCRIPT_TEXT.with(|c| c.replace(Duration::ZERO)),
         template_fragment: TEMPLATE_FRAGMENT.with(|c| c.replace(Duration::ZERO)),
+        assembly_after_fragment: ASSEMBLY_AFTER_FRAGMENT.with(|c| c.replace(Duration::ZERO)),
         css_render: CSS_RENDER.with(|c| c.replace(Duration::ZERO)),
         codegen: CODEGEN.with(|c| c.replace(Duration::ZERO)),
     }

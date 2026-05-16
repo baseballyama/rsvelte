@@ -408,46 +408,49 @@ The remaining levers are either substantial single-PR refactors
 
 ## Phase 3 sub-breakdown — measured 2026-05-16
 
-After the session-log entries above, instrumented `transform_client_with_visitors`
-with thread-local timers to split Phase 3 into sub-phases. Same fixture set
+Instrumented `transform_client_with_visitors` + `transform_component` with
+thread-local timers (`phase3_transform::profile`). Same fixture set
 (3637 .svelte files). Run with `cargo run --release --bin compile_profile`.
 
 ```
-Phase 3 (Transform):    221.67ms ( 50.3%)
-  Script-text xform:     60.77ms ( 13.8%)   [transform_instance_script_for_visitors]
-  Template fragment:     53.30ms ( 12.1%)   [fragment() visitor walk]
-  CSS render:             9.62ms (  2.2%)   [render_stylesheet]
-  JS codegen:            19.10ms (  4.3%)   [generate / generate_with_sourcemap]
-  Other:                 78.88ms ( 17.9%)   [visit_program + setup + assembly + async + ...]
+Phase 3 (Transform):    223.67ms ( 49.4%)
+  visit_program:          1.28ms (  0.3%)   [scope/prop/store-sub setup]
+  Script-text xform:     61.41ms ( 13.6%)   [transform_instance_script_for_visitors]
+  Template fragment:     53.74ms ( 11.9%)   [fragment() visitor walk]
+  Assembly (post-frag):  12.67ms (  2.8%)   [hoist + store + binding-map + body build]
+  CSS render:             9.61ms (  2.1%)   [render_stylesheet]
+  JS codegen:            19.18ms (  4.2%)   [generate / generate_with_sourcemap]
+  Pre-frag setup:        65.77ms ( 14.5%)   [residual: state init + add_state_transformers + reactive_import_names + ...]
 ```
 
 Findings:
-- **Other (78.88ms) is the single largest Phase 3 bucket.** This is everything
-  between fragment visit and codegen — visit_program, store sub setup, async
-  blocker-map computation, hoisted-statement assembly, transform_destructured
-  state assignments (text-based), final body construction. Worth a second
-  pass with a finer breakdown.
-- **Script-text xform (60.77ms)** matches the known text-regex transform on
-  the instance script raw source. Same family of work as the Phase-2 visitor
-  bake — converting this to AST-driven is the same kind of refactor.
-- **Template fragment (53.30ms)** is the JS-emit walk over the parsed template
-  AST, not Svelte-template parsing. It already operates on a typed AST, so
-  "AST-ifying" doesn't apply; perf improvements here would be allocation
-  reduction or hot-visitor inlining.
-- **JS codegen (19.10ms) is small** — `generate()` writing the final string is
-  not a hotspot. Source-map generation is not measurable in this run because
-  `enable_sourcemap=false` by default.
-- **CSS render (9.62ms) is small** — not worth attention unless template
-  Other shrinks enough that CSS becomes a top-3 bucket.
+- **Pre-frag setup (65.77ms) is the largest Phase 3 bucket.** This is the
+  residual of `transform_client_with_visitors` not covered by the other
+  timers — `ComponentClientTransformState::new`, `add_state_transformers`,
+  `extract_shadowed_state_names` (regex), `reactive_import_names` filter
+  computation, and similar setup work. NOT `visit_program` (1.28ms) and
+  NOT the script-text transform itself.
+- **visit_program is cheap** (1.28ms / 0.3%). Not a target.
+- **Assembly post-fragment is also cheap** (12.67ms). Means the final
+  body assembly + hoisted-statement merge is not a hotspot.
+- **Script-text xform (61.41ms)** matches the known text-regex transform.
+  AST migration here is a separately-scoped refactor.
+- **Template fragment (53.74ms)** is the JS-emit walk over the parsed
+  template AST. Already typed; perf gains require allocation reduction or
+  hot-visitor inlining, not "AST-ification."
+- **JS codegen (19.18ms) is small** — `generate()` is not a hotspot.
+- **CSS render (9.61ms) is small.**
 
 Implication for next steps:
-1. **Drill "Other" further** — split visit_program, async setup, assembly so
-   we know whether to attack visit_program (scope walks) or assembly. Same
-   thread-local instrumentation pattern.
-2. **Script-text xform → AST** is a known, scoped refactor but high effort
-   and currently lower priority than #1 because Other is bigger.
-3. **Fragment walker** is internally allocation-heavy but the hot visitors
-   are not obvious from this number alone — needs samply-level drill-down.
+1. **Drill "Pre-frag setup" further** — split out
+   `ComponentClientTransformState::new`, `add_state_transformers`,
+   `extract_shadowed_state_names`, `reactive_import_names`. Likely contains
+   one or two hotspots that account for most of the 65ms. Same instrumentation
+   pattern.
+2. **Script-text xform → AST** scoped refactor — known target,
+   independent of #1.
+3. **Fragment walker** allocation profiling — needs samply, not this
+   thread-local instrumentation.
 
 ## Anti-priorities
 
