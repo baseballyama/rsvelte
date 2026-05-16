@@ -867,8 +867,27 @@ pub fn compile_module(
 
     // Phase 3: Generate module output using the module-specific transform.
     // Unlike transform_component, this does NOT generate a component wrapper.
-    let transform_result =
-        phases::phase3_transform::transform_module(&analysis, source, &compile_options);
+    //
+    // The text-based rune rewrites inside `transform_module` work on the raw
+    // source string, not the AST. If the file is TypeScript, those rewrites
+    // would otherwise run against TS annotations (`(x: T) => …`, return-type
+    // `: T`, optional parameter `?`, etc.), corrupting the output and leaking
+    // TS into the emitted JS. Feed the TS-stripped source to the transform so
+    // every downstream string operation sees pure JS — matching what the
+    // analyzer has already stripped from the AST.
+    let stripped_source: String;
+    let source_for_transform: &str = if is_typescript {
+        stripped_source = phases::phase2_analyze::types::strip_typescript(source);
+        &stripped_source
+    } else {
+        source
+    };
+
+    let transform_result = phases::phase3_transform::transform_module(
+        &analysis,
+        source_for_transform,
+        &compile_options,
+    );
 
     let js_code = match transform_result {
         Ok(result) => result.js,
