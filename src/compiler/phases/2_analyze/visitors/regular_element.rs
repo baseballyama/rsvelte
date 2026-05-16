@@ -1166,7 +1166,8 @@ pub fn visit(
                 && bind.name == "value"
             {
                 // Extract root identifier from the bind expression
-                let root_id = extract_binding_root_identifier(&bind.expression);
+                let root_id =
+                    extract_binding_root_identifier(&bind.expression, context.parse_arena);
                 if let Some(ref root_name) = root_id {
                     // Get the binding for this identifier using the instance scope
                     let scope_idx = context.analysis.root.instance_scope_index;
@@ -1283,21 +1284,27 @@ pub fn visit_regular_element(
 /// For `selected` -> "selected", for `selected.done` -> "selected",
 /// for `items[0]` -> "items".
 /// Corresponds to the `object()` function call in the official compiler.
-fn extract_binding_root_identifier(expr: &crate::ast::js::Expression) -> Option<String> {
+fn extract_binding_root_identifier(
+    expr: &crate::ast::js::Expression,
+    arena: &crate::ast::arena::ParseArena,
+) -> Option<String> {
     let node = expr.as_node();
-    extract_binding_root_identifier_node(&node)
+    extract_binding_root_identifier_node(&node, arena)
 }
 
-fn extract_binding_root_identifier_node(node: &crate::ast::typed_expr::JsNode) -> Option<String> {
+fn extract_binding_root_identifier_node(
+    node: &crate::ast::typed_expr::JsNode,
+    arena: &crate::ast::arena::ParseArena,
+) -> Option<String> {
+    use crate::ast::typed_expr::JsNode;
     match node {
-        crate::ast::typed_expr::JsNode::Identifier { name, .. } => Some(name.to_string()),
-        crate::ast::typed_expr::JsNode::MemberExpression { .. } => {
-            // Fall back to JSON for recursive member expression traversal
-            // to avoid arena dependency in this helper
-            let json = node.to_value();
-            extract_binding_root_identifier_json(&json)
+        JsNode::Identifier { name, .. } => Some(name.to_string()),
+        JsNode::MemberExpression { object, .. } => {
+            // Recurse through the typed arena instead of materializing the
+            // whole MemberExpression chain into a Value.
+            extract_binding_root_identifier_node(arena.get_js_node(*object), arena)
         }
-        crate::ast::typed_expr::JsNode::Raw(v) => extract_binding_root_identifier_json(v),
+        JsNode::Raw(v) => extract_binding_root_identifier_json(v),
         _ => None,
     }
 }
