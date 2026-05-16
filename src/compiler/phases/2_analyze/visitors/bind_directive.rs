@@ -195,7 +195,7 @@ fn visit_common(
     // Get the leftmost identifier (the binding target)
     let expr_node = directive.expression.as_node();
     let binding_name_owned: String;
-    let binding_name: &str = if let Some(left) = get_object_node(&expr_node) {
+    let binding_name: &str = if let Some(left) = get_object_node(&expr_node, context.parse_arena) {
         left.name().unwrap_or_default()
     } else {
         // Fall back to JSON for MemberExpression chains
@@ -750,27 +750,28 @@ fn is_text_attribute(attr: &crate::ast::template::AttributeNode) -> bool {
 /// Get the object (leftmost identifier) from a JsNode expression.
 ///
 /// Corresponds to `object()` in utils/ast.js.
-fn get_object_node(node: &JsNode) -> Option<&JsNode> {
+///
+/// Resolves the leftmost identifier of an assignment-target expression by
+/// walking `MemberExpression.object` via the arena. Falls back to the
+/// JSON-based recursion only for `Raw(Value)` nodes (those that carry
+/// `leadingComments`).
+fn get_object_node<'a>(
+    node: &'a JsNode,
+    arena: &'a crate::ast::arena::ParseArena,
+) -> Option<&'a JsNode> {
     match node {
         JsNode::Identifier { .. } => Some(node),
-        JsNode::MemberExpression { .. } => {
-            // Fall back to JSON traversal for recursive member expression resolution
-            // to avoid needing the ParseArena in this helper
-            None
+        JsNode::MemberExpression { object, .. } => {
+            get_object_node(arena.get_js_node(*object), arena)
         }
-        JsNode::Raw(v) => {
-            // Fallback for raw JSON nodes
-            let node_type = v.get("type")?.as_str()?;
-            match node_type {
-                "Identifier" => Some(node),
-                _ => None,
-            }
-        }
+        JsNode::Raw(_) => None,
         _ => None,
     }
 }
 
-/// Get the object name (leftmost identifier) from a JsNode expression via JSON.
+/// JSON fallback used only when `get_object_node` encounters a `Raw(Value)`
+/// node (which carries `leadingComments` so it can't be expressed as a typed
+/// `JsNode` variant). Recurses through `MemberExpression.object` JSON fields.
 fn get_object_name_via_json(node: &JsNode) -> Option<String> {
     let json = node.to_value();
     get_object_name_from_json(&json)
