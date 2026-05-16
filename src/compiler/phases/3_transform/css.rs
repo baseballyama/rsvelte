@@ -5635,6 +5635,17 @@ fn format_simple_selector_with_scope(
             format!("::{}", name)
         }
         "NestingSelector" => "&".to_string(),
+        "Nth" => {
+            // `:nth-child(3)` / `:nth-of-type(2n+1)` etc. The argument is
+            // stored verbatim on the `Nth` node (e.g. `"3"`, `"2n+1"`).
+            // Without this arm the value got dropped during scoping and
+            // selectors like `.foo:nth-child(3)` were emitted as
+            // `.foo.svelte-xxx:nth-child()`.
+            sel.get("value")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string()
+        }
         _ => String::new(),
     }
 }
