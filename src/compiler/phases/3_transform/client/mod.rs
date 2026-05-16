@@ -78,7 +78,14 @@ pub(super) static REGEX_DOLLAR_PROPS: LazyLock<Regex> =
 // The optional type annotation handles TypeScript patterns like `const x: string = $derived.by(...)`
 // The optional generic params handle patterns like `let x = $state<SomeType>(...)`
 pub(super) static REGEX_STATE_DERIVED_VAR: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(let|const|var)\s+(\w+)(?:\s*:[^=\n]*)?\s*=\s*\$(?:state|derived)(?:\.by)?(?:<[^(]*>)?\s*\(").unwrap()
+    // Matches `let|const|var <name> [: type] = $state[.raw|.frozen]<T>(...)`
+    // or `$derived[.by]<T>(...)`. The `.raw` / `.frozen` variants must be
+    // tracked too — without them, reassigned `$state.raw(x)` vars get the
+    // `$.state(...)` declaration wrapper at module level but their reads
+    // (`x[key]`) and writes (`x = next`) are never rewritten through
+    // `$.get`/`$.set`, so consumers see the raw source object instead of
+    // the value (see baseballyama/rsvelte#143).
+    Regex::new(r"(let|const|var)\s+(\w+)(?:\s*:[^=\n]*)?\s*=\s*\$(?:state(?:\.raw|\.frozen)?|derived(?:\.by)?)(?:<[^(]*>)?\s*\(").unwrap()
 });
 
 // Regex for sanitizing identifier names - replaces invalid identifier characters
