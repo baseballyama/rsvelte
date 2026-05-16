@@ -141,15 +141,19 @@ pub struct Source {
 
 /// Simplified decoded source map structure.
 ///
-/// This matches the JavaScript DecodedSourceMap format.
+/// This matches the JavaScript DecodedSourceMap format. JSON-side keys
+/// follow the SourceMap v3 spec (`sourcesContent`, `sourceRoot`), so
+/// user-supplied maps round-trip correctly.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimpleDecodedMap {
     pub version: Option<u32>,
     pub file: Option<String>,
     pub sources: Vec<String>,
+    #[serde(rename = "sourcesContent")]
     pub sources_content: Option<Vec<Option<String>>>,
     pub names: Vec<String>,
     pub mappings: Vec<Vec<Vec<i64>>>,
+    #[serde(rename = "sourceRoot")]
     pub source_root: Option<String>,
 }
 

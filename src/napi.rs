@@ -453,29 +453,49 @@ pub fn napi_resolve_id(importer: Option<String>, specifier: String) -> napi::Res
     }
 }
 
+/// Options accepted by `preprocess()`. Mirrors the upstream Svelte
+/// signature `preprocess(source, preprocessors, options?: { filename? })`.
+#[napi(object)]
+pub struct PreprocessOptions {
+    pub filename: Option<String>,
+}
+
 /// Run rsvelte's preprocessor pipeline, bridging JS preprocessor
 /// callbacks through `napi::threadsafe_function::ThreadsafeFunction`.
 ///
-/// `preprocessors` is an array of `{ name?, markup?, script?, style? }`
-/// JS objects matching `svelte/preprocess`'s `PreprocessorGroup`. Each
-/// callback may be sync or `async` and may return either a
-/// `{ code, map?, dependencies?, attributes? }` object or
-/// `undefined`/`null` to skip the file. Callbacks are invoked on the
-/// JS thread via N-API's ThreadsafeFunction machinery — the heavy
-/// lifting (tag extraction, source-map chaining) stays in Rust.
+/// `preprocessors` is a `PreprocessorGroup | PreprocessorGroup[]` —
+/// each group is a `{ name?, markup?, script?, style? }` object matching
+/// `svelte/preprocess`'s contract. Callbacks may be sync or `async` and
+/// may return either a `{ code, map?, dependencies?, attributes? }`
+/// object or `undefined`/`null` to skip the file. Callbacks are invoked
+/// on the JS thread via N-API's ThreadsafeFunction machinery — the
+/// heavy lifting (tag extraction, source-map chaining) stays in Rust.
 ///
 /// Shape mirrors `svelte/preprocess`: `{ code, map, dependencies }`.
 #[napi(js_name = "preprocess")]
 pub fn napi_preprocess(
     env: Env,
     source: String,
-    preprocessors: Vec<napi::bindgen_prelude::Object>,
-    filename: Option<String>,
+    preprocessors: napi::bindgen_prelude::Either<
+        Vec<napi::bindgen_prelude::Object>,
+        napi::bindgen_prelude::Object,
+    >,
+    options: Option<PreprocessOptions>,
 ) -> napi::Result<napi::JsObject> {
+    use napi::bindgen_prelude::Either;
+    // Accept both `PreprocessorGroup[]` and `PreprocessorGroup` — matches
+    // the upstream Svelte API which allows a single group or an array.
+    // We probe `Vec` first since JS arrays satisfy `typeof === "object"`
+    // and would otherwise match the single-group branch.
+    let groups: Vec<napi::bindgen_prelude::Object> = match preprocessors {
+        Either::A(list) => list,
+        Either::B(single) => vec![single],
+    };
     // Extract ThreadsafeFunctions synchronously so the JS-bound `Object`
     // values never cross the await boundary (they're not Send).
-    let extracted = preprocess_bridge::extract_groups(preprocessors)?;
+    let extracted = preprocess_bridge::extract_groups(groups)?;
     let rust_groups = preprocess_bridge::build_groups(extracted);
+    let filename = options.and_then(|o| o.filename);
 
     env.execute_tokio_future(
         async move {
@@ -498,7 +518,12 @@ mod preprocess_bridge {
     use rustc_hash::FxHashMap;
     use serde_json::Value;
 
-    pub(super) type Tsfn = ThreadsafeFunction<Value, ErrorStrategy::CalleeHandled>;
+    // Fatal strategy: the user-supplied JS callback receives the options
+    // object as its sole argument — matching the upstream Svelte
+    // preprocessor contract `(opts) => Processed | undefined`. Using
+    // CalleeHandled would inject an `err` as the first argument, breaking
+    // every preprocessor that destructures `{ content, filename }`.
+    pub(super) type Tsfn = ThreadsafeFunction<Value, ErrorStrategy::Fatal>;
 
     pub(super) struct Extracted {
         pub name: Option<String>,
@@ -566,17 +591,32 @@ mod preprocess_bridge {
     }
 
     async fn await_tsfn(tsfn: &Tsfn, arg: Value) -> Result<Value, PreprocessError> {
-        // Callbacks are expected to return a Promise (matching the JS
-        // `(opts) => Promise<Processed | void>` contract). Sync callers
-        // should `async (opts) => …` — `Promise.resolve(...)` is not
-        // injected on the Rust side.
-        let promise: Promise<Value> = tsfn
-            .call_async(Ok(arg))
+        // The upstream Svelte preprocessor contract allows the callback to
+        // return `Processed | Promise<Processed> | undefined | null`,
+        // sync or async. The outer `Option<Promise<…>>` handles the case
+        // where the JS callback returns `undefined`/`null` directly (sync
+        // no-op); the inner `Option<Value>` handles the case where an
+        // async callback resolves to `undefined`/`null` (async no-op).
+        // Sync object returns fall through to the raw `Value` path.
+        match tsfn
+            .call_async::<Option<Promise<Option<Value>>>>(arg.clone())
             .await
-            .map_err(|e| PreprocessError::Other(format!("{e}")))?;
-        promise
-            .await
-            .map_err(|e| PreprocessError::Other(format!("{e}")))
+        {
+            Ok(Some(promise)) => match promise.await {
+                Ok(Some(v)) => Ok(v),
+                Ok(None) => Ok(Value::Null),
+                Err(e) => Err(PreprocessError::Other(format!("{e}"))),
+            },
+            Ok(None) => Ok(Value::Null),
+            Err(_) => {
+                // Not a Promise — accept a sync object/undefined return.
+                match tsfn.call_async::<Option<Value>>(arg).await {
+                    Ok(Some(v)) => Ok(v),
+                    Ok(None) => Ok(Value::Null),
+                    Err(e) => Err(PreprocessError::Other(format!("{e}"))),
+                }
+            }
+        }
     }
 
     fn attrs_to_json(attrs: &FxHashMap<String, RsAttrValue>) -> Value {
@@ -658,9 +698,7 @@ mod preprocess_bridge {
             Some(SourceMapInput::Json(s)) => {
                 serde_json::from_str::<Value>(&s).unwrap_or(Value::Null)
             }
-            Some(SourceMapInput::Decoded(decoded)) => {
-                serde_json::to_value(&decoded).unwrap_or(Value::Null)
-            }
+            Some(SourceMapInput::Decoded(decoded)) => decoded_to_v3_json(&decoded),
         };
         let deps: Vec<Value> = p.dependencies.into_iter().map(Value::String).collect();
         serde_json::json!({
@@ -668,5 +706,119 @@ mod preprocess_bridge {
             "map": map,
             "dependencies": deps,
         })
+    }
+
+    /// Serialize a `SimpleDecodedMap` to a standard [Source Map v3] JSON
+    /// object — camelCase keys (`sourcesContent`, `sourceRoot`) and a
+    /// VLQ-encoded `mappings` string — so downstream tools (Vite,
+    /// Rolldown, magic-string consumers) can ingest it directly.
+    ///
+    /// [Source Map v3]: https://sourcemaps.info/spec.html
+    fn decoded_to_v3_json(map: &SimpleDecodedMap) -> Value {
+        let mut obj = serde_json::Map::new();
+        obj.insert(
+            "version".to_string(),
+            Value::Number(serde_json::Number::from(map.version.unwrap_or(3))),
+        );
+        if let Some(ref file) = map.file {
+            obj.insert("file".to_string(), Value::String(file.clone()));
+        }
+        if let Some(ref source_root) = map.source_root {
+            obj.insert("sourceRoot".to_string(), Value::String(source_root.clone()));
+        }
+        obj.insert(
+            "sources".to_string(),
+            Value::Array(map.sources.iter().cloned().map(Value::String).collect()),
+        );
+        if let Some(ref contents) = map.sources_content {
+            obj.insert(
+                "sourcesContent".to_string(),
+                Value::Array(
+                    contents
+                        .iter()
+                        .map(|c| c.clone().map_or(Value::Null, Value::String))
+                        .collect(),
+                ),
+            );
+        }
+        obj.insert(
+            "names".to_string(),
+            Value::Array(map.names.iter().cloned().map(Value::String).collect()),
+        );
+        obj.insert(
+            "mappings".to_string(),
+            Value::String(encode_mappings(&map.mappings)),
+        );
+        Value::Object(obj)
+    }
+
+    /// VLQ-encode a decoded `mappings` array (`Vec<Vec<Vec<i64>>>`) into
+    /// the Source Map v3 string form: lines separated by `;`, segments
+    /// within a line separated by `,`, fields within a segment as
+    /// relative-encoded VLQs.
+    fn encode_mappings(mappings: &[Vec<Vec<i64>>]) -> String {
+        let mut out = String::new();
+        // Source index / original line / original column / name index
+        // run relative to the *previous segment*, regardless of line.
+        // Generated column resets at each `;` (per spec).
+        let mut prev_source: i64 = 0;
+        let mut prev_orig_line: i64 = 0;
+        let mut prev_orig_col: i64 = 0;
+        let mut prev_name: i64 = 0;
+        for (i, line) in mappings.iter().enumerate() {
+            if i > 0 {
+                out.push(';');
+            }
+            let mut prev_gen_col: i64 = 0;
+            for (j, segment) in line.iter().enumerate() {
+                if j > 0 {
+                    out.push(',');
+                }
+                if segment.is_empty() {
+                    continue;
+                }
+                let gen_col = segment[0];
+                vlq_encode(&mut out, gen_col - prev_gen_col);
+                prev_gen_col = gen_col;
+                if segment.len() >= 4 {
+                    let src = segment[1];
+                    let orig_line = segment[2];
+                    let orig_col = segment[3];
+                    vlq_encode(&mut out, src - prev_source);
+                    vlq_encode(&mut out, orig_line - prev_orig_line);
+                    vlq_encode(&mut out, orig_col - prev_orig_col);
+                    prev_source = src;
+                    prev_orig_line = orig_line;
+                    prev_orig_col = orig_col;
+                    if segment.len() >= 5 {
+                        let name = segment[4];
+                        vlq_encode(&mut out, name - prev_name);
+                        prev_name = name;
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    const BASE64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    fn vlq_encode(out: &mut String, value: i64) {
+        let mut vlq: u64 = if value < 0 {
+            ((-value as u64) << 1) | 1
+        } else {
+            (value as u64) << 1
+        };
+        loop {
+            let mut digit = (vlq & 0x1f) as u8;
+            vlq >>= 5;
+            if vlq > 0 {
+                digit |= 0x20;
+            }
+            out.push(BASE64[digit as usize] as char);
+            if vlq == 0 {
+                break;
+            }
+        }
     }
 }
