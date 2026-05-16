@@ -296,17 +296,53 @@ thread_local! {
     static SERIALIZE_ARENA: Cell<Option<*const ParseArena>> = const { Cell::new(None) };
 }
 
-/// Set the thread-local arena for serialization, run `f`, then clear it.
+/// RAII guard that installs an arena pointer in `SERIALIZE_ARENA` for
+/// the lifetime of the guard, restoring whatever pointer was set on
+/// entry when dropped (including on panic unwind).
+///
+/// Restoring (rather than clearing to `None`) is critical: nested
+/// callers — e.g. `JsNode::to_value` falling back to `DESER_ARENA` while
+/// a `compile()` already installed its own arena — would otherwise wipe
+/// the outer scope's pointer and leave the caller's later
+/// `resolve_js_node_for_serialize` calls reading from the wrong (or no)
+/// arena, surfacing as cross-talk between concurrent compilations on
+/// the same thread.
+pub struct SerializeArenaGuard {
+    prev: Option<*const ParseArena>,
+}
+
+impl SerializeArenaGuard {
+    /// Install `arena` as the current serialize arena.
+    ///
+    /// # Safety
+    /// The caller must ensure `arena` outlives the returned guard.
+    #[inline]
+    pub unsafe fn new(arena: *const ParseArena) -> Self {
+        let prev = SERIALIZE_ARENA.with(|cell| {
+            let p = cell.get();
+            cell.set(Some(arena));
+            p
+        });
+        SerializeArenaGuard { prev }
+    }
+}
+
+impl Drop for SerializeArenaGuard {
+    #[inline]
+    fn drop(&mut self) {
+        SERIALIZE_ARENA.with(|cell| cell.set(self.prev));
+    }
+}
+
+/// Install `arena`, run `f`, then restore the previous pointer.
+/// Thin wrapper around `SerializeArenaGuard` for callers that don't
+/// need to interleave AST mutation with the install/restore pair.
 pub fn with_serialize_arena<F, R>(arena: &ParseArena, f: F) -> R
 where
     F: FnOnce() -> R,
 {
-    SERIALIZE_ARENA.with(|cell| {
-        cell.set(Some(arena as *const _));
-        let result = f();
-        cell.set(None);
-        result
-    })
+    let _guard = unsafe { SerializeArenaGuard::new(arena as *const _) };
+    f()
 }
 
 /// Set the thread-local serialize arena. Caller must ensure the arena outlives
