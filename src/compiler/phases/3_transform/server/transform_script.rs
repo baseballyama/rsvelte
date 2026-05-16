@@ -1557,6 +1557,17 @@ fn fix_multiline_declaration_semicolons(script: &str) -> String {
                     // Another declarator follows
                     decl_bracket_depth = 0;
                     result_lines.push(line.to_string());
+                } else if line_ends_with_continuation(trimmed) {
+                    // The closing bracket sits on the same line as a
+                    // continuation operator — most commonly an arrow function
+                    // header like `(args) =>` whose body spans the following
+                    // lines. The statement isn't really over yet, so don't
+                    // emit a terminator; keep tracking until we hit a real
+                    // statement end. (Without this, the bracket-depth heuristic
+                    // turns `(args) =>` into `(args) =>;` and severs the
+                    // arrow function from its body — baseballyama/rsvelte#141.)
+                    decl_bracket_depth = 0;
+                    result_lines.push(line.to_string());
                 } else {
                     in_multiline_decl = false;
                     // End of multi-line declaration: ensure semicolon
@@ -1574,6 +1585,25 @@ fn fix_multiline_declaration_semicolons(script: &str) -> String {
     }
 
     result_lines.join("\n")
+}
+
+/// Does this trimmed line end with an operator/keyword that requires the next
+/// line to continue the same expression? Used by
+/// `fix_multiline_declaration_semicolons` to avoid terminating a declaration on
+/// e.g. `(args) =>` where the arrow body is on the next line.
+fn line_ends_with_continuation(trimmed: &str) -> bool {
+    if let Some(rest) = trimmed.strip_suffix("=>") {
+        // Make sure `=>` is its own token (not the tail of a `===>` typo or
+        // similar) by checking the preceding char is whitespace or `)`.
+        return rest.ends_with(')') || rest.ends_with(' ') || rest.is_empty();
+    }
+    // Other obvious mid-expression operators that demand a following operand.
+    let last = trimmed.chars().last().unwrap_or(' ');
+    matches!(
+        last,
+        '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^' | '<' | '>' | '=' | '?' | '.' | '!'
+    ) && !trimmed.ends_with("++")
+        && !trimmed.ends_with("--")
 }
 
 /// Count bracket depth change for a line (positive = more opens, negative = more closes).
