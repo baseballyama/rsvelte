@@ -483,9 +483,19 @@ fn post_process_for_server(source: &str) -> String {
                 let content = result[call_start..call_start + content_end]
                     .trim()
                     .to_string();
-                // If content is an arrow function () => expr, extract just the expr
-                let value = if content.starts_with("() =>") {
-                    content.trim_start_matches("() =>").trim().to_string()
+                // If content is an arrow function `() => expr`, extract just
+                // the expression. For block-bodied arrows `() => { … }` keep
+                // the IIFE wrap (`(() => { … })()`) so the block actually
+                // runs — without this, `$.derived(() => { return X })` was
+                // emitted as a bare block `{ return X }` which is invalid
+                // JS at expression position. (baseballyama/rsvelte#140)
+                let value = if let Some(arrow_body) = content.strip_prefix("() =>") {
+                    let body = arrow_body.trim();
+                    if body.starts_with('{') {
+                        format!("({})()", content)
+                    } else {
+                        body.to_string()
+                    }
                 } else {
                     content
                 };
