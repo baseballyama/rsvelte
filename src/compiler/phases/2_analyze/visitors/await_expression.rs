@@ -78,12 +78,16 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
 /// short-circuit in the official `AwaitExpression.js`.
 fn crosses_function_boundary(js_path: &[JsPathEntry]) -> bool {
     for entry in js_path.iter().rev() {
-        let parent_type = entry.as_value().get("type").and_then(|t| t.as_str());
-        match parent_type {
+        // Use the cheap typed type-string lookup — avoids materializing
+        // the entire JsNode subtree into a Value just to read its `type`
+        // field for ancestors above the await expression.
+        if matches!(
+            entry.get_type_str(),
             Some("ArrowFunctionExpression")
-            | Some("FunctionExpression")
-            | Some("FunctionDeclaration") => return true,
-            _ => {}
+                | Some("FunctionExpression")
+                | Some("FunctionDeclaration")
+        ) {
+            return true;
         }
     }
     false
