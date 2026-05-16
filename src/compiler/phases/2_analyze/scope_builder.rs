@@ -4602,11 +4602,10 @@ impl<'a> ScopeBuilder<'a> {
                 let left_node = self.arena.get_js_node(*left);
                 let right_node = self.arena.get_js_node(*right);
                 self.process_binding_pattern_from_node(left_node);
-                // Store the initial value (right side) on the binding for scope.evaluate()
-                // set_const_tag_initial still uses JSON since it stores init.to_string()
-                let left_json = left_node.to_value();
-                let right_json = right_node.to_value();
-                self.set_const_tag_initial(&left_json, &right_json);
+                // Typed dispatch: skip the to_value() materialization on both
+                // sides of the assignment. The init JSON string is produced
+                // via `to_json_string()` (compact JSON) inside the helper.
+                self.set_const_tag_initial_typed(left_node, right_node);
             }
             JsNode::VariableDeclaration { declarations, .. } => {
                 let children = self.arena.get_js_children(*declarations);
@@ -4615,12 +4614,9 @@ impl<'a> ScopeBuilder<'a> {
                 {
                     let id_node = self.arena.get_js_node(id_id);
                     self.process_binding_pattern_from_node(id_node);
-                    // Store the initial value on the binding for scope.evaluate()
-                    let id_json = id_node.to_value();
                     if let Some(init_id) = decl.init() {
                         let init_node = self.arena.get_js_node(init_id);
-                        let init_json = init_node.to_value();
-                        self.set_const_tag_initial(&id_json, &init_json);
+                        self.set_const_tag_initial_typed(id_node, init_node);
                     }
                 }
             }
@@ -4644,6 +4640,53 @@ impl<'a> ScopeBuilder<'a> {
                 }
             }
             _ => {}
+        }
+    }
+
+    /// Typed-AST equivalent of `set_const_tag_initial`. Avoids materializing
+    /// the LHS pattern and the RHS init expression into intermediate
+    /// `Value`s — pattern matching reads the Identifier name directly from
+    /// the typed JsNode, and the init is serialized to compact JSON via
+    /// `to_json_string()` (the byte-equivalent of `to_value().to_string()`
+    /// without the intermediate allocation).
+    fn set_const_tag_initial_typed(&mut self, pattern: &JsNode, init: &JsNode) {
+        let pattern_name = match pattern {
+            JsNode::Identifier { name, .. } => Some(name.as_str()),
+            JsNode::Raw(v) => {
+                if v.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
+                    v.get("name").and_then(|n| n.as_str())
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+        let Some(name) = pattern_name else {
+            return;
+        };
+        let Some(&idx) = self.scopes[self.current_scope].declarations.get(name) else {
+            return;
+        };
+        self.bindings[idx].initial = Some(init.to_json_string());
+        self.bindings[idx].initial_is_defined = true;
+        // Record the init node type so downstream transforms (e.g. should_proxy)
+        // can check whether the initial value is a primitive expression.
+        let init_type = match init {
+            JsNode::Raw(v) => v.get("type").and_then(|t| t.as_str()).map(String::from),
+            _ => Some(init.type_str().to_string()),
+        };
+        if let Some(ty) = init_type {
+            self.bindings[idx].initial_node_type = Some(ty.clone());
+            if ty == "Identifier" {
+                let init_name = match init {
+                    JsNode::Identifier { name, .. } => Some(name.to_string()),
+                    JsNode::Raw(v) => v.get("name").and_then(|n| n.as_str()).map(String::from),
+                    _ => None,
+                };
+                if let Some(n) = init_name {
+                    self.bindings[idx].initial_identifier_name = Some(n);
+                }
+            }
         }
     }
 
