@@ -957,6 +957,35 @@ fn matches_let_variable_declaration(node: &crate::ast::typed_expr::JsNode) -> bo
     }
 }
 
+/// Fast typed scan over the instance script's top-level body, returning true
+/// if any statement is a `LabeledStatement` (legacy `$:` reactive). Used as
+/// an early-exit gate for the legacy-only `check_reactive_declaration_cycles`
+/// and `populate_legacy_dependencies` passes — most components have no `$:`,
+/// so this lets us skip the JSON walks entirely.
+fn instance_body_has_labeled_statement(ast: &Root) -> bool {
+    use crate::ast::typed_expr::JsNode;
+    let Some(ref instance) = ast.instance else {
+        return false;
+    };
+    let node = instance.content.as_node();
+    let JsNode::Program { body, .. } = node.as_ref() else {
+        return false;
+    };
+    let arena = &ast.arena;
+    for stmt in arena.get_js_children(*body) {
+        match stmt {
+            JsNode::LabeledStatement { .. } => return true,
+            JsNode::Raw(v)
+                if v.get("type").and_then(|t| t.as_str()) == Some("LabeledStatement") =>
+            {
+                return true;
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
 /// Check if `name` resolves to a binding in the module scope (or is a
 /// hoisted snippet promoted to module scope). Used by the post-analysis
 /// module export check.
@@ -1086,6 +1115,14 @@ fn check_reactive_declaration_cycles(
     let Some(ref instance) = ast.instance else {
         return Ok(());
     };
+
+    // Fast path: skip the JSON walk entirely if the instance script has no
+    // top-level `LabeledStatement` (legacy `$:` reactive). Most legacy-mode
+    // components don't use `$:`, so this avoids walking the cached Value
+    // tree just to find nothing.
+    if !instance_body_has_labeled_statement(ast) {
+        return Ok(());
+    }
 
     // TODO: migrate check_reactive_declaration_cycles to JsNode
     let script_ast = instance.content.as_json();
@@ -1957,6 +1994,13 @@ fn populate_legacy_dependencies(ast: &Root, analysis: &mut ComponentAnalysis) {
         Some(ref inst) => inst,
         None => return,
     };
+
+    // Fast path: skip the JSON walk entirely if the instance script has no
+    // top-level `LabeledStatement`. Same rationale as the matching
+    // early-exit in `check_reactive_declaration_cycles`.
+    if !instance_body_has_labeled_statement(ast) {
+        return;
+    }
 
     // TODO: migrate populate_legacy_dependencies to JsNode
     let program = instance.content.as_json();
