@@ -4,9 +4,9 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev",
-		"build": "vite build",
-		"preview": "vite preview",
+		"dev": "node --import ./rsvelte-shim/loader-register.mjs ./node_modules/vite/bin/vite.js dev",
+		"build": "node --import ./rsvelte-shim/loader-register.mjs ./node_modules/vite/bin/vite.js build",
+		"preview": "node --import ./rsvelte-shim/loader-register.mjs ./node_modules/vite/bin/vite.js preview",
 		"build:wasm": "cd .. && wasm-pack build --target web --no-default-features --features wasm",
 		"lint": "oxlint src/**/*.ts --deny-warnings",
 		"format": "prettier --write .",
