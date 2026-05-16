@@ -104,25 +104,34 @@ pub fn transform_component(
                 // $$props) that confuse the sequential source scanner in emit_raw_mapped,
                 // causing it to advance past user code and produce wrong source positions.
                 // Token-level mappings match by token name and handle this correctly.
-                let token_mappings = generate_token_mappings(&result.code, source);
-                let rune_mappings = generate_rune_mappings(&result.code, source);
-                let mut mappings = if options.sourcemap.is_some() {
+                //
+                // When NO preprocessor is present, codegen-tracked mappings are already
+                // precise. Generating token+rune scanners here only adds mappings at
+                // positions codegen didn't cover; the bulk are deduped away against
+                // existing codegen mappings (~44ms of token+rune scan + sort + dedup
+                // per 3637-file workload, measured 2026-05-16). Skip the scanners
+                // entirely in this branch.
+                let mappings = if options.sourcemap.is_some() {
                     // Preprocessor present: token mappings take priority
+                    let token_mappings = generate_token_mappings(&result.code, source);
+                    let rune_mappings = generate_rune_mappings(&result.code, source);
                     let mut m = token_mappings;
                     m.extend(rune_mappings);
                     m.extend(result.mappings);
+                    m.sort_by(|a, b| a.gen_line.cmp(&b.gen_line).then(a.gen_col.cmp(&b.gen_col)));
+                    m.dedup_by(|a, b| a.gen_line == b.gen_line && a.gen_col == b.gen_col);
                     m
                 } else {
-                    // No preprocessor: codegen mappings take priority (more precise)
+                    // No preprocessor: codegen mappings are produced in emit order.
+                    // Run a sort + dedup defensively — Rust's TimSort is O(n) on
+                    // already-sorted input, so the cost is negligible vs. the
+                    // safety against any future sub-emitter that produces
+                    // out-of-order mappings.
                     let mut m = result.mappings;
-                    m.extend(token_mappings);
-                    m.extend(rune_mappings);
+                    m.sort_by(|a, b| a.gen_line.cmp(&b.gen_line).then(a.gen_col.cmp(&b.gen_col)));
+                    m.dedup_by(|a, b| a.gen_line == b.gen_line && a.gen_col == b.gen_col);
                     m
                 };
-                // Sort and dedup
-                mappings
-                    .sort_by(|a, b| a.gen_line.cmp(&b.gen_line).then(a.gen_col.cmp(&b.gen_col)));
-                mappings.dedup_by(|a, b| a.gen_line == b.gen_line && a.gen_col == b.gen_col);
                 (result.code, mappings)
             } else {
                 (result.code, Vec::new())
