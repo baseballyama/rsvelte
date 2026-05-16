@@ -1,1185 +1,1084 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
+	import { onMount } from 'svelte';
+	import type { BenchmarkResults } from '$lib/types/benchmark';
 
-	let mounted = $state(false);
-	let scrollY = $state(0);
+	let bench = $state<BenchmarkResults | null>(null);
 
-	onMount(() => {
-		// Defer the entrance animation to next frame so the staggered
-		// transitions actually run instead of jumping straight to final.
-		requestAnimationFrame(() => {
-			mounted = true;
-		});
+	onMount(async () => {
+		try {
+			const res = await fetch(`${base}/benchmark-results.json`);
+			if (res.ok) bench = await res.json();
+		} catch {
+			bench = null;
+		}
 	});
 
-	// Reading data, distilled. Mirrors the totals reported in CLAUDE.md /
-	// the live compatibility report at /progress.
-	const specRows = [
-		{ num: 3341, label: 'Compatibility report total', sub: 'every in-scope category, 100%' },
-		{ num: 1202, label: 'Runtime — legacy', sub: 'svelte 4 lifecycle parity' },
-		{ num: 865, label: 'Runtime — runes', sub: '$state · $derived · $effect' },
-		{ num: 324, label: 'Validator + A11y', sub: 'warning / error detection' },
-		{ num: 245, label: 'svelte2tsx', sub: 'wave 1 of the ecosystem port' },
-		{ num: 179, label: 'CSS', sub: 'scoping · :global · keyframes' }
+	const specs = [
+		{ n: 3341, label: 'tests passing', sub: 'in-scope, 100%' },
+		{ n: 1202, label: 'runtime · legacy', sub: 'svelte 4 parity' },
+		{ n: 865, label: 'runtime · runes', sub: '$state · $derived · $effect' },
+		{ n: 324, label: 'validator + a11y', sub: 'warning / error detection' },
+		{ n: 245, label: 'svelte2tsx', sub: 'wave 1 of ecosystem port' },
+		{ n: 179, label: 'css', sub: ':global · scoping · keyframes' }
 	];
 
-	const reasons = [
+	const why = [
 		{
-			num: '01',
-			title: 'Parallel by default.',
-			body: `Compilation fans out across rayon's global pool. The parser is thread-safe;
-				phase outputs pass directly to the next pass, with no re-parsing between them.`
+			h: 'Parallel by default.',
+			p: 'Compilation fans out across rayon. The parser is thread-safe; phase outputs pass directly through without re-parsing.'
 		},
 		{
-			num: '02',
-			title: 'Compact memory layout.',
-			body: `u32 source positions, compact_str on the hot paths, AST nodes shaped to
-				keep cache lines warm. The parser is intentionally a smaller blast radius than acorn.`
+			h: 'Compact memory.',
+			p: 'u32 source positions, compact_str on hot paths, AST nodes shaped to keep cache lines warm.'
 		},
 		{
-			num: '03',
-			title: 'OXC-ready.',
-			body: `Conventions mirror oxc_ast so the parser drops cleanly into the wider
-				oxc toolchain. The endgame is one Rust core, many language tools.`
+			h: 'OXC-ready.',
+			p: 'Conventions mirror oxc_ast so the compiler drops cleanly into the wider OXC toolchain.'
 		}
 	];
 </script>
 
-<svelte:window bind:scrollY />
-
 <svelte:head>
-	<title>rsvelte — Svelte, compiled in Rust.</title>
+	<title>rsvelte · a Rust port of the Svelte 5 compiler</title>
 	<meta
 		name="description"
-		content="A Rust port of the Svelte 5 compiler. Drop-in replacement for svelte/compiler with the parser, analyser and code generator all written in Rust."
+		content="A drop-in replacement for svelte/compiler, rewritten in Rust. Same surface, same output, multi-threaded by default."
 	/>
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
 	<link
-		href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,200..900,0..100,0..1;1,9..144,200..900,0..100,0..1&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400..700&display=swap"
+		href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
 		rel="stylesheet"
 	/>
 </svelte:head>
 
-<div class="page" class:mounted>
-	<!-- Paper grain. Inline SVG turbulence at very low opacity. -->
-	<div class="grain" aria-hidden="true"></div>
+<div class="page">
+	<nav class="nav">
+		<a href="{base}/" class="brand" aria-label="rsvelte home">
+			<span class="brand-icon" aria-hidden="true">
+				<svg viewBox="0 0 24 24" width="22" height="22" fill="none">
+					<path d="M19 8 13 18l-2-4 6-10 2 4Z" fill="#ff3e00" />
+					<path d="M5 16 11 6l2 4-6 10-2-4Z" fill="#ce422b" />
+				</svg>
+			</span>
+			<span class="brand-text">rsvelte</span>
+			<span class="brand-tag">rust port</span>
+		</a>
 
-	<!-- Cross-page rule running down the left margin. -->
-	<div class="spine" aria-hidden="true"></div>
-
-	<!-- ================================================================
-	     TOP STRIP — masthead-style with a version badge on the left
-	     and a row of plain links on the right.
-	     ================================================================ -->
-	<nav class="strip">
-		<div class="strip-l">
-			<a href="{base}/" class="mark">rsvelte</a>
-		</div>
-		<div class="strip-r">
+		<div class="nav-links">
 			<a href="{base}/playground">Playground</a>
-			<a href="{base}/progress">Compat</a>
-			<a href="{base}/benchmark">Speed</a>
+			<a href="{base}/progress">Compatibility</a>
+			<a href="{base}/benchmark">Benchmark</a>
 			<a
 				href="https://github.com/baseballyama/rsvelte"
 				target="_blank"
 				rel="noopener"
-				class="ext">GitHub <span class="chev">↗</span></a
+				class="gh"
 			>
+				GitHub
+				<span aria-hidden="true">↗</span>
+			</a>
 		</div>
 	</nav>
 
-	<!-- ================================================================
-	     HERO — three giant lines stacked, with a colossal italic "100×"
-	     sitting behind everything at low opacity. Margin annotations
-	     in mono sit in the upper corners for that technical-document
-	     feel.
-	     ================================================================ -->
 	<header class="hero">
-		<aside class="margin margin-tl" aria-hidden="true">
-			<span class="serif-italic">№ 001</span>
-			<span class="rule"></span>
-			<span class="meta">The compiler issue</span>
-		</aside>
+		<div class="hero-text">
+			<p class="eyebrow">The Svelte 5 compiler · rewritten in Rust</p>
 
-		<aside class="margin margin-tr" aria-hidden="true">
-			<span class="meta">Edited from</span>
-			<br />
-			<span class="strong mono">sveltejs/svelte@5.51.3</span>
-			<br />
-			<span class="meta">Last verified</span>
-			<br />
-			<span class="strong mono">2026-05-13</span>
-		</aside>
+			<h1>
+				A <span class="ink-svelte">Rust</span> port of <span class="ink-svelte">Svelte</span>.
+			</h1>
 
-		<div class="hero-number" aria-hidden="true" style="transform: translateY({scrollY * 0.18}px);">
-			<span class="num">100</span><span class="x">×</span>
+			<p class="lede">
+				A drop-in replacement for <code>svelte/compiler</code>. Same surface,
+				identical output, parallel by default.
+			</p>
+
+			<div class="cta">
+				<a href="{base}/playground" class="btn btn-primary">
+					Open playground
+					<span aria-hidden="true">→</span>
+				</a>
+				<a href="{base}/benchmark" class="btn btn-ghost">
+					See benchmark
+					<span aria-hidden="true">→</span>
+				</a>
+			</div>
 		</div>
 
-		<h1 class="hero-title">
-			<span class="line line-1">Svelte,</span>
-			<span class="line line-2"><em>compiled</em></span>
-			<span class="line line-3">in Rust.</span>
-		</h1>
+		<aside class="hero-card" aria-label="Install snippet">
+			<header class="card-header">
+				<span class="dot dot-r"></span>
+				<span class="dot dot-y"></span>
+				<span class="dot dot-g"></span>
+				<span class="card-path">~/your-app · install</span>
+			</header>
+			<pre class="card-body"><code><span class="c-cmt"># swap one import — that's it</span>
+<span class="c-prompt">$</span> pnpm add <span class="c-pkg">@rsvelte/compiler</span>
 
-		<p class="hero-sub">
-			A drop-in replacement for <span class="chip">svelte/compiler</span> with the parser, analyser
-			and code generator all rewritten in Rust. Same surface. One import away. Identical output to
-			upstream Svelte 5.
-		</p>
-
-		<div class="hero-cta">
-			<a href="{base}/playground" class="cta cta-primary">
-				<span>Open the playground</span>
-				<span class="chev">→</span>
-			</a>
-			<a href="{base}/progress" class="cta cta-ghost">
-				<span>Read the compatibility report</span>
-				<span class="chev">↗</span>
-			</a>
-		</div>
-
-		<aside class="margin margin-bl" aria-hidden="true">
-			<span class="rule rule-down"></span>
-			<span class="meta">scroll for the specs</span>
+<span class="c-cmt"># or pin from source</span>
+<span class="c-prompt">$</span> cargo add <span class="c-pkg">rsvelte</span>
+</code></pre>
+			<footer class="card-foot">
+				<span class="kbd">rust 1.84</span>
+				<span class="kbd">node 22+</span>
+				<span class="kbd">svelte 5.51.3</span>
+			</footer>
 		</aside>
 	</header>
 
-	<!-- ================================================================
-	     SPEC SHEET — table-of-numbers section. Each row reads like a
-	     line in a service manual: huge tabular number, label, and a
-	     filled bar across to the right.
-	     ================================================================ -->
-	<section class="spec">
-		<header class="spec-head">
-			<span class="kicker">§ 02 — Compatibility</span>
-			<h2><em>Every</em> test, passing.</h2>
-			<p class="lede">
-				Each row mirrors a category in the official <span class="chip">sveltejs/svelte</span>
-				test suite, run live against commit
-				<span class="chip">04c0368a</span>. The full breakdown — including the 76
-				out-of-scope <span class="chip">migrate</span> fixtures — lives on the
-				<a href="{base}/progress" class="inline-link">progress page</a>.
-			</p>
-		</header>
+	<!-- Compact benchmark strip — the headline numbers right here, not buried -->
+	<section class="bench-strip" aria-label="Headline benchmark">
+		<div class="bench-strip-inner">
+			<div class="bench-eyebrow">
+				<span class="rule-h"></span>
+				<span class="bench-label">Compilation speed · against svelte/compiler</span>
+			</div>
 
-		<div class="spec-grid">
-			{#each specRows as row, i (row.label)}
-				<article class="spec-row" style="--i: {i};">
-					<div class="row-num">
-						{row.num.toLocaleString('en-US')}
+			<div class="bench-cells">
+				<div class="bench-cell big">
+					<span class="bench-n">
+						{bench ? bench.speedup.multiThreadVsJs.toFixed(1) : '—'}<span class="x">×</span>
+					</span>
+					<span class="bench-k">multi-threaded</span>
+					<span class="bench-s">rayon fan-out · full pipeline</span>
+				</div>
+				<div class="bench-cell">
+					<span class="bench-n">
+						{bench ? bench.parse.speedup.multiThreadVsJs.toFixed(0) : '—'}<span class="x">×</span>
+					</span>
+					<span class="bench-k">parser only</span>
+					<span class="bench-s">phase 1, isolated</span>
+				</div>
+				<div class="bench-cell">
+					<span class="bench-n">
+						{bench
+							? `${(bench.rustMultiThread.throughputFilesPerSec / 1000).toFixed(1)}k`
+							: '—'}<span class="x">/s</span>
+					</span>
+					<span class="bench-k">throughput</span>
+					<span class="bench-s">files compiled per second</span>
+				</div>
+				<a class="bench-link" href="{base}/benchmark">
+					Full benchmark
+					<span aria-hidden="true">→</span>
+				</a>
+			</div>
+		</div>
+	</section>
+
+	<!-- Drop-in diff -->
+	<section class="dropin">
+		<div class="section-head">
+			<span class="num">02</span>
+			<h2>One <em>import</em>. No flags.</h2>
+			<p class="lede">
+				No bundler plugin to wire, no compiler flag to flip. Same
+				<code>compile()</code>, <code>compileModule()</code>,
+				<code>parse()</code>, <code>preprocess()</code>.
+			</p>
+		</div>
+
+		<figure class="diff">
+			<figcaption>
+				<span class="diff-file">build.config.js</span>
+				<span class="diff-tag">diff</span>
+			</figcaption>
+			<pre><code><span class="d-line d-minus"><span class="d-sig">-</span> import * as svelte from <span class="d-str">'svelte/compiler'</span>;</span>
+<span class="d-line d-plus"><span class="d-sig">+</span> import * as svelte from <span class="d-str">'@rsvelte/compiler'</span>;</span></code></pre>
+		</figure>
+	</section>
+
+	<!-- Compatibility — compact list -->
+	<section class="spec">
+		<div class="section-head">
+			<span class="num">03</span>
+			<h2>Every test, passing.</h2>
+			<p class="lede">
+				Each row mirrors a category in the official <code>sveltejs/svelte</code>
+				suite, run against commit <code>04c0368a</code>. Full breakdown on the
+				<a class="link" href="{base}/progress">compatibility page</a>.
+			</p>
+		</div>
+
+		<div class="spec-list">
+			{#each specs as s, i (s.label)}
+				<div class="spec-row" style="--i: {i};">
+					<div class="spec-n">{s.n.toLocaleString('en-US')}</div>
+					<div class="spec-body">
+						<div class="spec-k">{s.label}</div>
+						<div class="spec-s">{s.sub}</div>
 					</div>
-					<div class="row-label">
-						<strong>{row.label}</strong>
-						<span class="row-sub">{row.sub}</span>
-					</div>
-					<div class="row-bar">
+					<div class="spec-bar">
 						<span class="bar-track"><span class="bar-fill"></span></span>
-						<span class="bar-pct">100<span class="dim">%</span></span>
+						<span class="spec-pct">100<span class="dim">%</span></span>
 					</div>
+				</div>
+			{/each}
+		</div>
+	</section>
+
+	<!-- Why Rust -->
+	<section class="why">
+		<div class="section-head">
+			<span class="num">04</span>
+			<h2>Built for the next Svelte.</h2>
+		</div>
+
+		<div class="why-grid">
+			{#each why as w (w.h)}
+				<article class="why-card">
+					<span class="why-tick" aria-hidden="true">
+						<svg viewBox="0 0 16 16" width="16" height="16">
+							<path
+								d="M3 8.5 6.5 12 13 4.5"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.6"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							/>
+						</svg>
+					</span>
+					<h3>{w.h}</h3>
+					<p>{w.p}</p>
 				</article>
 			{/each}
 		</div>
 	</section>
 
-	<!-- ================================================================
-	     DROP-IN — one-line diff on a dark slab, with a marginal
-	     annotation declaring that this is the whole change.
-	     ================================================================ -->
-	<section class="dropin">
-		<header class="dropin-head">
-			<span class="kicker">§ 03 — Drop-in</span>
-			<h2>One <em>import.</em><br />No flags.</h2>
-			<aside class="dropin-aside" aria-hidden="true">
-				<span class="serif-italic">— that's the whole change.</span>
-			</aside>
-		</header>
-
-		<figure class="diff">
-			<figcaption>
-				<span class="diff-file">your-config.js</span>
-				<span class="diff-rule"></span>
-				<span class="diff-tag">diff</span>
-			</figcaption>
-			<pre><code><span class="line minus"><span class="sigil">-</span> import * as svelte from <span class="str">'svelte/compiler'</span>;</span>
-<span class="line plus"><span class="sigil">+</span> import * as svelte from <span class="str">'@rsvelte/compiler'</span>;</span></code></pre>
-		</figure>
-
-		<p class="dropin-sub">
-			Same <span class="chip">compile()</span>, same <span class="chip">compileModule()</span>,
-			same <span class="chip">parse()</span> + <span class="chip">preprocess()</span>. No bundler
-			plugin to wire, no compiler flag to flip.
-		</p>
-	</section>
-
-	<!-- ================================================================
-	     WHY — a numbered editorial list. Each point gets its own row
-	     with an oversized italic numeral on the left.
-	     ================================================================ -->
-	<section class="why">
-		<header class="why-head">
-			<span class="kicker">§ 04 — Why Rust</span>
-			<h2>Built for the <em>next</em> Svelte.</h2>
-		</header>
-
-		<ol class="why-list">
-			{#each reasons as reason (reason.num)}
-				<li class="why-item">
-					<span class="why-num" aria-hidden="true">{reason.num}</span>
-					<div class="why-body">
-						<h3>{reason.title}</h3>
-						<p>{reason.body}</p>
-					</div>
-				</li>
-			{/each}
-		</ol>
-	</section>
-
-	<!-- ================================================================
-	     CLOSING CALL — minimal, just the brand mark and two links,
-	     set in italic against the orange field.
-	     ================================================================ -->
-	<section class="close">
-		<p class="close-eyebrow">— Ready when you are.</p>
-		<h2 class="close-headline"><em>Try</em> rsvelte.</h2>
-		<div class="close-actions">
-			<a href="{base}/playground" class="cta cta-inverse">
-				<span>Open the playground</span>
-				<span class="chev">→</span>
-			</a>
-			<a
-				href="https://github.com/baseballyama/rsvelte"
-				target="_blank"
-				rel="noopener"
-				class="cta cta-inverse-ghost"
-			>
-				<span>Read the source</span>
-				<span class="chev">↗</span>
-			</a>
+	<footer class="foot">
+		<div class="foot-inner">
+			<div class="foot-mark">
+				<span class="brand-icon" aria-hidden="true">
+					<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+						<path d="M19 8 13 18l-2-4 6-10 2 4Z" fill="#ff3e00" />
+						<path d="M5 16 11 6l2 4-6 10-2-4Z" fill="#ce422b" />
+					</svg>
+				</span>
+				<span>rsvelte</span>
+			</div>
+			<div class="foot-meta">
+				<span>MIT licensed</span>
+				<span class="sep">·</span>
+				<span>Mirrors sveltejs/svelte@5.51.3</span>
+				<span class="sep">·</span>
+				<a href="https://github.com/baseballyama/rsvelte" target="_blank" rel="noopener">
+					github.com/baseballyama/rsvelte
+				</a>
+			</div>
 		</div>
-	</section>
-
+	</footer>
 </div>
 
 <style>
 	.page {
-		/* ============================================================
-		   PALETTE — warm cream paper, espresso ink, Svelte/Rust orange.
-		   ============================================================ */
-		--bg: #f1e8d6;
-		--surface: #e6dac1;
-		--ink: #1a1612;
-		--ink-soft: #7a7062;
-		--ink-faint: #b8ab93;
-		--accent: #ff3e00;
-		--accent-deep: #c52f00;
-		--hairline: rgba(26, 22, 18, 0.16);
-		--hairline-strong: rgba(26, 22, 18, 0.4);
+		--bg: #fdfcfa;
+		--surface: #f6f3ed;
+		--surface-2: #efeae0;
+		--ink: #15140f;
+		--ink-soft: #57534d;
+		--ink-faint: #908a80;
+		--rule: #e7e2d6;
+		--rule-strong: #c8c0b0;
+		--svelte: #ff3e00;
+		--rust: #ce422b;
+		--accent-deep: #b8350c;
 
-		/* ============================================================
-		   TYPE — Fraunces for display (variable; we lean on the SOFT
-		   and WONK axes for the italics). Instrument Sans for body.
-		   JetBrains Mono for the technical readouts.
-		   ============================================================ */
-		--display:
-			'Fraunces', 'Source Serif Pro', 'Georgia', 'Times New Roman', Times, serif;
-		--body: 'Instrument Sans', system-ui, -apple-system, sans-serif;
-		--mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+		--sans:
+			'Atkinson Hyperlegible', ui-sans-serif, -apple-system, BlinkMacSystemFont,
+			'Helvetica Neue', sans-serif;
+		--mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
 		background: var(--bg);
 		color: var(--ink);
-		font-family: var(--body);
+		font-family: var(--sans);
+		font-size: 16px;
+		line-height: 1.55;
+		min-height: 100vh;
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
-		min-height: 100vh;
-		position: relative;
-		overflow-x: hidden;
-		font-feature-settings: 'ss01';
 	}
 
-	/* Paper grain overlaid on everything. Small SVG turbulence; mix-blend
-	   so it darkens slightly rather than washing the palette out. */
-	.grain {
-		position: fixed;
-		inset: 0;
-		pointer-events: none;
-		z-index: 80;
-		opacity: 0.07;
-		mix-blend-mode: multiply;
-		background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+	:global(body) {
+		margin: 0;
 	}
 
-	/* A 1px gutter rule running the full height of the page, three
-	   characters in from the left. Pure decoration, but it makes
-	   every section feel like a printed page. */
-	.spine {
-		position: absolute;
-		top: 0;
-		bottom: 0;
-		left: 3rem;
-		width: 1px;
-		background: var(--hairline);
-		z-index: 0;
+	code,
+	.kbd {
+		font-family: var(--mono);
 	}
 
 	/* ============================================================
-	   TOP STRIP
+	   NAV — compact top bar, Svelte.dev style
 	   ============================================================ */
-	.strip {
+	.nav {
 		position: sticky;
 		top: 0;
-		z-index: 60;
+		z-index: 30;
 		display: flex;
+		align-items: center;
 		justify-content: space-between;
+		gap: 2rem;
+		padding: 0.85rem clamp(1rem, 3vw, 2.25rem);
+		background: rgba(253, 252, 250, 0.92);
+		border-bottom: 1px solid var(--rule);
+		backdrop-filter: saturate(160%) blur(8px);
+	}
+
+	.brand {
+		display: inline-flex;
 		align-items: center;
-		padding: 1.1rem 2.5rem;
-		background: var(--bg);
-		border-bottom: 1px solid var(--hairline);
-		font-family: var(--mono);
-		font-size: 0.78rem;
-		letter-spacing: 0.04em;
-		backdrop-filter: saturate(120%);
-	}
-
-	.strip-l {
-		display: flex;
-		align-items: baseline;
-		gap: 0.9rem;
-	}
-
-	.strip .mark {
-		font-family: var(--display);
-		font-style: italic;
-		font-weight: 500;
-		font-size: 1.45rem;
-		letter-spacing: -0.025em;
-		font-variation-settings: 'opsz' 96, 'SOFT' 80, 'WONK' 1;
-		color: var(--ink);
-		text-decoration: none;
-		line-height: 1;
-	}
-
-	.strip-r {
-		display: flex;
-		gap: 1.7rem;
-		align-items: center;
-	}
-
-	.strip-r a {
+		gap: 0.55rem;
 		text-decoration: none;
 		color: var(--ink);
-		text-transform: uppercase;
-		font-size: 0.72rem;
-		letter-spacing: 0.16em;
-		padding-bottom: 2px;
-		border-bottom: 1px solid transparent;
-		transition: border-color 0.25s ease, color 0.25s ease;
 	}
 
-	.strip-r a:hover {
-		border-bottom-color: var(--accent);
-		color: var(--accent);
-	}
-
-	.strip-r .chev {
-		display: inline-block;
-		margin-left: 0.25em;
-		font-family: var(--mono);
-	}
-
-	/* ============================================================
-	   HERO
-	   ============================================================ */
-	.hero {
-		position: relative;
-		padding: clamp(3rem, 9vh, 8rem) clamp(1.5rem, 6vw, 6rem) clamp(6rem, 14vh, 12rem);
-		min-height: calc(100vh - 60px);
-		display: flex;
-		flex-direction: column;
+	.brand-icon {
+		display: inline-flex;
+		align-items: center;
 		justify-content: center;
-		z-index: 1;
-		isolation: isolate;
+		width: 26px;
+		height: 26px;
 	}
 
-	.hero-title {
-		font-family: var(--display);
-		font-weight: 300;
-		font-style: normal;
-		line-height: 0.86;
-		letter-spacing: -0.035em;
-		font-size: clamp(3.5rem, 13.5vw, 16rem);
-		margin: 0;
-		position: relative;
-		z-index: 2;
-		max-width: 100%;
+	.brand-text {
+		font-weight: 700;
+		font-size: 1.05rem;
+		letter-spacing: -0.01em;
 	}
 
-	.hero-title .line {
-		display: block;
-		opacity: 0;
-		transform: translateY(40px);
-		transition:
-			opacity 0.95s cubic-bezier(0.22, 1, 0.36, 1),
-			transform 1.05s cubic-bezier(0.22, 1, 0.36, 1);
-	}
-
-	.mounted .hero-title .line-1 {
-		transition-delay: 0.05s;
-		opacity: 1;
-		transform: none;
-	}
-	.mounted .hero-title .line-2 {
-		transition-delay: 0.22s;
-		opacity: 1;
-		transform: none;
-	}
-	.mounted .hero-title .line-3 {
-		transition-delay: 0.4s;
-		opacity: 1;
-		transform: none;
-	}
-
-	.hero-title em {
-		font-style: italic;
-		font-weight: 400;
-		font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
-		color: var(--accent);
-		display: inline-block;
-		padding-right: 0.04em;
-	}
-
-	/* The colossal 100× sitting in the background. opsz 144 gives the
-	   thick wedge serif; SOFT + WONK give it that slightly off-kilter,
-	   hand-drawn quality. */
-	.hero-number {
-		position: absolute;
-		top: 18vh;
-		right: -3vw;
-		z-index: 0;
-		font-family: var(--display);
-		font-style: italic;
-		font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
-		color: var(--accent);
-		opacity: 0.13;
-		font-size: clamp(18rem, 42vw, 56rem);
-		line-height: 0.8;
-		font-weight: 400;
-		pointer-events: none;
-		user-select: none;
-		letter-spacing: -0.05em;
-		display: flex;
-		align-items: baseline;
-		will-change: transform;
-		transition: opacity 1.2s ease;
-	}
-
-	.mounted .hero-number {
-		opacity: 0.15;
-	}
-
-	.hero-number .num {
-		display: inline-block;
-		transform: rotate(-7deg);
-		transform-origin: bottom left;
-	}
-
-	.hero-number .x {
-		display: inline-block;
-		transform: rotate(2deg) translateY(-0.05em);
-		font-size: 0.78em;
-	}
-
-	.hero-sub {
-		font-family: var(--body);
-		font-size: clamp(1.05rem, 1.45vw, 1.45rem);
-		max-width: 44ch;
-		margin-top: clamp(2rem, 4vh, 3.5rem);
-		margin-bottom: 0;
-		line-height: 1.5;
-		color: var(--ink-soft);
-		font-weight: 400;
-		position: relative;
-		z-index: 2;
-		opacity: 0;
-		transform: translateY(20px);
-		transition: opacity 0.9s ease 0.65s, transform 0.9s ease 0.65s;
-	}
-
-	.mounted .hero-sub {
-		opacity: 1;
-		transform: none;
-	}
-
-	.hero-cta {
-		display: flex;
-		gap: 2.75rem;
-		margin-top: clamp(2rem, 4vh, 3rem);
-		flex-wrap: wrap;
-		position: relative;
-		z-index: 2;
-		opacity: 0;
-		transform: translateY(20px);
-		transition: opacity 0.9s ease 0.85s, transform 0.9s ease 0.85s;
-	}
-
-	.mounted .hero-cta {
-		opacity: 1;
-		transform: none;
-	}
-
-	/* ============================================================
-	   MARGIN ANNOTATIONS
-	   ============================================================ */
-	.margin {
-		position: absolute;
+	.brand-tag {
 		font-family: var(--mono);
-		font-size: 0.73rem;
-		letter-spacing: 0.06em;
-		color: var(--ink-soft);
-		line-height: 1.55;
-		z-index: 3;
+		font-size: 0.66rem;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--rust);
+		padding: 0.18rem 0.5rem;
+		border: 1px solid currentColor;
+		border-radius: 999px;
+		line-height: 1;
+		margin-left: 0.25rem;
+		opacity: 0.85;
 	}
 
-	.margin-tl {
-		top: clamp(5vh, 8vh, 7rem);
-		left: clamp(1.5rem, 6vw, 6rem);
+	.nav-links {
 		display: flex;
 		align-items: center;
-		gap: 0.7rem;
-	}
-
-	.margin-tl .serif-italic {
-		font-family: var(--display);
-		font-style: italic;
-		font-size: 1rem;
-		color: var(--ink);
-		font-variation-settings: 'opsz' 14, 'SOFT' 100, 'WONK' 1;
-		font-weight: 400;
-	}
-
-	.margin .rule {
-		display: inline-block;
-		width: 2.2rem;
-		height: 1px;
-		background: var(--ink);
-	}
-
-	.margin .rule.rule-down {
-		width: 1px;
-		height: 2.5rem;
-		display: block;
-		margin: 0 0 0.6rem 0;
-	}
-
-	.margin-tr {
-		top: clamp(5vh, 8vh, 7rem);
-		right: clamp(1.5rem, 6vw, 6rem);
-		text-align: right;
-	}
-
-	.margin-tr .strong {
-		color: var(--ink);
+		gap: clamp(0.75rem, 2vw, 1.6rem);
+		font-size: 0.9rem;
 		font-weight: 500;
 	}
 
-	.margin-bl {
-		bottom: clamp(2rem, 6vh, 5rem);
-		left: clamp(1.5rem, 6vw, 6rem);
-		display: flex;
-		flex-direction: column;
+	.nav-links a {
+		color: var(--ink-soft);
+		text-decoration: none;
+		padding: 0.25rem 0;
+		border-bottom: 1px solid transparent;
+		transition:
+			color 0.18s,
+			border-color 0.18s;
+	}
+
+	.nav-links a:hover {
+		color: var(--svelte);
+		border-bottom-color: var(--svelte);
+	}
+
+	.nav-links .gh {
+		display: inline-flex;
+		align-items: center;
 		gap: 0.3rem;
 	}
 
-	.meta {
-		color: var(--ink-soft);
-	}
-
 	/* ============================================================
-	   CTA buttons. Plain text, underline that slides on hover.
+	   HERO — two columns: copy + install card
 	   ============================================================ */
-	.cta {
-		font-family: var(--body);
-		text-decoration: none;
-		color: var(--ink);
-		font-size: clamp(1rem, 1.2vw, 1.15rem);
-		font-weight: 500;
-		letter-spacing: -0.01em;
-		display: inline-flex;
-		align-items: baseline;
-		gap: 0.55em;
-		position: relative;
-		padding-bottom: 6px;
-	}
-
-	.cta::after {
-		content: '';
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		height: 1px;
-		background: currentColor;
-		transform-origin: right;
-		transform: scaleX(1);
-		transition: transform 0.45s cubic-bezier(0.6, 0, 0.3, 1);
-	}
-
-	.cta:hover::after {
-		transform: scaleX(0);
-	}
-
-	.cta-primary {
-		color: var(--accent);
-	}
-
-	.cta-ghost {
-		color: var(--ink);
-	}
-
-	.cta .chev {
-		font-family: var(--mono);
-		display: inline-block;
-		transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-	}
-
-	.cta:hover .chev {
-		transform: translateX(0.4em);
-	}
-
-	.cta[href*='↗'] .chev,
-	.cta-ghost .chev {
-		font-size: 0.85em;
-	}
-
-	.cta-inverse {
-		color: var(--ink);
-	}
-
-	.cta-inverse-ghost {
-		color: var(--ink);
-		opacity: 0.7;
-	}
-
-	.cta-inverse-ghost:hover {
-		opacity: 1;
-	}
-
-	/* ============================================================
-	   INLINE CHIP — chunky pill for inline code/monospace mentions
-	   in body copy.
-	   ============================================================ */
-	.chip {
-		font-family: var(--mono);
-		font-size: 0.84em;
-		background: var(--surface);
-		color: var(--ink);
-		padding: 0.12em 0.5em;
-		border-radius: 3px;
-		white-space: nowrap;
-		border: 1px solid var(--hairline);
-		line-height: 1.4;
-	}
-
-	.chip-dark {
-		background: rgba(244, 236, 221, 0.12);
-		color: var(--bg);
-		border-color: rgba(244, 236, 221, 0.18);
-	}
-
-	.inline-link {
-		color: var(--ink);
-		text-decoration: underline;
-		text-decoration-thickness: 1px;
-		text-underline-offset: 3px;
-		text-decoration-color: var(--accent);
-	}
-
-	.inline-link:hover {
-		color: var(--accent);
-	}
-
-	/* ============================================================
-	   SPEC SHEET
-	   ============================================================ */
-	.spec {
-		padding: clamp(5rem, 10vh, 9rem) clamp(1.5rem, 6vw, 6rem);
-		border-top: 1px solid var(--hairline);
-		position: relative;
-		z-index: 1;
-		background: var(--bg);
-	}
-
-	.spec-head {
+	.hero {
 		display: grid;
-		grid-template-columns: 1fr;
-		gap: 1.5rem;
-		margin-bottom: clamp(3rem, 6vh, 5rem);
-		max-width: 100%;
+		grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+		gap: clamp(2rem, 5vw, 4.5rem);
+		align-items: center;
+		padding: clamp(3rem, 8vh, 5.5rem) clamp(1rem, 3vw, 2.25rem) clamp(2.5rem, 6vh, 4rem);
+		max-width: 1280px;
+		margin: 0 auto;
 	}
 
-	.kicker {
+	.eyebrow {
 		font-family: var(--mono);
-		font-size: 0.74rem;
-		letter-spacing: 0.18em;
-		text-transform: uppercase;
-		color: var(--accent);
-		display: inline-block;
+		font-size: 0.78rem;
+		letter-spacing: 0.06em;
+		color: var(--rust);
+		margin: 0 0 1.4rem;
 	}
 
-	.spec-head h2,
-	.dropin-head h2,
-	.why-head h2 {
-		font-family: var(--display);
-		font-weight: 300;
-		font-size: clamp(2.6rem, 7.5vw, 7rem);
-		line-height: 0.92;
-		letter-spacing: -0.028em;
+	.hero h1 {
+		font-family: var(--sans);
+		font-weight: 700;
+		font-size: clamp(2.5rem, 5.6vw, 4.2rem);
+		line-height: 1.02;
+		letter-spacing: -0.025em;
 		margin: 0;
-		max-width: 18ch;
+		color: var(--ink);
 	}
 
-	.spec-head em,
-	.dropin-head em,
-	.why-head em,
-	.close-headline em {
-		font-style: italic;
-		color: var(--accent);
-		font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
-		font-weight: 400;
-		padding-right: 0.03em;
+	.ink-svelte {
+		color: var(--svelte);
 	}
 
 	.lede {
-		font-size: clamp(1.05rem, 1.3vw, 1.25rem);
-		max-width: 56ch;
+		font-size: clamp(1rem, 1.1vw, 1.15rem);
+		max-width: 44ch;
 		color: var(--ink-soft);
-		line-height: 1.55;
-		margin: 0.5rem 0 0;
+		margin: 1.4rem 0 0;
 	}
 
-	.spec-grid {
+	.lede code {
+		background: var(--surface);
+		color: var(--ink);
+		padding: 0.08em 0.4em;
+		border-radius: 4px;
+		font-size: 0.9em;
+		border: 1px solid var(--rule);
+	}
+
+	.cta {
+		display: flex;
+		gap: 0.75rem;
+		flex-wrap: wrap;
+		margin-top: 2rem;
+	}
+
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		padding: 0.7rem 1.1rem;
+		font-family: var(--sans);
+		font-weight: 700;
+		font-size: 0.95rem;
+		border-radius: 6px;
+		text-decoration: none;
+		border: 1px solid transparent;
+		transition:
+			background 0.18s,
+			color 0.18s,
+			border-color 0.18s,
+			transform 0.18s;
+	}
+
+	.btn span {
+		transition: transform 0.18s;
+	}
+
+	.btn:hover span {
+		transform: translateX(3px);
+	}
+
+	.btn-primary {
+		background: var(--svelte);
+		color: #fff;
+	}
+
+	.btn-primary:hover {
+		background: var(--accent-deep);
+	}
+
+	.btn-ghost {
+		background: transparent;
+		color: var(--ink);
+		border-color: var(--rule-strong);
+	}
+
+	.btn-ghost:hover {
+		border-color: var(--ink);
+	}
+
+	/* ============================================================
+	   HERO CARD — terminal-style install snippet (Cargo cue)
+	   ============================================================ */
+	.hero-card {
+		background: var(--ink);
+		color: #ede8d8;
+		border-radius: 10px;
+		font-family: var(--mono);
+		box-shadow: 0 14px 32px -22px rgba(21, 20, 15, 0.6);
+		border: 1px solid #2a2620;
+		overflow: hidden;
+	}
+
+	.card-header {
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		padding: 0.7rem 0.95rem;
+		border-bottom: 1px solid rgba(237, 232, 216, 0.08);
+		font-size: 0.74rem;
+	}
+
+	.dot {
+		width: 11px;
+		height: 11px;
+		border-radius: 50%;
+		display: inline-block;
+	}
+
+	.dot-r {
+		background: #ff5f57;
+	}
+	.dot-y {
+		background: #febc2e;
+	}
+	.dot-g {
+		background: #28c840;
+	}
+
+	.card-path {
+		margin-left: 0.6rem;
+		color: rgba(237, 232, 216, 0.5);
+		letter-spacing: 0.04em;
+		font-size: 0.72rem;
+	}
+
+	.card-body {
+		margin: 0;
+		padding: 1.1rem 1.25rem;
+		font-size: 0.85rem;
+		line-height: 1.7;
+	}
+
+	.card-body code {
+		font-family: inherit;
+	}
+
+	.c-cmt {
+		color: rgba(237, 232, 216, 0.4);
+	}
+
+	.c-prompt {
+		color: var(--svelte);
+		margin-right: 0.5em;
+	}
+
+	.c-pkg {
+		color: #ffb380;
+	}
+
+	.card-foot {
+		display: flex;
+		gap: 0.4rem;
+		padding: 0.55rem 0.95rem 0.75rem;
+		border-top: 1px solid rgba(237, 232, 216, 0.08);
+		flex-wrap: wrap;
+	}
+
+	.kbd {
+		font-size: 0.65rem;
+		letter-spacing: 0.08em;
+		color: rgba(237, 232, 216, 0.55);
+		padding: 0.18rem 0.5rem;
+		border: 1px solid rgba(237, 232, 216, 0.14);
+		border-radius: 4px;
+		text-transform: lowercase;
+	}
+
+	/* ============================================================
+	   BENCH STRIP — headline benchmark numbers, above-the-fold
+	   ============================================================ */
+	.bench-strip {
+		background: var(--surface);
+		border-block: 1px solid var(--rule);
+	}
+
+	.bench-strip-inner {
+		max-width: 1280px;
+		margin: 0 auto;
+		padding: clamp(1.5rem, 3.5vh, 2.5rem) clamp(1rem, 3vw, 2.25rem);
+	}
+
+	.bench-eyebrow {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.rule-h {
+		display: inline-block;
+		width: 28px;
+		height: 1px;
+		background: var(--rust);
+	}
+
+	.bench-label {
+		font-family: var(--mono);
+		font-size: 0.74rem;
+		letter-spacing: 0.08em;
+		color: var(--rust);
+	}
+
+	.bench-cells {
+		display: grid;
+		grid-template-columns: 1.4fr 1fr 1fr auto;
+		gap: clamp(1rem, 3vw, 2.5rem);
+		align-items: end;
+	}
+
+	.bench-cell {
 		display: flex;
 		flex-direction: column;
-		border-top: 1px solid var(--hairline-strong);
+		gap: 0.25rem;
+		border-left: 1px solid var(--rule-strong);
+		padding-left: clamp(1rem, 2vw, 1.5rem);
+	}
+
+	.bench-cell:first-child {
+		border-left: none;
+		padding-left: 0;
+	}
+
+	.bench-n {
+		font-family: var(--sans);
+		font-weight: 700;
+		font-size: clamp(2.4rem, 4.8vw, 3.8rem);
+		line-height: 1;
+		letter-spacing: -0.035em;
+		color: var(--ink);
+		font-variant-numeric: tabular-nums;
+		display: inline-flex;
+		align-items: baseline;
+	}
+
+	.bench-cell.big .bench-n {
+		color: var(--svelte);
+	}
+
+	.bench-n .x {
+		font-family: var(--mono);
+		font-weight: 500;
+		font-size: 0.42em;
+		letter-spacing: 0.02em;
+		margin-left: 0.15em;
+		color: var(--ink-faint);
+	}
+
+	.bench-cell.big .bench-n .x {
+		color: var(--svelte);
+		opacity: 0.7;
+	}
+
+	.bench-k {
+		font-weight: 700;
+		font-size: 0.9rem;
+		color: var(--ink);
+	}
+
+	.bench-s {
+		font-family: var(--mono);
+		font-size: 0.72rem;
+		letter-spacing: 0.03em;
+		color: var(--ink-soft);
+	}
+
+	.bench-link {
+		font-family: var(--mono);
+		font-size: 0.78rem;
+		text-decoration: none;
+		color: var(--ink);
+		padding: 0.55rem 0.9rem;
+		border: 1px solid var(--rule-strong);
+		border-radius: 6px;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		transition:
+			background 0.18s,
+			border-color 0.18s,
+			color 0.18s;
+		white-space: nowrap;
+		align-self: end;
+	}
+
+	.bench-link:hover {
+		background: var(--ink);
+		color: var(--bg);
+		border-color: var(--ink);
+	}
+
+	/* ============================================================
+	   SECTION SHELL
+	   ============================================================ */
+	.dropin,
+	.spec,
+	.why {
+		max-width: 1280px;
+		margin: 0 auto;
+		padding: clamp(3.5rem, 7vh, 5.5rem) clamp(1rem, 3vw, 2.25rem);
+	}
+
+	.section-head {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 0.4rem 1.25rem;
+		margin-bottom: clamp(2rem, 4vh, 3rem);
+		align-items: baseline;
+	}
+
+	.section-head .num {
+		font-family: var(--mono);
+		font-size: 0.72rem;
+		letter-spacing: 0.18em;
+		color: var(--rust);
+		grid-row: 1;
+		grid-column: 1;
+	}
+
+	.section-head h2 {
+		font-family: var(--sans);
+		font-weight: 700;
+		font-size: clamp(1.6rem, 2.8vw, 2.4rem);
+		letter-spacing: -0.022em;
+		margin: 0;
+		color: var(--ink);
+		line-height: 1.1;
+		grid-row: 1;
+		grid-column: 2;
+	}
+
+	.section-head h2 em {
+		font-style: italic;
+		color: var(--svelte);
+	}
+
+	.section-head .lede {
+		grid-row: 2;
+		grid-column: 2;
+		margin-top: 0.6rem;
+	}
+
+	.link {
+		color: var(--svelte);
+		text-decoration: underline;
+		text-decoration-thickness: 1px;
+		text-underline-offset: 3px;
+	}
+
+	.link:hover {
+		color: var(--accent-deep);
+	}
+
+	/* ============================================================
+	   DROP-IN diff
+	   ============================================================ */
+	.diff {
+		margin: 0;
+		max-width: 720px;
+		background: var(--ink);
+		color: #ede8d8;
+		border-radius: 10px;
+		font-family: var(--mono);
+		overflow: hidden;
+		border: 1px solid #2a2620;
+		box-shadow: 0 12px 28px -20px rgba(21, 20, 15, 0.5);
+	}
+
+	.diff figcaption {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.7rem 1rem;
+		border-bottom: 1px solid rgba(237, 232, 216, 0.08);
+		font-size: 0.7rem;
+		letter-spacing: 0.08em;
+		color: rgba(237, 232, 216, 0.55);
+	}
+
+	.diff .diff-tag {
+		color: var(--svelte);
+		text-transform: uppercase;
+	}
+
+	.diff pre {
+		margin: 0;
+		padding: 1.1rem 1.25rem;
+		font-size: 0.9rem;
+		line-height: 1.65;
+	}
+
+	.diff code {
+		font-family: inherit;
+	}
+
+	.d-line {
+		display: block;
+		padding: 0.1rem 0;
+	}
+
+	.d-sig {
+		display: inline-block;
+		width: 1.2em;
+		opacity: 0.75;
+	}
+
+	.d-minus {
+		color: #f8a39a;
+		background: rgba(248, 163, 154, 0.05);
+	}
+
+	.d-plus {
+		color: #b6e6ad;
+		background: rgba(182, 230, 173, 0.06);
+	}
+
+	.d-str {
+		color: #ffb380;
+	}
+
+	/* ============================================================
+	   SPEC LIST — compact compatibility rows
+	   ============================================================ */
+	.spec-list {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
+		gap: 0;
+		border-top: 1px solid var(--rule);
 	}
 
 	.spec-row {
 		display: grid;
-		grid-template-columns: minmax(7rem, 16rem) 1fr minmax(11rem, 22rem);
-		gap: clamp(1rem, 3vw, 3rem);
+		grid-template-columns: minmax(4.5rem, 5.5rem) 1fr minmax(8rem, 11rem);
+		gap: 1rem;
 		align-items: center;
-		padding: clamp(1.25rem, 2.5vh, 2rem) 0;
-		border-bottom: 1px solid var(--hairline);
+		padding: 1.05rem 1.1rem;
+		border-bottom: 1px solid var(--rule);
 		opacity: 0;
-		transform: translateY(20px);
-		animation: rowIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-		animation-delay: calc(0.08s * var(--i, 0) + 0.1s);
+		transform: translateY(8px);
+		animation: rowin 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+		animation-delay: calc(0.06s * var(--i, 0) + 0.05s);
 	}
 
-	@keyframes rowIn {
+	@keyframes rowin {
 		to {
 			opacity: 1;
 			transform: none;
 		}
 	}
 
-	.row-num {
-		font-family: var(--display);
-		font-feature-settings: 'tnum' 1, 'lnum' 1;
-		font-variation-settings: 'opsz' 144;
-		font-weight: 400;
-		font-size: clamp(2.5rem, 5.5vw, 5rem);
-		letter-spacing: -0.04em;
-		line-height: 1;
+	.spec-n {
+		font-family: var(--sans);
+		font-weight: 700;
+		font-size: 1.5rem;
+		font-variant-numeric: tabular-nums;
+		letter-spacing: -0.02em;
 		color: var(--ink);
 	}
 
-	.row-label strong {
-		display: block;
-		font-weight: 500;
-		font-size: clamp(0.95rem, 1.05vw, 1.1rem);
-		letter-spacing: -0.01em;
+	.spec-k {
+		font-weight: 700;
+		font-size: 0.95rem;
 		color: var(--ink);
-		line-height: 1.3;
 	}
 
-	.row-sub {
+	.spec-s {
 		font-family: var(--mono);
+		font-size: 0.72rem;
 		color: var(--ink-soft);
-		font-size: 0.74rem;
-		letter-spacing: 0.04em;
-		display: block;
-		margin-top: 0.35rem;
-		text-transform: lowercase;
+		margin-top: 0.15rem;
 	}
 
-	.row-bar {
+	.spec-bar {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
-		font-family: var(--mono);
-		font-size: 0.85rem;
-		letter-spacing: 0.04em;
+		gap: 0.7rem;
 	}
 
 	.bar-track {
 		flex: 1;
-		height: 5px;
-		background: var(--surface);
-		position: relative;
+		height: 4px;
+		background: var(--surface-2);
+		border-radius: 999px;
 		overflow: hidden;
 		display: block;
-		border: 1px solid var(--hairline);
-		border-radius: 999px;
 	}
 
 	.bar-fill {
-		position: absolute;
-		inset: 0;
-		background: var(--accent);
-		transform-origin: left;
-		transform: scaleX(0);
-		animation: barFill 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-		animation-delay: calc(0.08s * var(--i, 0) + 0.45s);
+		display: block;
+		height: 100%;
+		width: 0;
+		background: var(--svelte);
+		animation: fill 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+		animation-delay: calc(0.06s * var(--i, 0) + 0.25s);
 	}
 
-	@keyframes barFill {
+	@keyframes fill {
 		to {
-			transform: scaleX(1);
+			width: 100%;
 		}
 	}
 
-	.bar-pct {
+	.spec-pct {
+		font-family: var(--mono);
+		font-size: 0.78rem;
 		color: var(--ink);
-		font-weight: 500;
 		font-variant-numeric: tabular-nums;
 	}
 
-	.bar-pct .dim {
-		color: var(--ink-soft);
+	.spec-pct .dim {
+		color: var(--ink-faint);
 	}
 
 	/* ============================================================
-	   DROP-IN
+	   WHY GRID — three short cards
 	   ============================================================ */
-	.dropin {
-		padding: clamp(5rem, 10vh, 9rem) clamp(1.5rem, 6vw, 6rem);
-		border-top: 1px solid var(--hairline);
-		background: var(--surface);
-		position: relative;
-		z-index: 1;
-	}
-
-	.dropin-head {
+	.why-grid {
 		display: grid;
-		grid-template-columns: 1fr minmax(0, 18rem);
-		gap: 3rem;
-		align-items: end;
-		margin-bottom: clamp(3rem, 6vh, 5rem);
-	}
-
-	.dropin-head h2 {
-		grid-column: 1 / 2;
-		margin-top: 1.5rem;
-	}
-
-	.dropin-aside {
-		font-family: var(--display);
-		font-style: italic;
-		font-size: clamp(1rem, 1.3vw, 1.3rem);
-		color: var(--ink-soft);
-		text-align: right;
-		font-variation-settings: 'opsz' 14, 'SOFT' 100, 'WONK' 1;
-		max-width: 20ch;
-		justify-self: end;
-		align-self: end;
-	}
-
-	.diff {
-		background: #15110d;
-		color: #f0e6d2;
-		padding: 0;
-		font-family: var(--mono);
-		font-size: clamp(0.95rem, 1.35vw, 1.25rem);
-		position: relative;
-		margin: 0;
-		max-width: 80ch;
-		box-shadow: 0 30px 60px -25px rgba(26, 22, 18, 0.4);
-		border: 1px solid var(--hairline-strong);
-	}
-
-	.diff figcaption {
-		display: flex;
-		align-items: center;
-		padding: 0.85rem 1.5rem;
-		border-bottom: 1px solid rgba(244, 236, 221, 0.12);
-		font-size: 0.72rem;
-		letter-spacing: 0.16em;
-		text-transform: uppercase;
-		color: rgba(244, 236, 221, 0.55);
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
 		gap: 1rem;
 	}
 
-	.diff .diff-file {
-		color: rgba(244, 236, 221, 0.85);
-	}
-
-	.diff .diff-rule {
-		flex: 1;
-		height: 1px;
-		background: rgba(244, 236, 221, 0.18);
-	}
-
-	.diff .diff-tag {
-		color: var(--accent);
-	}
-
-	.diff pre {
-		margin: 0;
-		padding: 2rem 1.5rem;
-		white-space: pre-wrap;
-		line-height: 1.5;
-		overflow-x: auto;
-	}
-
-	.diff code {
-		font-family: inherit;
-		font-size: inherit;
-	}
-
-	.line {
-		display: block;
-		padding: 0.2rem 0;
+	.why-card {
+		background: var(--surface);
+		border: 1px solid var(--rule);
+		border-radius: 10px;
+		padding: 1.4rem 1.5rem 1.6rem;
 		position: relative;
 	}
 
-	.line .sigil {
-		display: inline-block;
-		width: 1.5em;
-		opacity: 0.6;
+	.why-tick {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 26px;
+		height: 26px;
+		border-radius: 50%;
+		background: var(--svelte);
+		color: #fff;
+		margin-bottom: 0.9rem;
 	}
 
-	.line.minus {
-		color: #ff7766;
-		background: rgba(255, 119, 102, 0.06);
+	.why-card h3 {
+		font-family: var(--sans);
+		font-weight: 700;
+		font-size: 1.1rem;
+		letter-spacing: -0.015em;
+		color: var(--ink);
+		margin: 0 0 0.4rem;
 	}
 
-	.line.plus {
-		color: #a8e9a4;
-		background: rgba(168, 233, 164, 0.07);
-	}
-
-	.line .str {
-		color: #f9b56a;
-	}
-
-	.dropin-sub {
-		font-size: clamp(1.05rem, 1.3vw, 1.25rem);
-		max-width: 56ch;
+	.why-card p {
+		font-size: 0.95rem;
 		color: var(--ink-soft);
-		line-height: 1.55;
-		margin: clamp(2.5rem, 5vh, 4rem) 0 0;
+		margin: 0;
 	}
 
 	/* ============================================================
-	   WHY
+	   FOOTER
 	   ============================================================ */
-	.why {
-		padding: clamp(6rem, 12vh, 10rem) clamp(1.5rem, 6vw, 6rem);
-		border-top: 1px solid var(--hairline);
-		background: var(--bg);
-		position: relative;
-		z-index: 1;
+	.foot {
+		border-top: 1px solid var(--rule);
+		background: var(--surface);
+		margin-top: 2rem;
 	}
 
-	.why-head {
-		margin-bottom: clamp(3rem, 7vh, 6rem);
+	.foot-inner {
+		max-width: 1280px;
+		margin: 0 auto;
+		padding: 1.5rem clamp(1rem, 3vw, 2.25rem);
 		display: flex;
-		flex-direction: column;
-		gap: 1.5rem;
+		justify-content: space-between;
+		align-items: center;
+		gap: 1rem;
+		flex-wrap: wrap;
 	}
 
-	.why-list {
-		list-style: none;
-		padding: 0;
-		margin: 0;
-		display: grid;
-		gap: 0;
-		border-top: 1px solid var(--hairline-strong);
+	.foot-mark {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		font-weight: 700;
+		font-size: 0.95rem;
 	}
 
-	.why-item {
-		display: grid;
-		grid-template-columns: minmax(7rem, 14rem) 1fr;
-		gap: clamp(1.5rem, 4vw, 4rem);
-		padding: clamp(2rem, 4.5vh, 3.5rem) 0;
-		border-bottom: 1px solid var(--hairline);
-		align-items: start;
-	}
-
-	.why-num {
-		font-family: var(--display);
-		font-feature-settings: 'tnum' 1;
-		font-style: italic;
-		font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
-		font-size: clamp(3.5rem, 7vw, 6rem);
-		font-weight: 400;
-		color: var(--accent);
-		line-height: 0.9;
-	}
-
-	.why-body h3 {
-		font-family: var(--display);
-		font-weight: 400;
-		font-size: clamp(1.6rem, 2.8vw, 2.8rem);
-		letter-spacing: -0.025em;
-		line-height: 1.1;
-		margin: 0 0 1rem;
-		color: var(--ink);
-	}
-
-	.why-body p {
-		font-size: clamp(1.05rem, 1.25vw, 1.2rem);
-		max-width: 50ch;
-		line-height: 1.6;
+	.foot-meta {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.55rem;
+		font-family: var(--mono);
+		font-size: 0.74rem;
 		color: var(--ink-soft);
-		margin: 0;
+		flex-wrap: wrap;
 	}
 
-	/* ============================================================
-	   CLOSING CALL
-	   ============================================================ */
-	.close {
-		padding: clamp(6rem, 14vh, 11rem) clamp(1.5rem, 6vw, 6rem);
-		background: var(--accent);
-		color: var(--ink);
-		text-align: center;
-		position: relative;
-		z-index: 1;
-		overflow: hidden;
-	}
-
-	.close::before,
-	.close::after {
-		content: '';
-		position: absolute;
-		left: 50%;
-		width: 1px;
-		height: 2.5rem;
-		background: var(--ink);
-		transform: translateX(-50%);
+	.foot-meta .sep {
 		opacity: 0.5;
 	}
 
-	.close::before {
-		top: 0;
+	.foot-meta a {
+		color: var(--ink-soft);
+		text-decoration: underline;
+		text-decoration-thickness: 1px;
+		text-underline-offset: 3px;
 	}
 
-	.close::after {
-		bottom: 0;
-	}
-
-	.close-eyebrow {
-		font-family: var(--display);
-		font-style: italic;
-		font-size: clamp(0.95rem, 1.2vw, 1.2rem);
-		color: var(--ink);
-		opacity: 0.7;
-		margin: 0 0 1.5rem;
-		font-variation-settings: 'opsz' 14, 'SOFT' 100;
-	}
-
-	.close-headline {
-		font-family: var(--display);
-		font-weight: 300;
-		font-size: clamp(4rem, 14vw, 14rem);
-		line-height: 0.9;
-		letter-spacing: -0.035em;
-		margin: 0 0 clamp(3rem, 6vh, 5rem);
-		color: var(--ink);
-	}
-
-	.close-headline em {
-		font-style: italic;
-		font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
-		color: var(--ink);
-	}
-
-	.close-actions {
-		display: flex;
-		justify-content: center;
-		gap: 3rem;
-		flex-wrap: wrap;
+	.foot-meta a:hover {
+		color: var(--svelte);
 	}
 
 	/* ============================================================
 	   RESPONSIVE
 	   ============================================================ */
-	@media (max-width: 880px) {
-		.spine {
-			display: none;
-		}
-		.margin-tr {
-			display: none;
-		}
-		.margin-tl {
-			top: 1.5rem;
-			left: 1.5rem;
-		}
-		.margin-bl {
-			display: none;
-		}
+	@media (max-width: 960px) {
 		.hero {
-			padding-top: 6rem;
-		}
-		.hero-number {
-			top: 5vh;
-			right: -8vw;
-			opacity: 0.08;
-		}
-		.dropin-head {
 			grid-template-columns: 1fr;
 		}
-		.dropin-aside {
-			text-align: left;
+		.hero-card {
+			max-width: 540px;
+		}
+		.bench-cells {
+			grid-template-columns: 1fr 1fr;
+			gap: 1.4rem;
+		}
+		.bench-cell {
+			border-left: none;
+			padding-left: 0;
+		}
+		.bench-link {
+			grid-column: 1 / -1;
 			justify-self: start;
 		}
-		.strip {
-			padding: 0.85rem 1.25rem;
-		}
-		.strip-r {
-			gap: 1rem;
-		}
-		.strip-r a {
-			font-size: 0.65rem;
-			letter-spacing: 0.1em;
-		}
 		.spec-row {
-			grid-template-columns: minmax(5rem, 7rem) 1fr;
+			grid-template-columns: auto 1fr;
 		}
-		.row-bar {
+		.spec-bar {
 			grid-column: 1 / -1;
 		}
-		.why-item {
+	}
+
+	@media (max-width: 640px) {
+		.brand-tag {
+			display: none;
+		}
+		.nav-links {
+			gap: 0.85rem;
+			font-size: 0.82rem;
+		}
+		.bench-cells {
 			grid-template-columns: 1fr;
-			gap: 1rem;
 		}
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.hero-title .line,
-		.hero-sub,
-		.hero-cta,
 		.spec-row,
-		.bar-fill {
+		.bar-fill,
+		.btn span {
 			animation: none !important;
 			transition: none !important;
 			opacity: 1 !important;
 			transform: none !important;
 		}
 		.bar-fill {
-			transform: scaleX(1) !important;
+			width: 100%;
 		}
 	}
 </style>
