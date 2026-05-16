@@ -48,7 +48,7 @@ pub mod utils;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use crate::ast::arena::{clear_serialize_arena, set_serialize_arena};
+use crate::ast::arena::SerializeArenaGuard;
 
 #[cfg(feature = "native")]
 use rayon::prelude::*;
@@ -531,15 +531,23 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
     };
     let mut ast = phases::phase1_parse::parse(source, parse_options)?;
 
-    // Set the thread-local serialize arena FIRST — needed by resolve_lazy and strip_ts.
-    unsafe { set_serialize_arena(&ast.arena as *const _) };
+    // Install the thread-local serialize arena via an RAII guard for the
+    // entire resolve_lazy → strip_ts → analyze → transform pipeline.
+    // The guard restores whatever pointer was set on entry when dropped
+    // (including on `?` early-return and panic unwind), so concurrent
+    // `compile()` calls reusing the same thread can't observe each
+    // other's arenas — and nested `JsNode::to_value` fallbacks to
+    // `DESER_ARENA` can't wipe the outer scope.
+    //
+    // SAFETY: `ast.arena` lives until the end of this function, which
+    // outlives `_arena_guard`.
+    let _arena_guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
 
     // Resolve lazy expressions (deferred template expressions)
     // If any expression has a parse error, return it immediately
     if let Some(parse_err) =
         phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(&mut ast, source)
     {
-        clear_serialize_arena();
         return Err(parse_err.into());
     }
 
@@ -584,28 +592,14 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
     }
 
     // Phase 2: Analyze
-    let analysis = match phases::phase2_analyze::analyze_component(&mut ast, source, &options) {
-        Ok(a) => a,
-        Err(e) => {
-            clear_serialize_arena();
-            return Err(e.into());
-        }
-    };
+    let analysis = phases::phase2_analyze::analyze_component(&mut ast, source, &options)?;
 
     // Determine if runes mode was used
     let runes_mode = options.runes.unwrap_or(analysis.runes);
 
     // Phase 3: Transform (pass AST to avoid re-parsing)
     let mut transform_result =
-        match phases::phase3_transform::transform_component(&analysis, &ast, source, &options) {
-            Ok(r) => r,
-            Err(e) => {
-                clear_serialize_arena();
-                return Err(e.into());
-            }
-        };
-
-    clear_serialize_arena();
+        phases::phase3_transform::transform_component(&analysis, &ast, source, &options)?;
 
     // Emit options_deprecated_accessors warning when accessors option is used in runes mode.
     // Reference: svelte/packages/svelte/src/compiler/validate-options.js line 52
@@ -767,32 +761,40 @@ pub fn compile_module(
     // Parse JS source into an AST using the same infrastructure as component scripts
     // Pass empty line_offsets to skip loc object creation (not needed during compilation)
     let arena = crate::ast::arena::ParseArena::new();
-    // Set serialize arena BEFORE parsing so that to_value() calls inside
-    // convert_declaration_for_program (used for ExportNamedDeclaration declarations)
-    // can resolve JsNodeIds from this arena.
-    unsafe { set_serialize_arena(&arena as *const _) };
-    let program = phases::phase1_parse::read::expression::parse_program(
-        &arena,
-        source,
-        0, // offset = 0 (source is the entire file)
-        &[],
-        is_typescript,
-        &[],          // no leading comments
-        0,            // script_tag_start
-        source.len(), // script_tag_end
-    );
-
-    // Remove TypeScript nodes if needed
-    let program = if is_typescript {
-        let mut val_clone =
-            crate::ast::arena::with_serialize_arena(&arena, || program.as_json()).clone();
-        let _ = phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(
-            &mut val_clone,
+    // RAII install of the serialize arena. We install it *twice* across
+    // this function — once for the parse_program / TypeScript-strip step
+    // here, then again below after `arena` is moved into `ast` — because
+    // the second guard refers to the moved arena. Each guard restores
+    // the prior pointer on drop, so the outer scope's arena (if any) is
+    // preserved.
+    //
+    // SAFETY: `arena` lives until it is moved into `ast` below, which
+    // outlives `_pre_move_guard`. The `?`/early-return paths only fire
+    // after the program is built, so the guard always covers the parser.
+    let program = {
+        let _pre_move_guard = unsafe { SerializeArenaGuard::new(&arena as *const _) };
+        let program = phases::phase1_parse::read::expression::parse_program(
+            &arena,
+            source,
+            0, // offset = 0 (source is the entire file)
             &[],
+            is_typescript,
+            &[],          // no leading comments
+            0,            // script_tag_start
+            source.len(), // script_tag_end
         );
-        crate::ast::js::Expression::Value(val_clone)
-    } else {
-        program
+
+        // Remove TypeScript nodes if needed
+        if is_typescript {
+            let mut val_clone = program.as_json().clone();
+            let _ = phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(
+                &mut val_clone,
+                &[],
+            );
+            crate::ast::js::Expression::Value(val_clone)
+        } else {
+            program
+        }
     };
 
     // Build a synthetic Root AST that treats the JS source as a module script.
@@ -842,18 +844,18 @@ pub fn compile_module(
         ..Default::default()
     };
 
-    // Update serialize arena pointer (arena was moved into ast)
-    unsafe { set_serialize_arena(&ast.arena as *const _) };
+    // Re-install the serialize arena pointer now that `arena` has been
+    // moved into `ast.arena`. The RAII guard covers the rest of the
+    // function and restores the previous pointer on drop / panic /
+    // early-`?`, so we no longer need the manual `clear_serialize_arena`
+    // sprinkled along each return path.
+    //
+    // SAFETY: `ast.arena` lives until the end of this function, which
+    // outlives `_arena_guard`.
+    let _arena_guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
 
     // Phase 2: Analyze (reuses component analysis infrastructure)
-    let analysis =
-        match phases::phase2_analyze::analyze_component(&mut ast, source, &compile_options) {
-            Ok(a) => a,
-            Err(e) => {
-                clear_serialize_arena();
-                return Err(e.into());
-            }
-        };
+    let analysis = phases::phase2_analyze::analyze_component(&mut ast, source, &compile_options)?;
 
     // Module-specific validation: check for store subscriptions.
     // In modules, $store references (where `store` is a binding) are invalid.
@@ -861,17 +863,12 @@ pub fn compile_module(
     //   if (binding !== null && !is_rune(name)) {
     //     e.store_invalid_subscription_module(references[0].node);
     //   }
-    if let Err(e) = check_module_store_subscriptions(&analysis) {
-        clear_serialize_arena();
-        return Err(e);
-    }
+    check_module_store_subscriptions(&analysis)?;
 
     // Phase 3: Generate module output using the module-specific transform.
     // Unlike transform_component, this does NOT generate a component wrapper.
     let transform_result =
         phases::phase3_transform::transform_module(&analysis, source, &compile_options);
-
-    clear_serialize_arena();
 
     let js_code = match transform_result {
         Ok(result) => result.js,

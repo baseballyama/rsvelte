@@ -105,12 +105,16 @@ pub struct ParseOptionsWithFilename {
 /// Parse a Svelte component source into an AST.
 pub fn parse(source: &str, options: ParseOptions) -> ParseResult<Root> {
     let mut parser = Parser::new(source, options);
-    // Set the parser's arena as the serialize context so that any to_value()
-    // calls during parsing (e.g., build_const_variable_declaration) can resolve JsNodeIds.
-    unsafe { crate::ast::arena::set_serialize_arena(&parser.arena as *const _) };
-    let result = parser.parse();
-    crate::ast::arena::clear_serialize_arena();
-    result
+    // RAII install so to_value() calls during parsing
+    // (e.g. build_const_variable_declaration) can resolve JsNodeIds.
+    // The guard restores any outer pointer on drop / panic — important
+    // when this parse() is invoked from within a `compile()` that has
+    // already installed its own arena.
+    //
+    // SAFETY: `parser.arena` lives until `parser` is dropped, which
+    // happens after `_guard`.
+    let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&parser.arena as *const _) };
+    parser.parse()
 }
 
 /// Parse with a reusable parser instance for reduced per-file overhead.
@@ -121,10 +125,10 @@ pub fn parse_reuse<'a>(
     options: ParseOptions,
 ) -> ParseResult<Root> {
     parser.reset(source, options);
-    unsafe { crate::ast::arena::set_serialize_arena(&parser.arena as *const _) };
-    let result = parser.parse();
-    crate::ast::arena::clear_serialize_arena();
-    result
+    // SAFETY: `parser.arena` lives until the caller drops `parser`,
+    // which can only happen after this function returns.
+    let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&parser.arena as *const _) };
+    parser.parse()
 }
 
 /// Compute line offsets for a source string (used for deferred script parsing).
