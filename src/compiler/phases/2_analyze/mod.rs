@@ -1312,136 +1312,293 @@ fn cycle_collect_js_ids(node: &serde_json::Value, out: &mut Vec<String>) {
 ///
 /// Corresponds to Svelte's 2-analyze/index.js L562-616
 fn process_legacy_exports(ast: &Root, analysis: &mut ComponentAnalysis) {
+    use crate::ast::typed_expr::JsNode;
     let Some(ref instance) = ast.instance else {
         return;
     };
 
-    // TODO: migrate process_legacy_exports to JsNode
-    let script_ast = instance.content.as_json();
-
-    // Get the body array from the Program node
-    let Some(body) = script_ast.get("body").and_then(|v| v.as_array()) else {
+    let node = instance.content.as_node();
+    let JsNode::Program { body, .. } = node.as_ref() else {
         return;
     };
 
-    for node in body {
-        // Check if this is an ExportNamedDeclaration
-        let node_type = node.get("type").and_then(|v| v.as_str());
-        if node_type != Some("ExportNamedDeclaration") {
+    let arena = &ast.arena;
+    for stmt in arena.get_js_children(*body) {
+        // Raw fallback: nodes with leadingComments
+        if let JsNode::Raw(value) = stmt {
+            if value.get("type").and_then(|v| v.as_str()) == Some("ExportNamedDeclaration") {
+                analysis.needs_props = true;
+                process_legacy_export_raw(value, analysis);
+            }
             continue;
         }
+        // Typed dispatch on ExportNamedDeclaration
+        let JsNode::ExportNamedDeclaration {
+            declaration,
+            specifiers,
+            ..
+        } = stmt
+        else {
+            continue;
+        };
 
         analysis.needs_props = true;
 
-        // Check if there's a declaration
-        if let Some(declaration) = node.get("declaration") {
-            if declaration.is_null() {
-                // Handle export specifiers (export { a, b as c })
-                if let Some(specifiers) = node.get("specifiers").and_then(|v| v.as_array()) {
-                    for specifier in specifiers {
-                        let local_name = specifier
-                            .get("local")
-                            .and_then(|v| v.get("name"))
-                            .and_then(|v| v.as_str());
-                        let exported_name = specifier
-                            .get("exported")
-                            .and_then(|v| v.get("name"))
-                            .and_then(|v| v.as_str());
-
-                        let (Some(local), Some(exported)) = (local_name, exported_name) else {
-                            continue;
-                        };
-
-                        // Find the binding for this local name
-                        if let Some(binding_idx) = analysis.root.find_binding_any_scope(local) {
-                            let binding = &mut analysis.root.bindings[binding_idx];
-
-                            // If it's a var or let declaration, make it a bindable prop
-                            if binding.declaration_kind == DeclarationKind::Var
-                                || binding.declaration_kind == DeclarationKind::Let
-                            {
-                                binding.kind = BindingKind::BindableProp;
-
-                                // If exported with a different name, set the alias
-                                if exported != local {
-                                    binding.prop_alias = Some(exported.to_string());
-                                }
-                            } else {
-                                // For const/function/class, add to exports
-                                analysis.exports.push(types::Export {
-                                    name: local.to_string(),
-                                    alias: if exported != local {
-                                        Some(exported.to_string())
-                                    } else {
-                                        None
-                                    },
-                                });
-                            }
-                        } else {
-                            // Binding not found, treat as an export
-                            analysis.exports.push(types::Export {
-                                name: local.to_string(),
-                                alias: if exported != local {
-                                    Some(exported.to_string())
-                                } else {
-                                    None
-                                },
-                            });
-                        }
-                    }
-                }
-                continue;
+        // export { a, b as c }
+        let Some(decl_id) = declaration else {
+            for spec in arena.get_js_children(*specifiers) {
+                let (Some(local), Some(exported)) = export_specifier_local_exported(spec, arena)
+                else {
+                    continue;
+                };
+                apply_specifier_export(local, exported, analysis);
             }
+            continue;
+        };
 
-            let decl_type = declaration.get("type").and_then(|v| v.as_str());
-
-            match decl_type {
-                Some("FunctionDeclaration") | Some("ClassDeclaration") => {
-                    // export function foo() {} or export class Foo {}
-                    if let Some(name) = declaration
-                        .get("id")
-                        .and_then(|v| v.get("name"))
-                        .and_then(|v| v.as_str())
-                    {
-                        analysis.exports.push(types::Export {
-                            name: name.to_string(),
-                            alias: None,
-                        });
-                    }
+        // export <declaration> ...
+        let decl = arena.get_js_node(*decl_id);
+        match decl {
+            JsNode::FunctionDeclaration {
+                id: Some(id_id), ..
+            }
+            | JsNode::ClassDeclaration {
+                id: Some(id_id), ..
+            } => {
+                if let JsNode::Identifier { name, .. } = arena.get_js_node(*id_id) {
+                    analysis.exports.push(types::Export {
+                        name: name.to_string(),
+                        alias: None,
+                    });
                 }
-                Some("VariableDeclaration") => {
-                    let kind = declaration.get("kind").and_then(|v| v.as_str());
-
-                    if let Some(declarations) =
-                        declaration.get("declarations").and_then(|v| v.as_array())
-                    {
-                        for declarator in declarations {
-                            // Extract all identifiers from the pattern (handles destructuring)
-                            let identifiers =
-                                extract_identifiers_from_pattern(declarator.get("id"));
-
-                            if kind == Some("const") {
-                                // export const x = 1 -> add to exports
-                                for name in identifiers {
-                                    analysis.exports.push(types::Export { name, alias: None });
-                                }
-                            } else {
-                                // export let x = 1 or export var x = 1 -> make bindable prop
-                                for name in identifiers {
-                                    if let Some(binding_idx) =
-                                        analysis.root.find_binding_any_scope(&name)
-                                    {
-                                        analysis.root.bindings[binding_idx].kind =
-                                            BindingKind::BindableProp;
-                                    }
-                                }
+            }
+            JsNode::VariableDeclaration {
+                kind, declarations, ..
+            } => {
+                let is_const = kind == "const";
+                for declarator in arena.get_js_children(*declarations) {
+                    let id_id = match declarator {
+                        JsNode::VariableDeclarator { id, .. } => Some(*id),
+                        _ => None,
+                    };
+                    let mut identifiers: Vec<String> = Vec::new();
+                    if let Some(id_id) = id_id {
+                        extract_identifiers_from_pattern_typed(
+                            arena.get_js_node(id_id),
+                            arena,
+                            &mut identifiers,
+                        );
+                    } else if let JsNode::Raw(v) = declarator {
+                        identifiers = extract_identifiers_from_pattern(v.get("id"));
+                    }
+                    if is_const {
+                        for name in identifiers {
+                            analysis.exports.push(types::Export { name, alias: None });
+                        }
+                    } else {
+                        for name in identifiers {
+                            if let Some(binding_idx) = analysis.root.find_binding_any_scope(&name) {
+                                analysis.root.bindings[binding_idx].kind =
+                                    BindingKind::BindableProp;
                             }
                         }
                     }
                 }
-                _ => {}
+            }
+            JsNode::Raw(decl_value) => {
+                // Declaration is a Raw node (carries leadingComments). Fall back to
+                // the JSON helper for legacy handling.
+                process_legacy_export_declaration_raw(decl_value, analysis);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Get (local_name, exported_name) from an `ExportSpecifier` (typed or Raw).
+fn export_specifier_local_exported<'a>(
+    spec: &'a crate::ast::typed_expr::JsNode,
+    arena: &'a crate::ast::arena::ParseArena,
+) -> (Option<&'a str>, Option<&'a str>) {
+    use crate::ast::typed_expr::JsNode;
+    match spec {
+        JsNode::ExportSpecifier {
+            local, exported, ..
+        } => {
+            let local_name = match arena.get_js_node(*local) {
+                JsNode::Identifier { name, .. } => Some(name.as_str()),
+                _ => None,
+            };
+            let exported_name = match arena.get_js_node(*exported) {
+                JsNode::Identifier { name, .. } => Some(name.as_str()),
+                _ => None,
+            };
+            (local_name, exported_name)
+        }
+        JsNode::Raw(value) => {
+            let local_name = value
+                .get("local")
+                .and_then(|v| v.get("name"))
+                .and_then(|v| v.as_str());
+            let exported_name = value
+                .get("exported")
+                .and_then(|v| v.get("name"))
+                .and_then(|v| v.as_str());
+            (local_name, exported_name)
+        }
+        _ => (None, None),
+    }
+}
+
+/// Apply a specifier export (`export { local as exported }`) to the analysis.
+fn apply_specifier_export(local: &str, exported: &str, analysis: &mut ComponentAnalysis) {
+    if let Some(binding_idx) = analysis.root.find_binding_any_scope(local) {
+        let binding = &mut analysis.root.bindings[binding_idx];
+        if binding.declaration_kind == DeclarationKind::Var
+            || binding.declaration_kind == DeclarationKind::Let
+        {
+            binding.kind = BindingKind::BindableProp;
+            if exported != local {
+                binding.prop_alias = Some(exported.to_string());
+            }
+        } else {
+            analysis.exports.push(types::Export {
+                name: local.to_string(),
+                alias: if exported != local {
+                    Some(exported.to_string())
+                } else {
+                    None
+                },
+            });
+        }
+    } else {
+        analysis.exports.push(types::Export {
+            name: local.to_string(),
+            alias: if exported != local {
+                Some(exported.to_string())
+            } else {
+                None
+            },
+        });
+    }
+}
+
+/// Raw fallback for the whole `ExportNamedDeclaration` body of
+/// `process_legacy_exports`. Mirrors the JSON-walk logic when the
+/// outer statement arrives as `JsNode::Raw`.
+fn process_legacy_export_raw(value: &serde_json::Value, analysis: &mut ComponentAnalysis) {
+    let declaration = value.get("declaration");
+    if declaration.is_some_and(|d| d.is_null()) || declaration.is_none() {
+        if let Some(specifiers) = value.get("specifiers").and_then(|v| v.as_array()) {
+            for specifier in specifiers {
+                let local_name = specifier
+                    .get("local")
+                    .and_then(|v| v.get("name"))
+                    .and_then(|v| v.as_str());
+                let exported_name = specifier
+                    .get("exported")
+                    .and_then(|v| v.get("name"))
+                    .and_then(|v| v.as_str());
+                if let (Some(local), Some(exported)) = (local_name, exported_name) {
+                    apply_specifier_export(local, exported, analysis);
+                }
             }
         }
+        return;
+    }
+    let Some(declaration) = declaration else {
+        return;
+    };
+    process_legacy_export_declaration_raw(declaration, analysis);
+}
+
+/// Raw fallback for an `ExportNamedDeclaration.declaration` node.
+fn process_legacy_export_declaration_raw(
+    declaration: &serde_json::Value,
+    analysis: &mut ComponentAnalysis,
+) {
+    let decl_type = declaration.get("type").and_then(|v| v.as_str());
+    match decl_type {
+        Some("FunctionDeclaration") | Some("ClassDeclaration") => {
+            if let Some(name) = declaration
+                .get("id")
+                .and_then(|v| v.get("name"))
+                .and_then(|v| v.as_str())
+            {
+                analysis.exports.push(types::Export {
+                    name: name.to_string(),
+                    alias: None,
+                });
+            }
+        }
+        Some("VariableDeclaration") => {
+            let kind = declaration.get("kind").and_then(|v| v.as_str());
+            if let Some(declarations) = declaration.get("declarations").and_then(|v| v.as_array()) {
+                for declarator in declarations {
+                    let identifiers = extract_identifiers_from_pattern(declarator.get("id"));
+                    if kind == Some("const") {
+                        for name in identifiers {
+                            analysis.exports.push(types::Export { name, alias: None });
+                        }
+                    } else {
+                        for name in identifiers {
+                            if let Some(binding_idx) = analysis.root.find_binding_any_scope(&name) {
+                                analysis.root.bindings[binding_idx].kind =
+                                    BindingKind::BindableProp;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Extract identifier names from a typed pattern (handles destructuring).
+fn extract_identifiers_from_pattern_typed(
+    pattern: &crate::ast::typed_expr::JsNode,
+    arena: &crate::ast::arena::ParseArena,
+    out: &mut Vec<String>,
+) {
+    use crate::ast::typed_expr::JsNode;
+    match pattern {
+        JsNode::Identifier { name, .. } => out.push(name.to_string()),
+        JsNode::ObjectPattern { properties, .. } => {
+            for prop in arena.get_js_children(*properties) {
+                match prop {
+                    JsNode::Property { value, .. } => {
+                        extract_identifiers_from_pattern_typed(
+                            arena.get_js_node(*value),
+                            arena,
+                            out,
+                        );
+                    }
+                    JsNode::RestElement { argument, .. } => {
+                        extract_identifiers_from_pattern_typed(
+                            arena.get_js_node(*argument),
+                            arena,
+                            out,
+                        );
+                    }
+                    JsNode::Raw(v) => out.extend(extract_identifiers_from_pattern(v.get("value"))),
+                    _ => {}
+                }
+            }
+        }
+        JsNode::ArrayPattern { elements, .. } => {
+            for e in elements.iter().flatten() {
+                extract_identifiers_from_pattern_typed(e, arena, out);
+            }
+        }
+        JsNode::RestElement { argument, .. } => {
+            extract_identifiers_from_pattern_typed(arena.get_js_node(*argument), arena, out);
+        }
+        JsNode::AssignmentPattern { left, .. } => {
+            extract_identifiers_from_pattern_typed(arena.get_js_node(*left), arena, out);
+        }
+        JsNode::Raw(v) => out.extend(extract_identifiers_from_pattern(Some(v))),
+        _ => {}
     }
 }
 
