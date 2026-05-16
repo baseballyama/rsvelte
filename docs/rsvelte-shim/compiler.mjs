@@ -102,71 +102,12 @@ export function compileModule(source, options) {
 	return binding.compileModule(source, sanitiseOptions(options));
 }
 
-// preprocess: run the chain in plain JS instead of crossing the NAPI bridge.
-//
-// The Rust-side `napi_preprocess` is a v0.3 Wave-3 component with several
-// brittle edges around JS callback marshalling (CalleeHandled signature,
-// `undefined` not being a valid `serde_json::Value`, callback return values
-// containing function references that fail serde conversion). For a static
-// docs site whose only preprocessor is SvelteKit's dev-only warning logger,
-// running the pipeline directly in JS is both simpler and avoids those bugs.
-//
-// This implementation mirrors svelte/preprocess for the markup / script /
-// style fields: feed each block through every group in order. Source maps and
-// dependency tracking are dropped — this site has no preprocessors that emit
-// either.
-const SCRIPT_RE = /<script(?<attrs>\s+[^>]*?)?>(?<content>[\s\S]*?)<\/script>/g;
-const STYLE_RE = /<style(?<attrs>\s+[^>]*?)?>(?<content>[\s\S]*?)<\/style>/g;
-
-function parseAttrs(raw) {
-	const out = {};
-	if (!raw) return out;
-	const re = /(\w[\w-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
-	let m;
-	while ((m = re.exec(raw))) {
-		out[m[1]] = m[2] ?? m[3] ?? m[4] ?? true;
-	}
-	return out;
-}
-
-async function runTag(source, re, fn, filename) {
-	let out = '';
-	let lastIndex = 0;
-	let m;
-	while ((m = re.exec(source))) {
-		const attrs = parseAttrs(m.groups?.attrs ?? '');
-		const content = m.groups?.content ?? '';
-		out += source.slice(lastIndex, m.index);
-		const tagStart = m[0].indexOf(content);
-		const open = source.slice(m.index, m.index + tagStart);
-		const close = m[0].slice(tagStart + content.length);
-		const result = await fn({ content, attributes: attrs, filename, markup: source });
-		out += open + (result && typeof result.code === 'string' ? result.code : content) + close;
-		lastIndex = m.index + m[0].length;
-	}
-	out += source.slice(lastIndex);
-	return out;
-}
-
-export async function preprocess(source, groups, options) {
+export function preprocess(source, groups, options) {
 	logOnce();
-	const groupsArr = Array.isArray(groups) ? groups : groups ? [groups] : [];
-	const filename = typeof options === 'string' ? options : options?.filename;
-	let code = source;
-	for (const group of groupsArr) {
-		if (!group) continue;
-		if (typeof group.markup === 'function') {
-			const r = await group.markup({ content: code, filename });
-			if (r && typeof r.code === 'string') code = r.code;
-		}
-		if (typeof group.script === 'function') {
-			code = await runTag(code, new RegExp(SCRIPT_RE.source, 'g'), group.script, filename);
-		}
-		if (typeof group.style === 'function') {
-			code = await runTag(code, new RegExp(STYLE_RE.source, 'g'), group.style, filename);
-		}
-	}
-	return { code };
+	// The NAPI binding now matches the upstream svelte/compiler contract
+	// (PR #133): `preprocess(source, group | group[], { filename? })`. Pass
+	// arguments through as-is.
+	return binding.preprocess(source, groups, options);
 }
 
 // Some consumers do `import * as svelte from 'svelte/compiler'` and access
