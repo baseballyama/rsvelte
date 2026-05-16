@@ -406,6 +406,49 @@ Net effect: the analyze-side easy AST migrations are now exhausted.
 The remaining levers are either substantial single-PR refactors
 (see "Next-PR candidates" #2–#4) or the bumpalo phased migration.
 
+## Phase 3 sub-breakdown — measured 2026-05-16
+
+After the session-log entries above, instrumented `transform_client_with_visitors`
+with thread-local timers to split Phase 3 into sub-phases. Same fixture set
+(3637 .svelte files). Run with `cargo run --release --bin compile_profile`.
+
+```
+Phase 3 (Transform):    221.67ms ( 50.3%)
+  Script-text xform:     60.77ms ( 13.8%)   [transform_instance_script_for_visitors]
+  Template fragment:     53.30ms ( 12.1%)   [fragment() visitor walk]
+  CSS render:             9.62ms (  2.2%)   [render_stylesheet]
+  JS codegen:            19.10ms (  4.3%)   [generate / generate_with_sourcemap]
+  Other:                 78.88ms ( 17.9%)   [visit_program + setup + assembly + async + ...]
+```
+
+Findings:
+- **Other (78.88ms) is the single largest Phase 3 bucket.** This is everything
+  between fragment visit and codegen — visit_program, store sub setup, async
+  blocker-map computation, hoisted-statement assembly, transform_destructured
+  state assignments (text-based), final body construction. Worth a second
+  pass with a finer breakdown.
+- **Script-text xform (60.77ms)** matches the known text-regex transform on
+  the instance script raw source. Same family of work as the Phase-2 visitor
+  bake — converting this to AST-driven is the same kind of refactor.
+- **Template fragment (53.30ms)** is the JS-emit walk over the parsed template
+  AST, not Svelte-template parsing. It already operates on a typed AST, so
+  "AST-ifying" doesn't apply; perf improvements here would be allocation
+  reduction or hot-visitor inlining.
+- **JS codegen (19.10ms) is small** — `generate()` writing the final string is
+  not a hotspot. Source-map generation is not measurable in this run because
+  `enable_sourcemap=false` by default.
+- **CSS render (9.62ms) is small** — not worth attention unless template
+  Other shrinks enough that CSS becomes a top-3 bucket.
+
+Implication for next steps:
+1. **Drill "Other" further** — split visit_program, async setup, assembly so
+   we know whether to attack visit_program (scope walks) or assembly. Same
+   thread-local instrumentation pattern.
+2. **Script-text xform → AST** is a known, scoped refactor but high effort
+   and currently lower priority than #1 because Other is bigger.
+3. **Fragment walker** is internally allocation-heavy but the hot visitors
+   are not obvious from this number alone — needs samply-level drill-down.
+
 ## Anti-priorities
 
 Skip these unless profiling proves otherwise:

@@ -22,7 +22,7 @@ use svelte_compiler_rust::compiler::phases::phase1_parse::{
     ParseOptions, compute_line_offsets, ensure_script_parsed, parse, resolve_lazy_expressions,
 };
 use svelte_compiler_rust::compiler::phases::phase2_analyze::analyze_component;
-use svelte_compiler_rust::compiler::phases::phase3_transform::transform_component;
+use svelte_compiler_rust::compiler::phases::phase3_transform::{profile, transform_component};
 use svelte_compiler_rust::{CompileOptions, GenerateMode};
 
 fn main() {
@@ -127,6 +127,9 @@ fn main() {
     let analyze_visitor_time = start.elapsed();
     let analyze_time = resolve_lazy_time + ensure_script_time + analyze_visitor_time;
 
+    // Reset Phase 3 sub-phase counters in case warmup left non-zero state.
+    let _ = profile::take_breakdown();
+
     // Measure Phase 3 (Transform)
     let start = Instant::now();
     for (i, (_, content)) in files.iter().enumerate() {
@@ -143,6 +146,7 @@ fn main() {
         }
     }
     let transform_time = start.elapsed();
+    let transform_breakdown = profile::take_breakdown();
 
     let total = parse_time + analyze_time + transform_time;
     let pct = |d: std::time::Duration| d.as_secs_f64() / total.as_secs_f64() * 100.0;
@@ -178,6 +182,40 @@ fn main() {
         "Phase 3 (Transform):   {:7.2}ms ({:5.1}%)",
         ms(transform_time),
         pct(transform_time)
+    );
+    let script_text = transform_breakdown.script_text_transform;
+    let template_fragment = transform_breakdown.template_fragment;
+    let css_render = transform_breakdown.css_render;
+    let codegen = transform_breakdown.codegen;
+    let other = transform_time
+        .saturating_sub(script_text)
+        .saturating_sub(template_fragment)
+        .saturating_sub(css_render)
+        .saturating_sub(codegen);
+    println!(
+        "  Script-text xform:   {:7.2}ms ({:5.1}%)",
+        ms(script_text),
+        pct(script_text)
+    );
+    println!(
+        "  Template fragment:   {:7.2}ms ({:5.1}%)",
+        ms(template_fragment),
+        pct(template_fragment)
+    );
+    println!(
+        "  CSS render:          {:7.2}ms ({:5.1}%)",
+        ms(css_render),
+        pct(css_render)
+    );
+    println!(
+        "  JS codegen:          {:7.2}ms ({:5.1}%)",
+        ms(codegen),
+        pct(codegen)
+    );
+    println!(
+        "  Other:               {:7.2}ms ({:5.1}%)",
+        ms(other),
+        pct(other)
     );
     println!("TOTAL:                 {:7.2}ms", ms(total));
     println!();
