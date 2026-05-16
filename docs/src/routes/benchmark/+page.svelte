@@ -21,8 +21,6 @@
 		svelte2tsx: { label: 'svelte2tsx', sub: '.svelte → .tsx generation' }
 	};
 
-	const TABS: TabId[] = ['full', 'parse', 'svelte2tsx'];
-
 	const formatDate = (iso: string): string =>
 		new Date(iso).toLocaleString('en-US', {
 			year: 'numeric',
@@ -239,7 +237,7 @@
 			<section class="chart-card">
 				<header class="chart-head">
 					<div class="tabs" role="tablist" aria-label="Benchmark task">
-						{#each TABS as tab (tab)}
+						{#each ['full', 'parse', 'svelte2tsx'] as const as tab (tab)}
 							<button
 								role="tab"
 								type="button"
@@ -1061,13 +1059,11 @@
 		.stats {
 			grid-template-columns: repeat(2, 1fr);
 		}
-		/* 3rd card starts a new row in 2-col layout */
-		.stat + .stat + .stat {
+		.stat:nth-child(3) {
 			border-left: none;
 			border-top: 1px solid var(--rule);
 		}
-		/* 4th card */
-		.stat + .stat + .stat + .stat {
+		.stat:nth-child(4) {
 			border-top: 1px solid var(--rule);
 		}
 	}
