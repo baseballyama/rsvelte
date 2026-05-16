@@ -1517,8 +1517,8 @@ fn process_props_object_pattern_typed(
                         }
                     }
                 } else {
-                    binding.initial = extract_literal_string_typed(init)
-                        .or_else(|| Some(init.to_value().to_string()));
+                    binding.initial =
+                        extract_literal_string_typed(init).or_else(|| Some(init.to_json_string()));
                     binding.initial_node_type = Some(init.type_str().to_string());
                     if binding.initial_node_type.as_deref() == Some("Identifier")
                         && let JsNode::Identifier { name, .. } = init
