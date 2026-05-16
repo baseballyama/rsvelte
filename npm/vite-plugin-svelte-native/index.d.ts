@@ -1,18 +1,133 @@
 // Public surface of the rsvelte NAPI binding. Mirrors the `#[napi]` exports in
-// `src/napi.rs`. All options/results are loosely typed via `unknown`/records to
-// keep this file shim-friendly — the JS shim above can layer richer types over
-// the boundary where they're actually consumed.
+// `src/napi.rs`. The structural types below match the upstream Svelte
+// (`svelte/compiler`) names where they map cleanly, so consumers — including
+// the `@rsvelte/vite-plugin-svelte` fork — can stay drop-in compatible with
+// the official surface.
+
+// ---------------------------------------------------------------------------
+// Options
+// ---------------------------------------------------------------------------
+
+/**
+ * Component compile options. Loosely follows `svelte/compiler#CompileOptions`.
+ */
+export interface CompileOptions {
+	/** Enable dev mode (instrumentation, warnings, etc.). */
+	dev?: boolean;
+	/** Generate client- or server-side code, or skip codegen. */
+	generate?: 'client' | 'server' | false;
+	/** Source filename. Used in source maps and error frames. */
+	filename?: string;
+	/** Project root, used to compute relative source-map paths. */
+	rootDir?: string;
+	/** Component identifier hint. */
+	name?: string;
+	/** Compile as a custom element. */
+	customElement?: boolean;
+	/** Generate `accessors`. */
+	accessors?: boolean;
+	/** HTML namespace. */
+	namespace?: 'html' | 'svg' | 'mathml';
+	/** Hint that bindings are immutable. */
+	immutable?: boolean;
+	/** Output CSS injected into the bundle or as an external asset. */
+	css?: 'injected' | 'external';
+	/** Custom hash function for CSS scoping — currently honored as a string-mapper. */
+	cssHash?: (args: {
+		hash: (input: string) => string;
+		css: string;
+		name: string;
+		filename: string | undefined;
+	}) => string;
+	/** Preserve HTML comments in output. */
+	preserveComments?: boolean;
+	/** Preserve whitespace in the template. */
+	preserveWhitespace?: boolean;
+	/** Force runes mode (`true`), legacy (`false`), or auto-detect (`undefined`). */
+	runes?: boolean;
+	/** Disclose the compiler version in the output banner. */
+	discloseVersion?: boolean;
+	/** Source-map options (forwarded through magic-string). */
+	sourcemap?: object | string;
+	/** Output JS filename for `file` in the JS source map. */
+	outputFilename?: string;
+	/** Output CSS filename for `file` in the CSS source map. */
+	cssOutputFilename?: string;
+	/** Enable HMR-friendly output (used by `@rsvelte/vite-plugin-svelte`). */
+	hmr?: boolean;
+	/** Emit the modern AST shape (default). */
+	modernAst?: boolean;
+	/** Filter compiler warnings. */
+	warningFilter?: (warning: Warning) => boolean;
+}
+
+/**
+ * Module compile options. Subset of {@link CompileOptions} that applies to
+ * `.svelte.js` / `.svelte.ts` modules.
+ */
+export interface ModuleCompileOptions {
+	dev?: boolean;
+	generate?: 'client' | 'server' | false;
+	filename?: string;
+	rootDir?: string;
+	warningFilter?: (warning: Warning) => boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Diagnostics
+// ---------------------------------------------------------------------------
+
+export interface SourcePosition {
+	line: number;
+	column: number;
+	character: number;
+}
+
+/** Compiler warning matching `svelte/compiler#Warning`. */
+export interface Warning {
+	code: string;
+	message: string;
+	filename?: string;
+	start?: SourcePosition;
+	end?: SourcePosition;
+	position?: [number, number];
+	frame?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Compile result
+// ---------------------------------------------------------------------------
+
+export interface CompileResultJs {
+	code: string;
+	/** A standard SourceMap v3 JSON object. */
+	map: unknown;
+}
+
+export interface CompileResultCss {
+	code: string;
+	/** A standard SourceMap v3 JSON object. */
+	map: unknown;
+	hasGlobal: boolean;
+}
 
 export interface CompileResult {
-	js: { code: string; map: unknown };
-	css: { code: string; map: unknown; hasGlobal: boolean } | null;
-	warnings: unknown[];
-	metadata: Record<string, unknown>;
+	js: CompileResultJs;
+	css: CompileResultCss | null;
+	warnings: Warning[];
+	metadata: { runes?: boolean } & Record<string, unknown>;
 	ast: unknown;
 }
 
-export function compile(source: string, options?: Record<string, unknown>): CompileResult;
-export function compileModule(source: string, options?: Record<string, unknown>): CompileResult;
+export function compile(source: string, options?: CompileOptions): CompileResult;
+export function compileModule(
+	source: string,
+	options?: ModuleCompileOptions,
+): CompileResult;
+
+// ---------------------------------------------------------------------------
+// svelte2tsx
+// ---------------------------------------------------------------------------
 
 export interface Svelte2TsxResult {
 	code: string;
@@ -20,7 +135,14 @@ export interface Svelte2TsxResult {
 	exportedNames: { props: string[]; all: string[] };
 	events: Record<string, unknown>;
 }
-export function svelte2tsx(source: string, options?: Record<string, unknown>): Svelte2TsxResult;
+export function svelte2tsx(
+	source: string,
+	options?: Record<string, unknown>,
+): Svelte2TsxResult;
+
+// ---------------------------------------------------------------------------
+// HMR / resolver
+// ---------------------------------------------------------------------------
 
 export interface HmrDiff {
 	change: 'hot-update' | 'full-reload' | 'unchanged';
@@ -35,22 +157,53 @@ export function resolveId(
 	options?: Record<string, unknown>,
 ): string | null;
 
-export interface PreprocessGroup {
-	markup?: (input: { content: string; filename?: string }) => unknown;
-	script?: (input: {
-		content: string;
-		filename?: string;
-		attributes: Record<string, unknown>;
-	}) => unknown;
-	style?: (input: {
-		content: string;
-		filename?: string;
-		attributes: Record<string, unknown>;
-	}) => unknown;
+// ---------------------------------------------------------------------------
+// Preprocess
+// ---------------------------------------------------------------------------
+
+/** Options the preprocessor pipeline forwards to each callback. */
+export interface MarkupPreprocessorOptions {
+	content: string;
+	filename?: string;
 }
 
+export interface PreprocessorOptions {
+	content: string;
+	filename?: string;
+	attributes: Record<string, string | boolean>;
+	markup?: string;
+}
+
+/** Result returned by a preprocessor callback. `undefined`/`null` is a no-op. */
+export interface Processed {
+	code: string;
+	map?: string | object;
+	dependencies?: string[];
+	attributes?: Record<string, string | boolean>;
+	toString?: () => string;
+}
+
+export type MarkupPreprocessor = (
+	options: MarkupPreprocessorOptions,
+) => Processed | void | null | undefined | Promise<Processed | void | null | undefined>;
+
+export type Preprocessor = (
+	options: PreprocessorOptions,
+) => Processed | void | null | undefined | Promise<Processed | void | null | undefined>;
+
+export interface PreprocessorGroup {
+	name?: string;
+	markup?: MarkupPreprocessor;
+	script?: Preprocessor;
+	style?: Preprocessor;
+}
+
+/**
+ * Run the preprocessor pipeline. Accepts a single group or an array of
+ * groups, matching the upstream `svelte/compiler#preprocess` contract.
+ */
 export function preprocess(
 	source: string,
-	groups: PreprocessGroup | PreprocessGroup[],
+	groups: PreprocessorGroup | PreprocessorGroup[],
 	options?: { filename?: string },
-): Promise<{ code: string; map?: unknown; dependencies?: string[] }>;
+): Promise<Processed>;
