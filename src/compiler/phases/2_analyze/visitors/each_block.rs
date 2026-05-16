@@ -138,7 +138,11 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     // The official Svelte's zimmerframe walker automatically visits the context pattern,
     // but our implementation needs to explicitly walk the default values.
     if let Some(ref context_expr) = block.context {
-        walk_pattern_defaults(context_expr.as_json(), context)?;
+        // Walk typed when possible to avoid materializing the whole pattern.
+        // Most each-blocks have no defaults (e.g., `as item`), in which case the
+        // typed walker terminates without ever calling `to_value()`.
+        let node = context_expr.as_node();
+        walk_pattern_defaults_typed(node.as_ref(), context.parse_arena, context)?;
     }
 
     // Visit the body and fallback
@@ -223,6 +227,51 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
 /// in default values are properly counted as references. For example, in
 /// `{#each array as { a = default_value_1 }}`, the `default_value_1` identifier
 /// needs to be visited to count as a reference to the outer-scope binding.
+/// Typed-AST equivalent of `walk_pattern_defaults`. Walks the pattern via
+/// arena children and materializes only the default-expression subtrees
+/// (the AssignmentPattern right sides), which is cheaper than the JSON-walk
+/// path for the common no-defaults case.
+fn walk_pattern_defaults_typed(
+    pattern: &crate::ast::typed_expr::JsNode,
+    arena: &crate::ast::arena::ParseArena,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    use crate::ast::typed_expr::JsNode;
+    match pattern {
+        JsNode::AssignmentPattern { left, right, .. } => {
+            walk_pattern_defaults_typed(arena.get_js_node(*left), arena, context)?;
+            // Materialize only the default-value subtree.
+            let right_value = arena.get_js_node(*right).to_value();
+            walk_expression_refs_only(&right_value, context);
+        }
+        JsNode::ObjectPattern { properties, .. } => {
+            for prop in arena.get_js_children(*properties) {
+                match prop {
+                    JsNode::Property { value, .. } => {
+                        walk_pattern_defaults_typed(arena.get_js_node(*value), arena, context)?;
+                    }
+                    JsNode::RestElement { argument, .. } => {
+                        walk_pattern_defaults_typed(arena.get_js_node(*argument), arena, context)?;
+                    }
+                    JsNode::Raw(v) => walk_pattern_defaults(v, context)?,
+                    _ => {}
+                }
+            }
+        }
+        JsNode::ArrayPattern { elements, .. } => {
+            for e in elements.iter().flatten() {
+                walk_pattern_defaults_typed(e, arena, context)?;
+            }
+        }
+        JsNode::RestElement { argument, .. } => {
+            walk_pattern_defaults_typed(arena.get_js_node(*argument), arena, context)?;
+        }
+        JsNode::Raw(v) => walk_pattern_defaults(v, context)?,
+        _ => {}
+    }
+    Ok(())
+}
+
 fn walk_pattern_defaults(
     pattern: &serde_json::Value,
     context: &mut VisitorContext,
