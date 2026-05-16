@@ -898,44 +898,52 @@ fn validate_script_attributes(
 /// Corresponds to the `instance.ast.body.some(...)` check in Svelte's
 /// 2-analyze/index.js L498-510
 fn instance_has_legacy_patterns(ast: &Root) -> bool {
+    use crate::ast::typed_expr::JsNode;
     let Some(ref instance) = ast.instance else {
         return false;
     };
 
-    // TODO: migrate instance_has_legacy_patterns to JsNode
-    let script_ast = instance.content.as_json();
-    let Some(body) = script_ast.get("body").and_then(|v| v.as_array()) else {
+    let node = instance.content.as_node();
+    let JsNode::Program { body, .. } = node.as_ref() else {
         return false;
     };
 
-    for node in body {
-        match node.get("type").and_then(|v| v.as_str()) {
-            Some("LabeledStatement") => return true,
-            Some("ExportNamedDeclaration") => {
+    let arena = &ast.arena;
+    for stmt in arena.get_js_children(*body) {
+        // Fast typed dispatch
+        match stmt {
+            JsNode::LabeledStatement { .. } => return true,
+            JsNode::ExportNamedDeclaration {
+                declaration,
+                specifiers,
+                ..
+            } => {
                 // Check: export let x = ...
-                if let Some(decl) = node.get("declaration").filter(|d| !d.is_null())
-                    && decl.get("type").and_then(|v| v.as_str()) == Some("VariableDeclaration")
-                    && decl.get("kind").and_then(|v| v.as_str()) == Some("let")
-                {
-                    return true;
+                if let Some(decl_id) = declaration {
+                    let decl = arena.get_js_node(*decl_id);
+                    if matches_let_variable_declaration(decl) {
+                        return true;
+                    }
                 }
                 // Check: export { x } where x is declared with let
-                if let Some(specifiers) = node.get("specifiers").and_then(|v| v.as_array()) {
-                    for spec in specifiers {
-                        if let Some(name) = spec
-                            .get("local")
-                            .filter(|l| {
-                                l.get("type").and_then(|v| v.as_str()) == Some("Identifier")
-                            })
-                            .and_then(|l| l.get("name"))
-                            .and_then(|v| v.as_str())
-                            && body_has_let_declaration(body, name)
-                        {
-                            return true;
-                        }
+                for spec in arena.get_js_children(*specifiers) {
+                    if let Some(name) = export_specifier_local_name(spec, arena)
+                        && body_has_let_declaration_typed(*body, name, arena)
+                    {
+                        return true;
                     }
                 }
             }
+            // Raw fallback: nodes that carry leadingComments arrive as Raw(Value)
+            JsNode::Raw(value) => match value.get("type").and_then(|v| v.as_str()) {
+                Some("LabeledStatement") => return true,
+                Some("ExportNamedDeclaration")
+                    if export_named_raw_has_legacy_let(value, *body, arena) =>
+                {
+                    return true;
+                }
+                _ => {}
+            },
             _ => {}
         }
     }
@@ -943,26 +951,118 @@ fn instance_has_legacy_patterns(ast: &Root) -> bool {
     false
 }
 
-/// Check if the body contains a `let` declaration for the given name.
-fn body_has_let_declaration(body: &[serde_json::Value], name: &str) -> bool {
-    for node in body {
-        if node.get("type").and_then(|v| v.as_str()) != Some("VariableDeclaration") {
-            continue;
+/// True if `node` is a `let` `VariableDeclaration` (typed or Raw).
+fn matches_let_variable_declaration(node: &crate::ast::typed_expr::JsNode) -> bool {
+    use crate::ast::typed_expr::JsNode;
+    match node {
+        JsNode::VariableDeclaration { kind, .. } => kind == "let",
+        JsNode::Raw(value) => {
+            value.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+                && value.get("kind").and_then(|k| k.as_str()) == Some("let")
         }
-        if node.get("kind").and_then(|v| v.as_str()) != Some("let") {
-            continue;
+        _ => false,
+    }
+}
+
+/// Get the local identifier name of an `ExportSpecifier` (typed or Raw).
+fn export_specifier_local_name<'a>(
+    spec: &'a crate::ast::typed_expr::JsNode,
+    arena: &'a crate::ast::arena::ParseArena,
+) -> Option<&'a str> {
+    use crate::ast::typed_expr::JsNode;
+    match spec {
+        JsNode::ExportSpecifier { local, .. } => match arena.get_js_node(*local) {
+            JsNode::Identifier { name, .. } => Some(name.as_str()),
+            _ => None,
+        },
+        JsNode::Raw(value) => value
+            .get("local")
+            .filter(|l| l.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
+            .and_then(|l| l.get("name"))
+            .and_then(|n| n.as_str()),
+        _ => None,
+    }
+}
+
+/// Raw-variant handler for `ExportNamedDeclaration`. Returns true if it is
+/// either `export let ...` or `export { x }` where `x` is declared with `let`
+/// in `body`.
+fn export_named_raw_has_legacy_let(
+    value: &serde_json::Value,
+    body: crate::ast::arena::IdRange,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    if let Some(decl) = value.get("declaration").filter(|d| !d.is_null())
+        && decl.get("type").and_then(|v| v.as_str()) == Some("VariableDeclaration")
+        && decl.get("kind").and_then(|v| v.as_str()) == Some("let")
+    {
+        return true;
+    }
+    let Some(specifiers) = value.get("specifiers").and_then(|s| s.as_array()) else {
+        return false;
+    };
+    for spec in specifiers {
+        if let Some(name) = spec
+            .get("local")
+            .filter(|l| l.get("type").and_then(|v| v.as_str()) == Some("Identifier"))
+            .and_then(|l| l.get("name"))
+            .and_then(|v| v.as_str())
+            && body_has_let_declaration_typed(body, name, arena)
+        {
+            return true;
         }
-        if let Some(decls) = node.get("declarations").and_then(|v| v.as_array()) {
-            for decl in decls {
-                if decl
-                    .get("id")
-                    .and_then(|id| id.get("name"))
-                    .and_then(|v| v.as_str())
-                    == Some(name)
-                {
-                    return true;
+    }
+    false
+}
+
+/// Check if `body` contains a `let` declaration for the given name.
+fn body_has_let_declaration_typed(
+    body: crate::ast::arena::IdRange,
+    name: &str,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    use crate::ast::typed_expr::JsNode;
+    for node in arena.get_js_children(body) {
+        match node {
+            JsNode::VariableDeclaration {
+                kind, declarations, ..
+            } if kind == "let" => {
+                for decl in arena.get_js_children(*declarations) {
+                    if let JsNode::VariableDeclarator { id, .. } = decl
+                        && let JsNode::Identifier { name: id_name, .. } = arena.get_js_node(*id)
+                        && id_name == name
+                    {
+                        return true;
+                    }
+                    // Raw fallback for declarators with leadingComments
+                    if let JsNode::Raw(v) = decl
+                        && v.get("id")
+                            .and_then(|id| id.get("name"))
+                            .and_then(|n| n.as_str())
+                            == Some(name)
+                    {
+                        return true;
+                    }
                 }
             }
+            JsNode::Raw(v) => {
+                if v.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+                    && v.get("kind").and_then(|k| k.as_str()) == Some("let")
+                    && let Some(decls) = v.get("declarations").and_then(|d| d.as_array())
+                {
+                    for decl in decls {
+                        if decl
+                            .get("id")
+                            .and_then(|id| id.get("name"))
+                            .and_then(|n| n.as_str())
+                            == Some(name)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            _ => {}
         }
     }
     false
