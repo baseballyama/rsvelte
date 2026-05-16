@@ -173,9 +173,9 @@ fn visit_common(
             let expressions = node.expressions();
             let arena = context.parse_arena;
             for expr in arena.get_js_children(expressions) {
-                // Walk the expression to track mutations (e.g., assignments in setters)
-                let expr_value = expr.to_value();
-                super::script::walk_js_node(&expr_value, context)?;
+                // Walk the expression to track mutations (e.g., assignments in setters).
+                // Use typed dispatch to skip the `to_value()` materialization.
+                super::script::walk_js_node_typed(expr, context)?;
             }
         }
 
