@@ -383,70 +383,63 @@ pub fn analyze_component(
     // This mirrors the official Svelte compiler's index.js post-walk checks.
     // Must run AFTER analyze_template so that analysis.template.snippets is populated.
     // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js
-    // TODO: migrate post-analysis module export checks to JsNode
     if let Some(ref module) = ast.module {
-        let module_json = module.content.as_json();
-        if let Some(body) = module_json.get("body").and_then(|b| b.as_array()) {
-            for node in body {
-                let node_type = node.get("type").and_then(|t| t.as_str());
-                if node_type != Some("ExportNamedDeclaration") {
-                    continue;
-                }
-                // Only check `export { x, y }` (specifiers), not `export function f() {}` (declaration)
-                let has_declaration = node.get("declaration").is_some_and(|d| !d.is_null());
-                if has_declaration {
-                    continue;
-                }
-                // Skip re-exports: `export { x } from 'module'`
-                if node.get("source").is_some_and(|s| !s.is_null()) {
-                    continue;
-                }
-                let Some(specifiers) = node.get("specifiers").and_then(|s| s.as_array()) else {
-                    continue;
-                };
-                for specifier in specifiers {
-                    let Some(local) = specifier.get("local") else {
-                        continue;
-                    };
-                    if local.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
-                        continue;
-                    }
-                    let Some(name) = local.get("name").and_then(|n| n.as_str()) else {
-                        continue;
-                    };
-                    if name.is_empty() {
-                        continue;
-                    }
-                    // Check if the binding exists in the module scope.
-                    // This matches the official compiler's check:
-                    //   const binding = analysis.module.scope.get(name);
-                    //   if (!binding) { ... }
-                    //
-                    // Note: analysis.root.scope.declarations contains ALL bindings
-                    // from ALL scopes (merged by the scope builder), so we cannot
-                    // simply check if the name exists there. Instead, we check:
-                    // 1. The binding's scope_index is 0 (truly in module scope), OR
-                    // 2. The name is a snippet that was explicitly hoisted to module scope.
-                    let is_in_module_scope =
-                        if let Some(&binding_idx) = analysis.root.scope.declarations.get(name) {
-                            let binding = &analysis.root.bindings[binding_idx];
-                            // scope_index 0 = module scope (truly module-level)
-                            binding.scope_index == 0
-                                // Also allow hoisted snippets (they have non-zero scope_index
-                                // but were explicitly promoted to module scope)
-                                || analysis.template.hoisted_snippets.contains(name)
-                        } else {
-                            false
+        use crate::ast::typed_expr::JsNode;
+        let module_node = module.content.as_node();
+        if let JsNode::Program { body, .. } = module_node.as_ref() {
+            let arena = &ast.arena;
+            for stmt in arena.get_js_children(*body) {
+                // Typed ExportNamedDeclaration with no declaration AND no source
+                if let JsNode::ExportNamedDeclaration {
+                    declaration: None,
+                    specifiers,
+                    source: None,
+                    ..
+                } = stmt
+                {
+                    for specifier in arena.get_js_children(*specifiers) {
+                        let Some(name) = export_specifier_local_name(specifier, arena) else {
+                            continue;
                         };
-
-                    if !is_in_module_scope {
-                        // Not in module scope - check if it's a snippet
-                        if analysis.template.snippets.contains(name) {
+                        if name.is_empty() {
+                            continue;
+                        }
+                        if !is_in_module_scope_or_hoisted(name, &analysis) {
+                            // Not in module scope - check if it's a snippet
+                            if analysis.template.snippets.contains(name) {
+                                return Err(errors::snippet_invalid_export());
+                            }
+                            // If not a snippet and not in any scope at all, export_undefined
+                            // is already raised by the export_named_declaration visitor.
+                        }
+                    }
+                    continue;
+                }
+                // Raw fallback (statements with leadingComments)
+                if let JsNode::Raw(value) = stmt
+                    && value.get("type").and_then(|t| t.as_str()) == Some("ExportNamedDeclaration")
+                    && value.get("declaration").is_none_or(|d| d.is_null())
+                    && value.get("source").is_none_or(|s| s.is_null())
+                    && let Some(specifiers) = value.get("specifiers").and_then(|s| s.as_array())
+                {
+                    for specifier in specifiers {
+                        let Some(local) = specifier.get("local") else {
+                            continue;
+                        };
+                        if local.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+                            continue;
+                        }
+                        let Some(name) = local.get("name").and_then(|n| n.as_str()) else {
+                            continue;
+                        };
+                        if name.is_empty() {
+                            continue;
+                        }
+                        if !is_in_module_scope_or_hoisted(name, &analysis)
+                            && analysis.template.snippets.contains(name)
+                        {
                             return Err(errors::snippet_invalid_export());
                         }
-                        // If not a snippet and not in any scope at all, export_undefined
-                        // is already raised by the export_named_declaration visitor.
-                        // We only need to handle the snippet case here.
                     }
                 }
             }
@@ -961,6 +954,18 @@ fn matches_let_variable_declaration(node: &crate::ast::typed_expr::JsNode) -> bo
                 && value.get("kind").and_then(|k| k.as_str()) == Some("let")
         }
         _ => false,
+    }
+}
+
+/// Check if `name` resolves to a binding in the module scope (or is a
+/// hoisted snippet promoted to module scope). Used by the post-analysis
+/// module export check.
+fn is_in_module_scope_or_hoisted(name: &str, analysis: &ComponentAnalysis) -> bool {
+    if let Some(&binding_idx) = analysis.root.scope.declarations.get(name) {
+        let binding = &analysis.root.bindings[binding_idx];
+        binding.scope_index == 0 || analysis.template.hoisted_snippets.contains(name)
+    } else {
+        false
     }
 }
 
