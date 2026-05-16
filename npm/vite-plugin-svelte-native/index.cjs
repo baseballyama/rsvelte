@@ -48,4 +48,23 @@ try {
 	);
 }
 
-module.exports = binding;
+// Re-export every NAPI function as its own named binding so node's
+// `cjs-module-lexer` can pick them up when this file is imported via
+// ESM (e.g. `import { compile, preprocess, VERSION } from …`). A bare
+// `module.exports = binding` would only expose the default export
+// reliably; explicit `module.exports.X = …` lines are what the lexer
+// scans for.
+//
+// The static list mirrors `src/napi.rs`'s `#[napi(js_name = ...)]`
+// attributes — keep it in sync when adding/removing NAPI exports.
+module.exports.compile = binding.compile;
+module.exports.compileModule = binding.compileModule;
+module.exports.preprocess = binding.preprocess;
+module.exports.svelte2tsx = binding.svelte2tsx;
+module.exports.hmrDiff = binding.hmrDiff;
+module.exports.resolveId = binding.resolveId;
+// Upstream Svelte version this binding emits code for — used by
+// downstream consumers (the `@rsvelte/vite-plugin-svelte` fork, etc.)
+// for `gte(VERSION, '5.36.0')`-style feature detection. Synced
+// manually against `submodules/svelte/packages/svelte/package.json`.
+module.exports.VERSION = '5.51.3';
