@@ -406,6 +406,108 @@ Net effect: the analyze-side easy AST migrations are now exhausted.
 The remaining levers are either substantial single-PR refactors
 (see "Next-PR candidates" #2–#4) or the bumpalo phased migration.
 
+## Phase 3 sub-breakdown — measured 2026-05-16
+
+Instrumented `transform_client_with_visitors` + `transform_component` with
+thread-local timers (`phase3_transform::profile`). Same fixture set
+(3637 .svelte files). Run with `cargo run --release --bin compile_profile`.
+
+```
+Phase 3 (Transform):    223.67ms ( 49.4%)
+  visit_program:          1.28ms (  0.3%)   [scope/prop/store-sub setup]
+  Script-text xform:     61.41ms ( 13.6%)   [transform_instance_script_for_visitors]
+  Template fragment:     53.74ms ( 11.9%)   [fragment() visitor walk]
+  Assembly (post-frag):  12.67ms (  2.8%)   [hoist + store + binding-map + body build]
+  CSS render:             9.61ms (  2.1%)   [render_stylesheet]
+  JS codegen:            19.18ms (  4.2%)   [generate / generate_with_sourcemap]
+  Pre-frag setup:        65.77ms ( 14.5%)   [residual: state init + add_state_transformers + reactive_import_names + ...]
+```
+
+Findings:
+- **Pre-frag setup (65.77ms) is the largest Phase 3 bucket.** This is the
+  residual of `transform_client_with_visitors` not covered by the other
+  timers — `ComponentClientTransformState::new`, `add_state_transformers`,
+  `extract_shadowed_state_names` (regex), `reactive_import_names` filter
+  computation, and similar setup work. NOT `visit_program` (1.28ms) and
+  NOT the script-text transform itself.
+- **visit_program is cheap** (1.28ms / 0.3%). Not a target.
+- **Assembly post-fragment is also cheap** (12.67ms). Means the final
+  body assembly + hoisted-statement merge is not a hotspot.
+- **Script-text xform (61.41ms)** matches the known text-regex transform.
+  AST migration here is a separately-scoped refactor.
+- **Template fragment (53.74ms)** is the JS-emit walk over the parsed
+  template AST. Already typed; perf gains require allocation reduction or
+  hot-visitor inlining, not "AST-ification."
+- **JS codegen (19.18ms) is small** — `generate()` is not a hotspot.
+- **CSS render (9.61ms) is small.**
+
+Implication for next steps:
+1. **Drill "Pre-frag setup" further** — split out
+   `ComponentClientTransformState::new`, `add_state_transformers`,
+   `extract_shadowed_state_names`, `reactive_import_names`. Likely contains
+   one or two hotspots that account for most of the 65ms. Same instrumentation
+   pattern.
+2. **Script-text xform → AST** scoped refactor — known target,
+   independent of #1.
+3. **Fragment walker** allocation profiling — needs samply, not this
+   thread-local instrumentation.
+
+### Pre-frag setup root-cause drill — measured 2026-05-16 (local-only)
+
+Ran a single-session ad-hoc drill (timers added under `DRILL_*` thread-locals,
+not pushed). Result on the same fixture set:
+
+```
+=== Pre-frag drill (local-only) ===
+  transform_client wall:      158.48ms
+  after_client (xform_component): 65.97ms   <-- almost all of Pre-frag setup is here
+
+Inside transform_client_with_visitors:
+  state_init+ctx:               1.28ms
+  add_state_xform 1st:          1.40ms
+  shadowed_state_names:         1.63ms
+  reactive_import_nms:          0.07ms
+  memoizer_conflict:            0.06ms
+
+Inside transform_component, after transform_client returns:
+  strip_arrow_parens:           3.46ms
+  warn_init:                    0.01ms
+  collect_css_unused:           4.28ms
+  sourcemap merge:             44.81ms   <-- ROOT CAUSE
+  js_map block (vlq+gen):       5.85ms
+```
+
+**The 65ms "Pre-frag setup" is not actually in the setup phase.** It's the
+source-map post-processing path in `transform_component`, gated on
+`enable_sourcemap: true` (the `CompileOptions::default()` value). The work
+breaks down as:
+
+- `generate_token_mappings` + `generate_rune_mappings` (full-output byte
+  scans for identifiers and rune patterns) + `mappings.sort_by` +
+  `mappings.dedup_by`: **44.81ms total** (10% of total compile time).
+- VLQ encoding + `generate_sourcemap_json`: **5.85ms**.
+
+Combined source-map cost: **50.66ms (11.4% of total compile time, 22.7% of
+Phase 3)**.
+
+In the `compile_profile` workload, no preprocessor map is provided
+(`options.sourcemap.is_none()`), so the codegen-tracked mappings (from
+`generate_with_sourcemap` inside the JS codegen timer) are sufficient. The
+token+rune mappings are only retained where the codegen mapping does NOT
+already cover the position (via `dedup_by(line, col)`) — most are discarded.
+
+Optimization targets, in order:
+1. **Skip token+rune mapping generation when no preprocessor map is
+   present.** Codegen mappings are already precise in that case. This is
+   the single highest-ROI win identified in this session (~45ms).
+2. **Fast-path `generate_token_mappings` and `generate_rune_mappings`** if
+   correctness requires keeping them — these are linear byte scans of the
+   generated JS, currently allocating one `SimpleToken` per identifier.
+3. **VLQ encoding + JSON generation** (5.85ms) — smaller target, deferred.
+
+The other Pre-frag candidates (state_init+ctx, add_state_xform,
+shadowed_state_names, etc.) sum to ~4.4ms and are NOT worth pursuing.
+
 ## Anti-priorities
 
 Skip these unless profiling proves otherwise:
