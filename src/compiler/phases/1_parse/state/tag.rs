@@ -243,8 +243,15 @@ impl Parser<'_> {
         // Parse the iterable expression (up to " as " or closing "}")
         let expr_start = self.index;
 
-        // Find " as " to get the expression, tracking brace depth (byte-level)
-        let mut found_as = false;
+        // Scan the whole header recording every top-level ` as `. The alias
+        // separator is the LAST one — upstream Svelte parses the iterable
+        // greedily (acorn consumes TypeScript assertions like `as const` /
+        // `as MyType` as TSAsExpression nodes), then unwraps any trailing
+        // TSAsExpression. The byte-level equivalent is "the right-most ` as `
+        // wins", since any earlier ` as ` is part of a cast inside the
+        // iterable. Without this, `{#each items as const as item}` splits at
+        // the first ` as ` and the codegen emits `let const as item = …`.
+        let mut last_as: Option<usize> = None;
         let mut depth: i32 = 0;
         while self.index < self.bytes.len() {
             let b = self.bytes[self.index];
@@ -260,12 +267,12 @@ impl Parser<'_> {
                     }
                     depth -= 1;
                 }
-                b' ' if depth == 0
-                    // Check for " as " at top level
-                    && self.match_str(" as ") =>
-                {
-                    found_as = true;
-                    break;
+                b' ' if depth == 0 && self.match_str(" as ") => {
+                    last_as = Some(self.index);
+                    // Skip past this ` as ` and keep scanning. If there's a
+                    // later top-level ` as `, that one's the alias separator.
+                    self.index += 4;
+                    continue;
                 }
                 _ => {}
             }
@@ -275,6 +282,12 @@ impl Parser<'_> {
             } else {
                 self.advance();
             }
+        }
+
+        // Rewind to the last ` as ` (or stay at the closing `}` if there was none).
+        let found_as = last_as.is_some();
+        if let Some(pos) = last_as {
+            self.index = pos;
         }
 
         let expr_end = self.index;
