@@ -508,6 +508,54 @@ Optimization targets, in order:
 The other Pre-frag candidates (state_init+ctx, add_state_xform,
 shadowed_state_names, etc.) sum to ~4.4ms and are NOT worth pursuing.
 
+## Result after #119 (2026-05-16, post-merge)
+
+Re-measured after landing the no-preprocessor skip
+(`options.sourcemap.is_none()` branch in `transform_component`):
+
+```
+Phase 1 (Parse):         12.36ms (  2.9%)
+Phase 2 (Analyze):      223.73ms ( 53.2%)
+  Resolve lazy:           6.25ms (  1.5%)
+  Ensure script (OXC):   28.76ms (  6.8%)
+  Visitors (rest):      188.72ms ( 44.9%)
+Phase 3 (Transform):    184.34ms ( 43.8%)  <-- was 223.04ms
+  visit_program:          1.25ms (  0.3%)
+  Script-text xform:     62.82ms ( 14.9%)
+  Template fragment:     55.60ms ( 13.2%)
+  Assembly (post-frag):  13.00ms (  3.1%)
+  CSS render:             9.95ms (  2.4%)
+  JS codegen:            19.45ms (  4.6%)
+  Pre-frag setup:        22.28ms (  5.3%)  <-- was 66.20ms
+TOTAL:                  420.44ms          <-- was 443.57ms (-5.2%)
+```
+
+Net wins from PR #119:
+- Total compile time: -23.13ms (-5.2%)
+- Phase 3: -38.70ms (-17.4%)
+- Pre-frag setup: -43.92ms (-66.3%)
+- Throughput: 1.9 → 2.1 MB/s in the smaller sample (run-to-run noise ±0.1 MB/s)
+
+Compatibility report: 3341/3341 in-scope tests pass.
+
+### Updated next-PR ranking
+
+With sourcemap-merge eliminated, the new top-3 buckets are:
+1. **Phase 2 Visitors (rest)** — 188.72ms (44.9%). Largest single bucket
+   overall. Most documented easy wins are exhausted by #112-#116; further
+   work needs a fresh sub-breakdown or samply-driven hot-visitor target.
+2. **Phase 3 Script-text xform** — 62.82ms (14.9%). The text-regex
+   transform of the instance script. AST migration is the documented
+   path (see `docs/text-to-ast-remaining-handover.md` and
+   `docs/script-transform-rune-runes-handover.md`). Multi-day scope.
+3. **Phase 3 Template fragment** — 55.60ms (13.2%). Already typed AST;
+   optimization is allocation reduction or hot-visitor inlining, needs
+   samply-level drill-down, not text-to-AST migration.
+
+The Bumpalo Phase 1 (Loc migration) plan stays viable but its expected
+win (~5%) is now smaller in absolute terms than what's still on the
+table in Visitors-rest and Script-text xform.
+
 ## Anti-priorities
 
 Skip these unless profiling proves otherwise:
