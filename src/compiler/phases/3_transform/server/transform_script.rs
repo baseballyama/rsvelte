@@ -1267,8 +1267,17 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
                 if trimmed_inner.is_empty() {
                     result.push_str("void 0");
                 } else if is_derived_by {
+                    // `$derived.by(fn)` becomes `(fn)()`. Strip a trailing
+                    // comma from `fn` first — Prettier-formatted call
+                    // sites often produce `$derived.by(fn,)` (a legal
+                    // trailing comma in function-call arguments), which
+                    // when rewritten naively would yield `(fn,)()` —
+                    // an invalid parenthesized expression with a
+                    // trailing comma. Preserve leading whitespace so
+                    // multi-line structure (newlines) survives.
+                    let cleaned = inner.trim_end().trim_end_matches(',').trim_end();
                     result.push('(');
-                    result.push_str(&inner);
+                    result.push_str(cleaned);
                     result.push_str(")()");
                 } else {
                     // Strip trailing comma from the extracted expression.
