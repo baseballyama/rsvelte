@@ -207,3 +207,15 @@ export function preprocess(
 	groups: PreprocessorGroup | PreprocessorGroup[],
 	options?: { filename?: string },
 ): Promise<Processed>;
+
+// ---------------------------------------------------------------------------
+// Version
+// ---------------------------------------------------------------------------
+
+/**
+ * Upstream Svelte version this binding emits code for. Consumers (the
+ * `@rsvelte/vite-plugin-svelte` fork, etc.) use this for feature
+ * detection (`gte(VERSION, '5.36.0')`), so it follows the *upstream*
+ * Svelte semver — not the rsvelte version.
+ */
+export const VERSION: string;
