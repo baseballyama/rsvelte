@@ -59,6 +59,14 @@ try {
 // attributes — keep it in sync when adding/removing NAPI exports.
 module.exports.compile = binding.compile;
 module.exports.compileModule = binding.compileModule;
+// Raw-transfer step 1: code/map/css as Buffer (no V8 string copy on
+// the boundary). The shape is `{ js: { code: Buffer, map: Buffer? },
+// css: {…}|null, warnings: [], runes: boolean }` — callers that need
+// strings call `buf.toString('utf8')`. Step 2 (`compileEnvelope`)
+// supersedes this for most callers; this export stays for use cases
+// that want structured Buffer access without an envelope decode.
+module.exports.compileBuffers = binding.compileBuffers;
+module.exports.compileModuleBuffers = binding.compileModuleBuffers;
 module.exports.preprocess = binding.preprocess;
 module.exports.svelte2tsx = binding.svelte2tsx;
 module.exports.hmrDiff = binding.hmrDiff;

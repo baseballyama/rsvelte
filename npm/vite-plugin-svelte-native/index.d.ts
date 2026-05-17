@@ -125,6 +125,28 @@ export function compileModule(
 	options?: ModuleCompileOptions,
 ): CompileResult;
 
+/**
+ * Raw-transfer variant of {@link compile}: returns the same logical
+ * shape but with `js.code` / `js.map` / `css.code` / `css.map` as raw
+ * `Buffer`s. Avoids the V8 string copy and `serde_json` round-trip
+ * the legacy {@link compile} pays on every call; callers lift to
+ * `string` via `buf.toString('utf8')` only when they actually need it.
+ */
+export interface CompileBuffersResult {
+	js: { code: Buffer; map: Buffer | null };
+	css: { code: Buffer; map: Buffer | null; hasGlobal: boolean } | null;
+	warnings: Warning[];
+	runes: boolean;
+}
+export function compileBuffers(
+	source: string,
+	options?: CompileOptions,
+): CompileBuffersResult;
+export function compileModuleBuffers(
+	source: string,
+	options?: ModuleCompileOptions,
+): CompileBuffersResult;
+
 // ---------------------------------------------------------------------------
 // svelte2tsx
 // ---------------------------------------------------------------------------

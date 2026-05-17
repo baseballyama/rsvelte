@@ -19,6 +19,7 @@
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 use napi::Env;
+use napi::bindgen_prelude::Buffer;
 use napi_derive::napi;
 use serde_json::Value;
 
@@ -820,5 +821,152 @@ mod preprocess_bridge {
                 break;
             }
         }
+    }
+}
+
+// =============================================================================
+// Raw transfer — Step 1: Buffer-based code/map (no JSON re-encoding on boundary)
+// =============================================================================
+//
+// `compileBuffers` mirrors `compile()` but returns the heavy payloads
+// (generated code, sourcemap JSON, CSS) as raw `Buffer`s. Each `Buffer`
+// takes ownership of the underlying `Vec<u8>` directly — no V8 string
+// conversion, no `serde_json::Value` round-trip, no double-parse of the
+// sourcemap. The JS shim wraps the result with lazy `string`/`object`
+// getters so callers see the same `{ js: { code, map }, … }` shape as
+// the legacy `compile()` export.
+
+/// JS-side `{ code, map }` shape with `Buffer` payloads. UTF-8 only —
+/// the JS side lifts to `string` on demand via `TextDecoder` / `toString`.
+#[napi(object)]
+pub struct CompileBuffersJs {
+    pub code: Buffer,
+    pub map: Option<Buffer>,
+}
+
+#[napi(object)]
+pub struct CompileBuffersCss {
+    pub code: Buffer,
+    pub map: Option<Buffer>,
+    pub has_global: bool,
+}
+
+#[napi(object)]
+pub struct NapiPosition {
+    pub line: u32,
+    pub column: u32,
+    pub character: u32,
+}
+
+#[napi(object)]
+pub struct NapiWarning {
+    pub code: String,
+    pub message: String,
+    pub filename: Option<String>,
+    pub start: Option<NapiPosition>,
+    pub end: Option<NapiPosition>,
+    pub frame: Option<String>,
+}
+
+#[napi(object)]
+pub struct CompileBuffersResult {
+    pub js: CompileBuffersJs,
+    pub css: Option<CompileBuffersCss>,
+    pub warnings: Vec<NapiWarning>,
+    pub runes: bool,
+}
+
+/// `compile()` variant that avoids serde_json on the Rust↔JS boundary.
+///
+/// The generated code and sourcemap JSON are handed to V8 as
+/// `Buffer`s (zero-copy from the underlying `Vec<u8>`), so napi-rs
+/// performs a single ArrayBuffer wrap per payload instead of a UTF-16
+/// string copy. Warnings stay as a structured `#[napi(object)]` since
+/// they're small and the JS side reads them eagerly.
+#[napi(js_name = "compileBuffers")]
+pub fn napi_compile_buffers(
+    source: String,
+    options: Value,
+) -> napi::Result<CompileBuffersResult> {
+    let opts = parse_options(&options)?;
+    match rust_compile(&source, opts) {
+        Ok(result) => Ok(CompileBuffersResult {
+            js: CompileBuffersJs {
+                code: Buffer::from(result.js.code.into_bytes()),
+                map: result.js.map.map(|m| Buffer::from(m.into_bytes())),
+            },
+            css: result.css.map(|c| CompileBuffersCss {
+                code: Buffer::from(c.code.into_bytes()),
+                map: c.map.map(|m| Buffer::from(m.into_bytes())),
+                has_global: c.has_global,
+            }),
+            warnings: result.warnings.into_iter().map(warning_to_napi).collect(),
+            runes: result.metadata.runes,
+        }),
+        Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
+    }
+}
+
+/// `compileModule()` variant matching `compileBuffers`'s output shape.
+#[napi(js_name = "compileModuleBuffers")]
+pub fn napi_compile_module_buffers(
+    source: String,
+    options: Value,
+) -> napi::Result<CompileBuffersResult> {
+    let mut opts = ModuleCompileOptions::default();
+    if let Some(obj) = options.as_object() {
+        if let Some(v) = obj.get("dev").and_then(|v| v.as_bool()) {
+            opts.dev = v;
+        }
+        if let Some(v) = obj.get("generate").and_then(|v| v.as_str()) {
+            opts.generate = match v {
+                "server" | "ssr" => GenerateMode::Server,
+                "false" => GenerateMode::None,
+                _ => GenerateMode::Client,
+            };
+        }
+        if let Some(v) = obj.get("filename").and_then(|v| v.as_str()) {
+            opts.filename = Some(v.to_string());
+        }
+        if let Some(v) = obj.get("rootDir").and_then(|v| v.as_str()) {
+            opts.root_dir = Some(v.to_string());
+        }
+        if let Some(exp) = obj.get("experimental").and_then(|v| v.as_object())
+            && let Some(v) = exp.get("async").and_then(|v| v.as_bool())
+        {
+            opts.experimental = ExperimentalOptions { r#async: v };
+        }
+    }
+
+    match rust_compile_module(&source, opts) {
+        Ok(result) => Ok(CompileBuffersResult {
+            js: CompileBuffersJs {
+                code: Buffer::from(result.js.code.into_bytes()),
+                map: result.js.map.map(|m| Buffer::from(m.into_bytes())),
+            },
+            css: None,
+            warnings: Vec::new(),
+            runes: true,
+        }),
+        Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
+    }
+}
+
+fn warning_to_napi(w: crate::compiler::Warning) -> NapiWarning {
+    NapiWarning {
+        code: w.code,
+        message: w.message,
+        filename: w.filename,
+        start: w.start.map(position_to_napi),
+        end: w.end.map(position_to_napi),
+        frame: w.frame,
+    }
+}
+
+fn position_to_napi(p: crate::compiler::Position) -> NapiPosition {
+    NapiPosition {
+        line: p.line as u32,
+        column: p.column as u32,
+        character: p.character as u32,
     }
 }
