@@ -23,6 +23,7 @@ mod state_transforms;
 mod store_transforms;
 mod strict_equals_ast;
 mod strip_rune_generics_ast;
+mod tag_declarator_ast;
 pub mod transform_client;
 pub mod transform_template;
 pub mod types;
@@ -2815,8 +2816,24 @@ pub(crate) fn transform_module_script_runes(
     }
 
     // In dev mode, wrap $.state(), $.derived(), and $.proxy() declarations with $.tag()/$.tag_proxy()
-    // This tags signals with their variable names for better debugging with $inspect.trace()
+    // This tags signals with their variable names for better debugging with $inspect.trace().
+    //
+    // The simple `let/const/var X = $.state(...)` declarator shape goes through
+    // the AST helper (`tag_declarator_ast`); class fields, `this.field`
+    // assignments, and a couple of other non-declarator shapes are still
+    // handled by the text version (which is idempotent w.r.t. already-tagged
+    // calls and so safe to chain afterwards). Output byte-shape is identical
+    // — both emit `$.tag(call, 'name')` / `$.tag_proxy(call, 'name')` with
+    // single-quoted names and a `, ` separator — so the text version's
+    // already-tagged guard (`before.ends_with("$.tag(") || ".. $.tag_proxy("`)
+    // skips the AST's emissions cleanly.
     if dev {
+        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+        if let Some(rewritten) =
+            tag_declarator_ast::wrap_state_derived_with_tag_declarators_ast(&result, is_ts)
+        {
+            result = rewritten;
+        }
         result = wrap_state_derived_with_tag(&result);
     }
 
