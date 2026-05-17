@@ -269,9 +269,10 @@ impl<'a> ComponentContext<'a> {
 
         // Process OnDirectives
         for on_directive in &on_directives {
-            // Save current node and temporarily set to element_id
-            let saved_node = self.state.node.clone();
-            self.state.node = element_id.clone();
+            // Save current node and temporarily set to element_id.
+            // `mem::replace` returns the old value as we install the new one,
+            // so we don't pay an extra clone of the saved `self.state.node`.
+            let saved_node = std::mem::replace(&mut self.state.node, element_id.clone());
 
             if let TransformResult::Expression(event_call) = self.visit_on_directive(on_directive) {
                 if has_use {
@@ -296,12 +297,11 @@ impl<'a> ComponentContext<'a> {
         // Process TransitionDirectives
         for trans_directive in &transition_directives {
             // Save current state
-            let saved_node = self.state.node.clone();
             let saved_init_len = self.state.init.len();
             let saved_after_update_len = self.state.after_update.len();
 
-            // Temporarily set node to element_id
-            self.state.node = element_id.clone();
+            // Temporarily set node to element_id (see OnDirectives loop for rationale)
+            let saved_node = std::mem::replace(&mut self.state.node, element_id.clone());
 
             transition_directive(trans_directive, self);
 
@@ -315,11 +315,8 @@ impl<'a> ComponentContext<'a> {
 
         // Process UseDirectives (actions)
         for use_dir in &use_directives {
-            // Save current state
-            let saved_node = self.state.node.clone();
-
-            // Temporarily set node to element_id
-            self.state.node = element_id.clone();
+            // Temporarily set node to element_id (see OnDirectives loop for rationale)
+            let saved_node = std::mem::replace(&mut self.state.node, element_id.clone());
 
             let stmt = use_directive(use_dir, self);
             inner_init.push(stmt);
@@ -330,11 +327,10 @@ impl<'a> ComponentContext<'a> {
 
         // Process AnimateDirectives
         for anim_directive in &animate_directives {
-            let saved_node = self.state.node.clone();
             let saved_init_len = self.state.init.len();
             let saved_after_update_len = self.state.after_update.len();
 
-            self.state.node = element_id.clone();
+            let saved_node = std::mem::replace(&mut self.state.node, element_id.clone());
 
             animate_directive(anim_directive, self);
 
@@ -350,11 +346,10 @@ impl<'a> ComponentContext<'a> {
         for bind_dir in &bind_directives {
             use crate::compiler::phases::phase3_transform::client::visitors::bind_directive::bind_directive;
 
-            let saved_node = self.state.node.clone();
             let saved_init_len = self.state.init.len();
             let saved_after_update_len = self.state.after_update.len();
 
-            self.state.node = element_id.clone();
+            let saved_node = std::mem::replace(&mut self.state.node, element_id.clone());
 
             // For svelte:element, the parent is the element itself
             bind_directive(
@@ -373,10 +368,9 @@ impl<'a> ComponentContext<'a> {
         // Process AttachTags
         // In the official compiler, these go through the else branch: context.visit(attribute, inner_context.state)
         for attach in &attach_tags {
-            let saved_node = self.state.node.clone();
             let saved_init_len = self.state.init.len();
 
-            self.state.node = element_id.clone();
+            let saved_node = std::mem::replace(&mut self.state.node, element_id.clone());
 
             attach_tag(attach, self);
 
@@ -391,12 +385,12 @@ impl<'a> ComponentContext<'a> {
         // use build_set_class instead of build_attribute_effect (matches official compiler).
         if !attributes.is_empty() || !class_directives.is_empty() || !style_directives.is_empty() {
             // Save current state
-            let saved_node = self.state.node.clone();
             let saved_init_len = self.state.init.len();
             let saved_update_len = self.state.update.len();
 
-            // Temporarily set node to element_id
-            self.state.node = element_id.clone();
+            // Temporarily set node to element_id (mem::replace avoids the extra
+            // clone the save-then-overwrite pattern would otherwise pay).
+            let saved_node = std::mem::replace(&mut self.state.node, element_id.clone());
 
             // Determine which path to use for attributes, matching the official
             // SvelteElement.js (lines 76-94):
