@@ -2,6 +2,8 @@
 // Mirrors the loader pattern napi-rs generates: resolve a platform-specific
 // dependency that ships a single `rsvelte.node` artifact.
 
+const { decodeEnvelope } = require('./envelope.js');
+
 const { platform, arch } = process;
 
 function resolveTriple() {
@@ -48,6 +50,24 @@ try {
 	);
 }
 
+// `compile` / `compileModule` are wrapped to route through the
+// raw-transfer envelope (`compileEnvelope`): the Rust side hands us
+// one `Buffer`, the JS side lazy-decodes only the fields the caller
+// reads. This avoids the V8 string copy + `serde_json` round-trip
+// that the legacy JSON path pays for every call.
+//
+// Callers that need the raw envelope (e.g. to ship it across a worker
+// boundary without re-encoding) can still grab `binding.compileEnvelope`
+// directly. The legacy JSON path is preserved as `compileLegacy` for
+// parity testing and as an escape hatch.
+function compile(source, options) {
+	return decodeEnvelope(binding.compileEnvelope(source, options));
+}
+
+function compileModule(source, options) {
+	return decodeEnvelope(binding.compileModuleEnvelope(source, options));
+}
+
 // Re-export every NAPI function as its own named binding so node's
 // `cjs-module-lexer` can pick them up when this file is imported via
 // ESM (e.g. `import { compile, preprocess, VERSION } from …`). A bare
@@ -57,8 +77,23 @@ try {
 //
 // The static list mirrors `src/napi.rs`'s `#[napi(js_name = ...)]`
 // attributes — keep it in sync when adding/removing NAPI exports.
-module.exports.compile = binding.compile;
-module.exports.compileModule = binding.compileModule;
+module.exports.compile = compile;
+module.exports.compileModule = compileModule;
+module.exports.compileLegacy = binding.compile;
+module.exports.compileModuleLegacy = binding.compileModule;
+module.exports.compileEnvelope = binding.compileEnvelope;
+module.exports.compileModuleEnvelope = binding.compileModuleEnvelope;
+// Zero-copy variants: same envelope format, but the returned Buffer
+// is a view into bumpalo arena memory (no Vec copy). Use these when
+// you know the buffer will be consumed once and discarded — the
+// arena is freed when the Buffer is GC'd. For long-lived buffers
+// passed across worker boundaries, prefer `compileEnvelope` which
+// hands you an owned Vec.
+module.exports.compileEnvelopeZeroCopy = binding.compileEnvelopeZeroCopy;
+module.exports.compileModuleEnvelopeZeroCopy = binding.compileModuleEnvelopeZeroCopy;
+module.exports.compileBuffers = binding.compileBuffers;
+module.exports.compileModuleBuffers = binding.compileModuleBuffers;
+module.exports.decodeEnvelope = decodeEnvelope;
 module.exports.preprocess = binding.preprocess;
 module.exports.svelte2tsx = binding.svelte2tsx;
 module.exports.hmrDiff = binding.hmrDiff;

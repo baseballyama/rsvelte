@@ -119,8 +119,87 @@ export interface CompileResult {
 	ast: unknown;
 }
 
+/**
+ * Compile a Svelte component. Internally goes through the raw-transfer
+ * envelope (`compileEnvelope` + `decodeEnvelope`) so that heavy strings
+ * (generated code, sourcemap JSON) are read out of the underlying
+ * `Buffer` only when the caller touches `.code` / `.map`. The shape
+ * matches `svelte/compiler#compile`.
+ */
 export function compile(source: string, options?: CompileOptions): CompileResult;
 export function compileModule(
+	source: string,
+	options?: ModuleCompileOptions,
+): CompileResult;
+
+/**
+ * Lower-level raw-transfer entry point. Returns a single `Buffer`
+ * containing the entire compile result in the rsvelte envelope format
+ * (see `src/napi_raw.rs`). Pair with {@link decodeEnvelope} to obtain
+ * the legacy {@link CompileResult} shape; or pass the buffer through
+ * worker `postMessage` (transferable) to avoid a copy.
+ */
+export function compileEnvelope(source: string, options?: CompileOptions): Buffer;
+export function compileModuleEnvelope(
+	source: string,
+	options?: ModuleCompileOptions,
+): Buffer;
+
+/**
+ * Zero-copy variant. Returns a `Buffer` view over `bumpalo` arena
+ * memory rather than an owned `Vec<u8>` — no copy whatsoever at the
+ * Rust↔JS boundary. The arena is freed when V8 garbage-collects the
+ * Buffer, so the data stays valid for as long as JS holds a reference.
+ *
+ * Trade-offs vs {@link compileEnvelope}:
+ *
+ * - **Faster:** skips Rust's `Vec` allocation; pre-sized arena slice.
+ * - **Limited transferability:** if you `postMessage` the buffer with
+ *   `transfer:` between workers, V8 may need to detach the underlying
+ *   storage. The arena finalizer only runs when V8 actually GCs the
+ *   Buffer wrapper, so detach semantics are safe but may surprise
+ *   callers used to `Buffer` semantics.
+ */
+export function compileEnvelopeZeroCopy(
+	source: string,
+	options?: CompileOptions,
+): Buffer;
+export function compileModuleEnvelopeZeroCopy(
+	source: string,
+	options?: ModuleCompileOptions,
+): Buffer;
+
+/** Decode a buffer produced by {@link compileEnvelope}. */
+export function decodeEnvelope(buf: Buffer | Uint8Array): CompileResult;
+
+/**
+ * Step-1 variant of {@link compile}: returns the same shape but with
+ * `js.code` / `js.map` / `css.code` / `css.map` as raw `Buffer`s. The
+ * envelope path ({@link compile}) supersedes this for most callers; it
+ * stays exported as an escape hatch for callers that want structured
+ * access without the envelope decode.
+ */
+export interface CompileBuffersResult {
+	js: { code: Buffer; map: Buffer | null };
+	css: { code: Buffer; map: Buffer | null; hasGlobal: boolean } | null;
+	warnings: Warning[];
+	runes: boolean;
+}
+export function compileBuffers(
+	source: string,
+	options?: CompileOptions,
+): CompileBuffersResult;
+export function compileModuleBuffers(
+	source: string,
+	options?: ModuleCompileOptions,
+): CompileBuffersResult;
+
+/**
+ * The legacy JSON-on-the-boundary path. Kept exported for parity tests
+ * and as an escape hatch — production callers should use {@link compile}.
+ */
+export function compileLegacy(source: string, options?: CompileOptions): CompileResult;
+export function compileModuleLegacy(
 	source: string,
 	options?: ModuleCompileOptions,
 ): CompileResult;
