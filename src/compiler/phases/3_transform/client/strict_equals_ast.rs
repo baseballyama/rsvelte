@@ -1,0 +1,256 @@
+//! AST-based `===` / `!==` → `$.strict_equals(...)` rewrite for module
+//! scripts (`.svelte.js` / `.svelte.ts`) in dev mode.
+//!
+//! Mirrors the rewrite performed inside the component instance script
+//! visitor (`ast_state_transform::try_rewrite_strict_equals_binary`).
+//! That visitor needs heavy infrastructure (drain inner replacements,
+//! interact with state-var rewrites) which module scripts don't —
+//! they have no `$state`, no per-binding tracking. So we get a much
+//! smaller standalone walker here that just does the strict-equals
+//! rewrite.
+//!
+//! Replaces the legacy text-based `rune_transforms::transform_strict_equals`
+//! whose heuristics for "skip if inside a string" (counting quotes)
+//! were fragile under escaped quotes, regex literals, line comments,
+//! and template-literal `${...}` interpolation. The OXC parser knows
+//! about all of those — incorrect rewrites just can't happen.
+
+use std::cell::RefCell;
+
+use oxc_allocator::Allocator;
+use oxc_ast::ast::*;
+use oxc_ast_visit::Visit;
+use oxc_ast_visit::walk;
+use oxc_parser::Parser;
+use oxc_span::{GetSpan, SourceType};
+use oxc_syntax::operator::BinaryOperator;
+
+thread_local! {
+    /// Reuse one OXC allocator per thread across calls; matches the
+    /// pattern used by `ast_state_transform`. Reset between calls
+    /// (the allocator's drop runs in `transform_strict_equals_module_ast`).
+    static MODULE_STRICT_EQ_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
+}
+
+/// AST-based rewrite of `a === b` → `$.strict_equals(a, b)` and
+/// `a !== b` → `!$.strict_equals(a, b)`. Returns `None` if no rewrite
+/// would happen (no `===` / `!==` in the source, or parse failure) so
+/// the caller can keep its `String` allocation.
+///
+/// Designed for module scripts. For component instance scripts the
+/// rewrite already happens inside `ast_state_transform`.
+pub fn transform_strict_equals_module_ast(source: &str, is_ts: bool) -> Option<String> {
+    // Fast probe: no operators → no rewrite.
+    if !contains_strict_op(source) {
+        return None;
+    }
+
+    // Nested `(a === b) === c` needs the outer rewrite to use the
+    // *already-rewritten* inner operand text. The simplest correct
+    // strategy is fixed-point iteration: each pass only rewrites
+    // "leaf" strict-equals binaries (those whose operands no longer
+    // contain `===` / `!==`), then re-parses the result and repeats.
+    // Each iteration strictly reduces the operator count, so this
+    // terminates in O(max nesting depth) passes — typically 1.
+    let mut current: Option<String> = None;
+    loop {
+        let src = current.as_deref().unwrap_or(source);
+        if !contains_strict_op(src) {
+            break;
+        }
+        match single_pass(src, is_ts) {
+            None => break,
+            Some(rewritten) => current = Some(rewritten),
+        }
+    }
+    current
+}
+
+fn contains_strict_op(s: &str) -> bool {
+    memchr::memmem::find(s.as_bytes(), b"===").is_some()
+        || memchr::memmem::find(s.as_bytes(), b"!==").is_some()
+}
+
+/// One parse + collect + apply cycle. Only rewrites strict-equals
+/// binaries whose operands don't *themselves* contain `===` / `!==`;
+/// outer rewrites are deferred to the next iteration so they see the
+/// rewritten inner text. Returns `None` when nothing changed.
+fn single_pass(source: &str, is_ts: bool) -> Option<String> {
+    MODULE_STRICT_EQ_ALLOC.with(|cell| {
+        let allocator = std::mem::take(&mut *cell.borrow_mut());
+        let source_type = if is_ts {
+            SourceType::ts().with_module(true)
+        } else {
+            SourceType::mjs()
+        };
+        let parser_ret = Parser::new(&allocator, source, source_type).parse();
+        if !parser_ret.errors.is_empty() {
+            // Parse error — keep the source untouched. Module scripts
+            // that don't parse here would already fail elsewhere; the
+            // strict-equals rewrite isn't responsible for surfacing
+            // that error.
+            *cell.borrow_mut() = allocator;
+            return None;
+        }
+
+        let mut collector = StrictEqualsCollector {
+            source,
+            replacements: Vec::new(),
+        };
+        collector.visit_program(&parser_ret.program);
+        let mut replacements = collector.replacements;
+
+        if replacements.is_empty() {
+            *cell.borrow_mut() = allocator;
+            return None;
+        }
+
+        // Replacements collected here never overlap (we only emit
+        // leaf-level rewrites), so sorting by start desc + splicing
+        // is correct.
+        replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
+        let mut out = source.to_string();
+        for (start, end, rewrite) in &replacements {
+            out.replace_range(*start as usize..*end as usize, rewrite);
+        }
+
+        *cell.borrow_mut() = allocator;
+        Some(out)
+    })
+}
+
+/// Per-call AST visitor: collects `(start, end, replacement_string)`
+/// triples for every BinaryExpression with operator `===` or `!==`
+/// *whose operands are leaf* (don't themselves contain another
+/// `===` / `!==`). Nested cases are handled by the fixed-point
+/// iteration in the caller.
+struct StrictEqualsCollector<'src> {
+    source: &'src str,
+    replacements: Vec<(u32, u32, String)>,
+}
+
+impl<'a, 'src> Visit<'a> for StrictEqualsCollector<'src> {
+    fn visit_binary_expression(&mut self, expr: &BinaryExpression<'a>) {
+        // Walk children first so other binary expressions deeper in
+        // the tree get a chance to record themselves.
+        walk::walk_binary_expression(self, expr);
+
+        let is_neq = match expr.operator {
+            BinaryOperator::StrictEquality => false,
+            BinaryOperator::StrictInequality => true,
+            _ => return,
+        };
+
+        let left_span = expr.left.span();
+        let right_span = expr.right.span();
+        let left_text = &self.source[left_span.start as usize..left_span.end as usize];
+        let right_text = &self.source[right_span.start as usize..right_span.end as usize];
+
+        // Defer: if either operand still has a strict-equals
+        // operator, leave this node for the next fixed-point pass to
+        // pick up after the inner rewrites have landed.
+        if contains_strict_op(left_text) || contains_strict_op(right_text) {
+            return;
+        }
+
+        let rewrite = if is_neq {
+            format!(
+                "!$.strict_equals({}, {})",
+                left_text.trim(),
+                right_text.trim()
+            )
+        } else {
+            format!(
+                "$.strict_equals({}, {})",
+                left_text.trim(),
+                right_text.trim()
+            )
+        };
+
+        self.replacements
+            .push((expr.span.start, expr.span.end, rewrite));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rewrites_strict_equality() {
+        let out = transform_strict_equals_module_ast("a === b", false).unwrap();
+        assert_eq!(out, "$.strict_equals(a, b)");
+    }
+
+    #[test]
+    fn rewrites_strict_inequality() {
+        let out = transform_strict_equals_module_ast("a !== b", false).unwrap();
+        assert_eq!(out, "!$.strict_equals(a, b)");
+    }
+
+    #[test]
+    fn leaves_loose_equality_alone() {
+        // == and != are handled elsewhere (AST expression converter)
+        assert!(transform_strict_equals_module_ast("a == b", false).is_none());
+        assert!(transform_strict_equals_module_ast("a != b", false).is_none());
+    }
+
+    #[test]
+    fn does_not_rewrite_inside_string_literal() {
+        // The text-based version had to count quotes; the AST never
+        // descends into string literal "contents" so this is safe.
+        let src = r#"let s = "a === b";"#;
+        assert!(transform_strict_equals_module_ast(src, false).is_none());
+    }
+
+    #[test]
+    fn does_not_rewrite_inside_template_literal_static() {
+        let src = "let s = `a === b`;";
+        assert!(transform_strict_equals_module_ast(src, false).is_none());
+    }
+
+    #[test]
+    fn rewrites_inside_template_literal_expression() {
+        let src = "let s = `result: ${a === b}`;";
+        let out = transform_strict_equals_module_ast(src, false).unwrap();
+        assert_eq!(out, "let s = `result: ${$.strict_equals(a, b)}`;");
+    }
+
+    #[test]
+    fn nested_strict_equals_both_rewritten() {
+        let src = "(a === b) === (c === d)";
+        let out = transform_strict_equals_module_ast(src, false).unwrap();
+        // Outer wraps the two inner rewrites
+        assert_eq!(
+            out,
+            "$.strict_equals(($.strict_equals(a, b)), ($.strict_equals(c, d)))"
+        );
+    }
+
+    #[test]
+    fn no_op_when_no_operators() {
+        assert!(transform_strict_equals_module_ast("let x = 1;", false).is_none());
+    }
+
+    #[test]
+    fn preserves_complex_operands() {
+        let src = "obj.foo() === arr[0]";
+        let out = transform_strict_equals_module_ast(src, false).unwrap();
+        assert_eq!(out, "$.strict_equals(obj.foo(), arr[0])");
+    }
+
+    #[test]
+    fn ts_source_type_works() {
+        let src = "let x: number = 1; x === 2";
+        let out = transform_strict_equals_module_ast(src, true).unwrap();
+        assert!(out.contains("$.strict_equals(x, 2)"));
+    }
+
+    #[test]
+    fn parse_error_returns_none() {
+        // `Allocator::reset` path: malformed source returns None
+        // without mutating the input.
+        let src = "let x = ;"; // syntax error
+        assert!(transform_strict_equals_module_ast(src, false).is_none());
+    }
+}
