@@ -19,7 +19,7 @@
 	let input = $state(DEFAULT_EXAMPLE);
 
 	let mode: CompileMode = $state('client');
-	let activeTab: OutputTab = $state('js');
+	let activeTab: OutputTab = $state('result');
 	let wasmReady = $state(false);
 	let version = $state('');
 	let error = $state('');
@@ -116,11 +116,11 @@
 		}
 	});
 
-	const outputLanguage = $derived(
+	const monacoLanguage = $derived(
 		activeTab === 'js' ? 'javascript' : activeTab === 'css' ? 'css' : 'json'
 	);
 
-	const outputValue = $derived(
+	const monacoValue = $derived(
 		activeTab === 'js' ? outputJs : activeTab === 'css' ? outputCss : outputAstString
 	);
 
@@ -134,6 +134,13 @@
 		if (b < 1024) return `${b} B`;
 		return `${(b / 1024).toFixed(1)} kB`;
 	};
+
+	const tabs: { id: OutputTab; label: string; sub: string }[] = [
+		{ id: 'result', label: 'Result', sub: 'iframe preview' },
+		{ id: 'js', label: 'JS output', sub: 'compiled .js' },
+		{ id: 'css', label: 'CSS output', sub: 'scoped styles' },
+		{ id: 'ast', label: 'AST', sub: 'svelte AST · JSON' }
+	];
 </script>
 
 <svelte:head>
@@ -177,11 +184,12 @@
 	</header>
 
 	<main class="workspace">
+		<!-- LEFT — source editor, fills its half -->
 		<section class="panel panel-input">
 			<header class="panel-head">
 				<span class="panel-num">01</span>
 				<h2 class="panel-title">Source <em>.svelte</em></h2>
-				<span class="panel-meta">live · edits debounced 300ms</span>
+				<span class="panel-meta">debounced 300 ms</span>
 			</header>
 			<div class="panel-body editor-host">
 				{#if wasmReady}
@@ -197,38 +205,42 @@
 			</div>
 		</section>
 
+		<!-- RIGHT — tabbed output (Result / JS / CSS / AST) -->
 		<section class="panel panel-output">
-			<header class="panel-head">
-				<span class="panel-num">02</span>
-				<h2 class="panel-title">Output</h2>
-				<div class="tabs" role="tablist">
+			<header class="panel-head tab-head" role="tablist" aria-label="Output tab">
+				{#each tabs as t (t.id)}
 					<button
 						role="tab"
-						class:active={activeTab === 'js'}
-						aria-selected={activeTab === 'js'}
-						onclick={() => (activeTab = 'js')}>JS</button
+						class="tab"
+						class:active={activeTab === t.id}
+						aria-selected={activeTab === t.id}
+						onclick={() => (activeTab = t.id)}
 					>
-					<button
-						role="tab"
-						class:active={activeTab === 'css'}
-						aria-selected={activeTab === 'css'}
-						onclick={() => (activeTab = 'css')}>CSS</button
-					>
-					<button
-						role="tab"
-						class:active={activeTab === 'ast'}
-						aria-selected={activeTab === 'ast'}
-						onclick={() => (activeTab = 'ast')}>AST</button
-					>
-				</div>
+						<span class="tab-label">{t.label}</span>
+						<span class="tab-sub">{t.sub}</span>
+					</button>
+				{/each}
 			</header>
-			<div class="panel-body editor-host">
+
+			<div class="panel-body output-host">
 				{#if !wasmReady && !error}
 					<div class="loading">Loading WASM module…</div>
 				{:else if error}
 					<div class="error">
 						<span class="error-tag">parse / compile error</span>
 						<pre>{error}</pre>
+					</div>
+				{:else if activeTab === 'result'}
+					<div class="preview-host">
+						{#if previewHtml}
+							<iframe
+								srcdoc={previewHtml}
+								title="Preview"
+								sandbox="allow-scripts allow-popups allow-forms"
+							></iframe>
+						{:else}
+							<div class="loading">No preview available</div>
+						{/if}
 					</div>
 				{:else if activeTab === 'ast'}
 					<div class="ast-host">
@@ -239,11 +251,14 @@
 						/>
 					</div>
 				{:else}
-					{#key `${activeTab}-${mode}-${outputValue}`}
-						<MonacoEditor value={outputValue} language={outputLanguage} readonly={true} />
-					{/key}
+					<div class="editor-host">
+						{#key `${activeTab}-${mode}-${monacoValue}`}
+							<MonacoEditor value={monacoValue} language={monacoLanguage} readonly={true} />
+						{/key}
+					</div>
 				{/if}
 			</div>
+
 			<footer class="panel-foot">
 				<span>
 					<span class="dim">compile</span>
@@ -259,29 +274,6 @@
 					{#if !wasmReady}Initialising{:else if error}Error{:else}Live{/if}
 				</span>
 			</footer>
-		</section>
-
-		<section class="panel panel-preview">
-			<header class="panel-head">
-				<span class="panel-num">03</span>
-				<h2 class="panel-title">Preview</h2>
-				<span class="panel-meta">sandbox · isolated iframe</span>
-			</header>
-			<div class="panel-body preview-host">
-				{#if !wasmReady && !error}
-					<div class="loading">Loading…</div>
-				{:else if error}
-					<div class="loading">Preview unavailable</div>
-				{:else if previewHtml}
-					<iframe
-						srcdoc={previewHtml}
-						title="Preview"
-						sandbox="allow-scripts allow-popups allow-forms"
-					></iframe>
-				{:else}
-					<div class="loading">No preview available</div>
-				{/if}
-			</div>
 		</section>
 	</main>
 </div>
@@ -300,10 +292,10 @@
 
 	/* PAGE HEAD */
 	.play-head {
-		max-width: 1440px;
+		max-width: 1600px;
 		margin: 0 auto;
 		width: 100%;
-		padding: clamp(1.4rem, 3vh, 2rem) clamp(1rem, 4vw, 2.5rem) clamp(0.8rem, 2vh, 1.2rem);
+		padding: clamp(1.4rem, 3vh, 2rem) clamp(1rem, 3vw, 2rem) clamp(0.8rem, 2vh, 1.2rem);
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
@@ -408,14 +400,14 @@
 		cursor: not-allowed;
 	}
 
-	/* WORKSPACE */
+	/* WORKSPACE — two equal columns, Svelte REPL style */
 	.workspace {
-		max-width: 1440px;
+		max-width: 1600px;
 		margin: 0 auto;
 		width: 100%;
-		padding: 0 clamp(1rem, 4vw, 2.5rem) clamp(1.5rem, 4vh, 2.5rem);
+		padding: 0 clamp(1rem, 3vw, 2rem) clamp(1.5rem, 4vh, 2.5rem);
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 		gap: 0.85rem;
 		flex: 1;
 		min-height: 0;
@@ -432,11 +424,19 @@
 		overflow: hidden;
 	}
 
+	.panel-input {
+		min-height: 70vh;
+	}
+
+	.panel-output {
+		min-height: 70vh;
+	}
+
 	.panel-head {
 		display: flex;
 		align-items: center;
 		gap: 0.8rem;
-		padding: 0.65rem 0.9rem;
+		padding: 0.6rem 0.9rem;
 		background: var(--paper);
 		border-bottom: 1px solid var(--rule);
 		flex-shrink: 0;
@@ -471,36 +471,61 @@
 		color: var(--ink-faint);
 	}
 
-	.tabs {
-		display: inline-flex;
-		border: 1px solid var(--rule-strong);
-		border-radius: 4px;
-		overflow: hidden;
+	/* RIGHT-PANEL TABS — replace the title header on the output panel */
+	.tab-head {
+		gap: 0;
+		padding: 0;
+		background: var(--paper);
 	}
 
-	.tabs button {
-		font-family: 'Fira Mono', monospace;
-		font-size: 0.72rem;
-		padding: 0.32rem 0.7rem;
+	.tab {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.12rem;
+		align-items: flex-start;
+		padding: 0.6rem 0.95rem;
 		background: transparent;
 		border: 0;
+		border-right: 1px solid var(--rule);
+		border-bottom: 1px solid transparent;
 		color: var(--ink-soft);
 		cursor: pointer;
-		border-right: 1px solid var(--rule);
-		transition: background 0.18s, color 0.18s;
+		text-align: left;
+		transition: background 0.18s, color 0.18s, border-color 0.18s;
 	}
 
-	.tabs button:last-child {
+	.tab:last-child {
 		border-right: 0;
 	}
 
-	.tabs button:hover {
+	.tab:hover {
 		color: var(--ink);
+		background: color-mix(in srgb, var(--paper) 60%, var(--bg));
 	}
 
-	.tabs button.active {
-		background: var(--ink);
-		color: var(--bg);
+	.tab.active {
+		background: var(--bg);
+		color: var(--ink);
+		border-bottom-color: var(--svelte);
+	}
+
+	.tab-label {
+		font-family: 'Overpass', sans-serif;
+		font-weight: 600;
+		font-size: 0.86rem;
+		letter-spacing: -0.005em;
+	}
+
+	.tab-sub {
+		font-family: 'Fira Mono', monospace;
+		font-size: 0.62rem;
+		color: var(--ink-faint);
+	}
+
+	.tab.active .tab-sub {
+		color: var(--ink-soft);
 	}
 
 	.panel-body {
@@ -510,7 +535,15 @@
 		flex-direction: column;
 	}
 
+	.output-host {
+		background: var(--editor-bg);
+	}
+
 	.editor-host {
+		flex: 1;
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
 		background: var(--editor-bg);
 	}
 
@@ -521,6 +554,8 @@
 	}
 
 	.preview-host {
+		flex: 1;
+		min-height: 0;
 		background: #ffffff;
 	}
 
@@ -529,13 +564,14 @@
 		height: 100%;
 		border: 0;
 		background: #ffffff;
+		display: block;
 	}
 
 	.loading {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		height: 100%;
+		flex: 1;
 		min-height: 240px;
 		padding: 2rem;
 		font-family: 'Fira Mono', monospace;
@@ -552,6 +588,7 @@
 	}
 
 	.error {
+		flex: 1;
 		padding: 1.2rem;
 		display: flex;
 		flex-direction: column;
@@ -629,22 +666,20 @@
 	}
 
 	/* RESPONSIVE */
-	@media (max-width: 1180px) {
-		.workspace {
-			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		}
-		.panel-preview {
-			grid-column: 1 / -1;
-			min-height: 320px;
-		}
-	}
-
-	@media (max-width: 760px) {
+	@media (max-width: 880px) {
 		.workspace {
 			grid-template-columns: 1fr;
 		}
-		.panel {
-			min-height: 380px;
+		.panel-input,
+		.panel-output {
+			min-height: 480px;
+		}
+		.tab-head {
+			flex-wrap: wrap;
+		}
+		.tab {
+			flex: 1 1 50%;
+			border-bottom: 1px solid var(--rule);
 		}
 	}
 </style>

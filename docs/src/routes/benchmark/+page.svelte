@@ -11,11 +11,20 @@
 	type TabId = 'full' | 'parse' | 'svelte2tsx';
 
 	let activeTab = $state<TabId>('full');
+	// `animationTime` is the elapsed wall-clock ms since the run started.
+	// Each bar shows `min(animationTime, this.durationMs)`, so the bars
+	// fill at the *actual* measured speed — the slow JS bar is still
+	// inching forward when the rsvelte-multi bar has already crossed the
+	// finish line, which is the whole point.
 	let animationTime = $state(0);
 	let isAnimating = $state(false);
 	let animationComplete = $state(false);
 
-	const ANIMATION_DURATION_MS = 2200;
+	// Hard ceiling for the wall-clock animation so very fast tasks (e.g. the
+	// parser-only run can finish in ~150 ms) don't blink past unreadably and
+	// very slow ones (full-pipeline JS at ~1 s) don't drag the user. We stop
+	// once the slowest bar is done OR 4 s, whichever comes first.
+	const ANIMATION_HARD_CAP_MS = 4000;
 
 	const tabMeta: Record<TabId, { label: string; sub: string }> = {
 		full: { label: 'Full pipeline', sub: 'parse / analyze / codegen' },
@@ -60,20 +69,14 @@
 
 	const getAnimatedWidth = (r: BenchmarkTaskResults, duration: number): number => {
 		const maxDuration = getMaxDuration(r);
-		const targetWidth = (duration / maxDuration) * 100;
-		if (animationComplete) return targetWidth;
-		const scale = maxDuration / ANIMATION_DURATION_MS;
-		const simulated = animationTime * scale;
-		if (simulated >= duration) return targetWidth;
-		return (simulated / maxDuration) * 100;
+		if (animationComplete) return (duration / maxDuration) * 100;
+		const filled = Math.min(animationTime, duration);
+		return (filled / maxDuration) * 100;
 	};
 
-	const getAnimatedTime = (r: BenchmarkTaskResults, duration: number): number => {
+	const getAnimatedTime = (_: BenchmarkTaskResults, duration: number): number => {
 		if (animationComplete) return duration;
-		const maxDuration = getMaxDuration(r);
-		const scale = maxDuration / ANIMATION_DURATION_MS;
-		const simulated = animationTime * scale;
-		return Math.min(simulated, duration);
+		return Math.min(animationTime, duration);
 	};
 
 	const startAnimation = () => {
@@ -81,12 +84,16 @@
 		isAnimating = true;
 		animationComplete = false;
 		animationTime = 0;
+		const task = getActiveTask();
+		const finishAt = task
+			? Math.min(getMaxDuration(task), ANIMATION_HARD_CAP_MS)
+			: ANIMATION_HARD_CAP_MS;
 		const start = performance.now();
 		const tick = () => {
 			const elapsed = performance.now() - start;
 			animationTime = elapsed;
-			if (elapsed >= ANIMATION_DURATION_MS) {
-				animationTime = ANIMATION_DURATION_MS;
+			if (elapsed >= finishAt) {
+				animationTime = finishAt;
 				isAnimating = false;
 				animationComplete = true;
 				return;
