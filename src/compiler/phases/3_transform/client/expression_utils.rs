@@ -111,6 +111,10 @@ pub(super) fn extract_var_name_before_rune(before_rune: &str) -> String {
     }
 }
 
+/// Kept for reference + rolling Phase A migration fallback; the
+/// live module-script path now goes through
+/// `strip_rune_generics_ast::strip_rune_generic_params_ast`.
+#[allow(dead_code)]
 pub(super) fn strip_rune_generic_params(input: &str) -> String {
     let chars: Vec<char> = input.chars().collect();
     let len = chars.len();

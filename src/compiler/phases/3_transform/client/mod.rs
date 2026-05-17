@@ -19,6 +19,7 @@ mod state;
 mod state_transforms;
 mod store_transforms;
 mod strict_equals_ast;
+mod strip_rune_generics_ast;
 pub mod transform_client;
 pub mod transform_template;
 pub mod types;
@@ -2424,7 +2425,22 @@ pub(crate) fn transform_module_script_runes(
     // Strip TypeScript generic parameters from $state<...>() and $derived<...>() calls.
     // These are type-only annotations that have no runtime meaning.
     // e.g., $state<ReturnType<typeof autoUpdate>>() → $state()
-    result = strip_rune_generic_params(&result);
+    //
+    // AST-based rewrite via `strip_rune_generics_ast`. The text predecessor
+    // tracked angle-bracket depth + string-literal context + the `=>` arrow
+    // operator by hand to avoid mistaking `=>` for a closing `>`. The OXC
+    // parser already knows about all of that, so the visitor just walks
+    // CallExpressions and asks "is the callee `$state`/`$derived` with type
+    // arguments?". Falls back to the original `result` when the source isn't
+    // TS (generics aren't legal) or fails to parse.
+    {
+        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+        if let Some(rewritten) =
+            strip_rune_generics_ast::strip_rune_generic_params_ast(&result, is_ts)
+        {
+            result = rewritten;
+        }
+    }
 
     // Extract local reactive variable names from the module script
     // These are variables declared with $state() or $derived() inside functions
