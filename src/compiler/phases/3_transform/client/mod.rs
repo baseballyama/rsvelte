@@ -16,6 +16,7 @@ mod rune_transforms;
 mod state;
 mod state_transforms;
 mod store_transforms;
+mod strict_equals_ast;
 pub mod transform_client;
 pub mod transform_template;
 pub mod types;
@@ -2740,9 +2741,28 @@ pub(crate) fn transform_module_script_runes(
     result = apply_effect_rune_transforms(result);
 
     // In dev mode, transform === to $.strict_equals() and !== to !$.strict_equals()
-    // This matches the BinaryExpression visitor from the official Svelte compiler
+    // This matches the BinaryExpression visitor from the official Svelte compiler.
+    //
+    // AST-based rewrite via `strict_equals_ast::transform_strict_equals_module_ast`:
+    // OXC parses the module script, the visitor walks every BinaryExpression with
+    // operator `===` / `!==`, and replacements are spliced right-to-left. Replaces
+    // the legacy `transform_strict_equals` text scanner — the text version's
+    // string-literal heuristics (count quotes) were fragile under escaped quotes,
+    // regex literals, line comments, and template-literal interpolation. The AST
+    // path can't make those mistakes because OXC's parser knows the lexical
+    // categories. Falls back to the legacy text version on parse failure (which
+    // shouldn't happen for module scripts that get this far in the pipeline).
     if dev {
-        result = transform_strict_equals(&result);
+        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+        match strict_equals_ast::transform_strict_equals_module_ast(&result, is_ts) {
+            Some(rewritten) => result = rewritten,
+            None => {
+                // None means either no operators to rewrite or a parse
+                // failure; both leave `result` correct as-is. The legacy
+                // text-based pass is no longer wired in; it stays in
+                // `rune_transforms.rs` for the rolling Phase A migration.
+            }
+        }
     }
 
     // In dev mode, wrap console.METHOD() calls with $.log_if_contains_state
