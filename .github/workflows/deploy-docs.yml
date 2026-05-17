@@ -114,15 +114,15 @@ jobs:
         # NAPI-on-Linux gotcha: when node `dlopen`s a Rust cdylib with
         # thread_local!s after the process has already started, glibc can't
         # fit the .so's TLS into the static TLS block ("cannot allocate
-        # memory in static TLS block"). LD_PRELOAD'ing the .node forces the
-        # library to be loaded at process startup, so its TLS lives in the
-        # initial static TLS block and never needs to grow on dlopen.
-        # (Trying to grow the surplus via GLIBC_TUNABLES instead either
-        # under-allocated and re-hit the original error or over-allocated
-        # and broke pthread_create.)
-        env:
-          LD_PRELOAD: ${{ github.workspace }}/npm/vite-plugin-svelte-native-linux-x64-gnu/rsvelte.node
-        run: pnpm build
+        # memory in static TLS block"). Forcing the .node to be present in
+        # `node`'s LD_PRELOAD makes it part of the initial static TLS block
+        # so the dlopen-time growth never happens. We can't set LD_PRELOAD
+        # on the whole step — bash itself would then try to load the
+        # binding and fail on the napi_* symbols — so we set it only for
+        # the node invocation, bypassing `pnpm build`'s shell wrapper.
+        run: |
+          LD_PRELOAD="${{ github.workspace }}/npm/vite-plugin-svelte-native-linux-x64-gnu/rsvelte.node" \
+            node --import ./rsvelte-shim/loader-register.mjs ./node_modules/vite/bin/vite.js build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
