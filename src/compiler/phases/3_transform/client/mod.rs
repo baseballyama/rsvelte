@@ -7,6 +7,7 @@
 
 mod ast_state_transform;
 mod class_transforms;
+mod console_dev_ast;
 mod destructure_transforms;
 mod effect_rune_ast;
 mod expression_utils;
@@ -2781,9 +2782,18 @@ pub(crate) fn transform_module_script_runes(
 
     // In dev mode, wrap console.METHOD() calls with $.log_if_contains_state
     // to detect when state proxies are logged directly.
-    // Reference: CallExpression.js in the official Svelte compiler
+    // Reference: CallExpression.js in the official Svelte compiler.
+    //
+    // AST-based rewrite via `console_dev_ast::transform_console_calls_dev_ast`.
+    // The text predecessor used `is_inside_string_literal` (quote counting)
+    // to skip strings, fragile under escaped quotes / regex literals /
+    // template-literal interpolation. The AST visitor descends only into
+    // call positions so it can't make that class of mistake.
     if dev {
-        result = transform_console_calls_dev(&result);
+        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+        if let Some(rewritten) = console_dev_ast::transform_console_calls_dev_ast(&result, is_ts) {
+            result = rewritten;
+        }
     }
 
     // In dev mode, wrap $.state(), $.derived(), and $.proxy() declarations with $.tag()/$.tag_proxy()
