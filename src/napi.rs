@@ -884,10 +884,7 @@ pub struct CompileBuffersResult {
 /// string copy. Warnings stay as a structured `#[napi(object)]` since
 /// they're small and the JS side reads them eagerly.
 #[napi(js_name = "compileBuffers")]
-pub fn napi_compile_buffers(
-    source: String,
-    options: Value,
-) -> napi::Result<CompileBuffersResult> {
+pub fn napi_compile_buffers(source: String, options: Value) -> napi::Result<CompileBuffersResult> {
     let opts = parse_options(&options)?;
     match rust_compile(&source, opts) {
         Ok(result) => Ok(CompileBuffersResult {
@@ -1146,10 +1143,7 @@ pub fn napi_compile_module_envelope_zero_copy(
 /// uses the empty-CSS / empty-warnings encoding, so the JS decoder is
 /// identical for both entry points.
 #[napi(js_name = "compileModuleEnvelope")]
-pub fn napi_compile_module_envelope(
-    source: String,
-    options: Value,
-) -> napi::Result<Buffer> {
+pub fn napi_compile_module_envelope(source: String, options: Value) -> napi::Result<Buffer> {
     let mut opts = ModuleCompileOptions::default();
     if let Some(obj) = options.as_object() {
         if let Some(v) = obj.get("dev").and_then(|v| v.as_bool()) {

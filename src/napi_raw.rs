@@ -359,9 +359,7 @@ mod tests {
 
     fn round_trip_header(buf: &[u8]) {
         assert!(buf.len() >= HEADER_LEN);
-        let read_u32 = |o: usize| {
-            u32::from_le_bytes([buf[o], buf[o + 1], buf[o + 2], buf[o + 3]])
-        };
+        let read_u32 = |o: usize| u32::from_le_bytes([buf[o], buf[o + 1], buf[o + 2], buf[o + 3]]);
         assert_eq!(read_u32(0), MAGIC, "magic mismatch");
         assert_eq!(read_u32(4), VERSION);
         assert_eq!(read_u32(8) as usize, buf.len(), "total_len mismatch");
@@ -388,9 +386,7 @@ mod tests {
         let buf = encode_to_vec(&result);
         round_trip_header(&buf);
 
-        let read_u32 = |o: usize| {
-            u32::from_le_bytes([buf[o], buf[o + 1], buf[o + 2], buf[o + 3]])
-        };
+        let read_u32 = |o: usize| u32::from_le_bytes([buf[o], buf[o + 1], buf[o + 2], buf[o + 3]]);
         // js.code slot
         let code = read_str_at(&buf, read_u32(16), read_u32(20));
         assert_eq!(code, "export default {};");
@@ -435,15 +431,16 @@ mod tests {
         let buf = encode_to_vec(&result);
         round_trip_header(&buf);
 
-        let read_u32 = |o: usize| {
-            u32::from_le_bytes([buf[o], buf[o + 1], buf[o + 2], buf[o + 3]])
-        };
+        let read_u32 = |o: usize| u32::from_le_bytes([buf[o], buf[o + 1], buf[o + 2], buf[o + 3]]);
         assert_eq!(
             read_u32(12),
             FLAG_HAS_CSS | FLAG_RUNES | FLAG_CSS_HAS_GLOBAL
         );
         assert_eq!(read_str_at(&buf, read_u32(16), read_u32(20)), "code");
-        assert_eq!(read_str_at(&buf, read_u32(24), read_u32(28)), r#"{"version":3}"#);
+        assert_eq!(
+            read_str_at(&buf, read_u32(24), read_u32(28)),
+            r#"{"version":3}"#
+        );
         assert_eq!(read_str_at(&buf, read_u32(32), read_u32(36)), ".x{}");
         assert_eq!(
             read_str_at(&buf, read_u32(40), read_u32(44)),
