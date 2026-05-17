@@ -1035,6 +1035,11 @@ pub(super) fn extract_operand_forward(s: &str) -> (String, usize) {
 /// Apply $effect-related rune transforms to a string.
 /// This is used to ensure that early returns from `transform_client_runes_with_skip_and_state`
 /// still get $effect transforms applied.
+///
+/// Kept for reference + as a fallback during the rolling Phase A
+/// migration; the live module-script path now goes through
+/// `effect_rune_ast::apply_effect_rune_transforms_ast`.
+#[allow(dead_code)]
 pub(super) fn apply_effect_rune_transforms(result: String) -> String {
     // Single-pass scan for all $effect patterns.
     // This replaces 5 separate contains()+replace() calls (10 scans) with one pass.
@@ -1050,6 +1055,7 @@ pub(super) fn apply_effect_rune_transforms(result: String) -> String {
 /// Single-pass replacement of all $effect rune patterns in a string.
 /// Scans the string once looking for '$effect' and then determines which
 /// specific pattern matched, building the output in one allocation.
+#[allow(dead_code)]
 fn replace_effect_patterns(input: &str) -> String {
     let bytes = input.as_bytes();
     let len = bytes.len();
