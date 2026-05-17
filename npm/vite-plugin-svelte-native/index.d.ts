@@ -145,6 +145,30 @@ export function compileModuleEnvelope(
 	options?: ModuleCompileOptions,
 ): Buffer;
 
+/**
+ * Zero-copy variant. Returns a `Buffer` view over `bumpalo` arena
+ * memory rather than an owned `Vec<u8>` — no copy whatsoever at the
+ * Rust↔JS boundary. The arena is freed when V8 garbage-collects the
+ * Buffer, so the data stays valid for as long as JS holds a reference.
+ *
+ * Trade-offs vs {@link compileEnvelope}:
+ *
+ * - **Faster:** skips Rust's `Vec` allocation; pre-sized arena slice.
+ * - **Limited transferability:** if you `postMessage` the buffer with
+ *   `transfer:` between workers, V8 may need to detach the underlying
+ *   storage. The arena finalizer only runs when V8 actually GCs the
+ *   Buffer wrapper, so detach semantics are safe but may surprise
+ *   callers used to `Buffer` semantics.
+ */
+export function compileEnvelopeZeroCopy(
+	source: string,
+	options?: CompileOptions,
+): Buffer;
+export function compileModuleEnvelopeZeroCopy(
+	source: string,
+	options?: ModuleCompileOptions,
+): Buffer;
+
 /** Decode a buffer produced by {@link compileEnvelope}. */
 export function decodeEnvelope(buf: Buffer | Uint8Array): CompileResult;
 

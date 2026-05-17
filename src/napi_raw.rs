@@ -1,7 +1,7 @@
 //! Raw-transfer envelope format for `compile()` results.
 //!
-//! Step 2 of the Rust↔JS boundary optimization plan: pack the entire
-//! `CompileResult` into one contiguous byte buffer with a
+//! Steps 2 & 3 of the Rust↔JS boundary optimization plan: pack the
+//! entire `CompileResult` into one contiguous byte buffer with a
 //! fixed-layout header, hand the buffer to V8 as-is, and let the JS
 //! side decode fields lazily on demand.
 //!
@@ -63,7 +63,7 @@ const WARN_HAS_END: u8 = 1 << 2;
 const WARN_HAS_FRAME: u8 = 1 << 3;
 
 /// Trait abstracting over the backing buffer. Step 2 implements this
-/// for `Vec<u8>`; later steps can plug in arena-backed writers.
+/// for `Vec<u8>`; Step 3 implements it for a bumpalo arena handle.
 pub trait Writer {
     fn write_bytes(&mut self, bytes: &[u8]);
     fn position(&self) -> usize;
@@ -88,9 +88,9 @@ impl Writer for Vec<u8> {
     }
 }
 
-/// Estimate the byte size of an encoded `CompileResult`. Used both to
-/// pre-size the `Vec<u8>` here and (later) to pre-allocate arena
-/// memory in one shot, avoiding reallocations entirely.
+/// Estimate the byte size of an encoded `CompileResult`. Used by
+/// Step 3 to pre-allocate the bumpalo arena in one go, avoiding
+/// reallocations entirely.
 pub fn estimate_size(result: &CompileResult) -> usize {
     let mut n = HEADER_LEN;
     n += result.js.code.len();
@@ -126,7 +126,8 @@ fn warning_size(w: &Warning) -> usize {
     n
 }
 
-/// Write the envelope into `writer`.
+/// Write the envelope into `writer`. Used by both the `Vec<u8>`
+/// (Step 2) and `bumpalo` (Step 3) backends.
 pub fn encode_into<W: Writer>(writer: &mut W, result: &CompileResult) {
     // Header skeleton — offsets are patched in after payloads land.
     let header_start = writer.position();
@@ -241,11 +242,114 @@ fn write_position<W: Writer>(w: &mut W, p: &Position) {
     w.write_bytes(&(p.character as u32).to_le_bytes());
 }
 
-/// Encode a `CompileResult` into a fresh `Vec<u8>`.
+/// Encode a `CompileResult` into a fresh `Vec<u8>`. Step 2 entry point.
 pub fn encode_to_vec(result: &CompileResult) -> Vec<u8> {
     let mut buf = Vec::with_capacity(estimate_size(result));
     encode_into(&mut buf, result);
     buf
+}
+
+// =============================================================================
+// Step 3: bumpalo-backed writer
+// =============================================================================
+//
+// Writes directly into a pre-sized slice carved out of a `bumpalo::Bump`
+// arena. The arena's backing allocation never moves and is freed in one
+// shot, so the NAPI side can hand the slice pointer to V8 via
+// `napi_create_external_buffer` and drop the `Bump` from the finalizer
+// — zero copy, zero per-record `free()`.
+
+/// Fixed-size cursor for writing into a pre-allocated `&mut [u8]`.
+/// Panics on overflow — callers guarantee the slice is `estimate_size`
+/// bytes wide.
+pub struct SliceWriter<'a> {
+    buf: &'a mut [u8],
+    pos: usize,
+}
+
+impl<'a> SliceWriter<'a> {
+    #[inline]
+    pub fn new(buf: &'a mut [u8]) -> Self {
+        Self { buf, pos: 0 }
+    }
+
+    #[inline]
+    pub fn finished_len(&self) -> usize {
+        self.pos
+    }
+}
+
+impl Writer for SliceWriter<'_> {
+    #[inline]
+    fn write_bytes(&mut self, bytes: &[u8]) {
+        let end = self.pos + bytes.len();
+        self.buf[self.pos..end].copy_from_slice(bytes);
+        self.pos = end;
+    }
+    #[inline]
+    fn position(&self) -> usize {
+        self.pos
+    }
+    #[inline]
+    fn patch_u32(&mut self, offset: usize, value: u32) {
+        self.buf[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+    }
+}
+
+/// Encode the result into a freshly-allocated slice inside `bump`.
+///
+/// Returns the raw `(ptr, len)` of the encoded bytes. The pointer is
+/// valid for as long as `bump` is alive (typically: until the V8 GC
+/// fires the finalizer that drops the `Bump`).
+pub fn encode_into_bump<'bump>(
+    bump: &'bump bumpalo::Bump,
+    result: &CompileResult,
+) -> &'bump mut [u8] {
+    let size = estimate_size(result);
+    // `alloc_slice_fill_copy` zero-fills a u8 slice in the arena and
+    // hands it back as `&'bump mut [u8]` — exactly what we need.
+    let slice: &'bump mut [u8] = bump.alloc_slice_fill_copy(size, 0u8);
+    let mut writer = SliceWriter::new(slice);
+    encode_into(&mut writer, result);
+    debug_assert_eq!(
+        writer.finished_len(),
+        size,
+        "estimate_size and encode_into disagree on payload size"
+    );
+    // Re-borrow the slice — the cursor consumed the &mut [u8] but the
+    // bytes themselves live in `bump`, so we can hand out a fresh slice
+    // over the same range.
+    let ptr_len = (writer.buf.as_mut_ptr(), size);
+    drop(writer);
+    // SAFETY: ptr came from `alloc_slice_fill_copy` and points into
+    // `bump`, which has lifetime `'bump`. `size` matches the original
+    // slice length.
+    unsafe { std::slice::from_raw_parts_mut(ptr_len.0, ptr_len.1) }
+}
+
+#[cfg(test)]
+mod bump_tests {
+    use super::*;
+    use crate::compiler::{CompileMetadata, CompileOutput};
+
+    #[test]
+    fn bump_encoder_matches_vec_encoder() {
+        let result = CompileResult {
+            js: CompileOutput {
+                code: "let x = 1;".to_string(),
+                map: Some(r#"{"version":3,"sources":["App.svelte"]}"#.to_string()),
+            },
+            css: None,
+            warnings: vec![],
+            metadata: CompileMetadata { runes: true },
+            ast: None,
+        };
+
+        let via_vec = encode_to_vec(&result);
+        let bump = bumpalo::Bump::with_capacity(estimate_size(&result));
+        let via_bump = encode_into_bump(&bump, &result);
+        assert_eq!(via_vec.as_slice(), &via_bump[..]);
+    }
 }
 
 #[cfg(test)]

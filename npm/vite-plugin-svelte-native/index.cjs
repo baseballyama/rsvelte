@@ -83,6 +83,14 @@ module.exports.compileLegacy = binding.compile;
 module.exports.compileModuleLegacy = binding.compileModule;
 module.exports.compileEnvelope = binding.compileEnvelope;
 module.exports.compileModuleEnvelope = binding.compileModuleEnvelope;
+// Zero-copy variants: same envelope format, but the returned Buffer
+// is a view into bumpalo arena memory (no Vec copy). Use these when
+// you know the buffer will be consumed once and discarded — the
+// arena is freed when the Buffer is GC'd. For long-lived buffers
+// passed across worker boundaries, prefer `compileEnvelope` which
+// hands you an owned Vec.
+module.exports.compileEnvelopeZeroCopy = binding.compileEnvelopeZeroCopy;
+module.exports.compileModuleEnvelopeZeroCopy = binding.compileModuleEnvelopeZeroCopy;
 module.exports.compileBuffers = binding.compileBuffers;
 module.exports.compileModuleBuffers = binding.compileModuleBuffers;
 module.exports.decodeEnvelope = decodeEnvelope;
