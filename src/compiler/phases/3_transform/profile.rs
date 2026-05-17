@@ -13,6 +13,42 @@
 use std::cell::Cell;
 use std::time::Duration;
 
+// `std::time::Instant::now()` traps on `wasm32-unknown-unknown` (no system
+// clock — see std::sys::time::unsupported). The profile instrumentation
+// below is consumed only by native bins (`bin/compile_profile.rs`), but
+// the call sites live in shared compile paths, so the Instant calls would
+// fire from the WASM playground and crash the page. Provide a WASM-safe
+// shim that returns a unit "instant" with a zero-cost elapsed so the
+// instrumented sites stay compile-target-portable without #[cfg] noise.
+
+#[cfg(not(target_arch = "wasm32"))]
+pub type TimerStart = std::time::Instant;
+
+#[cfg(target_arch = "wasm32")]
+pub type TimerStart = ();
+
+#[cfg(not(target_arch = "wasm32"))]
+#[inline]
+pub fn timer_start() -> TimerStart {
+    std::time::Instant::now()
+}
+
+#[cfg(target_arch = "wasm32")]
+#[inline]
+pub fn timer_start() -> TimerStart {}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[inline]
+pub fn timer_elapsed(start: TimerStart) -> Duration {
+    start.elapsed()
+}
+
+#[cfg(target_arch = "wasm32")]
+#[inline]
+pub fn timer_elapsed(_start: TimerStart) -> Duration {
+    Duration::ZERO
+}
+
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Phase3Breakdown {
     pub visit_program: Duration,

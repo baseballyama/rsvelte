@@ -354,9 +354,9 @@ fn transform_client_with_visitors(
     // NOTE: visit_program calls add_state_transformers again internally, so any
     // transform removals must happen AFTER this call.
     use crate::compiler::phases::phase3_transform::client::visitors::program::visit_program;
-    let _vp_start = std::time::Instant::now();
+    let _vp_start = super::profile::timer_start();
     visit_program(&mut context);
-    super::profile::record_visit_program(_vp_start.elapsed());
+    super::profile::record_visit_program(super::profile::timer_elapsed(_vp_start));
 
     // Remove transforms for variables that have shadowed $state declarations.
     // Due to a known analysis bug where inner-scope $state() declarations overwrite
@@ -398,14 +398,14 @@ fn transform_client_with_visitors(
     // and is used for blocker_map computation and the final output.
     let pre_transformed_script = if let Some(instance_script) = &analysis.instance_script_content {
         let raw = &instance_script.raw;
-        let _script_start = std::time::Instant::now();
+        let _script_start = super::profile::timer_start();
         let transformed = transform_instance_script_for_visitors(
             raw,
             analysis,
             options.dev,
             &reactive_import_names,
         );
-        super::profile::record_script_text(_script_start.elapsed());
+        super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
         // Transfer the script's $$array counter to the context state so that the template
         // visitor continues numbering from where the script left off.
         let script_array_count = SCRIPT_ARRAY_COUNTER.with(|c| c.get());
@@ -482,10 +482,10 @@ fn transform_client_with_visitors(
 
     // Call the fragment visitor to transform the template
     // This is the root fragment of the component, so is_root_fragment=true
-    let _fragment_start = std::time::Instant::now();
+    let _fragment_start = super::profile::timer_start();
     let template_body = fragment(&ast.fragment, &mut context, true);
-    super::profile::record_template_fragment(_fragment_start.elapsed());
-    let _assembly_start = std::time::Instant::now();
+    super::profile::record_template_fragment(super::profile::timer_elapsed(_fragment_start));
+    let _assembly_start = super::profile::timer_start();
 
     // Collect results from state
     let hoisted_statements = std::mem::take(&mut context.state.hoisted);
@@ -1909,16 +1909,16 @@ fn transform_client_with_visitors(
     let program = JsProgram { body };
 
     // Generate JavaScript code from the program, optionally with source map data
-    super::profile::record_assembly_after_fragment(_assembly_start.elapsed());
-    let _codegen_start = std::time::Instant::now();
+    super::profile::record_assembly_after_fragment(super::profile::timer_elapsed(_assembly_start));
+    let _codegen_start = super::profile::timer_start();
     if options.enable_sourcemap {
         let r = generate_with_sourcemap(&program, source, &context.arena)
             .map_err(TransformError::CodeGen);
-        super::profile::record_codegen(_codegen_start.elapsed());
+        super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
         r
     } else {
         let code = generate(&program, &context.arena).map_err(TransformError::CodeGen)?;
-        super::profile::record_codegen(_codegen_start.elapsed());
+        super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
         Ok(CodegenResult {
             code,
             mappings: vec![],

@@ -37,7 +37,7 @@ export function compileServer(source: string, name: string): CompileResultWasm {
 }
 
 export type CompileMode = 'client' | 'server';
-export type OutputTab = 'js' | 'css' | 'ast';
+export type OutputTab = 'result' | 'js' | 'css' | 'ast';
 
 export interface CompileStats {
 	compileTime: number;
