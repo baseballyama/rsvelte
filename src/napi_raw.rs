@@ -298,9 +298,12 @@ impl Writer for SliceWriter<'_> {
 
 /// Encode the result into a freshly-allocated slice inside `bump`.
 ///
-/// Returns the raw `(ptr, len)` of the encoded bytes. The pointer is
-/// valid for as long as `bump` is alive (typically: until the V8 GC
-/// fires the finalizer that drops the `Bump`).
+/// Returns the encoded bytes. The slice is valid for as long as
+/// `bump` is alive (typically: until the V8 GC fires the finalizer
+/// that drops the `Bump`). The `&Bump → &mut [u8]` shape mirrors
+/// bumpalo's own `Bump::alloc_slice_*` family — the arena's
+/// interior-mutable allocator makes this sound.
+#[allow(clippy::mut_from_ref)] // mirrors bumpalo's own alloc_slice_* API
 pub fn encode_into_bump<'bump>(
     bump: &'bump bumpalo::Bump,
     result: &CompileResult,
@@ -309,6 +312,10 @@ pub fn encode_into_bump<'bump>(
     // `alloc_slice_fill_copy` zero-fills a u8 slice in the arena and
     // hands it back as `&'bump mut [u8]` — exactly what we need.
     let slice: &'bump mut [u8] = bump.alloc_slice_fill_copy(size, 0u8);
+    // Capture the slice's identity before handing it to the cursor;
+    // the cursor consumes the `&mut [u8]` but the bytes themselves
+    // live in `bump`, so we can re-materialise the same range after.
+    let ptr = slice.as_mut_ptr();
     let mut writer = SliceWriter::new(slice);
     encode_into(&mut writer, result);
     debug_assert_eq!(
@@ -316,15 +323,11 @@ pub fn encode_into_bump<'bump>(
         size,
         "estimate_size and encode_into disagree on payload size"
     );
-    // Re-borrow the slice — the cursor consumed the &mut [u8] but the
-    // bytes themselves live in `bump`, so we can hand out a fresh slice
-    // over the same range.
-    let ptr_len = (writer.buf.as_mut_ptr(), size);
-    drop(writer);
-    // SAFETY: ptr came from `alloc_slice_fill_copy` and points into
-    // `bump`, which has lifetime `'bump`. `size` matches the original
-    // slice length.
-    unsafe { std::slice::from_raw_parts_mut(ptr_len.0, ptr_len.1) }
+    // SAFETY: `ptr` came from `alloc_slice_fill_copy` and points into
+    // `bump` (lifetime `'bump`); `size` matches the original slice's
+    // length; no other live borrow exists since the cursor's borrow
+    // ended when it went out of scope on the previous line.
+    unsafe { std::slice::from_raw_parts_mut(ptr, size) }
 }
 
 #[cfg(test)]
