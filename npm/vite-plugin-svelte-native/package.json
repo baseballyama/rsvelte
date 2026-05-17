@@ -22,6 +22,7 @@
   "main": "./index.cjs",
   "types": "./index.d.ts",
   "files": [
+    "envelope.js",
     "index.cjs",
     "index.d.ts"
   ],

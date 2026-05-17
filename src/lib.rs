@@ -35,6 +35,10 @@ pub mod vps;
 
 #[cfg(feature = "napi")]
 pub mod napi;
+// The raw-transfer envelope is needed regardless of the `napi` feature so
+// that unit tests and any future non-NAPI consumers (the WASM build, for
+// example) can exercise the encoder.
+pub mod napi_raw;
 
 #[cfg(feature = "wasm")]
 pub mod wasm;

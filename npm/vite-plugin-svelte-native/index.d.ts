@@ -119,6 +119,13 @@ export interface CompileResult {
 	ast: unknown;
 }
 
+/**
+ * Compile a Svelte component. Internally goes through the raw-transfer
+ * envelope (`compileEnvelope` + `decodeEnvelope`) so that heavy strings
+ * (generated code, sourcemap JSON) are read out of the underlying
+ * `Buffer` only when the caller touches `.code` / `.map`. The shape
+ * matches `svelte/compiler#compile`.
+ */
 export function compile(source: string, options?: CompileOptions): CompileResult;
 export function compileModule(
 	source: string,
@@ -126,11 +133,27 @@ export function compileModule(
 ): CompileResult;
 
 /**
- * Raw-transfer variant of {@link compile}: returns the same logical
- * shape but with `js.code` / `js.map` / `css.code` / `css.map` as raw
- * `Buffer`s. Avoids the V8 string copy and `serde_json` round-trip
- * the legacy {@link compile} pays on every call; callers lift to
- * `string` via `buf.toString('utf8')` only when they actually need it.
+ * Lower-level raw-transfer entry point. Returns a single `Buffer`
+ * containing the entire compile result in the rsvelte envelope format
+ * (see `src/napi_raw.rs`). Pair with {@link decodeEnvelope} to obtain
+ * the legacy {@link CompileResult} shape; or pass the buffer through
+ * worker `postMessage` (transferable) to avoid a copy.
+ */
+export function compileEnvelope(source: string, options?: CompileOptions): Buffer;
+export function compileModuleEnvelope(
+	source: string,
+	options?: ModuleCompileOptions,
+): Buffer;
+
+/** Decode a buffer produced by {@link compileEnvelope}. */
+export function decodeEnvelope(buf: Buffer | Uint8Array): CompileResult;
+
+/**
+ * Step-1 variant of {@link compile}: returns the same shape but with
+ * `js.code` / `js.map` / `css.code` / `css.map` as raw `Buffer`s. The
+ * envelope path ({@link compile}) supersedes this for most callers; it
+ * stays exported as an escape hatch for callers that want structured
+ * access without the envelope decode.
  */
 export interface CompileBuffersResult {
 	js: { code: Buffer; map: Buffer | null };
@@ -146,6 +169,16 @@ export function compileModuleBuffers(
 	source: string,
 	options?: ModuleCompileOptions,
 ): CompileBuffersResult;
+
+/**
+ * The legacy JSON-on-the-boundary path. Kept exported for parity tests
+ * and as an escape hatch — production callers should use {@link compile}.
+ */
+export function compileLegacy(source: string, options?: CompileOptions): CompileResult;
+export function compileModuleLegacy(
+	source: string,
+	options?: ModuleCompileOptions,
+): CompileResult;
 
 // ---------------------------------------------------------------------------
 // svelte2tsx

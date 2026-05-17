@@ -970,3 +970,76 @@ fn position_to_napi(p: crate::compiler::Position) -> NapiPosition {
         character: p.character as u32,
     }
 }
+
+// =============================================================================
+// Raw transfer — Step 2: Single binary envelope (one Buffer, lazy decode in JS)
+// =============================================================================
+//
+// `compileEnvelope` packs the entire `CompileResult` into one
+// fixed-layout byte buffer (`crate::napi_raw`) and hands it to V8 as
+// a single `Buffer`. The JS shim's `decodeEnvelope` slices fields
+// out on demand — no `serde_json` on the boundary, no V8 object tree
+// construction for the warning array unless the caller actually
+// reads `.warnings`.
+
+/// `compile()` returning a single packed envelope buffer.
+/// See `crate::napi_raw` for the byte-level format.
+#[napi(js_name = "compileEnvelope")]
+pub fn napi_compile_envelope(source: String, options: Value) -> napi::Result<Buffer> {
+    let opts = parse_options(&options)?;
+    match rust_compile(&source, opts) {
+        Ok(result) => Ok(Buffer::from(crate::napi_raw::encode_to_vec(&result))),
+        Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
+    }
+}
+
+/// `compileModule()` returning the same packed envelope. The envelope
+/// uses the empty-CSS / empty-warnings encoding, so the JS decoder is
+/// identical for both entry points.
+#[napi(js_name = "compileModuleEnvelope")]
+pub fn napi_compile_module_envelope(
+    source: String,
+    options: Value,
+) -> napi::Result<Buffer> {
+    let mut opts = ModuleCompileOptions::default();
+    if let Some(obj) = options.as_object() {
+        if let Some(v) = obj.get("dev").and_then(|v| v.as_bool()) {
+            opts.dev = v;
+        }
+        if let Some(v) = obj.get("generate").and_then(|v| v.as_str()) {
+            opts.generate = match v {
+                "server" | "ssr" => GenerateMode::Server,
+                "false" => GenerateMode::None,
+                _ => GenerateMode::Client,
+            };
+        }
+        if let Some(v) = obj.get("filename").and_then(|v| v.as_str()) {
+            opts.filename = Some(v.to_string());
+        }
+        if let Some(v) = obj.get("rootDir").and_then(|v| v.as_str()) {
+            opts.root_dir = Some(v.to_string());
+        }
+        if let Some(exp) = obj.get("experimental").and_then(|v| v.as_object())
+            && let Some(v) = exp.get("async").and_then(|v| v.as_bool())
+        {
+            opts.experimental = ExperimentalOptions { r#async: v };
+        }
+    }
+    match rust_compile_module(&source, opts) {
+        Ok(result) => {
+            // Adapt the module result into the same `CompileResult` shape
+            // the envelope encoder expects. Module compiles never produce
+            // CSS or warnings, and runes mode is always on, so the
+            // resulting envelope is the minimal js-only form.
+            let cr = crate::compiler::CompileResult {
+                js: result.js,
+                css: None,
+                warnings: Vec::new(),
+                metadata: crate::compiler::CompileMetadata { runes: true },
+                ast: None,
+            };
+            Ok(Buffer::from(crate::napi_raw::encode_to_vec(&cr)))
+        }
+        Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
+    }
+}

@@ -2,6 +2,8 @@
 // Mirrors the loader pattern napi-rs generates: resolve a platform-specific
 // dependency that ships a single `rsvelte.node` artifact.
 
+const { decodeEnvelope } = require('./envelope.js');
+
 const { platform, arch } = process;
 
 function resolveTriple() {
@@ -48,6 +50,24 @@ try {
 	);
 }
 
+// `compile` / `compileModule` are wrapped to route through the
+// raw-transfer envelope (`compileEnvelope`): the Rust side hands us
+// one `Buffer`, the JS side lazy-decodes only the fields the caller
+// reads. This avoids the V8 string copy + `serde_json` round-trip
+// that the legacy JSON path pays for every call.
+//
+// Callers that need the raw envelope (e.g. to ship it across a worker
+// boundary without re-encoding) can still grab `binding.compileEnvelope`
+// directly. The legacy JSON path is preserved as `compileLegacy` for
+// parity testing and as an escape hatch.
+function compile(source, options) {
+	return decodeEnvelope(binding.compileEnvelope(source, options));
+}
+
+function compileModule(source, options) {
+	return decodeEnvelope(binding.compileModuleEnvelope(source, options));
+}
+
 // Re-export every NAPI function as its own named binding so node's
 // `cjs-module-lexer` can pick them up when this file is imported via
 // ESM (e.g. `import { compile, preprocess, VERSION } from …`). A bare
@@ -57,16 +77,15 @@ try {
 //
 // The static list mirrors `src/napi.rs`'s `#[napi(js_name = ...)]`
 // attributes — keep it in sync when adding/removing NAPI exports.
-module.exports.compile = binding.compile;
-module.exports.compileModule = binding.compileModule;
-// Raw-transfer step 1: code/map/css as Buffer (no V8 string copy on
-// the boundary). The shape is `{ js: { code: Buffer, map: Buffer? },
-// css: {…}|null, warnings: [], runes: boolean }` — callers that need
-// strings call `buf.toString('utf8')`. Step 2 (`compileEnvelope`)
-// supersedes this for most callers; this export stays for use cases
-// that want structured Buffer access without an envelope decode.
+module.exports.compile = compile;
+module.exports.compileModule = compileModule;
+module.exports.compileLegacy = binding.compile;
+module.exports.compileModuleLegacy = binding.compileModule;
+module.exports.compileEnvelope = binding.compileEnvelope;
+module.exports.compileModuleEnvelope = binding.compileModuleEnvelope;
 module.exports.compileBuffers = binding.compileBuffers;
 module.exports.compileModuleBuffers = binding.compileModuleBuffers;
+module.exports.decodeEnvelope = decodeEnvelope;
 module.exports.preprocess = binding.preprocess;
 module.exports.svelte2tsx = binding.svelte2tsx;
 module.exports.hmrDiff = binding.hmrDiff;

@@ -52,6 +52,7 @@ if (!triple) {
 // `docs/rsvelte-shim/` is two levels under the repo root.
 const repoRoot = join(here, '..', '..');
 const nodePath = join(repoRoot, 'npm', `vite-plugin-svelte-native-${triple}`, 'rsvelte.node');
+const envelopePath = join(repoRoot, 'npm', 'vite-plugin-svelte-native', 'envelope.js');
 
 let binding;
 try {
@@ -63,6 +64,11 @@ try {
 			`Original error: ${err.message}`
 	);
 }
+
+// Decode helper for the raw-transfer envelope (Step 2 of the
+// Rust↔JS boundary plan). Imported lazily from the shared decoder so
+// we don't duplicate the byte-format constants.
+const { decodeEnvelope } = require(envelopePath);
 
 let logged = false;
 function logOnce() {
@@ -94,12 +100,15 @@ function sanitiseOptions(options) {
 
 export function compile(source, options) {
 	logOnce();
-	return binding.compile(source, sanitiseOptions(options));
+	// Raw-transfer fast path: NAPI hands us a single Buffer with the
+	// whole compile result packed, and `decodeEnvelope` lifts only
+	// the fields the caller reads.
+	return decodeEnvelope(binding.compileEnvelope(source, sanitiseOptions(options)));
 }
 
 export function compileModule(source, options) {
 	logOnce();
-	return binding.compileModule(source, sanitiseOptions(options));
+	return decodeEnvelope(binding.compileModuleEnvelope(source, sanitiseOptions(options)));
 }
 
 export function preprocess(source, groups, options) {
