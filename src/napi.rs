@@ -1243,3 +1243,112 @@ pub fn napi_compile_batch(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer
 
     Ok(Buffer::from(crate::napi_raw::encode_batch_to_vec(&entries)))
 }
+
+// =============================================================================
+// Async compile — release the JS event loop while Rust works
+// =============================================================================
+//
+// The sync `compileEnvelope` / `compileBatch` paths block the JS
+// thread while Rust runs. For Vite's dev server (which awaits each
+// transform) that means no other JS callback can interleave with
+// compilation.
+//
+// `compileEnvelopeAsync` / `compileBatchAsync` wrap the same logic in
+// `napi::AsyncTask` so the work runs on a libuv worker thread and
+// the JS caller gets a `Promise<Buffer>`. They share the same v1 /
+// RSVB envelope format, so the same `decodeEnvelope` / `decodeBatch`
+// callers can decode the result — `await` is the only thing that
+// changes on the consumer side.
+
+use napi::Task;
+use napi::bindgen_prelude::AsyncTask;
+
+/// Async single-file compile. `compute()` runs on a libuv worker
+/// thread; `resolve()` wraps the resulting envelope `Vec<u8>` into
+/// a Node `Buffer` on the main thread.
+pub struct CompileEnvelopeTask {
+    source: String,
+    options: CompileOptions,
+}
+
+impl Task for CompileEnvelopeTask {
+    type Output = Vec<u8>;
+    type JsValue = Buffer;
+
+    fn compute(&mut self) -> napi::Result<Self::Output> {
+        // `std::mem::take(&mut self.options)` would be ideal, but
+        // `CompileOptions` isn't `Default`-cheap (the css_hash Arc
+        // field has to be re-Arc'd). Clone is fine here — options are
+        // small and we only pay it once per call.
+        let result = rust_compile(&self.source, self.options.clone())
+            .map_err(|e| napi::Error::from_reason(format!("{e:?}")))?;
+        Ok(crate::napi_raw::encode_to_vec(&result))
+    }
+
+    fn resolve(&mut self, _env: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
+        Ok(Buffer::from(output))
+    }
+}
+
+/// Async variant of `compileEnvelope` — returns `Promise<Buffer>` to
+/// the JS caller, frees the JS event loop while rayon / the worker
+/// thread runs the compile.
+#[napi(js_name = "compileEnvelopeAsync")]
+pub fn napi_compile_envelope_async(
+    source: String,
+    options: Option<NapiCompileOptions>,
+) -> AsyncTask<CompileEnvelopeTask> {
+    AsyncTask::new(CompileEnvelopeTask {
+        source,
+        options: options_to_compile(options),
+    })
+}
+
+/// Async variant of `compileBatch` — same `compile_batch` (rayon
+/// `par_iter`) on the worker thread, same RSVB envelope back.
+pub struct CompileBatchTask {
+    inputs: Vec<(String, CompileOptions)>,
+}
+
+impl Task for CompileBatchTask {
+    type Output = Vec<u8>;
+    type JsValue = Buffer;
+
+    fn compute(&mut self) -> napi::Result<Self::Output> {
+        let borrowed: Vec<(&str, CompileOptions)> = self
+            .inputs
+            .iter()
+            .map(|(s, o)| (s.as_str(), o.clone()))
+            .collect();
+        let results = crate::compiler::compile_batch(&borrowed);
+        let err_strings: Vec<Option<String>> = results
+            .iter()
+            .map(|r| match r {
+                Ok(_) => None,
+                Err(e) => Some(format!("{e:?}")),
+            })
+            .collect();
+        let entries: Vec<crate::napi_raw::BatchEntry<'_>> = results
+            .iter()
+            .zip(err_strings.iter())
+            .map(|(r, e)| match r {
+                Ok(cr) => crate::napi_raw::BatchEntry::Ok(cr),
+                Err(_) => crate::napi_raw::BatchEntry::Err(e.as_deref().unwrap_or("unknown error")),
+            })
+            .collect();
+        Ok(crate::napi_raw::encode_batch_to_vec(&entries))
+    }
+
+    fn resolve(&mut self, _env: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
+        Ok(Buffer::from(output))
+    }
+}
+
+#[napi(js_name = "compileBatchAsync")]
+pub fn napi_compile_batch_async(inputs: Vec<CompileBatchInput>) -> AsyncTask<CompileBatchTask> {
+    let parsed: Vec<(String, CompileOptions)> = inputs
+        .into_iter()
+        .map(|item| (item.source, options_to_compile(item.options)))
+        .collect();
+    AsyncTask::new(CompileBatchTask { inputs: parsed })
+}

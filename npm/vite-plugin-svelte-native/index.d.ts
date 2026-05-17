@@ -225,6 +225,31 @@ export function compileBatchRaw(inputs: CompileBatchInput[]): Buffer;
 export function decodeBatch(buf: Buffer | Uint8Array): Array<CompileResult | Error>;
 
 /**
+ * Async variant of {@link compile}. The Rust side runs on a libuv
+ * worker thread; the JS thread stays free to handle other callbacks.
+ * Returned `Promise<CompileResult>` resolves when the envelope has
+ * been encoded and decoded.
+ */
+export function compileAsync(
+	source: string,
+	options?: CompileOptions,
+): Promise<CompileResult>;
+
+/** Async variant of {@link compileBatch}. */
+export function compileBatchAsync(
+	inputs: CompileBatchInput[],
+): Promise<Array<CompileResult | Error>>;
+
+/** Lower-level: returns `Promise<Buffer>` (the raw envelope). */
+export function compileEnvelopeAsync(
+	source: string,
+	options?: CompileOptions,
+): Promise<Buffer>;
+
+/** Lower-level: returns `Promise<Buffer>` (the raw batch envelope). */
+export function compileBatchAsyncRaw(inputs: CompileBatchInput[]): Promise<Buffer>;
+
+/**
  * Step-1 variant of {@link compile}: returns the same shape but with
  * `js.code` / `js.map` / `css.code` / `css.map` as raw `Buffer`s. The
  * envelope path ({@link compile}) supersedes this for most callers; it
