@@ -16,6 +16,7 @@ mod props_transforms;
 mod reactive_transforms;
 mod rune_transforms;
 mod state;
+mod state_snapshot_ast;
 mod state_transforms;
 mod store_transforms;
 mod strict_equals_ast;
@@ -2494,10 +2495,20 @@ pub(crate) fn transform_module_script_runes(
         .cloned()
         .collect();
 
-    // Transform $state.snapshot(x) to $.snapshot(x)
-    // Module scripts don't need dev-mode handling for state_snapshot_uncloneable
-    if memmem::find(result.as_bytes(), b"$state.snapshot(").is_some() {
-        result = result.replace("$state.snapshot(", "$.snapshot(");
+    // Transform $state.snapshot(x) to $.snapshot(x).
+    // Module scripts don't need dev-mode handling for state_snapshot_uncloneable.
+    //
+    // AST-based rewrite via `state_snapshot_ast::transform_state_snapshot_ast`.
+    // The text version was `String::replace("$state.snapshot(", "$.snapshot(")`
+    // — rewrites byte patterns regardless of lexical context, so anything inside
+    // a string / template literal got (incorrectly) rewritten too. The AST
+    // visitor descends only into expression positions and can't make that
+    // mistake.
+    {
+        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+        if let Some(rewritten) = state_snapshot_ast::transform_state_snapshot_ast(&result, is_ts) {
+            result = rewritten;
+        }
     }
 
     // Transform $state.raw(x) / $state.frozen(x).
