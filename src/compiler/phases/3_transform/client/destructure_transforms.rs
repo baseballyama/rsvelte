@@ -26,7 +26,16 @@ pub(super) fn unthunk_string(expr: &str) -> String {
         }
     }
 
-    // No optimization possible, wrap in arrow
+    // No optimization possible, wrap in arrow.
+    //
+    // If the expression begins with `{`, an arrow body `() => { … }` parses
+    // as a block (and the contents become labelled statements), not as an
+    // object-literal return. Wrap the body in parens to disambiguate, so
+    // `$derived({ a: 1 }[k])` becomes `() => ({ a: 1 }[k])` rather than
+    // `() => { a: 1 }[k]`. See baseballyama/rsvelte#150.
+    if expr.trim_start().starts_with('{') {
+        return format!("() => ({})", expr);
+    }
     format!("() => {}", expr)
 }
 
