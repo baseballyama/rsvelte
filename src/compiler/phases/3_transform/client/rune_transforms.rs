@@ -867,6 +867,47 @@ pub(super) fn extract_operand_backward(s: &str) -> (String, usize) {
         break;
     }
 
+    // Fold preceding unary keyword operators (`typeof`, `void`, `delete`,
+    // `await`) into the operand. These bind tighter than `===` / `!==`, so
+    // `typeof x === 'object'` must be rewritten as
+    // `$.strict_equals(typeof x, 'object')` — not
+    // `typeof $.strict_equals(x, 'object')`, which orphans the operator and
+    // changes semantics. (baseballyama/rsvelte#167 family.)
+    loop {
+        let mut ws_end = end;
+        while ws_end > 0 && bytes[ws_end - 1].is_ascii_whitespace() {
+            ws_end -= 1;
+        }
+        if ws_end == 0 || ws_end == end {
+            break;
+        }
+        let keyword_len = if ws_end >= 6
+            && (&trimmed[ws_end - 6..ws_end] == "typeof"
+                || &trimmed[ws_end - 6..ws_end] == "delete")
+        {
+            Some(6)
+        } else if ws_end >= 5 && &trimmed[ws_end - 5..ws_end] == "await" {
+            Some(5)
+        } else if ws_end >= 4 && &trimmed[ws_end - 4..ws_end] == "void" {
+            Some(4)
+        } else {
+            None
+        };
+        let Some(klen) = keyword_len else {
+            break;
+        };
+        let kstart = ws_end - klen;
+        // Word-boundary check: the char before must not be an identifier char,
+        // otherwise we'd misread `xtypeof` as `x` + `typeof`.
+        if kstart > 0 {
+            let prev = bytes[kstart - 1];
+            if prev.is_ascii_alphanumeric() || prev == b'_' || prev == b'$' {
+                break;
+            }
+        }
+        end = kstart;
+    }
+
     let expr = trimmed[end..].to_string();
     let original_start = s.len() - trimmed.len() + end;
     (expr, original_start)
