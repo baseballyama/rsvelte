@@ -111,6 +111,13 @@ jobs:
 
       - name: Build docs
         working-directory: docs
+        # NAPI-on-Linux gotcha: when node `dlopen`s a Rust cdylib with
+        # thread_local!s after the process has already started, glibc can't
+        # always fit the .so's TLS into the static TLS block ("cannot allocate
+        # memory in static TLS block"). Bumping `glibc.rtld.optional_static_tls`
+        # reserves enough slack on first load that the dlopen succeeds.
+        env:
+          GLIBC_TUNABLES: glibc.rtld.optional_static_tls=2000000
         run: pnpm build
 
       - name: Upload artifact
