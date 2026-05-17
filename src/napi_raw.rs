@@ -57,6 +57,19 @@ pub const FLAG_HAS_CSS: u32 = 1 << 0;
 pub const FLAG_RUNES: u32 = 1 << 1;
 pub const FLAG_CSS_HAS_GLOBAL: u32 = 1 << 2;
 
+// Batch envelope ("RSVB" — RSv Batch). Wraps N standard v1 envelopes
+// in a single buffer so a `compileBatch([…])` call crosses the
+// NAPI boundary exactly once instead of N times. Per-item slots
+// carry a status byte so individual failures can ride along
+// alongside successes without aborting the whole batch.
+pub const BATCH_MAGIC: u32 = 0x4256_5352; // "RSVB" little-endian read
+pub const BATCH_VERSION: u32 = 1;
+pub const BATCH_HEADER_LEN: usize = 16;
+pub const BATCH_ENTRY_LEN: usize = 12; // u32 status + u32 offset + u32 len
+
+pub const BATCH_STATUS_OK: u32 = 0;
+pub const BATCH_STATUS_ERR: u32 = 1;
+
 const WARN_HAS_FILENAME: u8 = 1 << 0;
 const WARN_HAS_START: u8 = 1 << 1;
 const WARN_HAS_END: u8 = 1 << 2;
@@ -246,6 +259,114 @@ fn write_position<W: Writer>(w: &mut W, p: &Position) {
 pub fn encode_to_vec(result: &CompileResult) -> Vec<u8> {
     let mut buf = Vec::with_capacity(estimate_size(result));
     encode_into(&mut buf, result);
+    buf
+}
+
+// =============================================================================
+// Batch envelope
+// =============================================================================
+//
+// ## Batch envelope layout
+//
+// ```text
+// offset  size  field
+// 0       4     magic       "RSVB" (0x4256_5352 LE)
+// 4       4     version     u32 LE
+// 8       4     total_len   u32 LE
+// 12      4     count       u32 LE — N entries
+// 16      12*N  entries     N × (u32 status, u32 offset, u32 len)
+// 16+12N  var   payloads    N concatenated payloads
+// ```
+//
+// Per-entry `status`:
+//   - 0 (`BATCH_STATUS_OK`) → payload is a standard v1 envelope
+//   - 1 (`BATCH_STATUS_ERR`) → payload is a UTF-8 error message
+//
+// Errors are encoded as plain UTF-8 (not an envelope) so the JS side
+// can lift them with one `buf.toString('utf8', off, off+len)` without
+// the v1 header overhead. The status byte tells the decoder which
+// branch to take per entry.
+
+/// A single entry to encode in a batch — either a successful
+/// `CompileResult` or an error message describing why that input failed.
+pub enum BatchEntry<'a> {
+    Ok(&'a CompileResult),
+    Err(&'a str),
+}
+
+/// Estimate the byte size of an encoded batch envelope. Used to
+/// pre-size the backing buffer in one shot.
+pub fn estimate_batch_size(entries: &[BatchEntry<'_>]) -> usize {
+    let mut n = BATCH_HEADER_LEN + entries.len() * BATCH_ENTRY_LEN;
+    for entry in entries {
+        n += match entry {
+            BatchEntry::Ok(r) => estimate_size(r),
+            BatchEntry::Err(msg) => msg.len(),
+        };
+    }
+    n
+}
+
+/// Encode a batch of compile results into `writer`. Mirrors
+/// `encode_into` for the single-result case but reserves index slots
+/// for `count` entries and then streams each payload.
+pub fn encode_batch_into<W: Writer>(writer: &mut W, entries: &[BatchEntry<'_>]) {
+    debug_assert_eq!(
+        writer.position(),
+        0,
+        "encode_batch_into expects an empty writer"
+    );
+    writer.write_bytes(&BATCH_MAGIC.to_le_bytes());
+    writer.write_bytes(&BATCH_VERSION.to_le_bytes());
+    writer.write_bytes(&[0u8; 4]); // total_len — patched at the end
+    writer.write_bytes(&(entries.len() as u32).to_le_bytes());
+
+    // Reserve the entry table — 12 bytes per entry, patched as
+    // payloads land below.
+    let entry_table_start = writer.position();
+    for _ in entries {
+        writer.write_bytes(&[0u8; BATCH_ENTRY_LEN]);
+    }
+    debug_assert_eq!(
+        writer.position(),
+        BATCH_HEADER_LEN + entries.len() * BATCH_ENTRY_LEN
+    );
+
+    // Stream payloads and patch each entry's (status, offset, len) triple.
+    for (i, entry) in entries.iter().enumerate() {
+        let off = writer.position();
+        match entry {
+            BatchEntry::Ok(result) => {
+                // Inline a v1 envelope for the entry. We can't call
+                // `encode_into` because it asserts the writer is empty,
+                // and the v1 header's offsets are relative to the v1
+                // envelope start, not the outer batch start. So we
+                // encode into a side vec, then splice it in.
+                let inner = encode_to_vec(result);
+                writer.write_bytes(&inner);
+                let entry_off = entry_table_start + i * BATCH_ENTRY_LEN;
+                writer.patch_u32(entry_off, BATCH_STATUS_OK);
+                writer.patch_u32(entry_off + 4, off as u32);
+                writer.patch_u32(entry_off + 8, inner.len() as u32);
+            }
+            BatchEntry::Err(msg) => {
+                writer.write_bytes(msg.as_bytes());
+                let entry_off = entry_table_start + i * BATCH_ENTRY_LEN;
+                writer.patch_u32(entry_off, BATCH_STATUS_ERR);
+                writer.patch_u32(entry_off + 4, off as u32);
+                writer.patch_u32(entry_off + 8, msg.len() as u32);
+            }
+        }
+    }
+
+    let total = writer.position();
+    writer.patch_u32(8, total as u32);
+}
+
+/// Encode a batch of results into a fresh `Vec<u8>`.
+pub fn encode_batch_to_vec(entries: &[BatchEntry<'_>]) -> Vec<u8> {
+    let mut buf = Vec::with_capacity(estimate_batch_size(entries));
+    encode_batch_into(&mut buf, entries);
     buf
 }
 
@@ -478,5 +599,90 @@ mod tests {
         let estimated = estimate_size(&result);
         let actual = encode_to_vec(&result).len();
         assert_eq!(estimated, actual, "size estimate must match actual");
+    }
+
+    fn make_result(code: &str) -> CompileResult {
+        CompileResult {
+            js: CompileOutput {
+                code: code.to_string(),
+                map: None,
+            },
+            css: None,
+            warnings: vec![],
+            metadata: CompileMetadata { runes: false },
+            ast: None,
+        }
+    }
+
+    #[test]
+    fn batch_envelope_roundtrips_mixed_ok_err() {
+        let a = make_result("// a");
+        let c = make_result("// c");
+        let entries = vec![
+            BatchEntry::Ok(&a),
+            BatchEntry::Err("parse error: unexpected token"),
+            BatchEntry::Ok(&c),
+        ];
+        let buf = encode_batch_to_vec(&entries);
+
+        let read_u32 = |o: usize| u32::from_le_bytes([buf[o], buf[o + 1], buf[o + 2], buf[o + 3]]);
+        assert_eq!(read_u32(0), BATCH_MAGIC, "batch magic");
+        assert_eq!(read_u32(4), BATCH_VERSION);
+        assert_eq!(read_u32(8) as usize, buf.len(), "total_len");
+        assert_eq!(read_u32(12), 3, "count");
+
+        let entry = |i: usize| {
+            let off = BATCH_HEADER_LEN + i * BATCH_ENTRY_LEN;
+            (
+                read_u32(off),
+                read_u32(off + 4) as usize,
+                read_u32(off + 8) as usize,
+            )
+        };
+
+        // Entry 0: success — payload should be a valid v1 envelope
+        let (status0, off0, len0) = entry(0);
+        assert_eq!(status0, BATCH_STATUS_OK);
+        let inner = &buf[off0..off0 + len0];
+        assert_eq!(
+            u32::from_le_bytes([inner[0], inner[1], inner[2], inner[3]]),
+            MAGIC,
+            "inner v1 magic"
+        );
+
+        // Entry 1: error — payload should be raw UTF-8
+        let (status1, off1, len1) = entry(1);
+        assert_eq!(status1, BATCH_STATUS_ERR);
+        assert_eq!(
+            std::str::from_utf8(&buf[off1..off1 + len1]).unwrap(),
+            "parse error: unexpected token"
+        );
+
+        // Entry 2: success
+        let (status2, _, _) = entry(2);
+        assert_eq!(status2, BATCH_STATUS_OK);
+    }
+
+    #[test]
+    fn batch_size_estimate_is_exact() {
+        let a = make_result("aaa");
+        let b = make_result("bbbb");
+        let entries = vec![
+            BatchEntry::Ok(&a),
+            BatchEntry::Err("oops"),
+            BatchEntry::Ok(&b),
+        ];
+        assert_eq!(
+            estimate_batch_size(&entries),
+            encode_batch_to_vec(&entries).len()
+        );
+    }
+
+    #[test]
+    fn batch_empty_is_valid() {
+        let buf = encode_batch_to_vec(&[]);
+        assert_eq!(buf.len(), BATCH_HEADER_LEN);
+        let read_u32 = |o: usize| u32::from_le_bytes([buf[o], buf[o + 1], buf[o + 2], buf[o + 3]]);
+        assert_eq!(read_u32(12), 0, "empty batch count is 0");
     }
 }

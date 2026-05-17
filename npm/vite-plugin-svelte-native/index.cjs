@@ -2,7 +2,7 @@
 // Mirrors the loader pattern napi-rs generates: resolve a platform-specific
 // dependency that ships a single `rsvelte.node` artifact.
 
-const { decodeEnvelope } = require('./envelope.js');
+const { decodeEnvelope, decodeBatch } = require('./envelope.js');
 
 const { platform, arch } = process;
 
@@ -68,6 +68,15 @@ function compileModule(source, options) {
 	return decodeEnvelope(binding.compileModuleEnvelope(source, options));
 }
 
+// `compileBatch([{source, options}, …])` compiles N files in
+// parallel (rayon on the Rust side) and crosses the NAPI boundary
+// exactly once. The returned array is the same length as the input;
+// each slot is either a `CompileResult` or an `Error` (parse
+// failures don't abort the whole batch).
+function compileBatch(inputs) {
+	return decodeBatch(binding.compileBatch(inputs));
+}
+
 // Re-export every NAPI function as its own named binding so node's
 // `cjs-module-lexer` can pick them up when this file is imported via
 // ESM (e.g. `import { compile, preprocess, VERSION } from …`). A bare
@@ -93,7 +102,10 @@ module.exports.compileEnvelopeZeroCopy = binding.compileEnvelopeZeroCopy;
 module.exports.compileModuleEnvelopeZeroCopy = binding.compileModuleEnvelopeZeroCopy;
 module.exports.compileBuffers = binding.compileBuffers;
 module.exports.compileModuleBuffers = binding.compileModuleBuffers;
+module.exports.compileBatch = compileBatch;
+module.exports.compileBatchRaw = binding.compileBatch;
 module.exports.decodeEnvelope = decodeEnvelope;
+module.exports.decodeBatch = decodeBatch;
 module.exports.preprocess = binding.preprocess;
 module.exports.svelte2tsx = binding.svelte2tsx;
 module.exports.hmrDiff = binding.hmrDiff;
