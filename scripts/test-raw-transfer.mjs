@@ -379,3 +379,45 @@ microBench('.mapText (no parse, ready to write)', () => {
 	const arr = decodeBatch(binding.compileBatch(LOOP_FILES));
 	for (const r of arr) if (!(r instanceof Error) && r.js.mapText) void r.js.mapText.length;
 });
+
+// --- Async compile sanity --------------------------------------------------
+console.log('\n=== Async compile ===');
+if (typeof binding.compileEnvelopeAsync === 'function') {
+	const buf = await binding.compileEnvelopeAsync(SOURCE, OPTIONS);
+	const r = decodeEnvelope(buf);
+	console.log(`compileEnvelopeAsync → js.code=${r.js.code.length}b, runes=${r.metadata.runes}`);
+	assertEq('async parity js.code', envDecoded.js.code, r.js.code);
+
+	const batchBuf = await binding.compileBatchAsync(LOOP_FILES);
+	const batchArr = decodeBatch(batchBuf);
+	console.log(`compileBatchAsync(16) → ${batchArr.length} entries`);
+	assertEq('async batch length', LOOP_FILES.length, batchArr.length);
+
+	// Concurrency: 4 parallel compiles. With AsyncTask each runs on a
+	// separate worker thread, so total time should approach max(t_i)
+	// rather than sum(t_i) — modulo libuv's thread-pool size (default 4).
+	console.log('\n=== Async concurrency (4 parallel compiles, 50 iter) ===');
+	const ASYNC_ITER = 50;
+	async function asyncBench(label, fn) {
+		const t0 = process.hrtime.bigint();
+		for (let i = 0; i < ASYNC_ITER; i++) await fn();
+		const t1 = process.hrtime.bigint();
+		console.log(
+			`${label.padEnd(40)}  ${(Number(t1 - t0) / ASYNC_ITER / 1000).toFixed(1)} µs/iter`,
+		);
+	}
+	const BIG_PER_CALL = BIG_SOURCE ?? SOURCE;
+	const BIG_PER_OPTS = BIG_SOURCE
+		? { filename: '+page.svelte', generate: 'client' }
+		: OPTIONS;
+	await asyncBench('sync: 4x compile sequentially', async () => {
+		for (let k = 0; k < 4; k++) binding.compile(BIG_PER_CALL, BIG_PER_OPTS);
+	});
+	await asyncBench('async: 4x compileEnvelopeAsync in parallel', async () => {
+		await Promise.all(
+			Array.from({ length: 4 }, () =>
+				binding.compileEnvelopeAsync(BIG_PER_CALL, BIG_PER_OPTS),
+			),
+		);
+	});
+}

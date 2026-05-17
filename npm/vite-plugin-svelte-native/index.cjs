@@ -77,6 +77,19 @@ function compileBatch(inputs) {
 	return decodeBatch(binding.compileBatch(inputs));
 }
 
+// `compileAsync` / `compileBatchAsync` release the JS event loop
+// while the Rust side compiles on a libuv worker thread. Useful
+// for plugins that interleave compilation with other async work
+// (Vite middleware, SSR pre-render) — the await yields control
+// instead of blocking V8.
+async function compileAsync(source, options) {
+	return decodeEnvelope(await binding.compileEnvelopeAsync(source, options));
+}
+
+async function compileBatchAsync(inputs) {
+	return decodeBatch(await binding.compileBatchAsync(inputs));
+}
+
 // Re-export every NAPI function as its own named binding so node's
 // `cjs-module-lexer` can pick them up when this file is imported via
 // ESM (e.g. `import { compile, preprocess, VERSION } from …`). A bare
@@ -104,6 +117,10 @@ module.exports.compileBuffers = binding.compileBuffers;
 module.exports.compileModuleBuffers = binding.compileModuleBuffers;
 module.exports.compileBatch = compileBatch;
 module.exports.compileBatchRaw = binding.compileBatch;
+module.exports.compileAsync = compileAsync;
+module.exports.compileBatchAsync = compileBatchAsync;
+module.exports.compileEnvelopeAsync = binding.compileEnvelopeAsync;
+module.exports.compileBatchAsyncRaw = binding.compileBatchAsync;
 module.exports.decodeEnvelope = decodeEnvelope;
 module.exports.decodeBatch = decodeBatch;
 module.exports.preprocess = binding.preprocess;
