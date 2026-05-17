@@ -17,6 +17,7 @@ mod props_transforms;
 mod reactive_transforms;
 mod rune_transforms;
 mod state;
+mod state_raw_frozen_ast;
 mod state_snapshot_ast;
 mod state_transforms;
 mod store_transforms;
@@ -2516,43 +2517,22 @@ pub(crate) fn transform_module_script_runes(
     // Like $state(), whether we wrap in $.state() depends on whether the variable
     // is reassigned.  $state.raw/$state.frozen never use $.proxy(), just the raw value
     // when non-reactive, or $.state(value) when reassigned.
-    for rune_call in &["$state.raw(", "$state.frozen("] {
-        while let Some(pos) = memmem::find(result.as_bytes(), rune_call.as_bytes()) {
-            let call_start = pos + rune_call.len(); // position after opening paren
-            if let Some(content_end) = find_matching_paren(&result[call_start..]) {
-                let content = result[call_start..call_start + content_end].to_string();
-                let trimmed_content = content.trim();
-
-                // Extract variable name
-                let var_name = extract_var_name_before_rune(&result[..pos]);
-
-                let is_non_reactive = module_non_reactive_vars.contains(&var_name);
-                let value = if trimmed_content.is_empty() {
-                    "void 0".to_string()
-                } else {
-                    content.clone()
-                };
-
-                if is_non_reactive {
-                    // Non-reassigned: just use the raw value, no $.state() wrapper
-                    result = format!(
-                        "{}{}{}",
-                        &result[..pos],
-                        value,
-                        &result[call_start + content_end + 1..]
-                    );
-                } else {
-                    // Reassigned: wrap in $.state()
-                    result = format!(
-                        "{}$.state({}){}",
-                        &result[..pos],
-                        value,
-                        &result[call_start + content_end + 1..]
-                    );
-                }
-            } else {
-                break;
-            }
+    //
+    // AST-based rewrite via `state_raw_frozen_ast::transform_state_raw_frozen_ast`.
+    // The text predecessor scanned for `$state.raw(` / `$state.frozen(`, walked
+    // backwards via `extract_var_name_before_rune` to discover the declarator's
+    // identifier, then rewrote in place. That walked-back search was fragile
+    // (any byte pattern matching `$state.raw(` inside a string would trigger it).
+    // The AST visitor knows about strings / templates / regexes and reads the
+    // binding name from the `BindingPattern` directly.
+    {
+        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+        if let Some(rewritten) = state_raw_frozen_ast::transform_state_raw_frozen_ast(
+            &result,
+            &module_non_reactive_vars,
+            is_ts,
+        ) {
+            result = rewritten;
         }
     }
 
