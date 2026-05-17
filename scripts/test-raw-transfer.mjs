@@ -351,3 +351,31 @@ microBench('batch: 1x compileBatch(16)', () => {
 microBench('batch: compileBatch+decodeBatch(16)', () => {
 	decodeBatch(binding.compileBatch(LOOP_FILES));
 });
+
+// --- mapBytes / mapText fast paths ---------------------------------------
+console.log('\n=== Sourcemap accessors (16-file batch, 200 iter) ===');
+microBench('decode + JSON.parse(.map)', () => {
+	const arr = decodeBatch(binding.compileBatch(LOOP_FILES));
+	for (const r of arr) if (!(r instanceof Error)) void r.js.map?.version;
+});
+microBench('decode + .mapText (raw JSON)', () => {
+	const arr = decodeBatch(binding.compileBatch(LOOP_FILES));
+	for (const r of arr) if (!(r instanceof Error)) void r.js.mapText?.length;
+});
+microBench('decode + .mapBytes (Buffer)', () => {
+	const arr = decodeBatch(binding.compileBatch(LOOP_FILES));
+	for (const r of arr) if (!(r instanceof Error)) void r.js.mapBytes?.byteLength;
+});
+
+// Disk-emit simulation: the realistic Vite / rolldown use case.
+// Legacy: parse JSON → stringify back → write. mapText skips the
+// parse+stringify cycle entirely.
+console.log('\n=== Sourcemap "emit to disk" simulation (16-file batch) ===');
+microBench('parse(.map) + JSON.stringify (round-trip)', () => {
+	const arr = decodeBatch(binding.compileBatch(LOOP_FILES));
+	for (const r of arr) if (!(r instanceof Error) && r.js.map) JSON.stringify(r.js.map);
+});
+microBench('.mapText (no parse, ready to write)', () => {
+	const arr = decodeBatch(binding.compileBatch(LOOP_FILES));
+	for (const r of arr) if (!(r instanceof Error) && r.js.mapText) void r.js.mapText.length;
+});

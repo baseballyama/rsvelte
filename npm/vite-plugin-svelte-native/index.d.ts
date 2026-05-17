@@ -100,14 +100,31 @@ export interface Warning {
 
 export interface CompileResultJs {
 	code: string;
-	/** A standard SourceMap v3 JSON object. */
+	/**
+	 * A standard SourceMap v3 JSON object. Accessing this triggers a
+	 * one-time `JSON.parse` of the underlying envelope bytes. For
+	 * callers that immediately re-serialize (writing to disk,
+	 * sending over the wire) prefer {@link mapBytes} / {@link mapText}
+	 * to skip the parse round-trip.
+	 */
 	map: unknown;
+	/**
+	 * Zero-copy `Buffer` / `Uint8Array` view over the raw sourcemap
+	 * JSON bytes in the envelope. `null` if no map was produced. Stable
+	 * for the lifetime of the parent `CompileResult` (becomes invalid
+	 * once a `compileEnvelopeZeroCopy` buffer is GC'd).
+	 */
+	mapBytes: Buffer | Uint8Array | null;
+	/** Raw sourcemap JSON as a string — no `JSON.parse`. `null` if no map. */
+	mapText: string | null;
 }
 
 export interface CompileResultCss {
 	code: string;
-	/** A standard SourceMap v3 JSON object. */
+	/** See {@link CompileResultJs.map}. */
 	map: unknown;
+	mapBytes: Buffer | Uint8Array | null;
+	mapText: string | null;
 	hasGlobal: boolean;
 }
 
