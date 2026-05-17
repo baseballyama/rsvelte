@@ -4139,9 +4139,18 @@ fn transform_instance_script_for_visitors(
 
         // In dev mode, wrap console.METHOD() calls with $.log_if_contains_state
         // to detect when state proxies are logged directly.
-        // Reference: CallExpression.js in the official Svelte compiler
+        // Reference: CallExpression.js in the official Svelte compiler.
+        //
+        // Try the AST-based rewrite first (same helper as the module-script
+        // path); fall back to the legacy text scanner if the statement
+        // fragment fails to parse standalone (rare — the parser is lenient
+        // for any complete expression / statement). The AST path fixes the
+        // quote-counting string-skip heuristic that the text version uses.
         let transformed = if dev {
-            transform_console_calls_dev(&transformed)
+            let is_ts =
+                analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+            console_dev_ast::transform_console_calls_dev_ast(&transformed, is_ts)
+                .unwrap_or_else(|| transform_console_calls_dev(&transformed))
         } else {
             transformed
         };
