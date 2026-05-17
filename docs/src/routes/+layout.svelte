@@ -12,7 +12,7 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
 	<link
-		href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+		href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;500;600;700;800&family=Fira+Mono:wght@400;500;700&display=swap"
 		rel="stylesheet"
 	/>
 </svelte:head>
@@ -31,15 +31,9 @@
 	}
 
 	:global(body) {
-		font-family:
-			'Inter',
-			-apple-system,
-			BlinkMacSystemFont,
-			'Segoe UI',
-			Roboto,
-			sans-serif;
-		background: #0a0a0f;
-		color: #e4e4e7;
+		font-family: 'Overpass', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
+		background: #ffffff;
+		color: #14130f;
 		line-height: 1.6;
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
@@ -50,7 +44,13 @@
 		text-decoration: none;
 	}
 
-	:global(code) {
-		font-family: 'JetBrains Mono', 'Fira Code', monospace;
+	:global(code),
+	:global(pre) {
+		font-family: 'Fira Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+	}
+
+	:global(::selection) {
+		background: #ffe9d6;
+		color: #14130f;
 	}
 </style>
