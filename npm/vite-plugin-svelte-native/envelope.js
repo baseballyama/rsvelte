@@ -85,11 +85,11 @@ function decodeEnvelope(buf) {
 	// js — eagerly construct the wrapper object, but defer string/JSON
 	// realisation. Vite always touches `js.code`; the map is only
 	// touched when emitting sourcemaps.
-	const js = makeCodeMapObject(slice, jsCodeOff, jsCodeLen, jsMapOff, jsMapLen);
+	const js = makeCodeMapObject(buf, slice, jsCodeOff, jsCodeLen, jsMapOff, jsMapLen);
 
 	let css = null;
 	if (hasCss) {
-		css = makeCodeMapObject(slice, cssCodeOff, cssCodeLen, cssMapOff, cssMapLen);
+		css = makeCodeMapObject(buf, slice, cssCodeOff, cssCodeLen, cssMapOff, cssMapLen);
 		css.hasGlobal = (flags & FLAG_CSS_HAS_GLOBAL) !== 0;
 	}
 
@@ -118,7 +118,7 @@ function decodeEnvelope(buf) {
 	return result;
 }
 
-function makeCodeMapObject(slice, codeOff, codeLen, mapOff, mapLen) {
+function makeCodeMapObject(buf, slice, codeOff, codeLen, mapOff, mapLen) {
 	const obj = {};
 	let codeCache = null;
 	Object.defineProperty(obj, 'code', {
@@ -129,17 +129,45 @@ function makeCodeMapObject(slice, codeOff, codeLen, mapOff, mapLen) {
 			return codeCache;
 		},
 	});
-	let mapCache = mapOff === 0 ? null : undefined;
+	const hasMap = mapOff !== 0;
+	let mapCache = hasMap ? undefined : null;
 	Object.defineProperty(obj, 'map', {
 		enumerable: true,
 		configurable: true,
 		get() {
 			if (mapCache === undefined) {
 				// Parse the sourcemap JSON on first read. Returning the
-				// parsed object matches the legacy compile() shape.
+				// parsed object matches the legacy compile() shape —
+				// callers that just want the raw JSON to write to disk
+				// should prefer `mapBytes` / `mapText` (no JSON.parse).
 				mapCache = JSON.parse(slice(mapOff, mapLen));
 			}
 			return mapCache;
+		},
+	});
+	// `mapBytes` returns a zero-copy view into the envelope (Node Buffer
+	// or Uint8Array depending on what the caller passed in). Use this
+	// when emitting the sourcemap straight to disk / a network stream
+	// — no JSON.parse, no UTF-16 string materialisation.
+	Object.defineProperty(obj, 'mapBytes', {
+		enumerable: false,
+		configurable: true,
+		get() {
+			if (!hasMap) return null;
+			return buf.subarray
+				? buf.subarray(mapOff, mapOff + mapLen)
+				: new Uint8Array(buf.buffer, buf.byteOffset + mapOff, mapLen);
+		},
+	});
+	// `mapText` returns the raw sourcemap JSON as a string without the
+	// `JSON.parse` round-trip. Useful when downstream tooling immediately
+	// `JSON.stringify`s the map again (Vite's asset emit path).
+	Object.defineProperty(obj, 'mapText', {
+		enumerable: false,
+		configurable: true,
+		get() {
+			if (!hasMap) return null;
+			return slice(mapOff, mapLen);
 		},
 	});
 	return obj;
