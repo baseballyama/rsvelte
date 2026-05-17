@@ -1186,3 +1186,74 @@ pub fn napi_compile_module_envelope(source: String, options: Value) -> napi::Res
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
     }
 }
+
+// =============================================================================
+// Batch compile: one NAPI call → N files in parallel → one Buffer
+// =============================================================================
+//
+// `compileBatch([{source, options}, …])` hands the whole worklist to
+// `crate::compiler::compile_batch`, which uses rayon to compile in
+// parallel, and packs the resulting `Result<CompileResult, _>`s into
+// one batch envelope (`crate::napi_raw::encode_batch_to_vec`). One
+// `napi_create_external_buffer` per call regardless of N — the
+// per-file boundary cost goes from O(N) to O(1).
+//
+// Use case: Vite's dev server / SSR pre-render, which compile many
+// `.svelte` files in quick succession. With the legacy `compile()`
+// loop, each file pays the NAPI crossing + serde_json round-trip;
+// with `compileBatch` they share one.
+
+/// Single entry in a `compileBatch` worklist.
+#[napi(object)]
+pub struct CompileBatchInput {
+    pub source: String,
+    pub options: Option<Value>,
+}
+
+/// Compile multiple Svelte components in parallel via rayon, packing
+/// the results into one batch envelope. See `src/napi_raw.rs` for the
+/// byte format.
+#[napi(js_name = "compileBatch")]
+pub fn napi_compile_batch(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer> {
+    // Pre-parse every entry's options up front. Doing this here
+    // (rather than inside the rayon par_iter) keeps the NAPI/Value
+    // touchpoint single-threaded — `serde_json::Value` is `Send` but
+    // building it from a JS object isn't safe off the main thread.
+    let parsed: Vec<(String, crate::compiler::CompileOptions)> = inputs
+        .into_iter()
+        .map(|item| {
+            let opts = parse_options(&item.options.unwrap_or(Value::Null))?;
+            Ok::<_, napi::Error>((item.source, opts))
+        })
+        .collect::<napi::Result<_>>()?;
+
+    // Compile in parallel. `compile_batch` takes `&[(&str, CompileOptions)]`,
+    // so we materialise the borrowed view once.
+    let borrowed: Vec<(&str, crate::compiler::CompileOptions)> = parsed
+        .iter()
+        .map(|(s, o)| (s.as_str(), o.clone()))
+        .collect();
+    let results = crate::compiler::compile_batch(&borrowed);
+
+    // Build the BatchEntry view over the results so the encoder can
+    // walk them without taking ownership. Error messages format
+    // lazily and stay on the stack until encode time.
+    let err_strings: Vec<Option<String>> = results
+        .iter()
+        .map(|r| match r {
+            Ok(_) => None,
+            Err(e) => Some(format!("{e:?}")),
+        })
+        .collect();
+
+    let entries: Vec<crate::napi_raw::BatchEntry<'_>> = results
+        .iter()
+        .zip(err_strings.iter())
+        .map(|(r, e)| match r {
+            Ok(cr) => crate::napi_raw::BatchEntry::Ok(cr),
+            Err(_) => crate::napi_raw::BatchEntry::Err(e.as_deref().unwrap_or("unknown error")),
+        })
+        .collect();
+
+    Ok(Buffer::from(crate::napi_raw::encode_batch_to_vec(&entries)))
+}

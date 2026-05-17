@@ -173,6 +173,41 @@ export function compileModuleEnvelopeZeroCopy(
 export function decodeEnvelope(buf: Buffer | Uint8Array): CompileResult;
 
 /**
+ * Single entry in a {@link compileBatch} worklist. `options` is
+ * forwarded to the underlying compile as if you had called
+ * `compile(source, options)`.
+ */
+export interface CompileBatchInput {
+	source: string;
+	options?: CompileOptions;
+}
+
+/**
+ * Compile multiple Svelte components in one NAPI call. The Rust side
+ * dispatches across rayon workers; the JS side gets one `Buffer`
+ * back containing all N results. Per-entry failures surface as
+ * `Error` instances at the corresponding slot — they don't abort
+ * the rest of the batch.
+ *
+ * Use this when you'd otherwise loop `compile()` over many files
+ * (Vite dev server, SSR pre-render). For one-off compiles the
+ * per-call overhead of `compile()` is already small.
+ */
+export function compileBatch(
+	inputs: CompileBatchInput[],
+): Array<CompileResult | Error>;
+
+/**
+ * Lower-level entry point: returns the raw batch envelope as a single
+ * `Buffer`. Pair with {@link decodeBatch} to obtain the same array
+ * {@link compileBatch} would, or pass through worker `postMessage`.
+ */
+export function compileBatchRaw(inputs: CompileBatchInput[]): Buffer;
+
+/** Decode a batch envelope produced by {@link compileBatchRaw}. */
+export function decodeBatch(buf: Buffer | Uint8Array): Array<CompileResult | Error>;
+
+/**
  * Step-1 variant of {@link compile}: returns the same shape but with
  * `js.code` / `js.map` / `css.code` / `css.map` as raw `Buffer`s. The
  * envelope path ({@link compile}) supersedes this for most callers; it

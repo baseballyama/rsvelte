@@ -207,9 +207,88 @@ function utf8SliceFromUint8Array(u8, off, len) {
 	return cachedDecoder.decode(u8.subarray(off, off + len));
 }
 
+// =============================================================================
+// Batch envelope
+// =============================================================================
+
+const BATCH_MAGIC = 0x42565352; // "RSVB" little-endian
+const BATCH_VERSION = 1;
+const BATCH_HEADER_LEN = 16;
+const BATCH_ENTRY_LEN = 12;
+const BATCH_STATUS_OK = 0;
+const BATCH_STATUS_ERR = 1;
+
+/**
+ * Decode a batch envelope produced by `compileBatch`. Returns an
+ * array the same length as the input, where each slot is either a
+ * `CompileResult` (decoded lazily on first read, like {@link decodeEnvelope})
+ * or an `Error` carrying the per-entry failure message.
+ *
+ * @param {Buffer|Uint8Array} buf
+ * @returns {Array<object|Error>}
+ */
+function decodeBatch(buf) {
+	if (!buf || buf.byteLength < BATCH_HEADER_LEN) {
+		throw new Error(
+			`[rsvelte] batch envelope too small (${buf ? buf.byteLength : 0} bytes, ` +
+				`expected at least ${BATCH_HEADER_LEN})`,
+		);
+	}
+
+	const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+	const magic = view.getUint32(0, true);
+	if (magic !== BATCH_MAGIC) {
+		throw new Error(
+			`[rsvelte] batch magic mismatch (got 0x${magic.toString(16)}, ` +
+				`expected 0x${BATCH_MAGIC.toString(16)})`,
+		);
+	}
+	const version = view.getUint32(4, true);
+	if (version !== BATCH_VERSION) {
+		throw new Error(
+			`[rsvelte] unsupported batch envelope version ${version} (this build expects ${BATCH_VERSION})`,
+		);
+	}
+	const totalLen = view.getUint32(8, true);
+	if (totalLen !== buf.byteLength) {
+		throw new Error(
+			`[rsvelte] batch envelope size mismatch (header says ${totalLen}, buffer is ${buf.byteLength})`,
+		);
+	}
+	const count = view.getUint32(12, true);
+
+	const out = new Array(count);
+	for (let i = 0; i < count; i++) {
+		const entryOff = BATCH_HEADER_LEN + i * BATCH_ENTRY_LEN;
+		const status = view.getUint32(entryOff, true);
+		const payloadOff = view.getUint32(entryOff + 4, true);
+		const payloadLen = view.getUint32(entryOff + 8, true);
+		// Subarray gives a zero-copy view into the same underlying
+		// ArrayBuffer; `decodeEnvelope` walks it without further allocation.
+		const slice = buf.subarray
+			? buf.subarray(payloadOff, payloadOff + payloadLen)
+			: new Uint8Array(buf.buffer, buf.byteOffset + payloadOff, payloadLen);
+		if (status === BATCH_STATUS_OK) {
+			out[i] = decodeEnvelope(slice);
+		} else if (status === BATCH_STATUS_ERR) {
+			const msg = bufferIsNodeBuffer(slice)
+				? slice.toString('utf8')
+				: utf8SliceFromUint8Array(slice, 0, slice.byteLength);
+			out[i] = new Error(msg);
+		} else {
+			out[i] = new Error(`[rsvelte] unknown batch entry status ${status} at index ${i}`);
+		}
+	}
+	return out;
+}
+
 module.exports = {
 	decodeEnvelope,
+	decodeBatch,
 	HEADER_LEN,
 	MAGIC,
 	VERSION,
+	BATCH_HEADER_LEN,
+	BATCH_MAGIC,
+	BATCH_VERSION,
 };

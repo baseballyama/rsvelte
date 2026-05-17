@@ -53,7 +53,7 @@ function triple() {
 }
 
 const binding = loadBinding();
-const { decodeEnvelope } = await import(
+const { decodeEnvelope, decodeBatch } = await import(
 	`file://${join(repoRoot, 'npm/vite-plugin-svelte-native/envelope.js')}`
 ).then((m) => m.default ?? m);
 
@@ -294,3 +294,60 @@ if (BIG_SOURCE) {
 		void binding.compileEnvelopeZeroCopy(BIG_SOURCE, BIG_OPTS).byteLength;
 	});
 }
+
+// --- compileBatch sanity + benchmark --------------------------------------
+console.log('\n=== compileBatch ===');
+const BATCH = [
+	{ source: SOURCE, options: { filename: 'a.svelte', generate: 'client' } },
+	{ source: SOURCE, options: { filename: 'b.svelte', generate: 'client' } },
+	{ source: '<bogus invalid svelte', options: { filename: 'bad.svelte' } },
+	{ source: SOURCE, options: { filename: 'd.svelte', generate: 'client' } },
+];
+
+const batchResults = binding.compileBatch(BATCH);
+const decoded = decodeBatch(batchResults);
+console.log(`batch buffer size: ${batchResults.byteLength}b for ${BATCH.length} entries`);
+console.log(`decoded length: ${decoded.length}`);
+for (let i = 0; i < decoded.length; i++) {
+	const r = decoded[i];
+	if (r instanceof Error) {
+		console.log(`  [${i}] ERR: ${r.message.slice(0, 60).replace(/\n/g, ' ')}`);
+	} else {
+		console.log(`  [${i}] OK: js.code=${r.js.code.length}b`);
+	}
+}
+
+const expectedOks = BATCH.filter((b) => !b.source.startsWith('<bogus')).length;
+const actualOks = decoded.filter((r) => !(r instanceof Error)).length;
+assertEq('compileBatch ok count', expectedOks, actualOks);
+assertEq('compileBatch err count', BATCH.length - expectedOks, decoded.length - actualOks);
+
+// Per-file vs batch micro-benchmark
+console.log('\n=== Batch vs loop (16 files, 200 iter) ===');
+const LOOP_FILES = Array.from({ length: 16 }, (_, i) => ({
+	source: SOURCE,
+	options: { filename: `f${i}.svelte`, generate: 'client' },
+}));
+for (let i = 0; i < 50; i++) binding.compileBatch(LOOP_FILES); // warm-up
+
+function microBench(label, fn) {
+	const ITER = 200;
+	const t0 = process.hrtime.bigint();
+	for (let i = 0; i < ITER; i++) fn();
+	const t1 = process.hrtime.bigint();
+	const ns = Number(t1 - t0);
+	console.log(`${label.padEnd(40)}  ${(ns / ITER / 1000).toFixed(1)} µs/iter`);
+}
+
+microBench('loop: 16x binding.compile()', () => {
+	for (const f of LOOP_FILES) binding.compile(f.source, f.options);
+});
+microBench('loop: 16x compileEnvelope+decode', () => {
+	for (const f of LOOP_FILES) decodeEnvelope(binding.compileEnvelope(f.source, f.options));
+});
+microBench('batch: 1x compileBatch(16)', () => {
+	binding.compileBatch(LOOP_FILES);
+});
+microBench('batch: compileBatch+decodeBatch(16)', () => {
+	decodeBatch(binding.compileBatch(LOOP_FILES));
+});
