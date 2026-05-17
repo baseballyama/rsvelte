@@ -37,8 +37,8 @@ use crate::svelte2tsx::{
 /// Takes source code and an options object, returns a result object
 /// matching the official `svelte/compiler` output shape.
 #[napi(js_name = "compile")]
-pub fn napi_compile(source: String, options: Value) -> napi::Result<Value> {
-    let opts = parse_options(&options)?;
+pub fn napi_compile(source: String, options: Option<NapiCompileOptions>) -> napi::Result<Value> {
+    let opts = options_to_compile(options);
 
     match rust_compile(&source, opts) {
         Ok(result) => {
@@ -110,136 +110,161 @@ pub fn napi_compile(source: String, options: Value) -> napi::Result<Value> {
     }
 }
 
-/// Parse JS options object into CompileOptions.
-fn parse_options(options: &Value) -> napi::Result<CompileOptions> {
-    let obj = options.as_object();
+// =============================================================================
+// Typed compile-options surface (replaces serde_json::Value-driven parsing)
+// =============================================================================
+//
+// Every `#[napi(object)]` field is read straight out of the V8 object
+// by napi-derive's generated FromNapiValue impl — no
+// `serde_json::Value` intermediate, no HashMap lookups, no per-field
+// `.as_bool()` / `.as_str()` ceremony. Unknown JS fields (e.g. the
+// `cssHash` / `warningFilter` callbacks Vite passes) are silently
+// ignored, matching the prior behaviour.
+//
+// `sourcemap` and `cssHash`/`warningFilter` stay polymorphic on the
+// JS side — `sourcemap` can be a v3 JSON object or its serialized
+// string form, the callbacks are JS functions. The Value-typed
+// `sourcemap` field accepts either; the callback fields aren't
+// modelled here because the compiler core can't call back into JS.
 
-    let mut opts = CompileOptions::default();
+#[napi(object)]
+pub struct NapiExperimentalOptions {
+    pub r#async: Option<bool>,
+}
 
-    if let Some(obj) = obj {
-        // dev
-        if let Some(v) = obj.get("dev").and_then(|v| v.as_bool()) {
+#[napi(object)]
+pub struct NapiCompatibilityOptions {
+    pub component_api: Option<u32>,
+}
+
+/// Typed mirror of `CompileOptions` for the NAPI boundary. Field
+/// names follow `#[napi(object)]`'s automatic camelCase conversion,
+/// so the JS shape stays identical to the legacy `Value`-typed
+/// `options` argument (`{ dev, generate, filename, rootDir, … }`).
+#[napi(object)]
+pub struct NapiCompileOptions {
+    pub dev: Option<bool>,
+    pub generate: Option<String>,
+    pub filename: Option<String>,
+    pub root_dir: Option<String>,
+    pub name: Option<String>,
+    pub custom_element: Option<bool>,
+    pub accessors: Option<bool>,
+    pub namespace: Option<String>,
+    pub immutable: Option<bool>,
+    pub css: Option<String>,
+    pub preserve_comments: Option<bool>,
+    pub preserve_whitespace: Option<bool>,
+    pub runes: Option<bool>,
+    pub disclose_version: Option<bool>,
+    /// SourceMap v3 object **or** its serialized JSON string — both
+    /// accepted. Preprocessors pass an object; the test harness
+    /// sometimes passes a string. Anything else (number, array,
+    /// boolean) is ignored.
+    pub sourcemap: Option<Value>,
+    pub output_filename: Option<String>,
+    pub css_output_filename: Option<String>,
+    pub hmr: Option<bool>,
+    pub modern_ast: Option<bool>,
+    pub experimental: Option<NapiExperimentalOptions>,
+    pub compatibility: Option<NapiCompatibilityOptions>,
+    /// Pre-computed deterministic hash for the test harness (the JS
+    /// `cssHash` callback can't be called from Rust).
+    pub css_hash_override: Option<String>,
+    pub fragments: Option<String>,
+}
+
+impl NapiCompileOptions {
+    /// Convert into the compiler's native `CompileOptions`. The
+    /// defaults match `CompileOptions::default()`; only fields the JS
+    /// caller actually set are propagated.
+    fn into_compile_options(self) -> CompileOptions {
+        let mut opts = CompileOptions::default();
+        if let Some(v) = self.dev {
             opts.dev = v;
         }
-
-        // generate
-        if let Some(v) = obj.get("generate").and_then(|v| v.as_str()) {
+        if let Some(v) = self.generate.as_deref() {
             opts.generate = match v {
                 "server" | "ssr" => GenerateMode::Server,
                 "false" => GenerateMode::None,
                 _ => GenerateMode::Client,
             };
         }
-
-        // filename
-        if let Some(v) = obj.get("filename").and_then(|v| v.as_str()) {
-            opts.filename = Some(v.to_string());
+        if let Some(v) = self.filename {
+            opts.filename = Some(v);
         }
-
-        // rootDir - defaults to process.cwd() equivalent, matching the official Svelte compiler
-        if let Some(v) = obj.get("rootDir").and_then(|v| v.as_str()) {
-            opts.root_dir = Some(v.to_string());
+        // rootDir defaults to the process's cwd (matches official Svelte)
+        if let Some(v) = self.root_dir {
+            opts.root_dir = Some(v);
         } else if let Ok(cwd) = std::env::current_dir() {
             opts.root_dir = Some(cwd.to_string_lossy().to_string());
         }
-
-        // name
-        if let Some(v) = obj.get("name").and_then(|v| v.as_str()) {
-            opts.name = Some(v.to_string());
+        if let Some(v) = self.name {
+            opts.name = Some(v);
         }
-
-        // customElement
-        if let Some(v) = obj.get("customElement").and_then(|v| v.as_bool()) {
+        if let Some(v) = self.custom_element {
             opts.custom_element = v;
         }
-
-        // accessors
-        if let Some(v) = obj.get("accessors").and_then(|v| v.as_bool()) {
+        if let Some(v) = self.accessors {
             opts.accessors = v;
         }
-
-        // namespace
-        if let Some(v) = obj.get("namespace").and_then(|v| v.as_str()) {
+        if let Some(v) = self.namespace.as_deref() {
             opts.namespace = match v {
                 "svg" => Namespace::Svg,
                 "mathml" => Namespace::Mathml,
                 _ => Namespace::Html,
             };
         }
-
-        // immutable
-        if let Some(v) = obj.get("immutable").and_then(|v| v.as_bool()) {
+        if let Some(v) = self.immutable {
             opts.immutable = v;
         }
-
-        // css
-        if let Some(v) = obj.get("css").and_then(|v| v.as_str()) {
+        if let Some(v) = self.css.as_deref() {
             opts.css = match v {
                 "injected" => CssMode::Injected,
                 _ => CssMode::External,
             };
         }
-
-        // preserveComments
-        if let Some(v) = obj.get("preserveComments").and_then(|v| v.as_bool()) {
+        if let Some(v) = self.preserve_comments {
             opts.preserve_comments = v;
         }
-
-        // preserveWhitespace
-        if let Some(v) = obj.get("preserveWhitespace").and_then(|v| v.as_bool()) {
+        if let Some(v) = self.preserve_whitespace {
             opts.preserve_whitespace = v;
         }
-
-        // runes
-        if let Some(v) = obj.get("runes").and_then(|v| v.as_bool()) {
+        if let Some(v) = self.runes {
             opts.runes = Some(v);
         }
-
-        // discloseVersion
-        if let Some(v) = obj.get("discloseVersion").and_then(|v| v.as_bool()) {
+        if let Some(v) = self.disclose_version {
             opts.disclose_version = v;
         }
-
-        // sourcemap - can be a JSON string or an object
-        if let Some(v) = obj.get("sourcemap") {
+        if let Some(v) = self.sourcemap {
+            // Preprocessors pass the map as an object; the test harness
+            // and some callers pass it as the serialized JSON string.
+            // Accept either; ignore anything else.
             if let Some(s) = v.as_str() {
                 opts.sourcemap = Some(s.to_string());
             } else if v.is_object() || v.is_array() {
-                // Preprocessor passes source map as an object; serialize it
-                opts.sourcemap = Some(serde_json::to_string(v).unwrap_or_default());
+                opts.sourcemap = Some(serde_json::to_string(&v).unwrap_or_default());
             }
         }
-
-        // outputFilename
-        if let Some(v) = obj.get("outputFilename").and_then(|v| v.as_str()) {
-            opts.output_filename = Some(v.to_string());
+        if let Some(v) = self.output_filename {
+            opts.output_filename = Some(v);
         }
-
-        // cssOutputFilename
-        if let Some(v) = obj.get("cssOutputFilename").and_then(|v| v.as_str()) {
-            opts.css_output_filename = Some(v.to_string());
+        if let Some(v) = self.css_output_filename {
+            opts.css_output_filename = Some(v);
         }
-
-        // hmr
-        if let Some(v) = obj.get("hmr").and_then(|v| v.as_bool()) {
+        if let Some(v) = self.hmr {
             opts.hmr = v;
         }
-
-        // modernAst
-        if let Some(v) = obj.get("modernAst").and_then(|v| v.as_bool()) {
+        if let Some(v) = self.modern_ast {
             opts.modern_ast = v;
         }
-
-        // experimental
-        if let Some(exp) = obj.get("experimental").and_then(|v| v.as_object())
-            && let Some(v) = exp.get("async").and_then(|v| v.as_bool())
+        if let Some(exp) = self.experimental
+            && let Some(v) = exp.r#async
         {
             opts.experimental = ExperimentalOptions { r#async: v };
         }
-
-        // compatibility
-        if let Some(compat) = obj.get("compatibility").and_then(|v| v.as_object())
-            && let Some(v) = compat.get("componentApi").and_then(|v| v.as_u64())
+        if let Some(compat) = self.compatibility
+            && let Some(v) = compat.component_api
         {
             opts.compatibility.component_api = if v == 4 {
                 crate::compiler::ComponentApi::V4
@@ -247,61 +272,85 @@ fn parse_options(options: &Value) -> napi::Result<CompileOptions> {
                 crate::compiler::ComponentApi::V5
             };
         }
-
-        // cssHash - JS function can't be called from Rust, but cssHashOverride
-        // provides the pre-computed result from the test harness
-        if let Some(v) = obj.get("cssHashOverride").and_then(|v| v.as_str()) {
-            let hash_override = v.to_string();
+        if let Some(hash_override) = self.css_hash_override {
             opts.css_hash = Some(std::sync::Arc::new(
                 move |_: &crate::compiler::CssHashInput| hash_override.clone(),
             ));
         }
-
-        // fragments
-        if let Some(v) = obj.get("fragments").and_then(|v| v.as_str()) {
+        if let Some(v) = self.fragments.as_deref() {
             opts.fragments = match v {
                 "tree" => crate::compiler::FragmentMode::Tree,
                 _ => crate::compiler::FragmentMode::Html,
             };
         }
-
-        // warningFilter - skip (JS function, use default)
+        opts
     }
-
-    Ok(opts)
 }
 
-/// Compile a Svelte module (.svelte.js/.svelte.ts).
-#[napi(js_name = "compileModule")]
-pub fn napi_compile_module(source: String, options: Value) -> napi::Result<Value> {
-    let obj = options.as_object();
+/// Typed mirror of `ModuleCompileOptions`.
+#[napi(object)]
+pub struct NapiModuleCompileOptions {
+    pub dev: Option<bool>,
+    pub generate: Option<String>,
+    pub filename: Option<String>,
+    pub root_dir: Option<String>,
+    pub experimental: Option<NapiExperimentalOptions>,
+}
 
-    let mut opts = ModuleCompileOptions::default();
-
-    if let Some(obj) = obj {
-        if let Some(v) = obj.get("dev").and_then(|v| v.as_bool()) {
+impl NapiModuleCompileOptions {
+    fn into_module_compile_options(self) -> ModuleCompileOptions {
+        let mut opts = ModuleCompileOptions::default();
+        if let Some(v) = self.dev {
             opts.dev = v;
         }
-        if let Some(v) = obj.get("generate").and_then(|v| v.as_str()) {
+        if let Some(v) = self.generate.as_deref() {
             opts.generate = match v {
                 "server" | "ssr" => GenerateMode::Server,
                 "false" => GenerateMode::None,
                 _ => GenerateMode::Client,
             };
         }
-        if let Some(v) = obj.get("filename").and_then(|v| v.as_str()) {
-            opts.filename = Some(v.to_string());
+        if let Some(v) = self.filename {
+            opts.filename = Some(v);
         }
-        if let Some(v) = obj.get("rootDir").and_then(|v| v.as_str()) {
-            opts.root_dir = Some(v.to_string());
+        if let Some(v) = self.root_dir {
+            opts.root_dir = Some(v);
         }
-        if let Some(exp) = obj.get("experimental").and_then(|v| v.as_object())
-            && let Some(v) = exp.get("async").and_then(|v| v.as_bool())
+        if let Some(exp) = self.experimental
+            && let Some(v) = exp.r#async
         {
             opts.experimental = ExperimentalOptions { r#async: v };
         }
+        opts
     }
+}
 
+/// Compatibility wrapper: convert an Option<NapiCompileOptions> (the
+/// typed surface) into `CompileOptions`. `None` and `Some(empty)`
+/// both produce the defaults.
+fn options_to_compile(opts: Option<NapiCompileOptions>) -> CompileOptions {
+    opts.map(NapiCompileOptions::into_compile_options)
+        .unwrap_or_else(|| {
+            let mut o = CompileOptions::default();
+            if let Ok(cwd) = std::env::current_dir() {
+                o.root_dir = Some(cwd.to_string_lossy().to_string());
+            }
+            o
+        })
+}
+
+fn options_to_module_compile(opts: Option<NapiModuleCompileOptions>) -> ModuleCompileOptions {
+    opts.map(NapiModuleCompileOptions::into_module_compile_options)
+        .unwrap_or_default()
+}
+
+/// Compile a Svelte module (.svelte.js/.svelte.ts).
+#[napi(js_name = "compileModule")]
+pub fn napi_compile_module(
+    source: String,
+    options: Option<NapiModuleCompileOptions>,
+) -> napi::Result<Value> {
+    let opts = options_to_module_compile(options);
     match rust_compile_module(&source, opts) {
         Ok(result) => {
             let js_obj = serde_json::json!({
@@ -884,8 +933,11 @@ pub struct CompileBuffersResult {
 /// string copy. Warnings stay as a structured `#[napi(object)]` since
 /// they're small and the JS side reads them eagerly.
 #[napi(js_name = "compileBuffers")]
-pub fn napi_compile_buffers(source: String, options: Value) -> napi::Result<CompileBuffersResult> {
-    let opts = parse_options(&options)?;
+pub fn napi_compile_buffers(
+    source: String,
+    options: Option<NapiCompileOptions>,
+) -> napi::Result<CompileBuffersResult> {
+    let opts = options_to_compile(options);
     match rust_compile(&source, opts) {
         Ok(result) => Ok(CompileBuffersResult {
             js: CompileBuffersJs {
@@ -908,32 +960,9 @@ pub fn napi_compile_buffers(source: String, options: Value) -> napi::Result<Comp
 #[napi(js_name = "compileModuleBuffers")]
 pub fn napi_compile_module_buffers(
     source: String,
-    options: Value,
+    options: Option<NapiModuleCompileOptions>,
 ) -> napi::Result<CompileBuffersResult> {
-    let mut opts = ModuleCompileOptions::default();
-    if let Some(obj) = options.as_object() {
-        if let Some(v) = obj.get("dev").and_then(|v| v.as_bool()) {
-            opts.dev = v;
-        }
-        if let Some(v) = obj.get("generate").and_then(|v| v.as_str()) {
-            opts.generate = match v {
-                "server" | "ssr" => GenerateMode::Server,
-                "false" => GenerateMode::None,
-                _ => GenerateMode::Client,
-            };
-        }
-        if let Some(v) = obj.get("filename").and_then(|v| v.as_str()) {
-            opts.filename = Some(v.to_string());
-        }
-        if let Some(v) = obj.get("rootDir").and_then(|v| v.as_str()) {
-            opts.root_dir = Some(v.to_string());
-        }
-        if let Some(exp) = obj.get("experimental").and_then(|v| v.as_object())
-            && let Some(v) = exp.get("async").and_then(|v| v.as_bool())
-        {
-            opts.experimental = ExperimentalOptions { r#async: v };
-        }
-    }
+    let opts = options_to_module_compile(options);
 
     match rust_compile_module(&source, opts) {
         Ok(result) => Ok(CompileBuffersResult {
@@ -986,8 +1015,11 @@ fn position_to_napi(p: crate::compiler::Position) -> NapiPosition {
 /// `compile()` returning a single packed envelope buffer.
 /// See `crate::napi_raw` for the byte-level format.
 #[napi(js_name = "compileEnvelope")]
-pub fn napi_compile_envelope(source: String, options: Value) -> napi::Result<Buffer> {
-    let opts = parse_options(&options)?;
+pub fn napi_compile_envelope(
+    source: String,
+    options: Option<NapiCompileOptions>,
+) -> napi::Result<Buffer> {
+    let opts = options_to_compile(options);
     match rust_compile(&source, opts) {
         Ok(result) => Ok(Buffer::from(crate::napi_raw::encode_to_vec(&result))),
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
@@ -1037,9 +1069,9 @@ pub fn napi_compile_envelope(source: String, options: Value) -> napi::Result<Buf
 pub fn napi_compile_envelope_zero_copy(
     env: Env,
     source: String,
-    options: Value,
+    options: Option<NapiCompileOptions>,
 ) -> napi::Result<JsBuffer> {
-    let opts = parse_options(&options)?;
+    let opts = options_to_compile(options);
     let result = match rust_compile(&source, opts) {
         Ok(r) => r,
         Err(e) => return Err(napi::Error::from_reason(format!("{e:?}"))),
@@ -1080,32 +1112,9 @@ pub fn napi_compile_envelope_zero_copy(
 pub fn napi_compile_module_envelope_zero_copy(
     env: Env,
     source: String,
-    options: Value,
+    options: Option<NapiModuleCompileOptions>,
 ) -> napi::Result<JsBuffer> {
-    let mut opts = ModuleCompileOptions::default();
-    if let Some(obj) = options.as_object() {
-        if let Some(v) = obj.get("dev").and_then(|v| v.as_bool()) {
-            opts.dev = v;
-        }
-        if let Some(v) = obj.get("generate").and_then(|v| v.as_str()) {
-            opts.generate = match v {
-                "server" | "ssr" => GenerateMode::Server,
-                "false" => GenerateMode::None,
-                _ => GenerateMode::Client,
-            };
-        }
-        if let Some(v) = obj.get("filename").and_then(|v| v.as_str()) {
-            opts.filename = Some(v.to_string());
-        }
-        if let Some(v) = obj.get("rootDir").and_then(|v| v.as_str()) {
-            opts.root_dir = Some(v.to_string());
-        }
-        if let Some(exp) = obj.get("experimental").and_then(|v| v.as_object())
-            && let Some(v) = exp.get("async").and_then(|v| v.as_bool())
-        {
-            opts.experimental = ExperimentalOptions { r#async: v };
-        }
-    }
+    let opts = options_to_module_compile(options);
     let result = match rust_compile_module(&source, opts) {
         Ok(r) => r,
         Err(e) => return Err(napi::Error::from_reason(format!("{e:?}"))),
@@ -1143,31 +1152,11 @@ pub fn napi_compile_module_envelope_zero_copy(
 /// uses the empty-CSS / empty-warnings encoding, so the JS decoder is
 /// identical for both entry points.
 #[napi(js_name = "compileModuleEnvelope")]
-pub fn napi_compile_module_envelope(source: String, options: Value) -> napi::Result<Buffer> {
-    let mut opts = ModuleCompileOptions::default();
-    if let Some(obj) = options.as_object() {
-        if let Some(v) = obj.get("dev").and_then(|v| v.as_bool()) {
-            opts.dev = v;
-        }
-        if let Some(v) = obj.get("generate").and_then(|v| v.as_str()) {
-            opts.generate = match v {
-                "server" | "ssr" => GenerateMode::Server,
-                "false" => GenerateMode::None,
-                _ => GenerateMode::Client,
-            };
-        }
-        if let Some(v) = obj.get("filename").and_then(|v| v.as_str()) {
-            opts.filename = Some(v.to_string());
-        }
-        if let Some(v) = obj.get("rootDir").and_then(|v| v.as_str()) {
-            opts.root_dir = Some(v.to_string());
-        }
-        if let Some(exp) = obj.get("experimental").and_then(|v| v.as_object())
-            && let Some(v) = exp.get("async").and_then(|v| v.as_bool())
-        {
-            opts.experimental = ExperimentalOptions { r#async: v };
-        }
-    }
+pub fn napi_compile_module_envelope(
+    source: String,
+    options: Option<NapiModuleCompileOptions>,
+) -> napi::Result<Buffer> {
+    let opts = options_to_module_compile(options);
     match rust_compile_module(&source, opts) {
         Ok(result) => {
             // Adapt the module result into the same `CompileResult` shape
@@ -1207,7 +1196,7 @@ pub fn napi_compile_module_envelope(source: String, options: Value) -> napi::Res
 #[napi(object)]
 pub struct CompileBatchInput {
     pub source: String,
-    pub options: Option<Value>,
+    pub options: Option<NapiCompileOptions>,
 }
 
 /// Compile multiple Svelte components in parallel via rayon, packing
@@ -1215,17 +1204,14 @@ pub struct CompileBatchInput {
 /// byte format.
 #[napi(js_name = "compileBatch")]
 pub fn napi_compile_batch(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer> {
-    // Pre-parse every entry's options up front. Doing this here
-    // (rather than inside the rayon par_iter) keeps the NAPI/Value
-    // touchpoint single-threaded — `serde_json::Value` is `Send` but
-    // building it from a JS object isn't safe off the main thread.
+    // Convert each entry's typed options up front. The conversion is
+    // pure (no NAPI touchpoint) so it could in principle run in
+    // parallel, but the per-call work is trivial and this keeps the
+    // rayon stage focused on the actual compile.
     let parsed: Vec<(String, crate::compiler::CompileOptions)> = inputs
         .into_iter()
-        .map(|item| {
-            let opts = parse_options(&item.options.unwrap_or(Value::Null))?;
-            Ok::<_, napi::Error>((item.source, opts))
-        })
-        .collect::<napi::Result<_>>()?;
+        .map(|item| (item.source, options_to_compile(item.options)))
+        .collect();
 
     // Compile in parallel. `compile_batch` takes `&[(&str, CompileOptions)]`,
     // so we materialise the borrowed view once.
