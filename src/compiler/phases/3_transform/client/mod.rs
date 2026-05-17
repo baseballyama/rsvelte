@@ -8,6 +8,7 @@
 mod ast_state_transform;
 mod class_transforms;
 mod destructure_transforms;
+mod effect_rune_ast;
 mod expression_utils;
 mod formatting;
 mod props_transforms;
@@ -2737,8 +2738,21 @@ pub(crate) fn transform_module_script_runes(
     }
 
     // Transform $effect.root(), $effect.pre(), $effect.tracking(), $effect()
-    // These rune calls can appear in module scripts (e.g., inside class constructors)
-    result = apply_effect_rune_transforms(result);
+    // These rune calls can appear in module scripts (e.g., inside class constructors).
+    //
+    // AST-based rewrite via `effect_rune_ast::apply_effect_rune_transforms_ast`:
+    // OXC parses the module script, the visitor matches `CallExpression`s whose
+    // callee is `$effect` (bare) or `$effect.<member>`, and swaps the callee for
+    // the runtime equivalent (`$.user_effect`, `$.user_pre_effect`, etc.). The
+    // text-based predecessor blindly rewrote byte patterns regardless of lexical
+    // context, so `let s = "$effect("` would be (incorrectly) rewritten — the
+    // AST visitor descends into none of those positions.
+    {
+        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+        if let Some(rewritten) = effect_rune_ast::apply_effect_rune_transforms_ast(&result, is_ts) {
+            result = rewritten;
+        }
+    }
 
     // In dev mode, transform === to $.strict_equals() and !== to !$.strict_equals()
     // This matches the BinaryExpression visitor from the official Svelte compiler.
