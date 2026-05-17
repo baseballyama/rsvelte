@@ -4,7 +4,33 @@
 		<meta charset="utf-8" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+		<meta name="theme-color" content="#0d0c09" media="(prefers-color-scheme: dark)" />
 		<title>Svelte Compiler Rust - Playground</title>
+		<script>
+			// Resolve theme before first paint to avoid a flash of the wrong palette.
+			// Order: explicit `?theme=…` query (used for shareable links and CI
+			// screenshots), then localStorage, then OS preference.
+			(function () {
+				try {
+					var t = null;
+					var qs = window.location && window.location.search;
+					if (qs) {
+						var m = qs.match(/[?&]theme=(light|dark)\b/);
+						if (m) t = m[1];
+					}
+					if (t !== 'light' && t !== 'dark') {
+						t = localStorage.getItem('rsvelte:theme');
+					}
+					if (t !== 'light' && t !== 'dark') {
+						t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+					}
+					document.documentElement.setAttribute('data-theme', t);
+				} catch (_) {
+					document.documentElement.setAttribute('data-theme', 'light');
+				}
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

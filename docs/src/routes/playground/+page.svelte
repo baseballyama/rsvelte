@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
-	import { base } from '$app/paths';
 	import {
 		initCompiler,
 		getVersion,
@@ -15,6 +14,7 @@
 	import { DEFAULT_EXAMPLE } from '$lib/examples';
 	import MonacoEditor from '$lib/monaco/MonacoEditor.svelte';
 	import AstViewer from '$lib/components/AstViewer.svelte';
+	import SiteNav from '$lib/components/SiteNav.svelte';
 
 	let input = $state(DEFAULT_EXAMPLE);
 
@@ -142,62 +142,46 @@
 		name="description"
 		content="A live playground for the Rust port of the Svelte 5 compiler — edit a component and see the generated JS, CSS, AST and rendered preview."
 	/>
-	<link rel="preconnect" href="https://fonts.googleapis.com" />
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-	<link
-		href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,200..900,0..100,0..1;1,9..144,200..900,0..100,0..1&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400..700&display=swap"
-		rel="stylesheet"
-	/>
 </svelte:head>
 
 <div class="page">
-	<div class="grain" aria-hidden="true"></div>
+	<SiteNav active="playground" />
 
-	<nav class="strip">
-		<div class="strip-l">
-			<a href="{base}/" class="mark">rsvelte</a>
-			<span class="strip-sep">/</span>
-			<span class="strip-here">playground</span>
+	<header class="play-head">
+		<div class="play-head-l">
+			<p class="eyebrow"><span class="rule"></span>Live · WASM-compiled</p>
+			<h1 class="title">Playground</h1>
 			{#if version}
-				<span class="strip-version mono">v{version}</span>
+				<span class="version">v{version}</span>
 			{/if}
 		</div>
-
-		<div class="strip-c">
+		<div class="play-head-r" role="radiogroup" aria-label="Compilation mode">
 			<span class="mode-label">Generate</span>
-			<div class="mode-switch" role="radiogroup" aria-label="Compilation mode">
+			<div class="mode-switch">
 				<button
 					class:active={mode === 'client'}
 					onclick={() => (mode = 'client')}
-					disabled={!wasmReady}>Client</button
+					disabled={!wasmReady}
 				>
+					Client
+				</button>
 				<button
 					class:active={mode === 'server'}
 					onclick={() => (mode = 'server')}
-					disabled={!wasmReady}>Server</button
+					disabled={!wasmReady}
 				>
+					Server
+				</button>
 			</div>
 		</div>
-
-		<div class="strip-r">
-			<a href="{base}/progress">Compat</a>
-			<a href="{base}/benchmark">Speed</a>
-			<a
-				href="https://github.com/baseballyama/rsvelte"
-				target="_blank"
-				rel="noopener"
-				class="ext">GitHub <span class="chev">↗</span></a
-			>
-		</div>
-	</nav>
+	</header>
 
 	<main class="workspace">
-		<!-- INPUT -->
 		<section class="panel panel-input">
 			<header class="panel-head">
-				<span class="panel-kicker">§ 01</span>
+				<span class="panel-num">01</span>
 				<h2 class="panel-title">Source <em>.svelte</em></h2>
-				<span class="panel-meta mono">live · edits debounced 300ms</span>
+				<span class="panel-meta">live · edits debounced 300ms</span>
 			</header>
 			<div class="panel-body editor-host">
 				{#if wasmReady}
@@ -213,10 +197,9 @@
 			</div>
 		</section>
 
-		<!-- OUTPUT -->
 		<section class="panel panel-output">
 			<header class="panel-head">
-				<span class="panel-kicker">§ 02</span>
+				<span class="panel-num">02</span>
 				<h2 class="panel-title">Output</h2>
 				<div class="tabs" role="tablist">
 					<button
@@ -261,7 +244,7 @@
 					{/key}
 				{/if}
 			</div>
-			<footer class="panel-foot mono">
+			<footer class="panel-foot">
 				<span>
 					<span class="dim">compile</span>
 					<strong>{stats.compileTime.toFixed(2)}<span class="unit">ms</span></strong>
@@ -278,12 +261,11 @@
 			</footer>
 		</section>
 
-		<!-- PREVIEW -->
 		<section class="panel panel-preview">
 			<header class="panel-head">
-				<span class="panel-kicker">§ 03</span>
+				<span class="panel-num">03</span>
 				<h2 class="panel-title">Preview</h2>
-				<span class="panel-meta mono">sandbox · isolated iframe</span>
+				<span class="panel-meta">sandbox · isolated iframe</span>
 			</header>
 			<div class="panel-body preview-host">
 				{#if !wasmReady && !error}
@@ -305,148 +287,115 @@
 </div>
 
 <style>
-	:global(body) {
-		margin: 0;
-		padding: 0;
-	}
-
 	.page {
-		--bg: #f1e8d6;
-		--surface: #e6dac1;
-		--ink: #1a1612;
-		--ink-soft: #7a7062;
-		--ink-faint: #b8ab93;
-		--accent: #ff3e00;
-		--accent-deep: #c52f00;
-		--hairline: rgba(26, 22, 18, 0.16);
-		--hairline-strong: rgba(26, 22, 18, 0.4);
-		--ok: #2c7a3a;
-		--err: #b1280a;
-
-		--display: 'Fraunces', 'Source Serif Pro', Georgia, serif;
-		--body: 'Instrument Sans', system-ui, -apple-system, sans-serif;
-		--mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-
-		background: var(--bg);
-		color: var(--ink);
-		font-family: var(--body);
-		-webkit-font-smoothing: antialiased;
-		height: 100vh;
+		min-height: 100vh;
 		display: flex;
 		flex-direction: column;
-		position: relative;
-		overflow: hidden;
-		font-feature-settings: 'ss01';
 	}
 
-	.mono {
-		font-family: var(--mono);
+	code,
+	pre {
+		font-family: 'Fira Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 	}
 
-	.grain {
-		position: fixed;
-		inset: 0;
-		pointer-events: none;
-		z-index: 80;
-		opacity: 0.05;
-		mix-blend-mode: multiply;
-		background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-	}
-
-	/* ============================================================
-	   TOP STRIP — three-column masthead with the mode switch centered
-	   ============================================================ */
-	.strip {
-		display: grid;
-		grid-template-columns: 1fr auto 1fr;
+	/* PAGE HEAD */
+	.play-head {
+		max-width: 1440px;
+		margin: 0 auto;
+		width: 100%;
+		padding: clamp(1.4rem, 3vh, 2rem) clamp(1rem, 4vw, 2.5rem) clamp(0.8rem, 2vh, 1.2rem);
+		display: flex;
 		align-items: center;
-		gap: 1rem;
-		padding: 0.9rem 2rem;
-		background: var(--bg);
-		border-bottom: 1px solid var(--hairline-strong);
-		font-family: var(--mono);
-		font-size: 0.78rem;
-		letter-spacing: 0.04em;
-		flex-shrink: 0;
-		z-index: 60;
-		position: relative;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 1.2rem;
 	}
 
-	.strip-l {
+	.play-head-l {
 		display: flex;
 		align-items: baseline;
-		gap: 0.7rem;
-		min-width: 0;
+		gap: 1rem;
+		flex-wrap: wrap;
 	}
 
-	.strip .mark {
-		font-family: var(--display);
-		font-style: italic;
-		font-weight: 500;
-		font-size: 1.45rem;
+	.eyebrow {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.6rem;
+		font-family: 'Fira Mono', monospace;
+		font-size: 0.7rem;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--rust);
+		margin: 0;
+	}
+
+	.eyebrow .rule {
+		display: inline-block;
+		width: 20px;
+		height: 1px;
+		background: var(--rust);
+	}
+
+	.title {
+		font-family: 'Overpass', sans-serif;
+		font-weight: 800;
+		font-size: clamp(1.5rem, 2.5vw, 2rem);
 		letter-spacing: -0.025em;
-		font-variation-settings: 'opsz' 96, 'SOFT' 80, 'WONK' 1;
 		color: var(--ink);
-		text-decoration: none;
+		margin: 0;
+	}
+
+	.version {
+		font-family: 'Fira Mono', monospace;
+		font-size: 0.74rem;
+		color: var(--rust);
+		padding: 0.2rem 0.5rem;
+		border: 1px solid currentColor;
+		border-radius: 2px;
 		line-height: 1;
 	}
 
-	.strip-sep {
-		color: var(--ink-faint);
-		font-size: 1rem;
-	}
-
-	.strip-here {
-		font-family: var(--body);
-		font-size: 0.95rem;
-		color: var(--ink);
-		letter-spacing: -0.01em;
-	}
-
-	.strip-version {
-		font-size: 0.66rem;
-		color: var(--ink-soft);
-		padding: 0.18rem 0.45rem;
-		border: 1px solid var(--hairline);
-		margin-left: 0.4rem;
-		letter-spacing: 0.08em;
-	}
-
-	.strip-c {
-		display: flex;
+	.play-head-r {
+		display: inline-flex;
 		align-items: center;
-		gap: 0.8rem;
-		justify-self: center;
+		gap: 0.7rem;
 	}
 
 	.mode-label {
-		font-size: 0.66rem;
+		font-family: 'Fira Mono', monospace;
+		font-size: 0.7rem;
+		letter-spacing: 0.1em;
 		text-transform: uppercase;
-		letter-spacing: 0.2em;
 		color: var(--ink-soft);
 	}
 
 	.mode-switch {
 		display: inline-flex;
-		border: 1px solid var(--ink);
+		border: 1px solid var(--rule-strong);
+		border-radius: 4px;
+		overflow: hidden;
+		background: var(--bg);
 	}
 
 	.mode-switch button {
-		font-family: var(--mono);
-		font-size: 0.72rem;
-		letter-spacing: 0.14em;
-		text-transform: uppercase;
+		font-family: 'Fira Mono', monospace;
+		font-size: 0.78rem;
 		padding: 0.45rem 0.95rem;
 		background: transparent;
 		border: 0;
-		color: var(--ink);
+		color: var(--ink-soft);
 		cursor: pointer;
-		transition: background 0.2s ease, color 0.2s ease;
-		border-right: 1px solid var(--ink);
+		border-right: 1px solid var(--rule);
+		transition: background 0.18s, color 0.18s;
 	}
 
 	.mode-switch button:last-child {
 		border-right: 0;
+	}
+
+	.mode-switch button:hover:not(:disabled) {
+		color: var(--ink);
 	}
 
 	.mode-switch button.active {
@@ -455,138 +404,90 @@
 	}
 
 	.mode-switch button:disabled {
-		opacity: 0.35;
+		opacity: 0.5;
 		cursor: not-allowed;
 	}
 
-	.strip-r {
-		display: flex;
-		gap: 1.4rem;
-		align-items: center;
-		justify-self: end;
-	}
-
-	.strip-r a {
-		text-decoration: none;
-		color: var(--ink);
-		text-transform: uppercase;
-		font-size: 0.7rem;
-		letter-spacing: 0.16em;
-		padding-bottom: 2px;
-		border-bottom: 1px solid transparent;
-		transition: border-color 0.25s ease, color 0.25s ease;
-	}
-
-	.strip-r a:hover {
-		border-bottom-color: var(--accent);
-		color: var(--accent);
-	}
-
-	.strip-r .chev {
-		font-family: var(--mono);
-	}
-
-	/* ============================================================
-	   WORKSPACE GRID
-	   ============================================================ */
+	/* WORKSPACE */
 	.workspace {
-		flex: 1;
+		max-width: 1440px;
+		margin: 0 auto;
+		width: 100%;
+		padding: 0 clamp(1rem, 4vw, 2.5rem) clamp(1.5rem, 4vh, 2.5rem);
 		display: grid;
-		grid-template-columns: 1fr 1fr 1fr;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+		gap: 0.85rem;
+		flex: 1;
 		min-height: 0;
-		min-width: 0;
-		background: var(--bg);
 	}
 
 	.panel {
 		display: flex;
 		flex-direction: column;
-		min-width: 0;
 		min-height: 0;
-		border-right: 1px solid var(--hairline-strong);
+		min-width: 0;
 		background: var(--bg);
-	}
-
-	.panel:last-child {
-		border-right: 0;
-	}
-
-	.panel-input {
-		background: var(--surface);
-	}
-
-	.panel-output {
-		background: var(--bg);
-	}
-
-	.panel-preview {
-		background: var(--surface);
+		border: 1px solid var(--rule);
+		border-radius: 6px;
+		overflow: hidden;
 	}
 
 	.panel-head {
 		display: flex;
 		align-items: center;
-		gap: 0.9rem;
-		padding: 0.85rem 1.25rem;
-		border-bottom: 1px solid var(--hairline-strong);
-		background: inherit;
+		gap: 0.8rem;
+		padding: 0.65rem 0.9rem;
+		background: var(--paper);
+		border-bottom: 1px solid var(--rule);
+		flex-shrink: 0;
 	}
 
-	.panel-kicker {
-		font-family: var(--mono);
+	.panel-num {
+		font-family: 'Fira Mono', monospace;
 		font-size: 0.66rem;
-		letter-spacing: 0.2em;
-		text-transform: uppercase;
-		color: var(--accent);
-		flex-shrink: 0;
+		letter-spacing: 0.16em;
+		color: var(--rust);
 	}
 
 	.panel-title {
-		font-family: var(--display);
-		font-weight: 400;
-		font-size: 1.35rem;
-		line-height: 1;
-		letter-spacing: -0.02em;
+		font-family: 'Overpass', sans-serif;
+		font-weight: 700;
+		font-size: 0.92rem;
+		letter-spacing: -0.01em;
+		color: var(--ink);
 		margin: 0;
-		flex-shrink: 0;
+		flex: 1;
 	}
 
 	.panel-title em {
 		font-style: italic;
-		color: var(--accent);
-		font-variation-settings: 'opsz' 96, 'SOFT' 100, 'WONK' 1;
-		font-weight: 400;
-		font-family: var(--display);
-		padding-right: 0.02em;
+		color: var(--svelte);
+		font-weight: 700;
 	}
 
 	.panel-meta {
+		font-family: 'Fira Mono', monospace;
 		font-size: 0.66rem;
-		color: var(--ink-soft);
-		text-transform: lowercase;
-		letter-spacing: 0.08em;
-		margin-left: auto;
-		text-align: right;
+		color: var(--ink-faint);
 	}
 
 	.tabs {
 		display: inline-flex;
-		margin-left: auto;
-		border: 1px solid var(--hairline-strong);
+		border: 1px solid var(--rule-strong);
+		border-radius: 4px;
+		overflow: hidden;
 	}
 
 	.tabs button {
-		font-family: var(--mono);
-		font-size: 0.7rem;
-		letter-spacing: 0.14em;
-		text-transform: uppercase;
-		padding: 0.42rem 0.85rem;
+		font-family: 'Fira Mono', monospace;
+		font-size: 0.72rem;
+		padding: 0.32rem 0.7rem;
 		background: transparent;
 		border: 0;
 		color: var(--ink-soft);
 		cursor: pointer;
-		transition: background 0.2s ease, color 0.2s ease;
-		border-right: 1px solid var(--hairline-strong);
+		border-right: 1px solid var(--rule);
+		transition: background 0.18s, color 0.18s;
 	}
 
 	.tabs button:last-child {
@@ -605,13 +506,18 @@
 	.panel-body {
 		flex: 1;
 		min-height: 0;
-		position: relative;
-		overflow: hidden;
-		background: var(--bg);
+		display: flex;
+		flex-direction: column;
 	}
 
 	.editor-host {
-		background: var(--bg);
+		background: var(--editor-bg);
+	}
+
+	.editor-host :global(.editor-container) {
+		flex: 1;
+		height: 100%;
+		min-height: 0;
 	}
 
 	.preview-host {
@@ -621,14 +527,8 @@
 	.preview-host iframe {
 		width: 100%;
 		height: 100%;
-		border: none;
-		display: block;
-	}
-
-	.ast-host {
-		position: absolute;
-		inset: 0;
-		overflow: auto;
+		border: 0;
+		background: #ffffff;
 	}
 
 	.loading {
@@ -636,152 +536,115 @@
 		align-items: center;
 		justify-content: center;
 		height: 100%;
-		color: var(--ink-soft);
-		font-family: var(--mono);
-		font-size: 0.78rem;
-		letter-spacing: 0.08em;
+		min-height: 240px;
+		padding: 2rem;
+		font-family: 'Fira Mono', monospace;
+		font-size: 0.82rem;
+		color: var(--ink-faint);
+	}
+
+	.ast-host {
+		flex: 1;
+		min-height: 0;
+		overflow: auto;
+		padding: 0.6rem 0.8rem;
+		background: var(--editor-bg);
 	}
 
 	.error {
+		padding: 1.2rem;
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
-		padding: 1.5rem;
-		font-family: var(--mono);
-		font-size: 0.82rem;
-		color: var(--err);
-		max-height: 100%;
-		overflow: auto;
+		gap: 0.55rem;
+		background: color-mix(in srgb, var(--bad) 5%, var(--bg));
+		font-family: 'Fira Mono', monospace;
 	}
 
 	.error-tag {
-		font-size: 0.66rem;
+		font-size: 0.7rem;
+		letter-spacing: 0.16em;
 		text-transform: uppercase;
-		letter-spacing: 0.2em;
-		color: var(--err);
-		opacity: 0.75;
+		color: var(--bad);
 	}
 
 	.error pre {
-		margin: 0;
-		padding: 1rem;
-		background: rgba(177, 40, 10, 0.06);
-		border-left: 3px solid var(--err);
+		font-size: 0.8rem;
+		color: var(--ink);
 		white-space: pre-wrap;
 		word-break: break-word;
-		line-height: 1.55;
+		margin: 0;
 	}
 
 	.panel-foot {
 		display: flex;
 		align-items: center;
-		gap: 1.5rem;
-		padding: 0.7rem 1.25rem;
-		border-top: 1px solid var(--hairline-strong);
-		background: inherit;
-		font-size: 0.72rem;
-		color: var(--ink-soft);
-	}
-
-	.panel-foot strong {
+		gap: 1rem;
+		padding: 0.55rem 0.9rem;
+		font-family: 'Fira Mono', monospace;
+		font-size: 0.76rem;
 		color: var(--ink);
-		font-weight: 500;
-		font-variant-numeric: tabular-nums;
-	}
-
-	.panel-foot .unit {
-		color: var(--ink-soft);
-		font-weight: 400;
-		margin-left: 0.1em;
+		background: var(--paper);
+		border-top: 1px solid var(--rule);
+		flex-shrink: 0;
 	}
 
 	.panel-foot .dim {
-		color: var(--ink-soft);
+		color: var(--ink-faint);
 		margin-right: 0.4em;
-		text-transform: uppercase;
-		font-size: 0.62rem;
-		letter-spacing: 0.16em;
 	}
 
-	.panel-foot .grow {
+	.panel-foot strong {
+		font-weight: 600;
+		color: var(--ink);
+	}
+
+	.unit {
+		font-weight: 400;
+		color: var(--ink-soft);
+		margin-left: 0.15em;
+	}
+
+	.grow {
 		flex: 1;
 	}
 
 	.status-dot {
+		display: inline-block;
 		width: 7px;
 		height: 7px;
 		border-radius: 999px;
 		background: var(--ink-faint);
-		display: inline-block;
 	}
 
 	.status-dot.ok {
 		background: var(--ok);
-		box-shadow: 0 0 0 3px rgba(44, 122, 58, 0.18);
 	}
 
 	.status-dot.err {
-		background: var(--err);
-		box-shadow: 0 0 0 3px rgba(177, 40, 10, 0.18);
+		background: var(--bad);
 	}
 
 	.status-text {
-		text-transform: uppercase;
-		letter-spacing: 0.18em;
-		font-size: 0.62rem;
-		color: var(--ink);
+		color: var(--ink-soft);
 	}
 
-	/* AstViewer reads the page's CSS variables and themes itself; we only
-	   provide the scroll container here. */
-
-	@media (max-width: 1100px) {
+	/* RESPONSIVE */
+	@media (max-width: 1180px) {
 		.workspace {
-			grid-template-columns: 1fr 1fr;
-			grid-template-rows: 1fr 1fr;
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 		}
 		.panel-preview {
 			grid-column: 1 / -1;
-			border-right: 0;
-			border-top: 1px solid var(--hairline-strong);
+			min-height: 320px;
 		}
 	}
 
-	@media (max-width: 720px) {
+	@media (max-width: 760px) {
 		.workspace {
 			grid-template-columns: 1fr;
-			grid-template-rows: 1fr 1fr 1fr;
 		}
 		.panel {
-			border-right: 0;
-			border-bottom: 1px solid var(--hairline-strong);
-		}
-		.strip {
-			grid-template-columns: 1fr;
-			gap: 0.5rem;
-			padding: 0.7rem 1rem;
-		}
-		.strip-c,
-		.strip-r {
-			justify-self: stretch;
-			justify-content: space-between;
-		}
-		.strip-r {
-			gap: 1rem;
-		}
-		.strip-r a {
-			font-size: 0.62rem;
-			letter-spacing: 0.12em;
-		}
-		.panel-head {
-			padding: 0.65rem 1rem;
-			gap: 0.5rem;
-		}
-		.panel-title {
-			font-size: 1.1rem;
-		}
-		.panel-meta {
-			display: none;
+			min-height: 380px;
 		}
 	}
 </style>

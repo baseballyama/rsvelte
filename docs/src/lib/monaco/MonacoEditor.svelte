@@ -2,7 +2,13 @@
 	import { onMount, onDestroy } from 'svelte';
 	import loader from '@monaco-editor/loader';
 	import type * as Monaco from 'monaco-editor';
-	import { registerSvelteLanguage, SVELTE_LANGUAGE_ID } from './svelte-language';
+	import {
+		registerSvelteLanguage,
+		SVELTE_LANGUAGE_ID,
+		SVELTE_THEME_LIGHT,
+		SVELTE_THEME_DARK
+	} from './svelte-language';
+	import { themeStore } from '$lib/theme.svelte';
 
 	interface Props {
 		value: string;
@@ -37,12 +43,12 @@
 		editor = monaco.editor.create(container, {
 			value,
 			language,
-			theme: 'svelte-cream',
+			theme: themeStore.current === 'dark' ? SVELTE_THEME_DARK : SVELTE_THEME_LIGHT,
 			readOnly: readonly,
 			automaticLayout: true,
 			minimap: { enabled: false },
 			fontSize: 14,
-			fontFamily: "'JetBrains Mono', 'Fira Code', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
+			fontFamily: "'Fira Mono', 'Fira Code', 'JetBrains Mono', Menlo, monospace",
 			lineNumbers: 'on',
 			lineHeight: 22,
 			padding: { top: 16 },
@@ -126,6 +132,12 @@
 		if (editor) {
 			editor.updateOptions({ readOnly: readonly });
 		}
+	});
+
+	// React to global theme changes — flip Monaco's theme to match.
+	$effect(() => {
+		const next = themeStore.current === 'dark' ? SVELTE_THEME_DARK : SVELTE_THEME_LIGHT;
+		if (monaco) monaco.editor.setTheme(next);
 	});
 
 	// Update highlight range

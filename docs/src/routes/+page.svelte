@@ -2,6 +2,8 @@
 	import { base } from '$app/paths';
 	import { onMount } from 'svelte';
 	import type { BenchmarkResults } from '$lib/types/benchmark';
+	import SiteNav from '$lib/components/SiteNav.svelte';
+	import SiteFooter from '$lib/components/SiteFooter.svelte';
 
 	let bench = $state<BenchmarkResults | null>(null);
 	let animated = $state(false);
@@ -68,27 +70,7 @@
 </svelte:head>
 
 <div class="page" class:in={animated}>
-	<nav class="nav">
-		<a href="{base}/" class="brand" aria-label="rsvelte home">
-			<span class="mark" aria-hidden="true">
-				<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
-					<path d="M19 8 13 18l-2-4 6-10 2 4Z" fill="#ff3e00" />
-					<path d="M5 16 11 6l2 4-6 10-2-4Z" fill="#b7410e" />
-				</svg>
-			</span>
-			<span class="brand-text">rsvelte</span>
-			<span class="brand-tag">rust&nbsp;port</span>
-		</a>
-
-		<div class="nav-links">
-			<a href="{base}/playground">Playground</a>
-			<a href="{base}/progress">Compatibility</a>
-			<a href="{base}/benchmark">Benchmark</a>
-			<a href="https://github.com/baseballyama/rsvelte" target="_blank" rel="noopener" class="gh">
-				GitHub <span aria-hidden="true" class="ext">↗</span>
-			</a>
-		</div>
-	</nav>
+	<SiteNav active="home" />
 
 	<header class="hero">
 		<p class="eyebrow"><span class="rule"></span>Svelte 5 · written in Rust</p>
@@ -303,128 +285,17 @@
 		</div>
 	</section>
 
-	<footer class="foot">
-		<div class="foot-inner">
-			<div class="foot-mark">
-				<svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
-					<path d="M19 8 13 18l-2-4 6-10 2 4Z" fill="#ff3e00" />
-					<path d="M5 16 11 6l2 4-6 10-2-4Z" fill="#b7410e" />
-				</svg>
-				<span>rsvelte</span>
-			</div>
-			<div class="foot-meta">
-				<span>MIT licensed</span>
-				<span class="sep">·</span>
-				<span>Mirrors sveltejs/svelte@5.51.3</span>
-				<span class="sep">·</span>
-				<a href="https://github.com/baseballyama/rsvelte" target="_blank" rel="noopener">
-					github.com/baseballyama/rsvelte
-				</a>
-			</div>
-		</div>
-	</footer>
+	<SiteFooter />
 </div>
 
 <style>
 	.page {
-		--bg: #ffffff;
-		--paper: #faf9f5;
-		--ink: #14130f;
-		--ink-soft: #5a5750;
-		--ink-faint: #97938a;
-		--rule: #ececdf;
-		--rule-strong: #d8d4c4;
-
-		--svelte: #ff3e00;
-		--rust: #b7410e;
-		--rust-soft: #cf7a4a;
-
-		background: var(--bg);
-		color: var(--ink);
-		font-size: 16px;
-		line-height: 1.6;
 		min-height: 100vh;
 	}
 
 	code,
 	pre {
 		font-family: 'Fira Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-	}
-
-	/* NAV */
-	.nav {
-		position: sticky;
-		top: 0;
-		z-index: 30;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 2rem;
-		padding: 0.9rem clamp(1rem, 4vw, 2.5rem);
-		background: rgba(255, 255, 255, 0.88);
-		border-bottom: 1px solid var(--rule);
-		backdrop-filter: saturate(150%) blur(6px);
-	}
-
-	.brand {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.55rem;
-		color: var(--ink);
-	}
-
-	.mark {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 24px;
-		height: 24px;
-	}
-
-	.brand-text {
-		font-weight: 700;
-		font-size: 1rem;
-		letter-spacing: -0.01em;
-	}
-
-	.brand-tag {
-		font-family: 'Fira Mono', monospace;
-		font-size: 0.62rem;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
-		color: var(--rust);
-		padding: 0.2rem 0.45rem;
-		border: 1px solid currentColor;
-		border-radius: 2px;
-		line-height: 1;
-		margin-left: 0.2rem;
-	}
-
-	.nav-links {
-		display: flex;
-		align-items: center;
-		gap: clamp(0.8rem, 2.2vw, 1.8rem);
-		font-size: 0.92rem;
-		font-weight: 500;
-	}
-
-	.nav-links a {
-		color: var(--ink-soft);
-		padding: 0.25rem 0;
-		border-bottom: 1px solid transparent;
-		transition:
-			color 0.18s,
-			border-color 0.18s;
-	}
-
-	.nav-links a:hover {
-		color: var(--ink);
-		border-bottom-color: var(--ink);
-	}
-
-	.nav-links .gh .ext {
-		font-size: 0.85em;
-		opacity: 0.6;
 	}
 
 	/* HERO */
@@ -526,7 +397,7 @@
 	}
 
 	.btn-primary:hover {
-		background: #e83700;
+		background: var(--svelte-hover);
 	}
 
 	.btn-ghost {
@@ -725,7 +596,11 @@
 	}
 
 	.bar-js {
-		background: linear-gradient(90deg, #94908b, #b3aea4);
+		background: linear-gradient(
+			90deg,
+			color-mix(in srgb, var(--ink-faint) 70%, transparent),
+			var(--ink-faint)
+		);
 	}
 
 	.bar-rs {
@@ -733,7 +608,7 @@
 	}
 
 	.bar-rm {
-		background: linear-gradient(90deg, #ff7a3d, var(--svelte));
+		background: linear-gradient(90deg, var(--rust-soft), var(--svelte));
 	}
 
 	.bar-t {
@@ -792,7 +667,7 @@
 	.stat.stat-hero {
 		border-color: var(--rust);
 		background: var(--bg);
-		box-shadow: 0 0 0 3px rgba(183, 65, 14, 0.06);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--rust) 8%, transparent);
 	}
 
 	.stat-k {
@@ -924,12 +799,12 @@
 	}
 
 	.d-minus {
-		color: #a04030;
+		color: var(--bad);
 	}
 
 	.d-plus {
-		color: #2f6f3a;
-		background: rgba(47, 111, 58, 0.06);
+		color: var(--ok);
+		background: color-mix(in srgb, var(--ok) 8%, transparent);
 	}
 
 	.d-str {
@@ -1028,7 +903,7 @@
 	}
 
 	.link:hover {
-		color: #d83500;
+		color: var(--svelte-hover);
 	}
 
 	/* WHY */
@@ -1081,56 +956,6 @@
 		max-width: 64ch;
 	}
 
-	/* FOOT */
-	.foot {
-		border-top: 1px solid var(--rule);
-		background: var(--paper);
-	}
-
-	.foot-inner {
-		max-width: 1080px;
-		margin: 0 auto;
-		padding: 1.5rem clamp(1rem, 4vw, 2.5rem);
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 1rem;
-		flex-wrap: wrap;
-	}
-
-	.foot-mark {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.45rem;
-		font-weight: 700;
-		font-size: 0.95rem;
-	}
-
-	.foot-meta {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.6rem;
-		font-family: 'Fira Mono', monospace;
-		font-size: 0.74rem;
-		color: var(--ink-soft);
-		flex-wrap: wrap;
-	}
-
-	.foot-meta .sep {
-		opacity: 0.5;
-	}
-
-	.foot-meta a {
-		color: var(--ink-soft);
-		text-decoration: underline;
-		text-decoration-thickness: 1px;
-		text-underline-offset: 3px;
-	}
-
-	.foot-meta a:hover {
-		color: var(--svelte);
-	}
-
 	/* RESPONSIVE */
 	@media (max-width: 880px) {
 		.perf-grid {
@@ -1146,16 +971,6 @@
 	}
 
 	@media (max-width: 640px) {
-		.brand-tag {
-			display: none;
-		}
-		.nav-links {
-			gap: 0.85rem;
-			font-size: 0.85rem;
-		}
-		.nav-links a:nth-child(2) {
-			display: none;
-		}
 		.bar-row {
 			grid-template-columns: 1fr;
 			gap: 0.5rem;
