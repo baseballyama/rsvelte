@@ -813,52 +813,62 @@ pub(super) fn extract_operand_backward(s: &str) -> (String, usize) {
         return (String::new(), 0);
     }
 
-    let last_char = trimmed.chars().last().unwrap();
-
-    // Handle parenthesized expressions: scan backward to find matching open paren
-    if last_char == ')' {
-        let mut depth = 0;
-        let mut start = trimmed.len();
-        for (i, c) in trimmed.char_indices().rev() {
-            match c {
-                ')' => depth += 1,
-                '(' => {
+    // Walk the operand backward through the entire chain. Each iteration peels
+    // off either an identifier/property segment OR a parenthesised group (call
+    // arguments / parenthesised expression). A `.length` member access on a
+    // call like `$.get(items).length` must include the call itself, so we keep
+    // walking left as long as the next byte to the left is still part of the
+    // same chain. (baseballyama/rsvelte#166)
+    let bytes = trimmed.as_bytes();
+    let mut end = trimmed.len();
+    loop {
+        if end == 0 {
+            break;
+        }
+        let last = bytes[end - 1];
+        if last == b')' || last == b']' {
+            // Walk backward through the matching paren/bracket, then continue
+            // — what's *before* the call may be `obj.method`, `$.get`, etc.
+            let close = last;
+            let open = if close == b')' { b'(' } else { b'[' };
+            let mut depth: i32 = 0;
+            let mut start = end; // fallback: no match found
+            let mut i = end;
+            while i > 0 {
+                i -= 1;
+                let b = bytes[i];
+                if b == close {
+                    depth += 1;
+                } else if b == open {
                     depth -= 1;
                     if depth == 0 {
                         start = i;
                         break;
                     }
                 }
-                _ => {}
             }
+            if start == end {
+                // Unbalanced — bail.
+                break;
+            }
+            end = start;
+            continue;
         }
-        // Include function name/method call before the paren
-        // Include `?` to handle optional chaining (`?.`)
-        let before_paren = &trimmed[..start];
-        let func_start = before_paren
-            .rfind(|c: char| {
-                !c.is_alphanumeric() && c != '_' && c != '$' && c != '.' && c != '#' && c != '?'
-            })
-            .map(|p| p + 1)
-            .unwrap_or(0);
-        let expr = trimmed[func_start..].to_string();
-        // Find where this starts in the original (untrimmed) string
-        let original_start = s.len() - trimmed.len() + func_start;
-        return (expr, original_start);
+        if last.is_ascii_alphanumeric()
+            || last == b'_'
+            || last == b'$'
+            || last == b'.'
+            || last == b'#'
+            || last == b'?'
+        {
+            end -= 1;
+            continue;
+        }
+        break;
     }
 
-    // Handle string/number/boolean literals and identifiers
-    // Find the start of the identifier/literal
-    // Include `?` to handle optional chaining (`?.`)
-    let expr_start = trimmed
-        .rfind(|c: char| {
-            !c.is_alphanumeric() && c != '_' && c != '$' && c != '.' && c != '#' && c != '?'
-        })
-        .map(|p| p + 1)
-        .unwrap_or(0);
-
-    let expr = trimmed[expr_start..].to_string();
-    let original_start = s.len() - trimmed.len() + expr_start;
+    let expr = trimmed[end..].to_string();
+    let original_start = s.len() - trimmed.len() + end;
     (expr, original_start)
 }
 
