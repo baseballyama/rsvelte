@@ -297,6 +297,15 @@ fn post_process_for_server(source: &str) -> String {
     use super::client::find_matching_paren;
     let mut result = source.to_string();
 
+    // Collect names declared as `let|const|var X = $.derived(...)` /
+    // `$.derived_safe_equal(...)`. On the server, `$.derived(fn)` returns a
+    // *callable* (upstream svelte `src/internal/server/index.js#derived`),
+    // so reads via `$.get(X)` must rewrite to `X()` for derived names and to
+    // `X` for plain state names. Without this distinction, derived values
+    // become stale snapshots and downstream code (`get isValid()` etc.)
+    // breaks when the underlying state mutates between calls.
+    let derived_names = collect_derived_names(&result);
+
     let finder_effect_root = memmem::Finder::new(b"$.effect_root(");
     let finder_user_effect = memmem::Finder::new(b"$.user_effect(");
     let finder_proxy = memmem::Finder::new(b"$.proxy(");
@@ -360,8 +369,9 @@ fn post_process_for_server(source: &str) -> String {
     }
 
     // Replace $.get(x) for server modules:
-    // - Simple identifiers: $.get(x) -> x (plain variable)
-    // - Member expressions (this.#x): $.get(this.#x) -> this.#x() (callable signal in class)
+    // - Simple identifiers naming a derived: $.get(x) -> x() (callable signal)
+    // - Simple identifiers naming state:     $.get(x) -> x
+    // - Member expressions (this.#x):        $.get(this.#x) -> this.#x() (callable in class)
     while let Some(pos) = finder_get.find(result.as_bytes()) {
         let call_start = pos + 6;
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
@@ -375,8 +385,14 @@ fn post_process_for_server(source: &str) -> String {
                 replacement.push_str(&content);
                 replacement.push_str("()");
                 result = splice!(result, pos, &replacement, call_start + content_end + 1);
+            } else if derived_names.contains(content.as_str()) {
+                // Derived simple ident: callable on the server
+                let mut replacement = String::with_capacity(content.len() + 2);
+                replacement.push_str(&content);
+                replacement.push_str("()");
+                result = splice!(result, pos, &replacement, call_start + content_end + 1);
             } else {
-                // Simple identifier: just the variable name
+                // Simple identifier (state): just the variable name
                 result = splice!(result, pos, &content, call_start + content_end + 1);
             }
         } else {
@@ -453,58 +469,14 @@ fn post_process_for_server(source: &str) -> String {
         }
     }
 
-    // Replace $.derived(() => expr) with just expr for module-level (non-class) derived
-    // In class contexts, $.derived is kept as-is (server runtime has $.derived for classes)
-    let derived_patterns: &[(&[u8], usize)] = &[
-        (b"$.derived(" as &[u8], 10),
-        (b"$.derived_safe_equal(" as &[u8], 21),
-    ];
-    for &(pattern_bytes, pattern_len) in derived_patterns {
-        let finder = memmem::Finder::new(pattern_bytes);
-        while let Some(pos) = finder.find(result.as_bytes()) {
-            // Check if this is inside a class body by looking for preceding class-like context
-            // If it's a class field assignment (e.g., #field = $.derived(...)), skip it
-            let before = &result[..pos];
-            let trimmed_before = before.trim_end();
-            let is_class_field = trimmed_before.ends_with('=') && {
-                // Check if the line starts with # or this. (class field/constructor)
-                let line_start = before.rfind('\n').map(|p| p + 1).unwrap_or(0);
-                let line = before[line_start..].trim_start();
-                line.starts_with('#') || line.starts_with("this.#") || line.starts_with("this.")
-            };
-
-            if is_class_field {
-                // Don't strip $.derived in class context - skip past this occurrence
-                break; // Can't easily skip since positions change; just stop processing
-            }
-
-            let call_start = pos + pattern_len;
-            if let Some(content_end) = find_matching_paren(&result[call_start..]) {
-                let content = result[call_start..call_start + content_end]
-                    .trim()
-                    .to_string();
-                // If content is an arrow function `() => expr`, extract just
-                // the expression. For block-bodied arrows `() => { … }` keep
-                // the IIFE wrap (`(() => { … })()`) so the block actually
-                // runs — without this, `$.derived(() => { return X })` was
-                // emitted as a bare block `{ return X }` which is invalid
-                // JS at expression position. (baseballyama/rsvelte#140)
-                let value = if let Some(arrow_body) = content.strip_prefix("() =>") {
-                    let body = arrow_body.trim();
-                    if body.starts_with('{') {
-                        format!("({})()", content)
-                    } else {
-                        body.to_string()
-                    }
-                } else {
-                    content
-                };
-                result = splice!(result, pos, &value, call_start + content_end + 1);
-            } else {
-                break;
-            }
-        }
-    }
+    // NOTE: We intentionally do NOT strip `$.derived(...)` on the server.
+    // Upstream svelte's server runtime exposes `$.derived(fn)` as a callable
+    // that re-evaluates on each call (memoized only inside an SSR render
+    // context), and `$.get(x)` reads above translate to `x()` for derived
+    // names. Stripping the wrapper here would turn the derived into an
+    // eagerly-evaluated snapshot, which silently freezes computed values
+    // when their underlying state mutates — e.g. `isValid` in a form model
+    // stays `false` even after the form is filled in.
 
     // Replace $.state(x) with just x (no signals on server)
     while let Some(pos) = finder_state.find(result.as_bytes()) {
@@ -524,6 +496,90 @@ fn post_process_for_server(source: &str) -> String {
     }
 
     result
+}
+
+/// Scan a client-style module body and return the set of variable names
+/// declared as `let|const|var X = $.derived(...)` / `$.derived_safe_equal(...)`.
+///
+/// Used by `post_process_for_server` so reads via `$.get(X)` can be lowered
+/// to `X()` (the server runtime treats a derived as a callable) while plain
+/// state reads stay as `X`.
+fn collect_derived_names(source: &str) -> std::collections::HashSet<String> {
+    use std::collections::HashSet;
+    let mut names: HashSet<String> = HashSet::new();
+    let patterns: &[&[u8]] = &[b"$.derived(", b"$.derived_safe_equal("];
+    let bytes = source.as_bytes();
+    for pat in patterns {
+        let finder = memmem::Finder::new(*pat);
+        for pos in finder.find_iter(bytes) {
+            // Walk left from `pos` to find a `let|const|var <name> = ` shape.
+            // We accept an optional `$.tag(` wrap directly before the
+            // `$.derived(` — in dev-mode-disabled SSR rsvelte never emits
+            // `$.tag`, but be permissive in case future builds do.
+            let mut left = pos;
+            // Skip back through `$.tag(` if present.
+            // (Not currently emitted in SSR; left in for future-proofing.)
+            const TAG: &[u8] = b"$.tag(";
+            if left >= TAG.len() && &bytes[left - TAG.len()..left] == TAG {
+                left -= TAG.len();
+            }
+            // Skip whitespace + `=`.
+            while left > 0 && bytes[left - 1].is_ascii_whitespace() {
+                left -= 1;
+            }
+            if left == 0 || bytes[left - 1] != b'=' {
+                continue;
+            }
+            left -= 1;
+            while left > 0 && bytes[left - 1].is_ascii_whitespace() {
+                left -= 1;
+            }
+            // Read identifier backwards.
+            let id_end = left;
+            while left > 0 {
+                let b = bytes[left - 1];
+                if b.is_ascii_alphanumeric() || b == b'_' || b == b'$' {
+                    left -= 1;
+                } else {
+                    break;
+                }
+            }
+            if left == id_end {
+                continue;
+            }
+            // Require a preceding `let`, `const`, or `var` keyword (with
+            // whitespace separator). Otherwise this is a reassignment or
+            // a class field, which we don't track here.
+            let mut kw_end = left;
+            while kw_end > 0 && bytes[kw_end - 1].is_ascii_whitespace() {
+                kw_end -= 1;
+            }
+            let is_decl = (kw_end >= 3
+                && (&bytes[kw_end - 3..kw_end] == b"let" || &bytes[kw_end - 3..kw_end] == b"var"))
+                || (kw_end >= 5 && &bytes[kw_end - 5..kw_end] == b"const");
+            if !is_decl {
+                continue;
+            }
+            // Word-boundary check on the left side of the keyword.
+            let kw_len =
+                if &bytes[kw_end - 3..kw_end] == b"let" || &bytes[kw_end - 3..kw_end] == b"var" {
+                    3
+                } else {
+                    5
+                };
+            let kw_start = kw_end - kw_len;
+            if kw_start > 0 {
+                let prev = bytes[kw_start - 1];
+                if prev.is_ascii_alphanumeric() || prev == b'_' || prev == b'$' {
+                    continue;
+                }
+            }
+            if let Ok(name) = std::str::from_utf8(&bytes[left..id_end]) {
+                names.insert(name.to_string());
+            }
+        }
+    }
+    names
 }
 
 /// Find the position of the first comma at depth 0 in a string.
