@@ -1,8 +1,8 @@
 # 100x Single-Threaded Speedup: Implementation Guide
 
-## Current State (2026-03-23, commit 737b7da)
+## Current State (2026-05-18 update)
 
-### Benchmark (3654 Svelte test files)
+### Benchmark (3654 Svelte test files, baseline 2026-03-23)
 ```
 Task               | JS       | Rust ST  | Speedup | Rust MT  | MT Speedup
 Compile (Client)   |  ~700ms  |  ~310ms  |  2.3x   |  ~45ms   |  ~17x
@@ -10,7 +10,7 @@ Compile (SSR)      |  ~600ms  |  ~325ms  |  1.8x   |  ~45ms   |  ~14x
 Parse              |  ~150ms  |  ~112ms  |  1.3x   |  ~15ms   |  ~10x
 ```
 
-### Per-file Profile (7KB file, median)
+### Per-file Profile (7KB file, median, baseline 2026-03-23)
 ```
 Phase      | Time     | % of Total
 Parse      | 226 us   | 15%
@@ -21,26 +21,46 @@ Total      | 1540 us  | 100%
 
 ### Target
 - **100x single-threaded**: ~310ms / 100 = 3.1ms for 3654 files = 0.85 us/file
-- **Current**: ~310ms / 3654 = 85 us/file
-- **Gap**: 100x improvement needed
+- **Baseline**: ~310ms / 3654 = 85 us/file
+- **Gap**: ~100x improvement needed (most of the remaining gap is now in
+  the text-transform pipeline — see Phase A below)
 
 ---
 
-## Why It's Slow: Root Causes
+## Why It's Slow: Root Causes (updated 2026-05-18)
 
-### 1. Text-based Transform Pipeline (48.86% CPU, 19,606 lines)
-The #1 bottleneck. Instance script code is transformed by **character-by-character string scanning**:
-- `$state(x)` -> `$.state(x)` (rune_transforms.rs, 2533 lines)
-- `count` -> `$.get(count)` (expression_utils.rs, 4097 lines)
-- `count = x` -> `$.set(count, x)` (state_transforms.rs, 2991 lines)
-- `$store` -> `$.store_get(store)` (store_transforms.rs, 789 lines)
-- Props, reactive, destructure transforms (6,196 lines)
-- All followed by `normalize_js_with_oxc` (OXC reparse + formatting, 1,294 lines)
+### 1. Text-based Transform Pipeline (still the #1 bottleneck)
 
-**Problem**: O(M*N) per transform where M=state vars, N=script length. Multiple passes.
+~14K lines of character-by-character string scanning across:
 
-### 2. JSON-based Analysis Walker (7.04% CPU)
-`walk_js_node` in `script.rs` walks the script AST as `serde_json::Value`, doing string-based type dispatch:
+```
+expression_utils.rs   4530 lines  (utility scanners)
+state_transforms.rs   3619 lines  ($.get / $.set / $.update)
+rune_transforms.rs    1678 lines  ($state / $derived)
+props_transforms.rs   3286 lines  (export let → $.prop)
+formatting.rs         1709 lines  (normalize_js_with_oxc — OXC reparse + cleanup)
+```
+
+Plus the AST-based transformer that has begun replacing them:
+
+```
+ast_state_transform.rs 4044 lines (partial replacement — wired in for state vars)
+```
+
+`ast_state_transform::transform_state_vars_ast` already runs in the
+client transform pipeline (see `mod.rs:4413`) and handles state-var
+rewrites at the AST level. The text-transform passes still run alongside
+it for everything else (runes, store, props, destructuring).
+
+**Problem**: O(M*N) per text-transform pass where M=state vars, N=script
+length. Multiple passes. The official Svelte compiler does the
+equivalent in a single AST walk — that's the target.
+
+### 2. JSON-based Analysis Walker (Phase 2)
+
+`walk_js_node` in `script.rs` walks the script AST as
+`serde_json::Value`, doing string-based type dispatch:
+
 ```rust
 match node.get("type").and_then(|t| t.as_str()) {
     Some("VariableDeclarator") => variable_declarator::visit(node, context),
@@ -48,91 +68,96 @@ match node.get("type").and_then(|t| t.as_str()) {
 }
 ```
 
+Phase 3 analysis dispatchers got a partial fast-path in 2026-05 (leaf
+short-circuit for `has_call` / `has_member` / `has_await`), but the
+core JSON-walking remains.
+
 ### 3. Parser Double Conversion (12.01% CPU)
-Parser chain: OXC AST -> serde_json::Value -> JsNode::from_value(). Most statement types
-still create `Value::Object(Map)` then convert. Only 4 types use direct JsNode (as of 737b7da).
+Parser chain: OXC AST → `serde_json::Value` → `JsNode::from_value()`.
+Most statement types still create `Value::Object(Map)` then convert.
+Only a few types use direct JsNode.
 
-### 4. 718 clone() Calls in Phase 3 Client Transform
-AST nodes are cloned extensively. `CompactString`, `Vec<JsExpr>`, `JsNode` clones.
+### 4. Clone-heavy Phase 3 Transforms
 
-### 5. 143 Box<T> Fields in AST Definitions
-Every `Box<JsNode>` is an individual heap allocation. 92 in JsNode, 51 in JsExpr.
+~900 `.clone()` calls in `phases/3_transform/client/`. Many are
+`CompactString::clone()` (cheap inline if ≤24 chars; alloc otherwise)
+and `Vec<JsExpr>::clone()` (expensive). The 2026-05 `mem::replace`
+sweep removed 7 hot save/restore clones in the directive loops.
+
+### 5. ~~143 Box<T> Fields in AST Definitions~~ ✅ DONE
+
+Replaced by `JsNodeId` / `ExprId` index-based arenas — see Phase B
+status below. Only 1 stray `Box<JsExpr>` remains in a local helper
+type (`shared/function.rs:105`) and isn't material.
 
 ---
 
-## Architecture Changes Required (in priority order)
+## Architecture Changes Required (updated status)
 
-### Change 1: Eliminate Text Transform Pipeline (est. 5-10x on Transform phase)
+### Phase A: Eliminate Text Transform Pipeline — 🟡 PARTIAL
 **Impact: Highest. Transform is 60% of compile time.**
+**Status: prototype integrated (`ast_state_transform.rs`); ~14K lines of text transforms remain.**
 
-The official Svelte compiler does NOT do text-based transforms. It walks the JS AST
-with visitors (VariableDeclaration, AssignmentExpression, UpdateExpression, etc.) and
-applies transforms at the AST level. Our code should do the same.
+The official Svelte compiler does NOT do text-based transforms. It
+walks the JS AST with visitors (VariableDeclaration,
+AssignmentExpression, UpdateExpression, etc.) and applies transforms
+at the AST level. Our code should do the same.
 
-**Current flow (SLOW)**:
+**Current flow (still partly text-based)**:
 ```
-script text -> text transforms (19,606 lines of string ops) -> normalize_js_with_oxc -> JsProgram AST -> codegen
+script text
+  → ast_state_transform (AST pass for state vars)
+  → text transforms (rune, store, props, destructure — char-by-char)
+  → normalize_js_with_oxc (OXC reparse + formatting)
+  → JsProgram AST → codegen
 ```
 
-**Target flow (FAST)**:
+**Target flow (fully AST)**:
 ```
-script text -> OXC parse (1x) -> AST walk with transforms -> JsProgram AST -> codegen
+script text → OXC parse (1x) → AST walk with transforms → JsProgram AST → codegen
 ```
 
-**Implementation**:
+**Remaining work (multi-PR initiative)**:
 
-A prototype AST transform module exists: `src/compiler/phases/3_transform/client/ast_state_transform.rs`
-(32 unit tests passing). It does $.get()/.set()/.update() via OXC AST walk.
+Per text-transform file, port its responsibilities into the AST
+visitor and delete the file:
 
-**BUT**: Direct integration INCREASED compile time because:
-1. It adds a SECOND OXC parse (the script is already parsed in Phase 1)
-2. The text transform pipeline has many interdependent steps that can't be partially replaced
+1. `rune_transforms.rs` — `$state(x)` / `$derived(...)` / `$props()`
+   call-expression rewrites. **Order this first**: smallest file, the
+   most concentrated logic, and the AST visitor already has hooks
+   (`visit_call_expression`).
+2. `props_transforms.rs` — `export let foo` → `$.prop(...)` and the
+   props destructuring rewrites. Heavily entangled with the existing
+   AST `transform_props_destructuring`; finish that integration.
+3. `state_transforms.rs` — the bulk of state mutations. The AST pass
+   already handles reads; mutations (`x = y`, `x++`) need the same
+   treatment.
+4. `expression_utils.rs` — utility helpers used by the above; some
+   become unnecessary once the callers are AST-based.
+5. `formatting.rs` — `normalize_js_with_oxc` exists because text
+   transforms produce dirty JS that needs a reparse-and-reprint pass.
+   Once the AST pipeline produces clean output, this whole file can
+   be deleted.
 
-**Correct approach**: Don't add OXC parse. Instead:
-1. In Phase 1, the script is parsed with OXC. The OXC AST has lifetime `'a` tied to the allocator.
-2. **Serialize the OXC AST to a flat byte buffer** (like rkyv or a custom format) in Phase 1
-3. Deserialize in Phase 3 (zero-copy) and walk for transforms
-4. OR: Store the script source text + analysis bindings, and in Phase 3 do ONE OXC parse
-   that simultaneously applies ALL transforms (runes + state + store + props) in a single walk
+**Risk**: 3341 fixtures must continue to pass. Migrate one transform
+case at a time, run the full compatibility report after each PR,
+and keep the old text-transform path as a fallback until the AST
+version has parity.
 
-**Key insight**: The transforms are simple pattern matching:
-- `IdentifierReference` where name is in state_vars -> wrap with `$.get()`
-- `AssignmentExpression` where LHS is state var -> convert to `$.set()`
-- `UpdateExpression` where arg is state var -> convert to `$.update()`
-- `CallExpression` where callee name starts with `$` -> rune transform
+### Phase B: Index-based Arena — ✅ DONE
+**Status: complete.**
 
-One AST walk can do ALL of these. The 19,606 lines of text transforms become ~500 lines of visitor.
+`JsNode` uses `JsNodeId` (u32 index) + `ParseArena`. `JsExpr` uses
+`ExprId` + `JsArena`. Phase 3 codegen visitors already thread the
+arena through. Only 1 stray `Box<JsExpr>` remains in a local helper
+type and isn't material.
 
-**Test files**: 56% of test files have complex scripts (with $ or export). These are the
-files that benefit most from this change.
-
-### Change 2: Arena Allocation with bumpalo (est. 2-3x)
-**Impact: High. Eliminates ~143 Box<> heap allocations per AST.**
-
-`bumpalo` is already in Cargo.toml but unused. OXC uses this pattern extensively.
-
-**Current**: Each `Box<JsNode>`, `Box<JsExpr>`, `Vec<JsNode>` is a separate heap allocation.
-**Target**: All AST nodes allocated from a single arena. Deallocation is free (drop the arena).
-
-**Implementation**:
-1. Add `'a` lifetime to JsNode: `JsNode<'a>` with `Box<'a, JsNode<'a>>` from bumpalo
-2. Thread the allocator through parser and transform
-3. Replace `Vec<JsNode>` with `bumpalo::collections::Vec<'a, JsNode<'a>>`
-4. This is a large refactor (touches every file that uses AST types)
-
-**Alternative (easier)**: Use index-based arena (no lifetime propagation):
-```rust
-struct Arena { nodes: Vec<JsNode> }
-type NodeId = u32;
-```
-Replace `Box<JsNode>` with `NodeId`. Much simpler to implement.
-
-### Change 3: Direct Buffer Codegen (est. 2-3x)
+### Phase C: Direct Buffer Codegen — 🔴 NOT STARTED
 **Impact: Medium. Eliminates JsProgram intermediate AST.**
 
 **Current flow**:
 ```
-Transform visitors build JsExpr/JsStatement/JsProgram -> codegen serializes to String
+Transform visitors build JsExpr/JsStatement/JsProgram → codegen serializes to String
 ```
 
 **Target flow**:
@@ -140,88 +165,87 @@ Transform visitors build JsExpr/JsStatement/JsProgram -> codegen serializes to S
 Transform visitors write directly to String buffer
 ```
 
-**Implementation**:
-```rust
-struct CodeWriter { buf: String, indent: u32 }
-impl CodeWriter {
-    fn write_import(&mut self, specifiers: &[&str], source: &str) { ... }
-    fn write_function(&mut self, name: &str, params: &[&str], body: impl FnOnce(&mut Self)) { ... }
-    fn write_call(&mut self, callee: &str, args: &[&str]) { ... }
-}
-```
+Less urgent now that Phase B's arena makes the intermediate AST
+cheap to construct. Worth measuring before committing — the win may
+be smaller than initially estimated.
 
-Visitors call `writer.write_call("$.template_effect", &[...])` instead of building
-`b::call(b::member_path("$.template_effect"), vec![...])`.
+### Phase D: Remaining JSON + Cloning — 🟡 PARTIAL
+**Status: targeted fixes landed; broader sweep pending Phase A.**
 
-### Change 4: Eliminate Remaining JSON from Hot Path (est. 1.5x)
-**Impact: Medium.**
+Recent progress (2026-05):
+* `mem::replace` for the 7 hot save/restore clone sites in
+  `types.rs` (PR #177)
+* Leaf short-circuit for `expression_has_call` / `_has_member` /
+  `_has_await` to skip `as_json()` serialization for trivial
+  expressions (PR #178)
+* `serde_json::Value` removed from the NAPI options input — typed
+  `#[napi(object)] NapiCompileOptions` (PR #175)
 
-286 remaining `.as_json()` calls. Most are in:
-- Parser: 101 calls (expression.rs) - convert remaining statement types to direct JsNode
-- Phase 3 dispatch wrappers: ~48 calls (delegate to JSON-walking helpers)
-- Phase 2: 17 calls (deep JSON walkers in mod.rs, scope_builder.rs)
-- Legacy: 34 calls (not hot path)
+The bulk of the JSON-dispatch work needs JsNode-based walkers
+threaded with arena access — that's most naturally done as part of
+Phase A.
 
-**Implementation**: Continue the approach from this session.
+### Phase E: Rust↔JS Boundary — ✅ DONE (May 2026)
+**Status: complete. Built in the May 2026 PR series.**
 
-### Change 5: Reduce Cloning (est. 1.5x)
-**Impact: Medium. 718 .clone() calls in Phase 3 client.**
+Eliminated `serde_json` on the Rust↔JS boundary for the NAPI surface:
 
-Replace clones with references or Rc<T>. Many clones are `CompactString::clone()`
-(cheap but adds up) and `Vec<JsExpr>::clone()` (expensive).
+| Wave | PR | Win |
+|---|---|---|
+| Raw transfer (Buffer / envelope / bumpalo) | #168 | -10% boundary cost |
+| `compileBatch` (rayon parallel) | #169 | **3.2x** for 16-file batches |
+| `mapBytes` / `mapText` accessors | #174 | -5% on disk-emit |
+| Typed `#[napi(object)]` options | #175 | input-side `serde_json` removed |
+| `compileEnvelopeAsync` / `compileBatchAsync` (AsyncTask) | #176 | **4.3x** for 4 parallel compiles |
 
----
-
-## Execution Order
-
-### Phase A: Text Transform Elimination (biggest bang)
-1. Create `src/compiler/phases/3_transform/client/script_visitor.rs` (~500 lines)
-   - Single OXC parse of the instance script
-   - Walk AST with a `ScriptTransformVisitor` that applies ALL transforms:
-     - Rune transforms ($state -> $.state, $derived -> $.derived(() => ...), etc.)
-     - State transforms ($.get, $.set, $.update, $.update_pre)
-     - Store transforms ($store -> $.store_get)
-     - Prop transforms (export let -> $.prop)
-   - Output: transformed script text (using offset-based replacements)
-2. Replace `transform_instance_script_for_visitors` with the new visitor
-3. Delete 19,606 lines of text transform code
-4. Delete `normalize_js_with_oxc` (no longer needed - OXC codegen outputs clean JS)
-
-### Phase B: Index-based Arena
-1. Add `Arena` struct with `Vec<JsNode>` and `NodeId = u32`
-2. Replace `Box<JsNode>` with `NodeId` in JsNode enum (92 places)
-3. Replace `Box<JsExpr>` with index in JsExpr (51 places)
-4. Thread `&mut Arena` through transform visitors
-
-### Phase C: Direct Codegen
-1. Create `CodeWriter` struct
-2. For each visitor, add a `write()` method that writes to buffer
-3. Replace JsProgram construction with direct writes
-4. Keep JsProgram as fallback for complex cases
-
-### Phase D: Remaining JSON + Cloning
-1. Convert remaining parser statement types to direct JsNode
-2. Replace JSON-walking helpers with JsNode pattern matching
-3. Audit and reduce cloning
+For dev-server fan-in (Vite's compile-many-files pattern) the boundary
+is no longer the bottleneck — Rust compilation itself dominates again.
 
 ---
 
-## Key Files
+## Execution Order (updated 2026-05-18)
+
+### Now: Phase A migrations
+Pick one text-transform case per PR. Suggested order:
+1. `$state(...)` call rewrite → AST visitor (port from
+   `rune_transforms::process_state_call`)
+2. `$derived(...)` call rewrite
+3. State assignment (`x = y` where x is a state var) → AST
+   `AssignmentExpression` visitor
+4. State update (`x++`, `x--`) → AST `UpdateExpression` visitor
+5. Props destructuring rewrites — finish the AST integration
+6. Store auto-subscription (`$store`) → AST `IdentifierReference`
+   visitor
+7. Once 1-6 are done, delete the corresponding text-transform files
+   and `normalize_js_with_oxc`.
+
+Each PR must: (a) keep the legacy text-transform path running as a
+fallback, (b) gate the AST path behind a flag if needed, (c) run
+the full compatibility report (3341 fixtures) before merging.
+
+### Later: Phase C direct codegen, finish Phase D JSON sweep
+After Phase A is done, re-profile. The bottleneck distribution will
+have shifted significantly and the next priorities will be clearer.
+
+---
+
+## Key Files (updated 2026-05-18)
 
 | File | Lines | Role | Change Needed |
 |------|-------|------|--------------|
-| `3_transform/client/mod.rs` | 4,848 | Transform orchestration | Replace text pipeline |
-| `3_transform/client/expression_utils.rs` | 4,097 | Char-by-char scanning | DELETE |
-| `3_transform/client/state_transforms.rs` | 2,991 | $.get/.set/.update | DELETE |
-| `3_transform/client/rune_transforms.rs` | 2,533 | $state/$derived | DELETE |
-| `3_transform/client/props_transforms.rs` | 2,966 | Export let -> $.prop | DELETE |
-| `3_transform/client/formatting.rs` | 1,294 | OXC reparse | DELETE |
-| `3_transform/client/ast_state_transform.rs` | 600 | AST prototype | Expand |
-| `3_transform/client/visitors/*.rs` | 38,552 | Template visitors | Keep |
-| `3_transform/js_ast/nodes.rs` | 866 | JsExpr/JsStatement | Arena-ize |
-| `3_transform/js_ast/codegen.rs` | ~2,000 | Serialize to JS | Replace with CodeWriter |
-| `ast/typed_expr.rs` | 3,500 | JsNode enum | Arena-ize |
-| `1_parse/read/expression.rs` | ~9,000 | OXC->JSON->JsNode | Direct JsNode |
+| `3_transform/client/mod.rs` | ~5,300 | Transform orchestration | Switch passes to AST path |
+| `3_transform/client/expression_utils.rs` | 4,530 | Char-by-char scanning | DELETE (Phase A) |
+| `3_transform/client/state_transforms.rs` | 3,619 | $.get/.set/.update | DELETE (Phase A) |
+| `3_transform/client/rune_transforms.rs` | 1,678 | $state/$derived | DELETE (Phase A) |
+| `3_transform/client/props_transforms.rs` | 3,286 | Export let → $.prop | DELETE (Phase A) |
+| `3_transform/client/formatting.rs` | 1,709 | OXC reparse | DELETE (Phase A) |
+| `3_transform/client/ast_state_transform.rs` | 4,044 | AST visitor | EXPAND (Phase A) |
+| `3_transform/client/visitors/*.rs` | 38,552+ | Template visitors | Keep |
+| `3_transform/js_ast/nodes.rs` | ~870 | JsExpr/JsStatement | ✅ arena-ized |
+| `3_transform/js_ast/codegen.rs` | ~2,000 | Serialize to JS | Phase C (later) |
+| `ast/typed_expr.rs` | ~3,800 | JsNode enum | ✅ arena-ized |
+| `1_parse/read/expression.rs` | ~9,000 | OXC→JSON→JsNode | Convert remaining types |
+| `src/napi.rs` + `src/napi_raw.rs` | ~1,300 + ~700 | NAPI boundary | ✅ Phase E done |
 
 ## Verification
 
@@ -229,6 +253,9 @@ After each change:
 ```bash
 # Unit tests
 cargo test --release
+
+# Compatibility report (must run after Phase A migrations especially)
+pnpm run compatibility-report
 
 # Runtime tests (MUST run in Docker)
 docker exec svelte-compiler-rust-dev cargo test --release --test runtime
@@ -240,25 +267,30 @@ docker exec svelte-compiler-rust-dev cargo test --release --test runtime
 ./scripts/bench.sh --profile
 cargo flamegraph --bin profiler -- --file submodules/svelte/packages/svelte/tests/runtime-runes/samples/form-default-value-spread/main.svelte --iterations 200 --warmup 20
 
-# Parse flamegraph
-python3 -c "
-import re
-with open('flamegraph.svg') as f:
-    content = f.read()
-matches = re.findall(r'<title>([^<]+) \((\d+) samples?, ([\d.]+)%\)</title>', content)
-for name, samples, pct in sorted(matches, key=lambda x: float(x[2]), reverse=True)[:20]:
-    if float(pct) >= 2.0:
-        short = name.split('::')[-1]
-        print(f'{pct:>6}%  {samples:>4}  {short}')
-"
+# E2E Rust↔JS boundary check (after NAPI changes)
+node --expose-gc scripts/test-raw-transfer.mjs
 ```
 
-## Critical Lessons from This Session
+## Critical Lessons
 
-1. **flamegraph profiling is essential** - `cargo flamegraph` found the real bottlenecks (replace_with_word_boundary_scoped at 43.79%, transform_state_assignments at 66.88%)
-2. **OXC codegen is fast** - Thread-local allocator makes OXC parse+codegen only 0.7% of total time
-3. **Adding a 2nd OXC parse HURTS** - AST transform integration increased compile time because it added a parse on top of text transforms. Must REPLACE, not ADD.
-4. **JsNode::Raw fallback is critical** - ArrowFunctionExpression bodies store child nodes as JsNode::Raw(Value). All pattern matching must handle Raw with JSON fallback.
-5. **Test in Docker** - `docker exec svelte-compiler-rust-dev cargo test --release --test runtime`
-6. **Benchmark is noisy** - Run 3 times, look at Rust absolute ms not the ratio (JS varies too)
-7. **Small files dominate** - Median test file is 154 bytes. Fixed per-file overhead matters more than per-byte efficiency.
+1. **flamegraph profiling is essential** — found the real bottlenecks
+   (`replace_with_word_boundary_scoped` at 43.79%,
+   `transform_state_assignments` at 66.88%)
+2. **OXC codegen is fast** — thread-local allocator makes OXC parse +
+   codegen only 0.7% of total time
+3. **Adding a 2nd OXC parse HURTS** — AST transform integration
+   increased compile time when it added a parse on top of text
+   transforms. Must REPLACE, not ADD.
+4. **JsNode::Raw fallback is critical** — ArrowFunctionExpression
+   bodies store child nodes as `JsNode::Raw(Value)`. All pattern
+   matching must handle Raw with JSON fallback.
+5. **Test in Docker** — `docker exec svelte-compiler-rust-dev cargo
+   test --release --test runtime`
+6. **Benchmark is noisy** — run 3 times, look at Rust absolute ms not
+   the ratio (JS varies too)
+7. **Small files dominate** — median test file is 154 bytes. Fixed
+   per-file overhead matters more than per-byte efficiency.
+8. **The boundary is no longer the bottleneck.** Phase E reduced the
+   Rust↔JS crossing cost to near-zero for the realistic use cases.
+   For further wins, focus on internal Rust optimization (Phase A
+   most of all).
