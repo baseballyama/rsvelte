@@ -372,10 +372,27 @@ fn try_parse_call_expression(
     }
     let callee = try_parse_ident_or_member(arena, callee_str, callee_bytes, offset, line_offsets)?;
 
-    // Parse arguments between parens
+    // Parse arguments between parens.
+    //
+    // `args_region` is the raw byte slice between `(` and `)`. `args_str` is
+    // its trimmed form, used for the comma-split scan. We must add the byte
+    // count of the *leading* whitespace that `.trim()` stripped back into
+    // every per-argument offset — otherwise multi-line argument lists like
+    //
+    //     {@render fn(
+    //           a,
+    //           b,
+    //         )}
+    //
+    // record each argument's source offset 7 bytes (`\n` + 6 spaces) earlier
+    // than its real position, and the SSR render-tag visitor slices the
+    // *wrong* bytes out of source when it re-emits the call.
+    // (baseballyama/rsvelte#159)
     let args_start = paren_pos + 1;
     let args_end = bytes.len() - 1;
-    let args_str = content[args_start..args_end].trim();
+    let args_region = &content[args_start..args_end];
+    let args_str = args_region.trim();
+    let args_leading_ws = args_region.len() - args_region.trim_start().len();
 
     let arguments = if args_str.is_empty() {
         Vec::new()
@@ -408,6 +425,7 @@ fn try_parse_call_expression(
                     let arg_bytes = arg_str.as_bytes();
                     let arg_offset = offset
                         + args_start
+                        + args_leading_ws
                         + start
                         + (args_str[start..i].len() - args_str[start..i].trim_start().len());
                     let arg = try_parse_atom(arena, arg_str, arg_bytes, arg_offset, line_offsets)?;
@@ -426,6 +444,7 @@ fn try_parse_call_expression(
             let arg_bytes = arg_str.as_bytes();
             let arg_offset = offset
                 + args_start
+                + args_leading_ws
                 + start
                 + (args_str[start..].len() - args_str[start..].trim_start().len());
             let arg = try_parse_atom(arena, arg_str, arg_bytes, arg_offset, line_offsets)?;
