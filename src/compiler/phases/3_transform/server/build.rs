@@ -142,15 +142,115 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
     })
 }
 
+/// Decide whether a `/` at the *next* byte position can start a regex literal.
+/// Returns `true` when the most recently emitted significant byte indicates a
+/// context that requires an expression (so `/` opens a regex), `false` when
+/// the previous byte ends an expression (so `/` is the division operator).
+///
+/// When `prev_significant` is an identifier byte, walk back through `out` to
+/// recover the preceding word and check whether it's a keyword that demands an
+/// expression on its right-hand side (`return /x/`, `throw /x/`, `typeof /x/`,
+/// …). Without that, `return /["']success["']\s/.test(m)` is misclassified —
+/// the `/` is treated as division, the `"` inside the regex opens a fake
+/// string, and every subsequent indent tab gets escaped to `\t`.
+///
+/// Heuristic — sufficient for the inputs OXC codegen produces, and tolerant
+/// of false negatives in unusual cases.
+fn slash_starts_regex(prev_significant: u8, out: &str) -> bool {
+    if matches!(
+        prev_significant,
+        b'(' | b'['
+            | b'{'
+            | b','
+            | b';'
+            | b':'
+            | b'?'
+            | b'!'
+            | b'~'
+            | b'='
+            | b'<'
+            | b'>'
+            | b'+'
+            | b'-'
+            | b'*'
+            | b'/'
+            | b'%'
+            | b'&'
+            | b'|'
+            | b'^'
+            | b'\n'
+            | 0 // start of file
+    ) {
+        return true;
+    }
+    // Identifier-char tail — could be the end of a keyword like `return`.
+    if prev_significant.is_ascii_alphanumeric()
+        || prev_significant == b'_'
+        || prev_significant == b'$'
+    {
+        let bytes = out.as_bytes();
+        let mut end = bytes.len();
+        // Trim trailing whitespace already in `out` (we may have emitted a
+        // space after the keyword).
+        while end > 0 && bytes[end - 1].is_ascii_whitespace() {
+            end -= 1;
+        }
+        let mut start = end;
+        while start > 0 {
+            let c = bytes[start - 1];
+            if c.is_ascii_alphanumeric() || c == b'_' || c == b'$' {
+                start -= 1;
+            } else {
+                break;
+            }
+        }
+        // Word boundary must be a non-identifier char (or start of buffer);
+        // otherwise we may have caught the tail of something like `xreturn`.
+        let word_boundary_ok = start == 0
+            || !{
+                let p = bytes[start - 1];
+                p.is_ascii_alphanumeric() || p == b'_' || p == b'$'
+            };
+        if word_boundary_ok && start < end {
+            let word = &out[start..end];
+            return matches!(
+                word,
+                "return"
+                    | "typeof"
+                    | "instanceof"
+                    | "delete"
+                    | "void"
+                    | "throw"
+                    | "new"
+                    | "in"
+                    | "of"
+                    | "await"
+                    | "yield"
+                    | "do"
+                    | "else"
+                    | "case"
+            );
+        }
+    }
+    false
+}
+
 /// Walk `code` and re-escape ASCII control characters inside string literals
 /// so they match esrap's output (`\t` / `\b` / `\v` / `\f`). Template literals,
-/// comments, and identifiers are skipped so source structure is preserved
-/// (in particular, apostrophes inside `// it's a` line comments must not be
-/// interpreted as string-literal openers).
+/// comments, **regex literals**, and identifiers are skipped so source
+/// structure is preserved.
+///
+/// Specifically, regex literals containing bare `"` or `'` characters
+/// (e.g. `/"/`, `/['"]/`) must NOT be mistaken for string-literal openers —
+/// otherwise the scanner stays in fake-string mode through the rest of the
+/// file and escapes every subsequent tab/newline byte. (baseballyama/rsvelte#154)
 fn reescape_control_chars_in_string_literals(code: &str) -> String {
     let bytes = code.as_bytes();
     let mut out = String::with_capacity(code.len());
     let mut i = 0;
+    // Track the most recently *seen* non-whitespace byte. Used to disambiguate
+    // `/` as the start of a regex literal vs the division operator.
+    let mut prev_significant: u8 = 0;
     while i < bytes.len() {
         let b = bytes[i];
         // Line comment — copy through to end of line.
@@ -161,6 +261,9 @@ fn reescape_control_chars_in_string_literals(code: &str) -> String {
                 i += 1;
             }
             out.push_str(&code[start..i]);
+            // Comments don't change "previous expression-ish thing" — leave
+            // prev_significant alone so a `/` on the next non-empty line is
+            // classified against the token before the comment.
             continue;
         }
         // Block comment — copy through to closing `*/`.
@@ -172,6 +275,51 @@ fn reescape_control_chars_in_string_literals(code: &str) -> String {
             }
             i = (i + 2).min(bytes.len());
             out.push_str(&code[start..i]);
+            continue;
+        }
+        // Regex literal — copy through to the matching closing `/` plus flags.
+        // Only treat `/` as a regex opener when the preceding context demands
+        // an expression (after `(`, `=`, `,`, line-start, `return` keyword,
+        // etc.) — otherwise it's the division operator.
+        if b == b'/' && slash_starts_regex(prev_significant, &out) {
+            let start = i;
+            i += 1;
+            let mut in_char_class = false;
+            while i < bytes.len() {
+                let c = bytes[i];
+                if c == b'\\' && i + 1 < bytes.len() {
+                    // Escape sequence — skip the next byte regardless.
+                    i += 2;
+                    continue;
+                }
+                if c == b'[' {
+                    in_char_class = true;
+                    i += 1;
+                    continue;
+                }
+                if c == b']' && in_char_class {
+                    in_char_class = false;
+                    i += 1;
+                    continue;
+                }
+                if c == b'\n' {
+                    // Regex literals can't span lines — bail out so we don't
+                    // swallow the rest of the file on a misclassification.
+                    break;
+                }
+                if c == b'/' && !in_char_class {
+                    i += 1;
+                    // Consume any trailing flag characters (`g`, `i`, `m`, `s`,
+                    // `u`, `y`, `d`, `v`).
+                    while i < bytes.len() && bytes[i].is_ascii_alphabetic() {
+                        i += 1;
+                    }
+                    break;
+                }
+                i += 1;
+            }
+            out.push_str(&code[start..i]);
+            prev_significant = b'/'; // regex literal yields a value
             continue;
         }
         // Template literal — copy through; nested `${...}` expressions can
@@ -203,11 +351,13 @@ fn reescape_control_chars_in_string_literals(code: &str) -> String {
                 i += 1;
             }
             out.push_str(&code[start..i]);
+            prev_significant = b'`';
             continue;
         }
         // Enter a single-/double-quoted string literal.
         if b == b'\'' || b == b'"' {
             let quote = b;
+            prev_significant = b;
             out.push(quote as char);
             i += 1;
             while i < bytes.len() {
@@ -257,10 +407,23 @@ fn reescape_control_chars_in_string_literals(code: &str) -> String {
         // Outside any string/comment/template. Multi-byte chars copy as a unit.
         if b < 0x80 {
             out.push(b as char);
+            // Track the most recently emitted non-whitespace ASCII byte for
+            // `slash_starts_regex`. Whitespace and ASCII control chars (except
+            // newline, which the heuristic treats as expression-start context)
+            // are skipped so that e.g. `=  /x/` still classifies `/` as regex.
+            if b == b'\n' {
+                prev_significant = b'\n';
+            } else if !b.is_ascii_whitespace() {
+                prev_significant = b;
+            }
             i += 1;
         } else {
+            // Multi-byte: still "code" — most likely an identifier character.
+            // Use `a` as a stand-in to mark "expression-end" context so a `/`
+            // that follows a non-ASCII identifier is treated as division.
             let ch_len = utf8_char_len(b);
             out.push_str(&code[i..i + ch_len]);
+            prev_significant = b'a';
             i += ch_len;
         }
     }
