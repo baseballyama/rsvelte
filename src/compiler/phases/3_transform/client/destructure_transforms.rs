@@ -234,6 +234,24 @@ pub(super) fn find_and_transform_one_destructure(
                         continue;
                     }
 
+                    // Skip nested binding patterns. When `{ a, b } = default`
+                    // appears *inside* an outer destructure pattern (e.g.
+                    // `let { prop: { a, b } = default } = expr`), the inner
+                    // `} =` is the sub-pattern's default-value form — not a
+                    // destructure assignment — and rewriting it to an IIFE
+                    // would plant a function call in an LValue slot, which is
+                    // not valid JavaScript. (baseballyama/rsvelte#163)
+                    //
+                    // Detect this by scanning back through the bytes before
+                    // the inner pattern's opening bracket and tracking
+                    // brace/bracket depth. If we encounter an unmatched
+                    // opening `{` or `[` before hitting a statement boundary,
+                    // we're nested inside another pattern and should skip.
+                    if is_inside_enclosing_pattern(statement, b(pattern_start)) {
+                        i = j + 1;
+                        continue;
+                    }
+
                     // Extract target identifiers from the pattern
                     let targets = extract_destructure_targets(pattern_str);
 
@@ -369,6 +387,51 @@ pub(super) fn find_and_transform_one_destructure(
     new_statement.push_str(&statement[actual_end..]);
 
     Some(new_statement)
+}
+
+/// Returns true when the byte position `pattern_open_byte` (the `{` or `[`
+/// of a destructure pattern) is itself nested inside another *binding*
+/// pattern introduced by `let` / `const` / `var`. Used to suppress the IIFE
+/// rewrite for sub-patterns with default values:
+///
+/// ```ignore
+/// let { prop: { a, b } = default } = expr;
+/// //          ^^^^^^^^^^^^^^^^^^^^^
+/// // inner `} = default` is a sub-pattern's default form, NOT an assignment
+/// ```
+///
+/// Walks the bytes backward, tracking `{`/`[`/`}`/`]` depth. When depth
+/// goes negative we've found the immediate outer `{` or `[`. We then check
+/// what precedes that bracket: if it's `let` / `const` / `var`, the inner
+/// pattern is part of a binding declaration and should not be IIFE-rewritten.
+/// Anything else (e.g. `(` for a `({ x: a } = obj)` assignment expression,
+/// `{` of a function body, …) leaves the inner pattern eligible for the
+/// usual destructure-assignment rewrite.
+fn is_inside_enclosing_pattern(statement: &str, pattern_open_byte: usize) -> bool {
+    let bytes = statement.as_bytes();
+    let mut depth: i32 = 0;
+    let mut i = pattern_open_byte;
+    while i > 0 {
+        i -= 1;
+        let b = bytes[i];
+        match b {
+            b'}' | b']' => depth += 1,
+            b'{' | b'[' => {
+                depth -= 1;
+                if depth < 0 {
+                    // Found the outer unmatched bracket — check what
+                    // precedes it.
+                    let before = statement[..i].trim_end();
+                    return before.ends_with("let")
+                        || before.ends_with("const")
+                        || before.ends_with("var");
+                }
+            }
+            b';' if depth == 0 => return false,
+            _ => {}
+        }
+    }
+    false
 }
 
 /// Find the matching opening bracket, respecting nesting and strings.
@@ -1129,17 +1192,38 @@ pub(super) fn build_fallback_string(access: &str, default_val: &str) -> String {
             let inner = inner.trim();
             if !string_expr_has_await(inner) {
                 // Optimized: sync thunk wrapping the non-await inner expression
-                return format!("await $.fallback({}, () => {}, true)", access, inner);
+                return format!(
+                    "await $.fallback({}, () => {}, true)",
+                    access,
+                    wrap_arrow_body(inner)
+                );
             }
         }
         return format!(
             "await $.fallback({}, async () => {}, true)",
-            access, default_val
+            access,
+            wrap_arrow_body(default_val)
         );
     }
 
     // Case 4: Non-simple, no await -> sync thunk
-    format!("$.fallback({}, () => {}, true)", access, default_val)
+    format!(
+        "$.fallback({}, () => {}, true)",
+        access,
+        wrap_arrow_body(default_val)
+    )
+}
+
+/// Wrap an arrow function body that starts with `{` in parens so it's parsed
+/// as an object-literal-returning expression rather than a block statement.
+/// Mirrors `unthunk_string`'s disambiguation (baseballyama/rsvelte#150) for
+/// callers that build the `() => expr` form directly.
+fn wrap_arrow_body(body: &str) -> String {
+    if body.trim_start().starts_with('{') {
+        format!("({})", body)
+    } else {
+        body.to_string()
+    }
 }
 
 /// Generate an IIFE for a destructure assignment.
