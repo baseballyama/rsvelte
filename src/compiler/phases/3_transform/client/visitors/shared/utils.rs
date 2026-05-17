@@ -4954,6 +4954,14 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
 /// Pure calls with only pure arguments are not counted.
 #[inline]
 pub fn expression_has_call(expr: &crate::ast::js::Expression, context: &ComponentContext) -> bool {
+    // Fast path: a leaf expression (Identifier, Literal, …) trivially
+    // contains no call. Returning early here avoids the `as_json()`
+    // serialization for `Expression::Typed` inputs, which would
+    // otherwise lower the whole JsNode into a `serde_json::Value`
+    // just to discover there's no CallExpression to find.
+    if is_call_member_await_free_leaf(expr) {
+        return false;
+    }
     has_call_json(expr.as_json(), context)
 }
 
@@ -5207,6 +5215,10 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
 /// Returns true if the expression contains a MemberExpression at any level.
 #[inline]
 pub fn expression_has_member(expr: &crate::ast::js::Expression) -> bool {
+    // Leaf short-circuit — see `expression_has_call` for the rationale.
+    if is_call_member_await_free_leaf(expr) {
+        return false;
+    }
     has_member_json(expr.as_json())
 }
 
@@ -5327,7 +5339,39 @@ fn has_member_json(json_value: &serde_json::Value) -> bool {
 /// Returns true if the expression contains an AwaitExpression at any level.
 #[inline]
 pub fn expression_has_await(expr: &crate::ast::js::Expression) -> bool {
+    // Leaf short-circuit — see `expression_has_call` for the rationale.
+    if is_call_member_await_free_leaf(expr) {
+        return false;
+    }
     has_await_json(expr.as_json())
+}
+
+/// Type-dispatch fast path used by `expression_has_call` /
+/// `expression_has_member` / `expression_has_await` to skip the
+/// full `as_json()` serialization for expressions that can't
+/// possibly contain a CallExpression / MemberExpression /
+/// AwaitExpression.
+///
+/// Only types listed here are leaves in *all three* predicates — a
+/// `MemberExpression` for instance is a leaf for `has_call` /
+/// `has_await` but not for `has_member`, so it's intentionally
+/// excluded.
+///
+/// `node_type()` is O(1) for both `Expression::Typed` (enum dispatch)
+/// and `Expression::Value` (single HashMap lookup) — no allocation.
+#[inline]
+fn is_call_member_await_free_leaf(expr: &crate::ast::js::Expression) -> bool {
+    matches!(
+        expr.node_type(),
+        Some(
+            "Identifier"
+                | "PrivateIdentifier"
+                | "Literal"
+                | "ThisExpression"
+                | "Super"
+                | "MetaProperty"
+        )
+    )
 }
 
 /// Internal helper that checks for AwaitExpression in JSON values.
