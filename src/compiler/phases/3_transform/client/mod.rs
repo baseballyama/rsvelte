@@ -8,6 +8,7 @@
 mod ast_state_transform;
 mod class_transforms;
 mod console_dev_ast;
+mod derived_by_ast;
 mod destructure_transforms;
 mod effect_rune_ast;
 mod expression_utils;
@@ -2633,9 +2634,19 @@ pub(crate) fn transform_module_script_runes(
         }
     }
 
-    // Transform $derived.by() to $.derived()
-    if memmem::find(result.as_bytes(), b"$derived.by(").is_some() {
-        result = result.replace("$derived.by(", "$.derived(");
+    // Transform $derived.by() to $.derived().
+    //
+    // AST-based rewrite via `derived_by_ast::transform_derived_by_ast`.
+    // The text version was a bare `String::replace("$derived.by(",
+    // "$.derived(")` — rewrites byte patterns regardless of lexical
+    // context, so anything inside a string / template literal got
+    // (incorrectly) rewritten too. The AST visitor descends only into
+    // expression positions and can't make that mistake.
+    {
+        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+        if let Some(rewritten) = derived_by_ast::transform_derived_by_ast(&result, is_ts) {
+            result = rewritten;
+        }
     }
 
     // Transform $derived() to $.derived(() => expr) or $.async_derived() for async
