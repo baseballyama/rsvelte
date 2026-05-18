@@ -219,7 +219,6 @@ impl<'a> PropMemberMutateCollector<'a> {
         };
         Self::walk_object_chain_to_root(object)
     }
-
 }
 
 impl<'a, 'ast> Visit<'ast> for PropMemberMutateCollector<'a> {
