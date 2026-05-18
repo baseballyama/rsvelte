@@ -2283,6 +2283,17 @@ pub(super) fn transform_props_destructuring(
 
 /// Transform rest_prop member access to $$props.
 pub(super) fn transform_rest_prop_member_access(line: &str, rest_prop_vars: &[String]) -> String {
+    // AST-based fast path: handles the same identifier boundary,
+    // computed-access, and direct-assignment exclusions for free.
+    // Falls back to the regex text version when the AST helper
+    // bails (parse failure, no match).
+    if let Some(out) = super::rest_prop_member_access_ast::transform_rest_prop_member_access_ast(
+        line,
+        rest_prop_vars,
+    ) {
+        return out;
+    }
+
     let mut result = line.to_string();
 
     for var_name in rest_prop_vars {

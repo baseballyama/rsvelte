@@ -20,6 +20,7 @@ mod prop_member_mutate_ast;
 mod props_transforms;
 mod reactive_transforms;
 mod reactive_update_ast;
+mod rest_prop_member_access_ast;
 mod rune_transforms;
 mod state;
 mod state_call_ast;
