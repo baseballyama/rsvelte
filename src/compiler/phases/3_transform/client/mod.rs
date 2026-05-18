@@ -20,6 +20,7 @@ mod reactive_update_ast;
 mod rune_transforms;
 mod state;
 mod state_call_ast;
+mod state_member_mutate_ast;
 mod state_raw_frozen_ast;
 mod state_set_reactive_ast;
 mod state_snapshot_ast;

@@ -1304,7 +1304,18 @@ pub(super) fn transform_state_member_mutations(
     state_vars: &[String],
     non_reactive_vars: &[String],
 ) -> String {
-    let mut result = expr.to_string();
+    // AST-based pre-pass for `state.prop = rhs` / `state[i] = rhs`
+    // (any AssignmentExpression operator). Idempotent vs the text
+    // loop below: once a mutation is wrapped, LHS root is
+    // `$.get(state)` — a CallExpression — and the text loop's
+    // `$.get(` / `$.mutate(` / `$.set(` prefix checks skip the
+    // would-be match.
+    let pre_passed = super::state_member_mutate_ast::transform_state_member_mutate_ast(
+        expr,
+        state_vars,
+        non_reactive_vars,
+    );
+    let mut result = pre_passed.unwrap_or_else(|| expr.to_string());
 
     for var in state_vars {
         if non_reactive_vars.contains(var) {
