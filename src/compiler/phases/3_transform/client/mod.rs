@@ -21,6 +21,7 @@ mod state_call_ast;
 mod state_raw_frozen_ast;
 mod state_snapshot_ast;
 mod state_transforms;
+mod store_assign_ast;
 mod store_transforms;
 mod store_update_ast;
 mod strict_equals_ast;
