@@ -1070,6 +1070,10 @@ fn has_svelte_ignore_before(before: &str, code: &str) -> bool {
 }
 
 /// Simple rune call transformation for template expressions.
+///
+/// Kept for reference; the live SSR template path now goes through
+/// `server::template_rune_ast::transform_template_rune_ast`.
+#[allow(dead_code)]
 pub(crate) fn transform_rune_call_simple(expr: &str, prefix: &str) -> String {
     let mut result = String::new();
     let mut i = 0;
