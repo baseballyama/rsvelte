@@ -13,6 +13,7 @@ mod destructure_transforms;
 mod effect_rune_ast;
 mod expression_utils;
 mod formatting;
+mod prop_assign_ast;
 mod props_transforms;
 mod reactive_transforms;
 mod reactive_update_ast;

@@ -2384,7 +2384,14 @@ pub(super) fn transform_prop_assignments(
         return line.to_string();
     }
 
-    let mut result = line.to_string();
+    // AST-based pre-pass for `name = expr` and `name <op>= expr`.
+    // Member mutations (`name.prop = ...`) stay on the text path
+    // below — different shape, depends on bindable classification.
+    // Idempotent vs the text loops below: once a span has been
+    // rewritten to `name(...)`, the literal `name =` / `name +=`
+    // bytes are gone and the text loop guards skip it.
+    let pre_passed = super::prop_assign_ast::transform_prop_assign_ast(line, prop_vars);
+    let mut result = pre_passed.unwrap_or_else(|| line.to_string());
 
     for var in prop_vars {
         // Note: x++ / x-- / ++x / --x are handled by transform_prop_update_expressions
