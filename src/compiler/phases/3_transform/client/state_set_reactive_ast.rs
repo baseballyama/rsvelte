@@ -57,9 +57,7 @@ pub fn transform_state_set_reactive_ast(
     // Fast probe — bail before parsing if no `=` token appears at
     // all (declarations also use `=` but the AST visitor naturally
     // skips those, so this is a coarse early-out).
-    if memchr::memchr(b'=', source.as_bytes()).is_none() {
-        return None;
-    }
+    memchr::memchr(b'=', source.as_bytes())?;
     if !state_vars
         .iter()
         .any(|s| memchr::memmem::find(source.as_bytes(), s.as_bytes()).is_some())
