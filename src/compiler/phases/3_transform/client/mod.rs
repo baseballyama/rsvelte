@@ -17,6 +17,7 @@ mod props_transforms;
 mod reactive_transforms;
 mod rune_transforms;
 mod state;
+mod state_call_ast;
 mod state_raw_frozen_ast;
 mod state_snapshot_ast;
 mod state_transforms;
@@ -2539,6 +2540,24 @@ pub(crate) fn transform_module_script_runes(
 
     // Transform $state(x) - handling both reassigned and non-reassigned cases.
     // Non-reassigned vars get $.proxy() only, reassigned vars get $.state($.proxy()).
+    //
+    // AST-based rewrite via `state_call_ast::transform_state_call_ast`. The
+    // text predecessor scanned for `$state(`, found the close-paren via a
+    // custom brace tracker, walked backwards via `extract_var_name_before_rune`
+    // to discover the binding name, then dispatched on the reactive /
+    // needs-proxy / empty axes. The OXC parser knows about all of the
+    // lexical concerns (strings, templates, regexes, comments) and the
+    // `BindingPattern` gives us the name directly. After the AST helper
+    // runs, the legacy text loop below sees no remaining `$state(` and
+    // exits immediately — idempotent fallback for parse failures.
+    {
+        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+        if let Some(rewritten) =
+            state_call_ast::transform_state_call_ast(&result, &module_non_reactive_vars, is_ts)
+        {
+            result = rewritten;
+        }
+    }
     while let Some(pos) = memmem::find(result.as_bytes(), b"$state(") {
         // Make sure this is not $state.something
         if pos + 7 < result.len() && result.as_bytes()[pos + 6] != b'(' {
