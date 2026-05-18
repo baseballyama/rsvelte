@@ -1343,6 +1343,30 @@ pub(super) fn transform_class_methods_non_this(
 
     let mut result = content.to_string();
 
+    // AST-based pre-pass for simple `q = expr` and compound `q OP= expr`
+    // (where OP ∈ +, -, *, /, %, **). Collects all non-`this` qualified
+    // names across all fields once. Idempotent: after wrap the
+    // AssignmentExpression becomes a CallExpression so the visitor
+    // doesn't re-fire.
+    {
+        let mut all_qualified = Vec::new();
+        for field in fields {
+            let prefixes = find_private_field_prefixes(&result, &field.private_backing_name);
+            for prefix in &prefixes {
+                if prefix == "this" {
+                    continue;
+                }
+                all_qualified.push(format!("{}.#{}", prefix, field.private_backing_name));
+            }
+        }
+        if let Some(rewritten) = super::private_field_assign_ast::transform_private_field_assign_ast(
+            &result,
+            &all_qualified,
+        ) {
+            result = rewritten;
+        }
+    }
+
     for field in fields {
         let prefixes = find_private_field_prefixes(&result, &field.private_backing_name);
 
