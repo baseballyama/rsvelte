@@ -15,6 +15,7 @@ mod expression_utils;
 mod formatting;
 mod legacy_state_member_mutate_ast;
 mod local_assign_ast;
+mod private_read_wrap_ast;
 mod prop_assign_ast;
 mod prop_member_mutate_ast;
 mod props_transforms;
