@@ -13,6 +13,7 @@ mod destructure_transforms;
 mod effect_rune_ast;
 mod expression_utils;
 mod formatting;
+mod local_assign_ast;
 mod prop_assign_ast;
 mod prop_member_mutate_ast;
 mod props_transforms;
@@ -4953,6 +4954,13 @@ fn apply_local_set_transforms(func_body: &str, var_name: &str) -> String {
 
 /// Transform `varName = expr` to `$.set(varName, expr, true)` in a line.
 fn transform_local_assignment(line: &str, var_name: &str) -> String {
+    // AST-based fast path: handles all the boundary checks (in-string,
+    // member target, declaration, etc.) for free. Falls back to the
+    // text loop when the AST helper bails (parse failure, no match).
+    if let Some(out) = local_assign_ast::transform_local_assign_ast(line, var_name) {
+        return out;
+    }
+
     let assignment_pattern = format!("{} = ", var_name);
 
     // Skip if already transformed
